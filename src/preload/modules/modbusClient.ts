@@ -1,26 +1,6 @@
 import ModbusRTU from 'modbus-serial'
 import { ReadRegisterResult } from 'modbus-serial/ModbusRTU'
-
-enum ClientState {
-  Init,
-  Next,
-  ReadOk,
-  ReadFail,
-  ConnectOk,
-  ConnectFail
-}
-
-export interface Register {
-  address: number
-  length: number
-}
-
-interface ClientParams {
-  host: string
-  id?: number
-  port?: number
-  timeout?: number
-}
+import { ClientParams, ClientState } from './modbusClient/types'
 
 export class ModbusTcpClient {
   private _client: ModbusRTU
@@ -101,3 +81,5 @@ export class ModbusTcpClient {
     }
   }
 }
+
+export * from './modbusClient/default'

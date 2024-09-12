@@ -27,13 +27,18 @@
     "@electron-toolkit/utils": "^3.0.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
-    "@fontsource/roboto": "^5.0.15",
+    "@fontsource/roboto": "^5.1.0",
+    "@mui/base": "^5.0.0-beta.40",
     "@mui/icons-material": "^6.1.0",
-    "@mui/material": "^6.0.2",
+    "@mui/material": "^6.1.0",
     "@mui/x-data-grid": "^7.16.0",
+    "deepmerge": "^4.3.1",
     "electron-updater": "^6.1.7",
     "lodash": "^4.17.21",
-    "modbus-serial": "^8.0.17"
+    "modbus-serial": "^8.0.17",
+    "mutative": "^1.0.6",
+    "zustand": "^4.5.4",
+    "zustand-mutative": "^1.0.1"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
