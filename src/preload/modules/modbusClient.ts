@@ -69,7 +69,6 @@ export class ModbusTcpClient {
     }
 
     try {
-      console.log(`About to read registers from ${address} to ${address + length - 1}...`)
       const result = await this._client.readHoldingRegisters(address, length)
       return result
     } catch (error) {

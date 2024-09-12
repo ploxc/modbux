@@ -18,7 +18,7 @@ declare global {
   type Protocol = 'ModbusTcp' | 'ModbusRtu'
 
   interface Api {
-    read: (address: number, length: number) => Promise<RowData[]>
+    read: (address: number, length: number, swap?:boolean) => Promise<RowData[]>
   }
 }
 

@@ -1,24 +1,14 @@
-import { Box, Button, FormControlLabel, Paper, Radio, RadioGroup, TextField } from '@mui/material'
-import { DataGrid, GridColDef } from '@mui/x-data-grid'
-import { useState } from 'react'
+import { Box, Button, FormControlLabel, Paper, Radio, RadioGroup, TextField } from '@mui/material';
+import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { useRef, useState } from 'react';
 
 const registerValueToString = (
   value: number | bigint,
-  isFloat?: boolean
 ): { numberString: string; irrelevant: boolean } => {
   let numberString: string = '0'
+  numberString = value.toString(10)
 
-  let realySmallNumber = false
-
-  // Convert float to scientific notation with 2 decimal places
-  if (typeof value !== 'bigint' && isFloat) {
-    realySmallNumber = Math.abs(value) < 0.001 && Math.abs(value) > 0
-    if (realySmallNumber) numberString = value.toExponential(2)
-  } else {
-    numberString = value.toString(10)
-  }
-
-  const irrelevant = numberString === '0' || realySmallNumber
+  const irrelevant = numberString === '0'
 
   return { numberString, irrelevant }
 }
@@ -58,8 +48,7 @@ const valueColumn = (
   width,
   renderCell: ({ row }): JSX.Element => {
     const value = row[field][key]
-    const isFloat = key === 'float' || key === 'double'
-    const { numberString, irrelevant } = registerValueToString(value, isFloat)
+    const { numberString, irrelevant } = registerValueToString(value)
 
     return <Box sx={{ opacity: irrelevant ? 0.25 : undefined }}>{numberString}</Box>
   }
@@ -74,18 +63,24 @@ const columns: GridColDef<RowData>[] = [
   valueColumn('bigEndian', 'uint32', 100),
   valueColumn('bigEndian', 'int64', 160),
   valueColumn('bigEndian', 'uint64', 160),
-  valueColumn('bigEndian', 'float', 100),
-  valueColumn('bigEndian', 'double', 100)
+  valueColumn('bigEndian', 'float', 200),
+  valueColumn('bigEndian', 'double', 200)
 ]
 
 function App(): JSX.Element {
   const [rows, setRows] = useState<RowData[]>([])
+  const reading = useRef((false))
+
+  const poll = async () => {
+    const result = await window.api.read(0,20)
+    setRows(result)
+    setTimeout(poll, 1000)
+  }
 
   const testRead = async (): Promise<void> => {
-    const range = [32064, 54]
-    console.log('Reading from', range)
-    const result = await window.api.read(...range)
-    setRows(result)
+    if (reading.current) return
+    reading.current = true
+    poll()
   }
 
   const [protocol, setProtocol] = useState<Protocol>('ModbusTcp')
@@ -133,8 +128,8 @@ function App(): JSX.Element {
               fontSize: '0.95em'
             },
             '& .MuiToolbar-root, .MuiDataGrid-footerContainer': {
-              minHeight: 32,
-              height: 32
+              minHeight: 36,
+              height: 36
             }
           }}
           autoHeight={false}
