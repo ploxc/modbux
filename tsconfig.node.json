@@ -3,13 +3,30 @@
   "include": [
     "electron.vite.config.*",
     "src/main/**/*",
-    "src/preload/**/*"
+    "src/preload/**/*",
+    "src/shared/**/*",
+    "src/backend/**/*",
   ],
   "compilerOptions": {
+    "strict": true,
     "composite": true,
     "types": [
       "electron-vite/node",
-      "./src/types/globals.d.ts"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@shared": [
+        "src/shared"
+      ],
+      "@backend": [
+        "src/backend"
+      ],
+      "@main": [
+        "src/main"
+      ],
+      "@preload": [
+        "src/preload"
+      ]
+    }
   }
 }

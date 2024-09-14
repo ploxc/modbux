@@ -1,23 +1,73 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { persist } from 'zustand/middleware'
+import { RootZusand } from './root.zustand.types'
+import { defaultConnectionConfig, defaultRegisterConfig } from '@shared'
 
-export const useRootZustand = create<
-  RootZusand,
-  [['zustand/persist', never], ['zustand/mutative', never]]
->(
-  persist(
-    mutative((set) => ({
-      connectionConfig: window.api.connectionConfig,
-      setPort: (port: number) =>
-        set((state) => {
-          state.connectionConfig.tcp.options.port = port
-          window.api.updateConnectionConfig({ tcp: { options: { port } } })
-        }),
-      registerData: []
-    })),
-    { name: 'rootZustand' }
-  )
+export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
+  mutative((set, getState) => ({
+    registerData: [],
+    connectionConfig: defaultConnectionConfig,
+    registerConfig: defaultRegisterConfig,
+    ready: false,
+    init: async () => {
+      const syncedConnectionConfig = await window.api.getConnectionConfig()
+      const syncedRegisterConfig = await window.api.getRegisterConfig()
+
+      console.log('init', syncedConnectionConfig.tcp.host)
+
+      set((state) => {
+        state.connectionConfig = syncedConnectionConfig
+        state.registerConfig = syncedRegisterConfig
+        state.ready = true
+      })
+    },
+    valid: {
+      host: true
+    },
+    setProtocol: (protocol) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.connectionConfig.protocol = protocol
+        window.api.updateConnectionConfig({ protocol })
+      }),
+    setPort: (port) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newPort = Number(port)
+        state.connectionConfig.tcp.options.port = newPort
+        window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })
+      }),
+    setHost: (host, valid) =>
+      set((state) => {
+        if (!getState().ready) return
+        console.log('setHost', host)
+        state.valid.host = !!valid
+        state.connectionConfig.tcp.host = host
+        if (!valid) return
+        window.api.updateConnectionConfig({ tcp: { host } })
+      }),
+    setUnitId: (unitId) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newUnitId = Number(unitId)
+        state.connectionConfig.unitId = newUnitId
+        window.api.updateConnectionConfig({ unitId: newUnitId })
+      }),
+    setAddress: (address) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newAddress = Number(address)
+        state.registerConfig.address = newAddress
+        window.api.updateRegisterConfig({ address: newAddress })
+      }),
+    setLength: (length) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newLength = Number(length)
+        state.registerConfig.length = Number(length)
+        window.api.updateRegisterConfig({ length: newLength })
+      })
+  }))
 )
 
-useRootZustand.persist.clearStorage()
+useRootZustand.getState().init()

@@ -1,7 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { initIpc } from './ipc'
+import { AppState } from './state'
 
 function createWindow(): void {
   // Create the browser window.
@@ -50,8 +52,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', (_, ...args) => console.log('ping from main process', args))
+  // Loads with default values for now
+  // Internally userdata is read to set the params
+  const state = new AppState()
+
+  // IPC
+  initIpc(state)
 
   createWindow()
 

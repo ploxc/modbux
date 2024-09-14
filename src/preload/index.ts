@@ -1,12 +1,9 @@
 import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import {
-  defaultConnectionConfig,
-  defaultRegisterConfig,
-  ModbusTcpClient
-} from './modules/modbusClient'
+import { ModbusTcpClient } from './modules/modbusClient'
 import { round } from 'lodash'
-import merge from 'deepmerge'
+import { Api, ConnectionConfig, RegisterConfig, RegisterData } from '@shared'
+import { IpcChannel, ipcInvoke } from '@backend'
 
 export const client = new ModbusTcpClient({ host: '192.168.3.44', id: 1 })
 
@@ -25,22 +22,18 @@ const swap64 = (buffer: Buffer, offset: number) => {
   ])
 }
 
-setInterval(() => {
-  console.log(api.connectionConfig.tcp.options.port)
-}, 1000)
-
+//
 //
 // Custom APIs for renderer
 const api: Api = {
-  connectionConfig: defaultConnectionConfig,
-  updateConnectionConfig: (config) => {
-    if (!config) return
-    api.connectionConfig = merge<ConnectionConfig>(api.connectionConfig, config)
-  },
-  registerConfig: defaultRegisterConfig,
-  updateRegisterConfig: (config) => {
-    api.registerConfig = merge<RegisterConfig>(api.registerConfig, config)
-  },
+  getConnectionConfig: (...args) =>
+    ipcInvoke<typeof args, ConnectionConfig>(IpcChannel.GetConnectionConfig),
+  updateConnectionConfig: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.UpdateConnectionConfig, ...args),
+  getRegisterConfig: (...args) =>
+    ipcInvoke<typeof args, RegisterConfig>(IpcChannel.GetRegisterConfig),
+  updateRegisterConfig: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.UpdateRegisterConfig, ...args),
   read: async (address, length) => {
     const result = await client.read(address, length)
     if (!result) return []

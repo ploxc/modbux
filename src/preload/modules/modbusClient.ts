@@ -82,4 +82,4 @@ export class ModbusTcpClient {
   }
 }
 
-export * from './modbusClient/default'
+export * from './modbusClient/state'

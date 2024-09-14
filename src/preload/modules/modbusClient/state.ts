@@ -1,5 +1,8 @@
-export const defaultConnectionConfig: ConnectionConfig = {
-  protocol: 'ModbusTcp',
+import { ConnectionConfig, Protocol, RegisterConfig } from '@shared'
+
+export const connectionConfig: ConnectionConfig = {
+  unitId: 1,
+  protocol: Protocol.ModbusTcp,
   tcp: {
     host: '192.168.1.10',
     options: { port: 502, timeout: 5000 }
@@ -10,7 +13,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   }
 }
 
-export const defaultRegisterConfig: RegisterConfig = {
+export const registerConfig: RegisterConfig = {
   address: 40000,
   length: 10
 }

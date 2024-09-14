@@ -1,0 +1,21 @@
+import { IpcMainInvokeEvent, ipcMain, ipcRenderer } from 'electron'
+
+export enum IpcChannel {
+  GetConnectionConfig = 'GetConnectionConfig',
+  UpdateConnectionConfig = 'UpdateConnectionConfig',
+  GetRegisterConfig = 'GetRegisterConfig',
+  UpdateRegisterConfig = 'UpdateRegisterConfig'
+}
+
+type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R
+
+export const ipcHandle = <A extends any[], R>(
+  channel: IpcChannel,
+  listener: IpcListener<A, R>
+): void => {
+  ipcMain.handle(channel, listener)
+}
+
+export const ipcInvoke = <A extends any[], R>(channel: IpcChannel, ...args: A): Promise<R> => {
+  return ipcRenderer.invoke(channel, ...args)
+}
