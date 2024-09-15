@@ -1,4 +1,5 @@
 import { TcpPortOptions, SerialPortOptions } from 'modbus-serial/ModbusRTU'
+import { SharedProps } from 'notistack'
 
 //
 //
@@ -8,13 +9,46 @@ export interface Api {
   updateConnectionConfig: (config: DeepPartial<ConnectionConfig>) => void
   getRegisterConfig: () => Promise<RegisterConfig>
   updateRegisterConfig: (config: DeepPartial<RegisterConfig>) => void
-  read: (address: number, length: number, swap?: boolean) => Promise<RegisterData[]>
+  getClientState: () => Promise<ClientState>
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  read: () => Promise<RegisterData[] | undefined>
+  startPolling: () => Promise<void>
+  stopPolling: () => Promise<void>
+}
+
+//
+//
+// Client state
+export interface ClientState {
+  connectState: ConnectState
+  polling: boolean
+}
+
+export enum ConnectState {
+  Connected = 'Connected',
+  Disconnected = 'Disconnected',
+  Connecting = 'Connecting',
+  Disconnecting = 'Disconnecting'
+}
+
+//
+//
+// Backend Message
+export interface BackendMessage {
+  message: string
+  variant: SharedProps['variant']
+  error: unknown | null
 }
 
 //
 //
 // Event
-export enum IpcEvent {}
+export enum IpcEvent {
+  BackendMessage = 'backendMessage',
+  ClientState = 'clientState',
+  RegisterData = 'registerData'
+}
 
 //
 //
@@ -65,6 +99,8 @@ export interface RegisterConfig {
   address: number
   length: number
   type: RegisterType
+  pollRate: number
+  timeout: number
 }
 
 //

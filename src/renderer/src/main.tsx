@@ -8,33 +8,47 @@ import './index.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './app'
-import { CssBaseline } from '@mui/material'
+import { CssBaseline, IconButton } from '@mui/material'
 import { styled, ThemeProvider } from '@mui/material/styles'
 import { theme } from './theme'
-import { SnackbarProvider } from 'notistack'
-
-import { MaterialDesignContent } from 'notistack'
+import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
+import { Close } from '@mui/icons-material'
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
   '&.notistack-MuiContent-success': {
     backgroundColor: theme.palette.success.main,
-    color: theme.palette.success.contrastText
+    color: theme.palette.success.contrastText,
+    '& .MuiIconButton-root': {
+      svg: { fill: theme.palette.success.contrastText }
+    }
   },
   '&.notistack-MuiContent-error': {
     backgroundColor: theme.palette.error.main,
-    color: theme.palette.error.contrastText
+    color: theme.palette.error.contrastText,
+    '& .MuiIconButton-root': {
+      svg: { fill: theme.palette.error.contrastText }
+    }
   },
   '&.notistack-MuiContent-warning': {
     backgroundColor: theme.palette.warning.main,
-    color: theme.palette.warning.contrastText
+    color: theme.palette.warning.contrastText,
+    '& .MuiIconButton-root': {
+      svg: { fill: theme.palette.warning.contrastText }
+    }
   },
   '&.notistack-MuiContent-info': {
     backgroundColor: theme.palette.info.main,
-    color: theme.palette.info.contrastText
+    color: theme.palette.info.contrastText,
+    '& .MuiIconButton-root': {
+      svg: { fill: theme.palette.info.contrastText }
+    }
   },
   '&.notistack-MuiContent-default': {
     backgroundColor: theme.palette.primary.main,
-    color: theme.palette.primary.contrastText
+    color: theme.palette.primary.contrastText,
+    '&.MuiIconButton-root': {
+      svg: { fill: theme.palette.primary.contrastText }
+    }
   }
 }))
 
@@ -43,14 +57,20 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ThemeProvider theme={theme}>
       <SnackbarProvider
         {...{
-          autoHideDuration: 4000,
+          preventDuplicate: true,
+          autoHideDuration: 6000,
           Components: {
             error: StyledMaterialDesignContent,
             success: StyledMaterialDesignContent,
             warning: StyledMaterialDesignContent,
             info: StyledMaterialDesignContent,
             default: StyledMaterialDesignContent
-          }
+          },
+          action: (snackbarId) => (
+            <IconButton onClick={() => closeSnackbar(snackbarId)}>
+              <Close />
+            </IconButton>
+          )
         }}
       >
         <CssBaseline />

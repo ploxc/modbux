@@ -2,6 +2,26 @@ import { Box, Fade } from '@mui/material'
 import RegisterConfig from './containers/RegisterConfig/RegisterConfig'
 import ConnectionConfig from './containers/ConnectionConfig/ConnectionConfig'
 import RegisterGrid from './containers/RegisterGrid/RegisterGrid'
+import { useSnackbar } from 'notistack'
+import { useEffect } from 'react'
+import { BackendMessage, IpcEvent } from '@shared'
+import { IpcRendererEvent } from 'electron'
+
+const MessageReceiver = () => {
+  const { enqueueSnackbar } = useSnackbar()
+
+  const handleMessage = (_: IpcRendererEvent, message: BackendMessage) => {
+    enqueueSnackbar({ message: message.message, variant: message.variant })
+    if (message.error) console.error(message.error)
+  }
+
+  useEffect(() => {
+    const unlisten = window.electron.ipcRenderer.on(IpcEvent.BackendMessage, handleMessage)
+    return () => unlisten()
+  }, [])
+
+  return null
+}
 
 const App = (): JSX.Element => {
   return (
@@ -16,6 +36,7 @@ const App = (): JSX.Element => {
           width: '100dvw'
         }}
       >
+        <MessageReceiver />
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
             <RegisterConfig />

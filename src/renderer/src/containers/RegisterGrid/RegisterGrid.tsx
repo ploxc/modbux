@@ -2,6 +2,7 @@ import { Paper } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import useRegisterGridColumns from './_columns'
+import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 
 const RegisterGridContent = () => {
   const registerData = useRootZustand((z) => z.registerData)
@@ -13,11 +14,10 @@ const RegisterGridContent = () => {
       columns={columns}
       autoHeight={false}
       density="compact"
-      checkboxSelection
       rowHeight={40}
       columnHeaderHeight={48}
       hideFooterPagination
-      sx={{
+      sx={(theme) => ({
         '& .MuiDataGrid-virtualScrollerContent': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
@@ -25,11 +25,15 @@ const RegisterGridContent = () => {
         '& .MuiToolbar-root, .MuiDataGrid-footerContainer': {
           minHeight: 36,
           height: 36
+        },
+        '& .MuiDataGrid-toolbarContainer': {
+          background: theme.palette.background.default
         }
-      }}
+      })}
       localeText={{
-        noRowsLabel: 'Connect to Modbus server to see registers'
+        noRowsLabel: 'Connect and read to see registers'
       }}
+      slots={{ toolbar: RegisterGridToolbar }}
     />
   )
 }

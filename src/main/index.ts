@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initIpc } from './ipc'
 import { AppState } from './state'
+import { ModbusClient } from './modules/modbusClient'
 
 function createWindow(): void {
   // Create the browser window.
@@ -38,6 +39,15 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Initialize the app state
+  const appState = new AppState()
+
+  // Initialize the modbus client
+  const client = new ModbusClient({ appState, mainWindow })
+
+  // IPC
+  initIpc(appState, client)
 }
 
 // This method will be called when Electron has finished
@@ -53,13 +63,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // Loads with default values for now
-  // Internally userdata is read to set the params
-  const state = new AppState()
-
-  // IPC
-  initIpc(state)
 
   createWindow()
 

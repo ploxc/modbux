@@ -7,12 +7,12 @@ const LengthInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
   return (
     <IMaskInput
       {...other}
-      autofix
       mask={IMask.MaskedNumber}
-      min={1}
+      autofix
+      min={0}
       max={100}
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value: any) => set(value, value > 0)}
       overwrite
     />
   )

@@ -4,7 +4,13 @@ export enum IpcChannel {
   GetConnectionConfig = 'GetConnectionConfig',
   UpdateConnectionConfig = 'UpdateConnectionConfig',
   GetRegisterConfig = 'GetRegisterConfig',
-  UpdateRegisterConfig = 'UpdateRegisterConfig'
+  UpdateRegisterConfig = 'UpdateRegisterConfig',
+  GetClientState = 'getClientState',
+  Connect = 'Connect',
+  Disconnect = 'Disconnect',
+  Read = 'Read',
+  StartPolling = 'StartPolling',
+  StopPolling = 'StopPolling'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

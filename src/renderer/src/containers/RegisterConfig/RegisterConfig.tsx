@@ -15,11 +15,8 @@ import {
 import LengthInput from '@renderer/components/LengthInput'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
-import UnitIdInput from '@renderer/components/UnitIdInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType } from '@shared'
-import { useSnackbar } from 'notistack'
-import { useEffect } from 'react'
 
 // Protocol
 const TypeSelect = () => {
@@ -48,30 +45,6 @@ const TypeSelect = () => {
 
 //
 //
-// Unit Id
-const UnitId = () => {
-  const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
-  const setUnitId = useRootZustand((z) => z.setUnitId)
-
-  return (
-    <TextField
-      label="Unit ID"
-      variant="outlined"
-      size="small"
-      sx={{ width: 60 }}
-      value={unitId}
-      slotProps={{
-        input: {
-          inputComponent: UnitIdInput as any,
-          inputProps: maskInputProps({ set: setUnitId })
-        }
-      }}
-    />
-  )
-}
-
-//
-//
 // Address
 const Address = () => {
   const address = useRootZustand((z) => String(z.registerConfig.address))
@@ -79,12 +52,6 @@ const Address = () => {
   const setAddress = useRootZustand((z) => z.setAddress)
   const addressBase = useRootZustand((z) => z.addressBase)
   const setAddressBase = useRootZustand((z) => z.setAddressBase)
-
-  const { enqueueSnackbar } = useSnackbar()
-
-  useEffect(() => {
-    enqueueSnackbar({ message: `Type Updated to ${type}` })
-  }, [type])
 
   return (
     <TextField
@@ -186,6 +153,7 @@ const Address = () => {
 // Length
 const Length = () => {
   const length = useRootZustand((z) => String(z.registerConfig.length))
+  const lengthValid = useRootZustand((z) => z.valid.lenght)
   const setLength = useRootZustand((z) => z.setLength)
 
   return (
@@ -195,6 +163,7 @@ const Length = () => {
       size="small"
       sx={{ width: 60 }}
       value={length}
+      error={!lengthValid}
       slotProps={{
         input: {
           inputComponent: LengthInput as any,
@@ -208,7 +177,6 @@ const Length = () => {
 const RegisterConfig = () => {
   return (
     <>
-      <UnitId />
       <TypeSelect />
       <Box sx={{ display: 'flex', gap: 2, marginRight: 'auto' }}>
         <Address />
