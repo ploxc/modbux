@@ -45,7 +45,7 @@ interface ConnectionConfigRtu {
 //
 //
 // Register config
-enum RegisterType {
+export enum RegisterType {
   Coils = 'Coils',
   DiscreteInputs = 'DiscreteInputs',
   HoldingRegisters = 'HoldingRegisters',

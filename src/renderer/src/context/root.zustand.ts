@@ -40,7 +40,6 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     setHost: (host, valid) =>
       set((state) => {
         if (!getState().ready) return
-        console.log('setHost', host)
         state.valid.host = !!valid
         state.connectionConfig.tcp.host = host
         if (!valid) return
@@ -66,6 +65,18 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         const newLength = Number(length)
         state.registerConfig.length = Number(length)
         window.api.updateRegisterConfig({ length: newLength })
+      }),
+    setType: (type) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.registerConfig.type = type
+        window.api.updateRegisterConfig({ type })
+      }),
+    //
+    addressBase: '0',
+    setAddressBase: (value) =>
+      set((state) => {
+        state.addressBase = value
       })
   }))
 )

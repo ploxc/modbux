@@ -1,4 +1,4 @@
-import { ConnectionConfig, Protocol, RegisterConfig } from './types'
+import { ConnectionConfig, Protocol, RegisterConfig, RegisterType } from './types'
 
 export const defaultConnectionConfig: ConnectionConfig = {
   unitId: 1,
@@ -12,4 +12,8 @@ export const defaultConnectionConfig: ConnectionConfig = {
     options: { baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' }
   }
 }
-export const defaultRegisterConfig: RegisterConfig = { address: 40000, length: 10 }
+export const defaultRegisterConfig: RegisterConfig = {
+  address: 40000,
+  length: 10,
+  type: RegisterType.HoldingRegisters
+}

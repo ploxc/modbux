@@ -38,6 +38,7 @@
     "lodash": "^4.17.21",
     "modbus-serial": "^8.0.17",
     "mutative": "^1.0.6",
+    "notistack": "^3.0.1",
     "react-imask": "^7.6.1",
     "rfdc": "^1.4.1",
     "zustand": "^4.5.4",
