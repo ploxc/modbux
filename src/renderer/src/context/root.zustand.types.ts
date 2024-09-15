@@ -39,6 +39,9 @@ export interface RootZusand {
   //
   addressBase: '0' | '1'
   setAddressBase: (value: '0' | '1') => void
+  //
+  lastSuccessfulTransactionMillis: number | null
+  setLastSuccessfulTransactionMillis: (value: number | null) => void
 }
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void

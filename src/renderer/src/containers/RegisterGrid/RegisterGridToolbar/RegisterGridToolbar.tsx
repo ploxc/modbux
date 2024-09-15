@@ -9,6 +9,7 @@ import {
   Slider,
   ButtonProps
 } from '@mui/material'
+import { meme } from '@renderer/components/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ConnectState } from '@shared'
 import { useCallback, useRef, useState } from 'react'
@@ -56,7 +57,6 @@ const PollButton = () => {
 
   const polling = useRootZustand((z) => z.clientState.polling)
   const togglePolling = useCallback(() => {
-    console.log({ polling })
     polling ? window.api.stopPolling() : window.api.startPolling()
   }, [polling])
 
@@ -156,24 +156,11 @@ const PollRate = () => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
   const setValue = useRootZustand((z) => z.setPollRate)
 
-  const settingValue = useRef(false)
-  const handleSetValue = async (v: number) => {
-    if (settingValue.current) return
-    settingValue.current = true
-
-    setValue(v * 1000)
-
-    await new Promise((r) => setTimeout(r, 1000))
-    window.api.startPolling()
-
-    settingValue.current = false
-  }
-
   return (
     <SliderComponent
       label="Poll Rate"
       value={value}
-      setValue={handleSetValue}
+      setValue={(v) => setValue(v * 1000)}
       labelWidth={labelWidth}
       valueWidth={valueWidth}
     />
@@ -198,7 +185,8 @@ const Timeout = () => {
   )
 }
 
-const SettingPopover = () => {
+const SettingPopover = meme(() => {
+  const polling = useRootZustand((z) => z.clientState.polling)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -206,7 +194,7 @@ const SettingPopover = () => {
   }
   return (
     <Box sx={{ display: 'flex', ml: -0.5 }}>
-      <IconButton size="small" color="primary" onClick={handleOpenMenu}>
+      <IconButton disabled={polling} size="small" color="primary" onClick={handleOpenMenu}>
         <MoreVert />
       </IconButton>
       <Popover
@@ -223,9 +211,9 @@ const SettingPopover = () => {
       </Popover>
     </Box>
   )
-}
+})
 
-const RegisterGridToolbar = () => {
+const RegisterGridToolbar = meme(() => {
   return (
     <Box
       sx={(theme) => ({
@@ -248,6 +236,6 @@ const RegisterGridToolbar = () => {
       </Box>
     </Box>
   )
-}
+})
 
 export default RegisterGridToolbar

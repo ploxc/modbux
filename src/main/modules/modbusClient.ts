@@ -11,6 +11,7 @@ import {
   RegisterType
 } from '@shared'
 import { convertHoldingRegisterData } from './functions'
+
 export interface ClientParams {
   appState: AppState
   mainWindow: BrowserWindow
@@ -42,7 +43,7 @@ export class ModbusClient {
         this._clientState.connectState = ConnectState.Disconnected
         this._sendClientState()
         this._emitMessage({
-          message: 'Modbus client connection closed',
+          message: 'Connection closed',
           variant: 'warning',
           error: null
         })
@@ -56,7 +57,6 @@ export class ModbusClient {
   private _sendClientState = () => {
     this._mainWindow.webContents.send(IpcEvent.ClientState, this._clientState)
   }
-
   private _sendData = (data: RegisterData[]) => {
     this._mainWindow.webContents.send(IpcEvent.RegisterData, data)
   }
@@ -123,12 +123,16 @@ export class ModbusClient {
       return
     }
 
-    const message = 'Disconnecting from modbus server'
+    const message = 'Disconnecting from modbus server/slave'
     this._emitMessage({ message, variant: 'default', error: null })
 
     try {
       await new Promise<void>((resolve) => this._client.close(() => resolve()))
-      this._emitMessage({ message: 'Disconnected from server', variant: 'success', error: null })
+      this._emitMessage({
+        message: 'Disconnected from server/slave',
+        variant: 'success',
+        error: null
+      })
       this._setDisconnected()
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
@@ -190,7 +194,7 @@ export class ModbusClient {
     clearTimeout(this._pollTimeout)
     if (!this._clientState.polling) return
     await this._read()
-    setTimeout(this._poll, this._appState.registerConfig.pollRate)
+    this._pollTimeout = setTimeout(this._poll, this._appState.registerConfig.pollRate)
   }
 
   //
@@ -206,7 +210,8 @@ export class ModbusClient {
       case RegisterType.InputRegisters:
         throw new Error('Reading input registers not yet implemented')
       case RegisterType.HoldingRegisters:
-        return this._readHoldingRegisters()
+        this._readHoldingRegisters()
+        break
     }
   }
 

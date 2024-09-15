@@ -9,6 +9,7 @@ import {
   IpcEvent,
   RegisterData
 } from '@shared'
+import { DateTime } from 'luxon'
 
 export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
   mutative((set, getState) => ({
@@ -36,8 +37,6 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       const syncedConnectionConfig = await window.api.getConnectionConfig()
       const syncedRegisterConfig = await window.api.getRegisterConfig()
       const clientState = await window.api.getClientState()
-
-      console.log('init', syncedConnectionConfig.tcp.host)
 
       set((state) => {
         state.connectionConfig = syncedConnectionConfig
@@ -201,8 +200,13 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
 
         state.registerConfig.timeout = timeout
         window.api.updateRegisterConfig({ timeout })
+      }),
+    // Transaction
+    lastSuccessfulTransactionMillis: null,
+    setLastSuccessfulTransactionMillis: (value) =>
+      set((state) => {
+        state.lastSuccessfulTransactionMillis = value
       })
-    //
   }))
 )
 
@@ -219,4 +223,5 @@ window.electron.ipcRenderer.on(IpcEvent.ClientState, (_, clientState: ClientStat
 window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: RegisterData[]) => {
   const state = useRootZustand.getState()
   state.setRegisterData(registerData)
+  state.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })

@@ -19,6 +19,15 @@ export interface Api {
 
 //
 //
+// Event
+export enum IpcEvent {
+  BackendMessage = 'backendMessage',
+  ClientState = 'clientState',
+  RegisterData = 'registerData'
+}
+
+//
+//
 // Client state
 export interface ClientState {
   connectState: ConnectState
@@ -39,15 +48,6 @@ export interface BackendMessage {
   message: string
   variant: SharedProps['variant']
   error: unknown | null
-}
-
-//
-//
-// Event
-export enum IpcEvent {
-  BackendMessage = 'backendMessage',
-  ClientState = 'clientState',
-  RegisterData = 'registerData'
 }
 
 //

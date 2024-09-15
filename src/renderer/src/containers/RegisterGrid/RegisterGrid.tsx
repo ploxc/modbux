@@ -1,8 +1,24 @@
-import { Paper } from '@mui/material'
-import { DataGrid } from '@mui/x-data-grid'
+import { Paper, Typography } from '@mui/material'
+import { DataGrid, GridFooterContainer } from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import useRegisterGridColumns from './_columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
+import { DateTime } from 'luxon'
+import { meme } from '@renderer/components/meme'
+
+const Footer = meme(() => {
+  const time = useRootZustand((z) => z.lastSuccessfulTransactionMillis)
+  return (
+    <GridFooterContainer sx={{ px: 1.5 }}>
+      <Typography variant="caption" sx={{ opacity: 0.5 }}>
+        Last transaction time:{' '}
+        <strong>
+          {time ? `${DateTime.fromMillis(time).toFormat('yyyy-MM-dd HH:mm:ss')}` : 'n/a'}
+        </strong>
+      </Typography>
+    </GridFooterContainer>
+  )
+})
 
 const RegisterGridContent = () => {
   const registerData = useRootZustand((z) => z.registerData)
@@ -33,7 +49,7 @@ const RegisterGridContent = () => {
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
-      slots={{ toolbar: RegisterGridToolbar }}
+      slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
     />
   )
 }
