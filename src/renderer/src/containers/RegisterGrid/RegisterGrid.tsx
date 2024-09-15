@@ -27,6 +27,9 @@ const RegisterGridContent = () => {
           height: 36
         }
       }}
+      localeText={{
+        noRowsLabel: 'Connect to Modbus server to see registers'
+      }}
     />
   )
 }

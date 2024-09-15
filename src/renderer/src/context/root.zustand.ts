@@ -22,15 +22,21 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       })
     },
     valid: {
-      host: true
+      host: true,
+      com: true
     },
+    //
+    //
+    // Protocol
     setProtocol: (protocol) =>
       set((state) => {
         if (!getState().ready) return
         state.connectionConfig.protocol = protocol
-        state.connectionConfig.rtu.options.baudRate
         window.api.updateConnectionConfig({ protocol })
       }),
+    //
+    //
+    // TCP
     setPort: (port) =>
       set((state) => {
         if (!getState().ready) return
@@ -45,6 +51,52 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.connectionConfig.tcp.host = host
         if (!valid) return
         window.api.updateConnectionConfig({ tcp: { host } })
+      }),
+    //
+    //
+    // RTU
+    setCom: (com, valid) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.valid.com = !!valid
+        state.connectionConfig.rtu.com = com
+        if (!valid) return
+        window.api.updateConnectionConfig({ rtu: { com } })
+      }),
+    setBaudRate: (baudRate) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newBaudRate = Number(baudRate)
+        state.connectionConfig.rtu.options.baudRate = newBaudRate
+        window.api.updateConnectionConfig({ rtu: { options: { baudRate: newBaudRate } } })
+      }),
+    setParity: (parity) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.connectionConfig.rtu.options.parity = parity
+        window.api.updateConnectionConfig({ rtu: { options: { parity } } })
+      }),
+    setDataBits: (dataBits) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newDataBits = Number(dataBits)
+        state.connectionConfig.rtu.options.dataBits = newDataBits
+        window.api.updateConnectionConfig({ rtu: { options: { dataBits: newDataBits } } })
+      }),
+    setStopBits: (stopBits) =>
+      set((state) => {
+        if (!getState().ready) return
+        const newStopBits = Number(stopBits)
+        state.connectionConfig.rtu.options.stopBits = newStopBits
+        window.api.updateConnectionConfig({ rtu: { options: { stopBits: newStopBits } } })
+      }),
+    //
+    //
+    // Addressing
+    addressBase: '0',
+    setAddressBase: (value) =>
+      set((state) => {
+        state.addressBase = value
       }),
     setUnitId: (unitId) =>
       set((state) => {
@@ -72,12 +124,6 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         if (!getState().ready) return
         state.registerConfig.type = type
         window.api.updateRegisterConfig({ type })
-      }),
-    //
-    addressBase: '0',
-    setAddressBase: (value) =>
-      set((state) => {
-        state.addressBase = value
       })
   }))
 )

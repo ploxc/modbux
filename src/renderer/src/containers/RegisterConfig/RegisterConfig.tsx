@@ -33,7 +33,6 @@ const TypeSelect = () => {
       <Select
         size="small"
         labelId={labelId}
-        id="demo-select-small"
         value={type}
         label="Type"
         onChange={(e) => setType(e.target.value as RegisterType)}
@@ -59,7 +58,7 @@ const UnitId = () => {
       label="Unit ID"
       variant="outlined"
       size="small"
-      sx={{ width: 70 }}
+      sx={{ width: 60 }}
       value={unitId}
       slotProps={{
         input: {
@@ -194,7 +193,7 @@ const Length = () => {
       label="Length"
       variant="outlined"
       size="small"
-      sx={{ width: 70 }}
+      sx={{ width: 60 }}
       value={length}
       slotProps={{
         input: {

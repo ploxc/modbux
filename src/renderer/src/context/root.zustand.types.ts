@@ -1,4 +1,12 @@
-import { RegisterData, ConnectionConfig, RegisterConfig, Protocol, RegisterType } from '@shared'
+import {
+  RegisterData,
+  ConnectionConfig,
+  RegisterConfig,
+  Protocol,
+  RegisterType,
+  ModbusBaudRate
+} from '@shared'
+import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 
 export interface RootZusand {
   registerData: RegisterData[]
@@ -15,6 +23,11 @@ export interface RootZusand {
   setAddress: MaskSetFn
   setLength: MaskSetFn
   setType: (type: RegisterType) => void
+  setCom: MaskSetFn
+  setBaudRate: (baudRate: ModbusBaudRate) => void
+  setParity: (parity: SerialPortOptions['parity']) => void
+  setDataBits: (dataBits: SerialPortOptions['dataBits']) => void
+  setStopBits: (stopBits: SerialPortOptions['stopBits']) => void
   //
   addressBase: '0' | '1'
   setAddressBase: (value: '0' | '1') => void
@@ -24,4 +37,5 @@ export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) =
 
 interface Valid {
   host: boolean
+  com: boolean
 }

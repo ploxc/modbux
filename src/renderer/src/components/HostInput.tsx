@@ -43,13 +43,3 @@ const HostInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
 })
 
 export default HostInput
-
-/**
- * 	mask: 
-	blocks: {
-		
-	},
-	prepare: (typedChar) => {
-		return
-	},
- */

@@ -1,6 +1,6 @@
 import { Box, Button, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import RtuConfig from '../RtuConfig/RtuConfig'
-import TcpConfig from './TcpConfig/Tcp'
+import RtuConfig from './RtuConfig/RtuConfig'
+import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { Protocol } from '@shared'
 
