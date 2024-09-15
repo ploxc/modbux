@@ -174,15 +174,16 @@ export class ModbusClient {
   //
   // Polling
   public startPolling = () => {
+    clearTimeout(this._pollTimeout)
     this._clientState.polling = true
     this._sendClientState()
     this._poll()
   }
 
   public stopPolling = () => {
+    clearTimeout(this._pollTimeout)
     this._clientState.polling = false
     this._sendClientState()
-    clearTimeout(this._pollTimeout)
   }
 
   private _poll = async () => {

@@ -94,13 +94,138 @@ const ClearButton = () => {
   )
 }
 
-const RegisterGridToolbar = () => {
+//
+//
+// Slider component
+interface SliderComponentProps {
+  label: string
+  labelWidth: number
+  value: number
+  valueWidth: number
+  setValue: (value: number) => void
+}
+const SliderComponent = ({
+  label,
+  value,
+  setValue,
+  labelWidth,
+  valueWidth
+}: SliderComponentProps) => {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        gap: 1,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        px: 1
+      }}
+    >
+      <Typography color="primary" variant="overline" sx={{ width: labelWidth }}>
+        {label}
+      </Typography>
+      <Box sx={{ px: 1, display: 'flex' }}>
+        <Slider
+          size="small"
+          sx={{ width: 100 }}
+          min={1}
+          max={10}
+          step={1}
+          value={value}
+          onChange={(_, v) => {
+            const value = Array.isArray(v) ? v.at(0) : v
+            if (value === undefined) return
+            setValue(value)
+          }}
+        />
+      </Box>
+      <Typography color="primary" variant="overline" sx={{ textAlign: 'right', width: valueWidth }}>
+        {value} s
+      </Typography>
+    </Box>
+  )
+}
+
+const labelWidth = 70
+const valueWidth = 25
+
+//
+//
+// Polling settings
+const PollRate = () => {
+  const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
+  const setValue = useRootZustand((z) => z.setPollRate)
+
+  const settingValue = useRef(false)
+  const handleSetValue = async (v: number) => {
+    if (settingValue.current) return
+    settingValue.current = true
+
+    setValue(v * 1000)
+
+    await new Promise((r) => setTimeout(r, 1000))
+    window.api.startPolling()
+
+    settingValue.current = false
+  }
+
+  return (
+    <SliderComponent
+      label="Poll Rate"
+      value={value}
+      setValue={handleSetValue}
+      labelWidth={labelWidth}
+      valueWidth={valueWidth}
+    />
+  )
+}
+
+//
+//
+// Timeout settings
+const Timeout = () => {
+  const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
+  const setValue = useRootZustand((z) => z.setTimeout)
+
+  return (
+    <SliderComponent
+      label="Timeout"
+      value={value}
+      setValue={(v) => setValue(v * 1000)}
+      labelWidth={labelWidth}
+      valueWidth={valueWidth}
+    />
+  )
+}
+
+const SettingPopover = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget)
   }
+  return (
+    <Box sx={{ display: 'flex', ml: -0.5 }}>
+      <IconButton size="small" color="primary" onClick={handleOpenMenu}>
+        <MoreVert />
+      </IconButton>
+      <Popover
+        open={!!anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorEl={anchorEl}
+        disablePortal={false}
+        sx={{ ml: 0.5 }}
+      >
+        <Paper elevation={3} sx={{ p: 1 }}>
+          <PollRate />
+          <Timeout />
+        </Paper>
+      </Popover>
+    </Box>
+  )
+}
 
+const RegisterGridToolbar = () => {
   return (
     <Box
       sx={(theme) => ({
@@ -116,79 +241,7 @@ const RegisterGridToolbar = () => {
       <Box sx={{ display: 'flex', gap: 1 }}>
         <PollButton />
         <ReadButton />
-        <Box sx={{ display: 'flex', ml: -0.5 }}>
-          <IconButton size="small" color="primary" onClick={handleOpenMenu}>
-            <MoreVert />
-          </IconButton>
-
-          <Popover
-            open={!!anchorEl}
-            onClose={() => setAnchorEl(null)}
-            anchorEl={anchorEl}
-            disablePortal={false}
-            sx={{ ml: 0.5 }}
-          >
-            <Paper elevation={3} sx={{ p: 1 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 1,
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  px: 1
-                }}
-              >
-                <Typography color="primary" variant="overline" sx={{ flex: 1 }}>
-                  Poll rate
-                </Typography>
-                <Box sx={{ px: 1, display: 'flex' }}>
-                  <Slider
-                    valueLabelDisplay="auto"
-                    size="small"
-                    sx={{ width: 100, zIndex: 10000 }}
-                    min={1}
-                    max={10}
-                    step={1}
-                  >
-                    Poll Rate
-                  </Slider>
-                </Box>
-                <Typography color="primary" variant="overline">
-                  1 s
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 1,
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  px: 1,
-                  mt: 1
-                }}
-              >
-                <Typography color="primary" variant="overline" sx={{ flex: 1 }}>
-                  Read Timeout
-                </Typography>
-                <Box sx={{ px: 1, display: 'flex' }}>
-                  <Slider
-                    valueLabelDisplay="auto"
-                    size="small"
-                    sx={{ width: 100, zIndex: 10000 }}
-                    min={1}
-                    max={10}
-                    step={1}
-                  >
-                    Poll Rate
-                  </Slider>
-                </Box>
-                <Typography color="primary" variant="overline">
-                  1 s
-                </Typography>
-              </Box>
-            </Paper>
-          </Popover>
-        </Box>
+        <SettingPopover />
       </Box>
       <Box sx={{ display: 'flex', gap: 1 }}>
         <ClearButton />

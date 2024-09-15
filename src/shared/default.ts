@@ -15,5 +15,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
 export const defaultRegisterConfig: RegisterConfig = {
   address: 40000,
   length: 10,
-  type: RegisterType.HoldingRegisters
+  type: RegisterType.HoldingRegisters,
+  pollRate: 1000,
+  timeout: 5000
 }

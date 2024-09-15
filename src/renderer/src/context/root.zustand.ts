@@ -181,12 +181,24 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     setPollRate: (pollRate) =>
       set((state) => {
         if (!getState().ready) return
+
+        if (pollRate % 1000 !== 0 || pollRate < 1000 || pollRate > 10000) {
+          console.error('Invalid poll rate. Must be a multiple of 1000 and between 1000 and 10000.')
+          return
+        }
+
         state.registerConfig.pollRate = pollRate
         window.api.updateRegisterConfig({ pollRate })
       }),
     setTimeout: (timeout) =>
       set((state) => {
         if (!getState().ready) return
+
+        if (timeout % 1000 !== 0 || timeout < 1000 || timeout > 10000) {
+          console.error('Invalid timeout. Must be a multiple of 1000 and between 1000 and 10000.')
+          return
+        }
+
         state.registerConfig.timeout = timeout
         window.api.updateRegisterConfig({ timeout })
       })
