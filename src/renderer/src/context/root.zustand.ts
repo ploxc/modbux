@@ -28,6 +28,7 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       set((state) => {
         if (!getState().ready) return
         state.connectionConfig.protocol = protocol
+        state.connectionConfig.rtu.options.baudRate
         window.api.updateConnectionConfig({ protocol })
       }),
     setPort: (port) =>
