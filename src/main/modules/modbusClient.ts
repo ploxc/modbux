@@ -242,6 +242,7 @@ export class ModbusClient {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readHoldingRegisters(address, length)
     const data = convertRegisterData(address, result)
+    console.log(result)
     this._sendData(data)
   }
 

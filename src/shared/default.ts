@@ -13,7 +13,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   }
 }
 export const defaultRegisterConfig: RegisterConfig = {
-  address: 40000,
+  address: 0,
   length: 10,
   type: RegisterType.HoldingRegisters,
   pollRate: 1000,

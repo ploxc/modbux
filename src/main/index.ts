@@ -20,7 +20,8 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     },
-    title: 'Modbux'
+    title: 'Modbux',
+    icon: join(__dirname, 'assets','icon.png')
   })
 
   mainWindow.on('ready-to-show', () => {
