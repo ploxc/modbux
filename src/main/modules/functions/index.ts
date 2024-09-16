@@ -21,7 +21,7 @@ const swap64 = (buffer: Buffer, offset: number) => {
 }
 
 // Convert register data to human-readable format
-export const convertHoldingRegisterData = (address: number, result: ReadRegisterResult) => {
+export const conertRegisterData = (address: number, result: ReadRegisterResult) => {
   if (!result) return []
 
   const { buffer } = result

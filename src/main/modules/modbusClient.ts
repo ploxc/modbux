@@ -10,7 +10,7 @@ import {
   RegisterData,
   RegisterType
 } from '@shared'
-import { convertHoldingRegisterData } from './functions'
+import { conertRegisterData as convertRegisterData } from './functions'
 
 export interface ClientParams {
   appState: AppState
@@ -202,23 +202,46 @@ export class ModbusClient {
   // Reading
   private _tryRead = async () => {
     const { type } = this._appState.registerConfig
+    console.log(`Reading ${type} registers...`)
     switch (type) {
       case RegisterType.Coils:
-        throw new Error('Reading coils not yet implemented')
+        this._readCoils()
+        break
       case RegisterType.DiscreteInputs:
-        throw new Error('Reading discrete inputs not yet implemented')
+        this._readDiscreteInputs()
+        break
       case RegisterType.InputRegisters:
-        throw new Error('Reading input registers not yet implemented')
+        this._readInputRegisters()
+        break
       case RegisterType.HoldingRegisters:
         this._readHoldingRegisters()
         break
     }
   }
 
+  private _readCoils = async () => {
+    const { address, length } = this._appState.registerConfig
+    const result = await this._client.readCoils(address, length)
+    console.log(result)
+  }
+
+  private _readDiscreteInputs = async () => {
+    const { address, length } = this._appState.registerConfig
+    const result = await this._client.readDiscreteInputs(address, length)
+    console.log(result)
+  }
+
+  private _readInputRegisters = async () => {
+    const { address, length } = this._appState.registerConfig
+    const result = await this._client.readInputRegisters(address, length)
+    const data = convertRegisterData(address, result)
+    this._sendData(data)
+  }
+
   private _readHoldingRegisters = async () => {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readHoldingRegisters(address, length)
-    const data = convertHoldingRegisterData(address, result)
+    const data = convertRegisterData(address, result)
     this._sendData(data)
   }
 
