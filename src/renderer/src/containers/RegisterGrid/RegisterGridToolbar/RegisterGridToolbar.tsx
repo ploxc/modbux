@@ -7,7 +7,9 @@ import {
   Paper,
   Typography,
   Slider,
-  ButtonProps
+  ButtonProps,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material'
 import { meme } from '@renderer/components/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
@@ -193,7 +195,7 @@ const SettingPopover = meme(() => {
     setAnchorEl(anchorEl ? null : event.currentTarget)
   }
   return (
-    <Box sx={{ display: 'flex', ml: -0.5 }}>
+    <Box sx={{ display: 'flex' }}>
       <IconButton disabled={polling} size="small" color="primary" onClick={handleOpenMenu}>
         <MoreVert />
       </IconButton>
@@ -202,7 +204,6 @@ const SettingPopover = meme(() => {
         onClose={() => setAnchorEl(null)}
         anchorEl={anchorEl}
         disablePortal={false}
-        sx={{ ml: 0.5 }}
       >
         <Paper elevation={3} sx={{ p: 1 }}>
           <PollRate />
@@ -212,6 +213,28 @@ const SettingPopover = meme(() => {
     </Box>
   )
 })
+
+//
+//
+// Toggle swap
+const ToggleSwapButton = () => {
+  const swap = useRootZustand((z) => z.registerConfig.swap)
+  const setSwap = useRootZustand((z) => z.setSwap)
+
+  return (
+    <ToggleButtonGroup
+      sx={{ height: 29.5 }}
+      size="small"
+      exclusive
+      color="primary"
+      value={swap}
+      onChange={(_, v) => setSwap(v)}
+    >
+      <ToggleButton value={false}>No Swap</ToggleButton>
+      <ToggleButton value={true}>Swap</ToggleButton>
+    </ToggleButtonGroup>
+  )
+}
 
 const RegisterGridToolbar = meme(() => {
   return (
@@ -229,6 +252,7 @@ const RegisterGridToolbar = meme(() => {
       <Box sx={{ display: 'flex', gap: 1 }}>
         <PollButton />
         <ReadButton />
+        <ToggleSwapButton />
         <SettingPopover />
       </Box>
       <Box sx={{ display: 'flex', gap: 1 }}>

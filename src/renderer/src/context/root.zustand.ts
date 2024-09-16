@@ -176,6 +176,12 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.registerConfig.type = type
         window.api.updateRegisterConfig({ type })
       }),
+    setSwap: (swap) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.registerConfig.swap = swap
+        window.api.updateRegisterConfig({ swap })
+      }),
     // Reading
     setPollRate: (pollRate) =>
       set((state) => {

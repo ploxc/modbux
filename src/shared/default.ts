@@ -17,5 +17,6 @@ export const defaultRegisterConfig: RegisterConfig = {
   length: 10,
   type: RegisterType.HoldingRegisters,
   pollRate: 1000,
-  timeout: 5000
+  timeout: 5000,
+  swap: false
 }

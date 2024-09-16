@@ -36,6 +36,7 @@ export interface RootZusand {
   setStopBits: (stopBits: SerialPortOptions['stopBits']) => void
   setPollRate: (pollRate: number) => void
   setTimeout: (timeout: number) => void
+  setSwap: (swap: boolean) => void
   //
   addressBase: '0' | '1'
   setAddressBase: (value: '0' | '1') => void

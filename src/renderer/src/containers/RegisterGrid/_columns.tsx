@@ -1,6 +1,7 @@
 import { Box } from '@mui/material'
 import { GridColDef } from '@mui/x-data-grid'
-import { RegisterData, RegisterDataEndian } from '@shared'
+import { useRootZustand } from '@renderer/context/root.zustand'
+import { getConventionalAddress, RegisterData, RegisterDataWords, RegisterType } from '@shared'
 import { useMemo } from 'react'
 
 const registerValueToString = (
@@ -16,13 +17,37 @@ const registerValueToString = (
 
 const addressColumn: GridColDef<RegisterData, number> = {
   field: 'id',
-  headerName: 'Address',
-  width: 70,
-  renderCell: ({ value }) => <Box sx={{ fontWeight: 'bold' }}>{value}</Box>
+  hideable: false,
+  headerName: 'Addr.',
+  width: 60,
+  renderCell: ({ value }) => <Box sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>{value}</Box>
 }
+
+const conventionalAddresColumn = (
+  type: RegisterType,
+  addressBase: string
+): GridColDef<RegisterData, number> => ({
+  field: 'conventionalAddress',
+  headerName: 'Conv.',
+  width: 60,
+  renderCell: ({ row }) => {
+    const value = getConventionalAddress(type, String(row.id), addressBase)
+    return (
+      <Box
+        sx={(theme) => ({
+          fontFamily: 'monospace',
+          color: theme.palette.primary.light
+        })}
+      >
+        {value}
+      </Box>
+    )
+  }
+})
 
 const hexColumn: GridColDef<RegisterData, string> = {
   field: 'hex',
+  hideable: false,
   headerName: 'HEX',
   width: 50,
   renderCell: ({ value }) => (
@@ -39,37 +64,41 @@ const hexColumn: GridColDef<RegisterData, string> = {
 }
 
 const valueColumn = (
-  field: 'bigEndian' | 'littleEndian',
-  key: keyof RegisterDataEndian,
+  key: keyof RegisterDataWords,
   width: number
-): GridColDef<RegisterData, RegisterDataEndian, RegisterDataEndian> => ({
+): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
   type: 'number',
-  field: `${field}_${key}`,
+  field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,
-  renderCell: ({ row }): JSX.Element => {
-    const value = row[field][key]
-    const { numberString, irrelevant } = registerValueToString(value)
+  renderCell: ({ row }): JSX.Element | null => {
+    const value = row.words?.[key]
+    if (value === undefined) return null
 
+    const { numberString, irrelevant } = registerValueToString(value)
     return <Box sx={{ opacity: irrelevant ? 0.25 : undefined }}>{numberString}</Box>
   }
 })
 
 const useRegisterGridColumns = () => {
+  const type = useRootZustand((z) => z.registerConfig.type)
+  const addressBase = useRootZustand((z) => z.addressBase)
+
   return useMemo(() => {
     return [
       addressColumn,
+      conventionalAddresColumn(type, addressBase),
       hexColumn,
-      valueColumn('bigEndian', 'int16', 70),
-      valueColumn('bigEndian', 'uint16', 70),
-      valueColumn('bigEndian', 'int32', 100),
-      valueColumn('bigEndian', 'uint32', 100),
-      valueColumn('bigEndian', 'int64', 160),
-      valueColumn('bigEndian', 'uint64', 160),
-      valueColumn('bigEndian', 'float', 200),
-      valueColumn('bigEndian', 'double', 200)
+      valueColumn('int16', 70),
+      valueColumn('uint16', 70),
+      valueColumn('int32', 100),
+      valueColumn('uint32', 100),
+      valueColumn('int64', 160),
+      valueColumn('uint64', 160),
+      valueColumn('float', 200),
+      valueColumn('double', 200)
     ]
-  }, [])
+  }, [type, addressBase])
 }
 
 export default useRegisterGridColumns

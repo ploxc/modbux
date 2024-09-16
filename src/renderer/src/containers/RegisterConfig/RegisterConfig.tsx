@@ -16,7 +16,7 @@ import LengthInput from '@renderer/components/LengthInput'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { RegisterType } from '@shared'
+import { getConventionalAddress, RegisterType } from '@shared'
 
 // Protocol
 const TypeSelect = () => {
@@ -120,15 +120,7 @@ const Address = () => {
                   </Paper>
                 }
               >
-                <Box>
-                  {type === RegisterType.DiscreteInputs
-                    ? Number(address) + 10000 + Number(addressBase)
-                    : type === RegisterType.HoldingRegisters
-                      ? Number(address) + 40000 + Number(addressBase)
-                      : type === RegisterType.InputRegisters
-                        ? Number(address) + 30000 + Number(addressBase)
-                        : Number(address) + Number(addressBase)}
-                </Box>
+                <Box>{getConventionalAddress(type, address, addressBase)}</Box>
               </Tooltip>
               <ToggleButtonGroup
                 size="small"

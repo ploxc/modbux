@@ -101,6 +101,7 @@ export interface RegisterConfig {
   type: RegisterType
   pollRate: number
   timeout: number
+  swap: boolean
 }
 
 //
@@ -110,10 +111,10 @@ export interface RegisterData {
   id: number
   buffer: ArrayBuffer
   hex: string
-  bigEndian: RegisterDataEndian
-  littleEndian: RegisterDataEndian
+  words: RegisterDataWords | undefined
+  byte: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean] | undefined
 }
-export interface RegisterDataEndian {
+export interface RegisterDataWords {
   int16: number
   uint16: number
   int32: number
