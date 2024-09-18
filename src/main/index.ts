@@ -6,6 +6,11 @@ import { initIpc } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 
+if (is.dev) {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-software-rasterizer')
+}
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -21,7 +26,7 @@ function createWindow(): void {
       sandbox: false
     },
     title: 'Modbux',
-    icon: join(__dirname, 'assets','icon.png')
+    icon: join(__dirname, 'assets', 'icon.png')
   })
 
   mainWindow.on('ready-to-show', () => {

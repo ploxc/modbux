@@ -119,6 +119,9 @@ export class ModbusClient {
     this._client.setTimeout(3000)
     this._client.setID(unitId)
 
+    // Enables storing transaction requests and responses for logging purposes
+    this._client['isDebugEnabled'] = true
+
     // Connect
     const endpoint = protocol === Protocol.ModbusTcp ? `${host}:${tcpOptions.port}` : `${unitId}`
     const message = `Connecting to modbus server/slave: ${endpoint} with ${protocol === Protocol.ModbusTcp ? 'TCP' : 'RTU'} protocol`
@@ -174,6 +177,7 @@ export class ModbusClient {
     }
 
     await this._read()
+    console.log(this._client['_transactions'])
   }
 
   private _read = async () => {
@@ -229,16 +233,16 @@ export class ModbusClient {
     const { type } = this._appState.registerConfig
     switch (type) {
       case RegisterType.Coils:
-        this._readCoils()
+        await this._readCoils()
         break
       case RegisterType.DiscreteInputs:
-        this._readDiscreteInputs()
+        await this._readDiscreteInputs()
         break
       case RegisterType.InputRegisters:
-        this._readInputRegisters()
+        await this._readInputRegisters()
         break
       case RegisterType.HoldingRegisters:
-        this._readHoldingRegisters()
+        await this._readHoldingRegisters()
         break
     }
   }
