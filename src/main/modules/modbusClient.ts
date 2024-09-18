@@ -12,10 +12,10 @@ import {
   RegisterType,
   Transaction
 } from '@shared'
-import { ReadRegisterResult } from 'modbus-serial/ModbusRTU'
+import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
-import {v4} from 'uuid'
+import { v4 } from 'uuid'
 
 const noSwap32 = (buffer: Buffer, offset: number) => {
   return buffer.subarray(offset, offset + 4)
@@ -298,15 +298,15 @@ export class ModbusClient {
   private _readCoils = async () => {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readCoils(address, length)
-    result
-    // TODO: Convert to RegisterData
+    const data = this._convertBitData(result)
+    this._sendData(data)
   }
 
   private _readDiscreteInputs = async () => {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readDiscreteInputs(address, length)
-    result
-    // TODO: Convert to RegisterData
+    const data = this._convertBitData(result)
+    this._sendData(data)
   }
 
   private _readInputRegisters = async () => {
@@ -379,7 +379,29 @@ export class ModbusClient {
           uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
           double: buf64 ? round(buf64.readDoubleBE(0), 15) : 0
         },
-        byte: undefined
+        bit: false
+      }
+
+      registerData.push(rowData)
+    }
+
+    return registerData
+  }
+
+  private _convertBitData = (result: ReadCoilResult) => {
+    const { address, length } = this._appState.registerConfig
+    const { data } = result
+
+    const registerData: RegisterData[] = []
+
+    for (let i = 0; i < length; i++) {
+      const bit = data[i]
+      const rowData: RegisterData = {
+        id: address + i,
+        buffer: Buffer.from([0]),
+        hex: '',
+        words: undefined,
+        bit
       }
 
       registerData.push(rowData)

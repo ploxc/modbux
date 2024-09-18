@@ -17,12 +17,19 @@ import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { getConventionalAddress, RegisterType } from '@shared'
+import { useCallback } from 'react'
 
 // Protocol
 const TypeSelect = () => {
   const labelId = 'register-type-select'
   const type = useRootZustand((z) => z.registerConfig.type)
   const setType = useRootZustand((z) => z.setType)
+  const setRegisterData = useRootZustand((z) => z.setRegisterData)
+
+  const handleChange = useCallback((type: RegisterType) => {
+    setRegisterData([])
+    setType(type)
+  }, [])
 
   return (
     <FormControl size="small">
@@ -32,7 +39,7 @@ const TypeSelect = () => {
         labelId={labelId}
         value={type}
         label="Type"
-        onChange={(e) => setType(e.target.value as RegisterType)}
+        onChange={(e) => handleChange(e.target.value as RegisterType)}
       >
         <MenuItem value={RegisterType.Coils}>Coils</MenuItem>
         <MenuItem value={RegisterType.DiscreteInputs}>Discrete Inputs</MenuItem>

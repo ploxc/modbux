@@ -113,7 +113,7 @@ export interface RegisterData {
   buffer: ArrayBuffer
   hex: string
   words: RegisterDataWords | undefined
-  byte: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean] | undefined
+  bit: boolean
 }
 
 export enum DataType {

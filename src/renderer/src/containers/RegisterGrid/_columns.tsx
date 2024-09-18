@@ -200,6 +200,33 @@ const valueColumn = (
 
 //
 //
+// Generic component to show bit values
+const bitColumn: GridColDef<RegisterData, boolean, boolean> = {
+  field: 'bit',
+  type: 'boolean',
+  headerName: 'Bit',
+  width: 80,
+  renderCell: ({ value }) => (
+    <Box
+      sx={(theme) => ({
+        background: value ? theme.palette.success.main : undefined,
+        color: value ? theme.palette.success.contrastText : undefined,
+        fontWeight: value ? 'bold' : undefined,
+        opacity: value ? 1 : 0.5,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      })}
+    >
+      {value ? 'TRUE' : 'FALSE'}
+    </Box>
+  )
+}
+
+//
+//
 // COLUMNS
 const useRegisterGridColumns = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
@@ -210,17 +237,30 @@ const useRegisterGridColumns = () => {
   const show64Bit = useLayoutZustand((z) => z.show64Bit)
 
   return useMemo(() => {
+    const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(
+      type
+    )
+
     const columns: GridColDef<RegisterData>[] = [
       addressColumn,
-      conventionalAddresColumn(type, addressBase),
-      dataTypeColumn(registerMap),
-      convertedValueColumn(registerMap),
-      scalingFactorColumn(registerMap),
-      hexColumn
+      conventionalAddresColumn(type, addressBase)
     ]
 
+    if (!registers16Bit) {
+      columns.push(bitColumn)
+    }
+
+    if (registers16Bit) {
+      columns.push(
+        dataTypeColumn(registerMap),
+        convertedValueColumn(registerMap),
+        scalingFactorColumn(registerMap),
+        hexColumn
+      )
+    }
+
     // Advanced mode columns
-    if (advanced) {
+    if (advanced && registers16Bit) {
       columns.push(
         valueColumn(DataType.Int16, 70),
         valueColumn(DataType.UInt16, 70),
@@ -231,7 +271,7 @@ const useRegisterGridColumns = () => {
     }
 
     // Show 64 bit columns only in advanced mode, these are not very common, but they are there
-    if (advanced && show64Bit) {
+    if (advanced && show64Bit && registers16Bit) {
       columns.push(
         valueColumn(DataType.Int64, 160),
         valueColumn(DataType.UInt64, 160),

@@ -17,7 +17,7 @@ import {
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState } from '@shared'
+import { ConnectState, RegisterType } from '@shared'
 import { useCallback, useRef, useState } from 'react'
 
 //
@@ -166,8 +166,12 @@ const MenuContent = () => {
 
 // Menu button for extra options menu
 const MenuButton = () => {
+  const type = useRootZustand((z) => z.registerConfig.type)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
+
+  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  if (!registers16Bit) return null
 
   return (
     <>
@@ -297,8 +301,12 @@ const SettingPopover = meme(() => {
 //
 // Toggle swap
 const ToggleSwapButton = () => {
+  const type = useRootZustand((z) => z.registerConfig.type)
   const swap = useRootZustand((z) => z.registerConfig.swap)
   const setSwap = useRootZustand((z) => z.setSwap)
+
+  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  if (!registers16Bit) return null
 
   return (
     <ToggleButtonGroup

@@ -13,3 +13,5 @@ export const getConventionalAddress = (
         ? Number(address) + 30000 + Number(addressBase)
         : Number(address) + Number(addressBase)
 }
+
+export const getBit = (word: number, bit: number) => (word & (2 ** bit)) === 2 ** bit
