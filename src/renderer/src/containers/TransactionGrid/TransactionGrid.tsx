@@ -10,6 +10,11 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import useTransactionGridColumns from './_columns'
 import { DateTime } from 'luxon'
 
+//
+//
+//
+//
+// Log export button exports the transaction log as a CSV file
 const ExportButton = () => {
   const api = useGridApiContext()
   return (
@@ -27,6 +32,11 @@ const ExportButton = () => {
   )
 }
 
+//
+//
+//
+//
+// Clears the transaction log
 const ClearButton = () => {
   const clear = useRootZustand((z) => z.clearTransactions)
   return (
@@ -36,9 +46,14 @@ const ClearButton = () => {
   )
 }
 
+//
+//
+//
+//
+// Custom footer with export and clear buttons
 const CustomFooter = () => {
   return (
-    <GridFooterContainer sx={{ px: 0.5, gap:0.5 }}>
+    <GridFooterContainer sx={{ px: 0.5, gap: 0.5 }}>
       <Box sx={{ flex: 1 }} />
       <GridPagination />
       <ExportButton />
@@ -47,6 +62,11 @@ const CustomFooter = () => {
   )
 }
 
+//
+//
+//
+//
+// Datagrid
 const TransactionGridContent = () => {
   const api = useGridApiRef()
 
@@ -86,6 +106,11 @@ const TransactionGridContent = () => {
   )
 }
 
+//
+//
+//
+//
+// DataGrid paper
 const TransactionGrid = () => {
   return (
     <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>

@@ -6,6 +6,11 @@ import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/meme'
 
+//
+//
+//
+//
+// Footer
 const Footer = meme(() => {
   const time = useRootZustand((z) => z.lastSuccessfulTransactionMillis)
   return (
@@ -20,6 +25,11 @@ const Footer = meme(() => {
   )
 })
 
+//
+//
+//
+//
+// DataGrid
 const RegisterGridContent = () => {
   const registerData = useRootZustand((z) => z.registerData)
   const columns = useRegisterGridColumns()
@@ -51,18 +61,25 @@ const RegisterGridContent = () => {
         noRowsLabel: 'Connect and read to see registers'
       }}
       slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      //
+      //
+      // Row update
       processRowUpdate={(newRow, oldRow) => {
+        const z = useRootZustand.getState()
+
+        // Update datatype
         if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
-          const z = useRootZustand.getState()
           z.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
         }
 
+        // Update scaling factor
         // This will ignore zero too, if you don't want to ignore zero compare with undefined
         if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
           const z = useRootZustand.getState()
           z.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
         }
 
+        // Update comment
         if (newRow['comment'] && newRow['comment'] !== oldRow['comment']) {
           const z = useRootZustand.getState()
           z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
@@ -74,6 +91,11 @@ const RegisterGridContent = () => {
   )
 }
 
+//
+//
+//
+//
+// DataGrid paper
 const RegisterGrid = () => {
   return (
     <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>

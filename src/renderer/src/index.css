@@ -5,27 +5,41 @@
 /** SCROLLBAR **/
 /* width */
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 /* Track */
 ::-webkit-scrollbar-track {
-	background: rgba(0, 0, 0, 0);
-	border-radius: 8px;
+  background: rgba(0, 0, 0, 0);
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-corner {
-	background: rgba(0, 0, 0, 0);
+  background: rgba(0, 0, 0, 0);
 }
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-	background: rgba(0, 0, 0, 0.25);
-	border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
 }
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.75);
+}
+
+/* Hide up and down arrows in number inputs, they are ugly */
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

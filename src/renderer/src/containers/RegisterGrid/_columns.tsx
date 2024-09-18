@@ -24,6 +24,9 @@ const registerValueToString = (
   return { numberString, irrelevant }
 }
 
+//
+//
+// ID = register address
 const addressColumn: GridColDef<RegisterData, number> = {
   field: 'id',
   sortable: false,
@@ -33,6 +36,9 @@ const addressColumn: GridColDef<RegisterData, number> = {
   renderCell: ({ value }) => <Box sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>{value}</Box>
 }
 
+//
+//
+// Show the address by convention
 const conventionalAddresColumn = (
   type: RegisterType,
   addressBase: string
@@ -56,6 +62,9 @@ const conventionalAddresColumn = (
   }
 })
 
+//
+//
+// Raw hex value of the register
 const hexColumn: GridColDef<RegisterData, string> = {
   field: 'hex',
   sortable: false,
@@ -74,7 +83,10 @@ const hexColumn: GridColDef<RegisterData, string> = {
   )
 }
 
-const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef => ({
+//
+//
+// When selecting a datatype the value of that datatype is shown in this column
+const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'value',
   sortable: false,
   hideable: false,
@@ -82,26 +94,36 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef => ({
   headerName: 'Value',
   width: 150,
   valueGetter: (_, row) => {
-    const registerData = row as RegisterData
-    const address = registerData.id
+    const address = row.id
+
+    // Get the defined datatype from the register map
     const dataType = registerMap[address]?.dataType
 
-    const value = dataType ? String(registerData.words?.[dataType]) : undefined
+    // Get the value for the register datatype, they are all there, the defined datatype
+    // extracts that value and shows it in the value column
+    const value = dataType ? String(row.words?.[dataType]) : undefined
     if (!value) return undefined
 
+    // Get the scaling factor from the register map
+    // And the decimal places for rounding the scaled value because js can add some unwanted
+    // decimal places by deviding by the scaling factor
     const scalingFactor = registerMap[address]?.scalingFactor ?? 1
     const decimalPlaces = String(scalingFactor).split('.')[1]?.length ?? 0
 
+    // When we have a floating point number, we add the decimal places of it
+    // to the decimal places of the scaling factor, else we would round the float completely
     const float = dataType === DataType.Float || dataType === DataType.Double
-    const decimalPlacesFloat = float ? value.split('.')[1]?.length ?? 0 : 0
+    const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
 
-    console.log({ value, decimalPlaces, decimalPlacesFloat })
-
+    // Round the scaled value to the given decimal places
     return round(Number(value) * scalingFactor, decimalPlaces + decimalPlacesFloat)
   },
   valueFormatter: (v) => (v ? Number(v) : '')
 })
 
+//
+//
+// Column to select the register datatype
 const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'dataType',
   sortable: false,
@@ -120,6 +142,9 @@ const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef => ({
     value === DataType.None ? '' : value ? value.toUpperCase() : undefined
 })
 
+//
+//
+// Column to set the value's scaling factor, for better interpreting the value
 const scalingFactorColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'scalingFactor',
   sortable: false,
@@ -136,20 +161,26 @@ const scalingFactorColumn = (registerMap: RegisterMapObject): GridColDef => ({
   renderCell: ({ value }) => value
 })
 
+//
+//
+// Column to set a comment for the register
 const commentColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'comment',
   sortable: false,
   headerName: 'Comment',
   minWidth: 300,
-  flex:1,
+  flex: 1,
   editable: true,
   valueGetter: (_, row) => {
     const address = (row as RegisterData).id
     const register = registerMap[address]
     return register?.comment
-  },
+  }
 })
 
+//
+//
+// Generic comonent to show the columns for each converted value (advance mode)
 const valueColumn = (
   key: DataType,
   width: number
@@ -167,6 +198,9 @@ const valueColumn = (
   }
 })
 
+//
+//
+// COLUMNS
 const useRegisterGridColumns = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const registerMap = useRootZustand((z) => z.registerMapping[type])
@@ -185,6 +219,7 @@ const useRegisterGridColumns = () => {
       hexColumn
     ]
 
+    // Advanced mode columns
     if (advanced) {
       columns.push(
         valueColumn(DataType.Int16, 70),
@@ -195,6 +230,7 @@ const useRegisterGridColumns = () => {
       )
     }
 
+    // Show 64 bit columns only in advanced mode, these are not very common, but they are there
     if (advanced && show64Bit) {
       columns.push(
         valueColumn(DataType.Int64, 160),

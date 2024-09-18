@@ -22,6 +22,8 @@ import { useCallback, useRef, useState } from 'react'
 
 //
 //
+//
+//
 // Read
 const ReadButton = () => {
   const disabled = useRootZustand(
@@ -57,6 +59,8 @@ const ReadButton = () => {
 
 //
 //
+//
+//
 // Poll
 const PollButton = () => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
@@ -84,6 +88,8 @@ const PollButton = () => {
 
 //
 //
+//
+//
 // Clear register Data
 const ClearButton = () => {
   const disabled = useRootZustand((z) => z.registerData.length === 0 || z.clientState.polling)
@@ -102,6 +108,8 @@ const ClearButton = () => {
 
 //
 //
+//
+//
 // Show log button
 const ShowLogButton = () => {
   const showLog = useLayoutZustand((z) => z.showLog)
@@ -117,6 +125,8 @@ const ShowLogButton = () => {
   )
 }
 
+//
+//
 //
 //
 // Menu with extra options
@@ -153,6 +163,8 @@ const MenuContent = () => {
     </FormGroup>
   )
 }
+
+// Menu button for extra options menu
 const MenuButton = () => {
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
@@ -184,21 +196,18 @@ const MenuButton = () => {
 
 //
 //
+//
+//
 // Slider component
 interface SliderComponentProps {
   label: string
-  labelWidth: number
   value: number
-  valueWidth: number
   setValue: (value: number) => void
 }
-const SliderComponent = ({
-  label,
-  value,
-  setValue,
-  labelWidth,
-  valueWidth
-}: SliderComponentProps) => {
+const SliderComponent = ({ label, value, setValue }: SliderComponentProps) => {
+  const labelWidth = 70
+  const valueWidth = 25
+
   return (
     <Box
       sx={{
@@ -234,45 +243,27 @@ const SliderComponent = ({
   )
 }
 
-const labelWidth = 70
-const valueWidth = 25
-
-//
-//
-// Polling settings
+// Polling interval slider
 const PollRate = () => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
   const setValue = useRootZustand((z) => z.setPollRate)
 
-  return (
-    <SliderComponent
-      label="Poll Rate"
-      value={value}
-      setValue={(v) => setValue(v * 1000)}
-      labelWidth={labelWidth}
-      valueWidth={valueWidth}
-    />
-  )
+  return <SliderComponent label="Poll Rate" value={value} setValue={(v) => setValue(v * 1000)} />
 }
 
-//
-//
-// Timeout settings
+// Read Timeout slider
 const Timeout = () => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
   const setValue = useRootZustand((z) => z.setTimeout)
 
-  return (
-    <SliderComponent
-      label="Timeout"
-      value={value}
-      setValue={(v) => setValue(v * 1000)}
-      labelWidth={labelWidth}
-      valueWidth={valueWidth}
-    />
-  )
+  return <SliderComponent label="Timeout" value={value} setValue={(v) => setValue(v * 1000)} />
 }
 
+//
+//
+//
+//
+// Popover with sliders
 const SettingPopover = meme(() => {
   const polling = useRootZustand((z) => z.clientState.polling)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -302,6 +293,8 @@ const SettingPopover = meme(() => {
 
 //
 //
+//
+//
 // Toggle swap
 const ToggleSwapButton = () => {
   const swap = useRootZustand((z) => z.registerConfig.swap)
@@ -324,6 +317,11 @@ const ToggleSwapButton = () => {
   )
 }
 
+//
+//
+//
+//
+// TOOLBAR
 const RegisterGridToolbar = meme(() => {
   return (
     <Box

@@ -68,8 +68,10 @@ const responseColumn: GridColDef<Transaction, Buffer[], string[]> = {
     ),
   renderCell: ({ formattedValue, row }) => {
     return (
-      <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', }}>
-        {(formattedValue as string[]).map((v: string, i: number) => (
+      // Responses can hold multiple responses, we display them in a formatted way
+      // Adding the response number to the response value
+      <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+        {(formattedValue as string[]).map((v, i) => (
           <Box
             key={`response_${row.id}_${i}`}
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}
