@@ -8,6 +8,7 @@ import {
   defaultRegisterConfig,
   IpcEvent,
   RegisterData,
+  RegisterType,
   Transaction
 } from '@shared'
 import { DateTime } from 'luxon'
@@ -20,14 +21,40 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       set((state) => {
         state.registerData = data
       }),
+    // Register mapping
+    registerMapping: {
+      [RegisterType.Coils]: {},
+      [RegisterType.DiscreteInputs]: {},
+      [RegisterType.HoldingRegisters]: {},
+      [RegisterType.InputRegisters]: {}
+    },
+    setRegisterMapping: (register, key, value) => {
+      const type = getState().registerConfig.type
+      
+      return set((state) => {
+        if (!state.registerMapping[type][register]) {
+          state.registerMapping[type][register] = { [key]: value }
+          return
+        }
+
+        if (!state.registerMapping[type][register][key]) {
+          state.registerMapping[type][register][key] = value
+          return
+        }
+
+        state.registerMapping[type][register][key] = value
+      })
+    },
     // Transaction log
     transactions: [],
-    addTransaction: (transaction) => set((state) => {
-      state.transactions.unshift(transaction)
-    }),
-    clearTransactions: () => set((state) => {
-      state.transactions = []
-    }),
+    addTransaction: (transaction) =>
+      set((state) => {
+        state.transactions.unshift(transaction)
+      }),
+    clearTransactions: () =>
+      set((state) => {
+        state.transactions = []
+      }),
 
     // Config
     init: async () => {
@@ -59,7 +86,7 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.clientState.polling = polling
       }),
     ready: false,
-   
+
     // Configuration actions
     valid: {
       host: true,

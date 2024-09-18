@@ -7,7 +7,9 @@ import {
   ModbusBaudRate,
   ClientState,
   ConnectState,
-  Transaction
+  Transaction,
+  RegisterMapping,
+  RegisterMapValue
 } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 
@@ -15,7 +17,15 @@ export interface RootZusand {
   // Register data
   registerData: RegisterData[]
   setRegisterData: (data: RegisterData[]) => void
-  
+
+  // Register mapping
+  registerMapping: RegisterMapping
+  setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
+    register: number,
+    key: K,
+    value: V
+  ) => void
+
   // Transaction log
   transactions: Transaction[]
   addTransaction: (transactions: Transaction) => void
@@ -31,7 +41,7 @@ export interface RootZusand {
   setConnectState: (connectState: ConnectState) => void
   setPolling: (polling: boolean) => void
   ready: boolean
-  
+
   // Configuration actions
   valid: Valid
   setProtocol: (protocol: Protocol) => void

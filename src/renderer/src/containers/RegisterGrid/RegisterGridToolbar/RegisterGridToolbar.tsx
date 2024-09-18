@@ -1,4 +1,4 @@
-import { MoreVert } from '@mui/icons-material'
+import { Menu, MoreVert } from '@mui/icons-material'
 import {
   Box,
   Button,
@@ -9,7 +9,10 @@ import {
   Slider,
   ButtonProps,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  Checkbox,
+  FormControlLabel,
+  FormGroup
 } from '@mui/material'
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
@@ -97,20 +100,85 @@ const ClearButton = () => {
   )
 }
 
-// 
+//
 //
 // Show log button
 const ShowLogButton = () => {
   const showLog = useLayoutZustand((z) => z.showLog)
   const toggleShowLog = useLayoutZustand((z) => z.toggleShowLog)
 
-  const variant:ButtonProps['variant'] = showLog? 'contained' : 'outlined'
-  const text = showLog? 'Hide Log' : 'Show Log'
+  const variant: ButtonProps['variant'] = showLog ? 'contained' : 'outlined'
+  const text = showLog ? 'Hide Log' : 'Show Log'
 
   return (
     <Button size="small" variant={variant} onClick={toggleShowLog}>
       {text}
     </Button>
+  )
+}
+
+//
+//
+// Menu with extra options
+const MenuContent = () => {
+  const advanced = useLayoutZustand((z) => z.advanced)
+  const setAdvanced = useLayoutZustand((z) => z.setAdvanced)
+
+  const show64bit = useLayoutZustand((z) => z.show64Bit)
+  const setShow64Bit = useLayoutZustand((z) => z.setShow64Bit)
+
+  return (
+    <FormGroup>
+      <FormControlLabel
+        control={
+          <Checkbox
+            size="small"
+            checked={advanced}
+            onChange={(e) => setAdvanced(e.target.checked)}
+          />
+        }
+        label="Advanced mode"
+      />
+      <FormControlLabel
+        disabled={!advanced}
+        control={
+          <Checkbox
+            size="small"
+            checked={show64bit}
+            onChange={(e) => setShow64Bit(e.target.checked)}
+          />
+        }
+        label="Show 64 bit values"
+      />
+    </FormGroup>
+  )
+}
+const MenuButton = () => {
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
+
+  return (
+    <>
+      <Button
+        ref={buttonRef}
+        size="small"
+        variant={'outlined'}
+        onClick={() => setAnchorEl(buttonRef.current)}
+        sx={{ minWidth: 40 }}
+      >
+        <Menu />
+      </Button>
+      <Popover
+        sx={{ mt: 1, background: 'transparent' }}
+        slotProps={{ paper: { sx: { px: 2, py: 1 } } }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+        open={!!anchorEl}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+      >
+        <MenuContent />
+      </Popover>
+    </>
   )
 }
 
@@ -248,7 +316,9 @@ const ToggleSwapButton = () => {
       value={swap}
       onChange={(_, v) => setSwap(v)}
     >
-      <ToggleButton value={false} sx={{whiteSpace: 'nowrap'}}>No Swap</ToggleButton>
+      <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
+        No Swap
+      </ToggleButton>
       <ToggleButton value={true}>Swap</ToggleButton>
     </ToggleButtonGroup>
   )
@@ -265,7 +335,7 @@ const RegisterGridToolbar = meme(() => {
         display: 'flex',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 1,
+        gap: 1
       })}
     >
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -274,9 +344,10 @@ const RegisterGridToolbar = meme(() => {
         <ToggleSwapButton />
         <SettingPopover />
       </Box>
-      <Box sx={{ display: 'flex', gap: 1}}>
+      <Box sx={{ display: 'flex', gap: 1 }}>
         <ClearButton />
         <ShowLogButton />
+        <MenuButton />
       </Box>
     </Box>
   )

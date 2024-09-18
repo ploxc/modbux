@@ -33,6 +33,7 @@ const RegisterGridContent = () => {
       rowHeight={40}
       columnHeaderHeight={48}
       hideFooterPagination
+      editMode="cell"
       sx={(theme) => ({
         '& .MuiDataGrid-virtualScrollerContent': {
           fontFamily: 'monospace',
@@ -50,6 +51,25 @@ const RegisterGridContent = () => {
         noRowsLabel: 'Connect and read to see registers'
       }}
       slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      processRowUpdate={(newRow, oldRow) => {
+        if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
+          const z = useRootZustand.getState()
+          z.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
+        }
+
+        // This will ignore zero too, if you don't want to ignore zero compare with undefined
+        if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
+          const z = useRootZustand.getState()
+          z.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
+        }
+
+        if (newRow['comment'] && newRow['comment'] !== oldRow['comment']) {
+          const z = useRootZustand.getState()
+          z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+        }
+
+        return newRow
+      }}
     />
   )
 }

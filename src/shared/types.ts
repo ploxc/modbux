@@ -115,15 +115,28 @@ export interface RegisterData {
   words: RegisterDataWords | undefined
   byte: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean] | undefined
 }
+
+export enum DataType {
+  None = 'none',
+  Int16 = 'int16',
+  UInt16 = 'uint16',
+  Int32 = 'int32',
+  UInt32 = 'uint32',
+  Int64 = 'int64',
+  UInt64 = 'uint64',
+  Float = 'float',
+  Double = 'double'
+}
+
 export interface RegisterDataWords {
-  int16: number
-  uint16: number
-  int32: number
-  uint32: number
-  int64: bigint
-  uint64: bigint
-  float: number
-  double: number
+  [DataType.Int16]: number
+  [DataType.UInt16]: number
+  [DataType.Int32]: number
+  [DataType.UInt32]: number
+  [DataType.Float]: number
+  [DataType.Int64]: bigint
+  [DataType.UInt64]: bigint
+  [DataType.Double]: number
 }
 
 //
@@ -151,6 +164,26 @@ export interface RawTransaction {
   //_timeoutHandle: undefined,
   request: Buffer
   responses: Buffer[]
+}
+
+//
+//
+// Register Mapping
+export interface RegisterMapping {
+  [RegisterType.Coils]: RegisterMapObject
+  [RegisterType.DiscreteInputs]: RegisterMapObject
+  [RegisterType.HoldingRegisters]: RegisterMapObject
+  [RegisterType.InputRegisters]: RegisterMapObject
+}
+
+export interface RegisterMapObject {
+  [key: number]: RegisterMapValue | undefined
+}
+
+export interface RegisterMapValue {
+  dataType?: DataType
+  scalingFactor?: number
+  comment?: string
 }
 
 //
