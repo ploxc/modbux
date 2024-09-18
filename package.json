@@ -1,9 +1,12 @@
 {
   "name": "modbux",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "A Modbus Client test tool",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": {
+    "name": "Jens De Ketelaere",
+    "email": "deketelaerejens@gmail.com"
+  },
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",

@@ -7,12 +7,12 @@ import './index.css'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './app'
 import { CssBaseline, IconButton } from '@mui/material'
 import { styled, ThemeProvider } from '@mui/material/styles'
 import { theme } from './theme'
 import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
 import { Close } from '@mui/icons-material'
+import App from './app'
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
   '&.notistack-MuiContent-success': {
