@@ -56,9 +56,10 @@ const RegisterGridContent = () => {
 
 const RegisterGrid = () => {
   return (
-    <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0 }}>
+    <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
       <RegisterGridContent />
     </Paper>
   )
 }
+
 export default RegisterGrid

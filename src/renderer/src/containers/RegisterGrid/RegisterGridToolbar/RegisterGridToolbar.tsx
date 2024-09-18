@@ -12,6 +12,7 @@ import {
   ToggleButton
 } from '@mui/material'
 import { meme } from '@renderer/components/meme'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ConnectState } from '@shared'
 import { useCallback, useRef, useState } from 'react'
@@ -92,6 +93,23 @@ const ClearButton = () => {
   return (
     <Button disabled={disabled} size="small" variant="outlined" onClick={handleClear}>
       Clear
+    </Button>
+  )
+}
+
+// 
+//
+// Show log button
+const ShowLogButton = () => {
+  const showLog = useLayoutZustand((z) => z.showLog)
+  const toggleShowLog = useLayoutZustand((z) => z.toggleShowLog)
+
+  const variant:ButtonProps['variant'] = showLog? 'contained' : 'outlined'
+  const text = showLog? 'Hide Log' : 'Show Log'
+
+  return (
+    <Button size="small" variant={variant} onClick={toggleShowLog}>
+      {text}
     </Button>
   )
 }
@@ -257,6 +275,7 @@ const RegisterGridToolbar = meme(() => {
       </Box>
       <Box sx={{ display: 'flex', gap: 1 }}>
         <ClearButton />
+        <ShowLogButton />
       </Box>
     </Box>
   )

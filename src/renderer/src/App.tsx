@@ -6,6 +6,8 @@ import { useSnackbar } from 'notistack'
 import { useEffect } from 'react'
 import { BackendMessage, IpcEvent } from '@shared'
 import { IpcRendererEvent } from 'electron'
+import TransactionGrid from './containers/TransactionGrid/TransactionGrid'
+import { useLayoutZustand } from './context/layout.zustand'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -21,6 +23,26 @@ const MessageReceiver = () => {
   }, [])
 
   return null
+}
+
+const Grids = () => {
+  const showLog = useLayoutZustand((z) => z.showLog)
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        minHeight: 0,
+        gap: 2
+      }}
+    >
+      <RegisterGrid />
+      {showLog && <TransactionGrid />}
+    </Box>
+  )
 }
 
 const App = (): JSX.Element => {
@@ -43,7 +65,7 @@ const App = (): JSX.Element => {
             <ConnectionConfig />
           </Box>
         </Box>
-        <RegisterGrid />
+        <Grids />
       </Box>
     </Fade>
   )

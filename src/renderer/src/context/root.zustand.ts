@@ -23,7 +23,10 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     // Transaction log
     transactions: [],
     addTransaction: (transaction) => set((state) => {
-      state.transactions.push(transaction)
+      state.transactions.unshift(transaction)
+    }),
+    clearTransactions: () => set((state) => {
+      state.transactions = []
     }),
 
     // Config

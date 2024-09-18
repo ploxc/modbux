@@ -19,6 +19,7 @@ export interface RootZusand {
   // Transaction log
   transactions: Transaction[]
   addTransaction: (transactions: Transaction) => void
+  clearTransactions: () => void
 
   // Config
   init: () => Promise<void>
