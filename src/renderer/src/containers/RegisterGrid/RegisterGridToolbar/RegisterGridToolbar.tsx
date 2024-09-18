@@ -248,7 +248,7 @@ const ToggleSwapButton = () => {
       value={swap}
       onChange={(_, v) => setSwap(v)}
     >
-      <ToggleButton value={false}>No Swap</ToggleButton>
+      <ToggleButton value={false} sx={{whiteSpace: 'nowrap'}}>No Swap</ToggleButton>
       <ToggleButton value={true}>Swap</ToggleButton>
     </ToggleButtonGroup>
   )
@@ -264,16 +264,17 @@ const RegisterGridToolbar = meme(() => {
         background: theme.palette.background.default,
         display: 'flex',
         justifyContent: 'space-between',
-        gap: 1
+        flexWrap: 'wrap',
+        gap: 1,
       })}
     >
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <PollButton />
         <ReadButton />
         <ToggleSwapButton />
         <SettingPopover />
       </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: 'flex', gap: 1}}>
         <ClearButton />
         <ShowLogButton />
       </Box>

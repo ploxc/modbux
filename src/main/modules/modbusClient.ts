@@ -15,6 +15,7 @@ import {
 import { ReadRegisterResult } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
+import {v4} from 'uuid'
 
 const noSwap32 = (buffer: Buffer, offset: number) => {
   return buffer.subarray(offset, offset + 4)
@@ -55,7 +56,6 @@ export class ModbusClient {
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
-  private _lastTransactionId: number = 0
 
   constructor({ appState, mainWindow }: ClientParams) {
     this._client = new ModbusRTU()
@@ -149,6 +149,7 @@ export class ModbusClient {
   //
   //
   // Disconnect
+  private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async () => {
     this._clientState.connectState = ConnectState.Disconnecting
     this._sendClientState()
@@ -162,7 +163,21 @@ export class ModbusClient {
     this._emitMessage({ message, variant: 'default', error: null })
 
     try {
-      await new Promise<void>((resolve) => this._client.close(() => resolve()))
+      await new Promise<void>((resolve) => {
+        this._disconnectTimeout = setTimeout(() => {
+          this._client.destroy(() => {
+            const message = 'Disconnect timeout, client destroyed'
+            this._emitMessage({ message, variant: 'warning', error: null })
+            resolve()
+            this._client = new ModbusRTU()
+          })
+        }, 5000)
+
+        this._client.close(() => {
+          clearTimeout(this._disconnectTimeout)
+          resolve()
+        })
+      })
       this._emitMessage({
         message: 'Disconnected from server/slave',
         variant: 'success',
@@ -220,11 +235,9 @@ export class ModbusClient {
 
     // Check if transaction has already been processed
     const transactionId = Number(transactionIdKey)
-    if (transactionId === this._lastTransactionId) return
-    this._lastTransactionId = transactionId
 
     const transaction: Transaction = {
-      id: transactionId,
+      id: `${transactionId}__${v4()}`,
       timestamp: DateTime.now().toMillis(),
       unitId: rawTransaction.nextAddress,
       address: rawTransaction.nextDataAddress,

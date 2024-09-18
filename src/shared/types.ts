@@ -130,7 +130,7 @@ export interface RegisterDataWords {
 //
 // Transactions
 export interface Transaction {
-  id: number
+  id: string
   timestamp: number
   unitId: number
   address: number
