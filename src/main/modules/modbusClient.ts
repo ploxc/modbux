@@ -246,12 +246,14 @@ export class ModbusClient {
   private _readCoils = async () => {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readCoils(address, length)
+    result
     // TODO: Convert to RegisterData
   }
 
   private _readDiscreteInputs = async () => {
     const { address, length } = this._appState.registerConfig
     const result = await this._client.readDiscreteInputs(address, length)
+    result
     // TODO: Convert to RegisterData
   }
 
