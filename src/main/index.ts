@@ -1,12 +1,13 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initIpc } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
+import os from 'os'
 
-if (is.dev) {
+if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-software-rasterizer')
 }

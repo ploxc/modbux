@@ -7,19 +7,42 @@ import {
   defaultConnectionConfig,
   defaultRegisterConfig,
   IpcEvent,
-  RegisterData
+  RegisterData,
+  Transaction
 } from '@shared'
 import { DateTime } from 'luxon'
 
 export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
   mutative((set, getState) => ({
+    // Register data
     registerData: [],
     setRegisterData: (data) =>
       set((state) => {
         state.registerData = data
       }),
+    // Transaction log
+    transactions: [],
+    addTransaction: (transaction) => set((state) => {
+      state.transactions.push(transaction)
+    }),
+
+    // Config
+    init: async () => {
+      const syncedConnectionConfig = await window.api.getConnectionConfig()
+      const syncedRegisterConfig = await window.api.getRegisterConfig()
+      const clientState = await window.api.getClientState()
+
+      set((state) => {
+        state.connectionConfig = syncedConnectionConfig
+        state.registerConfig = syncedRegisterConfig
+        state.clientState = clientState
+        state.ready = true
+      })
+    },
     connectionConfig: defaultConnectionConfig,
     registerConfig: defaultRegisterConfig,
+
+    // State
     clientState: {
       connectState: ConnectState.Disconnected,
       polling: false
@@ -33,18 +56,8 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.clientState.polling = polling
       }),
     ready: false,
-    init: async () => {
-      const syncedConnectionConfig = await window.api.getConnectionConfig()
-      const syncedRegisterConfig = await window.api.getRegisterConfig()
-      const clientState = await window.api.getClientState()
-
-      set((state) => {
-        state.connectionConfig = syncedConnectionConfig
-        state.registerConfig = syncedRegisterConfig
-        state.clientState = clientState
-        state.ready = true
-      })
-    },
+   
+    // Configuration actions
     valid: {
       host: true,
       com: true,
@@ -230,4 +243,9 @@ window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: Register
   const state = useRootZustand.getState()
   state.setRegisterData(registerData)
   state.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
+})
+
+window.electron.ipcRenderer.on(IpcEvent.Transaction, (_, transaction: Transaction) => {
+  const state = useRootZustand.getState()
+  state.addTransaction(transaction)
 })

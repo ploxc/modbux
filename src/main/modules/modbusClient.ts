@@ -7,11 +7,14 @@ import {
   ConnectState,
   IpcEvent,
   Protocol,
+  RawTransaction,
   RegisterData,
-  RegisterType
+  RegisterType,
+  Transaction
 } from '@shared'
 import { ReadRegisterResult } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
+import {DateTime} from 'luxon'
 
 const noSwap32 = (buffer: Buffer, offset: number) => {
   return buffer.subarray(offset, offset + 4)
@@ -52,6 +55,7 @@ export class ModbusClient {
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
+  private _lastTransactionId: number = 0
 
   constructor({ appState, mainWindow }: ClientParams) {
     this._client = new ModbusRTU()
@@ -84,6 +88,9 @@ export class ModbusClient {
   }
   private _sendData = (data: RegisterData[]) => {
     this._mainWindow.webContents.send(IpcEvent.RegisterData, data)
+  }
+  private _sendTransaction = (transaction: Transaction) => {
+    this._mainWindow.webContents.send(IpcEvent.Transaction, transaction)
   }
 
   //
@@ -177,7 +184,32 @@ export class ModbusClient {
     }
 
     await this._read()
-    console.log(this._client['_transactions'])
+
+    // Handle transactions, get the latest transaction from the transactions array
+    const rawTransactions = Object.entries(this._client['_transactions']) as [string, RawTransaction][]
+    const lastTransaction = rawTransactions.at(-1)
+    if (!lastTransaction) return
+
+    const [transactionIdKey, rawTransaction] = lastTransaction
+
+    // Check if transaction has already been processed
+    const transactionId = Number(transactionIdKey)
+    if (transactionId === this._lastTransactionId) return
+    this._lastTransactionId = transactionId
+
+    const transaction:Transaction = {
+      transactionId,
+      timestamp: DateTime.now().toMillis(),
+      unitId: rawTransaction.nextAddress,
+      address: rawTransaction.nextDataAddress,
+      code: rawTransaction.nextCode,
+      responseLength: rawTransaction.nextLength,
+      timeout: rawTransaction._timeoutFired,
+      request: rawTransaction.request,
+      responses: rawTransaction.responses
+    }
+
+    this._sendTransaction(transaction)
   }
 
   private _read = async () => {

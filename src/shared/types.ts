@@ -23,7 +23,8 @@ export interface Api {
 export enum IpcEvent {
   BackendMessage = 'backendMessage',
   ClientState = 'clientState',
-  RegisterData = 'registerData'
+  RegisterData = 'registerData',
+  Transaction = 'transaction'
 }
 
 //
@@ -124,6 +125,34 @@ export interface RegisterDataWords {
   float: number
   double: number
 }
+
+//
+//
+// Transactions
+export interface Transaction {
+  transactionId: number
+  timestamp: number
+  unitId: number
+  address: number
+  code: number
+  responseLength: number
+  timeout: boolean
+  request: Buffer
+  responses: Buffer[]
+}
+
+export interface RawTransaction {
+  nextAddress: number
+  nextDataAddress: number
+  nextCode: number
+  nextLength: number
+  // next: [Function: cb],
+  _timeoutFired: boolean
+  //_timeoutHandle: undefined,
+  request: Buffer
+  responses: Buffer[]
+}
+
 //
 //
 // Utils
