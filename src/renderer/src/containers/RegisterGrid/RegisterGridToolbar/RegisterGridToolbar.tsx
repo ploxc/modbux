@@ -1,4 +1,4 @@
-import { Menu, MoreVert } from '@mui/icons-material'
+import { Delete, FileOpen, Menu, MoreVert, Save } from '@mui/icons-material'
 import {
   Box,
   Button,
@@ -17,7 +17,9 @@ import {
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, RegisterType } from '@shared'
+import { ConnectState, RegisterMapping, RegisterType } from '@shared'
+import { DateTime } from 'luxon'
+import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
 
 //
@@ -329,6 +331,131 @@ const ToggleSwapButton = () => {
 //
 //
 //
+// Save register mapping configuration
+const SaveButton = () => {
+  const saveRegisterConfig = useCallback(() => {
+    const z = useRootZustand.getState()
+    const { registerMapping } = z
+    const registerMappingJson = JSON.stringify(registerMapping, null, 2)
+
+    var element = document.createElement('a')
+    element.setAttribute(
+      'href',
+      'data:text/plain;charset=utf-8,' + encodeURIComponent(registerMappingJson)
+    )
+    element.setAttribute(
+      'download',
+      `modbus_register_config_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}.json`
+    )
+
+    element.style.display = 'none'
+    document.body.appendChild(element)
+
+    element.click()
+
+    document.body.removeChild(element)
+  }, [])
+
+  return (
+    <IconButton
+      size="small"
+      onClick={saveRegisterConfig}
+      color="primary"
+      title="save datatype, scaling and comment configuration to json file"
+    >
+      <Save fontSize="small" />
+    </IconButton>
+  )
+}
+
+//
+//
+//
+//
+// Open register mapping configuration (load json file)
+const LoadButton = () => {
+  const openingRef = useRef(false)
+  const [opening, setOpening] = useState(false)
+
+  const replaceRegisterMapping = useRootZustand((z) => z.replaceRegisterMapping)
+  const { enqueueSnackbar } = useSnackbar()
+
+  const openConfig = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return
+      if (openingRef.current) return
+      openingRef.current = true
+      setOpening(true)
+
+      const content = await file.text()
+
+      try {
+        const registerMapping = JSON.parse(content) as RegisterMapping
+        replaceRegisterMapping(registerMapping)
+      } catch (error) {
+        const tError = error as Error
+        console.log(tError)
+        enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
+      }
+
+      openingRef.current = false
+      setOpening(false)
+    },
+    [replaceRegisterMapping, enqueueSnackbar]
+  )
+
+  return (
+    <Box>
+      <input
+        accept="application/JSON"
+        style={{ display: 'none' }}
+        id="contained-button-file"
+        type="file"
+        onChange={(e) => openConfig(e.target.files?.[0])}
+      />
+      <label htmlFor="contained-button-file">
+        <IconButton
+          size="small"
+          disabled={opening}
+          color="primary"
+          component="span"
+          title="load a modbus json configuration file"
+        >
+          <FileOpen fontSize="small" />
+        </IconButton>
+      </label>
+    </Box>
+  )
+}
+
+//
+//
+//
+//
+// Clear data type, scaling and comment configuration
+const ClearConfigButton = () => {
+  const clearRegisterMapping = useRootZustand((z) => z.clearRegisterMapping)
+
+  const [warn, setWarn] = useState(false)
+
+  return (
+    <IconButton
+      size="small"
+      onClick={clearRegisterMapping}
+      color={warn ? 'error' : 'primary'}
+      title="clear datatype, scaling and comment configuration"
+      onMouseEnter={() => setWarn(true)}
+      onMouseLeave={() => setWarn(false)}
+    >
+      <Delete fontSize="small" />
+    </IconButton>
+  )
+}
+
+//
+//
+//
+//
 // TOOLBAR
 const RegisterGridToolbar = meme(() => {
   return (
@@ -350,7 +477,12 @@ const RegisterGridToolbar = meme(() => {
         <ToggleSwapButton />
         <SettingPopover />
       </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex' }}>
+          <LoadButton />
+          <SaveButton />
+          <ClearConfigButton />
+        </Box>
         <ClearButton />
         <ShowLogButton />
         <MenuButton />

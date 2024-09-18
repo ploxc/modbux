@@ -30,7 +30,7 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     },
     setRegisterMapping: (register, key, value) => {
       const type = getState().registerConfig.type
-      
+
       return set((state) => {
         if (!state.registerMapping[type][register]) {
           state.registerMapping[type][register] = { [key]: value }
@@ -45,6 +45,19 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.registerMapping[type][register][key] = value
       })
     },
+    replaceRegisterMapping: (registerMapping) =>
+      set((state) => {
+        state.registerMapping = registerMapping
+      }),
+    clearRegisterMapping: () =>
+      set((state) => {
+        state.registerMapping = {
+          [RegisterType.Coils]: {},
+          [RegisterType.DiscreteInputs]: {},
+          [RegisterType.HoldingRegisters]: {},
+          [RegisterType.InputRegisters]: {}
+        }
+      }),
     // Transaction log
     transactions: [],
     addTransaction: (transaction) =>

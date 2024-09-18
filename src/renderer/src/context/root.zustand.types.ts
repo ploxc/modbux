@@ -25,7 +25,8 @@ export interface RootZusand {
     key: K,
     value: V
   ) => void
-
+  replaceRegisterMapping: (registerMapping: RegisterMapping) => void
+  clearRegisterMapping: () => void
   // Transaction log
   transactions: Transaction[]
   addTransaction: (transactions: Transaction) => void
