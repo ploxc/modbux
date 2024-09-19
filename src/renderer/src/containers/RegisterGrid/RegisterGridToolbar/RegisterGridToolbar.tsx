@@ -301,11 +301,11 @@ const SettingPopover = meme(() => {
 //
 //
 //
-// Toggle swap
-const ToggleSwapButton = () => {
+// Toggle endianness button
+const ToggleEndianButton = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
-  const swap = useRootZustand((z) => z.registerConfig.swap)
-  const setSwap = useRootZustand((z) => z.setSwap)
+  const littleEndian = useRootZustand((z) => z.registerConfig.littleEndian)
+  const setLittleEndian = useRootZustand((z) => z.setLittleEndian)
 
   const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
   if (!registers16Bit) return null
@@ -316,13 +316,13 @@ const ToggleSwapButton = () => {
       size="small"
       exclusive
       color="primary"
-      value={swap}
-      onChange={(_, v) => setSwap(v)}
+      value={littleEndian}
+      onChange={(_, v) => setLittleEndian(v)}
     >
       <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
-        No Swap
+        BE
       </ToggleButton>
-      <ToggleButton value={true}>Swap</ToggleButton>
+      <ToggleButton value={true}>LE</ToggleButton>
     </ToggleButtonGroup>
   )
 }
@@ -474,7 +474,7 @@ const RegisterGridToolbar = meme(() => {
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <PollButton />
         <ReadButton />
-        <ToggleSwapButton />
+        <ToggleEndianButton />
         <SettingPopover />
       </Box>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>

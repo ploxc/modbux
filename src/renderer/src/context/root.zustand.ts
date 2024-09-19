@@ -232,11 +232,11 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
         state.registerConfig.type = type
         window.api.updateRegisterConfig({ type })
       }),
-    setSwap: (swap) =>
+    setLittleEndian: (littleEndian) =>
       set((state) => {
         if (!getState().ready) return
-        state.registerConfig.swap = swap
-        window.api.updateRegisterConfig({ swap })
+        state.registerConfig.littleEndian = littleEndian
+        window.api.updateRegisterConfig({ littleEndian })
       }),
     // Reading
     setPollRate: (pollRate) =>

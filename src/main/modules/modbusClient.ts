@@ -17,22 +17,26 @@ import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
 
-const noSwap32 = (buffer: Buffer, offset: number) => {
+// Regular most significant word first (big endian)
+const bigEndian32 = (buffer: Buffer, offset: number) => {
   return buffer.subarray(offset, offset + 4)
 }
 
-const swap32 = (buffer: Buffer, offset: number) => {
+// Uncommon least significant word first (little endian)
+const littleEndian32 = (buffer: Buffer, offset: number) => {
   return Buffer.concat([
     buffer.subarray(offset + 2, offset + 4),
     buffer.subarray(offset, offset + 2)
   ])
 }
 
-const noSwap64 = (buffer: Buffer, offset: number) => {
+// Regular most significant word first (big endian)
+const bigEndian64 = (buffer: Buffer, offset: number) => {
   return buffer.subarray(offset, offset + 8)
 }
 
-const swap64 = (buffer: Buffer, offset: number) => {
+// Uncommon least significant word first (little endian)
+const littleEndian64 = (buffer: Buffer, offset: number) => {
   return Buffer.concat([
     buffer.subarray(offset + 6, offset + 8),
     buffer.subarray(offset + 4, offset + 6),
@@ -338,7 +342,7 @@ export class ModbusClient {
   private _convertRegisterData = (result: ReadRegisterResult) => {
     if (!result) return []
 
-    const { address, swap } = this._appState.registerConfig
+    const { address, littleEndian } = this._appState.registerConfig
 
     const { buffer } = result
     const registerData: RegisterData[] = []
@@ -355,18 +359,18 @@ export class ModbusClient {
       // Only read BigInt64 and Double if we have 4 or more registers left
       const inRange64 = i < registers - 3
 
-      // Apply 32 bit swapping
+      // Apply 32 bit endianness
       const buf32 = inRange32
-        ? swap
-          ? swap32(buffer, offset)
-          : noSwap32(buffer, offset)
+        ? littleEndian
+          ? littleEndian32(buffer, offset)
+          : bigEndian32(buffer, offset)
         : undefined
 
-      // Apply 64 bit swapping
+      // Apply 64 bit endianness
       const buf64 = inRange64
-        ? swap
-          ? swap64(buffer, offset)
-          : noSwap64(buffer, offset)
+        ? littleEndian
+          ? littleEndian64(buffer, offset)
+          : bigEndian64(buffer, offset)
         : undefined
 
       // Define row data, read big endian data

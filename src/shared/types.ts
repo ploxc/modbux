@@ -102,7 +102,7 @@ export interface RegisterConfig {
   type: RegisterType
   pollRate: number
   timeout: number
-  swap: boolean
+  littleEndian: boolean
 }
 
 //
