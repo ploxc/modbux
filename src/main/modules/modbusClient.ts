@@ -134,10 +134,13 @@ export class ModbusClient {
     const message = `Connecting to modbus server/slave: ${endpoint} with ${protocol === Protocol.ModbusTcp ? 'TCP' : 'RTU'} protocol`
     this._emitMessage({ message, variant: 'default', error: null })
 
+    // Weird, this is included in rtu options, but when autoOpen (not available in type) is false it doesn't work.
+    rtuOptions['autoOpen'] = true
+
     try {
       protocol === Protocol.ModbusTcp
         ? await this._client.connectTCP(host, tcpOptions)
-        : await this._client.connectRTU(com, rtuOptions)
+        : await this._client.connectRTUBuffered(com, rtuOptions)
       this._emitMessage({ message: 'Connected to server/slave', variant: 'success', error: null })
       this._setConnected()
     } catch (error) {
@@ -318,6 +321,12 @@ export class ModbusClient {
 
   private _readHoldingRegisters = async () => {
     const { address, length } = this._appState.registerConfig
+    // await new Promise<void>((resolve) => {
+    //   this._client.writeFC16(10, 120, [1234, 5678], (err, data) => {
+    //     console.log(err, data)
+    //     resolve()
+    //   })
+    // })
     const result = await this._client.readHoldingRegisters(address, length)
     const data = this._convertRegisterData(result)
     this._sendData(data)
