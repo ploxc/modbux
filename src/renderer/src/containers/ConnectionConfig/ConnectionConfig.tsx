@@ -19,7 +19,7 @@ const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
       exclusive
       color="primary"
       value={protocol}
-      onChange={(_, v) => setProtocol(v)}
+      onChange={(_, v) => v !== null && setProtocol(v)}
     >
       <ToggleButton value={Protocol.ModbusTcp}>TCP</ToggleButton>
       <ToggleButton value={Protocol.ModbusRtu}>RTU</ToggleButton>

@@ -12,8 +12,10 @@ import {
   ToggleButton,
   Checkbox,
   FormControlLabel,
-  FormGroup
+  FormGroup,
+  Tooltip
 } from '@mui/material'
+import EndianTable from '@renderer/components/EndianTable'
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
@@ -311,19 +313,25 @@ const ToggleEndianButton = () => {
   if (!registers16Bit) return null
 
   return (
-    <ToggleButtonGroup
-      sx={{ height: 29.5 }}
-      size="small"
-      exclusive
-      color="primary"
-      value={littleEndian}
-      onChange={(_, v) => setLittleEndian(v)}
+    <Tooltip
+      slotProps={{ tooltip: { sx: { background: 'transparent', m: 0 } } }}
+      title={<EndianTable />}
+      enterDelay={1000}
     >
-      <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
-        BE
-      </ToggleButton>
-      <ToggleButton value={true}>LE</ToggleButton>
-    </ToggleButtonGroup>
+      <ToggleButtonGroup
+        sx={{ height: 29.5 }}
+        size="small"
+        exclusive
+        color="primary"
+        value={littleEndian}
+        onChange={(_, v) => v !== null && setLittleEndian(v)}
+      >
+        <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
+          BE
+        </ToggleButton>
+        <ToggleButton value={true}>LE</ToggleButton>
+      </ToggleButtonGroup>
+    </Tooltip>
   )
 }
 

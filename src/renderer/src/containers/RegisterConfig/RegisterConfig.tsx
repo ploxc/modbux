@@ -134,7 +134,7 @@ const Address = () => {
                 exclusive
                 color="primary"
                 value={addressBase}
-                onChange={(_, v) => setAddressBase(v)}
+                onChange={(_, v) => v !== null && setAddressBase(v)}
               >
                 <ToggleButton value={'0'}>0</ToggleButton>
                 <ToggleButton value={'1'}>1</ToggleButton>
