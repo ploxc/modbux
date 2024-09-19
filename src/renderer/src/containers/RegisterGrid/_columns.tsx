@@ -74,7 +74,6 @@ const hexColumn: GridColDef<RegisterData, string> = {
     <Box
       sx={(theme) => ({
         fontFamily: 'monospace',
-        opacity: 0.75,
         color: theme.palette.primary.light
       })}
     >

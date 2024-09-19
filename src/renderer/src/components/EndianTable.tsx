@@ -42,7 +42,7 @@ const EndianTable = () => {
           <TableRow>
             <TableCell>Little-Endian</TableCell>
             <TableCell>
-              <strong>0x1234</strong> (W1)
+              <strong>0x5678</strong> (W0)
             </TableCell>
             <TableCell>
               <strong>0x1234</strong> (W1)

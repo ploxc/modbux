@@ -231,12 +231,18 @@ export class ModbusClient {
     }
 
     // Handle transactions, get the latest transaction from the transactions array
+    console.log('Handle transactions')
+    console.log(this._client['_transactions'])
     const rawTransactions = Object.entries(this._client['_transactions']) as [
       string,
       RawTransaction
     ][]
     const lastTransaction = rawTransactions.at(-1)
     if (!lastTransaction) return
+
+    // Clear the transactions so we don't log a transaction twice
+    // For example when encountering an error we would log the same last transaction again
+    this._client['_transactions'] = {}
 
     const [transactionIdKey, rawTransaction] = lastTransaction
 
