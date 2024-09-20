@@ -15,7 +15,7 @@ export interface Api {
   read: () => Promise<RegisterData[] | undefined>
   startPolling: () => Promise<void>
   stopPolling: () => Promise<void>
-  write: (writeParameters:WriteParameters) => Promise<void>
+  write: (writeParameters: WriteParameters) => Promise<void>
 }
 
 //
@@ -31,15 +31,18 @@ export enum IpcEvent {
 //
 //
 // WriteParameters
-export type WriteParameters = {  address: number, performRead: boolean } & ({
-  type: RegisterType.Coils
-  value: boolean
-  dataType?: never
-} |{
-  type: RegisterType.HoldingRegisters
-  value: number
-  dataType: DataType
-})
+export type WriteParameters = { address: number } & (
+  | {
+      type: RegisterType.Coils
+      value: boolean
+      dataType?: never
+    }
+  | {
+      type: RegisterType.HoldingRegisters
+      value: number
+      dataType: DataType
+    }
+)
 
 //
 //

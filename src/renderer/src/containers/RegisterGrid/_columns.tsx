@@ -199,7 +199,19 @@ const valueColumn = (
     if (value === undefined) return null
 
     const { numberString, irrelevant } = registerValueToString(value)
-    return <Box sx={{ opacity: irrelevant ? 0.25 : undefined }}>{numberString}</Box>
+    return (
+      <Box
+        title={String(value)}
+        sx={{
+          opacity: irrelevant ? 0.25 : undefined,
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis'
+        }}
+      >
+        {numberString}
+      </Box>
+    )
   }
 })
 

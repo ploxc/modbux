@@ -13,7 +13,7 @@ import { meme } from '@renderer/components/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { DataType, RegisterType } from '@shared'
-import { forwardRef, RefObject, useCallback, useEffect } from 'react'
+import { forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -33,9 +33,9 @@ const getMinMaxValues = (dataType: DataType): { min: number; max: number } => {
     case DataType.UInt64:
       return { min: 0, max: Number.MAX_SAFE_INTEGER } // Max safe integer in JavaScript for unsigned 64-bit
     case DataType.Float:
-      return { min: Number.MIN_VALUE, max: Number.MAX_VALUE } // Closest approximation for float
+      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Closest approximation for float
     case DataType.Double:
-      return { min: Number.MIN_VALUE, max: Number.MAX_VALUE } // Double in JS is the same as float
+      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Double in JS is the same as float
     default:
       return { min: 0, max: 0 }
   }
@@ -78,29 +78,33 @@ const ValueInput = meme(
     const { set, ...other } = props
     const dataType = useValueInputZustand((z) => z.dataType)
 
-    const integer = [
-      DataType.Int16,
-      DataType.UInt16,
-      DataType.Int32,
-      DataType.UInt32,
-      DataType.Int64,
-      DataType.UInt64
-    ].includes(dataType)
+    const integer = useMemo(
+      () =>
+        [
+          DataType.Int16,
+          DataType.UInt16,
+          DataType.Int32,
+          DataType.UInt32,
+          DataType.Int64,
+          DataType.UInt64
+        ].includes(dataType),
+      [dataType]
+    )
 
-    const { min, max } = getMinMaxValues(dataType)
+    const { min, max } = useMemo(() => getMinMaxValues(dataType), [dataType])
 
     return (
       <IMaskInput
         {...other}
         mask={IMask.MaskedNumber}
+        min={min}
+        max={max}
         autofix
         {...{
           scale: integer ? 0 : 7,
           thousandsSeparator: '',
           radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','], // symbols to process as radix
-          min,
-          max
+          mapToRadix: ['.', ','] // symbols to process as radix
         }}
         inputRef={ref}
         onAccept={(value: any) => set(value, value.length > 0)}
@@ -170,7 +174,6 @@ const WriteButton = meme(() => {
   const handleWrite = useCallback(() => {
     window.api.write({
       address,
-      performRead: true,
       dataType,
       type: RegisterType.HoldingRegisters,
       value: Number(value)
@@ -197,10 +200,10 @@ const WriteModal = ({ open, onClose, address, actionCellRef }: Props) => {
   const setValue = useValueInputZustand((z) => z.setValue)
   const setAddress = useValueInputZustand((z) => z.setAddress)
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setValue('0')
     onClose()
-  }
+  }, [setValue, onClose])
 
   useEffect(() => {
     setAddress(address)

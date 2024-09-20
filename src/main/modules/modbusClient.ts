@@ -440,7 +440,7 @@ export class ModbusClient {
   //
   // Write
   public write = async (writeParameters: WriteParameters) => {
-    const { address, type, value, dataType, performRead } = writeParameters
+    const { address, type, value, dataType } = writeParameters
 
     switch (type) {
       case RegisterType.Coils:
@@ -455,7 +455,7 @@ export class ModbusClient {
     this._logTransaction()
 
     // When specified, perform a read after writing the register.
-    if (performRead) this.read()
+    if (!this._clientState.polling) this.read()
   }
 
   private _writeCoil = async (address: number, value: boolean) => {
