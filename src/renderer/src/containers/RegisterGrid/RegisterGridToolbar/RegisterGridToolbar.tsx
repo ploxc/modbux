@@ -402,7 +402,6 @@ const LoadButton = () => {
         replaceRegisterMapping(registerMapping)
       } catch (error) {
         const tError = error as Error
-        console.log(tError)
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
       }
 

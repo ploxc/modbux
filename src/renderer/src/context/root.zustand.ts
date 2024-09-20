@@ -226,25 +226,40 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       }),
     setAddress: (address) =>
       set((state) => {
-        if (!getState().ready) return
+        const currentState = getState()
+        if (!currentState.ready) return
+
         const newAddress = Number(address)
         state.registerConfig.address = newAddress
         window.api.updateRegisterConfig({ address: newAddress })
+
+        // Reset registerdata when not polling
+        if (!currentState.clientState.polling) state.registerData = []
       }),
     setLength: (length, valid) =>
       set((state) => {
-        if (!getState().ready) return
+        const currentState = getState()
+        if (!currentState.ready) return
+
         state.valid.lenght = !!valid
         const newLength = Number(length)
         state.registerConfig.length = Number(length)
         if (!valid) return
         window.api.updateRegisterConfig({ length: newLength })
+
+        // Reset registerdata when not polling
+        if (!currentState.clientState.polling) state.registerData = []
       }),
     setType: (type) =>
       set((state) => {
-        if (!getState().ready) return
+        const currentState = getState()
+        if (!currentState.ready) return
+
         state.registerConfig.type = type
         window.api.updateRegisterConfig({ type })
+
+        // Reset registerdata when not polling
+        if (!currentState.clientState.polling) state.registerData = []
       }),
     setLittleEndian: (littleEndian) =>
       set((state) => {

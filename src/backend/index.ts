@@ -10,7 +10,8 @@ export enum IpcChannel {
   Disconnect = 'Disconnect',
   Read = 'Read',
   StartPolling = 'StartPolling',
-  StopPolling = 'StopPolling'
+  StopPolling = 'StopPolling',
+  Write = 'Write'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

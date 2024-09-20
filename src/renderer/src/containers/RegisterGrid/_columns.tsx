@@ -1,5 +1,11 @@
+import { Edit } from '@mui/icons-material'
 import { Box } from '@mui/material'
-import { GridColDef } from '@mui/x-data-grid'
+import {
+  GridActionsCellItem,
+  GridActionsColDef,
+  GridColDef,
+  useGridApiContext
+} from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import {
   DataType,
@@ -10,7 +16,8 @@ import {
   RegisterType
 } from '@shared'
 import { round } from 'lodash'
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import WriteModal from './WriteModal/WriteModal'
 
 const registerValueToString = (
   value: number | bigint
@@ -225,6 +232,53 @@ const bitColumn: GridColDef<RegisterData, boolean, boolean> = {
 
 //
 //
+// Write action column
+const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> => ({
+  field: 'actions',
+  type: 'actions',
+  sortable: false,
+  headerName: '',
+  minWidth: 40,
+  maxWidth: 40,
+  getActions: ({ row, id }) => {
+    const address = row.id
+    const [open, setOpen] = useState(false)
+
+    const text = type === RegisterType.Coils ? 'Write Coil' : 'Write Register'
+
+    const actionCellRef = useRef<HTMLDivElement>(null)
+
+    const apiRef = useGridApiContext()
+
+    return [
+      <>
+        <GridActionsCellItem
+          ref={actionCellRef}
+          disabled={false}
+          icon={<Edit fontSize="small" />}
+          title={text}
+          label={''}
+          onClick={() => {
+            apiRef.current.selectRow(id, true, true)
+            setOpen(true)
+          }}
+          color="primary"
+        />
+        {open && (
+          <WriteModal
+            open={open}
+            onClose={() => setOpen(false)}
+            address={address}
+            actionCellRef={actionCellRef}
+          />
+        )}
+      </>
+    ]
+  }
+})
+
+//
+//
 // COLUMNS
 const useRegisterGridColumns = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
@@ -264,7 +318,7 @@ const useRegisterGridColumns = () => {
         valueColumn(DataType.UInt16, 70),
         valueColumn(DataType.Int32, 100),
         valueColumn(DataType.UInt32, 100),
-        valueColumn(DataType.Float, 200)
+        valueColumn(DataType.Float, 100)
       )
     }
 
@@ -273,11 +327,15 @@ const useRegisterGridColumns = () => {
       columns.push(
         valueColumn(DataType.Int64, 160),
         valueColumn(DataType.UInt64, 160),
-        valueColumn(DataType.Double, 200)
+        valueColumn(DataType.Double, 160)
       )
     }
 
     columns.push(commentColumn(registerMap))
+
+    if ([RegisterType.Coils, RegisterType.HoldingRegisters].includes(type)) {
+      columns.push(writeActionColumn(type))
+    }
 
     return columns
   }, [type, addressBase, advanced, show64Bit, registerMap])

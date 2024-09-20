@@ -29,14 +29,19 @@ const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
 
 const ConnectButton = () => {
   const connectState = useRootZustand((z) => z.clientState.connectState)
+  const setRegisterData = useRootZustand((z) => z.setRegisterData)
 
   const action = useCallback(() => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState
-    currentConnectedState === ConnectState.Connected
-      ? window.api.disconnect()
-      : currentConnectedState === ConnectState.Disconnected
-        ? window.api.connect()
-        : null
+    if (currentConnectedState === ConnectState.Connected) {
+      window.api.disconnect()
+      setRegisterData([])
+      return
+    }
+
+    if (currentConnectedState === ConnectState.Disconnected) {
+      window.api.connect()
+    }
   }, [])
 
   const disabled = [ConnectState.Connecting, ConnectState.Disconnecting].includes(connectState)

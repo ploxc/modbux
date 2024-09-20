@@ -23,12 +23,12 @@ const api: Api = {
     ipcInvoke<typeof args, ClientState>(IpcChannel.GetClientState, ...args),
 
   connect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Connect, ...args),
-
   disconnect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Disconnect, ...args),
 
   read: (...args) => ipcInvoke<typeof args, RegisterData[] | undefined>(IpcChannel.Read, ...args),
   startPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StartPolling, ...args),
-  stopPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StopPolling, ...args)
+  stopPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StopPolling, ...args),
+  write: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Write,...args),
 }
 
 //

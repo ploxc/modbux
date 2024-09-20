@@ -5,14 +5,16 @@ import {
   BackendMessage,
   ClientState,
   ConnectState,
+  DataType,
   IpcEvent,
   Protocol,
   RawTransaction,
   RegisterData,
   RegisterType,
-  Transaction
+  Transaction,
+  WriteParameters
 } from '@shared'
-import { ReadCoilResult, ReadRegisterResult } from 'modbus-serial/ModbusRTU'
+import { ReadCoilResult, ReadRegisterResult, WriteMultipleResult } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
@@ -230,9 +232,16 @@ export class ModbusClient {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
     }
 
+    this._logTransaction()
+  }
+
+  //
+  //
+  //
+  //
+  // Log Transaction
+  private _logTransaction = () => {
     // Handle transactions, get the latest transaction from the transactions array
-    console.log('Handle transactions')
-    console.log(this._client['_transactions'])
     const rawTransactions = Object.entries(this._client['_transactions']) as [
       string,
       RawTransaction
@@ -264,6 +273,8 @@ export class ModbusClient {
     this._sendTransaction(transaction)
   }
 
+  //
+  //
   //
   //
   // Polling
@@ -331,12 +342,6 @@ export class ModbusClient {
 
   private _readHoldingRegisters = async () => {
     const { address, length } = this._appState.registerConfig
-    // await new Promise<void>((resolve) => {
-    //   this._client.writeFC16(10, 120, [1234, 5678], (err, data) => {
-    //     console.log(err, data)
-    //     resolve()
-    //   })
-    // })
     const result = await this._client.readHoldingRegisters(address, length)
     const data = this._convertRegisterData(result)
     this._sendData(data)
@@ -427,6 +432,112 @@ export class ModbusClient {
     }
 
     return registerData
+  }
+
+  //
+  //
+  //
+  //
+  // Write
+  public write = async (writeParameters: WriteParameters) => {
+    const { address, type, value, dataType, performRead } = writeParameters
+
+    switch (type) {
+      case RegisterType.Coils:
+        await this._writeCoil(address, value)
+        break
+      case RegisterType.HoldingRegisters:
+        await this._writeRegister(address, value, dataType)
+        break
+    }
+
+    // Log the write transaction.
+    this._logTransaction()
+
+    // When specified, perform a read after writing the register.
+    if (performRead) this.read()
+  }
+
+  private _writeCoil = async (address: number, value: boolean) => {
+    try {
+      await this._client.writeCoil(address, value)
+    } catch (error) {
+      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+    }
+  }
+
+  private _writeRegister = async (address: number, value: number, dataType: DataType) => {
+    const { littleEndian } = this._appState.registerConfig
+
+    let bufferSize = 2
+
+    if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(dataType)) bufferSize = 4
+    if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(dataType)) bufferSize = 8
+
+    let buffer = Buffer.alloc(bufferSize)
+
+    console.log({ dataType, buffer, value, address })
+
+    switch (dataType) {
+      case DataType.Int16:
+        buffer.writeInt16BE(value, 0)
+        break
+      case DataType.UInt16:
+        buffer.writeUInt16BE(value, 0)
+        break
+      case DataType.Int32:
+        buffer.writeInt32BE(value, 0)
+        if (littleEndian) buffer = littleEndian32(buffer, 0)
+        break
+      case DataType.UInt32:
+        buffer.writeUInt32BE(value, 0)
+        if (littleEndian) buffer = littleEndian32(buffer, 0)
+        break
+      case DataType.Float:
+        buffer.writeFloatBE(value, 0)
+        if (littleEndian) buffer = littleEndian32(buffer, 0)
+        break
+      case DataType.Int64:
+        buffer.writeBigInt64BE(BigInt(value), 0)
+        if (littleEndian) buffer = littleEndian64(buffer, 0)
+        break
+      case DataType.UInt64:
+        buffer.writeBigUInt64BE(BigInt(value), 0)
+        if (littleEndian) buffer = littleEndian64(buffer, 0)
+        break
+      case DataType.Double:
+        buffer.writeDoubleBE(value, 0)
+        if (littleEndian) buffer = littleEndian64(buffer, 0)
+        break
+    }
+
+    // await new Promise<void>((resolve) => {
+    //   this._client.writeFC16(10, 120, [1234, 5678], (err, data) => {
+    //     console.log(err, data)
+    //     resolve()
+    //   })
+    // })
+
+    console.log(address, buffer)
+    const { unitId } = this._appState.connectionConfig
+
+    const bytes = Array.from(buffer)
+    const registers: number[] = []
+    for (let i = 0; i < bytes.length; i += 2) {
+      registers.push(bytes[i] * 256 + bytes[i + 1])
+    }
+
+    try {
+      const writeResult = await new Promise<WriteMultipleResult>((resolve, reject) =>
+        this._client.writeFC16(unitId, address, registers, (err, data) => {
+          if (err) reject(err)
+          resolve(data)
+        })
+      )
+      console.log(writeResult)
+    } catch (error) {
+      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+    }
   }
 
   get state() {

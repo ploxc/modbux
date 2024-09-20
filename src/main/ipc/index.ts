@@ -23,4 +23,7 @@ export const initIpc = (state: AppState, client: ModbusClient) => {
   ipcHandle(IpcChannel.Read, () => client.read())
   ipcHandle(IpcChannel.StartPolling, () => client.startPolling())
   ipcHandle(IpcChannel.StopPolling, () => client.stopPolling())
+
+  // Write Actions
+  ipcHandle(IpcChannel.Write, (_, writeParameters) => client.write(writeParameters))
 }
