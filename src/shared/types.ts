@@ -103,6 +103,9 @@ export interface RegisterConfig {
   pollRate: number
   timeout: number
   littleEndian: boolean
+  advancedMode: boolean
+  show64BitValues: boolean
+  addressBase: '0' | '1'
 }
 
 //

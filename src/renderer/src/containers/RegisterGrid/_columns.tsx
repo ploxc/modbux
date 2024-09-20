@@ -1,6 +1,5 @@
 import { Box } from '@mui/material'
 import { GridColDef } from '@mui/x-data-grid'
-import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import {
   DataType,
@@ -231,9 +230,9 @@ const useRegisterGridColumns = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const registerMap = useRootZustand((z) => z.registerMapping[type])
 
-  const addressBase = useRootZustand((z) => z.addressBase)
-  const advanced = useLayoutZustand((z) => z.advanced)
-  const show64Bit = useLayoutZustand((z) => z.show64Bit)
+  const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
+  const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
+  const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
 
   return useMemo(() => {
     const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(

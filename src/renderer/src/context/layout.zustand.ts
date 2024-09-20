@@ -9,15 +9,6 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
       set((state) => {
         const currentState = getState()
         state.showLog = !currentState.showLog
-      }),
-      advanced: false,
-      setAdvanced: (advanced: boolean) => set((state) => {
-        state.advanced = advanced
-      }),
-    show64Bit: false,
-    setShow64Bit: (show: boolean) =>
-      set((state) => {
-        state.show64Bit = show
       })
   }))
 )

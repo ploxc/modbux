@@ -197,12 +197,26 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       }),
     //
     //
-    // Addressing
-    addressBase: '0',
-    setAddressBase: (value) =>
+    // Layout configuration settings
+    setAddressBase: (addressBase) =>
       set((state) => {
-        state.addressBase = value
+        if (!getState().ready) return
+        state.registerConfig.addressBase = addressBase
+        window.api.updateRegisterConfig({ addressBase })
       }),
+    setShow64BitValues: (show64BitValues) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.registerConfig.show64BitValues = show64BitValues
+        window.api.updateRegisterConfig({ show64BitValues })
+      }),
+    setAdvancedMode: (advancedMode) =>
+      set((state) => {
+        if (!getState().ready) return
+        state.registerConfig.advancedMode = advancedMode
+        window.api.updateRegisterConfig({ advancedMode })
+      }),
+    // Addressing
     setUnitId: (unitId) =>
       set((state) => {
         if (!getState().ready) return

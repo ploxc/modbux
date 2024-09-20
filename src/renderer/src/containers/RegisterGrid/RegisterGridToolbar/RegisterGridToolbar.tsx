@@ -135,11 +135,11 @@ const ShowLogButton = () => {
 //
 // Menu with extra options
 const MenuContent = () => {
-  const advanced = useLayoutZustand((z) => z.advanced)
-  const setAdvanced = useLayoutZustand((z) => z.setAdvanced)
+  const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
+  const setAdvanced = useRootZustand((z) => z.setAdvancedMode)
 
-  const show64bit = useLayoutZustand((z) => z.show64Bit)
-  const setShow64Bit = useLayoutZustand((z) => z.setShow64Bit)
+  const show64bit = useRootZustand((z) => z.registerConfig.show64BitValues)
+  const setShow64Bit = useRootZustand((z) => z.setShow64BitValues)
 
   return (
     <FormGroup>

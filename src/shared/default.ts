@@ -18,5 +18,8 @@ export const defaultRegisterConfig: RegisterConfig = {
   type: RegisterType.HoldingRegisters,
   pollRate: 1000,
   timeout: 5000,
-  littleEndian: false
+  littleEndian: false,
+  advancedMode: false,
+  show64BitValues: false,
+  addressBase: '0'
 }

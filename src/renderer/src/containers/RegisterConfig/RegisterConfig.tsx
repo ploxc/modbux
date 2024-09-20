@@ -57,7 +57,7 @@ const Address = () => {
   const address = useRootZustand((z) => String(z.registerConfig.address))
   const type = useRootZustand((z) => z.registerConfig.type)
   const setAddress = useRootZustand((z) => z.setAddress)
-  const addressBase = useRootZustand((z) => z.addressBase)
+  const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
   const setAddressBase = useRootZustand((z) => z.setAddressBase)
 
   return (

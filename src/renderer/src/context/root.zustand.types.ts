@@ -61,9 +61,10 @@ export interface RootZusand {
   setTimeout: (timeout: number) => void
   setLittleEndian: (littleEndian: boolean) => void
 
-  // Address set actions
-  addressBase: '0' | '1'
-  setAddressBase: (value: '0' | '1') => void
+  // Layout configuration settings (i want them to be persistent)
+  setAddressBase: (addressBase: '0' | '1') => void
+  setAdvancedMode: (advancedMode: boolean) => void
+  setShow64BitValues: (show64BitValues: boolean) => void
 
   // Transaction
   lastSuccessfulTransactionMillis: number | null
