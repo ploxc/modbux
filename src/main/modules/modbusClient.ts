@@ -476,8 +476,6 @@ export class ModbusClient {
 
     let buffer = Buffer.alloc(bufferSize)
 
-    console.log({ dataType, buffer, value, address })
-
     switch (dataType) {
       case DataType.Int16:
         buffer.writeInt16BE(value, 0)
@@ -511,16 +509,9 @@ export class ModbusClient {
         break
     }
 
-    // await new Promise<void>((resolve) => {
-    //   this._client.writeFC16(10, 120, [1234, 5678], (err, data) => {
-    //     console.log(err, data)
-    //     resolve()
-    //   })
-    // })
-
-    console.log(address, buffer)
     const { unitId } = this._appState.connectionConfig
 
+    // Convert bytes to array of 16-bit words.
     const bytes = Array.from(buffer)
     const registers: number[] = []
     for (let i = 0; i < bytes.length; i += 2) {
@@ -528,13 +519,12 @@ export class ModbusClient {
     }
 
     try {
-      const writeResult = await new Promise<WriteMultipleResult>((resolve, reject) =>
+      await new Promise<WriteMultipleResult>((resolve, reject) =>
         this._client.writeFC16(unitId, address, registers, (err, data) => {
           if (err) reject(err)
           resolve(data)
         })
       )
-      console.log(writeResult)
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
     }

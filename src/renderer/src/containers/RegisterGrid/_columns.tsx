@@ -123,7 +123,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
     // Round the scaled value to the given decimal places
     return round(Number(value) * scalingFactor, decimalPlaces + decimalPlacesFloat)
   },
-  valueFormatter: (v) => (v ? Number(v) : '')
+  valueFormatter: (v) => (v !== undefined ? Number(v) : '')
 })
 
 //

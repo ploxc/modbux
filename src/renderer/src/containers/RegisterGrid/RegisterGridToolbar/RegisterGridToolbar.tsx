@@ -19,8 +19,7 @@ import EndianTable from '@renderer/components/EndianTable'
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, RegisterMapping, RegisterType } from '@shared'
-import { DateTime } from 'luxon'
+import { ConnectState, Protocol, RegisterMapping, RegisterType } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
 
@@ -351,10 +350,25 @@ const SaveButton = () => {
       'href',
       'data:text/plain;charset=utf-8,' + encodeURIComponent(registerMappingJson)
     )
-    element.setAttribute(
-      'download',
-      `modbus_register_config_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}.json`
-    )
+
+    const {
+      connectionConfig: {
+        protocol,
+        tcp: {
+          host,
+          options: { port }
+        },
+        unitId
+      }
+    } = useRootZustand.getState()
+
+    const protocolText = protocol === Protocol.ModbusTcp ? '_tcp' : '_rtu'
+    const ipText = protocol === Protocol.ModbusTcp ? `_${host.replace(/\./g, '_')}_${port}` : ''
+    const idText = `_id${unitId}`
+
+    const filename = `modbux${protocolText}${ipText}${idText}.json`
+
+    element.setAttribute('download', filename)
 
     element.style.display = 'none'
     document.body.appendChild(element)
@@ -390,12 +404,15 @@ const LoadButton = () => {
 
   const openConfig = useCallback(
     async (file: File | undefined) => {
+      console.log('opening file', file)
       if (!file) return
       if (openingRef.current) return
       openingRef.current = true
       setOpening(true)
 
       const content = await file.text()
+
+      console.log(content)
 
       try {
         const registerMapping = JSON.parse(content) as RegisterMapping
@@ -413,13 +430,15 @@ const LoadButton = () => {
 
   return (
     <Box>
-      <input
-        accept="application/JSON"
-        style={{ display: 'none' }}
-        id="contained-button-file"
-        type="file"
-        onChange={(e) => openConfig(e.target.files?.[0])}
-      />
+      {!opening && (
+        <input
+          accept="application/JSON"
+          style={{ display: 'none' }}
+          id="contained-button-file"
+          type="file"
+          onChange={(e) => openConfig(e.target.files?.[0])}
+        />
+      )}
       <label htmlFor="contained-button-file">
         <IconButton
           size="small"
