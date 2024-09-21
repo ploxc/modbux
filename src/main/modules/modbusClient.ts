@@ -14,7 +14,13 @@ import {
   Transaction,
   WriteParameters
 } from '@shared'
-import { ReadCoilResult, ReadRegisterResult, WriteMultipleResult } from 'modbus-serial/ModbusRTU'
+import {
+  ReadCoilResult,
+  ReadRegisterResult,
+  WriteCoilResult,
+  WriteMultipleResult,
+  WriteRegisterResult
+} from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
@@ -440,14 +446,14 @@ export class ModbusClient {
   //
   // Write
   public write = async (writeParameters: WriteParameters) => {
-    const { address, type, value, dataType } = writeParameters
+    const { address, type, value, dataType, single } = writeParameters
 
     switch (type) {
       case RegisterType.Coils:
-        await this._writeCoil(address, value)
+        await this._writeCoil(address, value, single)
         break
       case RegisterType.HoldingRegisters:
-        await this._writeRegister(address, value, dataType)
+        await this._writeRegister(address, value, dataType, single)
         break
     }
 
@@ -458,16 +464,52 @@ export class ModbusClient {
     if (!this._clientState.polling) this.read()
   }
 
-  private _writeCoil = async (address: number, value: boolean) => {
+  private _writeCoil = async (address: number, value: boolean[], single: boolean) => {
+    const { unitId } = this._appState.connectionConfig
+
     try {
-      await this._client.writeCoil(address, value)
+      if (single) {
+        await new Promise<WriteCoilResult>((resolve, reject) =>
+          this._client.writeFC5(unitId, address, value[0], (err, data) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve(data)
+          })
+        )
+        return
+      }
+      await new Promise<WriteMultipleResult>((resolve, reject) =>
+        this._client.writeFC15(unitId, address, value, (err, data) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          resolve(data)
+        })
+      )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
     }
   }
 
-  private _writeRegister = async (address: number, value: number, dataType: DataType) => {
+  private _writeRegister = async (
+    address: number,
+    value: number,
+    dataType: DataType,
+    single: boolean
+  ) => {
     const { littleEndian } = this._appState.registerConfig
+
+    if (single && ![DataType.Int16, DataType.UInt16].includes(dataType)) {
+      this._emitMessage({
+        message: 'Single register only supported fot 16 bit values',
+        variant: 'warning',
+        error: undefined
+      })
+      return
+    }
 
     let bufferSize = 2
 
@@ -519,9 +561,24 @@ export class ModbusClient {
     }
 
     try {
+      if (single) {
+        await new Promise<WriteRegisterResult>((resolve, reject) =>
+          this._client.writeFC6(unitId, address, registers[0], (err, data) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve(data)
+          })
+        )
+        return
+      }
       await new Promise<WriteMultipleResult>((resolve, reject) =>
         this._client.writeFC16(unitId, address, registers, (err, data) => {
-          if (err) reject(err)
+          if (err) {
+            reject(err)
+            return
+          }
           resolve(data)
         })
       )

@@ -1,16 +1,21 @@
 import { Publish } from '@mui/icons-material'
 import {
+  Box,
   Button,
+  ButtonGroup,
   FormControl,
   InputLabel,
   MenuItem,
   Modal,
   Paper,
   Select,
-  TextField
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material'
 import { meme } from '@renderer/components/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
+import { useRootZustand } from '@renderer/context/root.zustand'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { DataType, RegisterType } from '@shared'
 import { forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
@@ -49,6 +54,11 @@ interface ValueInputZusand {
   setValue: MaskSetFn
   address: number
   setAddress: (address: number) => void
+  coilFunction: 5 | 15
+  setCoilFunction: (coilFunction: 5 | 15) => void
+  coils: boolean[]
+  initCoils: (coils: boolean[]) => void
+  setCoils: (coil: boolean, index: number) => void
 }
 
 const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', never]]>(
@@ -69,6 +79,20 @@ const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', neve
     setAddress: (address: number) =>
       set((state) => {
         state.address = address
+      }),
+    coilFunction: 5,
+    setCoilFunction: (coilFunction: 5 | 15) =>
+      set((state) => {
+        state.coilFunction = coilFunction
+      }),
+    coils: [],
+    initCoils: (coils) =>
+      set((state) => {
+        state.coils = coils
+      }),
+    setCoils: (coil, index) =>
+      set((state) => {
+        state.coils[index] = coil
       })
   }))
 )
@@ -166,35 +190,171 @@ const DataTypeSelect = meme(() => {
   )
 })
 
-const WriteButton = meme(() => {
+const WriteRegistersButton = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const dataType = useValueInputZustand((z) => z.dataType)
   const value = useValueInputZustand((z) => z.value)
 
+  const handleWrite = useCallback(
+    (single: boolean) => {
+      window.api.write({
+        address,
+        dataType,
+        type: RegisterType.HoldingRegisters,
+        value: Number(value),
+        single
+      })
+    },
+    [address, dataType, value]
+  )
+
+  const singleDisabled = useMemo(() => {
+    return ![DataType.Int16, DataType.UInt16].includes(dataType)
+  }, [dataType])
+
+  return (
+    <ButtonGroup size="small">
+      <Button
+        title="FC6: Write single register"
+        disabled={singleDisabled}
+        variant="outlined"
+        color="primary"
+        onClick={() => handleWrite(true)}
+      >
+        6
+      </Button>
+      <Button
+        title="FC16: Write multiple registers"
+        variant="outlined"
+        color="primary"
+        onClick={() => handleWrite(false)}
+      >
+        16
+      </Button>
+    </ButtonGroup>
+  )
+})
+
+const CoilFunctionSelect = meme(() => {
+  const address = useValueInputZustand((z) => z.address)
+  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const coils = useValueInputZustand((z) => z.coils)
+  const coilFunction = useValueInputZustand((z) => z.coilFunction)
+  const setCoilFunction = useValueInputZustand((z) => z.setCoilFunction)
+
   const handleWrite = useCallback(() => {
     window.api.write({
       address,
-      dataType,
-      type: RegisterType.HoldingRegisters,
-      value: Number(value)
+      type: RegisterType.Coils,
+      value: coils.slice(address - registerConfigAddress),
+      single: coilFunction === 5
     })
-  }, [address, dataType, value])
+  }, [coilFunction, coils])
 
   return (
-    <Button variant="outlined" color="primary" onClick={handleWrite}>
-      <Publish />
+    <Box sx={{ display: 'flex' }}>
+      <ToggleButtonGroup
+        sx={{ flex: 1 }}
+        size="small"
+        exclusive
+        color="primary"
+        value={coilFunction}
+        onChange={(_, v) => v !== null && setCoilFunction(v)}
+      >
+        <ToggleButton sx={{ flex: 1, flexBasis: 0 }} title="FC5: Write single coils" value={5}>
+          5
+        </ToggleButton>
+        <ToggleButton sx={{ flex: 1, flexBasis: 0 }} title="FC15: Write multiple coils" value={15}>
+          15
+        </ToggleButton>
+      </ToggleButtonGroup>
+      <Button variant="outlined" color="primary" onClick={handleWrite}>
+        <Publish />
+      </Button>
+    </Box>
+  )
+})
+
+interface CoilButtonProps {
+  address: number
+  index: number
+}
+
+const CoilButton = meme(({ address, index }: CoilButtonProps) => {
+  const state = useValueInputZustand((z) => z.coils[index])
+  const setCoils = useValueInputZustand((z) => z.setCoils)
+
+  return (
+    <Button
+      size="small"
+      variant={state ? 'contained' : 'outlined'}
+      color="primary"
+      onClick={() => setCoils(!state, index)}
+      sx={{ flex: 1, flexBasis: 0 }}
+    >
+      {address}
     </Button>
   )
 })
+
+const Coils = () => {
+  const length = useRootZustand((z) => z.registerConfig.length)
+  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const address = useValueInputZustand((z) => z.address)
+  const coils = useValueInputZustand((z) => z.coils)
+  const coilFunction = useValueInputZustand((z) => z.coilFunction)
+  const initCoils = useValueInputZustand((z) => z.initCoils)
+
+  useEffect(() => {
+    const newCoils = Array(length).fill(false)
+    initCoils(newCoils)
+  }, [length])
+
+  const rows = useMemo(() => {
+    const amount = Math.ceil(length / 8)
+    return new Array(amount).fill(null)
+  }, [length])
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {coilFunction === 5 ? (
+        <CoilButton address={address} index={address - registerConfigAddress} />
+      ) : (
+        rows.map((_, ri) => {
+          return (
+            <Box
+              sx={{ display: 'flex', flexDirection: 'row-reverse', flexWrap: 'wrap' }}
+              key={`coil_row_${ri}`}
+            >
+              {coils.slice(ri * 8, ri * 8 + 8).map((_, ci) => {
+                const index = ci + ri * 8
+                const coilAddress = address + index
+
+                return coilAddress < registerConfigAddress + length ? (
+                  <CoilButton
+                    key={`coil_${coilAddress}`}
+                    address={coilAddress}
+                    index={coilAddress - registerConfigAddress}
+                  />
+                ) : null
+              })}
+            </Box>
+          )
+        })
+      )}
+    </Box>
+  )
+}
 
 interface Props {
   address: number
   open: boolean
   onClose: () => void
   actionCellRef: RefObject<HTMLDivElement>
+  type: RegisterType
 }
 
-const WriteModal = ({ open, onClose, address, actionCellRef }: Props) => {
+const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
   const right = (rect?.right ? window.innerWidth - rect.right : 0) + 38
   const setValue = useValueInputZustand((z) => z.setValue)
@@ -219,9 +379,18 @@ const WriteModal = ({ open, onClose, address, actionCellRef }: Props) => {
         elevation={5}
         sx={{ position: 'absolute', right, top: rect?.top || 0, display: 'flex' }}
       >
-        <DataTypeSelect />
-        <ValueInputComponent />
-        <WriteButton />
+        {type === RegisterType.HoldingRegisters ? (
+          <>
+            <DataTypeSelect />
+            <ValueInputComponent />
+            <WriteRegistersButton />
+          </>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <CoilFunctionSelect />
+            <Coils />
+          </Box>
+        )}
       </Paper>
     </Modal>
   )

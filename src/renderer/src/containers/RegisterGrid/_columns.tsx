@@ -257,9 +257,7 @@ const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> 
     const [open, setOpen] = useState(false)
 
     const text = type === RegisterType.Coils ? 'Write Coil' : 'Write Register'
-
     const actionCellRef = useRef<HTMLDivElement>(null)
-
     const apiRef = useGridApiContext()
 
     return [
@@ -282,6 +280,7 @@ const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> 
             onClose={() => setOpen(false)}
             address={address}
             actionCellRef={actionCellRef}
+            type={type}
           />
         )}
       </>

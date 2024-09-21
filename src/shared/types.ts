@@ -31,10 +31,10 @@ export enum IpcEvent {
 //
 //
 // WriteParameters
-export type WriteParameters = { address: number } & (
+export type WriteParameters = { address: number; single: boolean } & (
   | {
       type: RegisterType.Coils
-      value: boolean
+      value: boolean[]
       dataType?: never
     }
   | {
