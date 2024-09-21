@@ -9,7 +9,8 @@ import {
   ConnectState,
   Transaction,
   RegisterMapping,
-  RegisterMapValue
+  RegisterMapValue,
+  ScanUnitIDResult
 } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 
@@ -41,6 +42,7 @@ export interface RootZusand {
   clientState: ClientState
   setConnectState: (connectState: ConnectState) => void
   setPolling: (polling: boolean) => void
+  setScanningUniId: (scanningUniId: boolean) => void
   ready: boolean
 
   // Configuration actions
@@ -69,6 +71,11 @@ export interface RootZusand {
   // Transaction
   lastSuccessfulTransactionMillis: number | null
   setLastSuccessfulTransactionMillis: (value: number | null) => void
+
+  // Unit ID Scannning
+  scanUnitIdResults: ScanUnitIDResult[]
+  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
+  clearScanUnitIdResults: () => void
 }
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void

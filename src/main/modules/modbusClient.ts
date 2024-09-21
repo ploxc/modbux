@@ -11,6 +11,8 @@ import {
   RawTransaction,
   RegisterData,
   RegisterType,
+  ScanUnitIDParameters,
+  ScanUnitIDResult,
   Transaction,
   WriteParameters
 } from '@shared'
@@ -64,7 +66,8 @@ export class ModbusClient {
   private _mainWindow: BrowserWindow
   private _clientState: ClientState = {
     connectState: ConnectState.Disconnected,
-    polling: false
+    polling: false,
+    scanningUniId: false
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
@@ -103,6 +106,9 @@ export class ModbusClient {
   }
   private _sendTransaction = (transaction: Transaction) => {
     this._mainWindow.webContents.send(IpcEvent.Transaction, transaction)
+  }
+  private _sendUnitIdResult = (result: ScanUnitIDResult) => {
+    this._mainWindow.webContents.send(IpcEvent.ScanUnitIDResult, result)
   }
 
   //
@@ -469,6 +475,7 @@ export class ModbusClient {
 
     try {
       if (single) {
+        // Wrtie single coil
         await new Promise<WriteCoilResult>((resolve, reject) =>
           this._client.writeFC5(unitId, address, value[0], (err, data) => {
             if (err) {
@@ -480,6 +487,7 @@ export class ModbusClient {
         )
         return
       }
+      // Write multiple coils
       await new Promise<WriteMultipleResult>((resolve, reject) =>
         this._client.writeFC15(unitId, address, value, (err, data) => {
           if (err) {
@@ -562,6 +570,7 @@ export class ModbusClient {
 
     try {
       if (single) {
+        // Write single register
         await new Promise<WriteRegisterResult>((resolve, reject) =>
           this._client.writeFC6(unitId, address, registers[0], (err, data) => {
             if (err) {
@@ -573,6 +582,7 @@ export class ModbusClient {
         )
         return
       }
+      // Write multiple registers
       await new Promise<WriteMultipleResult>((resolve, reject) =>
         this._client.writeFC16(unitId, address, registers, (err, data) => {
           if (err) {
@@ -585,6 +595,127 @@ export class ModbusClient {
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
     }
+  }
+
+  //
+  //
+  //
+  //
+  // Scand Unit ID
+
+  public scanUnitId = async (params: ScanUnitIDParameters) => {
+    if (this._clientState.polling) {
+      this._emitMessage({
+        message: 'Cannot scan while polling is enabled',
+        variant: 'warning',
+        error: undefined
+      })
+      return
+    }
+
+    this._clientState.scanningUniId = true
+    this._sendClientState()
+
+    const { range } = params
+    for (let id = range[0]; id <= range[1]; id++) await this._scanUnitId({ id, ...params })
+
+    this._clientState.scanningUniId = false
+    this._sendClientState()
+  }
+
+  public stopScanningUnitId = () => {
+    // Set scanning unit id to false so the scanning is stopped
+    // after the last asynchonous operation has completed.
+    this._clientState.scanningUniId = false
+  }
+
+  private _scanUnitId = async ({
+    id,
+    address,
+    length,
+    registerTypes
+  }: Omit<ScanUnitIDParameters, 'range'> & { id: number }) => {
+    this._client.setID(id)
+
+    const result: ScanUnitIDResult = {
+      id: v4(),
+      unitID: id,
+      registerTypes: [],
+      requestedRegisterTypes: registerTypes,
+      errorMessage: {
+        [RegisterType.Coils]: '',
+        [RegisterType.DiscreteInputs]: '',
+        [RegisterType.InputRegisters]: '',
+        [RegisterType.HoldingRegisters]: ''
+      }
+    }
+
+    if (!this._clientState.scanningUniId) {
+      this._sendClientState()
+      return
+    }
+
+    if (registerTypes.includes(RegisterType.Coils)) {
+      // Coils
+      try {
+        await this._client.readCoils(address, length)
+        result.registerTypes.push(RegisterType.Coils)
+      } catch (error) {
+        result.errorMessage[RegisterType.Coils] = (error as Error).message
+      }
+    }
+
+    if (!this._clientState.scanningUniId) {
+      this._sendClientState()
+      return
+    }
+
+    // Discrete Inputs
+    if (registerTypes.includes(RegisterType.DiscreteInputs)) {
+      try {
+        await this._client.readDiscreteInputs(address, length)
+        result.registerTypes.push(RegisterType.DiscreteInputs)
+      } catch (error) {
+        result.errorMessage[RegisterType.DiscreteInputs] = (error as Error).message
+      }
+    }
+    if (!this._clientState.scanningUniId) {
+      this._sendClientState()
+      return
+    }
+
+    // Input Registers
+    if (registerTypes.includes(RegisterType.HoldingRegisters)) {
+      try {
+        await this._client.readHoldingRegisters(address, length)
+        result.registerTypes.push(RegisterType.HoldingRegisters)
+      } catch (error) {
+        result.errorMessage[RegisterType.HoldingRegisters] = (error as Error).message
+      }
+    }
+
+    if (!this._clientState.scanningUniId) {
+      this._sendClientState()
+      return
+    }
+
+    // Holding Registers
+    if (registerTypes.includes(RegisterType.InputRegisters)) {
+      try {
+        await this._client.readInputRegisters(address, length)
+        result.registerTypes.push(RegisterType.InputRegisters)
+      } catch (error) {
+        result.errorMessage[RegisterType.InputRegisters] = (error as Error).message
+      }
+    }
+
+    if (!this._clientState.scanningUniId) {
+      this._sendClientState()
+      return
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    this._sendUnitIdResult(result)
   }
 
   get state() {

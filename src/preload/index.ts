@@ -28,7 +28,11 @@ const api: Api = {
   read: (...args) => ipcInvoke<typeof args, RegisterData[] | undefined>(IpcChannel.Read, ...args),
   startPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StartPolling, ...args),
   stopPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StopPolling, ...args),
-  write: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Write,...args),
+  write: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Write, ...args),
+
+  scanUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ScanUnitId, ...args),
+  stopScanningUnitId: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.StopScanningUnitId, ...args)
 }
 
 //

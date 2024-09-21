@@ -22,6 +22,8 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ConnectState, Protocol, RegisterMapping, RegisterType } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
+import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
+import { useScanUnitIdZustand } from './ScanUnitIds/_zustand'
 
 //
 //
@@ -130,6 +132,25 @@ const ShowLogButton = () => {
 
 //
 //
+// Scan unit ids button
+const ScanUnitIdsButton = () => {
+  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
+  const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
+  return (
+    <Button
+      disabled={disabled}
+      sx={{ my: 1 }}
+      size="small"
+      variant="outlined"
+      onClick={() => setScanUnitIdsOpen(true)}
+    >
+      Scan Unit ID's
+    </Button>
+  )
+}
+
+//
+//
 //
 //
 // Menu with extra options
@@ -163,6 +184,8 @@ const MenuContent = () => {
         }
         label="Show 64 bit values"
       />
+      <ScanUnitIdsButton />
+      <ScanUnitIds />
     </FormGroup>
   )
 }

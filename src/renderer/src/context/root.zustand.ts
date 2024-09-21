@@ -9,6 +9,7 @@ import {
   IpcEvent,
   RegisterData,
   RegisterType,
+  ScanUnitIDResult,
   Transaction
 } from '@shared'
 import { DateTime } from 'luxon'
@@ -88,7 +89,8 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     // State
     clientState: {
       connectState: ConnectState.Disconnected,
-      polling: false
+      polling: false,
+      scanningUniId: false
     },
     setConnectState: (connectState) =>
       set((state) => {
@@ -97,6 +99,10 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     setPolling: (polling) =>
       set((state) => {
         state.clientState.polling = polling
+      }),
+    setScanningUniId: (scanningUniId) =>
+      set((state) => {
+        state.clientState.scanningUniId = scanningUniId
       }),
     ready: false,
 
@@ -297,27 +303,64 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     setLastSuccessfulTransactionMillis: (value) =>
       set((state) => {
         state.lastSuccessfulTransactionMillis = value
+      }),
+    // Unit ID Scannning
+    scanUnitIdResults: [],
+    addScanUnitIdResult: (scanUnitIDResult: ScanUnitIDResult) =>
+      set((state) => {
+        state.scanUnitIdResults.unshift(scanUnitIDResult)
+      }),
+    clearScanUnitIdResults: () =>
+      set((state) => {
+        state.scanUnitIdResults = []
       })
   }))
 )
 
+// Sync the main process state with the front end
 useRootZustand.getState().init()
 
+//
+//
+//
+//
 // Listen to events to set the state
+
+// Client state, like polling, scanning, etc.
 window.electron.ipcRenderer.on(IpcEvent.ClientState, (_, clientState: ClientState) => {
   const state = useRootZustand.getState()
   if (state.clientState.connectState !== clientState.connectState)
     state.setConnectState(clientState.connectState)
   if (state.clientState.polling !== clientState.polling) state.setPolling(clientState.polling)
+  if (state.clientState.scanningUniId !== clientState.scanningUniId)
+    state.setScanningUniId(clientState.scanningUniId)
 })
 
+// Data read from the registers
 window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: RegisterData[]) => {
   const state = useRootZustand.getState()
   state.setRegisterData(registerData)
   state.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
+// Transactions from the transation log
 window.electron.ipcRenderer.on(IpcEvent.Transaction, (_, transaction: Transaction) => {
   const state = useRootZustand.getState()
   state.addTransaction(transaction)
 })
+
+// Unit ID scanning results
+window.electron.ipcRenderer.on(
+  IpcEvent.ScanUnitIDResult,
+  (_, scanUnitIDResult: ScanUnitIDResult) => {
+    const state = useRootZustand.getState()
+    console.log(scanUnitIDResult)
+    state.addScanUnitIdResult(scanUnitIDResult)
+  }
+)
+
+//
+//
+// Stop scanning when reloaded, shouldn't be a problem with the build app,
+// but just in case and for development, stop scanning when the frontend is reloaded
+window.api.stopScanningUnitId()

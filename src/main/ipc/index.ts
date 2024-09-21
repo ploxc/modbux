@@ -1,6 +1,12 @@
 import { AppState } from '../state'
 import { ipcHandle, IpcChannel } from '@backend'
-import { ConnectionConfig, DeepPartial, RegisterConfig } from '@shared'
+import {
+  ConnectionConfig,
+  DeepPartial,
+  RegisterConfig,
+  ScanUnitIDParameters,
+  WriteParameters
+} from '@shared'
 import { ModbusClient } from '../modules/modbusClient'
 
 export const initIpc = (state: AppState, client: ModbusClient) => {
@@ -25,5 +31,13 @@ export const initIpc = (state: AppState, client: ModbusClient) => {
   ipcHandle(IpcChannel.StopPolling, () => client.stopPolling())
 
   // Write Actions
-  ipcHandle(IpcChannel.Write, (_, writeParameters) => client.write(writeParameters))
+  ipcHandle(IpcChannel.Write, (_, writeParameters: WriteParameters) =>
+    client.write(writeParameters)
+  )
+
+  // Scan Unit ID Actions
+  ipcHandle(IpcChannel.ScanUnitId, (_, scanUnitIdParameters: ScanUnitIDParameters) =>
+    client.scanUnitId(scanUnitIdParameters)
+  )
+  ipcHandle(IpcChannel.StopScanningUnitId, () => client.stopScanningUnitId())
 }

@@ -16,6 +16,8 @@ export interface Api {
   startPolling: () => Promise<void>
   stopPolling: () => Promise<void>
   write: (writeParameters: WriteParameters) => Promise<void>
+  scanUnitId: (scanUnitIdParams: ScanUnitIDParameters) => Promise<void>
+  stopScanningUnitId: () => Promise<void>
 }
 
 //
@@ -25,7 +27,31 @@ export enum IpcEvent {
   BackendMessage = 'backendMessage',
   ClientState = 'clientState',
   RegisterData = 'registerData',
-  Transaction = 'transaction'
+  Transaction = 'transaction',
+  ScanUnitIDResult = 'scanUnitIDResult'
+}
+
+//
+//
+// Scan Unit ID parameters
+export interface ScanUnitIDParameters {
+  range: [number, number]
+  address: number
+  length: number
+  registerTypes: RegisterType[]
+}
+
+export interface ScanUnitIDResult {
+  id: string
+  unitID: number
+  registerTypes: RegisterType[]
+  requestedRegisterTypes: RegisterType[]
+  errorMessage: {
+    [RegisterType.Coils]: string
+    [RegisterType.DiscreteInputs]: string
+    [RegisterType.InputRegisters]: string
+    [RegisterType.HoldingRegisters]: string
+  }
 }
 
 //
@@ -50,6 +76,7 @@ export type WriteParameters = { address: number; single: boolean } & (
 export interface ClientState {
   connectState: ConnectState
   polling: boolean
+  scanningUniId: boolean
 }
 
 export enum ConnectState {
