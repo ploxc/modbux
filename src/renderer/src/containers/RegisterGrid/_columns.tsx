@@ -260,31 +260,33 @@ const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> 
     const actionCellRef = useRef<HTMLDivElement>(null)
     const apiRef = useGridApiContext()
 
-    return [
-      <>
-        <GridActionsCellItem
-          ref={actionCellRef}
-          disabled={false}
-          icon={<Edit fontSize="small" />}
-          title={text}
-          label={''}
-          onClick={() => {
-            apiRef.current.selectRow(id, true, true)
-            setOpen(true)
-          }}
-          color="primary"
-        />
-        {open && (
-          <WriteModal
-            open={open}
-            onClose={() => setOpen(false)}
-            address={address}
-            actionCellRef={actionCellRef}
-            type={type}
-          />
-        )}
-      </>
-    ]
+    return row.isScanned
+      ? []
+      : [
+          <>
+            <GridActionsCellItem
+              ref={actionCellRef}
+              disabled={false}
+              icon={<Edit fontSize="small" />}
+              title={text}
+              label={''}
+              onClick={() => {
+                apiRef.current.selectRow(id, true, true)
+                setOpen(true)
+              }}
+              color="primary"
+            />
+            {open && (
+              <WriteModal
+                open={open}
+                onClose={() => setOpen(false)}
+                address={address}
+                actionCellRef={actionCellRef}
+                type={type}
+              />
+            )}
+          </>
+        ]
   }
 })
 

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow} from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -6,6 +6,7 @@ import { initIpc } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
+import { serverTCP } from './modules/mobusServer'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
@@ -52,6 +53,12 @@ function createWindow(): void {
 
   // Initialize the modbus client
   const client = new ModbusClient({ appState, mainWindow })
+
+  // ! TEMP DEV SERVER
+  serverTCP.on('socketError', function (err) {
+    // Handle socket error if needed, can be ignored
+    console.error(err)
+  })
 
   // IPC
   initIpc(appState, client)

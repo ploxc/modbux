@@ -8,6 +8,8 @@ import { BackendMessage, IpcEvent } from '@shared'
 import { IpcRendererEvent } from 'electron'
 import TransactionGrid from './containers/TransactionGrid/TransactionGrid'
 import { useLayoutZustand } from './context/layout.zustand'
+import { useRootZustand } from './context/root.zustand'
+import ScanRegisters from './containers/ScanRegisters/ScanRegisters'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -27,8 +29,9 @@ const MessageReceiver = () => {
 
 const Grids = () => {
   const showLog = useLayoutZustand((z) => z.showLog)
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
 
-  return (
+  return scanning ? null : (
     <Box
       sx={{
         display: 'flex',
@@ -66,6 +69,7 @@ const App = (): JSX.Element => {
           </Box>
         </Box>
         <Grids />
+        <ScanRegisters />
       </Box>
     </Fade>
   )

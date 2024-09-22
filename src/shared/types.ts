@@ -16,8 +16,10 @@ export interface Api {
   startPolling: () => Promise<void>
   stopPolling: () => Promise<void>
   write: (writeParameters: WriteParameters) => Promise<void>
-  scanUnitId: (scanUnitIdParams: ScanUnitIDParameters) => Promise<void>
-  stopScanningUnitId: () => Promise<void>
+  scanUnitIds: (scanUnitIdParams: ScanUnitIDParameters) => Promise<void>
+  stopScanningUnitIds: () => Promise<void>
+  scanRegisters: (scanRegistersParams: ScanRegistersParameters) => Promise<void>
+  stopScanningRegisters: () => Promise<void>
 }
 
 //
@@ -28,7 +30,15 @@ export enum IpcEvent {
   ClientState = 'clientState',
   RegisterData = 'registerData',
   Transaction = 'transaction',
-  ScanUnitIDResult = 'scanUnitIDResult'
+  ScanUnitIDResult = 'scanUnitIDResult',
+  ScanProgress = 'ScanProgress'
+}
+
+// Scan Registers
+export interface ScanRegistersParameters {
+  addressRange: [number, number]
+  length: number
+  timeout: number
 }
 
 //
@@ -39,11 +49,11 @@ export interface ScanUnitIDParameters {
   address: number
   length: number
   registerTypes: RegisterType[]
+  timeout: number
 }
 
 export interface ScanUnitIDResult {
-  id: string
-  unitID: number
+  id: number
   registerTypes: RegisterType[]
   requestedRegisterTypes: RegisterType[]
   errorMessage: {
@@ -77,6 +87,7 @@ export interface ClientState {
   connectState: ConnectState
   polling: boolean
   scanningUniId: boolean
+  scanningRegisters: boolean
 }
 
 export enum ConnectState {
@@ -161,6 +172,7 @@ export interface RegisterData {
   hex: string
   words: RegisterDataWords | undefined
   bit: boolean
+  isScanned: boolean
 }
 
 export enum DataType {
@@ -199,6 +211,7 @@ export interface Transaction {
   timeout: boolean
   request: Buffer
   responses: Buffer[]
+  errorMessage: string | undefined
 }
 
 export interface RawTransaction {

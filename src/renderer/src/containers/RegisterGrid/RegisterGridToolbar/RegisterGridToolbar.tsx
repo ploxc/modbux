@@ -23,8 +23,7 @@ import { ConnectState, Protocol, RegisterMapping, RegisterType } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
 import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
-import { useScanUnitIdZustand } from './ScanUnitIds/_zustand'
-
+import { useScanRegistersZustand } from '../../ScanRegisters/ScanRegisters'
 //
 //
 //
@@ -132,29 +131,31 @@ const ShowLogButton = () => {
 
 //
 //
-// Scan unit ids button
-const ScanUnitIdsButton = () => {
+// Scan registers
+const ScanRegistersButton = () => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
-  const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
+  const type = useRootZustand((z) => z.registerConfig.type)
+  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+
+  const handleOpen = useCallback(() => {
+    useScanRegistersZustand.getState().setOpen(true)
+    useLayoutZustand.getState().setRegisterGridMenuAnchorEl(null)
+  }, [])
+
+  const text = registers16Bit ? 'Scan Registers' : 'Scan TRUE Bits'
   return (
-    <Button
-      disabled={disabled}
-      sx={{ my: 1 }}
-      size="small"
-      variant="outlined"
-      onClick={() => setScanUnitIdsOpen(true)}
-    >
-      Scan Unit ID's
+    <Button disabled={disabled} sx={{ my: 1 }} size="small" variant="outlined" onClick={handleOpen}>
+      {text}
     </Button>
   )
 }
 
-//
-//
-//
-//
-// Menu with extra options
-const MenuContent = () => {
+// Menu Register Options
+const MenuRegisterOptions = () => {
+  const type = useRootZustand((z) => z.registerConfig.type)
+  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  if (!registers16Bit) return null
+
   const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
   const setAdvanced = useRootZustand((z) => z.setAdvancedMode)
 
@@ -162,7 +163,7 @@ const MenuContent = () => {
   const setShow64Bit = useRootZustand((z) => z.setShow64BitValues)
 
   return (
-    <FormGroup>
+    <>
       <FormControlLabel
         control={
           <Checkbox
@@ -184,20 +185,33 @@ const MenuContent = () => {
         }
         label="Show 64 bit values"
       />
-      <ScanUnitIdsButton />
+    </>
+  )
+}
+
+//
+//
+//
+//
+// Menu with extra options
+const MenuContent = () => {
+  return (
+    <FormGroup>
+      <MenuRegisterOptions />
       <ScanUnitIds />
+      <ScanRegistersButton />
     </FormGroup>
   )
 }
 
 // Menu button for extra options menu
 const MenuButton = () => {
-  const type = useRootZustand((z) => z.registerConfig.type)
+  const scanRegistersOpen = useScanRegistersZustand((z) => z.open)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
-
-  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
-  if (!registers16Bit) return null
+  const anchorEl = useLayoutZustand((z) => z.registerGridMenuAnchorEl)
+  const setAnchorEl: (el: HTMLButtonElement | null) => void = useLayoutZustand(
+    (z) => z.setRegisterGridMenuAnchorEl
+  )
 
   return (
     <>
@@ -211,7 +225,11 @@ const MenuButton = () => {
         <Menu />
       </Button>
       <Popover
-        sx={{ mt: 1, background: 'transparent' }}
+        sx={{
+          mt: 1,
+          background: 'transparent',
+          visibility: scanRegistersOpen ? 'hidden' : undefined
+        }}
         slotProps={{ paper: { sx: { px: 2, py: 1 } } }}
         anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
         open={!!anchorEl}

@@ -22,6 +22,11 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       set((state) => {
         state.registerData = data
       }),
+    appendRegisterData: (data) =>
+      set((state) => {
+        state.registerData.push(...data)
+      }),
+    // Connection state
     // Register mapping
     registerMapping: {
       [RegisterType.Coils]: {},
@@ -90,19 +95,12 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     clientState: {
       connectState: ConnectState.Disconnected,
       polling: false,
-      scanningUniId: false
+      scanningUniId: false,
+      scanningRegisters: false
     },
-    setConnectState: (connectState) =>
+    setClientState: (clientState) =>
       set((state) => {
-        state.clientState.connectState = connectState
-      }),
-    setPolling: (polling) =>
-      set((state) => {
-        state.clientState.polling = polling
-      }),
-    setScanningUniId: (scanningUniId) =>
-      set((state) => {
-        state.clientState.scanningUniId = scanningUniId
+        state.clientState = clientState
       }),
     ready: false,
 
@@ -313,6 +311,12 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
     clearScanUnitIdResults: () =>
       set((state) => {
         state.scanUnitIdResults = []
+      }),
+    // Scanning progress
+    scanProgress: 0,
+    setScanProgress: (scanProgress) =>
+      set((state) => {
+        state.scanProgress = scanProgress
       })
   }))
 )
@@ -329,17 +333,15 @@ useRootZustand.getState().init()
 // Client state, like polling, scanning, etc.
 window.electron.ipcRenderer.on(IpcEvent.ClientState, (_, clientState: ClientState) => {
   const state = useRootZustand.getState()
-  if (state.clientState.connectState !== clientState.connectState)
-    state.setConnectState(clientState.connectState)
-  if (state.clientState.polling !== clientState.polling) state.setPolling(clientState.polling)
-  if (state.clientState.scanningUniId !== clientState.scanningUniId)
-    state.setScanningUniId(clientState.scanningUniId)
+  state.setClientState(clientState)
 })
 
 // Data read from the registers
 window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: RegisterData[]) => {
   const state = useRootZustand.getState()
-  state.setRegisterData(registerData)
+  state.clientState.scanningRegisters
+    ? state.appendRegisterData(registerData)
+    : state.setRegisterData(registerData)
   state.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
@@ -354,13 +356,18 @@ window.electron.ipcRenderer.on(
   IpcEvent.ScanUnitIDResult,
   (_, scanUnitIDResult: ScanUnitIDResult) => {
     const state = useRootZustand.getState()
-    console.log(scanUnitIDResult)
     state.addScanUnitIdResult(scanUnitIDResult)
   }
 )
+
+// Scan progress
+window.electron.ipcRenderer.on(IpcEvent.ScanProgress, (_, scanProgress: number) => {
+  const state = useRootZustand.getState()
+  state.setScanProgress(scanProgress)
+})
 
 //
 //
 // Stop scanning when reloaded, shouldn't be a problem with the build app,
 // but just in case and for development, stop scanning when the frontend is reloaded
-window.api.stopScanningUnitId()
+window.api.stopScanningUnitIds()

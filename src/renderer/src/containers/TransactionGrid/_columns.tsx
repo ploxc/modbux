@@ -32,6 +32,15 @@ const addressColumn: GridColDef<Transaction, number> = {
   maxWidth: 60
 }
 
+// const lengthColumn: GridColDef<Transaction, number> = {
+//   field: 'responseLength',
+//   headerName: 'Length',
+//   sortable: false,
+//   disableColumnMenu: true,
+//   minWidth: 60,
+//   maxWidth: 60
+// }
+
 const functionColumn: GridColDef<Transaction, number> = {
   field: 'code',
   headerName: 'Fn',
@@ -56,7 +65,7 @@ const requestColumn: GridColDef<Transaction, Buffer, string> = {
 
 const responseColumn: GridColDef<Transaction, Buffer[], string[]> = {
   field: 'responses',
-  flex: 1,
+  flex: 3,
   minWidth: 260,
   sortable: false,
   disableColumnMenu: true,
@@ -85,15 +94,27 @@ const responseColumn: GridColDef<Transaction, Buffer[], string[]> = {
   }
 }
 
+const errorMessageColumn: GridColDef<Transaction, string> = {
+  field: 'errorMessage',
+  headerName: 'Error',
+  flex: 2,
+  minWidth: 120,
+  sortable: false,
+  disableColumnMenu: true,
+  valueFormatter: (v) => v || '-'
+}
+
 const useTransactionGridColumns = () => {
   return useMemo(() => {
     return [
       typestampColumn,
       unitIdColumn,
       addressColumn,
+      // lengthColumn,
       functionColumn,
       requestColumn,
-      responseColumn
+      responseColumn,
+      errorMessageColumn
     ]
   }, [])
 }

@@ -1,5 +1,5 @@
 import { Paper, Typography } from '@mui/material'
-import { DataGrid, GridFooterContainer } from '@mui/x-data-grid'
+import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import useRegisterGridColumns from './_columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
@@ -14,13 +14,14 @@ import { meme } from '@renderer/components/meme'
 const Footer = meme(() => {
   const time = useRootZustand((z) => z.lastSuccessfulTransactionMillis)
   return (
-    <GridFooterContainer sx={{ px: 1.5 }}>
+    <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
       <Typography variant="caption" sx={{ opacity: 0.5 }}>
         Last transaction time:{' '}
         <strong>
           {time ? `${DateTime.fromMillis(time).toFormat('yyyy-MM-dd HH:mm:ss')}` : 'n/a'}
         </strong>
       </Typography>
+      <GridPagination />
     </GridFooterContainer>
   )
 })
@@ -51,7 +52,8 @@ const RegisterGridContent = () => {
         },
         '& .MuiToolbar-root, .MuiDataGrid-footerContainer': {
           minHeight: 36,
-          height: 36
+          height: 36,
+          overflow: 'hidden'
         },
         '& .MuiDataGrid-toolbarContainer': {
           background: theme.palette.background.default

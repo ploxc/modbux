@@ -4,6 +4,7 @@ import {
   ConnectionConfig,
   DeepPartial,
   RegisterConfig,
+  ScanRegistersParameters,
   ScanUnitIDParameters,
   WriteParameters
 } from '@shared'
@@ -36,8 +37,14 @@ export const initIpc = (state: AppState, client: ModbusClient) => {
   )
 
   // Scan Unit ID Actions
-  ipcHandle(IpcChannel.ScanUnitId, (_, scanUnitIdParameters: ScanUnitIDParameters) =>
-    client.scanUnitId(scanUnitIdParameters)
+  ipcHandle(IpcChannel.ScanUnitIds, (_, scanUnitIdParameters: ScanUnitIDParameters) =>
+    client.scanUnitIds(scanUnitIdParameters)
   )
-  ipcHandle(IpcChannel.StopScanningUnitId, () => client.stopScanningUnitId())
+  ipcHandle(IpcChannel.StopScanningUnitIds, () => client.stopScanningUnitIds())
+
+  // Scan Registers Actions
+  ipcHandle(IpcChannel.ScanRegisters, (_, scanRegistersParameters: ScanRegistersParameters) =>
+    client.scanRegisters(scanRegistersParameters)
+  )
+  ipcHandle(IpcChannel.StopScanningRegisters, () => client.stopScanningRegisters())
 }

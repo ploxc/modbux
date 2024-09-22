@@ -13,7 +13,6 @@ const LengthInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
       max={100}
       inputRef={ref}
       onAccept={(value: any) => set(value, value > 0)}
-      overwrite
     />
   )
 })

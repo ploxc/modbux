@@ -11,6 +11,7 @@ import {
   RawTransaction,
   RegisterData,
   RegisterType,
+  ScanRegistersParameters,
   ScanUnitIDParameters,
   ScanUnitIDResult,
   Transaction,
@@ -67,10 +68,14 @@ export class ModbusClient {
   private _clientState: ClientState = {
     connectState: ConnectState.Disconnected,
     polling: false,
-    scanningUniId: false
+    scanningUniId: false,
+    scanningRegisters: false
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
+
+  private _totalScans = 1
+  private _scansDone = 1
 
   constructor({ appState, mainWindow }: ClientParams) {
     this._client = new ModbusRTU()
@@ -109,6 +114,13 @@ export class ModbusClient {
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult) => {
     this._mainWindow.webContents.send(IpcEvent.ScanUnitIDResult, result)
+  }
+
+  private _sendScanProgress = async () => {
+    this._scansDone++
+    const progress = round((this._scansDone / this._totalScans) * 100, 2)
+    this._mainWindow.webContents.send(IpcEvent.ScanProgress, progress)
+    await new Promise((resolve) => setTimeout(resolve, 5))
   }
 
   //
@@ -238,13 +250,21 @@ export class ModbusClient {
     this._client.setID(unitId)
     this._client.setTimeout(this._appState.registerConfig.timeout)
 
+    let errorMessage: string | undefined
+    let data: RegisterData[] = []
+
+    const { type, address, length } = this._appState.registerConfig
+
     try {
-      await this._tryRead()
+      data = await this._tryRead(type, address, length)
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      const readError = error as Error
+      errorMessage = readError.message
+      this._emitMessage({ message: errorMessage, variant: 'error', error })
     }
 
-    this._logTransaction()
+    this._sendData(data)
+    this._logTransaction(errorMessage)
   }
 
   //
@@ -252,7 +272,7 @@ export class ModbusClient {
   //
   //
   // Log Transaction
-  private _logTransaction = () => {
+  private _logTransaction = (errorMessage: string | undefined) => {
     // Handle transactions, get the latest transaction from the transactions array
     const rawTransactions = Object.entries(this._client['_transactions']) as [
       string,
@@ -279,7 +299,8 @@ export class ModbusClient {
       responseLength: rawTransaction.nextLength,
       timeout: rawTransaction._timeoutFired,
       request: rawTransaction.request,
-      responses: rawTransaction.responses
+      responses: rawTransaction.responses,
+      errorMessage
     }
 
     this._sendTransaction(transaction)
@@ -313,59 +334,67 @@ export class ModbusClient {
   //
   //
   // Reading
-  private _tryRead = async () => {
-    const { type } = this._appState.registerConfig
+  private _tryRead = async (
+    type: RegisterType,
+    address: number,
+    length: number
+  ): Promise<RegisterData[]> => {
+    let data: RegisterData[] = []
+
     switch (type) {
       case RegisterType.Coils:
-        await this._readCoils()
+        data = await this._readCoils(address, length)
         break
       case RegisterType.DiscreteInputs:
-        await this._readDiscreteInputs()
+        data = await this._readDiscreteInputs(address, length)
         break
       case RegisterType.InputRegisters:
-        await this._readInputRegisters()
+        data = await this._readInputRegisters(address, length)
         break
       case RegisterType.HoldingRegisters:
-        await this._readHoldingRegisters()
+        data = await this._readHoldingRegisters(address, length)
         break
     }
+
+    return data
   }
 
-  private _readCoils = async () => {
-    const { address, length } = this._appState.registerConfig
+  private _readCoils = async (address: number, length: number): Promise<RegisterData[]> => {
     const result = await this._client.readCoils(address, length)
-    const data = this._convertBitData(result)
-    this._sendData(data)
+    return this._convertBitData(result, address)
   }
 
-  private _readDiscreteInputs = async () => {
-    const { address, length } = this._appState.registerConfig
+  private _readDiscreteInputs = async (
+    address: number,
+    length: number
+  ): Promise<RegisterData[]> => {
     const result = await this._client.readDiscreteInputs(address, length)
-    const data = this._convertBitData(result)
-    this._sendData(data)
+    return this._convertBitData(result, address)
   }
 
-  private _readInputRegisters = async () => {
-    const { address, length } = this._appState.registerConfig
+  private _readInputRegisters = async (
+    address: number,
+    length: number
+  ): Promise<RegisterData[]> => {
     const result = await this._client.readInputRegisters(address, length)
-    const data = this._convertRegisterData(result)
-    this._sendData(data)
+    return this._convertRegisterData(result, address)
   }
 
-  private _readHoldingRegisters = async () => {
-    const { address, length } = this._appState.registerConfig
+  private _readHoldingRegisters = async (
+    address: number,
+    length: number
+  ): Promise<RegisterData[]> => {
     const result = await this._client.readHoldingRegisters(address, length)
-    const data = this._convertRegisterData(result)
-    this._sendData(data)
+    return this._convertRegisterData(result, address)
   }
 
   //
   //
   // Conversion
-  private _convertRegisterData = (result: ReadRegisterResult) => {
+  private _convertRegisterData = (result: ReadRegisterResult, address: number) => {
     if (!result) return []
 
-    const { address, littleEndian } = this._appState.registerConfig
+    const { littleEndian } = this._appState.registerConfig
 
     const { buffer } = result
     const registerData: RegisterData[] = []
@@ -415,7 +444,8 @@ export class ModbusClient {
           uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
           double: buf64 ? round(buf64.readDoubleBE(0), 15) : 0
         },
-        bit: false
+        bit: false,
+        isScanned: this._clientState.scanningRegisters
       }
 
       registerData.push(rowData)
@@ -424,8 +454,8 @@ export class ModbusClient {
     return registerData
   }
 
-  private _convertBitData = (result: ReadCoilResult) => {
-    const { address, length } = this._appState.registerConfig
+  private _convertBitData = (result: ReadCoilResult, address: number) => {
+    const { length } = this._appState.registerConfig
     const { data } = result
 
     const registerData: RegisterData[] = []
@@ -437,7 +467,8 @@ export class ModbusClient {
         buffer: Buffer.from([0]),
         hex: '',
         words: undefined,
-        bit
+        bit,
+        isScanned: this._clientState.scanningRegisters
       }
 
       registerData.push(rowData)
@@ -454,23 +485,29 @@ export class ModbusClient {
   public write = async (writeParameters: WriteParameters) => {
     const { address, type, value, dataType, single } = writeParameters
 
+    let errorMessage: string | undefined
+
     switch (type) {
       case RegisterType.Coils:
-        await this._writeCoil(address, value, single)
+        errorMessage = await this._writeCoil(address, value, single)
         break
       case RegisterType.HoldingRegisters:
-        await this._writeRegister(address, value, dataType, single)
+        errorMessage = await this._writeRegister(address, value, dataType, single)
         break
     }
 
     // Log the write transaction.
-    this._logTransaction()
+    this._logTransaction(errorMessage)
 
     // When specified, perform a read after writing the register.
     if (!this._clientState.polling) this.read()
   }
 
-  private _writeCoil = async (address: number, value: boolean[], single: boolean) => {
+  private _writeCoil = async (
+    address: number,
+    value: boolean[],
+    single: boolean
+  ): Promise<string | undefined> => {
     const { unitId } = this._appState.connectionConfig
 
     try {
@@ -498,8 +535,11 @@ export class ModbusClient {
         })
       )
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      this._emitMessage({ message: (error as Error).message, variant: 'error', error })
+      return (error as Error).message
     }
+
+    return undefined
   }
 
   private _writeRegister = async (
@@ -507,7 +547,7 @@ export class ModbusClient {
     value: number,
     dataType: DataType,
     single: boolean
-  ) => {
+  ): Promise<string | undefined> => {
     const { littleEndian } = this._appState.registerConfig
 
     if (single && ![DataType.Int16, DataType.UInt16].includes(dataType)) {
@@ -594,16 +634,17 @@ export class ModbusClient {
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      return (error as Error).message
     }
+    return undefined
   }
 
   //
   //
   //
   //
-  // Scand Unit ID
-
-  public scanUnitId = async (params: ScanUnitIDParameters) => {
+  // Scan Unit ID
+  public scanUnitIds = async (params: ScanUnitIDParameters) => {
     if (this._clientState.polling) {
       this._emitMessage({
         message: 'Cannot scan while polling is enabled',
@@ -613,23 +654,28 @@ export class ModbusClient {
       return
     }
 
+    this._client.setTimeout(params.timeout)
     this._clientState.scanningUniId = true
     this._sendClientState()
 
     const { range } = params
-    for (let id = range[0]; id <= range[1]; id++) await this._scanUnitId({ id, ...params })
+
+    this._totalScans = (range[1] - range[0] + 1) * params.registerTypes.length
+    this._scansDone = 0
+
+    for (let id = range[0]; id <= range[1]; id++) await this._scanUnitIds({ id, ...params })
 
     this._clientState.scanningUniId = false
     this._sendClientState()
   }
 
-  public stopScanningUnitId = () => {
+  public stopScanningUnitIds = () => {
     // Set scanning unit id to false so the scanning is stopped
     // after the last asynchonous operation has completed.
     this._clientState.scanningUniId = false
   }
 
-  private _scanUnitId = async ({
+  private _scanUnitIds = async ({
     id,
     address,
     length,
@@ -638,8 +684,7 @@ export class ModbusClient {
     this._client.setID(id)
 
     const result: ScanUnitIDResult = {
-      id: v4(),
-      unitID: id,
+      id,
       registerTypes: [],
       requestedRegisterTypes: registerTypes,
       errorMessage: {
@@ -663,6 +708,7 @@ export class ModbusClient {
       } catch (error) {
         result.errorMessage[RegisterType.Coils] = (error as Error).message
       }
+      await this._sendScanProgress()
     }
 
     if (!this._clientState.scanningUniId) {
@@ -678,6 +724,7 @@ export class ModbusClient {
       } catch (error) {
         result.errorMessage[RegisterType.DiscreteInputs] = (error as Error).message
       }
+      await this._sendScanProgress()
     }
     if (!this._clientState.scanningUniId) {
       this._sendClientState()
@@ -692,6 +739,7 @@ export class ModbusClient {
       } catch (error) {
         result.errorMessage[RegisterType.HoldingRegisters] = (error as Error).message
       }
+      await this._sendScanProgress()
     }
 
     if (!this._clientState.scanningUniId) {
@@ -707,6 +755,7 @@ export class ModbusClient {
       } catch (error) {
         result.errorMessage[RegisterType.InputRegisters] = (error as Error).message
       }
+      await this._sendScanProgress()
     }
 
     if (!this._clientState.scanningUniId) {
@@ -714,8 +763,77 @@ export class ModbusClient {
       return
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await new Promise((resolve) => setTimeout(resolve, 10))
     this._sendUnitIdResult(result)
+  }
+
+  //
+  //
+  //
+  //
+  // Scan Registers
+  public scanRegisters = async (params: ScanRegistersParameters) => {
+    if (this._clientState.polling) {
+      this._emitMessage({
+        message: 'Cannot scan while polling is enabled',
+        variant: 'warning',
+        error: undefined
+      })
+      return
+    }
+
+    this._client.setTimeout(params.timeout)
+
+    this._totalScans = Math.ceil(
+      (params.addressRange[1] - params.addressRange[0] + 1) / params.length
+    )
+    this._scansDone = 0
+
+    this._clientState.scanningRegisters = true
+    this._sendClientState()
+
+    const { addressRange, length } = params
+    for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
+      await this._scanRegister(address, length)
+      await this._sendScanProgress()
+      if (!this._clientState.scanningRegisters) break
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+
+    this._clientState.scanningRegisters = false
+    this._sendClientState()
+  }
+
+  private _scanRegister = async (address: number, length: number) => {
+    const type = this._appState.registerConfig.type
+    if (address + length > 65535) length = 65535 - address
+
+    console.log(address, length)
+
+    let data: RegisterData[] | undefined
+    let errorMessage: string | undefined
+
+    try {
+      data = await this._tryRead(type, address, length)
+    } catch (error) {
+      const readError = error as Error
+      errorMessage = readError.message
+      this._emitMessage({ message: errorMessage, variant: 'error', error })
+    }
+
+    this._logTransaction(errorMessage)
+
+    if (!data) return
+    data = data.filter((d) =>
+      [RegisterType.Coils, RegisterType.DiscreteInputs].includes(type) ? d.bit : d.hex !== '0000'
+    )
+    this._sendData(data)
+  }
+
+  public stopScanningRegisters = () => {
+    // Set scanning registers to false so the scanning is stopped
+    // after the last asynchonous operation has completed.
+    this._clientState.scanningRegisters = false
   }
 
   get state() {

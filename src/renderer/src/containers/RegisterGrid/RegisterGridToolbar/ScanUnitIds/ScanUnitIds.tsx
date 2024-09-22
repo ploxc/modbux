@@ -11,11 +11,12 @@ import { DataGrid } from '@mui/x-data-grid'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { RegisterType } from '@shared'
+import { ConnectState, RegisterType } from '@shared'
 import { forwardRef, useCallback, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
+import { ScanProgress, TimeoutInput } from '../components'
 
 //
 //
@@ -33,7 +34,6 @@ const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       autofix
       inputRef={ref}
       onAccept={(value: any) => set(value, true)}
-      overwrite
     />
   )
 })
@@ -51,7 +51,6 @@ const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       autofix
       inputRef={ref}
       onAccept={(value: any) => set(value, true)}
-      overwrite
     />
   )
 })
@@ -165,6 +164,34 @@ const LengthField = () => {
 //
 //
 //
+// Timeout field
+const TimeoutField = () => {
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const timeout = useScanUnitIdZustand((z) => String(z.timeout))
+  const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
+
+  return (
+    <TextField
+      disabled={scanning}
+      label="Timeout (ms)"
+      variant="outlined"
+      size="small"
+      sx={{ width: 90 }}
+      value={timeout}
+      slotProps={{
+        input: {
+          inputComponent: TimeoutInput as any,
+          inputProps: maskInputProps({ set: setTimeout })
+        }
+      }}
+    />
+  )
+}
+
+//
+//
+//
+//
 // Select register types
 const SelectRegisterTypes = () => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
@@ -195,24 +222,30 @@ const SelectRegisterTypes = () => {
 // Scan button
 const ScanButton = () => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const polling = useRootZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
     if (scanning) {
-      window.api.stopScanningUnitId()
+      window.api.stopScanningUnitIds()
       return
     }
+
+    window.api.stopPolling()
+
     const state = useScanUnitIdZustand.getState()
     const rootState = useRootZustand.getState()
     rootState.clearScanUnitIdResults()
+    rootState.setScanProgress(0)
 
-    const { address, length, range, registerTypes } = state
+    const { address, length, range, registerTypes, timeout } = state
 
-    window.api.scanUnitId({
+    window.api.scanUnitIds({
       address,
       length,
       range,
-      registerTypes
+      registerTypes,
+      timeout
     })
   }, [scanning])
 
@@ -220,7 +253,7 @@ const ScanButton = () => {
   const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
 
   return (
-    <Button disabled={disabled} variant="contained" color={color} onClick={scan}>
+    <Button disabled={disabled || polling} variant="contained" color={color} onClick={scan}>
       {text}
     </Button>
   )
@@ -268,6 +301,25 @@ const ScanResultGrid = () => {
 
 //
 //
+// Scan unit ids button
+const ScanUnitIdsButton = () => {
+  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
+  const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
+  return (
+    <Button
+      disabled={disabled}
+      sx={{ my: 1 }}
+      size="small"
+      variant="outlined"
+      onClick={() => setScanUnitIdsOpen(true)}
+    >
+      Scan Unit ID's
+    </Button>
+  )
+}
+
+//
+//
 //
 //
 // MAIN
@@ -283,41 +335,46 @@ const ScanUnitIds = () => {
   }, [setOpen])
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-    >
-      <Paper
-        elevation={5}
-        sx={(theme) => ({
-          background: theme.palette.background.default,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          p: 3,
-          height: '95dvh',
-          width: '95dvw',
-          minHeight: 0
-        })}
+    <>
+      <ScanUnitIdsButton />
+      <Modal
+        open={open}
+        onClose={handleClose}
+        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <MinTextField />
-            <MaxTextField />
-            <AddressField />
-            <LengthField />
-            <SelectRegisterTypes />
+        <Paper
+          elevation={5}
+          sx={(theme) => ({
+            background: theme.palette.background.default,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            p: 3,
+            height: '90dvh',
+            width: '90dvw',
+            minHeight: 0
+          })}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <MinTextField />
+              <MaxTextField />
+              <AddressField />
+              <LengthField />
+              <TimeoutField />
+              <SelectRegisterTypes />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <ScanButton />
+            </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <ScanButton />
-          </Box>
-        </Box>
-        <Paper sx={{ flex: 1, height: '100%', minHeight: 0 }}>
-          <ScanResultGrid />
+          <ScanProgress />
+          <Paper sx={{ flex: 1, height: '100%', minHeight: 0 }}>
+            <ScanResultGrid />
+          </Paper>
         </Paper>
-      </Paper>
-    </Modal>
+      </Modal>
+    </>
   )
 }
 export default ScanUnitIds

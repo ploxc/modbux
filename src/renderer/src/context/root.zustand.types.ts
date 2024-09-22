@@ -6,7 +6,6 @@ import {
   RegisterType,
   ModbusBaudRate,
   ClientState,
-  ConnectState,
   Transaction,
   RegisterMapping,
   RegisterMapValue,
@@ -18,6 +17,7 @@ export interface RootZusand {
   // Register data
   registerData: RegisterData[]
   setRegisterData: (data: RegisterData[]) => void
+  appendRegisterData: (data: RegisterData[]) => void
 
   // Register mapping
   registerMapping: RegisterMapping
@@ -40,9 +40,7 @@ export interface RootZusand {
 
   // State
   clientState: ClientState
-  setConnectState: (connectState: ConnectState) => void
-  setPolling: (polling: boolean) => void
-  setScanningUniId: (scanningUniId: boolean) => void
+  setClientState: (clientState: ClientState) => void
   ready: boolean
 
   // Configuration actions
@@ -76,6 +74,10 @@ export interface RootZusand {
   scanUnitIdResults: ScanUnitIDResult[]
   addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
   clearScanUnitIdResults: () => void
+
+  // Scan progress
+  scanProgress: number
+  setScanProgress: (scanProgress: number) => void
 }
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void

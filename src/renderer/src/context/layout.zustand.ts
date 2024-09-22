@@ -9,6 +9,15 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
       set((state) => {
         const currentState = getState()
         state.showLog = !currentState.showLog
+      }),
+    setShowLog: (show: boolean) =>
+      set((state) => {
+        state.showLog = show
+      }),
+    registerGridMenuAnchorEl: null,
+    setRegisterGridMenuAnchorEl: (anchorEl: HTMLButtonElement | null) =>
+      set((state) => {
+        ;(state.registerGridMenuAnchorEl as HTMLButtonElement | null) = anchorEl
       })
   }))
 )

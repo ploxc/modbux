@@ -15,6 +15,8 @@ interface ScanUnitIdZustand {
   setMaxRange: MaskSetFn
   registerTypes: RegisterType[]
   setRegisterTypes: (types: RegisterType[]) => void
+  timeout: number
+  setTimeout: MaskSetFn
 }
 
 export const useScanUnitIdZustand = create<ScanUnitIdZustand, [['zustand/mutative', never]]>(
@@ -34,7 +36,7 @@ export const useScanUnitIdZustand = create<ScanUnitIdZustand, [['zustand/mutativ
       set((state) => {
         state.length = Number(length)
       }),
-    range: [0, 100],
+    range: [0, 10],
     setMinRange: (min) =>
       set((state) => {
         state.range[0] = Number(min)
@@ -47,6 +49,11 @@ export const useScanUnitIdZustand = create<ScanUnitIdZustand, [['zustand/mutativ
     setRegisterTypes: (types) =>
       set((state) => {
         state.registerTypes = types
+      }),
+    timeout: 500,
+    setTimeout: (timeout) =>
+      set((state) => {
+        state.timeout = Number(timeout)
       })
   }))
 )

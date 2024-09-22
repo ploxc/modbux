@@ -13,7 +13,6 @@ const UIntInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       max={65535}
       inputRef={ref}
       onAccept={(value: any) => set(value, true)}
-      overwrite
     />
   )
 })

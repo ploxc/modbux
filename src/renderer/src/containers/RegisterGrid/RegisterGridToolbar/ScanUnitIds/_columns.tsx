@@ -5,8 +5,8 @@ import { useScanUnitIdZustand } from './_zustand'
 import { Box, Chip } from '@mui/material'
 import { CheckCircle, ErrorRounded } from '@mui/icons-material'
 
-const unitIdColumn: GridColDef<ScanUnitIDResult, number> = {
-  field: 'unitID',
+const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
+  field: 'id',
   headerName: 'Unit ID',
   hideable: false,
   width: 60,
@@ -15,8 +15,9 @@ const unitIdColumn: GridColDef<ScanUnitIDResult, number> = {
 
 const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIDResult> => ({
   field: registerType,
+  type: 'boolean',
   headerName: name,
-  disableColumnMenu: true,
+  disableColumnMenu: false,
   width: 90,
   valueGetter: (_, row) => row.registerTypes.includes(registerType),
   renderCell: ({ value, row }) => (

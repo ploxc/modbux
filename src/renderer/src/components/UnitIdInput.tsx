@@ -13,7 +13,6 @@ const UnitIdInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
       autofix
       inputRef={ref}
       onAccept={(value: any) => set(value, true)}
-      overwrite
     />
   )
 })
