@@ -16,6 +16,7 @@ import modbusImage from '../../../resources/icon.png'
 import { AppType } from './context/layout.zustand.types'
 import { Home as HomeIcon } from '@mui/icons-material'
 import { useServerZustand } from './context/server.zustand'
+import ServerGrid from './containers/ServerGrid/ServerGrid'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -192,7 +193,7 @@ const ClientApp = () => {
           <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
-              sx={{ minWidth: 38, maxWidth: 38 }}
+              sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
               color="info"
               onClick={() => setAppType(undefined)}
             >
@@ -233,7 +234,7 @@ const ServerApp = () => {
           <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
-              sx={{ minWidth: 38, maxWidth: 38 }}
+              sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
               color="info"
               onClick={() => setAppType(undefined)}
             >
@@ -241,6 +242,7 @@ const ServerApp = () => {
             </Button>
           </Box>
         </Box>
+        <ServerGrid />
       </Box>
     </Fade>
   )

@@ -81,12 +81,6 @@ useServerZustand
       interval: 1000,
       littleEndian: false
     })
-
-    // Set all bools false on init
-    for (let address = 0; address < 66536; address++) {
-      window.api.setBool({ registerType: RegisterType.Coils, address, state: false })
-      window.api.setBool({ registerType: RegisterType.DiscreteInputs, address, state: false })
-    }
   })
 
 // Listen to events
