@@ -248,6 +248,20 @@ export interface RegisterMapValue {
 
 //
 //
+// Server
+// Value generator
+export interface ValueGeneratorParameters {
+  address: number
+  registerType: RegisterType.InputRegisters | RegisterType.HoldingRegisters
+  dataType: DataType
+  min: number
+  max: number
+  interval: number
+  littleEndian: boolean
+}
+
+//
+//
 // Utils
 export type DeepPartial<T> = T extends object
   ? { [K in keyof T]?: DeepPartial<Exclude<T[K], undefined>> }

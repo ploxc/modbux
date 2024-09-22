@@ -1,6 +1,7 @@
-import { BackendMessage, IpcEvent } from '@shared'
+import { BackendMessage, IpcEvent, RegisterType, ValueGeneratorParameters } from '@shared'
 import { BrowserWindow } from 'electron'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
+import { ServerData, ValueGenerator, ValueGenerators } from './modbusServer/valueGenerator'
 
 export interface ServerParams {
   mainWindow: BrowserWindow
@@ -8,17 +9,27 @@ export interface ServerParams {
 
 export class ModbusServer {
   private _server: ServerTCP
+  private _vector: IServiceVector
+  private _unitID: number | undefined
+  private _port: number | undefined
+  private _serverData: ServerData = {
+    [RegisterType.Coils]: new Array(65535).fill(false),
+    [RegisterType.DiscreteInputs]: new Array(65535).fill(false),
+    [RegisterType.InputRegisters]: new Array(65535).fill(0),
+    [RegisterType.HoldingRegisters]: new Array(65535).fill(0)
+  }
+
   private _mainWindow: BrowserWindow
 
-  private _coils = Array(65535).fill(false)
-  private _discreteInputs = Array(65535).fill(false)
-  private _inputRegisters = Array(65535).fill(123)
-  private _holdingRegisters = Array(65535).fill(0)
+  private _valueGenerators: ValueGenerators = {
+    [RegisterType.InputRegisters]: new Map(),
+    [RegisterType.HoldingRegisters]: new Map()
+  }
 
   constructor({ mainWindow }: ServerParams) {
     this._mainWindow = mainWindow
 
-    const vector: IServiceVector = {
+    this._vector = {
       getCoil: this._getCoil,
       getDiscreteInput: this._getDiscreteInput,
       getInputRegister: this._getInputRegister,
@@ -27,54 +38,91 @@ export class ModbusServer {
       setRegister: this._setHoldingRegister
     }
 
-    this._server = new ServerTCP(vector, { host: '0.0.0.0' })
-    this._server.on('error', (error) => {
-      if (error) {
-        this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
-      }
+    this._server = new ServerTCP(this._vector, { host: '0.0.0.0' })
+  }
+
+  private _createNewServer = async () => {
+    await new Promise<void>((resolve) => {
+      this._server.close((err) => {
+        if (err)
+          this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
+        resolve()
+      })
+    })
+    this._server = new ServerTCP(this._vector, {
+      host: '0.0.0.0',
+      unitID: this._unitID,
+      port: this._port
     })
   }
 
+  //
+  //
   // Events
   private _emitMessage = (message: BackendMessage) => {
     this._mainWindow.webContents.send(IpcEvent.BackendMessage, message)
   }
 
-  private _getCoil: IServiceVector['getCoil'] = async (addr: number, unitID: number) => {
-    return this._coils[addr]
+  //
+  //
+  // Public methods
+  public setId = async (unitID: number | undefined) => {
+    this._unitID = unitID
+    await this._createNewServer()
   }
-  private _getDiscreteInput: IServiceVector['getDiscreteInput'] = async (
-    addr: number,
-    unitID: number
-  ) => {
-    return this._discreteInputs[addr]
+  public setPort = async (port: number | undefined) => {
+    this._port = port
+    await this._createNewServer()
+  }
+  public addValueGenerator = ({
+    address,
+    registerType,
+    dataType,
+    min,
+    max,
+    interval,
+    littleEndian
+  }: ValueGeneratorParameters) => {
+    const currentGenerator = this._valueGenerators[registerType].get(address) as ValueGenerator
+    if (currentGenerator) currentGenerator.stop()
+    this._valueGenerators[registerType].set(
+      address,
+      new ValueGenerator({
+        serverData: this._serverData,
+        address,
+        dataType,
+        min,
+        max,
+        interval,
+        littleEndian,
+        registerType
+      })
+    )
   }
 
-  private _getInputRegister: IServiceVector['getInputRegister'] = async (
-    addr: number,
-    unitID: number
-  ) => {
-    if (unitID !== 1) return
-    return this._inputRegisters[addr]
+  //
+  //
+  // Vector methods
+  private _getCoil: IServiceVector['getCoil'] = async (addr: number) => {
+    return this._serverData[RegisterType.Coils][addr]
   }
-  private _getHoldingRegister: IServiceVector['getHoldingRegister'] = async (
-    addr: number,
-    unitID: number
-  ) => {
-    return this._holdingRegisters[addr]
+  private _getDiscreteInput: IServiceVector['getDiscreteInput'] = async (addr: number) => {
+    return this._serverData[RegisterType.DiscreteInputs][addr]
   }
-  private _setCoil: IServiceVector['setCoil'] = async (
-    addr: number,
-    value: boolean,
-    unitID: number
-  ) => {
-    this._coils[addr] = value
+
+  private _getInputRegister: IServiceVector['getInputRegister'] = async (addr: number) => {
+    return this._serverData[RegisterType.InputRegisters][addr]
+  }
+  private _getHoldingRegister: IServiceVector['getHoldingRegister'] = async (addr: number) => {
+    return this._serverData[RegisterType.HoldingRegisters][addr]
+  }
+  private _setCoil: IServiceVector['setCoil'] = async (addr: number, value: boolean) => {
+    this._serverData[RegisterType.Coils][addr] = value
   }
   private _setHoldingRegister: IServiceVector['setRegister'] = async (
     addr: number,
-    value: number,
-    unitID: number
+    value: number
   ) => {
-    this._holdingRegisters[addr] = value
+    this._serverData[RegisterType.HoldingRegisters][addr] = value
   }
 }

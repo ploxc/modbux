@@ -3,10 +3,15 @@ import { AppState } from '../state'
 import { BrowserWindow } from 'electron'
 import {
   BackendMessage,
+  bigEndian32,
+  bigEndian64,
   ClientState,
   ConnectState,
+  createRegisters,
   DataType,
   IpcEvent,
+  littleEndian32,
+  littleEndian64,
   Protocol,
   RawTransaction,
   RegisterData,
@@ -27,34 +32,6 @@ import {
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
-
-// Regular most significant word first (big endian)
-const bigEndian32 = (buffer: Buffer, offset: number) => {
-  return buffer.subarray(offset, offset + 4)
-}
-
-// Uncommon least significant word first (little endian)
-const littleEndian32 = (buffer: Buffer, offset: number) => {
-  return Buffer.concat([
-    buffer.subarray(offset + 2, offset + 4),
-    buffer.subarray(offset, offset + 2)
-  ])
-}
-
-// Regular most significant word first (big endian)
-const bigEndian64 = (buffer: Buffer, offset: number) => {
-  return buffer.subarray(offset, offset + 8)
-}
-
-// Uncommon least significant word first (little endian)
-const littleEndian64 = (buffer: Buffer, offset: number) => {
-  return Buffer.concat([
-    buffer.subarray(offset + 6, offset + 8),
-    buffer.subarray(offset + 4, offset + 6),
-    buffer.subarray(offset + 2, offset + 4),
-    buffer.subarray(offset, offset + 2)
-  ])
-}
 
 export interface ClientParams {
   appState: AppState
@@ -437,12 +414,12 @@ export class ModbusClient {
           // 32 bits
           int32: buf32 ? buf32.readInt32BE(0) : 0,
           uint32: buf32 ? buf32.readUInt32BE(0) : 0,
-          float: buf32 ? round(buf32.readFloatBE(0), 7) : 0,
+          float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
 
           // 64 bits
           int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
           uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
-          double: buf64 ? round(buf64.readDoubleBE(0), 15) : 0
+          double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0
         },
         bit: false,
         isScanned: this._clientState.scanningRegisters
@@ -559,54 +536,8 @@ export class ModbusClient {
       return
     }
 
-    let bufferSize = 2
-
-    if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(dataType)) bufferSize = 4
-    if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(dataType)) bufferSize = 8
-
-    let buffer = Buffer.alloc(bufferSize)
-
-    switch (dataType) {
-      case DataType.Int16:
-        buffer.writeInt16BE(value, 0)
-        break
-      case DataType.UInt16:
-        buffer.writeUInt16BE(value, 0)
-        break
-      case DataType.Int32:
-        buffer.writeInt32BE(value, 0)
-        if (littleEndian) buffer = littleEndian32(buffer, 0)
-        break
-      case DataType.UInt32:
-        buffer.writeUInt32BE(value, 0)
-        if (littleEndian) buffer = littleEndian32(buffer, 0)
-        break
-      case DataType.Float:
-        buffer.writeFloatBE(value, 0)
-        if (littleEndian) buffer = littleEndian32(buffer, 0)
-        break
-      case DataType.Int64:
-        buffer.writeBigInt64BE(BigInt(value), 0)
-        if (littleEndian) buffer = littleEndian64(buffer, 0)
-        break
-      case DataType.UInt64:
-        buffer.writeBigUInt64BE(BigInt(value), 0)
-        if (littleEndian) buffer = littleEndian64(buffer, 0)
-        break
-      case DataType.Double:
-        buffer.writeDoubleBE(value, 0)
-        if (littleEndian) buffer = littleEndian64(buffer, 0)
-        break
-    }
-
     const { unitId } = this._appState.connectionConfig
-
-    // Convert bytes to array of 16-bit words.
-    const bytes = Array.from(buffer)
-    const registers: number[] = []
-    for (let i = 0; i < bytes.length; i += 2) {
-      registers.push(bytes[i] * 256 + bytes[i + 1])
-    }
+    const registers = createRegisters(dataType, value, littleEndian)
 
     try {
       if (single) {
@@ -820,8 +751,6 @@ export class ModbusClient {
     }
 
     this._logTransaction(errorMessage)
-
-    console.log(data)
 
     if (!data) return
     data = data.filter((d) =>

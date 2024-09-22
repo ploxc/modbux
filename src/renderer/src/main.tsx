@@ -12,7 +12,7 @@ import { styled, ThemeProvider } from '@mui/material/styles'
 import { theme } from './theme'
 import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
 import { Close } from '@mui/icons-material'
-import App from './app'
+import App from './App'
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
   '&.notistack-MuiContent-success': {

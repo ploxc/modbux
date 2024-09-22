@@ -7,6 +7,7 @@ import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
 import { ModbusServer } from './modules/mobusServer'
+import { DataType, RegisterType } from '@shared'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
@@ -56,6 +57,27 @@ function createWindow(): void {
 
   // Initialize the modbus server
   const server = new ModbusServer({ mainWindow })
+
+  // ! test
+  server.addValueGenerator({
+    registerType: RegisterType.HoldingRegisters,
+    address: 0,
+    dataType: DataType.UInt16,
+    min: 23600,
+    max: 24400,
+    interval: 3000,
+    littleEndian: false
+  })
+
+  server.addValueGenerator({
+    registerType: RegisterType.HoldingRegisters,
+    address: 1,
+    dataType: DataType.Float,
+    min: 22,
+    max: 24,
+    interval: 100,
+    littleEndian: false
+  })
 
   // IPC
   initIpc(appState, client)
