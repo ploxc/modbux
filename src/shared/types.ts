@@ -20,6 +20,10 @@ export interface Api {
   stopScanningUnitIds: () => Promise<void>
   scanRegisters: (scanRegistersParams: ScanRegistersParameters) => Promise<void>
   stopScanningRegisters: () => Promise<void>
+  addReplaceServerRegister: (params: ValueGeneratorParameters) => void
+  removeServerRegister: (params: RemoveValueGeneratorParams) => void
+  getValueGeneratorParams: () => Promise<ValueGeneratorsParamsReturn>
+  setBool: (params: SetBooleanParameters) => void
 }
 
 //
@@ -31,7 +35,9 @@ export enum IpcEvent {
   RegisterData = 'registerData',
   Transaction = 'transaction',
   ScanUnitIDResult = 'scanUnitIDResult',
-  ScanProgress = 'ScanProgress'
+  ScanProgress = 'ScanProgress',
+  ValueGeneratorValue = 'valueGeneratorValue',
+  BooleanValue = 'booleanValue'
 }
 
 // Scan Registers
@@ -258,6 +264,22 @@ export interface ValueGeneratorParameters {
   max: number
   interval: number
   littleEndian: boolean
+}
+
+export interface RemoveValueGeneratorParams {
+  registerType: RegisterType.InputRegisters | RegisterType.HoldingRegisters
+  address: number
+}
+
+export interface SetBooleanParameters {
+  registerType: RegisterType.Coils | RegisterType.DiscreteInputs
+  address: number
+  state: boolean
+}
+
+export interface ValueGeneratorsParamsReturn {
+  [RegisterType.InputRegisters]: [number, ValueGeneratorParameters][]
+  [RegisterType.HoldingRegisters]: [number, ValueGeneratorParameters][]
 }
 
 //

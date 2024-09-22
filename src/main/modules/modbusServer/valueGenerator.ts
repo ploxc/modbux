@@ -1,4 +1,11 @@
-import { createRegisters, DataType, RegisterType, ValueGeneratorParameters } from '@shared'
+import {
+  createRegisters,
+  DataType,
+  IpcEvent,
+  RegisterType,
+  ValueGeneratorParameters
+} from '@shared'
+import { BrowserWindow } from 'electron'
 import { round } from 'lodash'
 
 export interface ServerData {
@@ -14,6 +21,7 @@ export interface ValueGenerators {
 }
 
 interface ValueGeneratorParams {
+  mainWindow: BrowserWindow
   serverData: ServerData
   registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
   address: number
@@ -25,6 +33,7 @@ interface ValueGeneratorParams {
 }
 
 export class ValueGenerator {
+  private _mainWindow: BrowserWindow
   private _serverData: ServerData
   private _registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
   private _address: number
@@ -37,6 +46,7 @@ export class ValueGenerator {
   private _intervalTimer: NodeJS.Timeout
 
   constructor({
+    mainWindow,
     serverData,
     registerType,
     address,
@@ -46,6 +56,7 @@ export class ValueGenerator {
     littleEndian,
     interval
   }: ValueGeneratorParams) {
+    this._mainWindow = mainWindow
     this._serverData = serverData
     this._address = address
     this._dataType = dataType
@@ -65,6 +76,13 @@ export class ValueGenerator {
 
   private _updateValue = async () => {
     const value = round(Math.random() * (this._max - this._min) + this._min, 2)
+    this._mainWindow.webContents.send(
+      IpcEvent.ValueGeneratorValue,
+      this._registerType,
+      this._address,
+      value
+    )
+
     const registers = createRegisters(this._dataType, value, this._littleEndian)
 
     switch (this._registerType) {

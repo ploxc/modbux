@@ -1,4 +1,12 @@
-import { BackendMessage, IpcEvent, RegisterType, ValueGeneratorParameters } from '@shared'
+import {
+  BackendMessage,
+  IpcEvent,
+  RegisterType,
+  RemoveValueGeneratorParams,
+  SetBooleanParameters,
+  ValueGeneratorParameters,
+  ValueGeneratorsParamsReturn
+} from '@shared'
 import { BrowserWindow } from 'electron'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
 import { ServerData, ValueGenerator, ValueGenerators } from './modbusServer/valueGenerator'
@@ -88,6 +96,7 @@ export class ModbusServer {
     this._valueGenerators[registerType].set(
       address,
       new ValueGenerator({
+        mainWindow: this._mainWindow,
         serverData: this._serverData,
         address,
         dataType,
@@ -98,6 +107,15 @@ export class ModbusServer {
         registerType
       })
     )
+  }
+  public removeValueGenerator = ({ registerType, address }: RemoveValueGeneratorParams) => {
+    this._valueGenerators[registerType].get(address)?.stop()
+    this._valueGenerators[registerType].delete(address)
+  }
+
+  public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
+    this._serverData[registerType][address] = state
+    this._mainWindow.webContents.send(IpcEvent.BooleanValue, registerType, address, state)
   }
 
   //
@@ -124,5 +142,20 @@ export class ModbusServer {
     value: number
   ) => {
     this._serverData[RegisterType.HoldingRegisters][addr] = value
+  }
+
+  //
+  //
+  //
+  get valueGeneratorParams(): ValueGeneratorsParamsReturn {
+    return {
+      [RegisterType.InputRegisters]: Array.from(
+        this._valueGenerators[RegisterType.InputRegisters].entries()
+      ).map(([address, generator]) => [address, generator.params]),
+
+      [RegisterType.HoldingRegisters]: Array.from(
+        this._valueGenerators[RegisterType.HoldingRegisters].entries()
+      ).map(([address, generator]) => [address, generator.params])
+    }
   }
 }

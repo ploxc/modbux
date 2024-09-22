@@ -1,16 +1,20 @@
-import { AppState } from '../state'
-import { ipcHandle, IpcChannel } from '@backend'
+import { AppState } from './state'
 import {
   ConnectionConfig,
   DeepPartial,
   RegisterConfig,
+  RemoveValueGeneratorParams,
   ScanRegistersParameters,
   ScanUnitIDParameters,
+  SetBooleanParameters,
+  ValueGeneratorParameters,
   WriteParameters
 } from '@shared'
-import { ModbusClient } from '../modules/modbusClient'
+import { ModbusClient } from './modules/modbusClient'
+import { ModbusServer } from './modules/mobusServer'
+import { ipcHandle, IpcChannel } from '@backend'
 
-export const initIpc = (state: AppState, client: ModbusClient) => {
+export const initIpc = (state: AppState, client: ModbusClient, server: ModbusServer) => {
   // Config and state
   ipcHandle(IpcChannel.GetConnectionConfig, () => state.connectionConfig)
   ipcHandle(IpcChannel.UpdateConnectionConfig, (_, config: DeepPartial<ConnectionConfig>) =>
@@ -47,4 +51,14 @@ export const initIpc = (state: AppState, client: ModbusClient) => {
     client.scanRegisters(scanRegistersParameters)
   )
   ipcHandle(IpcChannel.StopScanningRegisters, () => client.stopScanningRegisters())
+
+  // Server
+  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: ValueGeneratorParameters) =>
+    server.addValueGenerator(params)
+  )
+  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveValueGeneratorParams) =>
+    server.removeValueGenerator(params)
+  )
+  ipcHandle(IpcChannel.GetValueGeneratorParams, () => server.valueGeneratorParams)
+  ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
 }

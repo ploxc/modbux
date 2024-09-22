@@ -1,6 +1,13 @@
 import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { Api, ClientState, ConnectionConfig, RegisterConfig, RegisterData } from '@shared'
+import {
+  Api,
+  ClientState,
+  ConnectionConfig,
+  RegisterConfig,
+  RegisterData,
+  ValueGeneratorsParamsReturn
+} from '@shared'
 import { IpcChannel, ipcInvoke } from '@backend'
 
 //
@@ -22,21 +29,37 @@ const api: Api = {
   getClientState: (...args) =>
     ipcInvoke<typeof args, ClientState>(IpcChannel.GetClientState, ...args),
 
+  // Connections
   connect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Connect, ...args),
   disconnect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Disconnect, ...args),
 
+  // Read/Write
   read: (...args) => ipcInvoke<typeof args, RegisterData[] | undefined>(IpcChannel.Read, ...args),
   startPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StartPolling, ...args),
   stopPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StopPolling, ...args),
   write: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Write, ...args),
 
+  // Scan unit IDs
   scanUnitIds: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ScanUnitIds, ...args),
   stopScanningUnitIds: (...args) =>
     ipcInvoke<typeof args, void>(IpcChannel.StopScanningUnitIds, ...args),
 
+  // Scan registers
   scanRegisters: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ScanRegisters, ...args),
   stopScanningRegisters: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.StopScanningRegisters, ...args)
+    ipcInvoke<typeof args, void>(IpcChannel.StopScanningRegisters, ...args),
+
+  // Server registers
+  addReplaceServerRegister: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.AddReplaceServerRegister, ...args),
+  removeServerRegister: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.RemoveServerRegister, ...args),
+  getValueGeneratorParams: (...args) =>
+    ipcInvoke<typeof args, ValueGeneratorsParamsReturn>(
+      IpcChannel.GetValueGeneratorParams,
+      ...args
+    ),
+  setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args)
 }
 
 //

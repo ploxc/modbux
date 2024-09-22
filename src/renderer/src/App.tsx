@@ -15,6 +15,7 @@ import Client from './svg/Client'
 import modbusImage from '../../../resources/icon.png'
 import { AppType } from './context/layout.zustand.types'
 import { Home as HomeIcon } from '@mui/icons-material'
+import { useServerZustand } from './context/server.zustand'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -53,10 +54,14 @@ const ClientGrids = () => {
   )
 }
 
+//
+//
+//
+//
+// Button to open the modbus client
 const ClientButton = () => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   const connected = useRootZustand((z) => z.clientState.connectState === ConnectState.Connected)
-
   return (
     <Button
       variant="contained"
@@ -91,9 +96,13 @@ const ClientButton = () => {
   )
 }
 
+//
+//
+//
+//
+// Button to open the modbus server configurator
 const ServerButton = () => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
-
   return (
     <Button
       variant="contained"
@@ -114,6 +123,11 @@ const ServerButton = () => {
   )
 }
 
+//
+//
+//
+//
+// Home screen with modbus server and client buttons
 const Home = () => {
   return (
     <Fade in={true} timeout={500}>
@@ -153,6 +167,11 @@ const Home = () => {
   )
 }
 
+//
+//
+//
+//
+// Modbus client application
 const ClientApp = () => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
 
@@ -190,8 +209,56 @@ const ClientApp = () => {
   )
 }
 
+//
+//
+//
+//
+// Server application
+const ServerApp = () => {
+  const setAppType = useLayoutZustand((z) => z.setAppType)
+  return (
+    <Fade in={true} timeout={500}>
+      <Box
+        sx={{
+          p: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          width: '100%',
+          height: '100%'
+        }}
+      >
+        <MessageReceiver />
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              sx={{ minWidth: 38, maxWidth: 38 }}
+              color="info"
+              onClick={() => setAppType(undefined)}
+            >
+              <HomeIcon fontSize="small" />
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+    </Fade>
+  )
+}
+
+//
+//
+//
+//
+// MAIN
 const App = (): JSX.Element => {
   const appType = useLayoutZustand((z) => z.appType)
+  const test = useServerZustand((z) => z.ready)
+
+  useEffect(() => {
+    console.log('Server ready:', test)
+  }, [test])
+
   return (
     <Box
       sx={{
@@ -199,7 +266,13 @@ const App = (): JSX.Element => {
         width: '100dvw'
       }}
     >
-      {appType === AppType.Client ? <ClientApp /> : <Home />}
+      {appType === AppType.Client ? (
+        <ClientApp />
+      ) : appType === AppType.Server ? (
+        <ServerApp />
+      ) : (
+        <Home />
+      )}
     </Box>
   )
 }
