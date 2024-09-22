@@ -808,8 +808,6 @@ export class ModbusClient {
     const type = this._appState.registerConfig.type
     if (address + length > 65535) length = 65535 - address
 
-    console.log(address, length)
-
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined
 
@@ -822,6 +820,8 @@ export class ModbusClient {
     }
 
     this._logTransaction(errorMessage)
+
+    console.log(data)
 
     if (!data) return
     data = data.filter((d) =>

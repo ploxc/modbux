@@ -212,6 +212,7 @@ const ScanButton = () => {
     const layoutState = useLayoutZustand.getState()
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
+    rootState.setRegisterData([])
     layoutState.setShowLog(true)
 
     const { length, range, timeout } = state

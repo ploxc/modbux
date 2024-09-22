@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { LayoutZustand } from './layout.zustand.types'
+import { AppType, LayoutZustand } from './layout.zustand.types'
 
 export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', never]]>(
   mutative((set, getState) => ({
@@ -18,6 +18,11 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
     setRegisterGridMenuAnchorEl: (anchorEl: HTMLButtonElement | null) =>
       set((state) => {
         ;(state.registerGridMenuAnchorEl as HTMLButtonElement | null) = anchorEl
+      }),
+    appType: undefined,
+    setAppType: (appType: AppType | undefined) =>
+      set((state) => {
+        state.appType = appType
       })
   }))
 )

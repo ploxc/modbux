@@ -1,58 +1,80 @@
+import { BackendMessage, IpcEvent } from '@shared'
+import { BrowserWindow } from 'electron'
+import { IServiceVector, ServerTCP } from 'modbus-serial'
+
+export interface ServerParams {
+  mainWindow: BrowserWindow
+}
+
 export class ModbusServer {
-  constructor() {
-    // TODO
-  }
-}
+  private _server: ServerTCP
+  private _mainWindow: BrowserWindow
 
-// create an empty modbus client
-const ModbusRTU = require('modbus-serial')
-const vector = {
-  getInputRegister: function (addr, unitID) {
-    // Synchronous handling
-    return addr
-  },
-  getHoldingRegister: function (addr, unitID, callback) {
-    // Asynchronous handling (with callback)
-    setTimeout(function () {
-      // callback = function(err, value)
-      callback(null, addr % 30 === 0 ? addr : 0)
-    }, 10)
-  },
-  getCoil: function (addr, unitID) {
-    // Asynchronous handling (with Promises, async/await supported)
-    return new Promise(function (resolve) {
-      setTimeout(function () {
-        resolve(addr % 2 === 0)
-      }, 10)
-    })
-  },
-  setRegister: function (addr, value, unitID) {
-    // Asynchronous handling supported also here
-    console.log('set register', addr, value, unitID)
-    return
-  },
-  setCoil: function (addr, value, unitID) {
-    // Asynchronous handling supported also here
-    console.log('set coil', addr, value, unitID)
-    return
-  },
-  readDeviceIdentification: function (addr) {
-    return {
-      0x00: 'MyVendorName',
-      0x01: 'MyProductCode',
-      0x02: 'MyMajorMinorRevision',
-      0x05: 'MyModelName',
-      0x97: 'MyExtendedObject1',
-      0xab: 'MyExtendedObject2'
+  private _coils = Array(65535).fill(false)
+  private _discreteInputs = Array(65535).fill(false)
+  private _inputRegisters = Array(65535).fill(123)
+  private _holdingRegisters = Array(65535).fill(0)
+
+  constructor({ mainWindow }: ServerParams) {
+    this._mainWindow = mainWindow
+
+    const vector: IServiceVector = {
+      getCoil: this._getCoil,
+      getDiscreteInput: this._getDiscreteInput,
+      getInputRegister: this._getInputRegister,
+      getHoldingRegister: this._getHoldingRegister,
+      setCoil: this._setCoil,
+      setRegister: this._setHoldingRegister
     }
+
+    this._server = new ServerTCP(vector, { host: '0.0.0.0' })
+    this._server.on('error', (error) => {
+      if (error) {
+        this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      }
+    })
+  }
+
+  // Events
+  private _emitMessage = (message: BackendMessage) => {
+    this._mainWindow.webContents.send(IpcEvent.BackendMessage, message)
+  }
+
+  private _getCoil: IServiceVector['getCoil'] = async (addr: number, unitID: number) => {
+    return this._coils[addr]
+  }
+  private _getDiscreteInput: IServiceVector['getDiscreteInput'] = async (
+    addr: number,
+    unitID: number
+  ) => {
+    return this._discreteInputs[addr]
+  }
+
+  private _getInputRegister: IServiceVector['getInputRegister'] = async (
+    addr: number,
+    unitID: number
+  ) => {
+    if (unitID !== 1) return
+    return this._inputRegisters[addr]
+  }
+  private _getHoldingRegister: IServiceVector['getHoldingRegister'] = async (
+    addr: number,
+    unitID: number
+  ) => {
+    return this._holdingRegisters[addr]
+  }
+  private _setCoil: IServiceVector['setCoil'] = async (
+    addr: number,
+    value: boolean,
+    unitID: number
+  ) => {
+    this._coils[addr] = value
+  }
+  private _setHoldingRegister: IServiceVector['setRegister'] = async (
+    addr: number,
+    value: number,
+    unitID: number
+  ) => {
+    this._holdingRegisters[addr] = value
   }
 }
-
-// set the server to answer for modbus requests
-console.log('ModbusTCP listening on modbus://0.0.0.0:8502')
-export const serverTCP = new ModbusRTU.ServerTCP(vector, {
-  host: '0.0.0.0',
-  port: 8502,
-  debug: true,
-  unitID: 1
-})
