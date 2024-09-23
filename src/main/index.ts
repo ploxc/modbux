@@ -7,10 +7,20 @@ import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
 import { ModbusServer } from './modules/mobusServer'
+import portscanner from 'portscanner'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-software-rasterizer')
+}
+
+const portScanTest = async () => {
+  for (let i = 0; i < 1000; i++) {
+    console.log(`testing port from ${i}...`)
+    const result = await portscanner.findAPortInUse(i, '192.168.3.44')
+    console.log(result)
+    i = result
+  }
 }
 
 function createWindow(): void {
@@ -59,6 +69,8 @@ function createWindow(): void {
 
   // IPC
   initIpc(appState, client, server)
+
+  portScanTest()
 }
 
 // This method will be called when Electron has finished
