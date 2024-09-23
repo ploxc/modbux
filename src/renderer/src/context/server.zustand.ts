@@ -7,6 +7,8 @@ export const useServerZustand = create<ServerZustand, [['zustand/mutative', neve
   mutative((set, getState) => ({
     ready: false,
     init: async () => {
+      window.api.resetBools()
+
       const valueGeneratorParams = await window.api.getValueGeneratorParams()
 
       const inputRegisterParams = valueGeneratorParams[RegisterType.InputRegisters]
@@ -32,18 +34,29 @@ export const useServerZustand = create<ServerZustand, [['zustand/mutative', neve
       [RegisterType.InputRegisters]: {},
       [RegisterType.HoldingRegisters]: {}
     },
-    addBool: (type, address) =>
+    addBools: (type, address) =>
       set((state) => {
-        state.serverRegisters[type][address] = false
+        const baseAddress = address - (address % 8)
+        for (let i = baseAddress; i < baseAddress + 8; i++) {
+          // Don't define when already defined
+          if (state.serverRegisters[type][i]) continue
+          state.serverRegisters[type][i] = false
+        }
       }),
     removeBool: (registerType, address) =>
       set((state) => {
-        delete state.serverRegisters[registerType][address]
-        window.api.setBool({ registerType, address, state: false })
+        const baseAddress = address - (address % 8)
+        for (let i = baseAddress; i < baseAddress + 8; i++) {
+          // Don't remove when not existing
+          if (!state.serverRegisters[registerType][i]) continue
+          delete state.serverRegisters[registerType][i]
+          window.api.setBool({ registerType, address: i, state: false })
+        }
       }),
-    setBool: (type, address, boolState) =>
+    setBool: (registerType, address, boolState) =>
       set((state) => {
-        state.serverRegisters[type][address] = boolState
+        state.serverRegisters[registerType][address] = boolState
+        window.api.setBool({ registerType, address, state: boolState })
       }),
     addRegister: (params) =>
       set((state) => {
@@ -79,8 +92,11 @@ useServerZustand
       min: 10,
       max: 50000,
       interval: 1000,
-      littleEndian: false
+      littleEndian: false,
+      comment: 'test'
     })
+
+    useServerZustand.getState().addBools(RegisterType.Coils, 10)
   })
 
 // Listen to events
@@ -93,7 +109,11 @@ window.electron.ipcRenderer.on(IpcEvent.ValueGeneratorValue, (_, registerType, a
 
 window.electron.ipcRenderer.on(IpcEvent.BooleanValue, (_, registerType, address, value) => {
   const state = useServerZustand.getState()
-  if (state.serverRegisters[registerType]?.[address]) {
-    state.setBool(registerType, address, value)
-  }
+
+  if (state.serverRegisters[registerType][address] === undefined) return
+
+  const currentBool = state.serverRegisters[registerType][address]
+  console.log({ address, value, currentBool })
+
+  if (currentBool !== value) state.setBool(registerType, address, value)
 })

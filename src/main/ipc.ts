@@ -61,4 +61,5 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
   )
   ipcHandle(IpcChannel.GetValueGeneratorParams, () => server.valueGeneratorParams)
   ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
+  ipcHandle(IpcChannel.ResetBools, () => server.resetBools())
 }

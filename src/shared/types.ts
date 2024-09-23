@@ -24,6 +24,7 @@ export interface Api {
   removeServerRegister: (params: RemoveValueGeneratorParams) => void
   getValueGeneratorParams: () => Promise<ValueGeneratorsParamsReturn>
   setBool: (params: SetBooleanParameters) => void
+  resetBools: () => void
 }
 
 //
@@ -264,6 +265,7 @@ export interface ValueGeneratorParameters {
   max: number
   interval: number
   littleEndian: boolean
+  comment: string
 }
 
 export interface RemoveValueGeneratorParams {

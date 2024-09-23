@@ -14,7 +14,7 @@ export interface ServerZustand {
   ready: boolean
   serverRegisters: ServerRegisters
   init: () => Promise<void>
-  addBool: (type: RegisterType.Coils | RegisterType.DiscreteInputs, address: number) => void
+  addBools: (type: RegisterType.Coils | RegisterType.DiscreteInputs, address: number) => void
   removeBool: (type: RegisterType.Coils | RegisterType.DiscreteInputs, address: number) => void
   setBool: (
     type: RegisterType.Coils | RegisterType.DiscreteInputs,

@@ -30,6 +30,7 @@ interface ValueGeneratorParams {
   max: number
   interval: number
   littleEndian: boolean
+  comment: string
 }
 
 export class ValueGenerator {
@@ -42,6 +43,7 @@ export class ValueGenerator {
   private _max: number
   private _littleEndian: boolean
   private _interval: number
+  private _comment: string
 
   private _intervalTimer: NodeJS.Timeout
 
@@ -54,7 +56,8 @@ export class ValueGenerator {
     min,
     max,
     littleEndian,
-    interval
+    interval,
+    comment
   }: ValueGeneratorParams) {
     this._mainWindow = mainWindow
     this._serverData = serverData
@@ -65,6 +68,7 @@ export class ValueGenerator {
     this._littleEndian = littleEndian
     this._registerType = registerType
     this._interval = interval
+    this._comment = comment
     this._intervalTimer = setInterval(() => {
       this._updateValue()
     }, interval)
@@ -108,7 +112,8 @@ export class ValueGenerator {
       min: this._min,
       max: this._max,
       interval: this._interval,
-      littleEndian: this._littleEndian
+      littleEndian: this._littleEndian,
+      comment: this._comment
     }
     return params
   }

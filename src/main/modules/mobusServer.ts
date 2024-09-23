@@ -89,7 +89,8 @@ export class ModbusServer {
     min,
     max,
     interval,
-    littleEndian
+    littleEndian,
+    comment
   }: ValueGeneratorParameters) => {
     const currentGenerator = this._valueGenerators[registerType].get(address) as ValueGenerator
     if (currentGenerator) currentGenerator.stop()
@@ -104,7 +105,8 @@ export class ModbusServer {
         max,
         interval,
         littleEndian,
-        registerType
+        registerType,
+        comment
       })
     )
   }
@@ -116,6 +118,11 @@ export class ModbusServer {
   public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
     this._serverData[registerType][address] = state
     this._mainWindow.webContents.send(IpcEvent.BooleanValue, registerType, address, state)
+  }
+
+  public resetBools = () => {
+    this._serverData[RegisterType.Coils] = new Array(65535).fill(false)
+    this._serverData[RegisterType.DiscreteInputs] = new Array(65535).fill(false)
   }
 
   //
@@ -136,6 +143,7 @@ export class ModbusServer {
   }
   private _setCoil: IServiceVector['setCoil'] = async (addr: number, value: boolean) => {
     this._serverData[RegisterType.Coils][addr] = value
+    this._mainWindow.webContents.send(IpcEvent.BooleanValue, RegisterType.Coils, addr, value)
   }
   private _setHoldingRegister: IServiceVector['setRegister'] = async (
     addr: number,

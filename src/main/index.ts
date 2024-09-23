@@ -7,34 +7,30 @@ import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
 import { ModbusServer } from './modules/mobusServer'
-import portscanner from 'portscanner'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-software-rasterizer')
 }
 
-const portScanTest = async () => {
-  for (let i = 450; i < 504; i++) {
-    console.log(`testing port from ${i}...`)
-    try {
-      const result = await portscanner.checkPortStatus(i, '192.168.3.44')
-      if (result === 'open') console.log(`============================================ port ${i} is open`)
-    } catch (error) {
-      console.log(i, (error as Error).message)
-    }
-    
-    
-    // i = result
-  }
-}
+// const portScanTest = async () => {
+//   for (let i = 450; i < 504; i++) {
+//     console.log(`testing port from ${i}...`)
+//     try {
+//       const result = await portscanner.checkPortStatus(i, '192.168.3.44')
+//       if (result === 'open') console.log(`============================================ port ${i} is open`)
+//     } catch (error) {
+//       console.log(i, (error as Error).message)
+//     }
+//   }
+// }
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 1000,
-    minWidth: 400,
+    minWidth: 640,
     minHeight: 800,
     show: false,
     autoHideMenuBar: true,
@@ -75,8 +71,6 @@ function createWindow(): void {
 
   // IPC
   initIpc(appState, client, server)
-
-  portScanTest()
 }
 
 // This method will be called when Electron has finished

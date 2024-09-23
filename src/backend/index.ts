@@ -19,7 +19,8 @@ export enum IpcChannel {
   AddReplaceServerRegister = 'AddReplaceServerRegister',
   RemoveServerRegister = 'RemoveServerRegister',
   GetValueGeneratorParams = 'GetValueGeneratorParams',
-  SetBool = 'SetBool'
+  SetBool = 'SetBool',
+  ResetBools = 'ResetBools'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

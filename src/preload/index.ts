@@ -59,7 +59,8 @@ const api: Api = {
       IpcChannel.GetValueGeneratorParams,
       ...args
     ),
-  setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args)
+  setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
+  resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args)
 }
 
 //
