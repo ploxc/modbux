@@ -15,11 +15,17 @@ if (is.dev && os.platform() === 'darwin') {
 }
 
 const portScanTest = async () => {
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 450; i < 504; i++) {
     console.log(`testing port from ${i}...`)
-    const result = await portscanner.findAPortInUse(i, '192.168.3.44')
-    console.log(result)
-    i = result
+    try {
+      const result = await portscanner.checkPortStatus(i, '192.168.3.44')
+      if (result === 'open') console.log(`============================================ port ${i} is open`)
+    } catch (error) {
+      console.log(i, (error as Error).message)
+    }
+    
+    
+    // i = result
   }
 }
 
