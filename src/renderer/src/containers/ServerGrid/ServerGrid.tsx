@@ -4,7 +4,8 @@ import { Box, Button, IconButton, Paper } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { RegisterType } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
+import AddBooleans, { useAddBooleansZustand } from './AddBoolens/AddBooleans'
 
 interface ServerBooleanProps {
   name: string
@@ -20,7 +21,14 @@ interface ServerRegistersProps {
 //
 //
 // Server part title
-const ServerPartTitle = ({ name }: { name: string }) => {
+const ServerPartTitle = ({ name, type }: { name: string; type: RegisterType }) => {
+  const handleClick = useCallback(() => {
+    if (type === RegisterType.Coils || type === RegisterType.DiscreteInputs) {
+      const setAddBooleansOpen = useAddBooleansZustand.getState().setOpen
+      setAddBooleansOpen(true, type)
+    }
+  }, [type])
+
   return (
     <Box
       sx={(theme) => ({
@@ -37,9 +45,10 @@ const ServerPartTitle = ({ name }: { name: string }) => {
       <Box sx={{ flex: 1, flexBasis: 0, textAlign: 'center' }}>{name}</Box>
       <Box sx={{ width: 32 }}>
         <IconButton size="small" color="primary">
-          <PlusCircleFilled size={10} />
+          <PlusCircleFilled size={10} onClick={handleClick} />
         </IconButton>
       </Box>
+      {[RegisterType.Coils, RegisterType.DiscreteInputs].includes(type) ? <AddBooleans /> : null}
     </Box>
   )
 }
@@ -121,7 +130,7 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
         gap: 0.5
       }}
     >
-      <ServerPartTitle name={name} />
+      <ServerPartTitle name={name} type={type} />
       {groups.map((adresses, i) => (
         <ServerBooleanRow key={`addresses_${type}_${i}`} addresses={adresses} type={type} />
       ))}
@@ -148,7 +157,7 @@ const ServerRegisters = ({ name, type }: ServerRegistersProps) => {
         fontSize: '0.95em'
       }}
     >
-      <ServerPartTitle name={name} />
+      <ServerPartTitle name={name} type={type} />
       <Box
         sx={{
           width: '100%',
