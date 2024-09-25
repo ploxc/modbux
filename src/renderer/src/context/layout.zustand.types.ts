@@ -4,6 +4,9 @@ export enum AppType {
 }
 
 export interface LayoutZustand {
+  isServerWindow: boolean
+  hideHomeButton: boolean
+  setHideHomeButton: (hide: boolean) => void
   showLog: boolean
   toggleShowLog: () => void
   setShowLog: (show: boolean) => void

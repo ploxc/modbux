@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -7,6 +7,7 @@ import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
 import { ModbusServer } from './modules/mobusServer'
+import { IpcEvent, Windows } from '@shared'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
@@ -25,14 +26,31 @@ if (is.dev && os.platform() === 'darwin') {
 //   }
 // }
 
+const windows = new Windows()
+
+// Single instance
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (windows.main) {
+      console.log('Another instance of the app was already running.')
+      if (windows.main.isMinimized()) windows.main.restore()
+      windows.main.focus()
+    }
+  })
+}
+
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 1400,
+  windows.main = new BrowserWindow({
+    width: 1480,
     height: 1000,
     minWidth: 640,
     minHeight: 800,
-    show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -40,37 +58,75 @@ function createWindow(): void {
       sandbox: false
     },
     title: 'Modbux',
-    icon: join(__dirname, 'assets', 'icon.png')
+    icon: join(__dirname, 'assets', 'icon.png'),
+    backgroundColor: '#181818'
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  windows.main.on('ready-to-show', () => {
+    if (windows.main === null) return
+    windows.main.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  windows.main.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
-
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
 
   // Initialize the app state
   const appState = new AppState()
 
   // Initialize the modbus client
-  const client = new ModbusClient({ appState, mainWindow })
+  const client = new ModbusClient({ appState, windows })
 
   // Initialize the modbus server
-  const server = new ModbusServer({ mainWindow })
+  const server = new ModbusServer({ windows })
 
   // IPC
   initIpc(appState, client, server)
+
+  //
+  //
+  // SERVER WINDOW
+  ipcMain.on(IpcEvent.OpenServerWindow, (_) => {
+    if (!windows.main) return
+    if (windows.server) return
+
+    windows.server = new BrowserWindow({
+      parent: windows.main,
+      width: 1200,
+      height: 800,
+      minWidth: 640,
+      minHeight: 800,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false,
+        additionalArguments: ['is-server-window']
+      },
+      title: 'Server',
+      backgroundColor: '#181818'
+    })
+
+    // HMR for renderer base on electron-vite cli.
+    // Load the remote URL for development or the local html file for production.
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      windows.server.loadURL(`${process.env['ELECTRON_RENDERER_URL']}`)
+    } else {
+      windows.server.loadFile(join(__dirname, '../renderer/server.html'))
+    }
+
+    windows.server.on('close', () => {
+      windows.server = null
+    })
+  })
+
+  // HMR for renderer base on electron-vite cli.
+  // Load the remote URL for development or the local html file for production.
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    windows.main.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    windows.main.loadFile(join(__dirname, '../renderer/index.html'))
+  }
 }
 
 // This method will be called when Electron has finished

@@ -5,6 +5,7 @@ import { SharedProps } from 'notistack'
 //
 // Api
 export interface Api {
+  isServerWindow: boolean
   getConnectionConfig: () => Promise<ConnectionConfig>
   updateConnectionConfig: (config: DeepPartial<ConnectionConfig>) => void
   getRegisterConfig: () => Promise<RegisterConfig>
@@ -38,7 +39,9 @@ export enum IpcEvent {
   ScanUnitIDResult = 'scanUnitIDResult',
   ScanProgress = 'ScanProgress',
   ValueGeneratorValue = 'valueGeneratorValue',
-  BooleanValue = 'booleanValue'
+  BooleanValue = 'booleanValue',
+  WindowUpdate = 'windowUpdate',
+  OpenServerWindow = 'openServerWindow'
 }
 
 // Scan Registers

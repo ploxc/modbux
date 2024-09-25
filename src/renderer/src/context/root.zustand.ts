@@ -24,7 +24,6 @@ export const useRootZustand = create<RootZusand, [['zustand/mutative', never]]>(
       }),
     appendRegisterData: (data) =>
       set((state) => {
-        console.log(data)
         state.registerData.push(...data)
       }),
     // Connection state

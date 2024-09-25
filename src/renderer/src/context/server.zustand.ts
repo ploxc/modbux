@@ -34,13 +34,14 @@ export const useServerZustand = create<ServerZustand, [['zustand/mutative', neve
       [RegisterType.InputRegisters]: {},
       [RegisterType.HoldingRegisters]: {}
     },
-    addBools: (type, address) =>
+    addBools: (registerType, address) =>
       set((state) => {
         const baseAddress = address - (address % 8)
         for (let i = baseAddress; i < baseAddress + 8; i++) {
           // Don't define when already defined
-          if (state.serverRegisters[type][i]) continue
-          state.serverRegisters[type][i] = false
+          if (state.serverRegisters[registerType][i]) continue
+          state.serverRegisters[registerType][i] = false
+          window.api.setBool({ registerType, address: i, state: false })
         }
       }),
     removeBool: (registerType, address) =>
@@ -48,7 +49,7 @@ export const useServerZustand = create<ServerZustand, [['zustand/mutative', neve
         const baseAddress = address - (address % 8)
         for (let i = baseAddress; i < baseAddress + 8; i++) {
           // Don't remove when not existing
-          if (!state.serverRegisters[registerType][i]) continue
+          if (state.serverRegisters[registerType][i] === undefined) continue
           delete state.serverRegisters[registerType][i]
           window.api.setBool({ registerType, address: i, state: false })
         }
@@ -83,8 +84,6 @@ useServerZustand
   .getState()
   .init()
   .then(() => {
-    // ! TEST
-    console.log('adding value generator')
     useServerZustand.getState().addRegister({
       address: 0,
       registerType: RegisterType.HoldingRegisters,
@@ -95,8 +94,6 @@ useServerZustand
       littleEndian: false,
       comment: 'test'
     })
-
-    useServerZustand.getState().addBools(RegisterType.Coils, 10)
   })
 
 // Listen to events
@@ -109,11 +106,8 @@ window.electron.ipcRenderer.on(IpcEvent.ValueGeneratorValue, (_, registerType, a
 
 window.electron.ipcRenderer.on(IpcEvent.BooleanValue, (_, registerType, address, value) => {
   const state = useServerZustand.getState()
-
   if (state.serverRegisters[registerType][address] === undefined) return
 
   const currentBool = state.serverRegisters[registerType][address]
-  console.log({ address, value, currentBool })
-
   if (currentBool !== value) state.setBool(registerType, address, value)
 })

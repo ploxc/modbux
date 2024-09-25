@@ -22,15 +22,17 @@ interface ServerRegistersProps {
 //
 // Server part title
 const ServerPartTitle = ({ name, type }: { name: string; type: RegisterType }) => {
+  const titleRef = useRef<HTMLDivElement>(null)
   const handleClick = useCallback(() => {
     if (type === RegisterType.Coils || type === RegisterType.DiscreteInputs) {
-      const setAddBooleansOpen = useAddBooleansZustand.getState().setOpen
-      setAddBooleansOpen(true, type)
+      const setAddBooleansOpen = useAddBooleansZustand.getState().setAnchorEl
+      setAddBooleansOpen(titleRef.current, type)
     }
   }, [type])
 
   return (
     <Box
+      ref={titleRef}
       sx={(theme) => ({
         height: 38,
         width: '100%',
@@ -100,7 +102,7 @@ const ServerBooleanRow = ({ addresses, type }: ServerBooleanRowProps) => {
   )
 }
 
-const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
+const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const groupsMemory = useRef<number[][]>([])
   const groups = useServerZustand((z) => {
     // Split into groups of 4 adresses
@@ -116,6 +118,12 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
     return groups
   })
 
+  return groups.map((adresses, i) => (
+    <ServerBooleanRow key={`addresses_${type}_${i}`} addresses={adresses} type={type} />
+  ))
+}
+
+const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
   return (
     <Paper
       variant="outlined"
@@ -131,9 +139,7 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
       }}
     >
       <ServerPartTitle name={name} type={type} />
-      {groups.map((adresses, i) => (
-        <ServerBooleanRow key={`addresses_${type}_${i}`} addresses={adresses} type={type} />
-      ))}
+      <ServerBooleanGroups type={type} />
     </Paper>
   )
 }

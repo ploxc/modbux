@@ -7,12 +7,12 @@ import {
   ValueGeneratorParameters,
   ValueGeneratorsParamsReturn
 } from '@shared'
-import { BrowserWindow } from 'electron'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
 import { ServerData, ValueGenerator, ValueGenerators } from './modbusServer/valueGenerator'
+import { Windows } from '@shared'
 
 export interface ServerParams {
-  mainWindow: BrowserWindow
+  windows: Windows
 }
 
 export class ModbusServer {
@@ -27,15 +27,15 @@ export class ModbusServer {
     [RegisterType.HoldingRegisters]: new Array(65535).fill(0)
   }
 
-  private _mainWindow: BrowserWindow
+  private _windows: Windows
 
   private _valueGenerators: ValueGenerators = {
     [RegisterType.InputRegisters]: new Map(),
     [RegisterType.HoldingRegisters]: new Map()
   }
 
-  constructor({ mainWindow }: ServerParams) {
-    this._mainWindow = mainWindow
+  constructor({ windows }: ServerParams) {
+    this._windows = windows
 
     this._vector = {
       getCoil: this._getCoil,
@@ -68,7 +68,7 @@ export class ModbusServer {
   //
   // Events
   private _emitMessage = (message: BackendMessage) => {
-    this._mainWindow.webContents.send(IpcEvent.BackendMessage, message)
+    this._windows.send(IpcEvent.BackendMessage, message)
   }
 
   //
@@ -97,7 +97,7 @@ export class ModbusServer {
     this._valueGenerators[registerType].set(
       address,
       new ValueGenerator({
-        mainWindow: this._mainWindow,
+        windows: this._windows,
         serverData: this._serverData,
         address,
         dataType,
@@ -117,7 +117,7 @@ export class ModbusServer {
 
   public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
     this._serverData[registerType][address] = state
-    this._mainWindow.webContents.send(IpcEvent.BooleanValue, registerType, address, state)
+    this._windows.send(IpcEvent.BooleanValue, registerType, address, state)
   }
 
   public resetBools = () => {
@@ -143,7 +143,7 @@ export class ModbusServer {
   }
   private _setCoil: IServiceVector['setCoil'] = async (addr: number, value: boolean) => {
     this._serverData[RegisterType.Coils][addr] = value
-    this._mainWindow.webContents.send(IpcEvent.BooleanValue, RegisterType.Coils, addr, value)
+    this._windows.send(IpcEvent.BooleanValue, RegisterType.Coils, addr, value)
   }
   private _setHoldingRegister: IServiceVector['setRegister'] = async (
     addr: number,

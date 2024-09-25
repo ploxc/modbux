@@ -5,7 +5,6 @@ import RegisterGrid from './containers/RegisterGrid/RegisterGrid'
 import { useSnackbar } from 'notistack'
 import { useEffect } from 'react'
 import { BackendMessage, ConnectState, IpcEvent } from '@shared'
-import { IpcRendererEvent } from 'electron'
 import TransactionGrid from './containers/TransactionGrid/TransactionGrid'
 import { useLayoutZustand } from './context/layout.zustand'
 import { useRootZustand } from './context/root.zustand'
@@ -14,9 +13,10 @@ import Server from './svg/Server'
 import Client from './svg/Client'
 import modbusImage from '../../../resources/icon.png'
 import { AppType } from './context/layout.zustand.types'
-import { Home as HomeIcon } from '@mui/icons-material'
-import { useServerZustand } from './context/server.zustand'
+import { CallSplit, Home as HomeIcon } from '@mui/icons-material'
 import ServerGrid from './containers/ServerGrid/ServerGrid'
+import { IpcRendererEvent } from 'electron'
+import { meme } from './components/meme'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -129,7 +129,9 @@ const ServerButton = () => {
 //
 //
 // Home screen with modbus server and client buttons
-const Home = () => {
+const Home = meme(() => {
+  // In your main component file
+
   return (
     <Fade in={true} timeout={500}>
       <Box
@@ -161,10 +163,36 @@ const Home = () => {
           })}
         >
           <ServerButton />
+          <Button
+            onClick={() => {
+              window.electron.ipcRenderer.send(IpcEvent.OpenServerWindow)
+            }}
+          >
+            <CallSplit sx={theme=>({color: theme.palette.background.default})} fontSize='large'/>
+          </Button>
           <ClientButton />
         </Box>
       </Box>
     </Fade>
+  )
+})
+
+//
+//
+// Home Button
+const HomeButton = () => {
+  const setAppType = useLayoutZustand((z) => z.setAppType)
+  const hideHomeButton = useLayoutZustand((z) => z.hideHomeButton)
+
+  return hideHomeButton ? null : (
+    <Button
+      variant="outlined"
+      sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
+      color="info"
+      onClick={() => setAppType(undefined)}
+    >
+      <HomeIcon fontSize="small" />
+    </Button>
   )
 }
 
@@ -173,9 +201,7 @@ const Home = () => {
 //
 //
 // Modbus client application
-const ClientApp = () => {
-  const setAppType = useLayoutZustand((z) => z.setAppType)
-
+const ClientApp = meme(() => {
   return (
     <Fade in={true} timeout={500}>
       <Box
@@ -191,14 +217,7 @@ const ClientApp = () => {
         <MessageReceiver />
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
-            <Button
-              variant="outlined"
-              sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
-              color="info"
-              onClick={() => setAppType(undefined)}
-            >
-              <HomeIcon fontSize="small" />
-            </Button>
+            <HomeButton />
             <RegisterConfig />
             <ConnectionConfig />
           </Box>
@@ -208,15 +227,14 @@ const ClientApp = () => {
       </Box>
     </Fade>
   )
-}
+})
 
 //
 //
 //
 //
 // Server application
-const ServerApp = () => {
-  const setAppType = useLayoutZustand((z) => z.setAppType)
+const ServerApp = meme(() => {
   return (
     <Fade in={true} timeout={500}>
       <Box
@@ -232,21 +250,14 @@ const ServerApp = () => {
         <MessageReceiver />
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Box sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap' }}>
-            <Button
-              variant="outlined"
-              sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
-              color="info"
-              onClick={() => setAppType(undefined)}
-            >
-              <HomeIcon fontSize="small" />
-            </Button>
+            <HomeButton />
           </Box>
         </Box>
         <ServerGrid />
       </Box>
     </Fade>
   )
-}
+})
 
 //
 //
@@ -255,11 +266,6 @@ const ServerApp = () => {
 // MAIN
 const App = (): JSX.Element => {
   const appType = useLayoutZustand((z) => z.appType)
-  const test = useServerZustand((z) => z.ready)
-
-  useEffect(() => {
-    console.log('Server ready:', test)
-  }, [test])
 
   return (
     <Box

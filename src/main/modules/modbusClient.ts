@@ -1,6 +1,5 @@
 import ModbusRTU from 'modbus-serial'
 import { AppState } from '../state'
-import { BrowserWindow } from 'electron'
 import {
   BackendMessage,
   bigEndian32,
@@ -32,16 +31,19 @@ import {
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
+import { Windows } from '@shared'
+
 
 export interface ClientParams {
   appState: AppState
-  mainWindow: BrowserWindow
+  windows: Windows
 }
 
 export class ModbusClient {
   private _client: ModbusRTU
   private _appState: AppState
-  private _mainWindow: BrowserWindow
+  private _windows: Windows
+
   private _clientState: ClientState = {
     connectState: ConnectState.Disconnected,
     polling: false,
@@ -54,10 +56,10 @@ export class ModbusClient {
   private _totalScans = 1
   private _scansDone = 1
 
-  constructor({ appState, mainWindow }: ClientParams) {
+  constructor({ appState, windows }: ClientParams) {
     this._client = new ModbusRTU()
     this._appState = appState
-    this._mainWindow = mainWindow
+    this._windows = windows
 
     this._client
       .on('error', (error) => {
@@ -78,25 +80,25 @@ export class ModbusClient {
 
   // Events
   private _emitMessage = (message: BackendMessage) => {
-    this._mainWindow.webContents.send(IpcEvent.BackendMessage, message)
+    this._windows.send(IpcEvent.BackendMessage, message)
   }
   private _sendClientState = () => {
-    this._mainWindow.webContents.send(IpcEvent.ClientState, this._clientState)
+    this._windows.send(IpcEvent.ClientState, this._clientState)
   }
   private _sendData = (data: RegisterData[]) => {
-    this._mainWindow.webContents.send(IpcEvent.RegisterData, data)
+    this._windows.send(IpcEvent.RegisterData, data)
   }
   private _sendTransaction = (transaction: Transaction) => {
-    this._mainWindow.webContents.send(IpcEvent.Transaction, transaction)
+    this._windows.send(IpcEvent.Transaction, transaction)
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult) => {
-    this._mainWindow.webContents.send(IpcEvent.ScanUnitIDResult, result)
+    this._windows.send(IpcEvent.ScanUnitIDResult, result)
   }
 
   private _sendScanProgress = async () => {
     this._scansDone++
     const progress = round((this._scansDone / this._totalScans) * 100, 2)
-    this._mainWindow.webContents.send(IpcEvent.ScanProgress, progress)
+    this._windows.send(IpcEvent.ScanProgress, progress)
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 

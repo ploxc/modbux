@@ -10,10 +10,13 @@ import {
 } from '@shared'
 import { IpcChannel, ipcInvoke } from '@backend'
 
+const passedArgs = process.argv.slice(2)
+const isServerWindow = passedArgs.includes('is-server-window')
 //
 //
 // Custom APIs for renderer
 const api: Api = {
+  isServerWindow,
   getConnectionConfig: (...args) =>
     ipcInvoke<typeof args, ConnectionConfig>(IpcChannel.GetConnectionConfig),
 

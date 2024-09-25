@@ -1,20 +1,21 @@
-import { Box, Button, Modal, TextField, Typography } from '@mui/material'
+import { Box, Button, Popover, TextField } from '@mui/material'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { RegisterType } from '@shared'
+import { useCallback } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
-type SetOpenFn = (
-  open: boolean,
+type SetAchorElFn = (
+  anchorEl: HTMLDivElement | null,
   registerType: RegisterType.Coils | RegisterType.DiscreteInputs
 ) => void
 
 interface AddBooleansZustand {
-  open: boolean
-  setOpen: SetOpenFn
+  anchorEl: HTMLDivElement | null
+  setAnchorEl: SetAchorElFn
   address: number
   setAddress: MaskSetFn
   registerType: RegisterType.Coils | RegisterType.DiscreteInputs
@@ -22,10 +23,10 @@ interface AddBooleansZustand {
 
 export const useAddBooleansZustand = create<AddBooleansZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
-    open: false,
-    setOpen: (open, registerType) =>
+    anchorEl: null,
+    setAnchorEl: (anchorEl, registerType) =>
       set((state) => {
-        state.open = open
+        ;(state.anchorEl as Parameters<SetAchorElFn>[0]) = anchorEl
         state.registerType = registerType
       }),
     address: 0,
@@ -58,37 +59,61 @@ const RangeField = () => {
 }
 
 const AddBoolButton = () => {
-  const type = useAddBooleansZustand((z) => z.registerType)
-  const address = useAddBooleansZustand((z) => z.address)
-  const addBool = useServerZustand((z) => z.addBools)
+  const handleClick = useCallback(() => {
+    const { registerType, address, setAddress } = useAddBooleansZustand.getState()
+    const { addBools } = useServerZustand.getState()
 
-  return <Button onClick={() => addBool(type, Number(address))}>Add</Button>
+    addBools(registerType, Number(address))
+
+    // Increment with 8 so you can just add more by keep clicking on the add button
+    if (address + 8 <= 65535) setAddress(String(address + 8))
+  }, [])
+
+  return (
+    <Button size="small" onClick={handleClick}>
+      Add
+    </Button>
+  )
 }
 
 const RemoveBoolButton = () => {
-  const type = useAddBooleansZustand((z) => z.registerType)
-  const address = useAddBooleansZustand((z) => z.address)
-  const removeBool = useServerZustand((z) => z.removeBool)
+  const handleClick = useCallback(() => {
+    const { registerType, address, setAddress } = useAddBooleansZustand.getState()
+    const { removeBool } = useServerZustand.getState()
 
-  return <Button onClick={() => removeBool(type, Number(address))}>Remove</Button>
+    removeBool(registerType, Number(address))
+
+    // Decrement with 8 so you can just remove more by keep clicking on the add button
+    if (address - 8 >= 0) setAddress(String(address - 8))
+  }, [])
+
+  return (
+    <Button size="small" onClick={handleClick}>
+      Remove
+    </Button>
+  )
 }
 
 const AddBooleans = () => {
-  const open = useAddBooleansZustand((z) => z.open)
-  const setOpen = useAddBooleansZustand((z) => z.setOpen)
+  const anchorEl = useAddBooleansZustand((z) => z.anchorEl)
+  const setAnchorEl = useAddBooleansZustand((z) => z.setAnchorEl)
+
   return (
-    <Modal open={open} onClose={() => setOpen(false, RegisterType.Coils)}>
-      <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column', p: 2 }}>
-        <Typography variant="subtitle1">
-          This will add/remove a range of 8 including the address provided.
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <RangeField />
-          <AddBoolButton />
-          <RemoveBoolButton />
-        </Box>
+    <Popover
+      anchorOrigin={{
+        vertical: 'top',
+        horizontal: 'left'
+      }}
+      anchorEl={anchorEl}
+      onClose={() => setAnchorEl(null, RegisterType.Coils)}
+      open={!!anchorEl}
+    >
+      <Box sx={{ display: 'flex', gap: 1, p: 1 }}>
+        <RangeField />
+        <AddBoolButton />
+        <RemoveBoolButton />
       </Box>
-    </Modal>
+    </Popover>
   )
 }
 export default AddBooleans

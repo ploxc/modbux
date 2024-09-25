@@ -412,11 +412,11 @@ const SaveButton = () => {
     element.setAttribute('download', filename)
 
     element.style.display = 'none'
-    document.body.appendChild(element)
+    document.body.appendServer(element)
 
     element.click()
 
-    document.body.removeChild(element)
+    document.body.removeServer(element)
   }, [])
 
   return (
