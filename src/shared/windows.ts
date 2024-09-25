@@ -7,7 +7,7 @@ interface WindowsObject {
 }
 
 export interface WindowsOpen {
-  main: boolean,
+  main: boolean
   server: boolean
 }
 
@@ -21,8 +21,12 @@ export class Windows {
     }
   }
 
-  public send = <A extends Array<any>>(event: IpcEvent, ...args:A) => {
-    Object.values(this._windows).forEach((w) => w?.webContents.send(event,...args))
+  public send = <A extends Array<any>>(event: IpcEvent, ...args: A) => {
+    try {
+      Object.values(this._windows).forEach((w) => w?.webContents.send(event, ...args))
+    } catch (error) {
+      console.log('Error sending IPC event:', (error as Error).message)
+    }
   }
 
   // Main window access
@@ -46,9 +50,15 @@ export class Windows {
   // Send update when windows change
   private _sendUpdate() {
     const windowsOpen = {
-      main:!!this._windows.main,
-      server:!!this._windows.server
+      main: !!this._windows.main,
+      server: !!this._windows.server
     }
-    Object.values(this._windows).forEach((w) => w?.webContents.send(IpcEvent.WindowUpdate, windowsOpen))
-  }  
+    try {
+      Object.values(this._windows).forEach((w) =>
+        w?.webContents.send(IpcEvent.WindowUpdate, windowsOpen)
+      )
+    } catch (error) {
+      console.log('Error sending window update:', (error as Error).message)
+    }
+  }
 }

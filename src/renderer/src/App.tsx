@@ -3,7 +3,7 @@ import RegisterConfig from './containers/RegisterConfig/RegisterConfig'
 import ConnectionConfig from './containers/ConnectionConfig/ConnectionConfig'
 import RegisterGrid from './containers/RegisterGrid/RegisterGrid'
 import { useSnackbar } from 'notistack'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { BackendMessage, ConnectState, IpcEvent } from '@shared'
 import TransactionGrid from './containers/TransactionGrid/TransactionGrid'
 import { useLayoutZustand } from './context/layout.zustand'
@@ -17,6 +17,7 @@ import { CallSplit, Home as HomeIcon } from '@mui/icons-material'
 import ServerGrid from './containers/ServerGrid/ServerGrid'
 import { IpcRendererEvent } from 'electron'
 import { meme } from './components/meme'
+import { useServerZustand } from './context/server.zustand'
 
 const MessageReceiver = () => {
   const { enqueueSnackbar } = useSnackbar()
@@ -27,6 +28,8 @@ const MessageReceiver = () => {
   }
 
   useEffect(() => {
+    // Don't apply the message listener in the server window
+    if (window.api.isServerWindow) return
     const unlisten = window.electron.ipcRenderer.on(IpcEvent.BackendMessage, handleMessage)
     return () => unlisten()
   }, [])
@@ -126,11 +129,55 @@ const ServerButton = () => {
 
 //
 //
+// Clear storage button
+const ClearStorageButton = () => {
+  const clearStorage = useCallback(() => {
+    useRootZustand.persist.clearStorage()
+    useLayoutZustand.persist.clearStorage()
+    useServerZustand.persist.clearStorage()
+  }, [])
+
+  const shiftKeyDown = useLayoutZustand((z) => z.homeShiftKeyDown)
+  return shiftKeyDown ? (
+    <Button
+      onClick={clearStorage}
+      sx={{ position: 'absolute', right: 16, bottom: 16 }}
+      variant="outlined"
+      size="small"
+    >
+      Clear Storage
+    </Button>
+  ) : null
+}
+
+const useShiftKeyListener = () => {
+  const setHomeShiftKeyDown = useLayoutZustand((z) => z.setHomeShiftKeyDown)
+
+  const keyDownListener = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Shift') setHomeShiftKeyDown(true)
+  }, [])
+
+  const keyUpListener = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Shift') setHomeShiftKeyDown(false)
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('keydown', keyDownListener)
+    window.addEventListener('keyup', keyUpListener)
+    return () => {
+      window.removeEventListener('keydown', keyDownListener)
+      window.removeEventListener('keyup', keyUpListener)
+    }
+  }, [])
+}
+
+//
+//
 //
 //
 // Home screen with modbus server and client buttons
 const Home = meme(() => {
-  // In your main component file
+  useShiftKeyListener()
 
   return (
     <Fade in={true} timeout={500}>
@@ -168,10 +215,14 @@ const Home = meme(() => {
               window.electron.ipcRenderer.send(IpcEvent.OpenServerWindow)
             }}
           >
-            <CallSplit sx={theme=>({color: theme.palette.background.default})} fontSize='large'/>
+            <CallSplit
+              sx={(theme) => ({ color: theme.palette.background.default })}
+              fontSize="large"
+            />
           </Button>
           <ClientButton />
         </Box>
+        <ClearStorageButton />
       </Box>
     </Fade>
   )
@@ -244,7 +295,8 @@ const ServerApp = meme(() => {
           flexDirection: 'column',
           gap: 2,
           width: '100%',
-          height: '100%'
+          height: '100%',
+          minHeight: 0
         }}
       >
         <MessageReceiver />
@@ -271,7 +323,8 @@ const App = (): JSX.Element => {
     <Box
       sx={{
         height: '100dvh',
-        width: '100dvw'
+        width: '100dvw',
+        overflow: 'hidden'
       }}
     >
       {appType === AppType.Client ? (

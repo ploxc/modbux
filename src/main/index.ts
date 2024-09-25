@@ -28,6 +28,18 @@ if (is.dev && os.platform() === 'darwin') {
 
 const windows = new Windows()
 
+// Initialize the app state
+const appState = new AppState()
+
+// Initialize the modbus client
+const client = new ModbusClient({ appState, windows })
+
+// Initialize the modbus server
+const server = new ModbusServer({ windows })
+
+// IPC
+initIpc(appState, client, server)
+
 // Single instance
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -72,52 +84,8 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // Initialize the app state
-  const appState = new AppState()
-
-  // Initialize the modbus client
-  const client = new ModbusClient({ appState, windows })
-
-  // Initialize the modbus server
-  const server = new ModbusServer({ windows })
-
-  // IPC
-  initIpc(appState, client, server)
-
-  //
-  //
-  // SERVER WINDOW
-  ipcMain.on(IpcEvent.OpenServerWindow, (_) => {
-    if (!windows.main) return
-    if (windows.server) return
-
-    windows.server = new BrowserWindow({
-      parent: windows.main,
-      width: 1200,
-      height: 800,
-      minWidth: 640,
-      minHeight: 800,
-      autoHideMenuBar: true,
-      webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
-        sandbox: false,
-        additionalArguments: ['is-server-window']
-      },
-      title: 'Server',
-      backgroundColor: '#181818'
-    })
-
-    // HMR for renderer base on electron-vite cli.
-    // Load the remote URL for development or the local html file for production.
-    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      windows.server.loadURL(`${process.env['ELECTRON_RENDERER_URL']}`)
-    } else {
-      windows.server.loadFile(join(__dirname, '../renderer/server.html'))
-    }
-
-    windows.server.on('close', () => {
-      windows.server = null
-    })
+  windows.main.on('close', () => {
+    windows.server?.close()
   })
 
   // HMR for renderer base on electron-vite cli.
@@ -128,6 +96,41 @@ function createWindow(): void {
     windows.main.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
+
+//
+//
+// SERVER WINDOW
+ipcMain.on(IpcEvent.OpenServerWindow, (_) => {
+  if (!windows.main) return
+  if (windows.server) return
+
+  windows.server = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 640,
+    minHeight: 800,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      additionalArguments: ['is-server-window']
+    },
+    title: 'Server',
+    backgroundColor: '#181818'
+  })
+
+  // HMR for renderer base on electron-vite cli.
+  // Load the remote URL for development or the local html file for production.
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    windows.server.loadURL(`${process.env['ELECTRON_RENDERER_URL']}`)
+  } else {
+    windows.server.loadFile(join(__dirname, '../renderer/server.html'))
+  }
+
+  windows.server.on('close', () => {
+    windows.server = null
+  })
+})
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -156,6 +159,7 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  windows.server = null
   if (process.platform !== 'darwin') {
     app.quit()
   }

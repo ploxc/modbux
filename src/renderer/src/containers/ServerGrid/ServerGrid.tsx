@@ -1,6 +1,6 @@
 import { PlusCircleFilled } from '@ant-design/icons'
 import { Edit } from '@mui/icons-material'
-import { Box, Button, IconButton, Paper } from '@mui/material'
+import { Box, Button, Grid2, Grid2Props, IconButton, Paper } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { RegisterType } from '@shared'
 import { deepEqual } from 'fast-equals'
@@ -14,6 +14,7 @@ interface ServerBooleanProps {
 interface ServerRegistersProps {
   name: string
   type: RegisterType.InputRegisters | RegisterType.HoldingRegisters
+  size: Grid2Props['size']
 }
 
 //
@@ -34,6 +35,9 @@ const ServerPartTitle = ({ name, type }: { name: string; type: RegisterType }) =
     <Box
       ref={titleRef}
       sx={(theme) => ({
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
         height: 38,
         width: '100%',
         display: 'flex',
@@ -94,7 +98,7 @@ interface ServerBooleanRowProps {
 
 const ServerBooleanRow = ({ addresses, type }: ServerBooleanRowProps) => {
   return (
-    <Box sx={{ display: 'flex', gap: 0.5, px: 0.5 }}>
+    <Box sx={{ display: 'flex', gap: 0.5 }}>
       {addresses.map((address) => (
         <ServerBooleanButton key={`address_${type}_${address}`} address={address} type={type} />
       ))}
@@ -125,22 +129,37 @@ const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
 
 const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        flex: 1,
-        overflow: 'auto',
-        minWidth: 280,
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#2A2A2A',
-        fontSize: '0.95em',
-        gap: 0.5
-      }}
+    <Grid2
+      size={{ xs: 6, md: 3.5, lg: 2.3 }}
+      overflow={'auto'}
+      height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}
     >
-      <ServerPartTitle name={name} type={type} />
-      <ServerBooleanGroups type={type} />
-    </Paper>
+      <Paper
+        variant="outlined"
+        sx={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2A2A2A',
+          fontSize: '0.95em',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        <ServerPartTitle name={name} type={type} />
+        <Box
+          sx={{
+            flex: 1,
+            overflow: 'auto',
+            display: 'flex',
+            gap: 0.5,
+            flexDirection: 'column',
+            p: 0.5
+          }}
+        >
+          <ServerBooleanGroups type={type} />
+        </Box>
+      </Paper>
+    </Grid2>
   )
 }
 
@@ -149,65 +168,74 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
 //
 //
 // Registers
-const ServerRegisters = ({ name, type }: ServerRegistersProps) => {
+const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        flex: 2,
-        overflow: 'auto',
-        minWidth: 380,
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#2A2A2A',
-        fontSize: '0.95em'
-      }}
-    >
-      <ServerPartTitle name={name} type={type} />
-      <Box
+    <Grid2 size={size} height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}>
+      <Paper
+        variant="outlined"
         sx={{
-          width: '100%',
           flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'auto',
-          fontFamily: 'monospace',
-          fontSize: '0.9em'
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#2A2A2A',
+          fontSize: '0.95em'
         }}
       >
+        <ServerPartTitle name={name} type={type} />
         <Box
           sx={{
             width: '100%',
-            height: 28,
-            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-            pl: 1,
-
+            height: '100%',
+            flex: 1,
             display: 'flex',
-            alignItems: 'center',
-            gap: 1
+            flexDirection: 'column',
+            overflow: 'auto',
+            fontFamily: 'monospace',
+            fontSize: '0.9em'
           }}
         >
-          <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>0</Box>
-          <Box sx={{ width: 46, opacity: 0.5 }}>DOUBLE</Box>
-          <Box sx={{ flex: 1 }}>0.92</Box>
-          <Box sx={{ flex: 1 }}>Comment</Box>
-          <IconButton size="small">
-            <Edit color="primary" fontSize="small" />
-          </IconButton>
+          <Box
+            sx={{
+              width: '100%',
+              height: 28,
+              borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+              pl: 1,
+
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>0</Box>
+            <Box sx={{ width: 46, opacity: 0.5 }}>DOUBLE</Box>
+            <Box sx={{ flex: 1 }}>0.92</Box>
+            <Box sx={{ flex: 1 }}>Comment</Box>
+            <IconButton size="small">
+              <Edit color="primary" fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
-      </Box>
-    </Paper>
+      </Paper>
+    </Grid2>
   )
 }
 
 const ServerGrid = () => {
   return (
-    <Box sx={{ display: 'flex', gap: 2, width: '100%', height: '100%', flexWrap: 'wrap' }}>
+    <Grid2 container sx={{ height: '100%', minHeight: 0 }} spacing={2}>
       <ServerBooleans name="Coils" type={RegisterType.Coils} />
       <ServerBooleans name="Discrete Inputs" type={RegisterType.DiscreteInputs} />
-      <ServerRegisters name="Input Registers" type={RegisterType.InputRegisters} />
-      <ServerRegisters name="Holding Registers" type={RegisterType.HoldingRegisters} />
-    </Box>
+      <ServerRegisters
+        size={{ xs: 12, md: 5, lg: 3.7 }}
+        name="Input Registers"
+        type={RegisterType.InputRegisters}
+      />
+      <ServerRegisters
+        size={{ xs: 12, md: 'grow', lg: 3.7 }}
+        name="Holding Registers"
+        type={RegisterType.HoldingRegisters}
+      />
+    </Grid2>
   )
 }
 export default ServerGrid

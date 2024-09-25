@@ -34,7 +34,7 @@ export const useAddBooleansZustand = create<AddBooleansZustand, [['zustand/mutat
       set((state) => {
         state.address = Number(address)
       }),
-    registerType: RegisterType.Coils // // ...
+    registerType: RegisterType.Coils
   }))
 )
 
@@ -102,7 +102,7 @@ const AddBooleans = () => {
     <Popover
       anchorOrigin={{
         vertical: 'top',
-        horizontal: 'left'
+        horizontal: 'center'
       }}
       anchorEl={anchorEl}
       onClose={() => setAnchorEl(null, RegisterType.Coils)}
