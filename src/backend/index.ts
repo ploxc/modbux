@@ -21,6 +21,7 @@ export enum IpcChannel {
   GetValueGeneratorParams = 'GetValueGeneratorParams',
   SetBool = 'SetBool',
   ResetBools = 'ResetBools',
+  SyncBools = 'SyncBools'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R
@@ -35,4 +36,3 @@ export const ipcHandle = <A extends any[], R>(
 export const ipcInvoke = <A extends any[], R>(channel: IpcChannel, ...args: A): Promise<R> => {
   return ipcRenderer.invoke(channel, ...args)
 }
-

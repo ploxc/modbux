@@ -26,6 +26,7 @@ export interface Api {
   getValueGeneratorParams: () => Promise<ValueGeneratorsParamsReturn>
   setBool: (params: SetBooleanParameters) => void
   resetBools: () => void
+  syncBools: (params: SyncBoolsParameters) => Promise<void>
 }
 
 //
@@ -285,6 +286,11 @@ export interface SetBooleanParameters {
 export interface ValueGeneratorsParamsReturn {
   [RegisterType.InputRegisters]: [number, ValueGeneratorParameters][]
   [RegisterType.HoldingRegisters]: [number, ValueGeneratorParameters][]
+}
+
+export interface SyncBoolsParameters {
+  [RegisterType.Coils]: boolean[]
+  [RegisterType.DiscreteInputs]: boolean[]
 }
 
 //

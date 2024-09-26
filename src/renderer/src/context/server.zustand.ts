@@ -12,8 +12,26 @@ export const useServerZustand = create<
     mutative((set, getState) => ({
       ready: false,
       init: async () => {
-        window.api.resetBools()
+        const state = getState()
 
+        // Synchronize the boolean states with the server from persisted state
+        const coils: boolean[] = []
+        const discreteInputs: boolean[] = []
+
+        Object.values(state.serverRegisters[RegisterType.Coils]).forEach(
+          (value, address) => (coils[address] = value)
+        )
+        Object.values(state.serverRegisters[RegisterType.DiscreteInputs]).forEach(
+          (value, address) => (discreteInputs[address] = value)
+        )
+
+        window.api.syncBools({
+          [RegisterType.Coils]: coils,
+          [RegisterType.DiscreteInputs]: discreteInputs
+        })
+
+        // Get the value generator parameters for all registers
+        // ! But this should be the other way around because we persist the state here
         const valueGeneratorParams = await window.api.getValueGeneratorParams()
 
         const inputRegisterParams = valueGeneratorParams[RegisterType.InputRegisters]
@@ -90,6 +108,7 @@ export const useServerZustand = create<
 useServerZustand
   .getState()
   .init()
+  //!test
   .then(() => {
     useServerZustand.getState().addRegister({
       address: 0,

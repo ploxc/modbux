@@ -4,6 +4,7 @@ import {
   RegisterType,
   RemoveValueGeneratorParams,
   SetBooleanParameters,
+  SyncBoolsParameters,
   ValueGeneratorParameters,
   ValueGeneratorsParamsReturn
 } from '@shared'
@@ -123,6 +124,11 @@ export class ModbusServer {
   public resetBools = () => {
     this._serverData[RegisterType.Coils] = new Array(65535).fill(false)
     this._serverData[RegisterType.DiscreteInputs] = new Array(65535).fill(false)
+  }
+
+  public syncBools = (params: SyncBoolsParameters) => {
+    this._serverData[RegisterType.Coils] = params[RegisterType.Coils]
+    this._serverData[RegisterType.DiscreteInputs] = params[RegisterType.DiscreteInputs]
   }
 
   //

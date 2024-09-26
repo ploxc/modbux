@@ -63,7 +63,8 @@ const api: Api = {
       ...args
     ),
   setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
-  resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args)
+  resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args),
+  syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args)
 }
 
 //
