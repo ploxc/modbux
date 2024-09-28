@@ -33,7 +33,6 @@ import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
 import { Windows } from '@shared'
 
-
 export interface ClientParams {
   appState: AppState
   windows: Windows
@@ -277,8 +276,14 @@ export class ModbusClient {
       code: rawTransaction.nextCode,
       responseLength: rawTransaction.nextLength,
       timeout: rawTransaction._timeoutFired,
-      request: rawTransaction.request,
-      responses: rawTransaction.responses,
+      request: Array.from(rawTransaction.request)
+        .map((b) => Number(b).toString(16).toUpperCase().padStart(2, '0'))
+        .join(' '),
+      responses: Array.from(rawTransaction.responses).map((response) =>
+        Array.from(response as Buffer)
+          .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
+          .join(' ')
+      ),
       errorMessage
     }
 

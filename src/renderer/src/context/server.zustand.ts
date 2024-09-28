@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { ServerZustand } from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { DataType, IpcEvent, RegisterType } from '@shared'
+import { IpcEvent, RegisterType } from '@shared'
 
 export const useServerZustand = create<
   ServerZustand,
@@ -30,24 +30,19 @@ export const useServerZustand = create<
           [RegisterType.DiscreteInputs]: discreteInputs
         })
 
-        // Get the value generator parameters for all registers
-        // ! But this should be the other way around because we persist the state here
-        const valueGeneratorParams = await window.api.getValueGeneratorParams()
+        // Synchronize the value generators/registers with the server from persisted state
+        const inputRegisterValueGenerators = Object.values(
+          state.serverRegisters[RegisterType.InputRegisters]
+        ).map((r) => r.params)
+        const holdingRegisterValueGenerators = Object.values(
+          state.serverRegisters[RegisterType.HoldingRegisters]
+        ).map((r) => r.params)
 
-        const inputRegisterParams = valueGeneratorParams[RegisterType.InputRegisters]
-        inputRegisterParams.sort((a, b) => a[0] - b[0])
-
-        const holdingRegisterParams = valueGeneratorParams[RegisterType.HoldingRegisters]
-        holdingRegisterParams.sort((a, b) => a[0] - b[0])
+        window.api.syncServerregisters({
+          valueGenerators: [...inputRegisterValueGenerators, ...holdingRegisterValueGenerators]
+        })
 
         set((state) => {
-          inputRegisterParams.forEach(([address, params]) => {
-            state.serverRegisters[RegisterType.InputRegisters][address] = { value: 0, params }
-          })
-          holdingRegisterParams.forEach(([address, params]) => {
-            state.serverRegisters[RegisterType.HoldingRegisters][address] = { value: 0, params }
-          })
-          state.serverRegisters[RegisterType.InputRegisters]
           state.ready = true
         })
       },
@@ -105,22 +100,7 @@ export const useServerZustand = create<
   )
 )
 
-useServerZustand
-  .getState()
-  .init()
-  //!test
-  .then(() => {
-    useServerZustand.getState().addRegister({
-      address: 0,
-      registerType: RegisterType.HoldingRegisters,
-      dataType: DataType.UInt16,
-      min: 10,
-      max: 50000,
-      interval: 1000,
-      littleEndian: false,
-      comment: 'test'
-    })
-  })
+useServerZustand.getState().init()
 
 // Listen to events
 window.electron.ipcRenderer.on(IpcEvent.ValueGeneratorValue, (_, registerType, address, value) => {

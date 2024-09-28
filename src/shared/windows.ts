@@ -25,7 +25,11 @@ export class Windows {
     try {
       Object.values(this._windows).forEach((w) => w?.webContents.send(event, ...args))
     } catch (error) {
-      console.log('Error sending IPC event:', (error as Error).message)
+      /**
+       * When the window is closed on macos sending a window update will throw an error.
+       * We can ignore this error because when the window is opened again,
+       * the IPC event will be handled properly by the window again.
+       */
     }
   }
 
@@ -58,7 +62,11 @@ export class Windows {
         w?.webContents.send(IpcEvent.WindowUpdate, windowsOpen)
       )
     } catch (error) {
-      console.log('Error sending window update:', (error as Error).message)
+      /**
+       * When the window is closed on macos sending a window update will throw an error.
+       * We can ignore this error because when the window is opened again,
+       * the IPC event will be handled properly by the window again.
+       */
     }
   }
 }

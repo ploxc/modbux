@@ -5,8 +5,8 @@ import {
   RemoveValueGeneratorParams,
   SetBooleanParameters,
   SyncBoolsParameters,
-  ValueGeneratorParameters,
-  ValueGeneratorsParamsReturn
+  SyncValueGeneratorParams,
+  ValueGeneratorParameters
 } from '@shared'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
 import { ServerData, ValueGenerator, ValueGenerators } from './modbusServer/valueGenerator'
@@ -116,6 +116,10 @@ export class ModbusServer {
     this._valueGenerators[registerType].delete(address)
   }
 
+  public syncServerRegisters = ({ valueGenerators }: SyncValueGeneratorParams) => {
+    for (const params of valueGenerators) this.addValueGenerator(params)
+  }
+
   public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
     this._serverData[registerType][address] = state
     this._windows.send(IpcEvent.BooleanValue, registerType, address, state)
@@ -156,20 +160,5 @@ export class ModbusServer {
     value: number
   ) => {
     this._serverData[RegisterType.HoldingRegisters][addr] = value
-  }
-
-  //
-  //
-  //
-  get valueGeneratorParams(): ValueGeneratorsParamsReturn {
-    return {
-      [RegisterType.InputRegisters]: Array.from(
-        this._valueGenerators[RegisterType.InputRegisters].entries()
-      ).map(([address, generator]) => [address, generator.params]),
-
-      [RegisterType.HoldingRegisters]: Array.from(
-        this._valueGenerators[RegisterType.HoldingRegisters].entries()
-      ).map(([address, generator]) => [address, generator.params])
-    }
   }
 }

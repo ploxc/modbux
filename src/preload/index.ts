@@ -1,13 +1,6 @@
 import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import {
-  Api,
-  ClientState,
-  ConnectionConfig,
-  RegisterConfig,
-  RegisterData,
-  ValueGeneratorsParamsReturn
-} from '@shared'
+import { Api, ClientState, ConnectionConfig, RegisterConfig, RegisterData } from '@shared'
 import { IpcChannel, ipcInvoke } from '@backend'
 
 const passedArgs = process.argv.slice(2)
@@ -57,11 +50,8 @@ const api: Api = {
     ipcInvoke<typeof args, void>(IpcChannel.AddReplaceServerRegister, ...args),
   removeServerRegister: (...args) =>
     ipcInvoke<typeof args, void>(IpcChannel.RemoveServerRegister, ...args),
-  getValueGeneratorParams: (...args) =>
-    ipcInvoke<typeof args, ValueGeneratorsParamsReturn>(
-      IpcChannel.GetValueGeneratorParams,
-      ...args
-    ),
+  syncServerregisters: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.SyncServerRegisters, ...args),
   setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
   resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args),
   syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args)

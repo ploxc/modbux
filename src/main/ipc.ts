@@ -8,6 +8,7 @@ import {
   ScanUnitIDParameters,
   SetBooleanParameters,
   SyncBoolsParameters,
+  SyncValueGeneratorParams,
   ValueGeneratorParameters,
   WriteParameters
 } from '@shared'
@@ -60,7 +61,9 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
   ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveValueGeneratorParams) =>
     server.removeValueGenerator(params)
   )
-  ipcHandle(IpcChannel.GetValueGeneratorParams, () => server.valueGeneratorParams)
+  ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncValueGeneratorParams) =>
+    server.syncServerRegisters(params)
+  )
   ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
   ipcHandle(IpcChannel.ResetBools, () => server.resetBools())
   ipcHandle(IpcChannel.SyncBools, (_, params: SyncBoolsParameters) => server.syncBools(params))

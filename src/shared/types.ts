@@ -23,10 +23,10 @@ export interface Api {
   stopScanningRegisters: () => Promise<void>
   addReplaceServerRegister: (params: ValueGeneratorParameters) => void
   removeServerRegister: (params: RemoveValueGeneratorParams) => void
-  getValueGeneratorParams: () => Promise<ValueGeneratorsParamsReturn>
+  syncServerregisters: (params: SyncValueGeneratorParams) => void
   setBool: (params: SetBooleanParameters) => void
   resetBools: () => void
-  syncBools: (params: SyncBoolsParameters) => Promise<void>
+  syncBools: (params: SyncBoolsParameters) => void
 }
 
 //
@@ -220,8 +220,8 @@ export interface Transaction {
   code: number
   responseLength: number
   timeout: boolean
-  request: Buffer
-  responses: Buffer[]
+  request: string
+  responses: string[]
   errorMessage: string | undefined
 }
 
@@ -277,15 +277,14 @@ export interface RemoveValueGeneratorParams {
   address: number
 }
 
+export interface SyncValueGeneratorParams {
+  valueGenerators: ValueGeneratorParameters[]
+}
+
 export interface SetBooleanParameters {
   registerType: RegisterType.Coils | RegisterType.DiscreteInputs
   address: number
   state: boolean
-}
-
-export interface ValueGeneratorsParamsReturn {
-  [RegisterType.InputRegisters]: [number, ValueGeneratorParameters][]
-  [RegisterType.HoldingRegisters]: [number, ValueGeneratorParameters][]
 }
 
 export interface SyncBoolsParameters {

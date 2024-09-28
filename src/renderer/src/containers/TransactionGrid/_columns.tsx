@@ -50,37 +50,27 @@ const functionColumn: GridColDef<Transaction, number> = {
   maxWidth: 35
 }
 
-const requestColumn: GridColDef<Transaction, Buffer, string> = {
+const requestColumn: GridColDef<Transaction, string, string> = {
   field: 'request',
   headerName: 'Request',
   width: 200,
   sortable: false,
   disableColumnMenu: true,
-  valueFormatter: (v) =>
-    Array.from(v)
-      .map((b) => Number(b).toString(16).toUpperCase().padStart(2, '0'))
-      .join(' '),
-  renderCell: ({ formattedValue }) => <Box sx={{ fontFamily: 'monospace' }}>{formattedValue}</Box>
+  renderCell: ({ value }) => <Box sx={{ fontFamily: 'monospace' }}>{value}</Box>
 }
 
-const responseColumn: GridColDef<Transaction, Buffer[], string[]> = {
+const responseColumn: GridColDef<Transaction, string[], string[]> = {
   field: 'responses',
   flex: 3,
   minWidth: 260,
   sortable: false,
   disableColumnMenu: true,
-  valueFormatter: (responses) =>
-    Array.from(responses).map((response) =>
-      Array.from(response as Buffer)
-        .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
-        .join(' ')
-    ),
-  renderCell: ({ formattedValue, row }) => {
+  renderCell: ({ value, row }) => {
     return (
       // Responses can hold multiple responses, we display them in a formatted way
       // Adding the response number to the response value
       <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-        {(formattedValue as string[]).map((v, i) => (
+        {(value as string[]).map((v, i) => (
           <Box
             key={`response_${row.id}_${i}`}
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}

@@ -21,6 +21,25 @@ export const useRootZustand = create<
 >(
   persist(
     mutative((set, getState) => ({
+      // Config
+      init: async () => {
+        // This could be the other way around, like using local storage and
+        // updating the backend state with it. But I leave it here for future reference
+        // so I can copy this to use the system where i store the data myself in appdata
+        const syncedConnectionConfig = await window.api.getConnectionConfig()
+        const syncedRegisterConfig = await window.api.getRegisterConfig()
+        const clientState = await window.api.getClientState()
+
+        set((state) => {
+          state.connectionConfig = syncedConnectionConfig
+          state.registerConfig = syncedRegisterConfig
+          state.clientState = clientState
+          state.ready = true
+        })
+      },
+      connectionConfig: defaultConnectionConfig,
+      registerConfig: defaultRegisterConfig,
+
       // Register data
       registerData: [],
       setRegisterData: (data) =>
@@ -74,27 +93,12 @@ export const useRootZustand = create<
       addTransaction: (transaction) =>
         set((state) => {
           state.transactions.unshift(transaction)
+          while (state.transactions.length > 1000) state.transactions.pop()
         }),
       clearTransactions: () =>
         set((state) => {
           state.transactions = []
         }),
-
-      // Config
-      init: async () => {
-        const syncedConnectionConfig = await window.api.getConnectionConfig()
-        const syncedRegisterConfig = await window.api.getRegisterConfig()
-        const clientState = await window.api.getClientState()
-
-        set((state) => {
-          state.connectionConfig = syncedConnectionConfig
-          state.registerConfig = syncedRegisterConfig
-          state.clientState = clientState
-          state.ready = true
-        })
-      },
-      connectionConfig: defaultConnectionConfig,
-      registerConfig: defaultRegisterConfig,
 
       // State
       clientState: {
