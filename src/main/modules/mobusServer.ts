@@ -2,14 +2,14 @@ import {
   BackendMessage,
   IpcEvent,
   RegisterType,
-  RemoveValueGeneratorParams,
+  RemoveRegisterValueParams,
   SetBooleanParameters,
   SyncBoolsParameters,
-  SyncValueGeneratorParams,
-  ValueGeneratorParameters
+  SyncRegisterValueParams,
+  RegisterValueParameters
 } from '@shared'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
-import { ServerData, ValueGenerator, ValueGenerators } from './modbusServer/valueGenerator'
+import { ServerData, RegisterValue, RegisterValues } from './modbusServer/registerValue'
 import { Windows } from '@shared'
 
 export interface ServerParams {
@@ -30,7 +30,7 @@ export class ModbusServer {
 
   private _windows: Windows
 
-  private _valueGenerators: ValueGenerators = {
+  private _registerValues: RegisterValues = {
     [RegisterType.InputRegisters]: new Map(),
     [RegisterType.HoldingRegisters]: new Map()
   }
@@ -83,21 +83,31 @@ export class ModbusServer {
     this._port = port
     await this._createNewServer()
   }
-  public addValueGenerator = ({
+  public addRegisterValue = ({
     address,
     registerType,
     dataType,
     min,
     max,
     interval,
+    value,
     littleEndian,
     comment
-  }: ValueGeneratorParameters) => {
-    const currentGenerator = this._valueGenerators[registerType].get(address) as ValueGenerator
+  }: RegisterValueParameters) => {
+    // Remove existing generator if exists
+    const currentGenerator = this._registerValues[registerType].get(address) as RegisterValue
     if (currentGenerator) currentGenerator.stop()
-    this._valueGenerators[registerType].set(
+    this._registerValues[registerType].delete(address)
+
+    if (value !== undefined) {
+      this._serverData[registerType][address] = value
+      this._windows.send(IpcEvent.RegisterValue, registerType, address, value)
+      return
+    }
+
+    this._registerValues[registerType].set(
       address,
-      new ValueGenerator({
+      new RegisterValue({
         windows: this._windows,
         serverData: this._serverData,
         address,
@@ -111,13 +121,13 @@ export class ModbusServer {
       })
     )
   }
-  public removeValueGenerator = ({ registerType, address }: RemoveValueGeneratorParams) => {
-    this._valueGenerators[registerType].get(address)?.stop()
-    this._valueGenerators[registerType].delete(address)
+  public removeRegisterValue = ({ registerType, address }: RemoveRegisterValueParams) => {
+    this._registerValues[registerType].get(address)?.stop()
+    this._registerValues[registerType].delete(address)
   }
 
-  public syncServerRegisters = ({ valueGenerators }: SyncValueGeneratorParams) => {
-    for (const params of valueGenerators) this.addValueGenerator(params)
+  public syncServerRegisters = ({ registerValues }: SyncRegisterValueParams) => {
+    for (const params of registerValues) this.addRegisterValue(params)
   }
 
   public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
@@ -160,5 +170,6 @@ export class ModbusServer {
     value: number
   ) => {
     this._serverData[RegisterType.HoldingRegisters][addr] = value
+    this._windows.send(IpcEvent.RegisterValue, RegisterType.HoldingRegisters, addr, value)
   }
 }

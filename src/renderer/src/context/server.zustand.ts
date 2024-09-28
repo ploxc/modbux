@@ -31,15 +31,15 @@ export const useServerZustand = create<
         })
 
         // Synchronize the value generators/registers with the server from persisted state
-        const inputRegisterValueGenerators = Object.values(
+        const inputRegisterRegisterValues = Object.values(
           state.serverRegisters[RegisterType.InputRegisters]
         ).map((r) => r.params)
-        const holdingRegisterValueGenerators = Object.values(
+        const holdingRegisterRegisterValues = Object.values(
           state.serverRegisters[RegisterType.HoldingRegisters]
         ).map((r) => r.params)
 
         window.api.syncServerregisters({
-          valueGenerators: [...inputRegisterValueGenerators, ...holdingRegisterValueGenerators]
+          registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
         })
 
         set((state) => {
@@ -103,7 +103,7 @@ export const useServerZustand = create<
 useServerZustand.getState().init()
 
 // Listen to events
-window.electron.ipcRenderer.on(IpcEvent.ValueGeneratorValue, (_, registerType, address, value) => {
+window.electron.ipcRenderer.on(IpcEvent.RegisterValue, (_, registerType, address, value) => {
   const state = useServerZustand.getState()
   if (state.serverRegisters[registerType]?.[address]) {
     state.setRegisterValue(registerType, address, value)

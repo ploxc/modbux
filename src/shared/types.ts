@@ -21,9 +21,9 @@ export interface Api {
   stopScanningUnitIds: () => Promise<void>
   scanRegisters: (scanRegistersParams: ScanRegistersParameters) => Promise<void>
   stopScanningRegisters: () => Promise<void>
-  addReplaceServerRegister: (params: ValueGeneratorParameters) => void
-  removeServerRegister: (params: RemoveValueGeneratorParams) => void
-  syncServerregisters: (params: SyncValueGeneratorParams) => void
+  addReplaceServerRegister: (params: RegisterValueParameters) => void
+  removeServerRegister: (params: RemoveRegisterValueParams) => void
+  syncServerregisters: (params: SyncRegisterValueParams) => void
   setBool: (params: SetBooleanParameters) => void
   resetBools: () => void
   syncBools: (params: SyncBoolsParameters) => void
@@ -39,7 +39,7 @@ export enum IpcEvent {
   Transaction = 'transaction',
   ScanUnitIDResult = 'scanUnitIDResult',
   ScanProgress = 'ScanProgress',
-  ValueGeneratorValue = 'valueGeneratorValue',
+  RegisterValue = 'registerValue',
   BooleanValue = 'booleanValue',
   WindowUpdate = 'windowUpdate',
   OpenServerWindow = 'openServerWindow'
@@ -261,24 +261,34 @@ export interface RegisterMapValue {
 //
 // Server
 // Value generator
-export interface ValueGeneratorParameters {
+export type RegisterValueParameters = {
   address: number
   registerType: RegisterType.InputRegisters | RegisterType.HoldingRegisters
   dataType: DataType
-  min: number
-  max: number
-  interval: number
   littleEndian: boolean
   comment: string
-}
+} & (
+  | {
+      min: number
+      max: number
+      interval: number
+      value?: never
+    }
+  | {
+      value: number
+      min?: never
+      max?: never
+      interval?: never
+    }
+)
 
-export interface RemoveValueGeneratorParams {
+export interface RemoveRegisterValueParams {
   registerType: RegisterType.InputRegisters | RegisterType.HoldingRegisters
   address: number
 }
 
-export interface SyncValueGeneratorParams {
-  valueGenerators: ValueGeneratorParameters[]
+export interface SyncRegisterValueParams {
+  registerValues: RegisterValueParameters[]
 }
 
 export interface SetBooleanParameters {

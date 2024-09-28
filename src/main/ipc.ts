@@ -3,13 +3,13 @@ import {
   ConnectionConfig,
   DeepPartial,
   RegisterConfig,
-  RemoveValueGeneratorParams,
+  RemoveRegisterValueParams,
   ScanRegistersParameters,
   ScanUnitIDParameters,
   SetBooleanParameters,
   SyncBoolsParameters,
-  SyncValueGeneratorParams,
-  ValueGeneratorParameters,
+  SyncRegisterValueParams,
+  RegisterValueParameters,
   WriteParameters
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
@@ -55,13 +55,13 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
   ipcHandle(IpcChannel.StopScanningRegisters, () => client.stopScanningRegisters())
 
   // Server
-  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: ValueGeneratorParameters) =>
-    server.addValueGenerator(params)
+  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: RegisterValueParameters) =>
+    server.addRegisterValue(params)
   )
-  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveValueGeneratorParams) =>
-    server.removeValueGenerator(params)
+  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveRegisterValueParams) =>
+    server.removeRegisterValue(params)
   )
-  ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncValueGeneratorParams) =>
+  ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncRegisterValueParams) =>
     server.syncServerRegisters(params)
   )
   ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))

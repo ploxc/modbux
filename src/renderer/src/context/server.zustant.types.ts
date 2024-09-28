@@ -1,7 +1,7 @@
-import { RegisterType, RemoveValueGeneratorParams, ValueGeneratorParameters } from '@shared'
+import { RegisterType, RemoveRegisterValueParams, RegisterValueParameters } from '@shared'
 
 type ServerBool = { [key: number]: boolean }
-type ServerRegister = { [key: number]: { value: number; params: ValueGeneratorParameters } }
+type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
 
 interface ServerRegisters {
   [RegisterType.Coils]: ServerBool
@@ -21,8 +21,8 @@ export interface ServerZustand {
     address: number,
     value: boolean
   ) => void
-  addRegister: (params: ValueGeneratorParameters) => void
-  removeRegister: (params: RemoveValueGeneratorParams) => void
+  addRegister: (params: RegisterValueParameters) => void
+  removeRegister: (params: RemoveRegisterValueParams) => void
   setRegisterValue: (
     type: RegisterType.InputRegisters | RegisterType.HoldingRegisters,
     address: number,

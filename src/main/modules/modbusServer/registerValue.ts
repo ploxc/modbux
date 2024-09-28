@@ -1,10 +1,4 @@
-import {
-  createRegisters,
-  DataType,
-  IpcEvent,
-  RegisterType,
-  ValueGeneratorParameters
-} from '@shared'
+import { createRegisters, DataType, IpcEvent, RegisterType, RegisterValueParameters } from '@shared'
 import { round } from 'lodash'
 import { Windows } from '@shared'
 
@@ -15,12 +9,12 @@ export interface ServerData {
   [RegisterType.HoldingRegisters]: number[]
 }
 
-export interface ValueGenerators {
-  [RegisterType.InputRegisters]: Map<number, ValueGenerator>
-  [RegisterType.HoldingRegisters]: Map<number, ValueGenerator>
+export interface RegisterValues {
+  [RegisterType.InputRegisters]: Map<number, RegisterValue>
+  [RegisterType.HoldingRegisters]: Map<number, RegisterValue>
 }
 
-interface ValueGeneratorParams {
+interface RegisterValueParams {
   windows: Windows
   serverData: ServerData
   registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
@@ -33,7 +27,7 @@ interface ValueGeneratorParams {
   comment: string
 }
 
-export class ValueGenerator {
+export class RegisterValue {
   private _windows: Windows
   private _serverData: ServerData
   private _registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
@@ -58,7 +52,7 @@ export class ValueGenerator {
     littleEndian,
     interval,
     comment
-  }: ValueGeneratorParams) {
+  }: RegisterValueParams) {
     this._windows = windows
     this._serverData = serverData
     this._address = address
@@ -80,10 +74,7 @@ export class ValueGenerator {
 
   private _updateValue = async () => {
     const value = round(Math.random() * (this._max - this._min) + this._min, 2)
-    this._windows.send( IpcEvent.ValueGeneratorValue,
-      this._registerType,
-      this._address,
-      value)
+    this._windows.send(IpcEvent.RegisterValue, this._registerType, this._address, value)
 
     const registers = createRegisters(this._dataType, value, this._littleEndian)
 
@@ -103,7 +94,7 @@ export class ValueGenerator {
 
   // To be able to rebuild the generators we can so export the parameters
   get params() {
-    const params: ValueGeneratorParameters = {
+    const params: RegisterValueParameters = {
       address: this._address,
       registerType: this._registerType,
       dataType: this._dataType,
