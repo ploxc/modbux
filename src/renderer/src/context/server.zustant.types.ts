@@ -1,7 +1,7 @@
 import { RegisterType, RemoveRegisterValueParams, RegisterValueParameters } from '@shared'
 
 type ServerBool = { [key: number]: boolean }
-type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
+export type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
 
 interface ServerRegisters {
   [RegisterType.Coils]: ServerBool
