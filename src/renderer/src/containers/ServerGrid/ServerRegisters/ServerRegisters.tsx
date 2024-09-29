@@ -5,7 +5,7 @@ import { RegisterType } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/meme'
 import { ServerRegister } from '@renderer/context/server.zustant.types'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { deepEqual } from 'fast-equals'
 
 interface RowProps {
@@ -51,9 +51,22 @@ const ServerRegisterRows = meme(
       return serverRegisters
     })
 
-    return registers.map((r) => <ServerRegisterRow register={r} />)
+    return registers.map((r) => (
+      <ServerRegisterRow
+        key={`server_register_${r.params.registerType.replace(/ /gm, '_')}_${r.params.address}`}
+        register={r}
+      />
+    ))
   }
 )
+
+const Test = ({ type }: { type: RegisterType.InputRegisters | RegisterType.HoldingRegisters }) => {
+  const usedRegisters = useServerZustand((z) => z.usedAddresses[type])
+  useEffect(() => {
+    console.log('usedRegisters', type, usedRegisters)
+  }, [usedRegisters])
+  return null
+}
 
 interface ServerRegistersProps {
   name: string
@@ -64,6 +77,7 @@ interface ServerRegistersProps {
 const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
   return (
     <Grid2 size={size} height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}>
+      <Test type={type} />
       <Paper
         variant="outlined"
         sx={{

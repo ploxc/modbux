@@ -32,8 +32,8 @@ const ServerPartTitle = ({ name, type }: { name: string; type: RegisterType }) =
       <Box sx={{ width: 32 }}></Box>
       <Box sx={{ flex: 1, flexBasis: 0, textAlign: 'center' }}>{name}</Box>
       <Box sx={{ width: 32 }}>
-        <IconButton size="small" color="primary">
-          <PlusCircleFilled size={10} onClick={handleClick} />
+        <IconButton onClick={handleClick} size="small" color="primary">
+          <PlusCircleFilled size={10} />
         </IconButton>
       </Box>
       {[RegisterType.Coils, RegisterType.DiscreteInputs].includes(type) ? <AddBooleans /> : null}

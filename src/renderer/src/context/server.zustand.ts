@@ -2,7 +2,26 @@ import { create } from 'zustand'
 import { ServerZustand } from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { IpcEvent, RegisterType } from '@shared'
+import { DataType, IpcEvent, RegisterType, RegisterValueParameters } from '@shared'
+
+const getUsedAddresses = (registers: RegisterValueParameters[]) => {
+  const addressSet = new Set<number>()
+  registers.forEach((p) => {
+    if ([DataType.Int16, DataType.UInt16].includes(p.dataType)) addressSet.add(p.address)
+    if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(p.dataType)) {
+      addressSet.add(p.address)
+      addressSet.add(p.address + 1)
+    }
+
+    if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(p.dataType)) {
+      addressSet.add(p.address)
+      addressSet.add(p.address + 1)
+      addressSet.add(p.address + 2)
+      addressSet.add(p.address + 3)
+    }
+  })
+  return Array.from(addressSet)
+}
 
 export const useServerZustand = create<
   ServerZustand,
@@ -43,6 +62,12 @@ export const useServerZustand = create<
         })
 
         set((state) => {
+          state.usedAddresses[RegisterType.InputRegisters] = getUsedAddresses(
+            inputRegisterRegisterValues
+          )
+          state.usedAddresses[RegisterType.HoldingRegisters] = getUsedAddresses(
+            holdingRegisterRegisterValues
+          )
           state.ready = true
         })
       },
@@ -51,6 +76,10 @@ export const useServerZustand = create<
         [RegisterType.DiscreteInputs]: {},
         [RegisterType.InputRegisters]: {},
         [RegisterType.HoldingRegisters]: {}
+      },
+      usedAddresses: {
+        [RegisterType.InputRegisters]: [],
+        [RegisterType.HoldingRegisters]: []
       },
       addBools: (registerType, address) =>
         set((state) => {
@@ -81,8 +110,15 @@ export const useServerZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
+
           state.serverRegisters[params.registerType][params.address] = { value: 0, params }
           window.api.addReplaceServerRegister(params)
+
+          // Update used addresses
+          const usedAddresses = getUsedAddresses(
+            Object.values(state.serverRegisters[params.registerType]).map((r) => r.params)
+          )
+          state.usedAddresses[params.registerType] = usedAddresses
         }),
       removeRegister: (params) =>
         set((state) => {
@@ -90,6 +126,12 @@ export const useServerZustand = create<
           if (!currentState.ready) return
           delete state.serverRegisters[params.registerType][params.address]
           window.api.removeServerRegister(params)
+
+          // Update used addresses
+          const usedAddresses = getUsedAddresses(
+            Object.values(state.serverRegisters[params.registerType]).map((r) => r.params)
+          )
+          state.usedAddresses[params.registerType] = usedAddresses
         }),
       setRegisterValue: (type, address, value) =>
         set((state) => {

@@ -68,12 +68,22 @@ export class RegisterValue {
     }, interval)
   }
 
-  public stop = () => {
+  public stopAndRemove = () => {
     clearInterval(this._intervalTimer)
+    // Reset the values when the registervalue is stopped (removed)
+    const addressesToReset = [DataType.Int16, DataType.UInt16].includes(this._dataType)
+      ? [this._address]
+      : [DataType.UInt32, DataType.Int32, DataType.Float].includes(this._dataType)
+        ? [this._address, this._address + 1]
+        : [this._address, this._address + 1, this._address + 2, this._address + 3]
+    addressesToReset.forEach((address) => {
+      this._serverData[this._registerType][address] = 0
+    })
   }
 
   private _updateValue = async () => {
-    const value = round(Math.random() * (this._max - this._min) + this._min, 2)
+    const decimals = [DataType.Float, DataType.Double].includes(this._dataType) ? 2 : 0
+    const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
     this._windows.send(IpcEvent.RegisterValue, this._registerType, this._address, value)
 
     const registers = createRegisters(this._dataType, value, this._littleEndian)

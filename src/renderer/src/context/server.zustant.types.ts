@@ -10,6 +10,11 @@ interface ServerRegisters {
   [RegisterType.HoldingRegisters]: ServerRegister
 }
 
+interface UsedAddresses {
+  [RegisterType.InputRegisters]: number[]
+  [RegisterType.HoldingRegisters]: number[]
+}
+
 export interface ServerZustand {
   ready: boolean
   serverRegisters: ServerRegisters
@@ -28,4 +33,5 @@ export interface ServerZustand {
     address: number,
     value: number
   ) => void
+  usedAddresses: UsedAddresses
 }
