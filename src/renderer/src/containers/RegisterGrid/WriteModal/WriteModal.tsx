@@ -3,48 +3,23 @@ import {
   Box,
   Button,
   ButtonGroup,
-  FormControl,
-  InputLabel,
-  MenuItem,
   Modal,
   Paper,
-  Select,
   TextField,
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material'
+import DataTypeSelectInput from '@renderer/components/DataTypeSelectInput'
 import { meme } from '@renderer/components/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
-import { DataType, RegisterType } from '@shared'
+import { useMinMaxInteger } from '@renderer/hooks'
+import { DataType, notEmpty, RegisterType } from '@shared'
 import { forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-
-const getMinMaxValues = (dataType: DataType): { min: number; max: number } => {
-  switch (dataType) {
-    case DataType.Int16:
-      return { min: -32768, max: 32767 }
-    case DataType.UInt16:
-      return { min: 0, max: 65535 }
-    case DataType.Int32:
-      return { min: -2147483648, max: 2147483647 }
-    case DataType.UInt32:
-      return { min: 0, max: 4294967295 }
-    case DataType.Int64:
-      return { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER } // JavaScript safe integer range
-    case DataType.UInt64:
-      return { min: 0, max: Number.MAX_SAFE_INTEGER } // Max safe integer in JavaScript for unsigned 64-bit
-    case DataType.Float:
-      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Closest approximation for float
-    case DataType.Double:
-      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Double in JS is the same as float
-    default:
-      return { min: 0, max: 0 }
-  }
-}
 
 interface ValueInputZusand {
   dataType: DataType
@@ -101,21 +76,7 @@ const ValueInput = meme(
   forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
     const { set, ...other } = props
     const dataType = useValueInputZustand((z) => z.dataType)
-
-    const integer = useMemo(
-      () =>
-        [
-          DataType.Int16,
-          DataType.UInt16,
-          DataType.Int32,
-          DataType.UInt32,
-          DataType.Int64,
-          DataType.UInt64
-        ].includes(dataType),
-      [dataType]
-    )
-
-    const { min, max } = useMemo(() => getMinMaxValues(dataType), [dataType])
+    const { min, max, integer } = useMinMaxInteger(dataType)
 
     return (
       <IMaskInput
@@ -131,7 +92,9 @@ const ValueInput = meme(
           mapToRadix: ['.', ','] // symbols to process as radix
         }}
         inputRef={ref}
-        onAccept={(value: any) => set(value, value.length > 0)}
+        onAccept={(value: any) => {
+          set(value, notEmpty(value))
+        }}
       />
     )
   })
@@ -161,33 +124,10 @@ const ValueInputComponent = meme(() => {
 })
 
 const DataTypeSelect = meme(() => {
-  const labelId = 'data-type-select'
-
   const dataType = useValueInputZustand((z) => z.dataType)
   const setDataType = useValueInputZustand((z) => z.setDataType)
 
-  return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Type</InputLabel>
-      <Select
-        size="small"
-        labelId={labelId}
-        value={dataType}
-        label="Type"
-        onChange={(e) => setDataType(e.target.value as DataType)}
-      >
-        <MenuItem value={DataType.Int16}>INT16</MenuItem>
-        <MenuItem value={DataType.UInt16}>UINT16</MenuItem>
-        <MenuItem value={DataType.Int32}>INT32</MenuItem>
-        <MenuItem value={DataType.UInt32}>UINT32</MenuItem>
-        <MenuItem value={DataType.Float}>FLOAT</MenuItem>
-
-        <MenuItem value={DataType.Int64}>INT64</MenuItem>
-        <MenuItem value={DataType.UInt64}>UINT64</MenuItem>
-        <MenuItem value={DataType.Double}>DOUBLE</MenuItem>
-      </Select>
-    </FormControl>
-  )
+  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
 const WriteRegistersButton = meme(() => {

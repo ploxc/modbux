@@ -6,7 +6,10 @@ import {
   SetBooleanParameters,
   SyncBoolsParameters,
   SyncRegisterValueParams,
-  RegisterValueParameters
+  RegisterValueParameters,
+  createRegisters,
+  NumberRegisters,
+  BooleanRegisters
 } from '@shared'
 import { IServiceVector, ServerTCP } from 'modbus-serial'
 import { ServerData, RegisterValue, RegisterValues } from './modbusServer/registerValue'
@@ -94,13 +97,19 @@ export class ModbusServer {
     littleEndian,
     comment
   }: RegisterValueParameters) => {
+    console.log('adding register value', address, registerType, value, min, max, interval)
+
     // Remove existing generator if exists
     const currentGenerator = this._registerValues[registerType].get(address) as RegisterValue
     if (currentGenerator) currentGenerator.stopAndRemove()
     this._registerValues[registerType].delete(address)
 
     if (value !== undefined) {
-      this._serverData[registerType][address] = value
+      const registers = createRegisters(dataType, value, littleEndian)
+      registers.forEach((register, index) => {
+        this._serverData[registerType][address + index] = register
+      })
+
       this._windows.send(IpcEvent.RegisterValue, registerType, address, value)
       return
     }
@@ -130,19 +139,27 @@ export class ModbusServer {
     for (const params of registerValues) this.addRegisterValue(params)
   }
 
+  public resetRegisters = ({ registerType }: { registerType: NumberRegisters }) => {
+    this._registerValues[registerType].forEach((registerValue) => registerValue.stopAndRemove())
+    this._serverData[registerType] = new Array(65535).fill(0)
+  }
+
   public setBool = ({ registerType, address, state }: SetBooleanParameters) => {
     this._serverData[registerType][address] = state
     this._windows.send(IpcEvent.BooleanValue, registerType, address, state)
   }
 
-  public resetBools = () => {
-    this._serverData[RegisterType.Coils] = new Array(65535).fill(false)
-    this._serverData[RegisterType.DiscreteInputs] = new Array(65535).fill(false)
+  public resetBools = ({ registerType }: { registerType: BooleanRegisters }) => {
+    this._serverData[registerType] = new Array(65535).fill(false)
   }
 
   public syncBools = (params: SyncBoolsParameters) => {
-    this._serverData[RegisterType.Coils] = params[RegisterType.Coils]
-    this._serverData[RegisterType.DiscreteInputs] = params[RegisterType.DiscreteInputs]
+    params[RegisterType.Coils].forEach((value, index) => {
+      this._serverData[RegisterType.Coils][index] = value
+    })
+    params[RegisterType.DiscreteInputs].forEach((value, index) => {
+      this._serverData[RegisterType.DiscreteInputs][index] = value
+    })
   }
 
   //

@@ -2,7 +2,13 @@ import { create } from 'zustand'
 import { ServerZustand } from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { DataType, IpcEvent, RegisterType, RegisterValueParameters } from '@shared'
+import {
+  DataType,
+  IpcEvent,
+  RegisterType,
+  RegisterValueParameters,
+  SyncBoolsParameters
+} from '@shared'
 
 const getUsedAddresses = (registers: RegisterValueParameters[]) => {
   const addressSet = new Set<number>()
@@ -34,8 +40,8 @@ export const useServerZustand = create<
         const state = getState()
 
         // Synchronize the boolean states with the server from persisted state
-        const coils: boolean[] = []
-        const discreteInputs: boolean[] = []
+        const coils: boolean[] = Array(65535).fill(false)
+        const discreteInputs: boolean[] = Array(65535).fill(false)
 
         Object.values(state.serverRegisters[RegisterType.Coils]).forEach(
           (value, address) => (coils[address] = value)
@@ -106,6 +112,19 @@ export const useServerZustand = create<
           state.serverRegisters[registerType][address] = boolState
           window.api.setBool({ registerType, address, state: boolState })
         }),
+      resetBools: (registerType) =>
+        set((state) => {
+          const currentState = getState()
+          state.serverRegisters[registerType] = {}
+
+          const newBools: SyncBoolsParameters = {
+            [RegisterType.Coils]: currentState[RegisterType.Coils],
+            [RegisterType.DiscreteInputs]: currentState[RegisterType.DiscreteInputs],
+            [registerType]: []
+          }
+
+          window.api.syncBools(newBools)
+        }),
       addRegister: (params) =>
         set((state) => {
           const currentState = getState()
@@ -136,6 +155,11 @@ export const useServerZustand = create<
       setRegisterValue: (type, address, value) =>
         set((state) => {
           state.serverRegisters[type][address].value = value
+        }),
+      resetRegisters: (registerType) =>
+        set((state) => {
+          state.serverRegisters[registerType] = {}
+          window.api.resetRegisters(registerType)
         })
     })),
     { name: `server.zustand` }

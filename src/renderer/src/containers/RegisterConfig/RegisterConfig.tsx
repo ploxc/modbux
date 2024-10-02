@@ -15,6 +15,7 @@ import {
 import LengthInput from '@renderer/components/LengthInput'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { getConventionalAddress, RegisterType } from '@shared'
 import { useCallback } from 'react'
@@ -24,7 +25,7 @@ const TypeSelect = () => {
   const labelId = 'register-type-select'
   const type = useRootZustand((z) => z.registerConfig.type)
   const setType = useRootZustand((z) => z.setType)
-  const setRegisterData = useRootZustand((z) => z.setRegisterData)
+  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const handleChange = useCallback((type: RegisterType) => {
     setRegisterData([])

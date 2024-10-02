@@ -8,12 +8,11 @@ import {
   defaultConnectionConfig,
   defaultRegisterConfig,
   IpcEvent,
-  RegisterData,
   RegisterType,
   ScanUnitIDResult,
   Transaction
 } from '@shared'
-import { DateTime } from 'luxon'
+import { useDataZustand } from './data.zustand'
 
 export const useRootZustand = create<
   RootZusand,
@@ -39,17 +38,6 @@ export const useRootZustand = create<
       },
       connectionConfig: defaultConnectionConfig,
       registerConfig: defaultRegisterConfig,
-
-      // Register data
-      registerData: [],
-      setRegisterData: (data) =>
-        set((state) => {
-          state.registerData = data
-        }),
-      appendRegisterData: (data) =>
-        set((state) => {
-          state.registerData.push(...data)
-        }),
       // Connection state
       // Register mapping
       registerMapping: {
@@ -247,7 +235,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ address: newAddress })
 
           // Reset registerdata when not polling
-          if (!currentState.clientState.polling) state.registerData = []
+          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
         }),
       setLength: (length, valid) =>
         set((state) => {
@@ -261,7 +249,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ length: newLength })
 
           // Reset registerdata when not polling
-          if (!currentState.clientState.polling) state.registerData = []
+          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
         }),
       setType: (type) =>
         set((state) => {
@@ -272,7 +260,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ type })
 
           // Reset registerdata when not polling
-          if (!currentState.clientState.polling) state.registerData = []
+          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
         }),
       setLittleEndian: (littleEndian) =>
         set((state) => {
@@ -349,15 +337,6 @@ state.init()
 window.electron.ipcRenderer.on(IpcEvent.ClientState, (_, clientState: ClientState) => {
   const state = useRootZustand.getState()
   state.setClientState(clientState)
-})
-
-// Data read from the registers
-window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: RegisterData[]) => {
-  const state = useRootZustand.getState()
-  state.clientState.scanningRegisters
-    ? state.appendRegisterData(registerData)
-    : state.setRegisterData(registerData)
-  state.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
 // Transactions from the transation log

@@ -9,6 +9,7 @@ import { IMaskInput, IMask } from 'react-imask'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import LengthInput from '@renderer/components/LengthInput'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 
 interface ScanRegistersZustand {
   open: boolean
@@ -199,7 +200,6 @@ const ScanButton = () => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
 
   const scan = useCallback(() => {
-    console.log('Scanning registers...', scanning)
     if (scanning) {
       window.api.stopScanningRegisters()
       return
@@ -209,10 +209,11 @@ const ScanButton = () => {
 
     const state = useScanRegistersZustand.getState()
     const rootState = useRootZustand.getState()
+    const dataState = useDataZustand.getState()
     const layoutState = useLayoutZustand.getState()
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
-    rootState.setRegisterData([])
+    dataState.setRegisterData([])
     layoutState.setShowLog(true)
 
     const { length, range, timeout } = state

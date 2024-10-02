@@ -5,6 +5,7 @@ import useRegisterGridColumns from './_columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/meme'
+import { useDataZustand } from '@renderer/context/data.zustand'
 
 //
 //
@@ -32,7 +33,7 @@ const Footer = meme(() => {
 //
 // DataGrid
 const RegisterGridContent = () => {
-  const registerData = useRootZustand((z) => z.registerData)
+  const registerData = useDataZustand((z) => z.registerData)
   const columns = useRegisterGridColumns()
 
   return (

@@ -1,4 +1,11 @@
-import { createRegisters, DataType, IpcEvent, RegisterType, RegisterValueParameters } from '@shared'
+import {
+  createRegisters,
+  DataType,
+  IpcEvent,
+  RegisterType,
+  RegisterValueParameters,
+  NumberRegisters
+} from '@shared'
 import { round } from 'lodash'
 import { Windows } from '@shared'
 
@@ -17,7 +24,7 @@ export interface RegisterValues {
 interface RegisterValueParams {
   windows: Windows
   serverData: ServerData
-  registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
+  registerType: NumberRegisters
   address: number
   dataType: DataType
   min: number
@@ -30,7 +37,7 @@ interface RegisterValueParams {
 export class RegisterValue {
   private _windows: Windows
   private _serverData: ServerData
-  private _registerType: RegisterType.HoldingRegisters | RegisterType.InputRegisters
+  private _registerType: NumberRegisters
   private _address: number
   private _dataType: DataType
   private _min: number

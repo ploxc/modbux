@@ -24,8 +24,8 @@ export const bigEndian32 = (buffer: Buffer, offset: number) => {
 // Uncommon least significant word first (little endian)
 export const littleEndian32 = (buffer: Buffer, offset: number) => {
   return Buffer.concat([
-    buffer.subarray(offset + 2, offset + 4),
-    buffer.subarray(offset, offset + 2)
+    buffer.subarray(offset + 2, offset + 4) as Uint8Array,
+    buffer.subarray(offset, offset + 2) as Uint8Array
   ])
 }
 
@@ -37,10 +37,10 @@ export const bigEndian64 = (buffer: Buffer, offset: number) => {
 // Uncommon least significant word first (little endian)
 export const littleEndian64 = (buffer: Buffer, offset: number) => {
   return Buffer.concat([
-    buffer.subarray(offset + 6, offset + 8),
-    buffer.subarray(offset + 4, offset + 6),
-    buffer.subarray(offset + 2, offset + 4),
-    buffer.subarray(offset, offset + 2)
+    buffer.subarray(offset + 6, offset + 8) as Uint8Array,
+    buffer.subarray(offset + 4, offset + 6) as Uint8Array,
+    buffer.subarray(offset + 2, offset + 4) as Uint8Array,
+    buffer.subarray(offset, offset + 2) as Uint8Array
   ])
 }
 
@@ -98,3 +98,28 @@ export const createRegisters = (
 
   return registers
 }
+
+export const getMinMaxValues = (dataType: DataType): { min: number; max: number } => {
+  switch (dataType) {
+    case DataType.Int16:
+      return { min: -32768, max: 32767 }
+    case DataType.UInt16:
+      return { min: 0, max: 65535 }
+    case DataType.Int32:
+      return { min: -2147483648, max: 2147483647 }
+    case DataType.UInt32:
+      return { min: 0, max: 4294967295 }
+    case DataType.Int64:
+      return { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER } // JavaScript safe integer range
+    case DataType.UInt64:
+      return { min: 0, max: Number.MAX_SAFE_INTEGER } // Max safe integer in JavaScript for unsigned 64-bit
+    case DataType.Float:
+      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Closest approximation for float
+    case DataType.Double:
+      return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Double in JS is the same as float
+    default:
+      return { min: 0, max: 0 }
+  }
+}
+
+export const notEmpty = (value: number | string) => String(value).replace('-', '').length > 0

@@ -6,6 +6,7 @@ import { ConnectState, Protocol } from '@shared'
 import { useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/types'
 import UnitIdInput from '@renderer/components/UnitIdInput'
+import { useDataZustand } from '@renderer/context/data.zustand'
 
 // Protocol
 const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
@@ -29,7 +30,7 @@ const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
 
 const ConnectButton = () => {
   const connectState = useRootZustand((z) => z.clientState.connectState)
-  const setRegisterData = useRootZustand((z) => z.setRegisterData)
+  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const action = useCallback(() => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState

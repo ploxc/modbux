@@ -52,6 +52,7 @@ const api: Api = {
     ipcInvoke<typeof args, void>(IpcChannel.RemoveServerRegister, ...args),
   syncServerregisters: (...args) =>
     ipcInvoke<typeof args, void>(IpcChannel.SyncServerRegisters, ...args),
+  resetRegisters: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetRegisters, ...args),
   setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
   resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args),
   syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args)

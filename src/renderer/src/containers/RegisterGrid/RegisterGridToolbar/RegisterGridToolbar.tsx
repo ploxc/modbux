@@ -24,6 +24,7 @@ import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
 import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
 import { useScanRegistersZustand } from '../../ScanRegisters/ScanRegisters'
+import { useDataZustand } from '@renderer/context/data.zustand'
 //
 //
 //
@@ -37,7 +38,7 @@ const ReadButton = () => {
   const [reading, setReading] = useState(false)
   const readingRef = useRef(false)
 
-  const setRegisterData = useRootZustand((z) => z.setRegisterData)
+  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   // Read registers, prevent sending the command until the read is done
   const handleRead = useCallback(async () => {
@@ -96,8 +97,10 @@ const PollButton = () => {
 //
 // Clear register Data
 const ClearButton = () => {
-  const disabled = useRootZustand((z) => z.registerData.length === 0 || z.clientState.polling)
-  const setRegisterData = useRootZustand((z) => z.setRegisterData)
+  const disabled = useDataZustand(
+    (z) => z.registerData.length === 0 || useRootZustand.getState().clientState.polling
+  )
+  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const handleClear = useCallback(() => {
     setRegisterData([])
@@ -412,11 +415,11 @@ const SaveButton = () => {
     element.setAttribute('download', filename)
 
     element.style.display = 'none'
-    document.body.appendServer(element)
+    document.body.appendChild(element)
 
     element.click()
 
-    document.body.removeServer(element)
+    document.body.appendChild(element)
   }, [])
 
   return (
@@ -445,16 +448,12 @@ const LoadButton = () => {
 
   const openConfig = useCallback(
     async (file: File | undefined) => {
-      console.log('opening file', file)
       if (!file) return
       if (openingRef.current) return
       openingRef.current = true
       setOpening(true)
 
       const content = await file.text()
-
-      console.log(content)
-
       try {
         const registerMapping = JSON.parse(content) as RegisterMapping
         replaceRegisterMapping(registerMapping)

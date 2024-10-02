@@ -24,8 +24,9 @@ export interface Api {
   addReplaceServerRegister: (params: RegisterValueParameters) => void
   removeServerRegister: (params: RemoveRegisterValueParams) => void
   syncServerregisters: (params: SyncRegisterValueParams) => void
+  resetRegisters: (registerType: NumberRegisters) => void
   setBool: (params: SetBooleanParameters) => void
-  resetBools: () => void
+  resetBools: (registerType: BooleanRegisters) => void
   syncBools: (params: SyncBoolsParameters) => void
 }
 
@@ -256,6 +257,9 @@ export interface RegisterMapValue {
   scalingFactor?: number
   comment?: string
 }
+
+export type BooleanRegisters = RegisterType.Coils | RegisterType.DiscreteInputs
+export type NumberRegisters = RegisterType.InputRegisters | RegisterType.HoldingRegisters
 
 //
 //

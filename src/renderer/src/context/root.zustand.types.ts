@@ -1,5 +1,4 @@
 import {
-  RegisterData,
   ConnectionConfig,
   RegisterConfig,
   Protocol,
@@ -14,11 +13,6 @@ import {
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 
 export interface RootZusand {
-  // Register data
-  registerData: RegisterData[]
-  setRegisterData: (data: RegisterData[]) => void
-  appendRegisterData: (data: RegisterData[]) => void
-
   // Register mapping
   registerMapping: RegisterMapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(

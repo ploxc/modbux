@@ -1,4 +1,10 @@
-import { RegisterType, RemoveRegisterValueParams, RegisterValueParameters } from '@shared'
+import {
+  RegisterType,
+  RemoveRegisterValueParams,
+  RegisterValueParameters,
+  BooleanRegisters,
+  NumberRegisters
+} from '@shared'
 
 type ServerBool = { [key: number]: boolean }
 export type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
@@ -19,19 +25,13 @@ export interface ServerZustand {
   ready: boolean
   serverRegisters: ServerRegisters
   init: () => Promise<void>
-  addBools: (type: RegisterType.Coils | RegisterType.DiscreteInputs, address: number) => void
-  removeBool: (type: RegisterType.Coils | RegisterType.DiscreteInputs, address: number) => void
-  setBool: (
-    type: RegisterType.Coils | RegisterType.DiscreteInputs,
-    address: number,
-    value: boolean
-  ) => void
+  addBools: (type: BooleanRegisters, address: number) => void
+  removeBool: (type: BooleanRegisters, address: number) => void
+  setBool: (type: BooleanRegisters, address: number, value: boolean) => void
+  resetBools: (type: BooleanRegisters) => void
   addRegister: (params: RegisterValueParameters) => void
   removeRegister: (params: RemoveRegisterValueParams) => void
-  setRegisterValue: (
-    type: RegisterType.InputRegisters | RegisterType.HoldingRegisters,
-    address: number,
-    value: number
-  ) => void
+  setRegisterValue: (type: NumberRegisters, address: number, value: number) => void
+  resetRegisters: (type: NumberRegisters) => void
   usedAddresses: UsedAddresses
 }

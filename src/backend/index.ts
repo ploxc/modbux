@@ -19,6 +19,7 @@ export enum IpcChannel {
   AddReplaceServerRegister = 'AddReplaceServerRegister',
   RemoveServerRegister = 'RemoveServerRegister',
   SyncServerRegisters = 'SyncServerRegisters',
+  ResetRegisters = 'ResetRegisters',
   SetBool = 'SetBool',
   ResetBools = 'ResetBools',
   SyncBools = 'SyncBools'

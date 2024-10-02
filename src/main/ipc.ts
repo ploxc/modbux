@@ -10,7 +10,9 @@ import {
   SyncBoolsParameters,
   SyncRegisterValueParams,
   RegisterValueParameters,
-  WriteParameters
+  WriteParameters,
+  BooleanRegisters,
+  NumberRegisters
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
@@ -64,7 +66,12 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
   ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncRegisterValueParams) =>
     server.syncServerRegisters(params)
   )
+  ipcHandle(IpcChannel.ResetRegisters, (_, registerType: NumberRegisters) =>
+    server.resetRegisters({ registerType })
+  )
   ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
-  ipcHandle(IpcChannel.ResetBools, () => server.resetBools())
+  ipcHandle(IpcChannel.ResetBools, (_, registerType: BooleanRegisters) =>
+    server.resetBools({ registerType })
+  )
   ipcHandle(IpcChannel.SyncBools, (_, params: SyncBoolsParameters) => server.syncBools(params))
 }

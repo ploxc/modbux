@@ -1,17 +1,17 @@
 import { Button, Box, Grid2, Paper } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { RegisterType } from '@shared'
+import { BooleanRegisters } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import ServerPartTitle from '../ServerPartTitle'
 
 interface ServerBooleanProps {
   name: string
-  type: RegisterType.Coils | RegisterType.DiscreteInputs
+  type: BooleanRegisters
 }
 interface ServerBooleanButtonProps {
   address: number
-  type: RegisterType.Coils | RegisterType.DiscreteInputs
+  type: BooleanRegisters
 }
 
 const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
@@ -19,10 +19,6 @@ const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
   const setBool = useServerZustand((z) => z.setBool)
 
   const variant = bool ? 'contained' : 'outlined'
-
-  useEffect(() => {
-    console.log({ address, type, bool })
-  }, [bool])
 
   return (
     <Button
@@ -38,7 +34,7 @@ const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
 
 interface ServerBooleanRowProps {
   addresses: number[]
-  type: RegisterType.Coils | RegisterType.DiscreteInputs
+  type: BooleanRegisters
 }
 
 const ServerBooleanRow = ({ addresses, type }: ServerBooleanRowProps) => {

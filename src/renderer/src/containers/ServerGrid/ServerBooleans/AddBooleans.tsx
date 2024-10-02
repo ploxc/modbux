@@ -3,22 +3,19 @@ import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { RegisterType } from '@shared'
+import { BooleanRegisters, RegisterType } from '@shared'
 import { useCallback } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
-type SetAchorElFn = (
-  anchorEl: HTMLDivElement | null,
-  registerType: RegisterType.Coils | RegisterType.DiscreteInputs
-) => void
+type SetAchorElFn = (anchorEl: HTMLDivElement | null, registerType: BooleanRegisters) => void
 
 interface AddBooleansZustand {
   anchorEl: HTMLDivElement | null
   setAnchorEl: SetAchorElFn
   address: number
   setAddress: MaskSetFn
-  registerType: RegisterType.Coils | RegisterType.DiscreteInputs
+  registerType: BooleanRegisters
 }
 
 export const useAddBooleansZustand = create<AddBooleansZustand, [['zustand/mutative', never]]>(
