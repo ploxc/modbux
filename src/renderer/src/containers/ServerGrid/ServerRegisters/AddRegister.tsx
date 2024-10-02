@@ -13,12 +13,13 @@ import {
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
-import { forwardRef, useCallback, useEffect } from 'react'
+import { forwardRef, useCallback, useEffect, useState } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
 import { DataType, notEmpty, RegisterType } from '@shared'
 import DataTypeSelectInput from '@renderer/components/DataTypeSelectInput'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { Delete } from '@mui/icons-material'
 
 //
 //
@@ -53,16 +54,20 @@ const AddressInput = meme(
 const AddressField = () => {
   const address = useAddRegisterZustand((z) => String(z.address))
   const addressInUse = useAddRegisterZustand((z) => z.addressInUse)
+  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => z.valid.address)
   const setAddress = useAddRegisterZustand((z) => z.setAddress)
 
   useEffect(() => {
+    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
+    if (edit) return
     useAddRegisterZustand.getState().initFirstUnusedAddress()
   }, [])
 
   return (
     <FormControl error={!valid}>
       <TextField
+        disabled={edit}
         error={!valid}
         label="Address"
         variant="outlined"
@@ -87,6 +92,7 @@ const AddressField = () => {
 //
 // Data Type
 const DataTypeSelect = meme(() => {
+  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const dataType = useAddRegisterZustand((z) => z.dataType)
   const setDataType = useAddRegisterZustand((z) => z.setDataType)
 
@@ -95,7 +101,7 @@ const DataTypeSelect = meme(() => {
     setDataType(DataType.Int16)
   }, [])
 
-  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
+  return <DataTypeSelectInput disabled={edit} dataType={dataType} setDataType={setDataType} />
 })
 
 //
@@ -409,6 +415,7 @@ const ToggleEndianButton = () => {
 //
 // Add button
 const AddButton = () => {
+  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => {
     if (z.fixed) return z.valid.address && z.valid.value
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval
@@ -458,8 +465,41 @@ const AddButton = () => {
   }, [])
 
   return (
-    <Button disabled={!valid} variant="contained" color="primary" onClick={addRegister}>
-      Add Register
+    <Button
+      sx={{ flex: 1, flexBasis: 0 }}
+      disabled={!valid}
+      variant="contained"
+      color="primary"
+      onClick={addRegister}
+    >
+      {edit ? 'Submit Change' : 'Add Register'}
+    </Button>
+  )
+}
+
+const DeleteButton = () => {
+  const [over, setOver] = useState(false)
+  const handleClick = useCallback(() => {
+    const { address, registerType, setRegisterType } = useAddRegisterZustand.getState()
+    if (!registerType) return
+
+    const serverState = useServerZustand.getState()
+    serverState.removeRegister({ address: Number(address), registerType })
+
+    setRegisterType(undefined)
+  }, [])
+
+  return (
+    <Button
+      sx={{ flex: 1, flexBasis: 0 }}
+      startIcon={<Delete />}
+      variant="outlined"
+      color={over ? 'error' : 'primary'}
+      onClick={handleClick}
+      onMouseEnter={() => setOver(true)}
+      onMouseLeave={() => setOver(false)}
+    >
+      Remove
     </Button>
   )
 }
@@ -470,8 +510,29 @@ const AddButton = () => {
 //
 // MAIN
 const AddRegister = () => {
+  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const registerType = useAddRegisterZustand((z) => z.registerType)
   const setRegisterType = useAddRegisterZustand((z) => z.setRegisterType)
+
+  // Edit mode
+  useEffect(() => {
+    const state = useAddRegisterZustand.getState()
+    if (!state.serverRegisterEdit) return
+
+    const { address, comment, dataType, littleEndian, registerType, interval, max, min, value } =
+      state.serverRegisterEdit.params
+
+    state.setFixed(value !== undefined)
+    state.setAddress(String(address))
+    state.setRegisterType(registerType)
+    state.setComment(comment)
+    state.setLittleEndian(littleEndian)
+    state.setInterval(interval ? String(interval / 1000) : '1')
+    state.setMax(String(max))
+    state.setMin(String(min))
+    state.setValue(String(value))
+    state.setDataType(dataType)
+  }, [])
 
   return (
     <Modal
@@ -491,7 +552,8 @@ const AddRegister = () => {
         sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, height: 'fit-content' }}
       >
         <Typography variant="subtitle2" sx={{ px: 0.5 }}>
-          Add {registerType === RegisterType.InputRegisters ? 'Input Register' : 'Holding Register'}
+          {edit ? 'Edit' : 'Add'}{' '}
+          {registerType === RegisterType.InputRegisters ? 'Input Register' : 'Holding Register'}
         </Typography>
         <FixedOrGenerator />
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -501,7 +563,11 @@ const AddRegister = () => {
           <ValueParameters />
         </Box>
         <CommentField />
-        <AddButton />
+
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <AddButton />
+          {edit && <DeleteButton />}
+        </Box>
       </Paper>
     </Modal>
   )

@@ -2,14 +2,15 @@ import { FormControl, InputLabel, Select, MenuItem } from '@mui/material'
 import { DataType } from '@shared'
 
 interface Props {
+  disabled?: boolean
   dataType: DataType
   setDataType: (dataType: DataType) => void
 }
 
-const DataTypeSelectInput = ({ dataType, setDataType }: Props) => {
+const DataTypeSelectInput = ({ disabled, dataType, setDataType }: Props) => {
   const labelId = 'data-type-select'
   return (
-    <FormControl size="small">
+    <FormControl disabled={disabled} size="small">
       <InputLabel id={labelId}>Type</InputLabel>
       <Select
         size="small"

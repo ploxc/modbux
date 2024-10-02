@@ -131,6 +131,7 @@ export class ModbusServer {
     )
   }
   public removeRegisterValue = ({ registerType, address }: RemoveRegisterValueParams) => {
+    console.log('removing register value', address, registerType)
     this._registerValues[registerType].get(address)?.stopAndRemove()
     this._registerValues[registerType].delete(address)
   }

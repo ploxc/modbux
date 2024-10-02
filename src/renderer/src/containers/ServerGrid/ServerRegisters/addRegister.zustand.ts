@@ -1,5 +1,6 @@
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { ServerRegister } from '@renderer/context/server.zustant.types'
 import { DataType, NumberRegisters } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -9,7 +10,10 @@ export const getAddressInUse = (
   dataType: DataType,
   address: number
 ) => {
-  // Validate so address is not already used
+  // Validate so address is not already used when not in edit mode
+  const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
+  if (edit) return false
+
   const usedAddresses = registerType ? useServerZustand.getState().usedAddresses[registerType] : []
 
   const addressesNeeded = [DataType.Double, DataType.UInt64, DataType.Int64].includes(dataType)
@@ -22,8 +26,12 @@ export const getAddressInUse = (
 }
 
 interface AddRegisterZustand {
+  serverRegisterEdit: ServerRegister[number] | undefined
   registerType: NumberRegisters | undefined
-  setRegisterType: (registerType: NumberRegisters | undefined) => void
+  setRegisterType: (
+    registerType: NumberRegisters | undefined,
+    serverRegister?: ServerRegister[number]
+  ) => void
   valid: {
     address: boolean
     value: boolean
@@ -55,10 +63,12 @@ interface AddRegisterZustand {
 
 export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutative', never]]>(
   mutative((set, getState) => ({
+    serverRegisterEdit: undefined,
     registerType: undefined,
-    setRegisterType: (registerType) =>
+    setRegisterType: (registerType, serverRegister) =>
       set((state) => {
         state.registerType = registerType
+        state.serverRegisterEdit = registerType ? serverRegister : undefined
       }),
     valid: {
       address: true,
@@ -75,6 +85,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
 
         const { registerType, dataType } = getState()
         if (!registerType) return
+
         const addressInUse = getAddressInUse(registerType, dataType, Number(address))
 
         state.addressInUse = addressInUse

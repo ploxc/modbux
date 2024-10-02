@@ -7,10 +7,24 @@ import { meme } from '@renderer/components/meme'
 import { ServerRegister } from '@renderer/context/server.zustant.types'
 import { useRef } from 'react'
 import { deepEqual } from 'fast-equals'
+import { useAddRegisterZustand } from './addRegister.zustand'
 
 interface RowProps {
   register: ServerRegister[number]
 }
+
+const RowEdit = meme(({ register }: RowProps) => {
+  const handleClick = () => {
+    const state = useAddRegisterZustand.getState()
+    state.setRegisterType(register.params.registerType, register)
+  }
+
+  return (
+    <IconButton onClick={handleClick} size="small">
+      <Edit color="primary" fontSize="small" />
+    </IconButton>
+  )
+})
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {
   return (
@@ -32,11 +46,20 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
       <Box sx={{ width: 46, opacity: 0.5, flexShrink: 0 }}>
         {register.params.dataType.toUpperCase()}
       </Box>
-      <Box sx={{ flex: 1 }}>{register.value}</Box>
-      <Box sx={{ flex: 1 }}>{register.params.comment}</Box>
-      <IconButton size="small">
-        <Edit color="primary" fontSize="small" />
-      </IconButton>
+      <Box sx={{ pr: 2 }}>{register.value}</Box>
+      <Box
+        sx={{
+          flex: 1,
+          textAlign: 'right',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}
+        title={register.params.comment}
+      >
+        {register.params.comment}
+      </Box>
+      <RowEdit register={register} />
     </Box>
   )
 })
