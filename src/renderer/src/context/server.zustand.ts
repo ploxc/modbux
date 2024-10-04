@@ -141,7 +141,6 @@ export const useServerZustand = create<
         }),
       removeRegister: (params) =>
         set((state) => {
-          console.log('Removing register', params)
           const currentState = getState()
           if (!currentState.ready) return
           delete state.serverRegisters[params.registerType][params.address]

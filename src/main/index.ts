@@ -49,7 +49,6 @@ if (!gotTheLock) {
   app.on('second-instance', () => {
     // Someone tried to run a second instance, we should focus our window.
     if (windows.main) {
-      console.log('Another instance of the app was already running.')
       if (windows.main.isMinimized()) windows.main.restore()
       windows.main.focus()
     }

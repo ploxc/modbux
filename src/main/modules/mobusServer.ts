@@ -97,8 +97,6 @@ export class ModbusServer {
     littleEndian,
     comment
   }: RegisterValueParameters) => {
-    console.log('adding register value', address, registerType, value, min, max, interval)
-
     // Remove existing generator if exists
     const currentGenerator = this._registerValues[registerType].get(address) as RegisterValue
     if (currentGenerator) currentGenerator.stopAndRemove()
@@ -131,7 +129,6 @@ export class ModbusServer {
     )
   }
   public removeRegisterValue = ({ registerType, address }: RemoveRegisterValueParams) => {
-    console.log('removing register value', address, registerType)
     this._registerValues[registerType].get(address)?.stopAndRemove()
     this._registerValues[registerType].delete(address)
   }
