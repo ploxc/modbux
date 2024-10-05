@@ -5,6 +5,7 @@ import {
   BooleanRegisters,
   NumberRegisters
 } from '@shared'
+import { MaskSetFn } from './root.zustand.types'
 
 type ServerBool = { [key: number]: boolean }
 export type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
@@ -34,4 +35,9 @@ export interface ServerZustand {
   setRegisterValue: (type: NumberRegisters, address: number, value: number) => void
   resetRegisters: (type: NumberRegisters) => void
   usedAddresses: UsedAddresses
+  port: string
+  portValid: boolean
+  setPort: MaskSetFn
+  unitId: string
+  setUnitId: MaskSetFn
 }

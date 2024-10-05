@@ -74,4 +74,7 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
     server.resetBools({ registerType })
   )
   ipcHandle(IpcChannel.SyncBools, (_, params: SyncBoolsParameters) => server.syncBools(params))
+  ipcHandle(IpcChannel.RestartServer, () => server.restartServer())
+  ipcHandle(IpcChannel.SetServerPort, (_, port: number) => server.setPort(port))
+  ipcHandle(IpcChannel.SetServerUnitId, (_, unitId: number | undefined) => server.setId(unitId))
 }

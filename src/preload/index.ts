@@ -55,7 +55,12 @@ const api: Api = {
   resetRegisters: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetRegisters, ...args),
   setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
   resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args),
-  syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args)
+  syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args),
+
+  // Server settings
+  restartServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.RestartServer, ...args),
+  setServerPort: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerPort, ...args),
+  setServerUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerUnitId, ...args)
 }
 
 //

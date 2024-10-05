@@ -28,6 +28,9 @@ export interface Api {
   setBool: (params: SetBooleanParameters) => void
   resetBools: (registerType: BooleanRegisters) => void
   syncBools: (params: SyncBoolsParameters) => void
+  restartServer: () => Promise<void>
+  setServerPort: (port: number) => Promise<void>
+  setServerUnitId: (unitId: number | undefined) => Promise<void>
 }
 
 //

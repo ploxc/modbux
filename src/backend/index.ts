@@ -22,7 +22,10 @@ export enum IpcChannel {
   ResetRegisters = 'ResetRegisters',
   SetBool = 'SetBool',
   ResetBools = 'ResetBools',
-  SyncBools = 'SyncBools'
+  SyncBools = 'SyncBools',
+  RestartServer = 'RestartServer',
+  SetServerPort = 'SetServerPort',
+  SetServerUnitId = 'SetServerUnitId'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

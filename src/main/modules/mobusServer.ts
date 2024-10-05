@@ -23,7 +23,7 @@ export class ModbusServer {
   private _server: ServerTCP
   private _vector: IServiceVector
   private _unitID: number | undefined
-  private _port: number | undefined
+  private _port = 502
   private _serverData: ServerData = {
     [RegisterType.Coils]: new Array(65535).fill(false),
     [RegisterType.DiscreteInputs]: new Array(65535).fill(false),
@@ -82,10 +82,14 @@ export class ModbusServer {
     this._unitID = unitID
     await this._createNewServer()
   }
-  public setPort = async (port: number | undefined) => {
+  public setPort = async (port: number) => {
     this._port = port
     await this._createNewServer()
   }
+  public restartServer = async () => {
+    await this._createNewServer()
+  }
+
   public addRegisterValue = ({
     address,
     registerType,

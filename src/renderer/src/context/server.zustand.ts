@@ -39,14 +39,22 @@ export const useServerZustand = create<
       init: async () => {
         const state = getState()
 
+        // Synchorize settings
+        const portNumber = Number(state.port)
+        const port = !isNaN(portNumber) ? portNumber : 502
+        await window.api.setServerPort(port)
+
+        const unitId = state.unitId === '' ? undefined : Number(state.unitId)
+        await window.api.setServerUnitId(unitId)
+
         // Synchronize the boolean states with the server from persisted state
         const coils: boolean[] = Array(65535).fill(false)
         const discreteInputs: boolean[] = Array(65535).fill(false)
 
-        Object.values(state.serverRegisters[RegisterType.Coils]).forEach(
+        Object.values(state.serverRegisters[RegisterType.Coils] || {}).forEach(
           (value, address) => (coils[address] = value)
         )
-        Object.values(state.serverRegisters[RegisterType.DiscreteInputs]).forEach(
+        Object.values(state.serverRegisters[RegisterType.DiscreteInputs] || {}).forEach(
           (value, address) => (discreteInputs[address] = value)
         )
 
@@ -68,6 +76,7 @@ export const useServerZustand = create<
         })
 
         set((state) => {
+          ;(state.port = String(port)), (state.unitId = unitId === undefined ? '' : String(unitId))
           state.usedAddresses[RegisterType.InputRegisters] = getUsedAddresses(
             inputRegisterRegisterValues
           )
@@ -117,11 +126,27 @@ export const useServerZustand = create<
           const currentState = getState()
           state.serverRegisters[registerType] = {}
 
+          const currentCoils = new Array(65535).fill(false)
+          const currentDiscreteInputs = new Array(65535).fill(false)
+
+          Object.entries(currentState.serverRegisters[RegisterType.Coils] || {}).forEach(
+            ([k, v]) => {
+              currentCoils[Number(k)] = v
+            }
+          )
+          Object.entries(currentState.serverRegisters[RegisterType.DiscreteInputs] || {}).forEach(
+            ([k, v]) => {
+              currentDiscreteInputs[Number(k)] = v
+            }
+          )
+
           const newBools: SyncBoolsParameters = {
-            [RegisterType.Coils]: currentState[RegisterType.Coils],
-            [RegisterType.DiscreteInputs]: currentState[RegisterType.DiscreteInputs],
-            [registerType]: []
+            [RegisterType.Coils]: currentCoils,
+            [RegisterType.DiscreteInputs]: currentDiscreteInputs,
+            [registerType]: new Array(65535).fill(false)
           }
+
+          console.log({ newBools })
 
           window.api.syncBools(newBools)
         }),
@@ -160,6 +185,27 @@ export const useServerZustand = create<
         set((state) => {
           state.serverRegisters[registerType] = {}
           window.api.resetRegisters(registerType)
+        }),
+      port: '502',
+      portValid: true,
+      setPort: (port, valid) =>
+        set((state) => {
+          const currentState = getState()
+          if (!currentState.ready) return
+
+          state.portValid = !!valid
+          state.port = port
+          if (!valid || currentState.port === port) return
+          window.api.setServerPort(Number(port))
+        }),
+      unitId: '',
+      setUnitId: (unitId) =>
+        set((state) => {
+          const currentState = getState()
+          if (!currentState.ready) return
+          state.unitId = unitId
+          if (currentState.unitId === unitId) return
+          window.api.setServerUnitId(unitId === '' ? undefined : Number(unitId))
         })
     })),
     { name: `server.zustand` }

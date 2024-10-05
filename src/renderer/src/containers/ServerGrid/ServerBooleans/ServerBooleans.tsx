@@ -56,7 +56,8 @@ const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
     let groups: number[][] = []
     for (let i = 0; i < booleans.length; i += 4) groups.push(booleans.slice(i, i + 4))
 
-    groups = groups.map((g) => g.reverse())
+    // Reverse is like you would see it in a binary forma, but I think it's confusing
+    // groups = groups.map((g) => g.reverse())
 
     if (deepEqual(groupsMemory.current, groups)) return groupsMemory.current
     groupsMemory.current = groups
