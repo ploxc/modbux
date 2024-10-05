@@ -416,10 +416,8 @@ const SaveButton = () => {
 
     element.style.display = 'none'
     document.body.appendChild(element)
-
     element.click()
-
-    document.body.appendChild(element)
+    document.body.removeChild(element)
   }, [])
 
   return (
@@ -443,7 +441,6 @@ const LoadButton = () => {
   const openingRef = useRef(false)
   const [opening, setOpening] = useState(false)
 
-  const replaceRegisterMapping = useRootZustand((z) => z.replaceRegisterMapping)
   const { enqueueSnackbar } = useSnackbar()
 
   const openConfig = useCallback(
@@ -453,10 +450,26 @@ const LoadButton = () => {
       openingRef.current = true
       setOpening(true)
 
+      const state = useRootZustand.getState()
+
       const content = await file.text()
       try {
         const registerMapping = JSON.parse(content) as RegisterMapping
-        replaceRegisterMapping(registerMapping)
+
+        const coils = registerMapping[RegisterType.Coils]
+        const discreteInputs = registerMapping[RegisterType.DiscreteInputs]
+        const inputRegisters = registerMapping[RegisterType.InputRegisters]
+        const holdingRegisters = registerMapping[RegisterType.HoldingRegisters]
+
+        if (!coils || typeof coils !== 'object') throw new Error('No coils in the JSON file')
+        if (!discreteInputs || typeof discreteInputs !== 'object')
+          throw new Error('No discrete inputs in the JSON file')
+        if (!inputRegisters || typeof inputRegisters !== 'object')
+          throw new Error('No input registers in the JSON file')
+        if (!holdingRegisters || typeof holdingRegisters !== 'object')
+          throw new Error('No holding registers in the JSON file')
+
+        state.replaceRegisterMapping(registerMapping)
       } catch (error) {
         const tError = error as Error
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
@@ -465,7 +478,7 @@ const LoadButton = () => {
       openingRef.current = false
       setOpening(false)
     },
-    [replaceRegisterMapping, enqueueSnackbar]
+    [enqueueSnackbar]
   )
 
   return (
@@ -485,7 +498,7 @@ const LoadButton = () => {
           disabled={opening}
           color="primary"
           component="span"
-          title="load a modbus json configuration file"
+          title="load a modbux client configuration file"
         >
           <FileOpen fontSize="small" />
         </IconButton>

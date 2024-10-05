@@ -206,6 +206,12 @@ export const useServerZustand = create<
           state.unitId = unitId
           if (currentState.unitId === unitId) return
           window.api.setServerUnitId(unitId === '' ? undefined : Number(unitId))
+        }),
+      replaceServerRegisters: (registers) =>
+        set((state) => {
+          const currentState = getState()
+          state.serverRegisters = registers
+          currentState.init()
         })
     })),
     { name: `server.zustand` }

@@ -8,9 +8,10 @@ import {
 import { MaskSetFn } from './root.zustand.types'
 
 type ServerBool = { [key: number]: boolean }
-export type ServerRegister = { [key: number]: { value: number; params: RegisterValueParameters } }
+export type ServerRegister = { [key: number]: ServerRegisterEntry }
+export type ServerRegisterEntry = { value: number; params: RegisterValueParameters }
 
-interface ServerRegisters {
+export interface ServerRegisters {
   [RegisterType.Coils]: ServerBool
   [RegisterType.DiscreteInputs]: ServerBool
   [RegisterType.InputRegisters]: ServerRegister
@@ -35,9 +36,12 @@ export interface ServerZustand {
   setRegisterValue: (type: NumberRegisters, address: number, value: number) => void
   resetRegisters: (type: NumberRegisters) => void
   usedAddresses: UsedAddresses
+  // Settings
   port: string
   portValid: boolean
   setPort: MaskSetFn
   unitId: string
   setUnitId: MaskSetFn
+  // Replace
+  replaceServerRegisters: (params: ServerRegisters) => void
 }
