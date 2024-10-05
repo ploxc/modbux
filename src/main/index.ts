@@ -123,7 +123,7 @@ ipcMain.on(IpcEvent.OpenServerWindow, (_) => {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     windows.server.loadURL(`${process.env['ELECTRON_RENDERER_URL']}`)
   } else {
-    windows.server.loadFile(join(__dirname, '../renderer/server.html'))
+    windows.server.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
   windows.server.on('close', () => {

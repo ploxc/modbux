@@ -1,7 +1,7 @@
 {
   "name": "modbux",
-  "version": "1.1.2",
-  "description": "A Modbus Client test tool",
+  "version": "1.2.0",
+  "description": "A Modbus Client/Server tool",
   "main": "./out/main/index.js",
   "author": {
     "name": "Jens De Ketelaere",
