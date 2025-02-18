@@ -30,7 +30,9 @@ interface AddRegisterZustand {
   registerType: NumberRegisters | undefined
   setRegisterType: (
     registerType: NumberRegisters | undefined,
-    serverRegister?: ServerRegister[number]
+  ) => void
+  setEditRegister: (
+    register: ServerRegister[number] | undefined
   ) => void
   valid: {
     address: boolean
@@ -65,10 +67,14 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
   mutative((set, getState) => ({
     serverRegisterEdit: undefined,
     registerType: undefined,
-    setRegisterType: (registerType, serverRegister) =>
+    setRegisterType: (registerType) =>
       set((state) => {
         state.registerType = registerType
-        state.serverRegisterEdit = registerType ? serverRegister : undefined
+      }),
+
+    setEditRegister: (register) => 
+      set((state) => {
+        state.serverRegisterEdit = register
       }),
     valid: {
       address: true,

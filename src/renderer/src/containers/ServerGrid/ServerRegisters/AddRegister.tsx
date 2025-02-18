@@ -64,6 +64,8 @@ const AddressField = () => {
     useAddRegisterZustand.getState().initFirstUnusedAddress()
   }, [])
 
+
+
   return (
     <FormControl error={!valid}>
       <TextField
@@ -97,6 +99,8 @@ const DataTypeSelect = meme(() => {
   const setDataType = useAddRegisterZustand((z) => z.setDataType)
 
   useEffect(() => {
+    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
+    if (edit) return
     // Default the datatype to int16
     setDataType(DataType.Int16)
   }, [])
@@ -112,6 +116,13 @@ const DataTypeSelect = meme(() => {
 const FixedOrGenerator = meme(() => {
   const fixed = useAddRegisterZustand((z) => z.fixed)
   const setFixed = useAddRegisterZustand((z) => z.setFixed)
+
+  useEffect(() => {
+    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
+    if (edit) return
+    // Default fixed
+    setFixed(true)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -169,6 +180,13 @@ const ValueInputComponent = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const valid = useAddRegisterZustand((z) => z.valid.value)
   const setValue = useAddRegisterZustand((z) => z.setValue)
+
+  useEffect(() => {
+    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
+    if (edit) return
+    // Default the value to 0
+    setValue('0', true)
+  }, [])
 
   return (
     <TextField
@@ -433,7 +451,8 @@ const AddButton = () => {
       interval,
       comment,
       littleEndian,
-      setRegisterType
+      setRegisterType,
+      setEditRegister
     } = useAddRegisterZustand.getState()
     if (!registerType) return
 
@@ -462,6 +481,7 @@ const AddButton = () => {
     }
 
     setRegisterType(undefined)
+    setEditRegister(undefined)
   }, [])
 
   return (
@@ -480,13 +500,14 @@ const AddButton = () => {
 const DeleteButton = () => {
   const [over, setOver] = useState(false)
   const handleClick = useCallback(() => {
-    const { address, registerType, setRegisterType } = useAddRegisterZustand.getState()
+    const { address, registerType, setRegisterType, setEditRegister } = useAddRegisterZustand.getState()
     if (!registerType) return
 
     const serverState = useServerZustand.getState()
     serverState.removeRegister({ address: Number(address), registerType })
 
     setRegisterType(undefined)
+    setEditRegister(undefined)
   }, [])
 
   return (
@@ -513,6 +534,7 @@ const AddRegister = () => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const registerType = useAddRegisterZustand((z) => z.registerType)
   const setRegisterType = useAddRegisterZustand((z) => z.setRegisterType)
+  const setEditRegister = useAddRegisterZustand((z) => z.setEditRegister)
 
   // Edit mode
   useEffect(() => {
@@ -532,12 +554,18 @@ const AddRegister = () => {
     state.setMin(String(min))
     state.setValue(String(value))
     state.setDataType(dataType)
-  }, [])
+
+    const newState = useAddRegisterZustand.getState()
+    console.log({state, newState})
+  }, [edit])
 
   return (
     <Modal
-      open={!!registerType}
-      onClose={() => setRegisterType(undefined)}
+      open={!!registerType || !!edit}
+      onClose={() => {
+        setRegisterType(undefined)
+        setEditRegister(undefined)
+      }}
       sx={{
         display: 'flex',
         justifyContent: 'center',
