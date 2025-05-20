@@ -97,14 +97,18 @@ const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
           width: '100%',
           height: '100%',
           backgroundColor: '#2A2A2A',
-          fontSize: '0.95em'
+          fontSize: '0.95em',
+          position: 'relative'
         }}
       >
         <ServerPartTitle name={name} type={type} />
         <Box
           sx={{
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            top: 38,
+            left: 0,
+            right: 0,
+            bottom: 0,
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
