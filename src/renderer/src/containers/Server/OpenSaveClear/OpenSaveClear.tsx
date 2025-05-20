@@ -108,7 +108,11 @@ const useOpen = () => {
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
       }
 
-      window.api.restartServer()
+      await window.api.restartServer()
+
+      // Need to initialize the server again after opening the configuration
+      // to synchronize the front with backend registers
+      await state.init()
 
       openingRef.current = false
       setOpening(false)
