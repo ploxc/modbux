@@ -183,7 +183,7 @@ export interface RegisterConfig {
 // Register Data
 export interface RegisterData {
   id: number
-  buffer: ArrayBuffer
+  buffer: Buffer
   hex: string
   words: RegisterDataWords | undefined
   bit: boolean
