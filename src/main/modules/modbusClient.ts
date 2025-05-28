@@ -426,7 +426,9 @@ export class ModbusClient {
           // 64 bits
           int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
           uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
-          double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0
+          double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
+          utf8: buf64 ? Buffer.from(buf64.filter((b) => b !== 0)).toString('utf-8') : '',
+          datetime: buf64 ? this._parseIEC870DateTime(buf64) : ''
         },
         bit: false,
         isScanned: this._clientState.scanningRegisters
@@ -459,6 +461,47 @@ export class ModbusClient {
     }
 
     return registerData
+  }
+
+  private _parseIEC870DateTime = (buf: Buffer): string => {
+    if (buf.length !== 8) return ''
+
+    const word1 = buf.readUInt16BE(0)
+    const word2 = buf.readUInt16BE(2)
+    const word3 = buf.readUInt16BE(4)
+    const word4 = buf.readUInt16BE(6)
+
+    if (word1 === 0xffff && word2 === 0xffff && word3 === 0xffff && word4 === 0xffff) {
+      return ''
+    }
+
+    const year = (word1 & 0b1111111) + 2000
+    const day = word2 & 0b11111
+    const month = (word2 >> 8) & 0b1111
+    const minute = word3 & 0b111111
+    const hour = (word3 >> 8) & 0b11111
+    const totalMs = word4
+    const second = Math.floor(totalMs / 1000)
+    const millisecond = totalMs % 1000
+    const isInvalid = (word3 & 0b10000000) !== 0
+
+    if (
+      year < 2000 ||
+      year > 2127 ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31 ||
+      hour > 23 ||
+      minute > 59 ||
+      second > 59 ||
+      millisecond > 999 ||
+      isInvalid
+    ) {
+      return ''
+    }
+
+    return DateTime.utc(year, month, day, hour, minute, second, millisecond).toISO() || ''
   }
 
   //

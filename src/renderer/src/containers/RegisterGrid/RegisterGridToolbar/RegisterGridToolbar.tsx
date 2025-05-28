@@ -165,6 +165,9 @@ const MenuRegisterOptions = () => {
   const show64bit = useRootZustand((z) => z.registerConfig.show64BitValues)
   const setShow64Bit = useRootZustand((z) => z.setShow64BitValues)
 
+  const showStringValues = useRootZustand((z) => z.registerConfig.showStringValues)
+  const setShowStringValues = useRootZustand((z) => z.setShowStringValues)
+
   return (
     <>
       <FormControlLabel
@@ -187,6 +190,17 @@ const MenuRegisterOptions = () => {
           />
         }
         label="Show 64 bit values"
+      />
+      <FormControlLabel
+        disabled={!advanced}
+        control={
+          <Checkbox
+            size="small"
+            checked={showStringValues}
+            onChange={(e) => setShowStringValues(e.target.checked)}
+          />
+        }
+        label="Show String values"
       />
     </>
   )

@@ -217,6 +217,12 @@ export const useRootZustand = create<
           state.registerConfig.advancedMode = advancedMode
           window.api.updateRegisterConfig({ advancedMode })
         }),
+      setShowStringValues: (showStringValues) =>
+        set((state) => {
+          if (!getState().ready) return
+          state.registerConfig.showStringValues = showStringValues
+          window.api.updateRegisterConfig({ showStringValues })
+        }),
       // Addressing
       setUnitId: (unitId) =>
         set((state) => {

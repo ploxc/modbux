@@ -19,6 +19,53 @@ import { round } from 'lodash'
 import { useMemo, useRef, useState } from 'react'
 import WriteModal from './WriteModal/WriteModal'
 
+const WordLedDisplay = ({ value }) => {
+  // Zorg dat we exact 16 bits hebben
+  const bits = value
+    .toString(2)
+    .padStart(16, '0')
+    .split('')
+    .map((b) => b === '1')
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        pb: 0.05
+      }}
+    >
+      {[0, 1].map((row) => (
+        <Box
+          key={row}
+          sx={{
+            display: 'flex',
+            gap: '2px',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          {bits.slice(row * 8, row * 8 + 8).map((on, i) => (
+            <Box
+              key={i}
+              sx={(theme) => ({
+                width: 7,
+                aspectRatio: 1,
+                borderRadius: '50%',
+                backgroundColor: on ? theme.palette.primary.main : theme.palette.background.default // groen of grijs
+              })}
+            />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
 const registerValueToString = (
   value: number | bigint
 ): { numberString: string; irrelevant: boolean } => {
@@ -75,7 +122,7 @@ const hexColumn: GridColDef<RegisterData, string> = {
   field: 'hex',
   sortable: false,
   headerName: 'HEX',
-  width: 60,
+  width: 50,
   renderCell: ({ value }) => (
     <Box
       sx={(theme) => ({
@@ -88,6 +135,13 @@ const hexColumn: GridColDef<RegisterData, string> = {
   )
 }
 
+const binColumn: GridColDef<RegisterData, string> = {
+  field: 'bin',
+  headerName: 'BIN',
+  width: 80,
+  renderCell: ({ row }) => <WordLedDisplay value={row.words?.[DataType.UInt16]} />
+}
+
 //
 //
 // When selecting a datatype the value of that datatype is shown in this column
@@ -95,7 +149,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
   field: 'value',
   sortable: false,
   hideable: false,
-  type: 'number',
+  type: 'string',
   headerName: 'Value',
   width: 150,
   valueGetter: (_, row) => {
@@ -106,8 +160,11 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
 
     // Get the value for the register datatype, they are all there, the defined datatype
     // extracts that value and shows it in the value column
-    const value = dataType ? String(row.words?.[dataType]) : undefined
+    const value = dataType && dataType !== DataType.None ? String(row.words?.[dataType]) : undefined
     if (!value) return undefined
+
+    // Return a string when it's a string :D
+    if (dataType === DataType.Utf8 || dataType === DataType.DateTime) return value
 
     // Get the scaling factor from the register map
     // And the decimal places for rounding the scaled value because js can add some unwanted
@@ -121,9 +178,12 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
     const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
 
     // Round the scaled value to the given decimal places
+    const isNotANumberValue = isNaN(Number(value))
+    if (isNotANumberValue) return undefined
+
     return round(Number(value) * scalingFactor, decimalPlaces + decimalPlacesFloat)
   },
-  valueFormatter: (v) => (v !== undefined ? Number(v) : '')
+  valueFormatter: (v) => (v !== undefined ? v : '')
 })
 
 //
@@ -188,9 +248,10 @@ const commentColumn = (registerMap: RegisterMapObject): GridColDef => ({
 // Generic comonent to show the columns for each converted value (advance mode)
 const valueColumn = (
   key: DataType,
-  width: number
+  width: number,
+  type?: GridColDef['type']
 ): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
-  type: 'number',
+  type: type || 'number',
   field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,
@@ -300,6 +361,7 @@ const useRegisterGridColumns = () => {
   const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
   const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
   const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
+  const showString = useRootZustand((z) => z.registerConfig.showStringValues)
 
   return useMemo(() => {
     const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(
@@ -320,7 +382,8 @@ const useRegisterGridColumns = () => {
         dataTypeColumn(registerMap),
         convertedValueColumn(registerMap),
         scalingFactorColumn(registerMap),
-        hexColumn
+        hexColumn,
+        binColumn
       )
     }
 
@@ -344,6 +407,13 @@ const useRegisterGridColumns = () => {
       )
     }
 
+    if (advanced && showString && registers16Bit) {
+      columns.push(
+        valueColumn(DataType.Utf8, 120, 'string'),
+        valueColumn(DataType.DateTime, 210, 'string')
+      )
+    }
+
     columns.push(commentColumn(registerMap))
 
     if ([RegisterType.Coils, RegisterType.HoldingRegisters].includes(type)) {
@@ -351,7 +421,7 @@ const useRegisterGridColumns = () => {
     }
 
     return columns
-  }, [type, addressBase, advanced, show64Bit, registerMap])
+  }, [type, addressBase, advanced, show64Bit, showString, registerMap])
 }
 
 export default useRegisterGridColumns

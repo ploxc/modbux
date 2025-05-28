@@ -175,6 +175,7 @@ export interface RegisterConfig {
   littleEndian: boolean
   advancedMode: boolean
   show64BitValues: boolean
+  showStringValues: boolean
   addressBase: '0' | '1'
 }
 
@@ -199,7 +200,9 @@ export enum DataType {
   Int64 = 'int64',
   UInt64 = 'uint64',
   Float = 'float',
-  Double = 'double'
+  Double = 'double',
+  Utf8 = 'utf8',
+  DateTime = 'datetime'
 }
 
 export interface RegisterDataWords {
@@ -211,6 +214,8 @@ export interface RegisterDataWords {
   [DataType.Int64]: bigint
   [DataType.UInt64]: bigint
   [DataType.Double]: number
+  [DataType.Utf8]: string
+  [DataType.DateTime]: string
 }
 
 //
