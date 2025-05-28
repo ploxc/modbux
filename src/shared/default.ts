@@ -21,5 +21,6 @@ export const defaultRegisterConfig: RegisterConfig = {
   littleEndian: false,
   advancedMode: false,
   show64BitValues: false,
-  addressBase: '0'
+  addressBase: '0',
+  showStringValues: false
 }
