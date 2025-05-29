@@ -11,6 +11,7 @@ export interface Api {
   getRegisterConfig: () => Promise<RegisterConfig>
   updateRegisterConfig: (config: DeepPartial<RegisterConfig>) => void
   getClientState: () => Promise<ClientState>
+  setRegisterMapping: (mapping: RegisterMapping) => void
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   read: () => Promise<RegisterData[] | undefined>
@@ -31,6 +32,7 @@ export interface Api {
   restartServer: () => Promise<void>
   setServerPort: (port: number) => Promise<void>
   setServerUnitId: (unitId: number | undefined) => Promise<void>
+  getAppVersion: () => Promise<string>
 }
 
 //
@@ -46,7 +48,8 @@ export enum IpcEvent {
   RegisterValue = 'registerValue',
   BooleanValue = 'booleanValue',
   WindowUpdate = 'windowUpdate',
-  OpenServerWindow = 'openServerWindow'
+  OpenServerWindow = 'openServerWindow',
+  AddressGroups = 'addressGroups'
 }
 
 // Scan Registers
@@ -177,6 +180,7 @@ export interface RegisterConfig {
   show64BitValues: boolean
   showStringValues: boolean
   addressBase: '0' | '1'
+  readConfiguration?: boolean
 }
 
 //
@@ -258,9 +262,7 @@ export interface RegisterMapping {
   [RegisterType.InputRegisters]: RegisterMapObject
 }
 
-export interface RegisterMapObject {
-  [key: number]: RegisterMapValue | undefined
-}
+export type RegisterMapObject = Record<number, RegisterMapValue | undefined>
 
 export interface RegisterMapValue {
   dataType?: DataType

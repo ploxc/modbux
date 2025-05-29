@@ -1,3 +1,4 @@
+import { List } from '@mui/icons-material'
 import {
   MenuItem,
   FormControl,
@@ -13,12 +14,13 @@ import {
   ToggleButton
 } from '@mui/material'
 import LengthInput from '@renderer/components/LengthInput'
+import { meme } from '@renderer/components/meme'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { getConventionalAddress, RegisterType } from '@shared'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 // Protocol
 const TypeSelect = () => {
@@ -61,6 +63,7 @@ const Address = () => {
   const setAddress = useRootZustand((z) => z.setAddress)
   const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
   const setAddressBase = useRootZustand((z) => z.setAddressBase)
+  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
 
   const showConventionalAddress = useMemo(() => {
     return Number(address) + length < 10000
@@ -68,6 +71,7 @@ const Address = () => {
 
   return (
     <TextField
+      disabled={readConfiguration}
       label="Address"
       variant="outlined"
       size="small"
@@ -162,9 +166,11 @@ const Length = () => {
   const length = useRootZustand((z) => String(z.registerConfig.length))
   const lengthValid = useRootZustand((z) => z.valid.lenght)
   const setLength = useRootZustand((z) => z.setLength)
+  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
 
   return (
     <TextField
+      disabled={readConfiguration}
       label="Length"
       variant="outlined"
       size="small"
@@ -181,15 +187,59 @@ const Length = () => {
   )
 }
 
-const RegisterConfig = () => {
+const ReadConfiguration = () => {
+  const readConfiguration = useRootZustand((z) => !!z.registerConfig.readConfiguration)
+  const handleChange = useCallback((_: React.MouseEvent, v: boolean | null) => {
+    const toggleState = !!v
+
+    // When read configuration is enabled, send the configuration to the backend API
+    if (toggleState) window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+    useRootZustand.getState().setReadConfiguration(toggleState)
+  }, [])
+
+  const disabled = useRootZustand(
+    (z) => Object.keys(z.registerMapping[z.registerConfig.type]).length === 0
+  )
+
+  useEffect(() => {
+    if (!disabled) return
+    const state = useRootZustand.getState()
+    if (disabled && state.registerConfig.readConfiguration) state.setReadConfiguration(false)
+  }, [disabled])
+
+  return (
+    <ToggleButtonGroup
+      disabled={disabled}
+      color="primary"
+      size="small"
+      exclusive
+      value={readConfiguration}
+      onChange={handleChange}
+      title="Read all registers that have been configured with a data type"
+    >
+      <ToggleButton value={true}>
+        <List />
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+}
+
+const RegisterConfig = meme(() => {
+  // Reset reading configuration on load
+  useEffect(() => {
+    useRootZustand.getState().setReadConfiguration(false)
+  }, [])
+
   return (
     <>
       <TypeSelect />
       <Box sx={{ display: 'flex', gap: 2, marginRight: 'auto' }}>
         <Address />
         <Length />
+        <ReadConfiguration />
       </Box>
     </>
   )
-}
+})
+
 export default RegisterConfig

@@ -16,6 +16,12 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
     appendRegisterData: (data) =>
       set((state) => {
         state.registerData.push(...data)
+      }),
+    // Address groups
+    addressGroups: [],
+    setAddressGroups: (groups) =>
+      set((state) => {
+        state.addressGroups = groups
       })
   }))
 )
@@ -28,4 +34,9 @@ window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: Register
     ? state.appendRegisterData(registerData)
     : state.setRegisterData(registerData)
   rootState.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
+})
+
+window.electron.ipcRenderer.on(IpcEvent.AddressGroups, (_, addressGroups: [number, number][]) => {
+  const state = useDataZustand.getState()
+  state.setAddressGroups(addressGroups)
 })

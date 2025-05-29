@@ -12,13 +12,19 @@ import {
   RegisterValueParameters,
   WriteParameters,
   BooleanRegisters,
-  NumberRegisters
+  NumberRegisters,
+  RegisterMapping
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
 import { ipcHandle, IpcChannel } from '@backend'
 
-export const initIpc = (state: AppState, client: ModbusClient, server: ModbusServer) => {
+export const initIpc = (
+  app: Electron.App,
+  state: AppState,
+  client: ModbusClient,
+  server: ModbusServer
+) => {
   // Config and state
   ipcHandle(IpcChannel.GetConnectionConfig, () => state.connectionConfig)
   ipcHandle(IpcChannel.UpdateConnectionConfig, (_, config: DeepPartial<ConnectionConfig>) =>
@@ -29,6 +35,9 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
     state.updateRegisterConfig(config)
   )
   ipcHandle(IpcChannel.GetClientState, () => client.state)
+  ipcHandle(IpcChannel.SetRegisterMapping, (_, mapping: RegisterMapping) =>
+    state.setRegisterMapping(mapping)
+  )
 
   // Connection Actions
   ipcHandle(IpcChannel.Connect, () => client.connect())
@@ -77,4 +86,6 @@ export const initIpc = (state: AppState, client: ModbusClient, server: ModbusSer
   ipcHandle(IpcChannel.RestartServer, () => server.restartServer())
   ipcHandle(IpcChannel.SetServerPort, (_, port: number) => server.setPort(port))
   ipcHandle(IpcChannel.SetServerUnitId, (_, unitId: number | undefined) => server.setId(unitId))
+
+  ipcHandle(IpcChannel.GetAppVersion, () => app.getVersion())
 }

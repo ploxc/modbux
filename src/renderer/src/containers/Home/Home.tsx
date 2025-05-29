@@ -170,6 +170,21 @@ const ClearStorageButton = () => {
   ) : null
 }
 
+const Version = () => {
+  const version = useRootZustand((z) => z.version)
+
+  return (
+    <Typography
+      color="primary"
+      fontSize={11}
+      fontWeight={'bold'}
+      sx={{ position: 'fixed', right: 16, bottom: 12, opacity: 0.8 }}
+    >
+      {version}
+    </Typography>
+  )
+}
+
 //
 //
 //
@@ -222,6 +237,7 @@ const Home = meme(() => {
           <ClientButton />
         </Box>
         <ClearStorageButton />
+        <Version />
       </Box>
     </Fade>
   )

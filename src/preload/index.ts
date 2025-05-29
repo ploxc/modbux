@@ -25,6 +25,9 @@ const api: Api = {
   getClientState: (...args) =>
     ipcInvoke<typeof args, ClientState>(IpcChannel.GetClientState, ...args),
 
+  setRegisterMapping: (...args) =>
+    ipcInvoke<typeof args, void>(IpcChannel.SetRegisterMapping, ...args),
+
   // Connections
   connect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Connect, ...args),
   disconnect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Disconnect, ...args),
@@ -60,7 +63,10 @@ const api: Api = {
   // Server settings
   restartServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.RestartServer, ...args),
   setServerPort: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerPort, ...args),
-  setServerUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerUnitId, ...args)
+  setServerUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerUnitId, ...args),
+
+  // App info
+  getAppVersion: (...args) => ipcInvoke<typeof args, string>(IpcChannel.GetAppVersion, ...args)
 }
 
 //

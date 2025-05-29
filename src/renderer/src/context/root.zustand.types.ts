@@ -73,6 +73,12 @@ export interface RootZusand {
   // Scan progress
   scanProgress: number
   setScanProgress: (scanProgress: number) => void
+
+  // Read configuration
+  setReadConfiguration: (readConfiguration: boolean) => void
+  // Version
+  version: string
+  setVersion: (version: string) => void
 }
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void

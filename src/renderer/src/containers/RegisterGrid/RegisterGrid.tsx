@@ -1,12 +1,20 @@
 import { Paper, Typography } from '@mui/material'
-import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid'
+import {
+  DataGrid,
+  GridFilterModel,
+  GridFooterContainer,
+  GridLogicOperator,
+  GridPagination,
+  useGridApiRef
+} from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import useRegisterGridColumns from './_columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-
+import { useEffect } from 'react'
+import { DataType } from '@shared'
 //
 //
 //
@@ -36,8 +44,23 @@ const RegisterGridContent = () => {
   const registerData = useDataZustand((z) => z.registerData)
   const columns = useRegisterGridColumns()
 
+  const apiRef = useGridApiRef()
+
+  // When we read all configured registers, we hide the rows with undefined data type
+  // So no empty rows are shown so all rows have a value to display.
+  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  useEffect(() => {
+    const filterModel: GridFilterModel = {
+      items: [{ id: 1, field: 'dataType', operator: 'not', value: DataType.None }],
+      logicOperator: GridLogicOperator.And
+    }
+    if (readConfiguration) apiRef.current.setFilterModel(filterModel)
+    else apiRef.current.setFilterModel({ items: [] })
+  }, [readConfiguration])
+
   return (
     <DataGrid
+      apiRef={apiRef}
       rows={registerData}
       columns={columns}
       autoHeight={false}

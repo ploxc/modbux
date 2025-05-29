@@ -38,7 +38,7 @@ const client = new ModbusClient({ appState, windows })
 const server = new ModbusServer({ windows })
 
 // IPC
-initIpc(appState, client, server)
+initIpc(app, appState, client, server)
 
 // Single instance
 const gotTheLock = app.requestSingleInstanceLock()

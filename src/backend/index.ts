@@ -6,6 +6,7 @@ export enum IpcChannel {
   GetRegisterConfig = 'GetRegisterConfig',
   UpdateRegisterConfig = 'UpdateRegisterConfig',
   GetClientState = 'getClientState',
+  SetRegisterMapping = 'SetRegisterMapping',
   Connect = 'Connect',
   Disconnect = 'Disconnect',
   Read = 'Read',
@@ -25,7 +26,8 @@ export enum IpcChannel {
   SyncBools = 'SyncBools',
   RestartServer = 'RestartServer',
   SetServerPort = 'SetServerPort',
-  SetServerUnitId = 'SetServerUnitId'
+  SetServerUnitId = 'SetServerUnitId',
+  GetAppVersion = 'GetAppVersion'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

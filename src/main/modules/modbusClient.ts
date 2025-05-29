@@ -14,6 +14,7 @@ import {
   Protocol,
   RawTransaction,
   RegisterData,
+  RegisterMapValue,
   RegisterType,
   ScanRegistersParameters,
   ScanUnitIDParameters,
@@ -92,6 +93,10 @@ export class ModbusClient {
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult) => {
     this._windows.send(IpcEvent.ScanUnitIDResult, result)
+  }
+
+  private _sendGroups = (groups: [number, number][]) => {
+    this._windows.send(IpcEvent.AddressGroups, groups)
   }
 
   private _sendScanProgress = async () => {
@@ -229,20 +234,167 @@ export class ModbusClient {
     this._client.setTimeout(this._appState.registerConfig.timeout)
 
     let errorMessage: string | undefined
-    let data: RegisterData[] = []
+    const data: RegisterData[] = []
 
     const { type, address, length } = this._appState.registerConfig
 
-    try {
-      data = await this._tryRead(type, address, length)
-    } catch (error) {
-      const readError = error as Error
-      errorMessage = readError.message
-      this._emitMessage({ message: errorMessage, variant: 'error', error })
+    const groups = this._appState.registerConfig.readConfiguration
+      ? this.groupAddressInfos()
+      : ([[address, length]] as [number, number][])
+
+    for (const [a, l] of groups) {
+      try {
+        data.push(...(await this._tryRead(type, a, l)))
+      } catch (error) {
+        const readError = error as Error
+        errorMessage = readError.message
+        this._emitMessage({ message: errorMessage, variant: 'error', error })
+      }
+      this._logTransaction(errorMessage)
+      if (this._clientState.connectState !== ConnectState.Connected) break
     }
 
-    if (data.length > 0) this._sendData(data)
-    this._logTransaction(errorMessage)
+    if (data.length > 0) {
+      // Send the groups so we can slice the utf8 string correctly.
+      this._sendGroups(groups)
+      this._sendData(data)
+    }
+  }
+
+  //
+  //
+  // Create adress ranges from register config
+  /**
+   * Determine how many Modbus registers to read for a given DataType.
+   * For Utf8, if `nextAddress` is provided we read up to that gap;
+   * otherwise we fall back to a safe default of 32 registers.
+   */
+  private getRegisterLength = (
+    dataType: DataType,
+    currentAddress: number,
+    nextAddress?: number
+  ): number => {
+    const DEFAULT_UTF8_REGISTERS = 24
+
+    switch (dataType) {
+      case DataType.Int16:
+      case DataType.UInt16:
+      case DataType.Float:
+      case DataType.Double:
+        return 1
+
+      case DataType.Int32:
+      case DataType.UInt32:
+      case DataType.Unix:
+        return 2
+
+      case DataType.Int64:
+      case DataType.UInt64:
+      case DataType.DateTime:
+        return 4
+
+      case DataType.Utf8:
+        if (typeof nextAddress === 'number' && nextAddress > currentAddress) {
+          // only use the real gap if it's no larger than DEFAULT_UTF8_REGISTERS
+          const gap = nextAddress - currentAddress
+          return Math.min(gap, DEFAULT_UTF8_REGISTERS)
+        }
+        // fallback for when we don't know the next address or it's not helpful
+        return DEFAULT_UTF8_REGISTERS
+
+      default:
+        return 0
+    }
+  }
+
+  /**
+   * Build AddrInfo entries including correct registerCount.
+   */
+  private buildAddrInfos = (items: [string, RegisterMapValue][]) => {
+    return items
+      .map((item, idx, arr) => {
+        const dataType = item[1].dataType
+        if (!dataType || dataType === DataType.None) return undefined
+
+        const address = Number(item[0])
+
+        const next = arr[idx + 1]
+        const nextAddress = next?.[0] ? Number(next[0]) : undefined
+        const registerCount = this.getRegisterLength(dataType, address, nextAddress)
+
+        return {
+          address,
+          registerCount
+        }
+      })
+      .filter((i) => i !== undefined)
+  }
+
+  /**
+   * Group a list of AddrInfo items into minimal continuous Modbus read blocks.
+   * If the last item in a block is type 'utf8', we over-read by `margin`.
+   *
+   * @param infos     - sorted array of { address, registerCount, type }
+   * @param maxLength - maximum registers per read (default 125)
+   * @param margin    - extra registers to include when last type is utf8 (default 0)
+   * @returns         - array of [startAddress, count]
+   */
+  private groupAddressInfos = (maxLength: number = 100): Array<[number, number]> => {
+    const registers = this._appState.registerMapping?.[this._appState.registerConfig.type]
+    if (!registers) return []
+
+    const isRegisterEntry = (
+      tup: [string, RegisterMapValue | undefined]
+    ): tup is [string, RegisterMapValue] => {
+      return tup[1] !== undefined
+    }
+
+    const registerEntries = Object.entries(registers).filter(isRegisterEntry)
+    const infos = this.buildAddrInfos(registerEntries)
+
+    // 1) Make a shallow copy and sort by address ascending
+    const sorted = infos.slice().sort((a, b) => a.address - b.address)
+
+    const groups: Array<[number, number]> = []
+    let i = 0 // index of the first ungrouped item
+
+    // 2) Continue until we have grouped all items
+    while (i < sorted.length) {
+      // a) This block starts at the current item's address
+      const startAddr = sorted[i].address
+      // b) Initial endAddr is the last register used by this item
+      let endAddr = startAddr + sorted[i].registerCount - 1
+      // c) j will scan forward to see how many items we can pack
+      let j = i
+
+      // 3) Try to include as many following entries as still fit under maxLength
+      while (j + 1 < sorted.length) {
+        const next = sorted[j + 1] // look at the next item
+        const nextEnd = next.address + next.registerCount - 1 // its last occupied register
+        const candidateEnd = Math.max(endAddr, nextEnd) // span covering both items
+        const span = candidateEnd - startAddr + 1 // total registers from start
+
+        if (span <= maxLength) {
+          // if it still fits, extend our block
+          endAddr = candidateEnd
+          j++
+        } else {
+          // otherwise stop growing this block
+          break
+        }
+      }
+
+      // 4) Compute final count = total registers from startAddr to endAddr (inclusive)
+      const count = endAddr - startAddr + 1
+
+      // 5) Record this block
+      groups.push([startAddr, count])
+
+      // 6) Advance i past all items we just grouped
+      i = j + 1
+    }
+
+    return groups
   }
 
   //

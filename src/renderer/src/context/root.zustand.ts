@@ -274,6 +274,12 @@ export const useRootZustand = create<
           state.registerConfig.littleEndian = littleEndian
           window.api.updateRegisterConfig({ littleEndian })
         }),
+      setReadConfiguration: (readConfiguration) =>
+        set((state) => {
+          if (!getState().ready) return
+          state.registerConfig.readConfiguration = readConfiguration
+          window.api.updateRegisterConfig({ readConfiguration })
+        }),
       // Reading
       setPollRate: (pollRate) =>
         set((state) => {
@@ -322,6 +328,11 @@ export const useRootZustand = create<
       setScanProgress: (scanProgress) =>
         set((state) => {
           state.scanProgress = scanProgress
+        }),
+      version: '-',
+      setVersion: (version) =>
+        set((state) => {
+          state.version = version
         })
     })),
     { name: `root.zustand` }
@@ -371,3 +382,7 @@ window.electron.ipcRenderer.on(IpcEvent.ScanProgress, (_, scanProgress: number) 
 // Stop scanning when reloaded, shouldn't be a problem with the build app,
 // but just in case and for development, stop scanning when the frontend is reloaded
 window.api.stopScanningUnitIds()
+
+window.api.getAppVersion().then((version) => {
+  state.setVersion(version)
+})

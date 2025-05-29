@@ -19,6 +19,7 @@ import {
 import { round } from 'lodash'
 import { useMemo, useRef, useState } from 'react'
 import WriteModal from './WriteModal/WriteModal'
+import { useDataZustand } from '@renderer/context/data.zustand'
 
 const WordLedDisplay = ({ value }) => {
   // Zorg dat we exact 16 bits hebben
@@ -173,11 +174,19 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
     // For strings we must calculate the length until the next defined datatype
     let count = 1
     if (dataType === DataType.Utf8) {
-      const config = useRootZustand.getState().registerConfig
-      const { length, address: startAddress } = config
+      const groups = useDataZustand.getState().addressGroups
+
+      // Find the current group that contains the address
+      const currentGroup = groups.find(([addr, len]) => address >= addr && address < addr + len)
+      if (!currentGroup) return undefined
+
+      const startAddress = currentGroup[0]
+      const length = currentGroup[1]
 
       let register = registerMap[address + count]
 
+      // Continue until we find the next register with a defined datatype
+      // Or stop when we reach the end of the group
       while (
         address <= startAddress + length &&
         (!register || register.dataType === DataType.None || !register.dataType)
@@ -185,6 +194,10 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
         count++
         register = registerMap[address + count]
       }
+
+      // Slice the string to the right length and return it
+      // In the backend the string is converted from the whole buffer so
+      // we can use a variable length by doing this logic
       const startIndex = address - startAddress
       return value.slice(startIndex * 2, (startIndex + count) * 2)
     }

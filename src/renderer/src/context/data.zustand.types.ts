@@ -5,4 +5,6 @@ export interface DataZustand {
   registerData: RegisterData[]
   setRegisterData: (data: RegisterData[]) => void
   appendRegisterData: (data: RegisterData[]) => void
+  addressGroups: [number, number][]
+  setAddressGroups: (groups: [number, number][]) => void
 }

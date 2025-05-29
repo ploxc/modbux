@@ -3,7 +3,8 @@ import {
   RegisterConfig,
   DeepPartial,
   defaultConnectionConfig,
-  defaultRegisterConfig
+  defaultRegisterConfig,
+  RegisterMapping
 } from '@shared'
 import { app } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
@@ -13,11 +14,13 @@ import merge from 'deepmerge'
 export interface State {
   connectionConfig: ConnectionConfig
   registerConfig: RegisterConfig
+  registerMapping?: RegisterMapping
 }
 
 export class AppState {
   private _connectionConfig = defaultConnectionConfig
   private _registerConfig = defaultRegisterConfig
+  private _registerMapping?: RegisterMapping
 
   constructor() {
     this._readStateJson()
@@ -87,11 +90,19 @@ export class AppState {
     this._writeStateJson()
   }
 
+  public setRegisterMapping(mapping: RegisterMapping) {
+    this._registerMapping = mapping
+  }
+
   get connectionConfig() {
     return this._connectionConfig
   }
 
   get registerConfig() {
     return this._registerConfig
+  }
+
+  get registerMapping() {
+    return this._registerMapping
   }
 }
