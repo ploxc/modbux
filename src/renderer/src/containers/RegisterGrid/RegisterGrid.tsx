@@ -83,7 +83,7 @@ const RegisterGridContent = () => {
         }
 
         // Update comment
-        if (newRow['comment'] && newRow['comment'] !== oldRow['comment']) {
+        if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
           const z = useRootZustand.getState()
           z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
         }

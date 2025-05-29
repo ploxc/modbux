@@ -163,8 +163,27 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
     const value = dataType && dataType !== DataType.None ? String(row.words?.[dataType]) : undefined
     if (!value) return undefined
 
+    // For strings we must calculate the length until the next defined datatype
+    let count = 1
+    if (dataType === DataType.Utf8) {
+      const config = useRootZustand.getState().registerConfig
+      const { length, address: startAddress } = config
+
+      let register = registerMap[address + count]
+
+      while (
+        address <= startAddress + length &&
+        (!register || register.dataType === DataType.None || !register.dataType)
+      ) {
+        count++
+        register = registerMap[address + count]
+      }
+      const startIndex = address - startAddress
+      return value.slice(startIndex * 2, (startIndex + count) * 2)
+    }
+
     // Return a string when it's a string :D
-    if (dataType === DataType.Utf8 || dataType === DataType.DateTime) return value
+    if (dataType === DataType.DateTime || dataType === DataType.Unix) return value
 
     // Get the scaling factor from the register map
     // And the decimal places for rounding the scaled value because js can add some unwanted
@@ -189,7 +208,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
 //
 //
 // Column to select the register datatype
-const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef => ({
+const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'dataType',
   sortable: false,
   headerName: 'Data Type',
@@ -197,7 +216,7 @@ const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef => ({
   type: 'singleSelect',
   editable: true,
   valueGetter: (_, row) => {
-    const address = (row as RegisterData).id
+    const address = row.id
     const register = registerMap[address]
     if (!register) return DataType.None
     return register.dataType

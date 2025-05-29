@@ -197,12 +197,13 @@ export enum DataType {
   UInt16 = 'uint16',
   Int32 = 'int32',
   UInt32 = 'uint32',
+  Unix = 'unix',
   Int64 = 'int64',
   UInt64 = 'uint64',
   Float = 'float',
   Double = 'double',
-  Utf8 = 'utf8',
-  DateTime = 'datetime'
+  DateTime = 'datetime',
+  Utf8 = 'utf8'
 }
 
 export interface RegisterDataWords {
@@ -210,12 +211,13 @@ export interface RegisterDataWords {
   [DataType.UInt16]: number
   [DataType.Int32]: number
   [DataType.UInt32]: number
+  [DataType.Unix]: string
   [DataType.Float]: number
   [DataType.Int64]: bigint
   [DataType.UInt64]: bigint
   [DataType.Double]: number
-  [DataType.Utf8]: string
   [DataType.DateTime]: string
+  [DataType.Utf8]: string
 }
 
 //

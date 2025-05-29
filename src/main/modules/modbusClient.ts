@@ -422,13 +422,17 @@ export class ModbusClient {
           int32: buf32 ? buf32.readInt32BE(0) : 0,
           uint32: buf32 ? buf32.readUInt32BE(0) : 0,
           float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
+          unix: buf32
+            ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/mm/dd HH:mm:ss')
+            : '',
 
           // 64 bits
           int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
           uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
           double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
-          utf8: buf64 ? Buffer.from(buf64.filter((b) => b !== 0)).toString('utf-8') : '',
-          datetime: buf64 ? this._parseIEC870DateTime(buf64) : ''
+          datetime: buf64 ? this._parseIEC870DateTime(buf64) : '',
+          // Replace null values with spaces
+          utf8: buffer ? Buffer.from(buffer.map((b) => (b === 0 ? 32 : b))).toString('utf-8') : ''
         },
         bit: false,
         isScanned: this._clientState.scanningRegisters
@@ -501,7 +505,11 @@ export class ModbusClient {
       return ''
     }
 
-    return DateTime.utc(year, month, day, hour, minute, second, millisecond).toISO() || ''
+    return (
+      DateTime.utc(year, month, day, hour, minute, second, millisecond).toFormat(
+        'yyyy/MM/dd HH:mm:ss'
+      ) || ''
+    )
   }
 
   //
