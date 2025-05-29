@@ -123,9 +123,20 @@ const ValueInputComponent = meme(() => {
   )
 })
 
-const DataTypeSelect = meme(() => {
+const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
   const setDataType = useValueInputZustand((z) => z.setDataType)
+
+  // Set the data type based on the address if it's defined in the register mapping
+  useEffect(() => {
+    const {
+      registerMapping,
+      registerConfig: { type }
+    } = useRootZustand.getState()
+
+    const definedDataType = registerMapping[type][address]?.dataType
+    if (definedDataType) setDataType(definedDataType)
+  }, [])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
@@ -321,7 +332,7 @@ const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
       >
         {type === RegisterType.HoldingRegisters ? (
           <>
-            <DataTypeSelect />
+            <DataTypeSelect address={address} />
             <ValueInputComponent />
             <WriteRegistersButton />
           </>

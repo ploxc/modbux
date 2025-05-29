@@ -1,4 +1,13 @@
-import { ConnectionConfig, Protocol, RegisterConfig, RegisterType } from './types'
+import {
+  ConnectionConfig,
+  DataType,
+  Protocol,
+  RegisterConfig,
+  RegisterData,
+  RegisterDataWords,
+  RegisterType
+} from './types'
+import { Buffer } from 'buffer'
 
 export const defaultConnectionConfig: ConnectionConfig = {
   unitId: 1,
@@ -24,3 +33,26 @@ export const defaultRegisterConfig: RegisterConfig = {
   addressBase: '0',
   showStringValues: false
 }
+
+export const dummyWords: RegisterDataWords = {
+  [DataType.Int16]: 0,
+  [DataType.UInt16]: 0,
+  [DataType.Int32]: 0,
+  [DataType.UInt32]: 0,
+  [DataType.Unix]: '',
+  [DataType.Float]: 0,
+  [DataType.Int64]: 0n,
+  [DataType.UInt64]: 0n,
+  [DataType.Double]: 0,
+  [DataType.DateTime]: '',
+  [DataType.Utf8]: ''
+}
+
+export const getDummyRegisterData = (register: number): RegisterData => ({
+  bit: false,
+  hex: '0000',
+  buffer: Buffer.from([0, 0]),
+  id: register,
+  isScanned: false,
+  words: { ...dummyWords }
+})

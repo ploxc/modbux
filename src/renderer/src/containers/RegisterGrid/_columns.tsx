@@ -8,6 +8,7 @@ import {
 } from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import {
+  ConnectState,
   DataType,
   getConventionalAddress,
   RegisterData,
@@ -346,13 +347,17 @@ const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> 
     const actionCellRef = useRef<HTMLDivElement>(null)
     const apiRef = useGridApiContext()
 
+    const disabled = useRootZustand((z) => {
+      return z.clientState.polling || z.clientState.connectState !== ConnectState.Connected
+    })
+
     return row.isScanned
       ? []
       : [
           <>
             <GridActionsCellItem
               ref={actionCellRef}
-              disabled={false}
+              disabled={disabled}
               icon={<Edit fontSize="small" />}
               title={text}
               label={''}

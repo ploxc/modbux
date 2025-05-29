@@ -1,4 +1,4 @@
-import { Delete, FileOpen, Menu, Save, Timer } from '@mui/icons-material'
+import { Delete, FileOpen, Menu, Save, Timer, Visibility } from '@mui/icons-material'
 import {
   Box,
   Button,
@@ -22,9 +22,10 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import {
   ConnectState,
   DataType,
+  dummyWords,
+  getDummyRegisterData,
   Protocol,
   RegisterData,
-  RegisterDataWords,
   RegisterMapping,
   RegisterType
 } from '@shared'
@@ -221,41 +222,19 @@ const MenuRegisterOptions = () => {
 const LoadDummyDataButton = () => {
   const disabled = useRootZustand((z) => z.clientState.connectState === ConnectState.Connected)
 
+  // Load dummy data for the configured register range so columns can be edited
+  // without having to connect to the device or read registers
   const loadDummy = useCallback(() => {
     const state = useRootZustand.getState()
     const { address, length } = state.registerConfig
-
     const dataState = useDataZustand.getState()
-
-    const dummyWords: RegisterDataWords = {
-      [DataType.Int16]: 0,
-      [DataType.UInt16]: 0,
-      [DataType.Int32]: 0,
-      [DataType.UInt32]: 0,
-      [DataType.Unix]: '',
-      [DataType.Float]: 0,
-      [DataType.Int64]: 0n,
-      [DataType.UInt64]: 0n,
-      [DataType.Double]: 0,
-      [DataType.DateTime]: '',
-      [DataType.Utf8]: ''
-    }
     const dummyData: RegisterData[] = []
 
     let index = 0
     for (let register = address; register < address + length; register++) {
-      dummyData[index] = {
-        bit: false,
-        hex: '0000',
-        buffer: Buffer.from([0, 0]),
-        id: register,
-        isScanned: false,
-        words: { ...dummyWords }
-      }
+      dummyData[index] = getDummyRegisterData(register)
       index++
     }
-
-    console.log(dummyData)
 
     dataState.setRegisterData(dummyData)
     useLayoutZustand.getState().setRegisterGridMenuAnchorEl(null)
@@ -464,6 +443,16 @@ const SaveButton = () => {
   const saveRegisterConfig = useCallback(() => {
     const z = useRootZustand.getState()
     const { registerMapping } = z
+
+    const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
+    registerMappingKeys.forEach((key) => {
+      Object.keys(registerMapping[key]).forEach((register) => {
+        if (registerMapping[key][register]?.dataType === DataType.None) {
+          delete registerMapping[key][register]
+        }
+      })
+    })
+
     const registerMappingJson = JSON.stringify(registerMapping, null, 2)
 
     var element = document.createElement('a')
@@ -513,6 +502,34 @@ const SaveButton = () => {
 //
 //
 //
+// Show mapping in table
+const showMapping = () => {
+  const registerData: RegisterData[] = []
+  const registerMapping = useRootZustand.getState().registerMapping
+  const type = useRootZustand.getState().registerConfig.type
+
+  Object.entries(registerMapping[type]).forEach(([addressString, m]) => {
+    if (m.dataType === DataType.None || !m.dataType) return
+    const address = parseInt(addressString, 10)
+
+    const row: RegisterData = {
+      id: address,
+      buffer: Buffer.from([0, 0]),
+      hex: '0000',
+      words: { ...dummyWords },
+      bit: false,
+      isScanned: false
+    }
+    registerData.push(row)
+  })
+
+  useDataZustand.getState().setRegisterData(registerData)
+}
+
+//
+//
+//
+//
 // Open register mapping configuration (load json file)
 const LoadButton = () => {
   const openingRef = useRef(false)
@@ -554,6 +571,7 @@ const LoadButton = () => {
 
       openingRef.current = false
       setOpening(false)
+      showMapping()
     },
     [enqueueSnackbar]
   )
@@ -612,6 +630,29 @@ const ClearConfigButton = () => {
 //
 //
 //
+// View config
+const ViewConfigButton = () => {
+  const disabled = useRootZustand(
+    (z) => Object.keys(z.registerMapping[z.registerConfig.type]).length === 0
+  )
+
+  return (
+    <IconButton
+      disabled={disabled}
+      size="small"
+      onClick={showMapping}
+      color="primary"
+      title="view current datatype, scaling and comment configuration"
+    >
+      <Visibility fontSize="small" />
+    </IconButton>
+  )
+}
+
+//
+//
+//
+//
 // TOOLBAR
 const RegisterGridToolbar = meme(() => {
   return (
@@ -635,6 +676,7 @@ const RegisterGridToolbar = meme(() => {
       </Box>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
         <Box sx={{ display: 'flex' }}>
+          <ViewConfigButton />
           <LoadButton />
           <SaveButton />
           <ClearConfigButton />
