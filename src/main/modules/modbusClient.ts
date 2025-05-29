@@ -241,7 +241,7 @@ export class ModbusClient {
       this._emitMessage({ message: errorMessage, variant: 'error', error })
     }
 
-    this._sendData(data)
+    if (data.length > 0) this._sendData(data)
     this._logTransaction(errorMessage)
   }
 

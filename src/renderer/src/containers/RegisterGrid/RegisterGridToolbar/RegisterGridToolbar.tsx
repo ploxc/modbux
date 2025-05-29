@@ -1,4 +1,4 @@
-import { Delete, FileOpen, Menu, MoreVert, Save } from '@mui/icons-material'
+import { Delete, FileOpen, Menu, Save, Timer } from '@mui/icons-material'
 import {
   Box,
   Button,
@@ -19,12 +19,21 @@ import EndianTable from '@renderer/components/EndianTable'
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, Protocol, RegisterMapping, RegisterType } from '@shared'
+import {
+  ConnectState,
+  DataType,
+  Protocol,
+  RegisterData,
+  RegisterDataWords,
+  RegisterMapping,
+  RegisterType
+} from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useRef, useState } from 'react'
 import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
 import { useScanRegistersZustand } from '../../ScanRegisters/ScanRegisters'
 import { useDataZustand } from '@renderer/context/data.zustand'
+import { Buffer } from 'buffer'
 //
 //
 //
@@ -208,6 +217,59 @@ const MenuRegisterOptions = () => {
 
 //
 //
+// Load dummy data
+const LoadDummyDataButton = () => {
+  const disabled = useRootZustand((z) => z.clientState.connectState === ConnectState.Connected)
+
+  const loadDummy = useCallback(() => {
+    const state = useRootZustand.getState()
+    const { address, length } = state.registerConfig
+
+    const dataState = useDataZustand.getState()
+
+    const dummyWords: RegisterDataWords = {
+      [DataType.Int16]: 0,
+      [DataType.UInt16]: 0,
+      [DataType.Int32]: 0,
+      [DataType.UInt32]: 0,
+      [DataType.Unix]: '',
+      [DataType.Float]: 0,
+      [DataType.Int64]: 0n,
+      [DataType.UInt64]: 0n,
+      [DataType.Double]: 0,
+      [DataType.DateTime]: '',
+      [DataType.Utf8]: ''
+    }
+    const dummyData: RegisterData[] = []
+
+    let index = 0
+    for (let register = address; register < address + length; register++) {
+      dummyData[index] = {
+        bit: false,
+        hex: '0000',
+        buffer: Buffer.from([0, 0]),
+        id: register,
+        isScanned: false,
+        words: { ...dummyWords }
+      }
+      index++
+    }
+
+    console.log(dummyData)
+
+    dataState.setRegisterData(dummyData)
+    useLayoutZustand.getState().setRegisterGridMenuAnchorEl(null)
+  }, [])
+
+  return (
+    <Button sx={{ my: 1 }} variant="outlined" disabled={disabled} size="small" onClick={loadDummy}>
+      Load Dummy Data
+    </Button>
+  )
+}
+
+//
+//
 //
 //
 // Menu with extra options
@@ -217,6 +279,7 @@ const MenuContent = () => {
       <MenuRegisterOptions />
       <ScanUnitIds />
       <ScanRegistersButton />
+      <LoadDummyDataButton />
     </FormGroup>
   )
 }
@@ -339,7 +402,7 @@ const SettingPopover = meme(() => {
   return (
     <Box sx={{ display: 'flex' }}>
       <IconButton disabled={polling} size="small" color="primary" onClick={handleOpenMenu}>
-        <MoreVert />
+        <Timer />
       </IconButton>
       <Popover
         open={!!anchorEl}

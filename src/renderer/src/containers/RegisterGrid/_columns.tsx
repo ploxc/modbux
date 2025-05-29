@@ -94,14 +94,20 @@ const addressColumn: GridColDef<RegisterData, number> = {
 // Show the address by convention
 const conventionalAddresColumn = (
   type: RegisterType,
-  addressBase: string
+  addressBase: string,
+  showConventionalAddress: boolean
 ): GridColDef<RegisterData, number> => ({
   field: 'conventionalAddress',
   sortable: false,
   headerName: 'Conv.',
   width: 60,
   renderCell: ({ row }) => {
-    const value = getConventionalAddress(type, String(row.id), addressBase)
+    const value = showConventionalAddress
+      ? getConventionalAddress(type, String(row.id), addressBase)
+      : addressBase === '1'
+        ? row.id + Number(addressBase)
+        : ''
+
     return (
       <Box
         sx={(theme) => ({
@@ -382,15 +388,20 @@ const useRegisterGridColumns = () => {
   const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
   const showString = useRootZustand((z) => z.registerConfig.showStringValues)
 
+  const address = useRootZustand((z) => z.registerConfig.address)
+  const length = useRootZustand((z) => z.registerConfig.length)
+
   return useMemo(() => {
     const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(
       type
     )
 
-    const columns: GridColDef<RegisterData>[] = [
-      addressColumn,
-      conventionalAddresColumn(type, addressBase)
-    ]
+    const showConventionalAddress = Number(address) + length < 10000
+
+    const columns: GridColDef<RegisterData>[] = [addressColumn]
+    if (showConventionalAddress || addressBase === '1') {
+      columns.push(conventionalAddresColumn(type, addressBase, showConventionalAddress))
+    }
 
     if (!registers16Bit) {
       columns.push(bitColumn)
@@ -440,7 +451,7 @@ const useRegisterGridColumns = () => {
     }
 
     return columns
-  }, [type, addressBase, advanced, show64Bit, showString, registerMap])
+  }, [type, addressBase, advanced, show64Bit, showString, registerMap, address, length])
 }
 
 export default useRegisterGridColumns
