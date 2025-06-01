@@ -563,9 +563,6 @@ const AddRegister = () => {
     state.setMin(String(min))
     state.setValue(String(value))
     state.setDataType(dataType)
-
-    const newState = useAddRegisterZustand.getState()
-    console.log({ state, newState })
   }, [edit])
 
   return (

@@ -81,8 +81,6 @@ export const useServerZustand = create<
 
         // Synchorize settings
         for (const uuid of state.uuids) {
-          console.log('Synchronizing settings for ', uuid)
-
           const port = Number(state.port[uuid])
 
           await window.api.setServerPort({ uuid, port })
@@ -114,8 +112,6 @@ export const useServerZustand = create<
           const holdingRegisterRegisterValues = Object.values(
             state.serverRegisters[uuid]['holding_registers']
           ).map((r) => r.params)
-
-          console.log({ inputRegisterRegisterValues, holdingRegisterRegisterValues })
 
           window.api.syncServerregisters({
             uuid,
@@ -205,8 +201,6 @@ export const useServerZustand = create<
             [registerType]: new Array(65535).fill(false)
           }
 
-          console.log({ newBools })
-
           window.api.syncBools(newBools)
         }),
       addRegister: (addParams) =>
@@ -248,8 +242,9 @@ export const useServerZustand = create<
       resetRegisters: (registerType) =>
         set((state) => {
           const uuid = getState().selectedUuid
-          state.serverRegisters[uuid][registerType] = {}
           window.api.resetRegisters({ uuid, registerType })
+          state.serverRegisters[uuid][registerType] = {}
+          state.usedAddresses[uuid][registerType] = []
         }),
       setPort: (port, valid) =>
         set((state) => {
@@ -305,7 +300,6 @@ export const useServerZustand = create<
 
 // Clear when state is corrupted
 const clear = () => {
-  console.log('Clearing storage...')
   useServerZustand.persist.clearStorage()
   useServerZustand.setState(useServerZustand.getInitialState())
 }

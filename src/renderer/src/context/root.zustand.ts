@@ -341,7 +341,6 @@ const state = useRootZustand.getState()
 
 // Clear when state is corrupted
 const clear = () => {
-  console.log('Clearing storage...')
   useRootZustand.persist.clearStorage()
   useRootZustand.setState(useRootZustand.getInitialState())
 }
