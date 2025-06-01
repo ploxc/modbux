@@ -1,25 +1,23 @@
 import { create } from 'zustand'
-import { ServerZustand } from './server.zustant.types'
+import {
+  PersistedServerZustand,
+  PersistedServerZustandSchema,
+  ServerZustand
+} from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import {
-  DataType,
-  IpcEvent,
-  RegisterType,
-  RegisterValueParameters,
-  SyncBoolsParameters
-} from '@shared'
+import { IpcEvent, MAIN_SERVER_UUID, RegisterParams, SyncBoolsParameters } from '@shared'
 
-const getUsedAddresses = (registers: RegisterValueParameters[]) => {
+const getUsedAddresses = (registers: RegisterParams[]) => {
   const addressSet = new Set<number>()
   registers.forEach((p) => {
-    if ([DataType.Int16, DataType.UInt16].includes(p.dataType)) addressSet.add(p.address)
-    if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(p.dataType)) {
+    if (['int16', 'uint16'].includes(p.dataType)) addressSet.add(p.address)
+    if (['int32', 'uint32', 'float'].includes(p.dataType)) {
       addressSet.add(p.address)
       addressSet.add(p.address + 1)
     }
 
-    if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(p.dataType)) {
+    if (['int64', 'uint64', 'double'].includes(p.dataType)) {
       addressSet.add(p.address)
       addressSet.add(p.address + 1)
       addressSet.add(p.address + 2)
@@ -31,118 +29,174 @@ const getUsedAddresses = (registers: RegisterValueParameters[]) => {
 
 export const useServerZustand = create<
   ServerZustand,
-  [['zustand/persist', never], ['zustand/mutative', never]]
+  [['zustand/persist', PersistedServerZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, getState) => ({
       ready: false,
+      selectedUuid: MAIN_SERVER_UUID,
+      uuids: [],
+      port: {},
+      portValid: {},
+      unitId: {},
+      serverRegisters: {},
+      usedAddresses: {},
+      name: {},
+      createServer: async (params, setUuidAsSelected) => {
+        await window.api.createServer(params)
+        const { uuid, port } = params
+
+        set((state) => {
+          state.port[uuid] = String(port)
+          state.portValid[uuid] = true
+          state.unitId[uuid] = ''
+          state.serverRegisters[uuid] = {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
+          }
+          state.usedAddresses[uuid] = {
+            holding_registers: [],
+            input_registers: []
+          }
+          state.uuids.push(uuid)
+          if (setUuidAsSelected) state.selectedUuid = uuid
+        })
+      },
+      deleteServer: async (uuid) => {
+        await window.api.deleteServer(uuid)
+        set((state) => {
+          state.uuids = state.uuids.filter((u) => u !== uuid)
+          if (state.selectedUuid === uuid) state.selectedUuid = state.uuids[0]
+          delete state.port[uuid]
+          delete state.portValid[uuid]
+          delete state.unitId[uuid]
+          delete state.serverRegisters[uuid]
+          delete state.usedAddresses[uuid]
+        })
+      },
       init: async () => {
         const state = getState()
 
         // Synchorize settings
-        const portNumber = Number(state.port)
-        const port = !isNaN(portNumber) ? portNumber : 502
-        await window.api.setServerPort(port)
+        for (const uuid of state.uuids) {
+          console.log('Synchronizing settings for ', uuid)
 
-        const unitId = state.unitId === '' ? undefined : Number(state.unitId)
-        await window.api.setServerUnitId(unitId)
+          const port = Number(state.port[uuid])
 
-        // Synchronize the boolean states with the server from persisted state
-        const coils: boolean[] = Array(65535).fill(false)
-        const discreteInputs: boolean[] = Array(65535).fill(false)
+          await window.api.setServerPort({ uuid, port })
 
-        Object.values(state.serverRegisters[RegisterType.Coils] || {}).forEach(
-          (value, address) => (coils[address] = value)
-        )
-        Object.values(state.serverRegisters[RegisterType.DiscreteInputs] || {}).forEach(
-          (value, address) => (discreteInputs[address] = value)
-        )
+          const unitId = state.unitId[uuid] === '' ? undefined : Number(state.unitId)
+          await window.api.setServerUnitId({ uuid, unitID: unitId || 0 })
 
-        window.api.syncBools({
-          [RegisterType.Coils]: coils,
-          [RegisterType.DiscreteInputs]: discreteInputs
-        })
+          // Synchronize the boolean states with the server from persisted state
+          const coils: boolean[] = Array(65535).fill(false)
+          const discreteInputs: boolean[] = Array(65535).fill(false)
 
-        // Synchronize the value generators/registers with the server from persisted state
-        const inputRegisterRegisterValues = Object.values(
-          state.serverRegisters[RegisterType.InputRegisters]
-        ).map((r) => r.params)
-        const holdingRegisterRegisterValues = Object.values(
-          state.serverRegisters[RegisterType.HoldingRegisters]
-        ).map((r) => r.params)
+          Object.values(state.serverRegisters[uuid].coils || {}).forEach(
+            (value, address) => (coils[address] = value)
+          )
+          Object.values(state.serverRegisters[uuid]['discrete_inputs'] || {}).forEach(
+            (value, address) => (discreteInputs[address] = value)
+          )
 
-        window.api.syncServerregisters({
-          registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
-        })
+          window.api.syncBools({
+            uuid,
+            coils: coils,
+            discrete_inputs: discreteInputs
+          })
 
+          // Synchronize the value generators/registers with the server from persisted state
+          const inputRegisterRegisterValues = Object.values(
+            state.serverRegisters[uuid]['input_registers']
+          ).map((r) => r.params)
+          const holdingRegisterRegisterValues = Object.values(
+            state.serverRegisters[uuid]['holding_registers']
+          ).map((r) => r.params)
+
+          window.api.syncServerregisters({
+            uuid,
+            registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
+          })
+
+          set((state) => {
+            ;(state.port[uuid] = String(port)),
+              (state.unitId[uuid] = unitId === undefined ? '' : String(unitId))
+            state.usedAddresses[uuid]['input_registers'] = getUsedAddresses(
+              inputRegisterRegisterValues
+            )
+            state.usedAddresses[uuid]['holding_registers'] = getUsedAddresses(
+              holdingRegisterRegisterValues
+            )
+            state.ready = true
+          })
+        }
+
+        if (state.uuids.length === 0) {
+          // Create the main server if no server exists in persisted state
+          state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+        }
+      },
+      setSelectedUuid: (uuid) =>
         set((state) => {
-          ;(state.port = String(port)), (state.unitId = unitId === undefined ? '' : String(unitId))
-          state.usedAddresses[RegisterType.InputRegisters] = getUsedAddresses(
-            inputRegisterRegisterValues
-          )
-          state.usedAddresses[RegisterType.HoldingRegisters] = getUsedAddresses(
-            holdingRegisterRegisterValues
-          )
-          state.ready = true
-        })
-      },
-      serverRegisters: {
-        [RegisterType.Coils]: {},
-        [RegisterType.DiscreteInputs]: {},
-        [RegisterType.InputRegisters]: {},
-        [RegisterType.HoldingRegisters]: {}
-      },
-      usedAddresses: {
-        [RegisterType.InputRegisters]: [],
-        [RegisterType.HoldingRegisters]: []
-      },
+          state.selectedUuid = uuid
+        }),
+      setName: (name) =>
+        set((state) => {
+          const uuid = getState().selectedUuid
+          state.name[uuid] = name
+        }),
       addBools: (registerType, address) =>
         set((state) => {
           const baseAddress = address - (address % 8)
+          const uuid = getState().selectedUuid
           for (let i = baseAddress; i < baseAddress + 8; i++) {
             // Don't define when already defined
-            if (state.serverRegisters[registerType][i]) continue
-            state.serverRegisters[registerType][i] = false
-            window.api.setBool({ registerType, address: i, state: false })
+            if (state.serverRegisters[uuid][registerType][i]) continue
+            state.serverRegisters[uuid][registerType][i] = false
+            window.api.setBool({ uuid, registerType, address: i, state: false })
           }
         }),
       removeBool: (registerType, address) =>
         set((state) => {
           const baseAddress = address - (address % 8)
+          const uuid = getState().selectedUuid
           for (let i = baseAddress; i < baseAddress + 8; i++) {
             // Don't remove when not existing
-            if (state.serverRegisters[registerType][i] === undefined) continue
-            delete state.serverRegisters[registerType][i]
-            window.api.setBool({ registerType, address: i, state: false })
+            if (state.serverRegisters[uuid][registerType][i] === undefined) continue
+            delete state.serverRegisters[uuid][registerType][i]
+            window.api.setBool({ uuid, registerType, address: i, state: false })
           }
         }),
-      setBool: (registerType, address, boolState) =>
+      setBool: (registerType, address, boolState, optionalUuid) =>
         set((state) => {
-          state.serverRegisters[registerType][address] = boolState
-          window.api.setBool({ registerType, address, state: boolState })
+          const uuid = optionalUuid || getState().selectedUuid
+          state.serverRegisters[uuid][registerType][address] = boolState
+          window.api.setBool({ uuid, registerType, address, state: boolState })
         }),
       resetBools: (registerType) =>
         set((state) => {
           const currentState = getState()
-          state.serverRegisters[registerType] = {}
+          const uuid = currentState.selectedUuid
+          state.serverRegisters[uuid][registerType] = {}
 
           const currentCoils = new Array(65535).fill(false)
           const currentDiscreteInputs = new Array(65535).fill(false)
 
-          Object.entries(currentState.serverRegisters[RegisterType.Coils] || {}).forEach(
-            ([k, v]) => {
-              currentCoils[Number(k)] = v
-            }
-          )
-          Object.entries(currentState.serverRegisters[RegisterType.DiscreteInputs] || {}).forEach(
+          Object.entries(currentState.serverRegisters.coils || {}).forEach(([k, v]) => {
+            currentCoils[Number(k)] = v
+          })
+          Object.entries(currentState.serverRegisters['discrete_inputs'] || {}).forEach(
             ([k, v]) => {
               currentDiscreteInputs[Number(k)] = v
             }
           )
 
           const newBools: SyncBoolsParameters = {
-            [RegisterType.Coils]: currentCoils,
-            [RegisterType.DiscreteInputs]: currentDiscreteInputs,
+            uuid,
+            coils: currentCoils,
+            discrete_inputs: currentDiscreteInputs,
             [registerType]: new Array(65535).fill(false)
           }
 
@@ -150,88 +204,130 @@ export const useServerZustand = create<
 
           window.api.syncBools(newBools)
         }),
-      addRegister: (params) =>
+      addRegister: (addParams) =>
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
 
-          state.serverRegisters[params.registerType][params.address] = { value: 0, params }
-          window.api.addReplaceServerRegister(params)
+          const { uuid, params } = addParams
+          const { registerType, address } = params
+
+          state.serverRegisters[uuid][registerType][address] = { value: 0, params }
+          window.api.addReplaceServerRegister(addParams)
 
           // Update used addresses
           const usedAddresses = getUsedAddresses(
-            Object.values(state.serverRegisters[params.registerType]).map((r) => r.params)
+            Object.values(state.serverRegisters[uuid][registerType]).map((r) => r.params)
           )
-          state.usedAddresses[params.registerType] = usedAddresses
+          state.usedAddresses[uuid][registerType] = usedAddresses
         }),
-      removeRegister: (params) =>
+      removeRegister: (removeParams) =>
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          delete state.serverRegisters[params.registerType][params.address]
-          window.api.removeServerRegister(params)
+          const { uuid, registerType, address } = removeParams
+          delete state.serverRegisters[uuid][registerType][address]
+          window.api.removeServerRegister(removeParams)
 
           // Update used addresses
           const usedAddresses = getUsedAddresses(
-            Object.values(state.serverRegisters[params.registerType]).map((r) => r.params)
+            Object.values(state.serverRegisters[uuid][registerType]).map((r) => r.params)
           )
-          state.usedAddresses[params.registerType] = usedAddresses
+          state.usedAddresses[uuid][registerType] = usedAddresses
         }),
-      setRegisterValue: (type, address, value) =>
+      setRegisterValue: (type, address, value, optionalUuid) =>
         set((state) => {
-          state.serverRegisters[type][address].value = value
+          const uuid = optionalUuid || getState().selectedUuid
+          state.serverRegisters[uuid][type][address].value = value
         }),
       resetRegisters: (registerType) =>
         set((state) => {
-          state.serverRegisters[registerType] = {}
+          const uuid = getState().selectedUuid
+          state.serverRegisters[uuid][registerType] = {}
           window.api.resetRegisters(registerType)
         }),
-      port: '502',
-      portValid: true,
       setPort: (port, valid) =>
         set((state) => {
           const currentState = getState()
+          const uuid = currentState.selectedUuid
           if (!currentState.ready) return
 
-          state.portValid = !!valid
-          state.port = port
-          if (!valid || currentState.port === port) return
-          window.api.setServerPort(Number(port))
+          // Port cannot be already used for a server
+          const { port: currentPorts, selectedUuid } = getState()
+          const portAlreadyExists = Object.values(currentPorts).includes(port)
+          const portIsMyPort = port === currentPorts[selectedUuid]
+
+          if (portAlreadyExists && !portIsMyPort) valid = false
+
+          state.portValid[uuid] = !!valid
+          state.port[uuid] = port
+
+          if (!valid || currentState.port[uuid] === port) return
+          window.api.setServerPort({ uuid, port: Number(port) })
         }),
-      unitId: '',
       setUnitId: (unitId) =>
         set((state) => {
           const currentState = getState()
+          const uuid = currentState.selectedUuid
           if (!currentState.ready) return
-          state.unitId = unitId
-          if (currentState.unitId === unitId) return
-          window.api.setServerUnitId(unitId === '' ? undefined : Number(unitId))
+          state.unitId[uuid] = unitId
+          if (currentState.unitId[uuid] === unitId) return
+          window.api.setServerUnitId({ uuid, unitID: unitId === '' ? 0 : Number(unitId) })
         }),
       replaceServerRegisters: (registers) =>
         set((state) => {
           const currentState = getState()
-          state.serverRegisters = registers
+          const uuid = currentState.selectedUuid
+          state.serverRegisters[uuid] = registers
           currentState.init()
         })
     })),
-    { name: `server.zustand` }
+    {
+      name: `server.zustand`,
+      partialize: (state) => ({
+        name: state.name,
+        port: state.port,
+        portValid: state.portValid,
+        selectedUuid: state.selectedUuid,
+        serverRegisters: state.serverRegisters,
+        unitId: state.unitId,
+        usedAddresses: state.usedAddresses,
+        uuids: state.uuids
+      })
+    }
   )
 )
 
+// Clear when state is corrupted
+const clear = () => {
+  console.log('Clearing storage...')
+  useServerZustand.persist.clearStorage()
+  useServerZustand.setState(useServerZustand.getInitialState())
+}
+
+const state = useServerZustand.getState()
+
+const stateResult = PersistedServerZustandSchema.safeParse(state)
+if (!stateResult.success) {
+  console.log(stateResult.error)
+  clear()
+}
+
+// Init server
 useServerZustand.getState().init()
 
 // Listen to events
-window.electron.ipcRenderer.on(IpcEvent.RegisterValue, (_, registerType, address, value) => {
+window.electron.ipcRenderer.on(IpcEvent.RegisterValue, (_, uuid, registerType, address, value) => {
   const state = useServerZustand.getState()
-  if (state.serverRegisters[registerType]?.[address]) {
-    state.setRegisterValue(registerType, address, value)
+  if (state.serverRegisters[uuid][registerType]?.[address]) {
+    state.setRegisterValue(registerType, address, value, uuid)
   }
 })
 
-window.electron.ipcRenderer.on(IpcEvent.BooleanValue, (_, registerType, address, value) => {
+window.electron.ipcRenderer.on(IpcEvent.BooleanValue, (_, uuid, registerType, address, value) => {
   const state = useServerZustand.getState()
-  if (state.serverRegisters[registerType][address] === undefined) return
+  if (state.serverRegisters[uuid][registerType][address] === undefined) return
 
-  const currentBool = state.serverRegisters[registerType][address]
-  if (currentBool !== value) state.setBool(registerType, address, value)
+  const currentBool = state.serverRegisters[uuid][registerType][address]
+  if (currentBool !== value) state.setBool(registerType, address, value, uuid)
 })

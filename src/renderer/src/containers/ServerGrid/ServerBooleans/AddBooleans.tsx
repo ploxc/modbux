@@ -3,7 +3,7 @@ import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { BooleanRegisters, RegisterType } from '@shared'
+import { BooleanRegisters } from '@shared'
 import { useCallback } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -31,7 +31,7 @@ export const useAddBooleansZustand = create<AddBooleansZustand, [['zustand/mutat
       set((state) => {
         state.address = Number(address)
       }),
-    registerType: RegisterType.Coils
+    registerType: 'coils'
   }))
 )
 
@@ -58,9 +58,7 @@ const RangeField = () => {
 const AddBoolButton = () => {
   const handleClick = useCallback(() => {
     const { registerType, address, setAddress } = useAddBooleansZustand.getState()
-    const { addBools } = useServerZustand.getState()
-
-    addBools(registerType, Number(address))
+    useServerZustand.getState().addBools(registerType, Number(address))
 
     // Increment with 8 so you can just add more by keep clicking on the add button
     if (address + 8 <= 65535) setAddress(String(address + 8))
@@ -76,9 +74,7 @@ const AddBoolButton = () => {
 const RemoveBoolButton = () => {
   const handleClick = useCallback(() => {
     const { registerType, address, setAddress } = useAddBooleansZustand.getState()
-    const { removeBool } = useServerZustand.getState()
-
-    removeBool(registerType, Number(address))
+    useServerZustand.getState().removeBool(registerType, Number(address))
 
     // Decrement with 8 so you can just remove more by keep clicking on the add button
     if (address - 8 >= 0) setAddress(String(address - 8))
@@ -102,7 +98,7 @@ const AddBooleans = () => {
         horizontal: 'center'
       }}
       anchorEl={anchorEl}
-      onClose={() => setAnchorEl(null, RegisterType.Coils)}
+      onClose={() => setAnchorEl(null, 'coils')}
       open={!!anchorEl}
     >
       <Box sx={{ display: 'flex', gap: 1, p: 1 }}>

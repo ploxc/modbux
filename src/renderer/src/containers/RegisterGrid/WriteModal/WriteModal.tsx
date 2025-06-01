@@ -15,15 +15,15 @@ import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { DataType, notEmpty, RegisterType } from '@shared'
+import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
 interface ValueInputZusand {
-  dataType: DataType
-  setDataType: (dataType: DataType) => void
+  dataType: BaseDataType
+  setDataType: (dataType: BaseDataType) => void
   value: string
   valid: boolean
   setValue: MaskSetFn
@@ -38,8 +38,8 @@ interface ValueInputZusand {
 
 const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', never]]>(
   mutative((set) => ({
-    dataType: DataType.Int16,
-    setDataType: (dataType: DataType) =>
+    dataType: 'int16',
+    setDataType: (dataType) =>
       set((state) => {
         state.dataType = dataType
       }),
@@ -134,8 +134,11 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
       registerConfig: { type }
     } = useRootZustand.getState()
 
-    const definedDataType = registerMapping[type][address]?.dataType
-    if (definedDataType) setDataType(definedDataType)
+    const dataType = registerMapping[type][address]?.dataType
+    if (!dataType) return
+
+    const result = BaseDataTypeSchema.safeParse(dataType)
+    if (result.success) setDataType(result.data)
   }, [])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
@@ -151,7 +154,7 @@ const WriteRegistersButton = meme(() => {
       window.api.write({
         address,
         dataType,
-        type: RegisterType.HoldingRegisters,
+        type: 'holding_registers',
         value: Number(value),
         single
       })
@@ -160,7 +163,7 @@ const WriteRegistersButton = meme(() => {
   )
 
   const singleDisabled = useMemo(() => {
-    return ![DataType.Int16, DataType.UInt16].includes(dataType)
+    return !['int16', 'uint16'].includes(dataType)
   }, [dataType])
 
   return (
@@ -196,7 +199,7 @@ const CoilFunctionSelect = meme(() => {
   const handleWrite = useCallback(() => {
     window.api.write({
       address,
-      type: RegisterType.Coils,
+      type: 'coils',
       value: coils.slice(address - registerConfigAddress),
       single: coilFunction === 5
     })
@@ -330,7 +333,7 @@ const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
         elevation={5}
         sx={{ position: 'absolute', right, top: rect?.top || 0, display: 'flex' }}
       >
-        {type === RegisterType.HoldingRegisters ? (
+        {type === 'holding_registers' ? (
           <>
             <DataTypeSelect address={address} />
             <ValueInputComponent />

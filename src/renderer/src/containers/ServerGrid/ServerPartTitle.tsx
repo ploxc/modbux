@@ -9,11 +9,7 @@ import { meme } from '@renderer/components/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 
 const AddEdit = meme(({ type }: { type: RegisterType }) => {
-  return [RegisterType.Coils, RegisterType.DiscreteInputs].includes(type) ? (
-    <AddBooleans />
-  ) : (
-    <AddRegister />
-  )
+  return ['coils', 'discrete_inputs'].includes(type) ? <AddBooleans /> : <AddRegister />
 })
 
 const AddButton = meme(
@@ -25,18 +21,18 @@ const AddButton = meme(
     titleRef: MutableRefObject<HTMLDivElement | null>
   }) => {
     const handleClick = useCallback(() => {
-      if (type === RegisterType.Coils || type === RegisterType.DiscreteInputs) {
+      if (type === 'coils' || type === 'discrete_inputs') {
         const setAddBooleansOpen = useAddBooleansZustand.getState().setAnchorEl
         setAddBooleansOpen(titleRef.current, type)
       }
-      if (type === RegisterType.InputRegisters || type === RegisterType.HoldingRegisters) {
+      if (type === 'input_registers' || type === 'holding_registers') {
         const setRegisterType = useAddRegisterZustand.getState().setRegisterType
         setRegisterType(type)
       }
     }, [type])
 
     const icon =
-      type === RegisterType.Coils || type === RegisterType.DiscreteInputs ? (
+      type === 'coils' || type === 'discrete_inputs' ? (
         <EditFilled size={10} />
       ) : (
         <PlusCircleFilled size={10} />
@@ -49,15 +45,16 @@ const AddButton = meme(
   }
 )
 
-const DeleteButton = meme(({ type }: { type: RegisterType }) => {
+const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => {
   const handleClick = useCallback(() => {
-    if (type === RegisterType.Coils || type === RegisterType.DiscreteInputs) {
-      useServerZustand.getState().resetBools(type)
+    const state = useServerZustand.getState()
+    if (registerType === 'coils' || registerType === 'discrete_inputs') {
+      state.resetBools(registerType)
     }
-    if (type === RegisterType.InputRegisters || type === RegisterType.HoldingRegisters) {
-      useServerZustand.getState().resetRegisters(type)
+    if (registerType === 'input_registers' || registerType === 'holding_registers') {
+      state.resetRegisters(registerType)
     }
-  }, [type])
+  }, [registerType])
 
   return (
     <IconButton onClick={handleClick} size="small" color="primary">
@@ -66,34 +63,36 @@ const DeleteButton = meme(({ type }: { type: RegisterType }) => {
   )
 })
 
-const ServerPartTitle = meme(({ name, type }: { name: string; type: RegisterType }) => {
-  const titleRef = useRef<HTMLDivElement>(null)
-  return (
-    <Box
-      ref={titleRef}
-      sx={(theme) => ({
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        height: 38,
-        width: '100%',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: theme.palette.background.default,
-        borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
-      })}
-    >
-      <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-        <DeleteButton type={type} />
+const ServerPartTitle = meme(
+  ({ name, registerType }: { name: string; registerType: RegisterType }) => {
+    const titleRef = useRef<HTMLDivElement>(null)
+    return (
+      <Box
+        ref={titleRef}
+        sx={(theme) => ({
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          height: 38,
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: theme.palette.background.default,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
+        })}
+      >
+        <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+          <DeleteButton registerType={registerType} />
+        </Box>
+        <Box sx={{ flex: 1, flexBasis: 0, textAlign: 'center' }}>{name}</Box>
+        <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+          <AddButton type={registerType} titleRef={titleRef} />
+        </Box>
+        <AddEdit type={registerType} />
       </Box>
-      <Box sx={{ flex: 1, flexBasis: 0, textAlign: 'center' }}>{name}</Box>
-      <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-        <AddButton type={type} titleRef={titleRef} />
-      </Box>
-      <AddEdit type={type} />
-    </Box>
-  )
-})
+    )
+  }
+)
 
 export default ServerPartTitle

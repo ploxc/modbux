@@ -1,10 +1,10 @@
 import { FormControl, InputLabel, Select, MenuItem } from '@mui/material'
-import { DataType } from '@shared'
+import { BaseDataType } from '@shared'
 
 interface Props {
   disabled?: boolean
-  dataType: DataType
-  setDataType: (dataType: DataType) => void
+  dataType: BaseDataType
+  setDataType: (dataType: BaseDataType) => void
 }
 
 const DataTypeSelectInput = ({ disabled, dataType, setDataType }: Props) => {
@@ -17,17 +17,17 @@ const DataTypeSelectInput = ({ disabled, dataType, setDataType }: Props) => {
         labelId={labelId}
         value={dataType}
         label="Type"
-        onChange={(e) => setDataType(e.target.value as DataType)}
+        onChange={(e) => setDataType(e.target.value as BaseDataType)}
       >
-        <MenuItem value={DataType.Int16}>INT16</MenuItem>
-        <MenuItem value={DataType.UInt16}>UINT16</MenuItem>
-        <MenuItem value={DataType.Int32}>INT32</MenuItem>
-        <MenuItem value={DataType.UInt32}>UINT32</MenuItem>
-        <MenuItem value={DataType.Float}>FLOAT</MenuItem>
+        <MenuItem value={'int16'}>INT16</MenuItem>
+        <MenuItem value={'uint16'}>UINT16</MenuItem>
+        <MenuItem value={'int32'}>INT32</MenuItem>
+        <MenuItem value={'uint32'}>UINT32</MenuItem>
+        <MenuItem value={'float'}>FLOAT</MenuItem>
 
-        <MenuItem value={DataType.Int64}>INT64</MenuItem>
-        <MenuItem value={DataType.UInt64}>UINT64</MenuItem>
-        <MenuItem value={DataType.Double}>DOUBLE</MenuItem>
+        <MenuItem value={'int64'}>INT64</MenuItem>
+        <MenuItem value={'uint64'}>UINT64</MenuItem>
+        <MenuItem value={'double'}>DOUBLE</MenuItem>
       </Select>
     </FormControl>
   )

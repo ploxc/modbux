@@ -2,6 +2,7 @@ import ModbusRTU from 'modbus-serial'
 import { AppState } from '../state'
 import {
   BackendMessage,
+  BaseDataType,
   bigEndian32,
   bigEndian64,
   ClientState,
@@ -18,7 +19,7 @@ import {
   RegisterType,
   ScanRegistersParameters,
   ScanUnitIDParameters,
-  ScanUnitIDResult,
+  ScanUnitIdResult,
   Transaction,
   WriteParameters
 } from '@shared'
@@ -45,7 +46,7 @@ export class ModbusClient {
   private _windows: Windows
 
   private _clientState: ClientState = {
-    connectState: ConnectState.Disconnected,
+    connectState: 'disconnected',
     polling: false,
     scanningUniId: false,
     scanningRegisters: false
@@ -63,12 +64,12 @@ export class ModbusClient {
 
     this._client
       .on('error', (error) => {
-        this._clientState.connectState = ConnectState.Disconnected
+        this._clientState.connectState = 'disconnected'
         this._sendClientState()
         this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
       })
       .on('close', () => {
-        this._clientState.connectState = ConnectState.Disconnected
+        this._clientState.connectState = 'disconnected'
         this._sendClientState()
         this._emitMessage({
           message: 'Connection closed',
@@ -91,7 +92,7 @@ export class ModbusClient {
   private _sendTransaction = (transaction: Transaction) => {
     this._windows.send(IpcEvent.Transaction, transaction)
   }
-  private _sendUnitIdResult = (result: ScanUnitIDResult) => {
+  private _sendUnitIdResult = (result: ScanUnitIdResult) => {
     this._windows.send(IpcEvent.ScanUnitIDResult, result)
   }
 
@@ -110,11 +111,11 @@ export class ModbusClient {
   //
   // Utils
   private _setConnected = () => {
-    this._clientState.connectState = ConnectState.Connected
+    this._clientState.connectState = 'connected'
     this._sendClientState()
   }
   private _setDisconnected = () => {
-    this._clientState.connectState = ConnectState.Disconnected
+    this._clientState.connectState = 'disconnected'
     this.stopPolling()
     this._sendClientState()
   }
@@ -123,7 +124,7 @@ export class ModbusClient {
   //
   // Connect
   public connect = async () => {
-    this._clientState.connectState = ConnectState.Connecting
+    this._clientState.connectState = 'connecting'
     this._sendClientState()
 
     const { protocol, tcp, rtu, unitId } = this._appState.connectionConfig
@@ -143,15 +144,15 @@ export class ModbusClient {
     this._client['isDebugEnabled'] = true
 
     // Connect
-    const endpoint = protocol === Protocol.ModbusTcp ? `${host}:${tcpOptions.port}` : `${unitId}`
-    const message = `Connecting to modbus server/slave: ${endpoint} with ${protocol === Protocol.ModbusTcp ? 'TCP' : 'RTU'} protocol`
+    const endpoint = protocol === 'ModbusTcp' ? `${host}:${tcpOptions.port}` : `${unitId}`
+    const message = `Connecting to modbus server/slave: ${endpoint} with ${protocol === 'ModbusTcp' ? 'TCP' : 'RTU'} protocol`
     this._emitMessage({ message, variant: 'default', error: null })
 
     // Weird, this is included in rtu options, but when autoOpen (not available in type) is false it doesn't work.
     rtuOptions['autoOpen'] = true
 
     try {
-      protocol === Protocol.ModbusTcp
+      protocol === 'ModbusTcp'
         ? await this._client.connectTCP(host, tcpOptions)
         : await this._client.connectRTUBuffered(com, rtuOptions)
       this._emitMessage({ message: 'Connected to server/slave', variant: 'success', error: null })
@@ -167,7 +168,7 @@ export class ModbusClient {
   // Disconnect
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async () => {
-    this._clientState.connectState = ConnectState.Disconnecting
+    this._clientState.connectState = 'disconnecting'
     this._sendClientState()
     if (!this._client.isOpen) {
       this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
@@ -218,7 +219,7 @@ export class ModbusClient {
   }
 
   private _read = async () => {
-    if (this._clientState.connectState !== ConnectState.Connected || !this._client.isOpen) {
+    if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
       this._emitMessage({
         message: 'Cannot read, not connected',
         variant: 'warning',
@@ -251,7 +252,7 @@ export class ModbusClient {
         this._emitMessage({ message: errorMessage, variant: 'error', error })
       }
       this._logTransaction(errorMessage)
-      if (this._clientState.connectState !== ConnectState.Connected) break
+      if (this._clientState.connectState !== 'connected') break
     }
 
     if (data.length > 0) {
@@ -277,23 +278,23 @@ export class ModbusClient {
     const DEFAULT_UTF8_REGISTERS = 24
 
     switch (dataType) {
-      case DataType.Int16:
-      case DataType.UInt16:
-      case DataType.Float:
-      case DataType.Double:
+      case 'int16':
+      case 'uint16':
+      case 'float':
+      case 'double':
         return 1
 
-      case DataType.Int32:
-      case DataType.UInt32:
-      case DataType.Unix:
+      case 'int32':
+      case 'uint32':
+      case 'unix':
         return 2
 
-      case DataType.Int64:
-      case DataType.UInt64:
-      case DataType.DateTime:
+      case 'int64':
+      case 'uint64':
+      case 'datetime':
         return 4
 
-      case DataType.Utf8:
+      case 'utf8':
         if (typeof nextAddress === 'number' && nextAddress > currentAddress) {
           // only use the real gap if it's no larger than DEFAULT_UTF8_REGISTERS
           const gap = nextAddress - currentAddress
@@ -314,7 +315,7 @@ export class ModbusClient {
     return items
       .map((item, idx, arr) => {
         const dataType = item[1].dataType
-        if (!dataType || dataType === DataType.None) return undefined
+        if (!dataType || dataType === 'none') return undefined
 
         const address = Number(item[0])
 
@@ -478,16 +479,16 @@ export class ModbusClient {
     let data: RegisterData[] = []
 
     switch (type) {
-      case RegisterType.Coils:
+      case 'coils':
         data = await this._readCoils(address, length)
         break
-      case RegisterType.DiscreteInputs:
+      case 'discrete_inputs':
         data = await this._readDiscreteInputs(address, length)
         break
-      case RegisterType.InputRegisters:
+      case 'input_registers':
         data = await this._readInputRegisters(address, length)
         break
-      case RegisterType.HoldingRegisters:
+      case 'holding_registers':
         data = await this._readHoldingRegisters(address, length)
         break
     }
@@ -675,10 +676,10 @@ export class ModbusClient {
     let errorMessage: string | undefined
 
     switch (type) {
-      case RegisterType.Coils:
+      case 'coils':
         errorMessage = await this._writeCoil(address, value, single)
         break
-      case RegisterType.HoldingRegisters:
+      case 'holding_registers':
         errorMessage = await this._writeRegister(address, value, dataType, single)
         break
     }
@@ -732,12 +733,12 @@ export class ModbusClient {
   private _writeRegister = async (
     address: number,
     value: number,
-    dataType: DataType,
+    dataType: BaseDataType,
     single: boolean
   ): Promise<string | undefined> => {
     const { littleEndian } = this._appState.registerConfig
 
-    if (single && ![DataType.Int16, DataType.UInt16].includes(dataType)) {
+    if (single && !['int16', 'uint16'].includes(dataType)) {
       this._emitMessage({
         message: 'Single register only supported fot 16 bit values',
         variant: 'warning',
@@ -824,15 +825,15 @@ export class ModbusClient {
   }: Omit<ScanUnitIDParameters, 'range'> & { id: number }) => {
     this._client.setID(id)
 
-    const result: ScanUnitIDResult = {
+    const result: ScanUnitIdResult = {
       id,
       registerTypes: [],
       requestedRegisterTypes: registerTypes,
       errorMessage: {
-        [RegisterType.Coils]: '',
-        [RegisterType.DiscreteInputs]: '',
-        [RegisterType.InputRegisters]: '',
-        [RegisterType.HoldingRegisters]: ''
+        coils: '',
+        discrete_inputs: '',
+        input_registers: '',
+        holding_registers: ''
       }
     }
 
@@ -841,13 +842,13 @@ export class ModbusClient {
       return
     }
 
-    if (registerTypes.includes(RegisterType.Coils)) {
+    if (registerTypes.includes('coils')) {
       // Coils
       try {
         await this._client.readCoils(address, length)
-        result.registerTypes.push(RegisterType.Coils)
+        result.registerTypes.push('coils')
       } catch (error) {
-        result.errorMessage[RegisterType.Coils] = (error as Error).message
+        result.errorMessagecoils = (error as Error).message
       }
       await this._sendScanProgress()
     }
@@ -858,12 +859,12 @@ export class ModbusClient {
     }
 
     // Discrete Inputs
-    if (registerTypes.includes(RegisterType.DiscreteInputs)) {
+    if (registerTypes.includes('discrete_inputs')) {
       try {
         await this._client.readDiscreteInputs(address, length)
-        result.registerTypes.push(RegisterType.DiscreteInputs)
+        result.registerTypes.push('discrete_inputs')
       } catch (error) {
-        result.errorMessage[RegisterType.DiscreteInputs] = (error as Error).message
+        result.errorMessage['discrete_inputs'] = (error as Error).message
       }
       await this._sendScanProgress()
     }
@@ -873,12 +874,12 @@ export class ModbusClient {
     }
 
     // Input Registers
-    if (registerTypes.includes(RegisterType.HoldingRegisters)) {
+    if (registerTypes.includes('holding_registers')) {
       try {
         await this._client.readHoldingRegisters(address, length)
-        result.registerTypes.push(RegisterType.HoldingRegisters)
+        result.registerTypes.push('holding_registers')
       } catch (error) {
-        result.errorMessage[RegisterType.HoldingRegisters] = (error as Error).message
+        result.errorMessage['holding_registers'] = (error as Error).message
       }
       await this._sendScanProgress()
     }
@@ -889,12 +890,12 @@ export class ModbusClient {
     }
 
     // Holding Registers
-    if (registerTypes.includes(RegisterType.InputRegisters)) {
+    if (registerTypes.includes('input_registers')) {
       try {
         await this._client.readInputRegisters(address, length)
-        result.registerTypes.push(RegisterType.InputRegisters)
+        result.registerTypes.push('input_registers')
       } catch (error) {
-        result.errorMessage[RegisterType.InputRegisters] = (error as Error).message
+        result.errorMessage['input_registers'] = (error as Error).message
       }
       await this._sendScanProgress()
     }
@@ -964,7 +965,7 @@ export class ModbusClient {
 
     if (!data) return
     data = data.filter((d) =>
-      [RegisterType.Coils, RegisterType.DiscreteInputs].includes(type) ? d.bit : d.hex !== '0000'
+      ['coils', 'discrete_inputs'].includes(type) ? d.bit : d.hex !== '0000'
     )
     this._sendData(data)
   }

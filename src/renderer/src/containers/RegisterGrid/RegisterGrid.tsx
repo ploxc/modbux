@@ -14,7 +14,6 @@ import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useEffect } from 'react'
-import { DataType } from '@shared'
 //
 //
 //
@@ -51,7 +50,7 @@ const RegisterGridContent = () => {
   const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {
-      items: [{ id: 1, field: 'dataType', operator: 'not', value: DataType.None }],
+      items: [{ id: 1, field: 'dataType', operator: 'not', value: 'none' }],
       logicOperator: GridLogicOperator.And
     }
     if (readConfiguration) apiRef.current.setFilterModel(filterModel)

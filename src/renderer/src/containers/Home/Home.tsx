@@ -2,38 +2,14 @@ import { CallSplit } from '@mui/icons-material'
 import { Fade, Box, Button, Typography } from '@mui/material'
 import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { BackendMessage, ConnectState, IpcEvent } from '@shared'
+import { IpcEvent } from '@shared'
 import { useCallback, useEffect } from 'react'
 import modbuxImage from '../../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { AppType } from '@renderer/context/layout.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { Home as HomeIcon } from '@mui/icons-material'
-import { useSnackbar } from 'notistack'
-import { IpcRendererEvent } from 'electron'
-
-//
-//
-// Receives message and shows them in a snackbar
-export const MessageReceiver = () => {
-  const { enqueueSnackbar } = useSnackbar()
-
-  const handleMessage = (_: IpcRendererEvent, message: BackendMessage) => {
-    enqueueSnackbar({ message: message.message, variant: message.variant })
-    if (message.error) console.error(message.error)
-  }
-
-  useEffect(() => {
-    // Don't apply the message listener in the server window
-    if (window.api.isServerWindow) return
-    const unlisten = window.electron.ipcRenderer.on(IpcEvent.BackendMessage, handleMessage)
-    return () => unlisten()
-  }, [])
-
-  return null
-}
 
 //
 //
@@ -61,7 +37,7 @@ export const HomeButton = () => {
 // Button to open the modbus client
 const ClientButton = () => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
-  const connected = useRootZustand((z) => z.clientState.connectState === ConnectState.Connected)
+  const connected = useRootZustand((z) => z.clientState.connectState === 'connected')
   return (
     <Button
       variant="contained"
@@ -73,7 +49,7 @@ const ClientButton = () => {
         height: 160,
         position: 'relative'
       }}
-      onClick={() => setAppType(AppType.Client)}
+      onClick={() => setAppType('client')}
     >
       {connected && (
         <Box
@@ -113,7 +89,7 @@ const ServerButton = () => {
         width: 160,
         height: 160
       }}
-      onClick={() => setAppType(AppType.Server)}
+      onClick={() => setAppType('server')}
     >
       <ServerIcon sx={(theme) => ({ fill: theme.palette.background.default })} />
       <Typography variant="overline" sx={(theme) => ({ color: theme.palette.background.default })}>

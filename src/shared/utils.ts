@@ -1,15 +1,15 @@
-import { DataType, RegisterType } from './types'
+import { BaseDataType, DataType, RegisterType } from './types'
 
 export const getConventionalAddress = (
   type: RegisterType,
   address: string,
   addressBase: string
 ) => {
-  return type === RegisterType.DiscreteInputs
+  return type === 'discrete_inputs'
     ? Number(address) + 10000 + Number(addressBase)
-    : type === RegisterType.HoldingRegisters
+    : type === 'holding_registers'
       ? Number(address) + 40000 + Number(addressBase)
-      : type === RegisterType.InputRegisters
+      : type === 'input_registers'
         ? Number(address) + 30000 + Number(addressBase)
         : Number(address) + Number(addressBase)
 }
@@ -45,45 +45,45 @@ export const littleEndian64 = (buffer: Buffer, offset: number) => {
 }
 
 export const createRegisters = (
-  dataType: DataType,
+  dataType: BaseDataType,
   value: number,
   littleEndian: boolean
 ): number[] => {
   let bufferSize = 2
 
-  if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(dataType)) bufferSize = 4
-  if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(dataType)) bufferSize = 8
+  if (['int32', 'uint32', 'float'].includes(dataType)) bufferSize = 4
+  if (['int64', 'uint64', 'double'].includes(dataType)) bufferSize = 8
 
   let buffer = Buffer.alloc(bufferSize)
 
   switch (dataType) {
-    case DataType.Int16:
+    case 'int16':
       buffer.writeInt16BE(value, 0)
       break
-    case DataType.UInt16:
+    case 'uint16':
       buffer.writeUInt16BE(value, 0)
       break
-    case DataType.Int32:
+    case 'int32':
       buffer.writeInt32BE(value, 0)
       if (littleEndian) buffer = littleEndian32(buffer, 0)
       break
-    case DataType.UInt32:
+    case 'uint32':
       buffer.writeUInt32BE(value, 0)
       if (littleEndian) buffer = littleEndian32(buffer, 0)
       break
-    case DataType.Float:
+    case 'float':
       buffer.writeFloatBE(value, 0)
       if (littleEndian) buffer = littleEndian32(buffer, 0)
       break
-    case DataType.Int64:
+    case 'int64':
       buffer.writeBigInt64BE(BigInt(value), 0)
       if (littleEndian) buffer = littleEndian64(buffer, 0)
       break
-    case DataType.UInt64:
+    case 'uint64':
       buffer.writeBigUInt64BE(BigInt(value), 0)
       if (littleEndian) buffer = littleEndian64(buffer, 0)
       break
-    case DataType.Double:
+    case 'double':
       buffer.writeDoubleBE(value, 0)
       if (littleEndian) buffer = littleEndian64(buffer, 0)
       break
@@ -101,21 +101,21 @@ export const createRegisters = (
 
 export const getMinMaxValues = (dataType: DataType): { min: number; max: number } => {
   switch (dataType) {
-    case DataType.Int16:
+    case 'int16':
       return { min: -32768, max: 32767 }
-    case DataType.UInt16:
+    case 'uint16':
       return { min: 0, max: 65535 }
-    case DataType.Int32:
+    case 'int32':
       return { min: -2147483648, max: 2147483647 }
-    case DataType.UInt32:
+    case 'uint32':
       return { min: 0, max: 4294967295 }
-    case DataType.Int64:
+    case 'int64':
       return { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER } // JavaScript safe integer range
-    case DataType.UInt64:
+    case 'uint64':
       return { min: 0, max: Number.MAX_SAFE_INTEGER } // Max safe integer in JavaScript for unsigned 64-bit
-    case DataType.Float:
+    case 'float':
       return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Closest approximation for float
-    case DataType.Double:
+    case 'double':
       return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Double in JS is the same as float
     default:
       return { min: 0, max: 0 }
@@ -126,20 +126,20 @@ export const notEmpty = (value: number | string) => String(value).replace('-', '
 
 export const getRegisterLength = (dataType: DataType) => {
   switch (dataType) {
-    case DataType.Int16:
-    case DataType.UInt16:
-    case DataType.Float:
-    case DataType.Double:
+    case 'int16':
+    case 'uint16':
+    case 'float':
+    case 'double':
       return 1
-    case DataType.Int32:
-    case DataType.UInt32:
-    case DataType.Unix:
+    case 'int32':
+    case 'uint32':
+    case 'unix':
       return 2
-    case DataType.Int64:
-    case DataType.UInt64:
-    case DataType.DateTime:
+    case 'int64':
+    case 'uint64':
+    case 'datetime':
       return 4
-    case DataType.Utf8:
+    case 'utf8':
       return 8
     default:
       return 0

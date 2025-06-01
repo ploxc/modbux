@@ -3,11 +3,12 @@ import { meme } from '@renderer/components/meme'
 import ConnectionConfig from '../ConnectionConfig/ConnectionConfig'
 import RegisterConfig from '../RegisterConfig/RegisterConfig'
 import ScanRegisters from '../ScanRegisters/ScanRegisters'
-import { HomeButton, MessageReceiver } from '../Home/Home'
+import { HomeButton } from '../Home/Home'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import RegisterGrid from '../RegisterGrid/RegisterGrid'
 import TransactionGrid from '../TransactionGrid/TransactionGrid'
+import MessageReceiver from '../MessageReceiver/MessageReceiver'
 
 const ClientGrids = () => {
   const showLog = useLayoutZustand((z) => z.showLog)

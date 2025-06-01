@@ -2,7 +2,7 @@ import { Box, Button, ButtonProps, TextField, ToggleButton, ToggleButtonGroup } 
 import RtuConfig from './RtuConfig/RtuConfig'
 import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, Protocol } from '@shared'
+import { Protocol } from '@shared'
 import { useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/types'
 import UnitIdInput from '@renderer/components/UnitIdInput'
@@ -10,7 +10,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 
 // Protocol
 const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const setProtocol = useRootZustand((z) => z.setProtocol)
 
   return (
@@ -22,8 +22,8 @@ const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
       value={protocol}
       onChange={(_, v) => v !== null && setProtocol(v)}
     >
-      <ToggleButton value={Protocol.ModbusTcp}>TCP</ToggleButton>
-      <ToggleButton value={Protocol.ModbusRtu}>RTU</ToggleButton>
+      <ToggleButton value={'ModbusTcp'}>TCP</ToggleButton>
+      <ToggleButton value={'ModbusRtu'}>RTU</ToggleButton>
     </ToggleButtonGroup>
   )
 }
@@ -34,24 +34,23 @@ const ConnectButton = () => {
 
   const action = useCallback(() => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState
-    if (currentConnectedState === ConnectState.Connected) {
+    if (currentConnectedState === 'connected') {
       window.api.disconnect()
       setRegisterData([])
       return
     }
 
-    if (currentConnectedState === ConnectState.Disconnected) {
+    if (currentConnectedState === 'disconnected') {
       window.api.connect()
     }
   }, [])
 
-  const disabled = [ConnectState.Connecting, ConnectState.Disconnecting].includes(connectState)
-  const color: ButtonProps['color'] =
-    connectState === ConnectState.Connected ? 'warning' : 'primary'
+  const disabled = ['connecting', 'disconnecting'].includes(connectState)
+  const color: ButtonProps['color'] = connectState === 'connected' ? 'warning' : 'primary'
   const text =
-    connectState === ConnectState.Connected
+    connectState === 'connected'
       ? 'Disconnect'
-      : connectState === ConnectState.Disconnected
+      : connectState === 'disconnected'
         ? 'Connect'
         : '...'
 
@@ -67,7 +66,6 @@ const ConnectButton = () => {
 // Unit Id
 const UnitId = () => {
   const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
-  const setUnitId = useRootZustand((z) => z.setUnitId)
 
   return (
     <TextField
@@ -79,7 +77,7 @@ const UnitId = () => {
       slotProps={{
         input: {
           inputComponent: UnitIdInput as any,
-          inputProps: maskInputProps({ set: setUnitId })
+          inputProps: maskInputProps({ set: useRootZustand.getState().setUnitId })
         }
       }}
     />

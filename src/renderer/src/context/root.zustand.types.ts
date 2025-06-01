@@ -1,6 +1,4 @@
 import {
-  ConnectionConfig,
-  RegisterConfig,
   Protocol,
   RegisterType,
   ModbusBaudRate,
@@ -8,13 +6,37 @@ import {
   Transaction,
   RegisterMapping,
   RegisterMapValue,
-  ScanUnitIDResult
+  ScanUnitIdResult,
+  RegisterMappingSchema,
+  ConnectionConfigSchema,
+  RegisterConfigSchema
 } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
+import z from 'zod'
 
-export interface RootZusand {
+interface Valid {
+  host: boolean
+  com: boolean
+  lenght: boolean
+}
+
+export const PersistedRootZustandSchema = z.object({
+  registerMapping: RegisterMappingSchema,
+  connectionConfig: ConnectionConfigSchema,
+  registerConfig: RegisterConfigSchema
+})
+export type PersistedRootZustand = z.infer<typeof PersistedRootZustandSchema>
+
+export type RootZusand = {
+  transactions: Transaction[]
+  version: string
+  clientState: ClientState
+  ready: boolean
+  valid: Valid
+  lastSuccessfulTransactionMillis: number | null
+  scanUnitIdResults: ScanUnitIdResult[]
+  scanProgress: number
   // Register mapping
-  registerMapping: RegisterMapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
     register: number,
     key: K,
@@ -23,22 +45,13 @@ export interface RootZusand {
   replaceRegisterMapping: (registerMapping: RegisterMapping) => void
   clearRegisterMapping: () => void
   // Transaction log
-  transactions: Transaction[]
   addTransaction: (transactions: Transaction) => void
   clearTransactions: () => void
-
   // Config
   init: () => Promise<void>
-  connectionConfig: ConnectionConfig
-  registerConfig: RegisterConfig
-
   // State
-  clientState: ClientState
   setClientState: (clientState: ClientState) => void
-  ready: boolean
-
   // Configuration actions
-  valid: Valid
   setProtocol: (protocol: Protocol) => void
   setPort: MaskSetFn
   setHost: MaskSetFn
@@ -62,29 +75,19 @@ export interface RootZusand {
   setShowStringValues: (showStringValues: boolean) => void
 
   // Transaction
-  lastSuccessfulTransactionMillis: number | null
   setLastSuccessfulTransactionMillis: (value: number | null) => void
 
   // Unit ID Scannning
-  scanUnitIdResults: ScanUnitIDResult[]
-  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
+  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIdResult) => void
   clearScanUnitIdResults: () => void
 
   // Scan progress
-  scanProgress: number
   setScanProgress: (scanProgress: number) => void
 
   // Read configuration
   setReadConfiguration: (readConfiguration: boolean) => void
   // Version
-  version: string
   setVersion: (version: string) => void
-}
+} & PersistedRootZustand
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void
-
-interface Valid {
-  host: boolean
-  com: boolean
-  lenght: boolean
-}

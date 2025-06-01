@@ -1,22 +1,20 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { RootZusand } from './root.zustand.types'
+import { PersistedRootZustand, PersistedRootZustandSchema, RootZusand } from './root.zustand.types'
 import {
   ClientState,
-  ConnectState,
   defaultConnectionConfig,
   defaultRegisterConfig,
   IpcEvent,
-  RegisterType,
-  ScanUnitIDResult,
+  ScanUnitIdResult,
   Transaction
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 
 export const useRootZustand = create<
   RootZusand,
-  [['zustand/persist', never], ['zustand/mutative', never]]
+  [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, getState) => ({
@@ -41,10 +39,10 @@ export const useRootZustand = create<
       // Connection state
       // Register mapping
       registerMapping: {
-        [RegisterType.Coils]: {},
-        [RegisterType.DiscreteInputs]: {},
-        [RegisterType.HoldingRegisters]: {},
-        [RegisterType.InputRegisters]: {}
+        coils: {},
+        discrete_inputs: {},
+        holding_registers: {},
+        input_registers: {}
       },
       setRegisterMapping: (register, key, value) => {
         const type = getState().registerConfig.type
@@ -70,10 +68,10 @@ export const useRootZustand = create<
       clearRegisterMapping: () =>
         set((state) => {
           state.registerMapping = {
-            [RegisterType.Coils]: {},
-            [RegisterType.DiscreteInputs]: {},
-            [RegisterType.HoldingRegisters]: {},
-            [RegisterType.InputRegisters]: {}
+            coils: {},
+            discrete_inputs: {},
+            holding_registers: {},
+            input_registers: {}
           }
         }),
       // Transaction log
@@ -90,7 +88,7 @@ export const useRootZustand = create<
 
       // State
       clientState: {
-        connectState: ConnectState.Disconnected,
+        connectState: 'disconnected',
         polling: false,
         scanningUniId: false,
         scanningRegisters: false
@@ -114,7 +112,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           state.connectionConfig.protocol = protocol
           window.api.updateConnectionConfig({ protocol })
@@ -126,7 +124,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           const newPort = Number(port)
           state.connectionConfig.tcp.options.port = newPort
@@ -136,7 +134,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           state.valid.host = !!valid
           state.connectionConfig.tcp.host = host
@@ -150,7 +148,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           state.valid.com = !!valid
           state.connectionConfig.rtu.com = com
@@ -161,17 +159,16 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
-          const newBaudRate = Number(baudRate)
-          state.connectionConfig.rtu.options.baudRate = newBaudRate
-          window.api.updateConnectionConfig({ rtu: { options: { baudRate: newBaudRate } } })
+          state.connectionConfig.rtu.options.baudRate = baudRate
+          window.api.updateConnectionConfig({ rtu: { options: { baudRate } } })
         }),
       setParity: (parity) =>
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           state.connectionConfig.rtu.options.parity = parity
           window.api.updateConnectionConfig({ rtu: { options: { parity } } })
@@ -180,7 +177,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           const newDataBits = Number(dataBits)
           state.connectionConfig.rtu.options.dataBits = newDataBits
@@ -190,7 +187,7 @@ export const useRootZustand = create<
         set((state) => {
           const currentState = getState()
           if (!currentState.ready) return
-          if (currentState.clientState.connectState !== ConnectState.Disconnected) return
+          if (currentState.clientState.connectState !== 'disconnected') return
 
           const newStopBits = Number(stopBits)
           state.connectionConfig.rtu.options.stopBits = newStopBits
@@ -315,7 +312,7 @@ export const useRootZustand = create<
         }),
       // Unit ID Scannning
       scanUnitIdResults: [],
-      addScanUnitIdResult: (scanUnitIDResult: ScanUnitIDResult) =>
+      addScanUnitIdResult: (scanUnitIDResult) =>
         set((state) => {
           state.scanUnitIdResults.unshift(scanUnitIDResult)
         }),
@@ -335,11 +332,31 @@ export const useRootZustand = create<
           state.version = version
         })
     })),
-    { name: `root.zustand` }
+    {
+      name: `root.zustand`,
+      partialize: (state) => ({
+        connectionConfig: state.connectionConfig,
+        registerConfig: state.registerConfig,
+        registerMapping: state.registerMapping
+      })
+    }
   )
 )
 
 const state = useRootZustand.getState()
+
+// Clear when state is corrupted
+const clear = () => {
+  console.log('Clearing storage...')
+  useRootZustand.persist.clearStorage()
+  useRootZustand.setState(useRootZustand.getInitialState())
+}
+
+const stateResult = PersistedRootZustandSchema.safeParse(state)
+if (!stateResult.success) {
+  console.log(stateResult.error)
+  clear()
+}
 
 // Sync the main process state with the front end
 state.init()
@@ -365,7 +382,7 @@ window.electron.ipcRenderer.on(IpcEvent.Transaction, (_, transaction: Transactio
 // Unit ID scanning results
 window.electron.ipcRenderer.on(
   IpcEvent.ScanUnitIDResult,
-  (_, scanUnitIDResult: ScanUnitIDResult) => {
+  (_, scanUnitIDResult: ScanUnitIdResult) => {
     const state = useRootZustand.getState()
     state.addScanUnitIdResult(scanUnitIDResult)
   }

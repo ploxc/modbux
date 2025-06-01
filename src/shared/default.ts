@@ -1,17 +1,15 @@
 import {
   ConnectionConfig,
-  DataType,
   Protocol,
   RegisterConfig,
   RegisterData,
-  RegisterDataWords,
-  RegisterType
+  RegisterDataWords
 } from './types'
 import { Buffer } from 'buffer'
 
 export const defaultConnectionConfig: ConnectionConfig = {
   unitId: 1,
-  protocol: Protocol.ModbusTcp,
+  protocol: 'ModbusTcp',
   tcp: {
     host: '192.168.1.10',
     options: { port: 502, timeout: 5000 }
@@ -24,7 +22,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
 export const defaultRegisterConfig: RegisterConfig = {
   address: 0,
   length: 10,
-  type: RegisterType.HoldingRegisters,
+  type: 'holding_registers',
   pollRate: 1000,
   timeout: 5000,
   littleEndian: false,
@@ -35,17 +33,17 @@ export const defaultRegisterConfig: RegisterConfig = {
 }
 
 export const dummyWords: RegisterDataWords = {
-  [DataType.Int16]: 0,
-  [DataType.UInt16]: 0,
-  [DataType.Int32]: 0,
-  [DataType.UInt32]: 0,
-  [DataType.Unix]: '',
-  [DataType.Float]: 0,
-  [DataType.Int64]: 0n,
-  [DataType.UInt64]: 0n,
-  [DataType.Double]: 0,
-  [DataType.DateTime]: '',
-  [DataType.Utf8]: ''
+  ['int16']: 0,
+  ['uint16']: 0,
+  ['int32']: 0,
+  ['uint32']: 0,
+  ['unix']: '',
+  ['float']: 0,
+  ['int64']: 0n,
+  ['uint64']: 0n,
+  ['double']: 0,
+  ['datetime']: '',
+  ['utf8']: ''
 }
 
 export const getDummyRegisterData = (register: number): RegisterData => ({
@@ -56,3 +54,5 @@ export const getDummyRegisterData = (register: number): RegisterData => ({
   isScanned: false,
   words: { ...dummyWords }
 })
+
+export const MAIN_SERVER_UUID = '21794bae-26a7-488c-954c-2105cb303c59'

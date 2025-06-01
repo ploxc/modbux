@@ -15,8 +15,7 @@ interface ServerBooleanButtonProps {
 }
 
 const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
-  const bool = useServerZustand((z) => z.serverRegisters[type][address])
-  const setBool = useServerZustand((z) => z.setBool)
+  const bool = useServerZustand((z) => z.serverRegisters[z.selectedUuid][type][address])
 
   const variant = bool ? 'contained' : 'outlined'
 
@@ -25,7 +24,7 @@ const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
       sx={{ flex: 1, flexBasis: 0 }}
       size="small"
       variant={variant}
-      onClick={() => setBool(type, address, !bool)}
+      onClick={() => useServerZustand.getState().setBool(type, address, !bool)}
     >
       {address}
     </Button>
@@ -51,7 +50,7 @@ const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const groupsMemory = useRef<number[][]>([])
   const groups = useServerZustand((z) => {
     // Split into groups of 4 adresses
-    const booleans = Object.keys(z.serverRegisters[type]).map((key) => Number(key))
+    const booleans = Object.keys(z.serverRegisters[z.selectedUuid][type]).map((key) => Number(key))
 
     let groups: number[][] = []
     for (let i = 0; i < booleans.length; i += 4) groups.push(booleans.slice(i, i + 4))
@@ -87,7 +86,7 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
           flexDirection: 'column'
         }}
       >
-        <ServerPartTitle name={name} type={type} />
+        <ServerPartTitle name={name} registerType={type} />
         <Box
           sx={{
             flex: 1,

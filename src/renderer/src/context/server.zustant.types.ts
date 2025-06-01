@@ -1,47 +1,48 @@
 import {
-  RegisterType,
-  RemoveRegisterValueParams,
-  RegisterValueParameters,
+  RemoveRegisterParams,
   BooleanRegisters,
-  NumberRegisters
+  NumberRegisters,
+  CreateServerParams,
+  ServerRegisters,
+  ServerRegistersSchema,
+  NumberRegistersSchema,
+  AddRegisterParams
 } from '@shared'
 import { MaskSetFn } from './root.zustand.types'
+import { z } from 'zod'
 
-type ServerBool = { [key: number]: boolean }
-export type ServerRegister = { [key: number]: ServerRegisterEntry }
-export type ServerRegisterEntry = { value: number; params: RegisterValueParameters }
+export const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
 
-export interface ServerRegisters {
-  [RegisterType.Coils]: ServerBool
-  [RegisterType.DiscreteInputs]: ServerBool
-  [RegisterType.InputRegisters]: ServerRegister
-  [RegisterType.HoldingRegisters]: ServerRegister
-}
+export const PersistedServerZustandSchema = z.object({
+  selectedUuid: z.string(),
+  uuids: z.array(z.string()),
+  serverRegisters: z.record(ServerRegistersSchema),
+  usedAddresses: z.record(z.string(), UsedAddressesSchema),
+  port: z.record(z.string(), z.string()),
+  unitId: z.record(z.string(), z.string()),
+  name: z.record(z.string(), z.string().optional()),
+  portValid: z.record(z.string(), z.boolean())
+})
 
-interface UsedAddresses {
-  [RegisterType.InputRegisters]: number[]
-  [RegisterType.HoldingRegisters]: number[]
-}
+export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema>
 
-export interface ServerZustand {
+export type ServerZustand = {
   ready: boolean
-  serverRegisters: ServerRegisters
+  setSelectedUuid: (uuid: string) => void
+  createServer: (params: CreateServerParams, setUuidAsSelected?: boolean) => Promise<void>
+  deleteServer: (uuid: string) => Promise<void>
   init: () => Promise<void>
   addBools: (type: BooleanRegisters, address: number) => void
   removeBool: (type: BooleanRegisters, address: number) => void
-  setBool: (type: BooleanRegisters, address: number, value: boolean) => void
+  setBool: (type: BooleanRegisters, address: number, value: boolean, uuid?: string) => void
   resetBools: (type: BooleanRegisters) => void
-  addRegister: (params: RegisterValueParameters) => void
-  removeRegister: (params: RemoveRegisterValueParams) => void
-  setRegisterValue: (type: NumberRegisters, address: number, value: number) => void
+  addRegister: (params: AddRegisterParams) => void
+  removeRegister: (params: RemoveRegisterParams) => void
+  setRegisterValue: (type: NumberRegisters, address: number, value: number, uuid?: string) => void
   resetRegisters: (type: NumberRegisters) => void
-  usedAddresses: UsedAddresses
-  // Settings
-  port: string
-  portValid: boolean
   setPort: MaskSetFn
-  unitId: string
   setUnitId: MaskSetFn
   // Replace
-  replaceServerRegisters: (params: ServerRegisters) => void
-}
+  replaceServerRegisters: (registers: ServerRegisters) => void
+  setName: (name: string) => void
+} & PersistedServerZustand

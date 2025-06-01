@@ -45,7 +45,7 @@ export const useScanUnitIdZustand = create<ScanUnitIdZustand, [['zustand/mutativ
       set((state) => {
         state.range[1] = Number(max)
       }),
-    registerTypes: [RegisterType.HoldingRegisters],
+    registerTypes: ['holding_registers'],
     setRegisterTypes: (types) =>
       set((state) => {
         state.registerTypes = types

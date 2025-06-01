@@ -1,10 +1,9 @@
 import { Edit } from '@mui/icons-material'
 import { Grid2, Paper, Box, IconButton, Grid2Props } from '@mui/material'
 import ServerPartTitle from '../ServerPartTitle'
-import { NumberRegisters } from '@shared'
+import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/meme'
-import { ServerRegister } from '@renderer/context/server.zustant.types'
 import { useRef } from 'react'
 import { deepEqual } from 'fast-equals'
 import { useAddRegisterZustand } from './addRegister.zustand'
@@ -44,7 +43,7 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
         {register.params.address}
       </Box>
       <Box sx={{ width: 46, opacity: 0.5, flexShrink: 0 }}>
-        {register.params.dataType.toUpperCase()}
+        {register.params.dataType.replace(/_/, ' ').toUpperCase()}
       </Box>
       <Box sx={{ pr: 2 }}>{register.value}</Box>
       <Box
@@ -67,7 +66,7 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
 const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
   const registersMemory = useRef<ServerRegister[number][]>([])
   const registers = useServerZustand((z) => {
-    const serverRegisters = Object.values(z.serverRegisters[type])
+    const serverRegisters = Object.values(z.serverRegisters[z.selectedUuid][type])
     if (deepEqual(registersMemory.current, serverRegisters)) return registersMemory.current
     registersMemory.current = serverRegisters
     return serverRegisters
@@ -101,7 +100,7 @@ const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
           position: 'relative'
         }}
       >
-        <ServerPartTitle name={name} type={type} />
+        <ServerPartTitle name={name} registerType={type} />
         <Box
           sx={{
             position: 'absolute',

@@ -44,10 +44,10 @@ const TypeSelect = () => {
         label="Type"
         onChange={(e) => handleChange(e.target.value as RegisterType)}
       >
-        <MenuItem value={RegisterType.Coils}>Coils</MenuItem>
-        <MenuItem value={RegisterType.DiscreteInputs}>Discrete Inputs</MenuItem>
-        <MenuItem value={RegisterType.InputRegisters}>Input Registers</MenuItem>
-        <MenuItem value={RegisterType.HoldingRegisters}>Holding Registers</MenuItem>
+        <MenuItem value={'coils'}>Coils</MenuItem>
+        <MenuItem value={'discrete_inputs'}>Discrete Inputs</MenuItem>
+        <MenuItem value={'input_registers'}>Input Registers</MenuItem>
+        <MenuItem value={'holding_registers'}>Holding Registers</MenuItem>
       </Select>
     </FormControl>
   )

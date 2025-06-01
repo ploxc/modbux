@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { AppType, LayoutZustand } from './layout.zustand.types'
+import {
+  AppType,
+  LayoutZustand,
+  PersistedLayoutZustand,
+  PersistedLayoutZustandSchema
+} from './layout.zustand.types'
 import { IpcEvent, WindowsOpen } from '@shared'
 import { persist } from 'zustand/middleware'
 
@@ -8,7 +13,7 @@ const isServerWindow = window.api.isServerWindow
 
 export const useLayoutZustand = create<
   LayoutZustand,
-  [['zustand/persist', never], ['zustand/mutative', never]]
+  [['zustand/persist', PersistedLayoutZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, getState) => ({
@@ -32,22 +37,36 @@ export const useLayoutZustand = create<
         set((state) => {
           state.showLog = show
         }),
-      registerGridMenuAnchorEl: null,
-      setRegisterGridMenuAnchorEl: (anchorEl: HTMLButtonElement | null) =>
-        set((state) => {
-          ;(state.registerGridMenuAnchorEl as HTMLButtonElement | null) = anchorEl
-        }),
-      appType: isServerWindow ? AppType.Server : undefined,
+      appType: isServerWindow ? 'server' : undefined,
       setAppType: (appType: AppType | undefined) =>
         set((state) => {
           state.appType = appType
         })
     })),
-    { name: `layout.zustand${isServerWindow ? '.server' : ''}` }
+    {
+      name: `layout.zustand${isServerWindow ? '.server' : ''}`,
+      partialize: (state) => ({
+        showLog: state.showLog,
+        appType: state.appType
+      })
+    }
   )
 )
 
+// Clear when state is corrupted
+const clear = () => {
+  console.log('Clearing storage...')
+  useLayoutZustand.persist.clearStorage()
+  useLayoutZustand.setState(useLayoutZustand.getInitialState())
+}
+
 const state = useLayoutZustand.getState()
+
+const stateResult = PersistedLayoutZustandSchema.safeParse(state)
+if (!stateResult.success) {
+  console.log(stateResult.error)
+  clear()
+}
 
 // When opening the window and the windows were split, open the windows again
 // Will only happen with macos
@@ -62,5 +81,5 @@ window.electron.ipcRenderer.on(IpcEvent.WindowUpdate, (_, windows: WindowsOpen) 
 
   // When we are the main window, set the state accordingly
   state.setHideHomeButton(windows.server)
-  if (windows.server) state.setAppType(AppType.Client)
+  if (windows.server) state.setAppType('client')
 })

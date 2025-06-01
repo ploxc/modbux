@@ -1,22 +1,21 @@
 import { Grid2 } from '@mui/material'
-import { RegisterType } from '@shared'
 import ServerBooleans from './ServerBooleans/ServerBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
 
 const ServerGrid = () => {
   return (
     <Grid2 container sx={{ height: '100%', minHeight: 0 }} spacing={2}>
-      <ServerBooleans name="Coils" type={RegisterType.Coils} />
-      <ServerBooleans name="Discrete Inputs" type={RegisterType.DiscreteInputs} />
+      <ServerBooleans name="Coils" type={'coils'} />
+      <ServerBooleans name="Discrete Inputs" type={'discrete_inputs'} />
       <ServerRegisters
         size={{ xs: 12, md: 5, lg: 3.7 }}
         name="Input Registers"
-        type={RegisterType.InputRegisters}
+        type={'input_registers'}
       />
       <ServerRegisters
         size={{ xs: 12, md: 'grow', lg: 3.7 }}
         name="Holding Registers"
-        type={RegisterType.HoldingRegisters}
+        type={'holding_registers'}
       />
     </Grid2>
   )

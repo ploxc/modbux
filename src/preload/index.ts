@@ -65,6 +65,10 @@ const api: Api = {
   setServerPort: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerPort, ...args),
   setServerUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerUnitId, ...args),
 
+  // Multiple server additinos
+  createServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.CreateServer, ...args),
+  deleteServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.DeleteServer, ...args),
+
   // App info
   getAppVersion: (...args) => ipcInvoke<typeof args, string>(IpcChannel.GetAppVersion, ...args)
 }

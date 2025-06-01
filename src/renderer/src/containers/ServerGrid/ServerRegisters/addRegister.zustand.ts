@@ -1,11 +1,11 @@
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { ServerRegister } from '@renderer/context/server.zustant.types'
-import { DataType, NumberRegisters } from '@shared'
+import { BaseDataType, DataType, NumberRegisters, ServerRegister } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
 export const getAddressInUse = (
+  uuid: string,
   registerType: NumberRegisters,
   dataType: DataType,
   address: number
@@ -14,11 +14,13 @@ export const getAddressInUse = (
   const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
   if (edit) return false
 
-  const usedAddresses = registerType ? useServerZustand.getState().usedAddresses[registerType] : []
+  const usedAddresses = registerType
+    ? useServerZustand.getState().usedAddresses[uuid][registerType] || []
+    : []
 
-  const addressesNeeded = [DataType.Double, DataType.UInt64, DataType.Int64].includes(dataType)
+  const addressesNeeded = ['double', 'uint64', 'int64'].includes(dataType)
     ? [address, address + 1, address + 2, address + 3]
-    : [DataType.UInt32, DataType.Int32, DataType.Float].includes(dataType)
+    : ['uint32', 'int32', 'float'].includes(dataType)
       ? [address, address + 1]
       : [address]
 
@@ -28,12 +30,8 @@ export const getAddressInUse = (
 interface AddRegisterZustand {
   serverRegisterEdit: ServerRegister[number] | undefined
   registerType: NumberRegisters | undefined
-  setRegisterType: (
-    registerType: NumberRegisters | undefined,
-  ) => void
-  setEditRegister: (
-    register: ServerRegister[number] | undefined
-  ) => void
+  setRegisterType: (registerType: NumberRegisters | undefined) => void
+  setEditRegister: (register: ServerRegister[number] | undefined) => void
   valid: {
     address: boolean
     value: boolean
@@ -44,8 +42,8 @@ interface AddRegisterZustand {
   address: string
   addressInUse: boolean
   setAddress: MaskSetFn
-  dataType: DataType
-  setDataType: (dataType: DataType) => void
+  dataType: BaseDataType
+  setDataType: (dataType: BaseDataType) => void
   value: string
   setValue: MaskSetFn
   interval: string
@@ -72,7 +70,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.registerType = registerType
       }),
 
-    setEditRegister: (register) => 
+    setEditRegister: (register) =>
       set((state) => {
         state.serverRegisterEdit = register
       }),
@@ -92,18 +90,22 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const { registerType, dataType } = getState()
         if (!registerType) return
 
-        const addressInUse = getAddressInUse(registerType, dataType, Number(address))
+        const uuid = useServerZustand.getState().selectedUuid
+
+        const addressInUse = getAddressInUse(uuid, registerType, dataType, Number(address))
 
         state.addressInUse = addressInUse
         state.valid.address = !!valid && !addressInUse
       }),
-    dataType: DataType.Int16,
+    dataType: 'int16',
     setDataType: (dataType) =>
       set((state) => {
         state.dataType = dataType
         const { registerType, address } = getState()
         if (!registerType) return
-        const addressInUse = getAddressInUse(registerType, dataType, Number(address))
+
+        const uuid = useServerZustand.getState().selectedUuid
+        const addressInUse = getAddressInUse(uuid, registerType, dataType, Number(address))
 
         state.addressInUse = addressInUse
         state.valid.address = String(address).length > 0 && !addressInUse
@@ -152,7 +154,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       set((state) => {
         const { registerType } = getState()
         if (!registerType) return
-        const usedAddresses = useServerZustand.getState().usedAddresses[registerType]
+
+        const serverState = useServerZustand.getState()
+        const usedAddresses =
+          serverState.usedAddresses[serverState.selectedUuid][registerType] || []
         for (let address = 0; address <= 65535; address++) {
           if (!usedAddresses.includes(address)) {
             state.address = String(address)

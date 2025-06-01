@@ -15,7 +15,7 @@ import { meme } from '@renderer/components/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import { forwardRef, useCallback, useEffect, useState } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
-import { DataType, notEmpty, RegisterType } from '@shared'
+import { notEmpty } from '@shared'
 import DataTypeSelectInput from '@renderer/components/DataTypeSelectInput'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -32,8 +32,8 @@ const AddressInput = meme(
 
     // Set maximum address based on data type
     const maxAddress = useAddRegisterZustand((z) => {
-      if ([DataType.Int32, DataType.UInt32, DataType.Float].includes(z.dataType)) return 65534
-      if ([DataType.Int64, DataType.UInt64, DataType.Double].includes(z.dataType)) return 65532
+      if (['int32', 'uint32', 'float'].includes(z.dataType)) return 65534
+      if (['int64', 'uint64', 'double'].includes(z.dataType)) return 65532
       return 65535
     })
 
@@ -63,8 +63,6 @@ const AddressField = () => {
     if (edit) return
     useAddRegisterZustand.getState().initFirstUnusedAddress()
   }, [])
-
-
 
   return (
     <FormControl error={!valid}>
@@ -102,7 +100,7 @@ const DataTypeSelect = meme(() => {
     const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
     if (edit) return
     // Default the datatype to int16
-    setDataType(DataType.Int16)
+    setDataType('int16')
   }, [])
 
   return <DataTypeSelectInput disabled={edit} dataType={dataType} setDataType={setDataType} />
@@ -460,23 +458,29 @@ const AddButton = () => {
 
     if (fixed) {
       serverState.addRegister({
-        address: Number(address),
-        value: Number(value),
-        dataType,
-        comment,
-        littleEndian,
-        registerType
+        uuid: serverState.selectedUuid,
+        params: {
+          address: Number(address),
+          value: Number(value),
+          dataType,
+          comment,
+          littleEndian,
+          registerType
+        }
       })
     } else {
       serverState.addRegister({
-        address: Number(address),
-        min: Number(min),
-        max: Number(max),
-        interval: Number(interval) * 1000,
-        dataType,
-        comment,
-        littleEndian,
-        registerType
+        uuid: serverState.selectedUuid,
+        params: {
+          address: Number(address),
+          min: Number(min),
+          max: Number(max),
+          interval: Number(interval) * 1000,
+          dataType,
+          comment,
+          littleEndian,
+          registerType
+        }
       })
     }
 
@@ -500,11 +504,16 @@ const AddButton = () => {
 const DeleteButton = () => {
   const [over, setOver] = useState(false)
   const handleClick = useCallback(() => {
-    const { address, registerType, setRegisterType, setEditRegister } = useAddRegisterZustand.getState()
+    const { address, registerType, setRegisterType, setEditRegister } =
+      useAddRegisterZustand.getState()
     if (!registerType) return
 
     const serverState = useServerZustand.getState()
-    serverState.removeRegister({ address: Number(address), registerType })
+    serverState.removeRegister({
+      uuid: serverState.selectedUuid,
+      address: Number(address),
+      registerType
+    })
 
     setRegisterType(undefined)
     setEditRegister(undefined)
@@ -556,7 +565,7 @@ const AddRegister = () => {
     state.setDataType(dataType)
 
     const newState = useAddRegisterZustand.getState()
-    console.log({state, newState})
+    console.log({ state, newState })
   }, [edit])
 
   return (
@@ -581,7 +590,7 @@ const AddRegister = () => {
       >
         <Typography variant="subtitle2" sx={{ px: 0.5 }}>
           {edit ? 'Edit' : 'Add'}{' '}
-          {registerType === RegisterType.InputRegisters ? 'Input Register' : 'Holding Register'}
+          {registerType === 'input_registers' ? 'Input Register' : 'Holding Register'}
         </Typography>
         <FixedOrGenerator />
         <Box sx={{ display: 'flex', gap: 2 }}>

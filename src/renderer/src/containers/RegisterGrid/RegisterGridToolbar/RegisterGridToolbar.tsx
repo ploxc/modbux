@@ -20,11 +20,8 @@ import { meme } from '@renderer/components/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import {
-  ConnectState,
-  DataType,
   dummyWords,
   getDummyRegisterData,
-  Protocol,
   RegisterData,
   RegisterMapping,
   RegisterType
@@ -35,6 +32,11 @@ import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
 import { useScanRegistersZustand } from '../../ScanRegisters/ScanRegisters'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { Buffer } from 'buffer'
+
+interface SetAnchorProps {
+  setAnchor: (anchor: HTMLDivElement | null) => void
+}
+
 //
 //
 //
@@ -42,7 +44,7 @@ import { Buffer } from 'buffer'
 // Read
 const ReadButton = () => {
   const disabled = useRootZustand(
-    (z) => z.clientState.connectState !== ConnectState.Connected || z.clientState.polling
+    (z) => z.clientState.connectState !== 'connected' || z.clientState.polling
   )
 
   const [reading, setReading] = useState(false)
@@ -78,7 +80,7 @@ const ReadButton = () => {
 //
 // Poll
 const PollButton = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
 
   const polling = useRootZustand((z) => z.clientState.polling)
   const togglePolling = useCallback(() => {
@@ -145,14 +147,14 @@ const ShowLogButton = () => {
 //
 //
 // Scan registers
-const ScanRegistersButton = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
+const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
   const type = useRootZustand((z) => z.registerConfig.type)
-  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
   const handleOpen = useCallback(() => {
     useScanRegistersZustand.getState().setOpen(true)
-    useLayoutZustand.getState().setRegisterGridMenuAnchorEl(null)
+    setAnchor(null)
   }, [])
 
   const text = registers16Bit ? 'Scan Registers' : 'Scan TRUE Bits'
@@ -161,12 +163,12 @@ const ScanRegistersButton = () => {
       {text}
     </Button>
   )
-}
+})
 
 // Menu Register Options
 const MenuRegisterOptions = () => {
   const type = useRootZustand((z) => z.registerConfig.type)
-  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
   if (!registers16Bit) return null
 
   const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
@@ -219,8 +221,8 @@ const MenuRegisterOptions = () => {
 //
 //
 // Load dummy data
-const LoadDummyDataButton = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState === ConnectState.Connected)
+const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
+  const disabled = useRootZustand((z) => z.clientState.connectState === 'connected')
 
   // Load dummy data for the configured register range so columns can be edited
   // without having to connect to the device or read registers
@@ -237,7 +239,7 @@ const LoadDummyDataButton = () => {
     }
 
     dataState.setRegisterData(dummyData)
-    useLayoutZustand.getState().setRegisterGridMenuAnchorEl(null)
+    setAnchor(null)
   }, [])
 
   return (
@@ -245,32 +247,29 @@ const LoadDummyDataButton = () => {
       Load Dummy Data
     </Button>
   )
-}
+})
 
 //
 //
 //
 //
 // Menu with extra options
-const MenuContent = () => {
+const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (
     <FormGroup>
       <MenuRegisterOptions />
       <ScanUnitIds />
-      <ScanRegistersButton />
-      <LoadDummyDataButton />
+      <ScanRegistersButton setAnchor={setAnchor} />
+      <LoadDummyDataButton setAnchor={setAnchor} />
     </FormGroup>
   )
-}
+})
 
 // Menu button for extra options menu
 const MenuButton = () => {
   const scanRegistersOpen = useScanRegistersZustand((z) => z.open)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const anchorEl = useLayoutZustand((z) => z.registerGridMenuAnchorEl)
-  const setAnchorEl: (el: HTMLButtonElement | null) => void = useLayoutZustand(
-    (z) => z.setRegisterGridMenuAnchorEl
-  )
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
 
   return (
     <>
@@ -278,7 +277,7 @@ const MenuButton = () => {
         ref={buttonRef}
         size="small"
         variant={'outlined'}
-        onClick={() => setAnchorEl(buttonRef.current)}
+        onClick={() => setAnchor(buttonRef.current)}
         sx={{ minWidth: 40 }}
       >
         <Menu />
@@ -291,11 +290,11 @@ const MenuButton = () => {
         }}
         slotProps={{ paper: { sx: { px: 2, py: 1 } } }}
         anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
-        open={!!anchorEl}
-        anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
+        open={!!anchor}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
       >
-        <MenuContent />
+        <MenuContent setAnchor={setAnchor} />
       </Popover>
     </>
   )
@@ -408,7 +407,7 @@ const ToggleEndianButton = () => {
   const littleEndian = useRootZustand((z) => z.registerConfig.littleEndian)
   const setLittleEndian = useRootZustand((z) => z.setLittleEndian)
 
-  const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(type)
+  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
   if (!registers16Bit) return null
 
   return (
@@ -447,7 +446,7 @@ const SaveButton = () => {
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
       Object.keys(registerMapping[key]).forEach((register) => {
-        if (registerMapping[key][register]?.dataType === DataType.None) {
+        if (registerMapping[key][register]?.dataType === 'none') {
           delete registerMapping[key][register]
         }
       })
@@ -472,8 +471,8 @@ const SaveButton = () => {
       }
     } = useRootZustand.getState()
 
-    const protocolText = protocol === Protocol.ModbusTcp ? '_tcp' : '_rtu'
-    const ipText = protocol === Protocol.ModbusTcp ? `_${host.replace(/\./g, '_')}_${port}` : ''
+    const protocolText = protocol === 'ModbusTcp' ? '_tcp' : '_rtu'
+    const ipText = protocol === 'ModbusTcp' ? `_${host.replace(/\./g, '_')}_${port}` : ''
     const idText = `_id${unitId}`
 
     const filename = `modbux${protocolText}${ipText}${idText}.json`
@@ -509,7 +508,7 @@ const showMapping = () => {
   const type = useRootZustand.getState().registerConfig.type
 
   Object.entries(registerMapping[type]).forEach(([addressString, m]) => {
-    if (m.dataType === DataType.None || !m.dataType) return
+    if (!m || m.dataType === 'none' || !m.dataType) return
     const address = parseInt(addressString, 10)
 
     const row: RegisterData = {
@@ -550,10 +549,10 @@ const LoadButton = () => {
       try {
         const registerMapping = JSON.parse(content) as RegisterMapping
 
-        const coils = registerMapping[RegisterType.Coils]
-        const discreteInputs = registerMapping[RegisterType.DiscreteInputs]
-        const inputRegisters = registerMapping[RegisterType.InputRegisters]
-        const holdingRegisters = registerMapping[RegisterType.HoldingRegisters]
+        const coils = registerMapping['coils']
+        const discreteInputs = registerMapping['discrete_inputs']
+        const inputRegisters = registerMapping['input_registers']
+        const holdingRegisters = registerMapping['holding_registers']
 
         if (!coils || typeof coils !== 'object') throw new Error('No coils in the JSON file')
         if (!discreteInputs || typeof discreteInputs !== 'object')

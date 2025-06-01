@@ -2,12 +2,12 @@ import { Box, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/
 import ComInput from '@renderer/components/ComInput'
 import { maskInputProps } from '@renderer/components/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, ModbusBaudRate } from '@shared'
+import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 
 // COM Port
 const Com = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const com = useRootZustand((z) => z.connectionConfig.rtu.com)
   const comValid = useRootZustand((z) => z.valid.com)
@@ -41,7 +41,7 @@ const Com = () => {
 //
 // Baud Rate
 const BaudRateSelect = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'baud-rate-select'
   const baudRate = useRootZustand((z) => z.connectionConfig.rtu.options.baudRate)
@@ -57,17 +57,14 @@ const BaudRateSelect = () => {
         labelId={labelId}
         value={baudRate}
         label="Baud Rate"
-        onChange={(e) => setBaudRate(Number(e.target.value) as ModbusBaudRate)}
+        onChange={(e) => setBaudRate(e.target.value as ModbusBaudRate)}
         sx={{ width: 100 }}
       >
-        {Object.entries(ModbusBaudRate).map(([key, value]) => {
-          if (typeof value === 'string') return null
-          return (
-            <MenuItem key={`baud_rate_${key}`} value={value}>
-              {value}
-            </MenuItem>
-          )
-        })}
+        {ModbusBaudRateSchema.options.map((value) => (
+          <MenuItem key={`baud_rate_${value}`} value={value}>
+            {value}
+          </MenuItem>
+        ))}
       </Select>
     </FormControl>
   )
@@ -78,7 +75,7 @@ const BaudRateSelect = () => {
 // Parity
 const parityOptions: SerialPortOptions['parity'][] = ['none', 'even', 'odd', 'mark', 'space']
 const ParitySelect = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'parity-select'
   const parity = useRootZustand((z) => z.connectionConfig.rtu.options.parity)
@@ -113,7 +110,7 @@ const ParitySelect = () => {
 const databitsOptions: SerialPortOptions['dataBits'][] = [8, 7, 6, 5]
 
 const DataBitsSelect = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'databits-select'
   const dataBits = useRootZustand((z) => z.connectionConfig.rtu.options.dataBits)
@@ -147,7 +144,7 @@ const DataBitsSelect = () => {
 // Stop Bits
 const StopBitsOptions: SerialPortOptions['stopBits'][] = [1, 2]
 const StopBitsSelect = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'stopbits-select'
   const stopBits = useRootZustand((z) => z.connectionConfig.rtu.options.stopBits)

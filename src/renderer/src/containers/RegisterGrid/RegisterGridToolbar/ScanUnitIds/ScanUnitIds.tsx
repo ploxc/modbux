@@ -11,7 +11,6 @@ import { DataGrid } from '@mui/x-data-grid'
 import { maskInputProps, MaskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState, RegisterType } from '@shared'
 import { forwardRef, useCallback, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import useScanUnitIdColumns from './_columns'
@@ -207,10 +206,10 @@ const SelectRegisterTypes = () => {
       onChange={(_, rt) => setRegisterTypes(rt)}
       aria-label="text formatting"
     >
-      <ToggleButton value={RegisterType.Coils}>Coils</ToggleButton>
-      <ToggleButton value={RegisterType.DiscreteInputs}>Discrete Inputs</ToggleButton>
-      <ToggleButton value={RegisterType.InputRegisters}>Input Registers</ToggleButton>
-      <ToggleButton value={RegisterType.HoldingRegisters}>Holding Registers</ToggleButton>
+      <ToggleButton value={'coils'}>Coils</ToggleButton>
+      <ToggleButton value={'discrete_inputs'}>Discrete Inputs</ToggleButton>
+      <ToggleButton value={'input_registers'}>Input Registers</ToggleButton>
+      <ToggleButton value={'holding_registers'}>Holding Registers</ToggleButton>
     </ToggleButtonGroup>
   )
 }
@@ -303,7 +302,7 @@ const ScanResultGrid = () => {
 //
 // Scan unit ids button
 const ScanUnitIdsButton = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Connected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
   const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
   return (
     <Button

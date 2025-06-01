@@ -8,8 +8,8 @@ import {
 } from '@mui/x-data-grid'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import {
-  ConnectState,
   DataType,
+  DataTypeSchema,
   getConventionalAddress,
   RegisterData,
   RegisterDataWords,
@@ -147,7 +147,7 @@ const binColumn: GridColDef<RegisterData, string> = {
   field: 'bin',
   headerName: 'BIN',
   width: 80,
-  renderCell: ({ row }) => <WordLedDisplay value={row.words?.[DataType.UInt16]} />
+  renderCell: ({ row }) => <WordLedDisplay value={row.words?.['uint16']} />
 }
 
 //
@@ -168,12 +168,12 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
 
     // Get the value for the register datatype, they are all there, the defined datatype
     // extracts that value and shows it in the value column
-    const value = dataType && dataType !== DataType.None ? String(row.words?.[dataType]) : undefined
+    const value = dataType && dataType !== 'none' ? String(row.words?.[dataType]) : undefined
     if (!value) return undefined
 
     // For strings we must calculate the length until the next defined datatype
     let count = 1
-    if (dataType === DataType.Utf8) {
+    if (dataType === 'utf8') {
       const groups = useDataZustand.getState().addressGroups
 
       // Find the current group that contains the address
@@ -189,7 +189,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
       // Or stop when we reach the end of the group
       while (
         address <= startAddress + length &&
-        (!register || register.dataType === DataType.None || !register.dataType)
+        (!register || register.dataType === 'none' || !register.dataType)
       ) {
         count++
         register = registerMap[address + count]
@@ -203,7 +203,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
     }
 
     // Return a string when it's a string :D
-    if (dataType === DataType.DateTime || dataType === DataType.Unix) return value
+    if (dataType === 'datetime' || dataType === 'unix') return value
 
     // Get the scaling factor from the register map
     // And the decimal places for rounding the scaled value because js can add some unwanted
@@ -213,7 +213,7 @@ const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<Regist
 
     // When we have a floating point number, we add the decimal places of it
     // to the decimal places of the scaling factor, else we would round the float completely
-    const float = dataType === DataType.Float || dataType === DataType.Double
+    const float = dataType === 'float' || dataType === 'double'
     const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
 
     // Round the scaled value to the given decimal places
@@ -238,12 +238,11 @@ const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData
   valueGetter: (_, row) => {
     const address = row.id
     const register = registerMap[address]
-    if (!register) return DataType.None
+    if (!register) return 'none'
     return register.dataType
   },
-  valueOptions: Object.values(DataType).map((value) => ({ value, label: value.toUpperCase() })),
-  renderCell: ({ value }) =>
-    value === DataType.None ? '' : value ? value.toUpperCase() : undefined
+  valueOptions: DataTypeSchema.options.map((value) => ({ value, label: value.toUpperCase() })),
+  renderCell: ({ value }) => (value === 'none' ? '' : value ? value.toUpperCase() : undefined)
 })
 
 //
@@ -356,12 +355,12 @@ const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> 
     const address = row.id
     const [open, setOpen] = useState(false)
 
-    const text = type === RegisterType.Coils ? 'Write Coil' : 'Write Register'
+    const text = type === 'coils' ? 'Write Coil' : 'Write Register'
     const actionCellRef = useRef<HTMLDivElement>(null)
     const apiRef = useGridApiContext()
 
     const disabled = useRootZustand((z) => {
-      return z.clientState.polling || z.clientState.connectState !== ConnectState.Connected
+      return z.clientState.polling || z.clientState.connectState !== 'connected'
     })
 
     return row.isScanned
@@ -410,9 +409,7 @@ const useRegisterGridColumns = () => {
   const length = useRootZustand((z) => z.registerConfig.length)
 
   return useMemo(() => {
-    const registers16Bit = [RegisterType.InputRegisters, RegisterType.HoldingRegisters].includes(
-      type
-    )
+    const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
     const showConventionalAddress = Number(address) + length < 10000
 
@@ -438,33 +435,30 @@ const useRegisterGridColumns = () => {
     // Advanced mode columns
     if (advanced && registers16Bit) {
       columns.push(
-        valueColumn(DataType.Int16, 70),
-        valueColumn(DataType.UInt16, 70),
-        valueColumn(DataType.Int32, 100),
-        valueColumn(DataType.UInt32, 100),
-        valueColumn(DataType.Float, 100)
+        valueColumn('int16', 70),
+        valueColumn('uint16', 70),
+        valueColumn('int32', 100),
+        valueColumn('uint32', 100),
+        valueColumn('float', 100)
       )
     }
 
     // Show 64 bit columns only in advanced mode, these are not very common, but they are there
     if (advanced && show64Bit && registers16Bit) {
       columns.push(
-        valueColumn(DataType.Int64, 160),
-        valueColumn(DataType.UInt64, 160),
-        valueColumn(DataType.Double, 160)
+        valueColumn('int64', 160),
+        valueColumn('uint64', 160),
+        valueColumn('double', 160)
       )
     }
 
     if (advanced && showString && registers16Bit) {
-      columns.push(
-        valueColumn(DataType.Utf8, 120, 'string'),
-        valueColumn(DataType.DateTime, 210, 'string')
-      )
+      columns.push(valueColumn('utf8', 120, 'string'), valueColumn('datetime', 210, 'string'))
     }
 
     columns.push(commentColumn(registerMap))
 
-    if ([RegisterType.Coils, RegisterType.HoldingRegisters].includes(type)) {
+    if (['coils', 'holding_registers'].includes(type)) {
       columns.push(writeActionColumn(type))
     }
 

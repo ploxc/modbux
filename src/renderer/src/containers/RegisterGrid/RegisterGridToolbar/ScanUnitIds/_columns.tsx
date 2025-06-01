@@ -1,11 +1,11 @@
 import { GridColDef } from '@mui/x-data-grid'
-import { RegisterType, ScanUnitIDResult } from '@shared'
+import { RegisterType, ScanUnitIdResult } from '@shared'
 import { useMemo } from 'react'
 import { useScanUnitIdZustand } from './_zustand'
 import { Box, Chip } from '@mui/material'
 import { CheckCircle, ErrorRounded } from '@mui/icons-material'
 
-const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
+const unitIdColumn: GridColDef<ScanUnitIdResult, number, number> = {
   field: 'id',
   headerName: 'Unit ID',
   hideable: false,
@@ -13,7 +13,7 @@ const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
   disableColumnMenu: true
 }
 
-const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIDResult> => ({
+const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIdResult> => ({
   field: registerType,
   type: 'boolean',
   headerName: name,
@@ -31,7 +31,7 @@ const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUn
   )
 })
 
-const errorColumn: GridColDef<ScanUnitIDResult> = {
+const errorColumn: GridColDef<ScanUnitIdResult> = {
   field: 'errorMessage',
   headerName: 'Error',
   flex: 1,
@@ -44,11 +44,11 @@ const errorColumn: GridColDef<ScanUnitIDResult> = {
           return String(v).length === 0 ? null : (
             <Box key={k} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <span>
-                {k === RegisterType.Coils
+                {k === 'coils'
                   ? 'FC1'
-                  : k === RegisterType.DiscreteInputs
+                  : k === 'discrete_inputs'
                     ? 'FC2'
-                    : k === RegisterType.HoldingRegisters
+                    : k === 'holding_registers'
                       ? 'FC3'
                       : 'FC4'}
                 :
@@ -67,14 +67,13 @@ const useScanUnitIdColumns = () => {
   return useMemo(() => {
     const newColumns = [unitIdColumn]
 
-    if (registerTypes.includes(RegisterType.Coils))
-      newColumns.push(typeColumn(RegisterType.Coils, 'Coils'))
-    if (registerTypes.includes(RegisterType.DiscreteInputs))
-      newColumns.push(typeColumn(RegisterType.DiscreteInputs, 'Inputs'))
-    if (registerTypes.includes(RegisterType.InputRegisters))
-      newColumns.push(typeColumn(RegisterType.InputRegisters, 'Input Reg.'))
-    if (registerTypes.includes(RegisterType.HoldingRegisters))
-      newColumns.push(typeColumn(RegisterType.HoldingRegisters, 'Holding'))
+    if (registerTypes.includes('coils')) newColumns.push(typeColumn('coils', 'Coils'))
+    if (registerTypes.includes('discrete_inputs'))
+      newColumns.push(typeColumn('discrete_inputs', 'Inputs'))
+    if (registerTypes.includes('input_registers'))
+      newColumns.push(typeColumn('input_registers', 'Input Reg.'))
+    if (registerTypes.includes('holding_registers'))
+      newColumns.push(typeColumn('holding_registers', 'Holding'))
 
     newColumns.push(errorColumn)
 

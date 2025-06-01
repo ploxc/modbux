@@ -27,7 +27,9 @@ export enum IpcChannel {
   RestartServer = 'RestartServer',
   SetServerPort = 'SetServerPort',
   SetServerUnitId = 'SetServerUnitId',
-  GetAppVersion = 'GetAppVersion'
+  GetAppVersion = 'GetAppVersion',
+  CreateServer = 'CreateServer',
+  DeleteServer = 'DeleteServer'
 }
 
 type IpcListener<A extends any[], R> = (event: IpcMainInvokeEvent, ...args: A) => Promise<R> | R

@@ -3,17 +3,19 @@ import {
   ConnectionConfig,
   DeepPartial,
   RegisterConfig,
-  RemoveRegisterValueParams,
+  RemoveRegisterParams,
   ScanRegistersParameters,
   ScanUnitIDParameters,
   SetBooleanParameters,
   SyncBoolsParameters,
   SyncRegisterValueParams,
-  RegisterValueParameters,
   WriteParameters,
-  BooleanRegisters,
-  NumberRegisters,
-  RegisterMapping
+  RegisterMapping,
+  ResetRegistersParams,
+  ResetBoolsParams,
+  CreateServerParams,
+  SetUnitIdParams,
+  AddRegisterParams
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
@@ -66,26 +68,26 @@ export const initIpc = (
   ipcHandle(IpcChannel.StopScanningRegisters, () => client.stopScanningRegisters())
 
   // Server
-  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: RegisterValueParameters) =>
-    server.addRegisterValue(params)
+  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: AddRegisterParams) =>
+    server.addRegister(params)
   )
-  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveRegisterValueParams) =>
+  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveRegisterParams) =>
     server.removeRegisterValue(params)
   )
   ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncRegisterValueParams) =>
     server.syncServerRegisters(params)
   )
-  ipcHandle(IpcChannel.ResetRegisters, (_, registerType: NumberRegisters) =>
-    server.resetRegisters({ registerType })
+  ipcHandle(IpcChannel.ResetRegisters, (_, params: ResetRegistersParams) =>
+    server.resetRegisters(params)
   )
   ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
-  ipcHandle(IpcChannel.ResetBools, (_, registerType: BooleanRegisters) =>
-    server.resetBools({ registerType })
-  )
+  ipcHandle(IpcChannel.ResetBools, (_, params: ResetBoolsParams) => server.resetBools(params))
   ipcHandle(IpcChannel.SyncBools, (_, params: SyncBoolsParameters) => server.syncBools(params))
-  ipcHandle(IpcChannel.RestartServer, () => server.restartServer())
-  ipcHandle(IpcChannel.SetServerPort, (_, port: number) => server.setPort(port))
-  ipcHandle(IpcChannel.SetServerUnitId, (_, unitId: number | undefined) => server.setId(unitId))
+  ipcHandle(IpcChannel.RestartServer, (_, uuid: string) => server.restartServer(uuid))
+  ipcHandle(IpcChannel.SetServerPort, (_, params: CreateServerParams) => server.setPort(params))
+  ipcHandle(IpcChannel.SetServerUnitId, (_, params: SetUnitIdParams) => server.setId(params))
+  ipcHandle(IpcChannel.CreateServer, (_, params: CreateServerParams) => server.createServer(params))
+  ipcHandle(IpcChannel.DeleteServer, (_, uuid: string) => server.deleteServer(uuid))
 
   ipcHandle(IpcChannel.GetAppVersion, () => app.getVersion())
 }

@@ -3,11 +3,10 @@ import HostInput from '@renderer/components/HostInput'
 import { maskInputProps } from '@renderer/components/types'
 import UIntInput from '@renderer/components/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ConnectState } from '@shared'
 
 // Host
 const Host = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const host = useRootZustand((z) => z.connectionConfig.tcp.host)
   const hostValid = useRootZustand((z) => z.valid.host)
   const setHost = useRootZustand((z) => z.setHost)
@@ -40,9 +39,8 @@ const Host = () => {
 //
 // Port
 const Port = () => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== ConnectState.Disconnected)
+  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const port = useRootZustand((z) => String(z.connectionConfig.tcp.options.port))
-  const setPort = useRootZustand((z) => z.setPort)
 
   return (
     <TextField
@@ -55,7 +53,7 @@ const Port = () => {
       slotProps={{
         input: {
           inputComponent: UIntInput as any,
-          inputProps: maskInputProps({ set: setPort })
+          inputProps: maskInputProps({ set: useRootZustand.getState().setPort })
         }
       }}
     />
