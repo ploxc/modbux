@@ -180,6 +180,11 @@ export class ModbusServer {
     )
   }
   public removeRegisterValue = ({ uuid, registerType, address }: RemoveRegisterParams) => {
+    // Reset fixed value
+    const serverData = this._serverData.get(uuid)
+    if (serverData) serverData[registerType][address] = 0
+
+    // Reset generator if exists
     const serverGenerators = this._generatorMap.get(uuid)
     if (!serverGenerators) return
 
@@ -194,16 +199,21 @@ export class ModbusServer {
   }
 
   public syncServerRegisters = ({ uuid, registerValues }: SyncRegisterValueParams) => {
+    // Reset all registers before syncing
+    this.resetRegisters({ uuid, registerType: 'holding_registers' })
+    this.resetRegisters({ uuid, registerType: 'input_registers' })
+    // Add all registers from the received array
     for (const params of registerValues) this.addRegister({ uuid, params })
   }
 
   public resetRegisters = ({ uuid, registerType }: ResetRegistersParams) => {
+    // Dispose all generators
     const serverGenerators = this._generatorMap.get(uuid)
     const generators = serverGenerators?.[registerType]
     generators?.forEach((generator) => generator.dispose())
 
+    // Reset server data
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
-
     serverData[registerType] = new Array(65535).fill(0)
     this._serverData.set(uuid, serverData)
   }
@@ -218,8 +228,8 @@ export class ModbusServer {
   }
 
   public resetBools = ({ uuid, registerType }: ResetBoolsParams) => {
+    // Reset server data
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
-
     serverData[registerType] = new Array(65535).fill(false)
     this._serverData.set(uuid, serverData)
   }
@@ -228,9 +238,8 @@ export class ModbusServer {
     const { uuid } = params
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
 
-    params.coils.forEach((value, index) => {
-      serverData.coils[index] = value
-    })
+    // Sync coils and discrete inputs
+    params['coils'].forEach((value, index) => (serverData['coils'][index] = value))
     params['discrete_inputs'].forEach((value, index) => {
       serverData['discrete_inputs'][index] = value
     })
@@ -243,7 +252,7 @@ export class ModbusServer {
   // Vector methods
   private _getCoil: (uuid: string) => IServiceVector['getCoil'] =
     (uuid) => async (addr: number) => {
-      return this._serverData.get(uuid)?.coils[addr]
+      return this._serverData.get(uuid)?.['coils'][addr]
     }
   private _getDiscreteInput: (uuid: string) => IServiceVector['getDiscreteInput'] =
     (uuid) => async (addr: number) => {

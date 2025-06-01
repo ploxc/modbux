@@ -94,7 +94,7 @@ export const useServerZustand = create<
           const coils: boolean[] = Array(65535).fill(false)
           const discreteInputs: boolean[] = Array(65535).fill(false)
 
-          Object.values(state.serverRegisters[uuid].coils || {}).forEach(
+          Object.values(state.serverRegisters[uuid]['coils'] || {}).forEach(
             (value, address) => (coils[address] = value)
           )
           Object.values(state.serverRegisters[uuid]['discrete_inputs'] || {}).forEach(
@@ -115,6 +115,8 @@ export const useServerZustand = create<
             state.serverRegisters[uuid]['holding_registers']
           ).map((r) => r.params)
 
+          console.log({ inputRegisterRegisterValues, holdingRegisterRegisterValues })
+
           window.api.syncServerregisters({
             uuid,
             registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
@@ -129,7 +131,6 @@ export const useServerZustand = create<
             state.usedAddresses[uuid]['holding_registers'] = getUsedAddresses(
               holdingRegisterRegisterValues
             )
-            state.ready = true
           })
         }
 
@@ -137,6 +138,10 @@ export const useServerZustand = create<
           // Create the main server if no server exists in persisted state
           state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
         }
+
+        set((state) => {
+          state.ready = true
+        })
       },
       setSelectedUuid: (uuid) =>
         set((state) => {
@@ -244,7 +249,7 @@ export const useServerZustand = create<
         set((state) => {
           const uuid = getState().selectedUuid
           state.serverRegisters[uuid][registerType] = {}
-          window.api.resetRegisters(registerType)
+          window.api.resetRegisters({ uuid, registerType })
         }),
       setPort: (port, valid) =>
         set((state) => {

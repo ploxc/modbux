@@ -11,13 +11,13 @@ import { ScanUnitIDParameters, ScanRegistersParameters } from './scan'
 import {
   RemoveRegisterParams,
   SyncRegisterValueParams,
-  NumberRegisters,
   SetBooleanParameters,
   BooleanRegisters,
   SyncBoolsParameters,
   CreateServerParams,
   SetUnitIdParams,
-  AddRegisterParams
+  AddRegisterParams,
+  ResetRegistersParams
 } from './server'
 import { DeepPartial } from './utils'
 
@@ -42,7 +42,7 @@ export interface Api {
   addReplaceServerRegister: (params: AddRegisterParams) => void
   removeServerRegister: (params: RemoveRegisterParams) => void
   syncServerregisters: (params: SyncRegisterValueParams) => void
-  resetRegisters: (registerType: NumberRegisters) => void
+  resetRegisters: (params: ResetRegistersParams) => void
   setBool: (params: SetBooleanParameters) => void
   resetBools: (registerType: BooleanRegisters) => void
   syncBools: (params: SyncBoolsParameters) => void
