@@ -4,8 +4,8 @@ import { RegisterData, RegisterMapObject } from '@shared'
 export const scalingFactorColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'scalingFactor',
   sortable: false,
-  headerName: 'Scaling',
-  width: 80,
+  headerName: 'Scale',
+  width: 60,
   type: 'number',
   editable: true,
   valueGetter: (_, row) => {
@@ -14,5 +14,6 @@ export const scalingFactorColumn = (registerMap: RegisterMapObject): GridColDef 
     if (!register?.scalingFactor) return 1
     return register.scalingFactor
   },
-  renderCell: ({ value }) => value
+  renderCell: ({ value, row }) =>
+    registerMap[row.id]?.dataType && registerMap[row.id]?.dataType !== 'none' ? value : ''
 })

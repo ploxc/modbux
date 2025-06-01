@@ -5,7 +5,7 @@ export const commentColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'comment',
   sortable: false,
   headerName: 'Comment',
-  minWidth: 300,
+  minWidth: 120,
   flex: 1,
   editable: true,
   valueGetter: (_, row) => {

@@ -13,6 +13,7 @@ import { binaryColumn } from './binary'
 import { valueColumn } from './value'
 import { commentColumn } from './comment'
 import { writeActionColumn } from './write'
+import { interpolationColumn } from './interpolation'
 
 //
 //
@@ -47,6 +48,7 @@ const useRegisterGridColumns = () => {
         dataTypeColumn(registerMap),
         convertedValueColumn(registerMap),
         scalingFactorColumn(registerMap),
+        interpolationColumn(type),
         hexColumn,
         binaryColumn
       )

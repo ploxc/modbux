@@ -4,10 +4,19 @@ import { BaseDataType, DataTypeSchema } from './datatype'
 //
 //
 // Register Mapping
+export const RegisterLinearInterpolationSchema = z.object({
+  x1: z.string(),
+  x2: z.string(),
+  y1: z.string(),
+  y2: z.string()
+})
+export type RegisterLinearInterpolation = z.infer<typeof RegisterLinearInterpolationSchema>
+
 export const RegisterMapValueSchema = z.object({
   dataType: DataTypeSchema.optional(),
   scalingFactor: z.number().optional(),
-  comment: z.string().optional()
+  comment: z.string().optional(),
+  interpolate: RegisterLinearInterpolationSchema.optional()
 })
 export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
 

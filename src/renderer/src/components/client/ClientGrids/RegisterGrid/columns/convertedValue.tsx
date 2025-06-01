@@ -1,7 +1,26 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { RegisterData, RegisterMapObject } from '@shared'
+import { RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
 import { round } from 'lodash'
+
+// Linear interpolation function
+const linearInterpolate = (x: number, { x1, x2, y1, y2 }: RegisterLinearInterpolation): number => {
+  const nx1 = Number(x1)
+  const nx2 = Number(x2)
+  const ny1 = Number(y1)
+  const ny2 = Number(y2)
+
+  // Avoid division by zero; return y1 if x1 === x2
+  if (nx2 === nx1) {
+    return ny1
+  }
+
+  // Compute interpolation factor t = (x – x1) / (x2 – x1)
+  const t = (x - nx1) / (nx2 - nx1)
+
+  // Return interpolated value y = y1 + t * (y2 - y1)
+  return ny1 + t * (ny2 - ny1)
+}
 
 export const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'value',
@@ -70,7 +89,12 @@ export const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef
     const isNotANumberValue = isNaN(Number(value))
     if (isNotANumberValue) return undefined
 
-    return round(Number(value) * scalingFactor, decimalPlaces + decimalPlacesFloat)
+    let scaledValue = Number(value) * scalingFactor
+    const interpolate = registerMap[address]?.interpolate
+
+    if (interpolate) scaledValue = linearInterpolate(scaledValue, interpolate)
+
+    return round(scaledValue, decimalPlaces + decimalPlacesFloat)
   },
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
