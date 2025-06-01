@@ -23,7 +23,7 @@ import {
   dummyWords,
   getDummyRegisterData,
   RegisterData,
-  RegisterMapping,
+  RegisterMappingSchema,
   RegisterType
 } from '@shared'
 import { useSnackbar } from 'notistack'
@@ -545,24 +545,26 @@ const LoadButton = () => {
 
       const state = useRootZustand.getState()
 
-      const content = await file.text()
+      let content = await file.text()
+
       try {
-        const registerMapping = JSON.parse(content) as RegisterMapping
+        // replace legacy strings
+        content = content.replaceAll('InputRegisters', 'input_registers')
+        content = content.replaceAll('DiscreteInputs', 'discrete_inputs')
+        content = content.replaceAll('Coils', 'coils')
+        content = content.replaceAll('HoldingRegisters', 'holding_registers')
 
-        const coils = registerMapping['coils']
-        const discreteInputs = registerMapping['discrete_inputs']
-        const inputRegisters = registerMapping['input_registers']
-        const holdingRegisters = registerMapping['holding_registers']
+        const configObject = JSON.parse(content)
+        const configResult = RegisterMappingSchema.safeParse(configObject)
 
-        if (!coils || typeof coils !== 'object') throw new Error('No coils in the JSON file')
-        if (!discreteInputs || typeof discreteInputs !== 'object')
-          throw new Error('No discrete inputs in the JSON file')
-        if (!inputRegisters || typeof inputRegisters !== 'object')
-          throw new Error('No input registers in the JSON file')
-        if (!holdingRegisters || typeof holdingRegisters !== 'object')
-          throw new Error('No holding registers in the JSON file')
-
-        state.replaceRegisterMapping(registerMapping)
+        if (configResult.success) {
+          const registerMapping = configResult.data
+          state.replaceRegisterMapping(registerMapping)
+          enqueueSnackbar({ variant: 'success', message: 'Configuration opened successfully' })
+        } else {
+          enqueueSnackbar({ variant: 'error', message: 'Invalid Config' })
+          console.log(configResult.error)
+        }
       } catch (error) {
         const tError = error as Error
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })

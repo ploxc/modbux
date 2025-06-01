@@ -21,7 +21,7 @@ export const HomeButton = () => {
   return hideHomeButton ? null : (
     <Button
       variant="outlined"
-      sx={{ minWidth: 38, maxWidth: 38, borderColor: 'rgba(255, 255, 255, 0.23)' }}
+      sx={{ minWidth: 38, maxWidth: 38, height: 36, borderColor: 'rgba(255, 255, 255, 0.23)' }}
       color="info"
       onClick={() => setAppType(undefined)}
     >

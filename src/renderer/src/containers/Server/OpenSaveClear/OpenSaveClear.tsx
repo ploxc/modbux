@@ -34,9 +34,6 @@ const useOpen = () => {
         content = content.replaceAll('HoldingRegisters', 'holding_registers')
 
         const configObject = JSON.parse(content)
-
-        console.log(configObject)
-
         const configResult = ServerConfigSchema.safeParse(configObject)
 
         if (configResult.success) {
@@ -132,7 +129,7 @@ const OpenSaveClear = () => {
   }, [])
 
   return (
-    <Box sx={{ display: 'flex', ml: -1 }}>
+    <Box sx={{ display: 'flex' }}>
       <div>
         {!opening && (
           <input

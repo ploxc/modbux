@@ -75,7 +75,7 @@ const SelectServer = meme(() => {
   }, [])
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
       <ButtonGroup variant="contained" color="primary" sx={{ height: 36 }}>
         <Button onClick={addServer} disabled={addDisabled}>
           <Add />
@@ -110,7 +110,7 @@ const ServerName = meme(() => {
   const name = useServerZustand((z) => z.name[z.selectedUuid] || '')
   return (
     <TextField
-      sx={{ flex: 1 }}
+      sx={{ flex: 1, minWidth: 200 }}
       size="small"
       // variant="filled"
       color="primary"
@@ -141,8 +141,8 @@ const Server = meme(() => {
             sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}
           >
             <HomeButton />
-            <SelectServer />
             <OpenSaveClear />
+            <SelectServer />
             <ServerName />
             <ServerConfig />
           </Box>
