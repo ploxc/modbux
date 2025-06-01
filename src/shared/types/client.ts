@@ -66,8 +66,7 @@ export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
 
 // modbus-serial TcpPortOptions partial
 export const TcpPortOptionsSchema = z.object({
-  port: z.number(),
-  ip: z.string()
+  port: z.number()
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
 
@@ -158,7 +157,6 @@ export const RegisterConfigSchema = z.object({
   littleEndian: z.boolean(),
   advancedMode: z.boolean(),
   show64BitValues: z.boolean(),
-  showStringValues: z.boolean(),
   addressBase: z.enum(['0', '1']),
   readConfiguration: z.boolean()
 })

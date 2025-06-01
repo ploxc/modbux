@@ -72,7 +72,6 @@ export type RootZusand = {
   setAddressBase: (addressBase: '0' | '1') => void
   setAdvancedMode: (advancedMode: boolean) => void
   setShow64BitValues: (show64BitValues: boolean) => void
-  setShowStringValues: (showStringValues: boolean) => void
 
   // Transaction
   setLastSuccessfulTransactionMillis: (value: number | null) => void
