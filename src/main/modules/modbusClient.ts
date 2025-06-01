@@ -6,13 +6,11 @@ import {
   bigEndian32,
   bigEndian64,
   ClientState,
-  ConnectState,
   createRegisters,
   DataType,
   IpcEvent,
   littleEndian32,
   littleEndian64,
-  Protocol,
   RawTransaction,
   RegisterData,
   RegisterMapValue,
@@ -154,7 +152,12 @@ export class ModbusClient {
     try {
       protocol === 'ModbusTcp'
         ? await this._client.connectTCP(host, tcpOptions)
-        : await this._client.connectRTUBuffered(com, rtuOptions)
+        : await this._client.connectRTUBuffered(com, {
+            baudRate: Number(rtuOptions.baudRate),
+            dataBits: rtuOptions.dataBits,
+            stopBits: rtuOptions.stopBits,
+            parity: rtuOptions.parity
+          })
       this._emitMessage({ message: 'Connected to server/slave', variant: 'success', error: null })
       this._setConnected()
     } catch (error) {
@@ -848,7 +851,7 @@ export class ModbusClient {
         await this._client.readCoils(address, length)
         result.registerTypes.push('coils')
       } catch (error) {
-        result.errorMessagecoils = (error as Error).message
+        result.errorMessage['coils'] = (error as Error).message
       }
       await this._sendScanProgress()
     }
