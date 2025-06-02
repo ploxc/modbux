@@ -57,7 +57,7 @@ export const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef
       // Continue until we find the next register with a defined datatype
       // Or stop when we reach the end of the group
       while (
-        address <= startAddress + length &&
+        address + count <= startAddress + length &&
         (!register || register.dataType === 'none' || !register.dataType)
       ) {
         count++

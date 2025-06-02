@@ -76,7 +76,7 @@ const EndianTable = () => {
         <br />- SCL assignment: `registers[0] := W0`, `registers[1] := W1`
       </Typography>
 
-      <Typography variant="body1" sx={{ mt: 2 }}>
+      <Typography component={'div'} variant="body1" sx={{ mt: 2 }}>
         <strong>Explanation:</strong>
         <ul>
           <li>
