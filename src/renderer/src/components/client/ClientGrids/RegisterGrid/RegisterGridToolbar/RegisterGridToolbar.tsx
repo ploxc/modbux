@@ -11,6 +11,7 @@ import ClearConfigButton from './ClearConfigButton/ClearConfigButton'
 import ClearButton from './ClearButton/ClearButton'
 import ShowLogButton from './ShowLogButton/ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
+import RawButton from './RawButton/RawButton'
 
 const RegisterGridToolbar = meme(() => {
   return (
@@ -31,6 +32,7 @@ const RegisterGridToolbar = meme(() => {
         <ReadButton />
         <ToggleEndianButton />
         <TimeSettings />
+        <RawButton/>
       </Box>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
         <Box sx={{ display: 'flex' }}>

@@ -12,6 +12,7 @@ import { useGridApiRef } from '@mui/x-data-grid/hooks/utils/useGridApiRef'
 import { GridFilterModel } from '@mui/x-data-grid/models/gridFilterModel'
 import { GridLogicOperator } from '@mui/x-data-grid/models/gridFilterItem'
 import { DataGrid } from '@mui/x-data-grid/DataGrid/DataGrid'
+import { DataType } from '@shared'
 //
 //
 //
@@ -39,6 +40,7 @@ const Footer = meme(() => {
 // DataGrid
 const RegisterGridContent = () => {
   const registerData = useDataZustand((z) => z.registerData)
+  const registerMapping = useRootZustand((z) => z.registerMapping[z.registerConfig.type])
   const columns = useRegisterGridColumns()
 
   const apiRef = useGridApiRef()
@@ -66,6 +68,26 @@ const RegisterGridContent = () => {
       columnHeaderHeight={48}
       hideFooterPagination
       editMode="cell"
+      isCellEditable={({ colDef: { field }, row: { id } }) => {
+        if (field === 'comment') return true
+        const scalingEnabledDataTypes: DataType[] = [
+          'double',
+          'float',
+          'int16',
+          'int32',
+          'int64',
+          'uint16',
+          'uint32',
+          'uint64'
+        ]
+        const dataType = registerMapping[id]?.dataType || 'none'
+
+        if (field === 'scalingFactor' && !scalingEnabledDataTypes.includes(dataType)) {
+          return false
+        }
+
+        return dataType !== 'none' || field === 'dataType'
+      }}
       sx={(theme) => ({
         '& .MuiDataGrid-virtualScrollerContent': {
           fontFamily: 'monospace',
@@ -106,6 +128,12 @@ const RegisterGridContent = () => {
         if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
           const z = useRootZustand.getState()
           z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+        }
+
+        // Update group end
+        if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
+          const z = useRootZustand.getState()
+          z.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
         }
 
         return newRow

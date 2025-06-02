@@ -16,21 +16,28 @@ export const useLayoutZustand = create<
   [['zustand/persist', PersistedLayoutZustand], ['zustand/mutative', never]]
 >(
   persist(
-    mutative((set, getState) => ({
+    mutative((set, get) => ({
       showLog: false,
       homeShiftKeyDown: false,
+      hideHomeButton: isServerWindow,
+      showClientRawValues: false,
+      toggleShowClientRawValues: () =>
+        set((state) => {
+          state.showClientRawValues = !get().showClientRawValues
+        }),
+
       setHomeShiftKeyDown: (down) =>
         set((state) => {
           state.homeShiftKeyDown = down
         }),
-      hideHomeButton: isServerWindow,
+
       setHideHomeButton: (hide) =>
         set((state) => {
           state.hideHomeButton = hide
         }),
       toggleShowLog: () =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           state.showLog = !currentState.showLog
         }),
       setShowLog: (show: boolean) =>

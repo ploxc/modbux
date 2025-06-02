@@ -1,6 +1,6 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
+import { DataType, RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
 import { round } from 'lodash'
 
 // Linear interpolation function
@@ -22,13 +22,16 @@ const linearInterpolate = (x: number, { x1, x2, y1, y2 }: RegisterLinearInterpol
   return ny1 + t * (ny2 - ny1)
 }
 
-export const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
+export const convertedValueColumn = (
+  registerMap: RegisterMapObject,
+  showRaw: boolean
+): GridColDef<RegisterData> => ({
   field: 'value',
   sortable: false,
   hideable: false,
   type: 'string',
   headerName: 'Value',
-  width: 150,
+  width: 160,
   valueGetter: (_, row) => {
     const address = row.id
 
@@ -74,27 +77,40 @@ export const convertedValueColumn = (registerMap: RegisterMapObject): GridColDef
     // Return a string when it's a string :D
     if (dataType === 'datetime' || dataType === 'unix') return value
 
-    // Get the scaling factor from the register map
-    // And the decimal places for rounding the scaled value because js can add some unwanted
-    // decimal places by deviding by the scaling factor
-    const scalingFactor = registerMap[address]?.scalingFactor ?? 1
-    const decimalPlaces = String(scalingFactor).split('.')[1]?.length ?? 0
-
-    // When we have a floating point number, we add the decimal places of it
-    // to the decimal places of the scaling factor, else we would round the float completely
-    const float = dataType === 'float' || dataType === 'double'
-    const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
-
-    // Round the scaled value to the given decimal places
     const isNotANumberValue = isNaN(Number(value))
     if (isNotANumberValue) return undefined
 
-    let scaledValue = Number(value) * scalingFactor
-    const interpolate = registerMap[address]?.interpolate
+    if (showRaw) return Number(value)
 
-    if (interpolate) scaledValue = linearInterpolate(scaledValue, interpolate)
-
-    return round(scaledValue, decimalPlaces + decimalPlacesFloat)
+    let { scaledValue, precision } = convert(value, dataType, registerMap, address)
+    return round(scaledValue, precision)
   },
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
+
+const convert = (
+  value: string,
+  dataType: DataType | undefined,
+  registerMap: RegisterMapObject,
+  address: number
+) => {
+  // Get the scaling factor from the register map
+  // And the decimal places for rounding the scaled value because js can add some unwanted
+  // decimal places by deviding by the scaling factor
+  const scalingFactor = registerMap[address]?.scalingFactor ?? 1
+  const decimalPlaces = String(scalingFactor).split('.')[1]?.length ?? 0
+
+  // When we have a floating point number, we add the decimal places of it
+  // to the decimal places of the scaling factor, else we would round the float completely
+  const float = dataType === 'float' || dataType === 'double'
+  const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
+
+  // Scale
+  let scaledValue = Number(value) * scalingFactor
+
+  // Interpolate
+  const interpolate = registerMap[address]?.interpolate
+  if (interpolate) scaledValue = linearInterpolate(scaledValue, interpolate)
+
+  return { scaledValue, precision: decimalPlaces + decimalPlacesFloat }
+}

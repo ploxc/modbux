@@ -12,6 +12,8 @@ export type PersistedLayoutZustand = z.infer<typeof PersistedLayoutZustandSchema
 export type LayoutZustand = {
   hideHomeButton: boolean
   homeShiftKeyDown: boolean
+  showClientRawValues: boolean
+  toggleShowClientRawValues: () => void
   setHomeShiftKeyDown: (down: boolean) => void
   setHideHomeButton: (hide: boolean) => void
   toggleShowLog: () => void

@@ -14,6 +14,8 @@ import { valueColumn } from './value'
 import { commentColumn } from './comment'
 import { writeActionColumn } from './write'
 import { interpolationColumn } from './interpolation'
+import { groupEndColumn } from './groupEnd'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
 //
 //
@@ -28,6 +30,8 @@ const useRegisterGridColumns = () => {
 
   const address = useRootZustand((z) => z.registerConfig.address)
   const length = useRootZustand((z) => z.registerConfig.length)
+
+  const showRaw = useLayoutZustand((z) => z.showClientRawValues)
 
   return useMemo(() => {
     const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
@@ -46,9 +50,10 @@ const useRegisterGridColumns = () => {
     if (registers16Bit) {
       columns.push(
         dataTypeColumn(registerMap),
-        convertedValueColumn(registerMap),
-        scalingFactorColumn(registerMap),
+        convertedValueColumn(registerMap, showRaw),
+        scalingFactorColumn(registerMap, type),
         interpolationColumn(type),
+        groupEndColumn(registerMap),
         hexColumn,
         binaryColumn
       )
@@ -81,7 +86,7 @@ const useRegisterGridColumns = () => {
     }
 
     return columns
-  }, [type, addressBase, advanced, show64Bit, registerMap, address, length])
+  }, [type, addressBase, advanced, show64Bit, registerMap, address, length, showRaw])
 }
 
 export default useRegisterGridColumns

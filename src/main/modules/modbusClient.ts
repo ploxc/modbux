@@ -252,7 +252,11 @@ export class ModbusClient {
       } catch (error) {
         const readError = error as Error
         errorMessage = readError.message
-        this._emitMessage({ message: errorMessage, variant: 'error', error })
+        this._emitMessage({
+          message: `${errorMessage} [addr:${a}, len:${l}]`,
+          variant: 'error',
+          error
+        })
       }
       this._logTransaction(errorMessage)
       if (this._clientState.connectState !== 'connected') break
@@ -353,7 +357,10 @@ export class ModbusClient {
       return tup[1] !== undefined
     }
 
-    const registerEntries = Object.entries(registers).filter(isRegisterEntry)
+    const registerEntries = Object.entries(registers)
+      .filter(isRegisterEntry)
+      .filter(([_, r]) => r.dataType !== undefined && r.dataType !== 'none')
+
     const infos = this.buildAddrInfos(registerEntries)
 
     // 1) Make a shallow copy and sort by address ascending
@@ -373,7 +380,9 @@ export class ModbusClient {
 
       // 3) Try to include as many following entries as still fit under maxLength
       while (j + 1 < sorted.length) {
-        const next = sorted[j + 1] // look at the next item
+        const next = sorted.at(j + 1) // using .at() for safer access
+        if (!next) break // should never happen, but just in case
+
         const nextEnd = next.address + next.registerCount - 1 // its last occupied register
         const candidateEnd = Math.max(endAddr, nextEnd) // span covering both items
         const span = candidateEnd - startAddr + 1 // total registers from start

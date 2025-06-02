@@ -31,6 +31,8 @@ export const useRootZustand = create<
           state.connectionConfig = syncedConnectionConfig
           state.registerConfig = syncedRegisterConfig
           state.clientState = clientState
+          // On init always set the readConfiguration to false
+          state.registerConfig.readConfiguration = false
           state.ready = true
         })
       },

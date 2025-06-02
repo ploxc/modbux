@@ -16,7 +16,8 @@ export const RegisterMapValueSchema = z.object({
   dataType: DataTypeSchema.optional(),
   scalingFactor: z.number().optional(),
   comment: z.string().optional(),
-  interpolate: RegisterLinearInterpolationSchema.optional()
+  interpolate: RegisterLinearInterpolationSchema.optional(),
+  groupEnd: z.boolean().optional()
 })
 export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
 
