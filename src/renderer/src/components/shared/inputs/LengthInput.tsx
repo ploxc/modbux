@@ -12,9 +12,11 @@ const LengthInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
       min={0}
       max={125}
       inputRef={ref}
-      onAccept={(value: any) => set(value, value > 0)}
+      onAccept={(value) => set(value, Number(value) > 0)}
     />
   )
 })
+
+LengthInput.displayName = 'LengthInput'
 
 export default LengthInput

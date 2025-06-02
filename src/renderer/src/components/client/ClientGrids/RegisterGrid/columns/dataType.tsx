@@ -1,5 +1,5 @@
 import { GridColDef } from '@mui/x-data-grid/models'
-import { DataTypeSchema, RegisterData, RegisterMapObject } from '@shared'
+import { DataType, DataTypeSchema, RegisterData, RegisterMapObject } from '@shared'
 
 export const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'dataType',
@@ -8,7 +8,7 @@ export const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef<Regis
   width: 80,
   type: 'singleSelect',
   editable: true,
-  valueGetter: (_, row) => {
+  valueGetter: (_, row): DataType | undefined => {
     const address = row.id
     const register = registerMap[address]
     if (!register) return 'none'

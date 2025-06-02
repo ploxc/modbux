@@ -1,12 +1,22 @@
-import { Box, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material'
+import {
+  Box,
+  FormControl,
+  InputBaseComponentProps,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField
+} from '@mui/material'
 import ComInput from '@renderer/components/shared/inputs/ComInput'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
+import { ElementType } from 'react'
 
 // COM Port
-const Com = () => {
+const Com = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const com = useRootZustand((z) => z.connectionConfig.rtu.com)
@@ -24,7 +34,7 @@ const Com = () => {
       value={com}
       slotProps={{
         input: {
-          inputComponent: ComInput as any,
+          inputComponent: ComInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setCom })
         }
       }}
@@ -35,12 +45,12 @@ const Com = () => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Baud Rate
-const BaudRateSelect = () => {
+const BaudRateSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'baud-rate-select'
@@ -68,13 +78,14 @@ const BaudRateSelect = () => {
       </Select>
     </FormControl>
   )
-}
+})
 
 //
 //
 // Parity
 const parityOptions: SerialPortOptions['parity'][] = ['none', 'even', 'odd', 'mark', 'space']
-const ParitySelect = () => {
+
+const ParitySelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'parity-select'
@@ -102,14 +113,14 @@ const ParitySelect = () => {
       </Select>
     </FormControl>
   )
-}
+})
 
 //
 //
 // Data Bits
 const databitsOptions: SerialPortOptions['dataBits'][] = [8, 7, 6, 5]
 
-const DataBitsSelect = () => {
+const DataBitsSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'databits-select'
@@ -137,13 +148,13 @@ const DataBitsSelect = () => {
       </Select>
     </FormControl>
   )
-}
+})
 
 //
 //
 // Stop Bits
 const StopBitsOptions: SerialPortOptions['stopBits'][] = [1, 2]
-const StopBitsSelect = () => {
+const StopBitsSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const labelId = 'stopbits-select'
@@ -170,9 +181,9 @@ const StopBitsSelect = () => {
       </Select>
     </FormControl>
   )
-}
+})
 
-const RtuConfig = () => {
+const RtuConfig = (): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 2 }}>

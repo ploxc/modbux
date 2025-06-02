@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  InputBaseComponentProps,
   Modal,
   Paper,
   TextField,
@@ -11,11 +12,12 @@ import { DataGrid } from '@mui/x-data-grid'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { forwardRef, useCallback, useMemo } from 'react'
+import { ElementType, forwardRef, useCallback, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
 import { ScanProgress, TimeoutInput } from '../ScanProgress/ScanProgress'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
 //
@@ -32,10 +34,12 @@ const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       max={max}
       autofix
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value) => set(value, true)}
     />
   )
 })
+
+MinInput.displayName = 'MinInput'
 
 const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -49,15 +53,17 @@ const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       max={247}
       autofix
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value) => set(value, true)}
     />
   )
 })
 
+MaxInput.displayName = 'MaxInput'
+
 //
 //
 // Min Max components
-const MinTextField = () => {
+const MinTextField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const min = useScanUnitIdZustand((z) => String(z.range[0]))
   const setMinRange = useScanUnitIdZustand((z) => z.setMinRange)
@@ -72,7 +78,7 @@ const MinTextField = () => {
       value={min}
       slotProps={{
         input: {
-          inputComponent: MinInput as any,
+          inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMinRange })
         }
       }}
@@ -80,7 +86,7 @@ const MinTextField = () => {
   )
 }
 
-const MaxTextField = () => {
+const MaxTextField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const max = useScanUnitIdZustand((z) => String(z.range[1]))
   const setMaxRange = useScanUnitIdZustand((z) => z.setMaxRange)
@@ -95,7 +101,7 @@ const MaxTextField = () => {
       value={max}
       slotProps={{
         input: {
-          inputComponent: MaxInput as any,
+          inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMaxRange })
         }
       }}
@@ -108,7 +114,7 @@ const MaxTextField = () => {
 //
 //
 // Address field
-const AddressField = () => {
+const AddressField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const address = useScanUnitIdZustand((z) => String(z.address))
   const setAddress = useScanUnitIdZustand((z) => z.setAddress)
@@ -123,7 +129,7 @@ const AddressField = () => {
       value={address}
       slotProps={{
         input: {
-          inputComponent: UIntInput as any,
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setAddress })
         }
       }}
@@ -136,7 +142,7 @@ const AddressField = () => {
 //
 //
 // Length field
-const LengthField = () => {
+const LengthField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const length = useScanUnitIdZustand((z) => String(z.length))
   const setLength = useScanUnitIdZustand((z) => z.setLength)
@@ -151,7 +157,7 @@ const LengthField = () => {
       value={length}
       slotProps={{
         input: {
-          inputComponent: UIntInput as any,
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setLength })
         }
       }}
@@ -164,7 +170,7 @@ const LengthField = () => {
 //
 //
 // Timeout field
-const TimeoutField = () => {
+const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const timeout = useScanUnitIdZustand((z) => String(z.timeout))
   const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
@@ -179,7 +185,7 @@ const TimeoutField = () => {
       value={timeout}
       slotProps={{
         input: {
-          inputComponent: TimeoutInput as any,
+          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setTimeout })
         }
       }}
@@ -192,7 +198,7 @@ const TimeoutField = () => {
 //
 //
 // Select register types
-const SelectRegisterTypes = () => {
+const SelectRegisterTypes = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
   const setRegisterTypes = useScanUnitIdZustand((z) => z.setRegisterTypes)
@@ -219,7 +225,7 @@ const SelectRegisterTypes = () => {
 //
 //
 // Scan button
-const ScanButton = () => {
+const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const polling = useRootZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
@@ -263,7 +269,7 @@ const ScanButton = () => {
 //
 //
 // Scan result grid
-const ScanResultGrid = () => {
+const ScanResultGrid = meme(() => {
   const scanResults = useRootZustand((z) => z.scanUnitIdResults)
 
   const columns = useScanUnitIdColumns()
@@ -296,12 +302,12 @@ const ScanResultGrid = () => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Scan unit ids button
-const ScanUnitIdsButton = () => {
+const ScanUnitIdsButton = (): JSX.Element => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
   const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
   return (
@@ -312,7 +318,7 @@ const ScanUnitIdsButton = () => {
       variant="outlined"
       onClick={() => setScanUnitIdsOpen(true)}
     >
-      Scan Unit ID's
+      Scan Unit ID{`'`}s
     </Button>
   )
 }
@@ -322,7 +328,7 @@ const ScanUnitIdsButton = () => {
 //
 //
 // MAIN
-const ScanUnitIds = () => {
+const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
   const setOpen = useScanUnitIdZustand((z) => z.setOpen)
 
@@ -375,5 +381,5 @@ const ScanUnitIds = () => {
       </Modal>
     </>
   )
-}
+})
 export default ScanUnitIds

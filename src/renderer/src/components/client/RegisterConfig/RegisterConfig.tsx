@@ -11,7 +11,8 @@ import {
   Typography,
   Divider,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  InputBaseComponentProps
 } from '@mui/material'
 import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -20,18 +21,16 @@ import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { getConventionalAddress, RegisterType } from '@shared'
-import { useCallback, useEffect, useMemo } from 'react'
+import { ElementType, useCallback, useEffect, useMemo } from 'react'
 
 // Protocol
-const TypeSelect = () => {
+const TypeSelect = meme(() => {
   const labelId = 'register-type-select'
   const type = useRootZustand((z) => z.registerConfig.type)
-  const setType = useRootZustand((z) => z.setType)
-  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const handleChange = useCallback((type: RegisterType) => {
-    setRegisterData([])
-    setType(type)
+    useDataZustand.getState().setRegisterData([])
+    useRootZustand.getState().setType(type)
   }, [])
 
   return (
@@ -51,12 +50,12 @@ const TypeSelect = () => {
       </Select>
     </FormControl>
   )
-}
+})
 
 //
 //
 // Address
-const Address = () => {
+const Address = meme(() => {
   const address = useRootZustand((z) => String(z.registerConfig.address))
   const length = useRootZustand((z) => z.registerConfig.length)
   const type = useRootZustand((z) => z.registerConfig.type)
@@ -79,7 +78,7 @@ const Address = () => {
       value={address}
       slotProps={{
         input: {
-          inputComponent: UIntInput as any,
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setAddress }),
           endAdornment: (
             <Box
@@ -129,11 +128,11 @@ const Address = () => {
                       <Typography variant="body1">
                         Each register type in Modbus can theoretically address up to 65,536
                         locations (0 - 65535). The numbering convention (e.g., 40000/40001 for
-                        holding registers) is commonly used in documentation but doesn't always
+                        holding registers) is commonly used in documentation but doesn{`'`}t always
                         match the internal Modbus protocol addresses. For example, a holding
                         register at address 0 in Modbus might be referred to as 40000 or 40001 by
                         some manufacturers, while others may use 0 directly. The actual addressing
-                        and naming depend on the manufacturer's implementation.
+                        and naming depend on the manufacturer{`'`}s implementation.
                       </Typography>
                     </Paper>
                   }
@@ -157,12 +156,12 @@ const Address = () => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Length
-const Length = () => {
+const Length = meme(() => {
   const length = useRootZustand((z) => String(z.registerConfig.length))
   const lengthValid = useRootZustand((z) => z.valid.lenght)
   const setLength = useRootZustand((z) => z.setLength)
@@ -179,15 +178,15 @@ const Length = () => {
       error={!lengthValid}
       slotProps={{
         input: {
-          inputComponent: LengthInput as any,
+          inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setLength })
         }
       }}
     />
   )
-}
+})
 
-const ReadConfiguration = () => {
+const ReadConfiguration = meme(() => {
   const readConfiguration = useRootZustand((z) => !!z.registerConfig.readConfiguration)
   const handleChange = useCallback((_: React.MouseEvent, v: boolean | null) => {
     const toggleState = !!v
@@ -222,7 +221,7 @@ const ReadConfiguration = () => {
       </ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
 const RegisterConfig = meme(() => {
   // Reset reading configuration on load

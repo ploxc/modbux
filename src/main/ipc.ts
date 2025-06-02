@@ -1,119 +1,124 @@
 import { AppState } from './state'
 import {
-  ConnectionConfig,
-  DeepPartial,
-  RegisterConfig,
-  RemoveRegisterParams,
   ScanRegistersParameters,
-  ScanUnitIDParameters,
-  SetBooleanParameters,
-  SyncBoolsParameters,
-  SyncRegisterValueParams,
-  WriteParameters,
-  RegisterMapping,
-  ResetRegistersParams,
-  ResetBoolsParams,
-  CreateServerParams,
-  SetUnitIdParams,
-  AddRegisterParams,
   ConnectionConfigSchema,
   defaultConnectionConfig,
   defaultRegisterConfig,
   RegisterConfigSchema,
-  ClientState,
   ClientStateSchema,
-  defaultClientState
+  defaultClientState,
+  IpcHandlerMap,
+  IpcEvent,
+  IpcEventPayloadMap
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
-import { ipcHandle, IpcChannel } from '@backend'
+import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
 
-export const initIpc = (
+export const ipcHandle = <C extends keyof IpcHandlerMap>(
+  channel: C,
+  listener: (
+    event: IpcMainInvokeEvent,
+    ...args: IpcHandlerMap[C]['args']
+  ) => Promise<IpcHandlerMap[C]['return']> | IpcHandlerMap[C]['return']
+): void => {
+  ipcMain.handle(channel, listener)
+}
+
+type InitIpcFn = (
   app: Electron.App,
   state: AppState,
   client: ModbusClient,
   server: ModbusServer
-) => {
+) => void
+
+export const initIpc: InitIpcFn = (app, state, client, server) => {
   // Connnection config
-  ipcHandle(IpcChannel.GetConnectionConfig, (): ConnectionConfig => {
+  ipcHandle('get_connection_config', () => {
     // Validate and return the current connection config, or default if invalid
     const result = ConnectionConfigSchema.safeParse(state.connectionConfig)
     if (result.success) return result.data
     state.updateConnectionConfig(defaultConnectionConfig)
     return defaultConnectionConfig
   })
-  ipcHandle(IpcChannel.UpdateConnectionConfig, (_, config: DeepPartial<ConnectionConfig>) =>
-    state.updateConnectionConfig(config)
-  )
+  ipcHandle('update_connection_config', (_, config) => state.updateConnectionConfig(config))
+
   // Register config
-  ipcHandle(IpcChannel.GetRegisterConfig, (): RegisterConfig => {
+  ipcHandle('get_register_config', () => {
     // Validate and return the current register config, or default if invalid
     const result = RegisterConfigSchema.safeParse(state.registerConfig)
     if (result.success) return result.data
     state.updateRegisterConfig(defaultRegisterConfig)
     return defaultRegisterConfig
   })
-  ipcHandle(IpcChannel.UpdateRegisterConfig, (_, config: DeepPartial<RegisterConfig>) =>
-    state.updateRegisterConfig(config)
-  )
+  ipcHandle('update_register_config', (_, config) => state.updateRegisterConfig(config))
+
   // Client state
-  ipcHandle(IpcChannel.GetClientState, (): ClientState => {
+  ipcHandle('get_client_state', () => {
     // Validate and return the current client state, or default if invalid
     const result = ClientStateSchema.safeParse(client.state)
     if (result.success) return result.data
     return defaultClientState
   })
-  ipcHandle(IpcChannel.SetRegisterMapping, (_, mapping: RegisterMapping) =>
-    state.setRegisterMapping(mapping)
-  )
+  ipcHandle('set_register_mapping', (_, mapping) => state.setRegisterMapping(mapping))
 
   // Connection Actions
-  ipcHandle(IpcChannel.Connect, () => client.connect())
-  ipcHandle(IpcChannel.Disconnect, () => client.disconnect())
+  ipcHandle('connect', () => client.connect())
+  ipcHandle('disconnect', () => client.disconnect())
 
   // Read Actions
-  ipcHandle(IpcChannel.Read, () => client.read())
-  ipcHandle(IpcChannel.StartPolling, () => client.startPolling())
-  ipcHandle(IpcChannel.StopPolling, () => client.stopPolling())
+  ipcHandle('read', () => client.read())
+  ipcHandle('start_polling', () => client.startPolling())
+  ipcHandle('stop_polling', () => client.stopPolling())
 
   // Write Actions
-  ipcHandle(IpcChannel.Write, (_, writeParameters: WriteParameters) =>
-    client.write(writeParameters)
-  )
+  ipcHandle('write', (_, writeParameters) => client.write(writeParameters))
 
   // Scan Unit ID Actions
-  ipcHandle(IpcChannel.ScanUnitIds, (_, scanUnitIdParameters: ScanUnitIDParameters) =>
-    client.scanUnitIds(scanUnitIdParameters)
-  )
-  ipcHandle(IpcChannel.StopScanningUnitIds, () => client.stopScanningUnitIds())
+  ipcHandle('scan_unit_ids', (_, scanUnitIdParameters) => client.scanUnitIds(scanUnitIdParameters))
+  ipcHandle('stop_scanning_unit_ids', () => client.stopScanningUnitIds())
 
   // Scan Registers Actions
-  ipcHandle(IpcChannel.ScanRegisters, (_, scanRegistersParameters: ScanRegistersParameters) =>
+  ipcHandle('scan_registers', (_, scanRegistersParameters: ScanRegistersParameters) =>
     client.scanRegisters(scanRegistersParameters)
   )
-  ipcHandle(IpcChannel.StopScanningRegisters, () => client.stopScanningRegisters())
+  ipcHandle('stop_scanning_registers', () => client.stopScanningRegisters())
 
   // Server
-  ipcHandle(IpcChannel.AddReplaceServerRegister, (_, params: AddRegisterParams) =>
-    server.addRegister(params)
-  )
-  ipcHandle(IpcChannel.RemoveServerRegister, (_, params: RemoveRegisterParams) =>
-    server.removeRegisterValue(params)
-  )
-  ipcHandle(IpcChannel.SyncServerRegisters, (_, params: SyncRegisterValueParams) =>
-    server.syncServerRegisters(params)
-  )
-  ipcHandle(IpcChannel.ResetRegisters, (_, params: ResetRegistersParams) =>
-    server.resetRegisters(params)
-  )
-  ipcHandle(IpcChannel.SetBool, (_, params: SetBooleanParameters) => server.setBool(params))
-  ipcHandle(IpcChannel.ResetBools, (_, params: ResetBoolsParams) => server.resetBools(params))
-  ipcHandle(IpcChannel.SyncBools, (_, params: SyncBoolsParameters) => server.syncBools(params))
-  ipcHandle(IpcChannel.RestartServer, (_, uuid: string) => server.restartServer(uuid))
-  ipcHandle(IpcChannel.SetServerPort, (_, params: CreateServerParams) => server.setPort(params))
-  ipcHandle(IpcChannel.SetServerUnitId, (_, params: SetUnitIdParams) => server.setId(params))
-  ipcHandle(IpcChannel.CreateServer, (_, params: CreateServerParams) => server.createServer(params))
-  ipcHandle(IpcChannel.DeleteServer, (_, uuid: string) => server.deleteServer(uuid))
+  ipcHandle('add_replace_server_register', (_, params) => server.addRegister(params))
+  ipcHandle('remove_server_register', (_, params) => server.removeRegisterValue(params))
+  ipcHandle('sync_server_register', (_, params) => server.syncServerRegisters(params))
+  ipcHandle('reset_registers', (_, params) => server.resetRegisters(params))
+  ipcHandle('set_bool', (_, params) => server.setBool(params))
+  ipcHandle('reset_bools', (_, params) => server.resetBools(params))
+  ipcHandle('sync_bools', (_, params) => server.syncBools(params))
+  ipcHandle('restart_server', (_, uuid) => server.restartServer(uuid))
+  ipcHandle('set_server_port', (_, params) => server.setPort(params))
+  ipcHandle('set_server_unit_id', (_, params) => server.setId(params))
+  ipcHandle('create_server', (_, params) => server.createServer(params))
+  ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid))
 
-  ipcHandle(IpcChannel.GetAppVersion, () => app.getVersion())
+  // App Version
+  ipcHandle('get_app_version', () => app.getVersion())
+}
+
+/**
+ * Register a listener for an IPC event on the main process:
+ * - E must be one of the keys in IpcEvent.
+ * - listener receives the IpcMainEvent plus the payload tuple defined in IpcEventPayloadMap[E].
+ */
+export function onIpcEvent<E extends IpcEvent>(
+  event: E,
+  listener: (event: IpcMainEvent, ...args: IpcEventPayloadMap[E]) => void
+): void {
+  ipcMain.on(event, (ev, ...args) => {
+    listener(ev, ...(args as IpcEventPayloadMap[E]))
+  })
+}
+
+/**
+ * Remove all listeners for a specific IPC event on the main process.
+ */
+export function offIpcEvent<E extends IpcEvent>(event: E): void {
+  ipcMain.removeAllListeners(event)
 }

@@ -6,8 +6,9 @@ import { RegisterMappingSchema } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 import { showMapping } from '../ViewConfigButton/ViewConfigButton'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
-const LoadButton = () => {
+const LoadButton = meme((): JSX.Element => {
   const openingRef = useRef(false)
   const [opening, setOpening] = useState(false)
 
@@ -78,6 +79,6 @@ const LoadButton = () => {
       </label>
     </Box>
   )
-}
+})
 
 export default LoadButton

@@ -11,7 +11,7 @@ export const conventionalAddresColumn = (
   sortable: false,
   headerName: 'Conv.',
   width: 60,
-  renderCell: ({ row }) => {
+  renderCell: ({ row }): JSX.Element => {
     const value = showConventionalAddress
       ? getConventionalAddress(type, String(row.id), addressBase)
       : addressBase === '1'

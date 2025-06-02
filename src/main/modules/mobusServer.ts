@@ -1,6 +1,5 @@
 import {
   BackendMessage,
-  IpcEvent,
   RemoveRegisterParams,
   SetBooleanParameters,
   SyncBoolsParameters,
@@ -52,7 +51,7 @@ export class ModbusServer {
     this._windows = windows
   }
 
-  private _getVector = (uuid: string) => ({
+  private _getVector = (uuid: string): IServiceVector => ({
     getCoil: this._getCoil(uuid),
     getDiscreteInput: this._getDiscreteInput(uuid),
     getInputRegister: this._getInputRegister(uuid),
@@ -93,7 +92,7 @@ export class ModbusServer {
     )
   }
 
-  public deleteServer = async (uuid: string) => {
+  public deleteServer = async (uuid: string): Promise<void> => {
     const server = this._servers.get(uuid)
     if (!server) throw new Error(`No server found for UUID ${uuid}`)
     await new Promise<void>((resolve) => {
@@ -112,23 +111,23 @@ export class ModbusServer {
   //
   //
   // Events
-  private _emitMessage = (message: BackendMessage) => {
-    this._windows.send(IpcEvent.BackendMessage, message)
+  private _emitMessage = (message: BackendMessage): void => {
+    this._windows.send('backend_message', message)
   }
 
   //
   //
   // Public methods
-  public setId = async ({ uuid, unitID }: SetUnitIdParams) => {
+  public setId = async ({ uuid, unitID }: SetUnitIdParams): Promise<void> => {
     this._unitID.set(uuid, unitID)
     const port = this._port.get(uuid)
     if (!port) throw new Error('No port found for server')
     await this.createServer({ uuid, port })
   }
-  public setPort = async ({ uuid, port }: CreateServerParams) => {
+  public setPort = async ({ uuid, port }: CreateServerParams): Promise<void> => {
     await this.createServer({ uuid, port })
   }
-  public restartServer = async (uuid: string) => {
+  public restartServer = async (uuid: string): Promise<void> => {
     const port = this._port.get(uuid)
     if (!port) throw new Error('No port found for server')
     await this.createServer({ uuid, port })
@@ -137,7 +136,7 @@ export class ModbusServer {
   public addRegister = ({
     uuid,
     params: { address, registerType, dataType, min, max, interval, value, littleEndian, comment }
-  }: AddRegisterParams) => {
+  }: AddRegisterParams): void => {
     // Remove existing generator if exists
     const serverGenerators = this._generatorMap.get(uuid) || getDefaultGenerators()
     const generators = serverGenerators[registerType]
@@ -157,7 +156,7 @@ export class ModbusServer {
         serverData[registerType][address + index] = register
       })
       this._serverData.set(uuid, serverData)
-      this._windows.send(IpcEvent.RegisterValue, uuid, registerType, address, value)
+      this._windows.send('register_value', { uuid, registerType, address, value })
       return
     }
 
@@ -179,7 +178,7 @@ export class ModbusServer {
       })
     )
   }
-  public removeRegisterValue = ({ uuid, registerType, address }: RemoveRegisterParams) => {
+  public removeRegisterValue = ({ uuid, registerType, address }: RemoveRegisterParams): void => {
     // Reset fixed value
     const serverData = this._serverData.get(uuid)
     if (serverData) serverData[registerType][address] = 0
@@ -198,7 +197,7 @@ export class ModbusServer {
     generators.delete(address)
   }
 
-  public syncServerRegisters = ({ uuid, registerValues }: SyncRegisterValueParams) => {
+  public syncServerRegisters = ({ uuid, registerValues }: SyncRegisterValueParams): void => {
     // Reset all registers before syncing
     this.resetRegisters({ uuid, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, registerType: 'input_registers' })
@@ -206,7 +205,7 @@ export class ModbusServer {
     for (const params of registerValues) this.addRegister({ uuid, params })
   }
 
-  public resetRegisters = ({ uuid, registerType }: ResetRegistersParams) => {
+  public resetRegisters = ({ uuid, registerType }: ResetRegistersParams): void => {
     // Dispose all generators
     const serverGenerators = this._generatorMap.get(uuid)
     const generators = serverGenerators?.[registerType]
@@ -218,23 +217,23 @@ export class ModbusServer {
     this._serverData.set(uuid, serverData)
   }
 
-  public setBool = ({ uuid, registerType, address, state }: SetBooleanParameters) => {
+  public setBool = ({ uuid, registerType, address, state }: SetBooleanParameters): void => {
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
 
     serverData[registerType][address] = state
     this._serverData.set(uuid, serverData)
 
-    this._windows.send(IpcEvent.BooleanValue, uuid, registerType, address, state)
+    this._windows.send('boolean_value', { uuid, registerType, address, state })
   }
 
-  public resetBools = ({ uuid, registerType }: ResetBoolsParams) => {
+  public resetBools = ({ uuid, registerType }: ResetBoolsParams): void => {
     // Reset server data
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
     serverData[registerType] = new Array(65535).fill(false)
     this._serverData.set(uuid, serverData)
   }
 
-  public syncBools = (params: SyncBoolsParameters) => {
+  public syncBools = (params: SyncBoolsParameters): void => {
     const { uuid } = params
     const serverData = this._serverData.get(uuid) || getDefaultServerData()
 
@@ -251,34 +250,41 @@ export class ModbusServer {
   //
   // Vector methods
   private _getCoil: (uuid: string) => IServiceVector['getCoil'] =
-    (uuid) => async (addr: number) => {
-      return this._serverData.get(uuid)?.['coils'][addr]
+    (uuid) => async (address: number) => {
+      return this._serverData.get(uuid)?.['coils'][address]
     }
   private _getDiscreteInput: (uuid: string) => IServiceVector['getDiscreteInput'] =
-    (uuid) => async (addr: number) => {
-      return this._serverData.get(uuid)?.['discrete_inputs'][addr]
+    (uuid) => async (address: number) => {
+      return this._serverData.get(uuid)?.['discrete_inputs'][address]
     }
 
   private _getInputRegister: (uuid: string) => IServiceVector['getInputRegister'] =
-    (uuid) => async (addr: number) => {
-      return this._serverData.get(uuid)?.['input_registers'][addr]
+    (uuid) => async (address: number) => {
+      return this._serverData.get(uuid)?.['input_registers'][address]
     }
   private _getHoldingRegister: (uuid: string) => IServiceVector['getHoldingRegister'] =
-    (uuid) => async (addr: number) => {
-      return this._serverData.get(uuid)?.['holding_registers'][addr]
+    (uuid) => async (address: number) => {
+      return this._serverData.get(uuid)?.['holding_registers'][address]
     }
   private _setCoil: (uuid: string) => IServiceVector['setCoil'] =
-    (uuid) => async (addr: number, value: boolean) => {
+    (uuid) => async (address: number, state: boolean) => {
       const currentServerData = this._serverData.get(uuid) || getDefaultServerData()
-      currentServerData.coils[addr] = value
+      currentServerData.coils[address] = state
       this._serverData.set(uuid, currentServerData)
-      this._windows.send(IpcEvent.BooleanValue, uuid, 'coils', addr, value)
+
+      this._windows.send('boolean_value', { uuid, registerType: 'coils', address, state })
     }
   private _setHoldingRegister: (uuid: string) => IServiceVector['setRegister'] =
-    (uuid) => async (addr: number, value: number) => {
+    (uuid) => async (address: number, value: number) => {
       const currentServerData = this._serverData.get(uuid) || getDefaultServerData()
-      currentServerData['holding_registers'][addr] = value
+      currentServerData['holding_registers'][address] = value
       this._serverData.set(uuid, currentServerData)
-      this._windows.send(IpcEvent.RegisterValue, uuid, 'holding_registers', addr, value)
+
+      this._windows.send('register_value', {
+        uuid,
+        registerType: 'holding_registers',
+        address,
+        value
+      })
     }
 }

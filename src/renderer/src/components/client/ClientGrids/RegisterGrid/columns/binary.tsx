@@ -1,8 +1,13 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import Box from '@mui/material/Box'
 import { RegisterData } from '@shared'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
-const WordLedDisplay = ({ value }) => {
+interface Props {
+  value: number
+}
+
+const WordLedDisplay = meme(({ value }: Props): JSX.Element => {
   // Zorg dat we exact 16 bits hebben
   const bits = value
     .toString(2)
@@ -47,7 +52,7 @@ const WordLedDisplay = ({ value }) => {
       ))}
     </Box>
   )
-}
+})
 
 export const binaryColumn: GridColDef<RegisterData, string> = {
   field: 'bin',

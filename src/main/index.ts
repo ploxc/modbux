@@ -1,13 +1,13 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initIpc } from './ipc'
+import { initIpc, onIpcEvent } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
 import { ModbusServer } from './modules/mobusServer'
-import { IpcEvent, Windows } from '@shared'
+import { Windows } from '@shared'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
@@ -99,7 +99,7 @@ function createWindow(): void {
 //
 //
 // SERVER WINDOW
-ipcMain.on(IpcEvent.OpenServerWindow, (_) => {
+onIpcEvent('open_server_window', () => {
   if (!windows.main) return
   if (windows.server) return
 

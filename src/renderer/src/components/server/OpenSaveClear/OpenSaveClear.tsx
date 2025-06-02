@@ -1,5 +1,6 @@
 import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { ServerConfig, ServerConfigSchema, ServerRegistersSchema } from '@shared'
 import { DateTime } from 'luxon'
@@ -9,7 +10,13 @@ import { useRef, useState, useCallback } from 'react'
 //
 //
 // Open button
-const useOpen = () => {
+type UseOpenHook = () => {
+  opening: boolean
+  openingRef: React.MutableRefObject<boolean>
+  open: (file: File | undefined) => Promise<void>
+}
+
+const useOpen: UseOpenHook = () => {
   const openingRef = useRef(false)
   const [opening, setOpening] = useState(false)
 
@@ -86,7 +93,11 @@ const useOpen = () => {
 //
 //
 // Saving
-const useSave = () => {
+type UseSaveHook = () => {
+  save: () => void
+}
+
+const useSave: UseSaveHook = () => {
   const save = useCallback(() => {
     const z = useServerZustand.getState()
     const { serverRegisters, selectedUuid } = z
@@ -97,7 +108,7 @@ const useSave = () => {
     }
     const configJson = JSON.stringify(config)
 
-    var element = document.createElement('a')
+    const element = document.createElement('a')
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(configJson))
 
     const filename = `modbux_server_config_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}.json`
@@ -115,7 +126,7 @@ const useSave = () => {
 //
 //
 // Open save and clear the register configuration
-const OpenSaveClear = () => {
+const OpenSaveClear = meme(() => {
   const { opening, open } = useOpen()
   const { save } = useSave()
 
@@ -159,6 +170,6 @@ const OpenSaveClear = () => {
       </IconButton>
     </Box>
   )
-}
+})
 
 export default OpenSaveClear

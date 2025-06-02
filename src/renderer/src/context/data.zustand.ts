@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { DataZustand } from './data.zustand.types'
 import { mutative } from 'zustand-mutative'
-import { IpcEvent, RegisterData } from '@shared'
 import { DateTime } from 'luxon'
 import { useRootZustand } from './root.zustand'
+import { onEvent } from '@renderer/events'
 
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
@@ -27,7 +28,7 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
 )
 
 // Data read from the registers
-window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: RegisterData[]) => {
+onEvent('register_data', (registerData) => {
   const state = useDataZustand.getState()
   const rootState = useRootZustand.getState()
   rootState.clientState.scanningRegisters
@@ -36,7 +37,7 @@ window.electron.ipcRenderer.on(IpcEvent.RegisterData, (_, registerData: Register
   rootState.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
-window.electron.ipcRenderer.on(IpcEvent.AddressGroups, (_, addressGroups: [number, number][]) => {
+onEvent('address_groups', (addressGroups) => {
   const state = useDataZustand.getState()
   state.setAddressGroups(addressGroups)
 })

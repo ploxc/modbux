@@ -1,6 +1,7 @@
-import { Box, Button, Modal, Paper, TextField } from '@mui/material'
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { forwardRef, useCallback, useMemo } from 'react'
+import { ElementType, forwardRef, useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
@@ -9,6 +10,7 @@ import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ScanProgress, TimeoutInput } from '../../ScanProgress/ScanProgress'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ScanRegistersZustand {
   open: boolean
@@ -65,10 +67,12 @@ const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       max={max}
       autofix
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value) => set(value, true)}
     />
   )
 })
+
+MinInput.displayName = 'MinInput'
 
 const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -82,15 +86,17 @@ const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       max={65535}
       autofix
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value) => set(value, true)}
     />
   )
 })
 
+MaxInput.displayName = 'MaxInput'
+
 //
 //
 // Min Max components
-const MinTextField = () => {
+const MinTextField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const min = useScanRegistersZustand((z) => String(z.range[0]))
   const setMinRange = useScanRegistersZustand((z) => z.setMinRange)
@@ -105,7 +111,7 @@ const MinTextField = () => {
       value={min}
       slotProps={{
         input: {
-          inputComponent: MinInput as any,
+          inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMinRange })
         }
       }}
@@ -113,7 +119,7 @@ const MinTextField = () => {
   )
 }
 
-const MaxTextField = () => {
+const MaxTextField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const max = useScanRegistersZustand((z) => String(z.range[1]))
   const setMaxRange = useScanRegistersZustand((z) => z.setMaxRange)
@@ -128,7 +134,7 @@ const MaxTextField = () => {
       value={max}
       slotProps={{
         input: {
-          inputComponent: MaxInput as any,
+          inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMaxRange })
         }
       }}
@@ -139,7 +145,7 @@ const MaxTextField = () => {
 //
 //
 // Length Input
-const LengthField = () => {
+const LengthField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const length = useScanRegistersZustand((z) => String(z.length))
   const setLength = useScanRegistersZustand((z) => z.setLength)
@@ -154,7 +160,7 @@ const LengthField = () => {
       value={length}
       slotProps={{
         input: {
-          inputComponent: LengthInput as any,
+          inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setLength })
         }
       }}
@@ -167,7 +173,7 @@ const LengthField = () => {
 //
 //
 // Timeout field
-const TimeoutField = () => {
+const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const timeout = useScanRegistersZustand((z) => String(z.timeout))
   const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
@@ -182,7 +188,7 @@ const TimeoutField = () => {
       value={timeout}
       slotProps={{
         input: {
-          inputComponent: TimeoutInput as any,
+          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setTimeout })
         }
       }}
@@ -195,7 +201,7 @@ const TimeoutField = () => {
 //
 //
 // Scan button
-const ScanButton = () => {
+const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
 
   const scan = useCallback(async () => {
@@ -237,7 +243,7 @@ const ScanButton = () => {
 //
 //
 // Scan registers button
-const ScanRegisters = () => {
+const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
   const handleClose = useCallback(() => {
@@ -288,6 +294,6 @@ const ScanRegisters = () => {
       </Paper>
     </Modal>
   )
-}
+})
 
 export default ScanRegisters

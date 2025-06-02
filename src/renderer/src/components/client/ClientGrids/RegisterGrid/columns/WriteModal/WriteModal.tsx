@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Publish } from '@mui/icons-material'
 import {
   Box,
   Button,
   ButtonGroup,
+  InputBaseComponentProps,
   Modal,
   Paper,
   TextField,
@@ -16,7 +18,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
-import { forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
+import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -73,6 +75,7 @@ const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', neve
 )
 
 const ValueInput = meme(
+  // eslint-disable-next-line react/display-name
   forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
     const { set, ...other } = props
     const dataType = useValueInputZustand((z) => z.dataType)
@@ -92,7 +95,7 @@ const ValueInput = meme(
           mapToRadix: ['.', ','] // symbols to process as radix
         }}
         inputRef={ref}
-        onAccept={(value: any) => {
+        onAccept={(value) => {
           set(value, notEmpty(value))
         }}
       />
@@ -115,7 +118,7 @@ const ValueInputComponent = meme(() => {
       error={!valid}
       slotProps={{
         input: {
-          inputComponent: ValueInput as any,
+          inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setValue })
         }
       }}
@@ -139,7 +142,7 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
 
     const result = BaseDataTypeSchema.safeParse(dataType)
     if (result.success) setDataType(result.data)
-  }, [])
+  }, [address, setDataType])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
@@ -203,7 +206,7 @@ const CoilFunctionSelect = meme(() => {
       value: coils.slice(address - registerConfigAddress),
       single: coilFunction === 5
     })
-  }, [coilFunction, coils])
+  }, [address, coilFunction, coils, registerConfigAddress])
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -251,7 +254,7 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
   )
 })
 
-const Coils = () => {
+const Coils = meme(() => {
   const length = useRootZustand((z) => z.registerConfig.length)
   const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
   const address = useValueInputZustand((z) => z.address)
@@ -262,7 +265,7 @@ const Coils = () => {
   useEffect(() => {
     const newCoils = Array(length).fill(false)
     initCoils(newCoils)
-  }, [length])
+  }, [initCoils, length])
 
   const rows = useMemo(() => {
     const amount = Math.ceil(length / 8)
@@ -298,7 +301,7 @@ const Coils = () => {
       )}
     </Box>
   )
-}
+})
 
 interface Props {
   address: number
@@ -308,7 +311,7 @@ interface Props {
   type: RegisterType
 }
 
-const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
+const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
   const right = (rect?.right ? window.innerWidth - rect.right : 0) + 38
   const setValue = useValueInputZustand((z) => z.setValue)
@@ -321,7 +324,8 @@ const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
 
   useEffect(() => {
     setAddress(address)
-  }, [address])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <Modal
@@ -348,6 +352,6 @@ const WriteModal = ({ open, onClose, address, actionCellRef, type }: Props) => {
       </Paper>
     </Modal>
   )
-}
+})
 
 export default WriteModal

@@ -1,6 +1,6 @@
 import { StyledSvg, StyledSvgProps } from './util'
 
-const Server = ({ sx }: StyledSvgProps) => {
+const Server = ({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg sx={sx} version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
       <path d="M 148.14423,64.521353 21.497603,191.168 l 38.56728,41.69434 -32.31312,35.9614 208.568837,192.31523 z" />

@@ -3,6 +3,7 @@ import {
   Button,
   FormControl,
   FormHelperText,
+  InputBaseComponentProps,
   Modal,
   Paper,
   TextField,
@@ -13,7 +14,7 @@ import {
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { forwardRef, useCallback, useEffect, useState } from 'react'
+import { ElementType, forwardRef, useCallback, useEffect, useState } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
 import { notEmpty } from '@shared'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
@@ -27,6 +28,7 @@ import { Delete } from '@mui/icons-material'
 //
 // Address
 const AddressInput = meme(
+  // eslint-disable-next-line react/display-name
   forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
     const { set, ...other } = props
 
@@ -45,13 +47,13 @@ const AddressInput = meme(
         max={maxAddress}
         autofix
         inputRef={ref}
-        onAccept={(value: any) => set(value, notEmpty(value))}
+        onAccept={(value) => set(value, notEmpty(value))}
       />
     )
   })
 )
 
-const AddressField = () => {
+const AddressField = meme(() => {
   const address = useAddRegisterZustand((z) => String(z.address))
   const addressInUse = useAddRegisterZustand((z) => z.addressInUse)
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -76,7 +78,10 @@ const AddressField = () => {
         value={address}
         slotProps={{
           input: {
-            inputComponent: AddressInput as any,
+            inputComponent: AddressInput as unknown as ElementType<
+              InputBaseComponentProps,
+              'input'
+            >,
             inputProps: maskInputProps({ set: setAddress })
           }
         }}
@@ -84,7 +89,7 @@ const AddressField = () => {
       {addressInUse && <FormHelperText>In use</FormHelperText>}
     </FormControl>
   )
-}
+})
 
 //
 //
@@ -100,7 +105,7 @@ const DataTypeSelect = meme(() => {
     const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
     if (edit) return
     // Default the datatype to int16
-    setDataType('int16')
+    useAddRegisterZustand.getState().setDataType('int16')
   }, [])
 
   return <DataTypeSelectInput disabled={edit} dataType={dataType} setDataType={setDataType} />
@@ -120,7 +125,7 @@ const FixedOrGenerator = meme(() => {
     if (edit) return
     // Default fixed
     setFixed(true)
-  }, [])
+  }, [setFixed])
 
   return (
     <ToggleButtonGroup
@@ -147,6 +152,7 @@ const FixedOrGenerator = meme(() => {
 //
 // Value Input
 const ValueInput = meme(
+  // eslint-disable-next-line react/display-name
   forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
     const { set, ...other } = props
     const dataType = useAddRegisterZustand((z) => z.dataType)
@@ -166,7 +172,7 @@ const ValueInput = meme(
           mapToRadix: ['.', ','] // symbols to process as radix
         }}
         inputRef={ref}
-        onAccept={(value: any) => {
+        onAccept={(value) => {
           set(value, notEmpty(value))
         }}
       />
@@ -184,7 +190,7 @@ const ValueInputComponent = meme(() => {
     if (edit) return
     // Default the value to 0
     setValue('0', true)
-  }, [])
+  }, [setValue])
 
   return (
     <TextField
@@ -196,7 +202,7 @@ const ValueInputComponent = meme(() => {
       error={!valid}
       slotProps={{
         input: {
-          inputComponent: ValueInput as any,
+          inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setValue })
         }
       }}
@@ -209,64 +215,66 @@ const ValueInputComponent = meme(() => {
 //
 //
 // Min/Max Masks
-const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const dataType = useAddRegisterZustand((z) => z.dataType)
-  const maxValue = useAddRegisterZustand((z) => z.max)
-  let { min, max, integer } = useMinMaxInteger(dataType)
+const MinInput = meme(
+  // eslint-disable-next-line react/display-name
+  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+    const { set, ...other } = props
+    const dataType = useAddRegisterZustand((z) => z.dataType)
+    const maxValue = useAddRegisterZustand((z) => z.max)
+    const { min, max, integer } = useMinMaxInteger(dataType, 'min', maxValue)
 
-  if (min > Number(maxValue)) min = Number(maxValue)
+    return (
+      <IMaskInput
+        {...other}
+        mask={IMask.MaskedNumber}
+        min={min}
+        max={max}
+        autofix
+        {...{
+          scale: integer ? 0 : 7,
+          thousandsSeparator: '',
+          radix: '.', // fractional delimiter
+          mapToRadix: ['.', ','] // symbols to process as radix
+        }}
+        inputRef={ref}
+        onAccept={(value) => set(value, notEmpty(value))}
+      />
+    )
+  })
+)
 
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={min}
-      max={max}
-      autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
-      inputRef={ref}
-      onAccept={(value) => set(value, notEmpty(value))}
-    />
-  )
-})
+const MaxInput = meme(
+  // eslint-disable-next-line react/display-name
+  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+    const { set, ...other } = props
+    const dataType = useAddRegisterZustand((z) => z.dataType)
+    const minValue = useAddRegisterZustand((z) => z.min)
+    const { min, integer, max } = useMinMaxInteger(dataType, 'max', minValue)
 
-const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const dataType = useAddRegisterZustand((z) => z.dataType)
-  const minValue = useAddRegisterZustand((z) => z.min)
-  let { min, max, integer } = useMinMaxInteger(dataType)
-
-  if (max < Number(minValue)) max = Number(minValue)
-
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={min}
-      max={max}
-      autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
-      inputRef={ref}
-      onAccept={(value) => set(value, notEmpty(value))}
-    />
-  )
-})
+    return (
+      <IMaskInput
+        {...other}
+        mask={IMask.MaskedNumber}
+        min={min}
+        max={max}
+        autofix
+        {...{
+          scale: integer ? 0 : 7,
+          thousandsSeparator: '',
+          radix: '.', // fractional delimiter
+          mapToRadix: ['.', ','] // symbols to process as radix
+        }}
+        inputRef={ref}
+        onAccept={(value) => set(value, notEmpty(value))}
+      />
+    )
+  })
+)
 
 //
 //
 // Min Max components
-const MinTextField = () => {
+const MinTextField = meme(() => {
   const min = useAddRegisterZustand((z) => String(z.min))
   const valid = useAddRegisterZustand((z) => z.valid.min)
   const setMin = useAddRegisterZustand((z) => z.setMin)
@@ -281,15 +289,15 @@ const MinTextField = () => {
       value={min}
       slotProps={{
         input: {
-          inputComponent: MinInput as any,
+          inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMin })
         }
       }}
     />
   )
-}
+})
 
-const MaxTextField = () => {
+const MaxTextField = meme(() => {
   const max = useAddRegisterZustand((z) => String(z.max))
   const valid = useAddRegisterZustand((z) => z.valid.max)
   const setMax = useAddRegisterZustand((z) => z.setMax)
@@ -304,40 +312,43 @@ const MaxTextField = () => {
       value={max}
       slotProps={{
         input: {
-          inputComponent: MaxInput as any,
+          inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setMax })
         }
       }}
     />
   )
-}
+})
 
 //
 //
 //
 //
 // Interval
-const IntervalInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
+const IntervalInput = meme(
+  // eslint-disable-next-line react/display-name
+  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+    const { set, ...other } = props
 
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={1}
-      max={10}
-      autofix
-      {...{
-        scale: 0,
-        thousandsSeparator: ''
-      }}
-      inputRef={ref}
-      onAccept={(value: any) => set(value, notEmpty(value))}
-    />
-  )
-})
+    return (
+      <IMaskInput
+        {...other}
+        mask={IMask.MaskedNumber}
+        min={1}
+        max={10}
+        autofix
+        {...{
+          scale: 0,
+          thousandsSeparator: ''
+        }}
+        inputRef={ref}
+        onAccept={(value) => set(value, notEmpty(value))}
+      />
+    )
+  })
+)
 
-const IntervalTextField = () => {
+const IntervalTextField = meme(() => {
   const interval = useAddRegisterZustand((z) => String(z.interval))
   const valid = useAddRegisterZustand((z) => z.valid.interval)
   const setInterval = useAddRegisterZustand((z) => z.setInterval)
@@ -352,13 +363,13 @@ const IntervalTextField = () => {
       value={interval}
       slotProps={{
         input: {
-          inputComponent: IntervalInput as any,
+          inputComponent: IntervalInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setInterval })
         }
       }}
     />
   )
-}
+})
 
 //
 //
@@ -384,7 +395,7 @@ const ValueParameters = meme(() => {
 //
 //
 // Comment
-const CommentField = () => {
+const CommentField = meme(() => {
   const comment = useAddRegisterZustand((z) => z.comment)
   const setComment = useAddRegisterZustand((z) => z.setComment)
 
@@ -397,14 +408,14 @@ const CommentField = () => {
       onChange={(e) => setComment(e.target.value)}
     />
   )
-}
+})
 
 //
 //
 //
 //
 // Toggle endianness button
-const ToggleEndianButton = () => {
+const ToggleEndianButton = meme(() => {
   const littleEndian = useAddRegisterZustand((z) => z.littleEndian)
   const setLittleEndian = useAddRegisterZustand((z) => z.setLittleEndian)
 
@@ -423,14 +434,14 @@ const ToggleEndianButton = () => {
       <ToggleButton value={true}>LE</ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
 //
 //
 //
 //
 // Add button
-const AddButton = () => {
+const AddButton = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => {
     if (z.fixed) return z.valid.address && z.valid.value
@@ -499,9 +510,9 @@ const AddButton = () => {
       {edit ? 'Submit Change' : 'Add Register'}
     </Button>
   )
-}
+})
 
-const DeleteButton = () => {
+const DeleteButton = meme(() => {
   const [over, setOver] = useState(false)
   const handleClick = useCallback(() => {
     const { address, registerType, setRegisterType, setEditRegister } =
@@ -532,14 +543,14 @@ const DeleteButton = () => {
       Remove
     </Button>
   )
-}
+})
 
 //
 //
 //
 //
 // MAIN
-const AddRegister = () => {
+const AddRegister = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const registerType = useAddRegisterZustand((z) => z.registerType)
   const setRegisterType = useAddRegisterZustand((z) => z.setRegisterType)
@@ -605,5 +616,5 @@ const AddRegister = () => {
       </Paper>
     </Modal>
   )
-}
+})
 export default AddRegister

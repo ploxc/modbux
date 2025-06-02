@@ -3,7 +3,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { useCallback } from 'react'
 
-const ClearButton = () => {
+const ClearButton = (): JSX.Element => {
   const disabled = useDataZustand(
     (z) => z.registerData.length === 0 || useRootZustand.getState().clientState.polling
   )
@@ -11,7 +11,7 @@ const ClearButton = () => {
 
   const handleClear = useCallback(() => {
     setRegisterData([])
-  }, [])
+  }, [setRegisterData])
 
   return (
     <Button disabled={disabled} size="small" variant="outlined" onClick={handleClear}>

@@ -4,7 +4,7 @@ import Tooltip from '@mui/material/Tooltip'
 import EndianTable from '@renderer/components/shared/inputs/EndianTable'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
-const ToggleEndianButton = () => {
+const ToggleEndianButton = (): JSX.Element | null => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const littleEndian = useRootZustand((z) => z.registerConfig.littleEndian)
   const setLittleEndian = useRootZustand((z) => z.setLittleEndian)

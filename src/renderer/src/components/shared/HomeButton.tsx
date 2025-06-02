@@ -2,7 +2,7 @@ import Button from '@mui/material/Button'
 import { Home } from '@mui/icons-material'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
-const HomeButton = () => {
+const HomeButton = (): JSX.Element | null => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   const hideHomeButton = useLayoutZustand((z) => z.hideHomeButton)
 

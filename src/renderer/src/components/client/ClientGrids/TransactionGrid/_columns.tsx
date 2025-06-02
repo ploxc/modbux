@@ -94,7 +94,7 @@ const errorMessageColumn: GridColDef<Transaction, string> = {
   valueFormatter: (v) => v || '-'
 }
 
-const useTransactionGridColumns = () => {
+const useTransactionGridColumns = (): GridColDef<Transaction>[] => {
   return useMemo(() => {
     return [
       typestampColumn,

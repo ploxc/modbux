@@ -1,7 +1,7 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
-const ShowLogButton = () => {
+const ShowLogButton = (): JSX.Element => {
   const showLog = useLayoutZustand((z) => z.showLog)
   const toggleShowLog = useLayoutZustand((z) => z.toggleShowLog)
 

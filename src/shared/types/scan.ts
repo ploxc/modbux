@@ -26,11 +26,11 @@ const ScanUnitIdErrorMessageSchema = z.object({
   holding_registers: z.string()
 })
 
-export const ScanUnitIdResultSchema = z.object({
+export const ScanUnitIDResultSchema = z.object({
   id: z.number(),
   registerTypes: z.array(RegisterTypeSchema),
   requestedRegisterTypes: z.array(RegisterTypeSchema),
   errorMessage: ScanUnitIdErrorMessageSchema
 })
 
-export type ScanUnitIdResult = z.infer<typeof ScanUnitIdResultSchema>
+export type ScanUnitIDResult = z.infer<typeof ScanUnitIDResultSchema>

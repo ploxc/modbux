@@ -6,7 +6,7 @@ import {
   Transaction,
   RegisterMapping,
   RegisterMapValue,
-  ScanUnitIdResult,
+  ScanUnitIDResult,
   RegisterMappingSchema,
   ConnectionConfigSchema,
   RegisterConfigSchema
@@ -34,7 +34,7 @@ export type RootZusand = {
   ready: boolean
   valid: Valid
   lastSuccessfulTransactionMillis: number | null
-  scanUnitIdResults: ScanUnitIdResult[]
+  scanUnitIdResults: ScanUnitIDResult[]
   scanProgress: number
   // Register mapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
@@ -77,7 +77,7 @@ export type RootZusand = {
   setLastSuccessfulTransactionMillis: (value: number | null) => void
 
   // Unit ID Scannning
-  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIdResult) => void
+  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
   clearScanUnitIdResults: () => void
 
   // Scan progress

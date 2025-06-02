@@ -1,9 +1,8 @@
 import Button, { ButtonProps } from '@mui/material/Button'
-import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { useCallback, useRef, useState } from 'react'
 
-const ReadButton = () => {
+const ReadButton = (): JSX.Element => {
   const disabled = useRootZustand(
     (z) => z.clientState.connectState !== 'connected' || z.clientState.polling
   )
@@ -16,10 +15,7 @@ const ReadButton = () => {
     if (readingRef.current) return
     readingRef.current = true
     setReading(true)
-
-    const registerData = await window.api.read()
-    if (registerData) useDataZustand.getState().setRegisterData(registerData)
-
+    await window.api.read()
     readingRef.current = false
     setReading(false)
   }, [])

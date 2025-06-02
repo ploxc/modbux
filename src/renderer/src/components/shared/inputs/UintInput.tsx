@@ -17,4 +17,6 @@ const UIntInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
+UIntInput.displayName = 'UIntInput'
+
 export default UIntInput

@@ -1,16 +1,11 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import { PersistedRootZustand, PersistedRootZustandSchema, RootZusand } from './root.zustand.types'
-import {
-  ClientState,
-  defaultConnectionConfig,
-  defaultRegisterConfig,
-  IpcEvent,
-  ScanUnitIdResult,
-  Transaction
-} from '@shared'
+import { defaultConnectionConfig, defaultRegisterConfig } from '@shared'
 import { useDataZustand } from './data.zustand'
+import { onEvent } from '@renderer/events'
 
 export const useRootZustand = create<
   RootZusand,
@@ -363,28 +358,25 @@ state.init()
 // Listen to events to set the state
 
 // Client state, like polling, scanning, etc.
-window.electron.ipcRenderer.on(IpcEvent.ClientState, (_, clientState: ClientState) => {
+onEvent('client_state', (clientState) => {
   const state = useRootZustand.getState()
   state.setClientState(clientState)
 })
 
 // Transactions from the transation log
-window.electron.ipcRenderer.on(IpcEvent.Transaction, (_, transaction: Transaction) => {
+onEvent('transaction', (transaction) => {
   const state = useRootZustand.getState()
   state.addTransaction(transaction)
 })
 
 // Unit ID scanning results
-window.electron.ipcRenderer.on(
-  IpcEvent.ScanUnitIDResult,
-  (_, scanUnitIDResult: ScanUnitIdResult) => {
-    const state = useRootZustand.getState()
-    state.addScanUnitIdResult(scanUnitIDResult)
-  }
-)
+onEvent('scan_unit_id_result', (scanUnitIDResult) => {
+  const state = useRootZustand.getState()
+  state.addScanUnitIdResult(scanUnitIDResult)
+})
 
 // Scan progress
-window.electron.ipcRenderer.on(IpcEvent.ScanProgress, (_, scanProgress: number) => {
+onEvent('scan_progress', (scanProgress) => {
   const state = useRootZustand.getState()
   state.setScanProgress(scanProgress)
 })

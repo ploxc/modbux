@@ -1,5 +1,6 @@
 import { FormControl, InputLabel, Select, MenuItem } from '@mui/material'
 import { BaseDataType } from '@shared'
+import { meme } from './meme'
 
 interface Props {
   disabled?: boolean
@@ -7,7 +8,7 @@ interface Props {
   setDataType: (dataType: BaseDataType) => void
 }
 
-const DataTypeSelectInput = ({ disabled, dataType, setDataType }: Props) => {
+const DataTypeSelectInput = meme(({ disabled, dataType, setDataType }: Props) => {
   const labelId = 'data-type-select'
   return (
     <FormControl disabled={disabled} size="small">
@@ -31,5 +32,6 @@ const DataTypeSelectInput = ({ disabled, dataType, setDataType }: Props) => {
       </Select>
     </FormControl>
   )
-}
+})
+
 export default DataTypeSelectInput

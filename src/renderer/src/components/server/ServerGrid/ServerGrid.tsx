@@ -2,7 +2,7 @@ import { Grid2 } from '@mui/material'
 import ServerBooleans from './ServerBooleans/ServerBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
 
-const ServerGrid = () => {
+const ServerGrid = (): JSX.Element => {
   return (
     <Grid2 container sx={{ height: '100%', minHeight: 0 }} spacing={2}>
       <ServerBooleans name="Coils" type={'coils'} />

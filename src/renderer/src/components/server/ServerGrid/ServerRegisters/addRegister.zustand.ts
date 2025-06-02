@@ -1,15 +1,18 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BaseDataType, DataType, NumberRegisters, ServerRegister } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
-export const getAddressInUse = (
+type GetAddressInUseFn = (
   uuid: string,
   registerType: NumberRegisters,
   dataType: DataType,
   address: number
-) => {
+) => boolean
+
+export const getAddressInUse: GetAddressInUseFn = (uuid, registerType, dataType, address) => {
   // Validate so address is not already used when not in edit mode
   const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
   if (edit) return false

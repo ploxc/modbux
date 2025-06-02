@@ -12,7 +12,7 @@ export const groupEndColumn = (
   maxWidth: 38,
   type: 'boolean',
   editable: true,
-  valueGetter: (_, row) => {
+  valueGetter: (_, row): boolean => {
     const address = row.id
     const register = registerMap[address]
     if (!register) return false
@@ -20,7 +20,7 @@ export const groupEndColumn = (
   },
   renderCell: ({ value, row }) =>
     registerMap[row.id]?.dataType === undefined ||
-    registerMap[row.id]?.dataType === 'none' ? null : !!value ? (
+    registerMap[row.id]?.dataType === 'none' ? null : value ? (
       <CheckCircle color="primary" fontSize="small" />
     ) : (
       <CircleOutlined fontSize="small" sx={{ opacity: 0.25 }} />

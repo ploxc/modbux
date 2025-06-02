@@ -1,6 +1,5 @@
 import {
   createRegisters,
-  IpcEvent,
   NumberRegisters,
   RegisterParamsGeneratorPart,
   RegisterParamsBasePart,
@@ -63,7 +62,7 @@ export class ValueGenerator {
     this._intervalTimer = setInterval(this._updateValue, interval)
   }
 
-  public dispose = () => {
+  public dispose = (): void => {
     // Clear the interval timer so updateing the value is stopped
     clearInterval(this._intervalTimer)
 
@@ -80,12 +79,17 @@ export class ValueGenerator {
   }
 
   // Send the value to the front-end
-  private _sendValue = (value: number) => {
-    this._windows.send(IpcEvent.RegisterValue, this._uuid, this._registerType, this._address, value)
+  private _sendValue = (value: number): void => {
+    this._windows.send('register_value', {
+      uuid: this._uuid,
+      registerType: this._registerType,
+      address: this._address,
+      value
+    })
   }
 
   // Update the value in the serverdata so it can be read by a client
-  private _updateServerData = (value: number) => {
+  private _updateServerData = (value: number): void => {
     const registers = createRegisters(this._dataType, value, this._littleEndian)
 
     switch (this._registerType) {
@@ -102,7 +106,7 @@ export class ValueGenerator {
     }
   }
 
-  private _updateValue = async () => {
+  private _updateValue = async (): Promise<void> => {
     const decimals = ['float', 'double'].includes(this._dataType) ? 2 : 0
     const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
     this._sendValue(value)
@@ -110,7 +114,7 @@ export class ValueGenerator {
   }
 
   // To be able to rebuild the generators we can so export the parameters
-  get params() {
+  get params(): RegisterParams {
     const params: RegisterParams = {
       address: this._address,
       registerType: this._registerType,

@@ -1,23 +1,26 @@
-import { BackendMessage, IpcEvent } from '@shared'
-import { IpcRendererEvent } from 'electron'
+import { onEvent } from '@renderer/events'
+import { BackendMessage } from '@shared'
 import { useSnackbar } from 'notistack'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 // Receives message and shows them in a snackbar
-const MessageReceiver = () => {
+const MessageReceiver = (): null => {
   const { enqueueSnackbar } = useSnackbar()
 
-  const handleMessage = (_: IpcRendererEvent, message: BackendMessage) => {
-    enqueueSnackbar({ message: message.message, variant: message.variant })
-    if (message.error) console.error(message.error)
-  }
+  const handleMessage = useCallback(
+    (message: BackendMessage) => {
+      enqueueSnackbar({ message: message.message, variant: message.variant })
+      if (message.error) console.error(message.error)
+    },
+    [enqueueSnackbar]
+  )
 
   useEffect(() => {
     // Don't apply the message listener in the server window
     if (window.api.isServerWindow) return
-    const unlisten = window.electron.ipcRenderer.on(IpcEvent.BackendMessage, handleMessage)
-    return () => unlisten()
-  }, [])
+    const unlisten = onEvent('backend_message', handleMessage)
+    return (): void => unlisten()
+  }, [handleMessage])
 
   return null
 }

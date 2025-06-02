@@ -8,7 +8,7 @@ export const commentColumn = (registerMap: RegisterMapObject): GridColDef => ({
   minWidth: 120,
   flex: 1,
   editable: true,
-  valueGetter: (_, row) => {
+  valueGetter: (_, row): string | undefined => {
     const address = (row as RegisterData).id
     const register = registerMap[address]
     return register?.comment

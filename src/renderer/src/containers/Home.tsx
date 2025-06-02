@@ -2,7 +2,6 @@ import { CallSplit } from '@mui/icons-material'
 import { Fade, Box, Button, Typography } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { IpcEvent } from '@shared'
 import { useCallback, useEffect } from 'react'
 import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
@@ -14,7 +13,7 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 //
 //
 // Button to open the modbus client
-const ClientButton = () => {
+const ClientButton = meme(() => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   const connected = useRootZustand((z) => z.clientState.connectState === 'connected')
   return (
@@ -49,14 +48,14 @@ const ClientButton = () => {
       </Typography>
     </Button>
   )
-}
+})
 
 //
 //
 //
 //
 // Button to open the modbus server configurator
-const ServerButton = () => {
+const ServerButton = meme((): JSX.Element => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   return (
     <Button
@@ -76,36 +75,43 @@ const ServerButton = () => {
       </Typography>
     </Button>
   )
-}
+})
+
 //
 //
 // Listens to the shift key
-const useShiftKeyListener = () => {
+const useShiftKeyListener = (): void => {
   const setHomeShiftKeyDown = useLayoutZustand((z) => z.setHomeShiftKeyDown)
 
-  const keyDownListener = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Shift') setHomeShiftKeyDown(true)
-  }, [])
+  const keyDownListener = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === 'Shift') setHomeShiftKeyDown(true)
+    },
+    [setHomeShiftKeyDown]
+  )
 
-  const keyUpListener = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Shift') setHomeShiftKeyDown(false)
-  }, [])
+  const keyUpListener = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === 'Shift') setHomeShiftKeyDown(false)
+    },
+    [setHomeShiftKeyDown]
+  )
 
   useEffect(() => {
     window.addEventListener('keydown', keyDownListener)
     window.addEventListener('keyup', keyUpListener)
-    return () => {
+    return (): void => {
       window.removeEventListener('keydown', keyDownListener)
       window.removeEventListener('keyup', keyUpListener)
     }
-  }, [])
+  }, [keyDownListener, keyUpListener])
 }
 
 //
 //
 // Clear storage button
 // ! don't know if i will keep it, don't know if it's necessary or will be used
-const ClearStorageButton = () => {
+const ClearStorageButton = meme(() => {
   const clearStorage = useCallback(() => {
     useRootZustand.persist.clearStorage()
     useLayoutZustand.persist.clearStorage()
@@ -123,9 +129,9 @@ const ClearStorageButton = () => {
       Clear Storage
     </Button>
   ) : null
-}
+})
 
-const Version = () => {
+const Version = meme(() => {
   const version = useRootZustand((z) => z.version)
 
   return (
@@ -138,7 +144,7 @@ const Version = () => {
       {version}
     </Typography>
   )
-}
+})
 
 //
 //
@@ -181,7 +187,7 @@ const Home = meme(() => {
           <ServerButton />
           <Button
             onClick={() => {
-              window.electron.ipcRenderer.send(IpcEvent.OpenServerWindow)
+              window.events.send('open_server_window')
             }}
           >
             <CallSplit

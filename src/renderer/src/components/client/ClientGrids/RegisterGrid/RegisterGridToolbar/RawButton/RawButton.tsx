@@ -2,7 +2,7 @@ import Button from '@mui/material/Button'
 import { ButtonProps } from '@mui/material/Button'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
-const RawButton = () => {
+const RawButton = (): JSX.Element => {
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
   const variant: ButtonProps['variant'] = showRawValues ? 'contained' : 'outlined'

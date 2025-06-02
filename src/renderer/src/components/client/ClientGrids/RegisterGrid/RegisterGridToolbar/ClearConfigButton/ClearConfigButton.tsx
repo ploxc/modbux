@@ -4,7 +4,7 @@ import IconButton from '@mui/material/IconButton'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { useState } from 'react'
 
-const ClearConfigButton = () => {
+const ClearConfigButton = (): JSX.Element => {
   const clearRegisterMapping = useRootZustand((z) => z.clearRegisterMapping)
 
   const [warn, setWarn] = useState(false)

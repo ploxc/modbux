@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import {
@@ -6,8 +7,8 @@ import {
   PersistedLayoutZustand,
   PersistedLayoutZustandSchema
 } from './layout.zustand.types'
-import { IpcEvent, WindowsOpen } from '@shared'
 import { persist } from 'zustand/middleware'
+import { onEvent, sendEvent } from '@renderer/events'
 
 const isServerWindow = window.api.isServerWindow
 
@@ -61,7 +62,7 @@ export const useLayoutZustand = create<
 )
 
 // Clear when state is corrupted
-const clear = () => {
+const clear = (): void => {
   console.log('Clearing storage...')
   useLayoutZustand.persist.clearStorage()
   useLayoutZustand.setState(useLayoutZustand.getInitialState())
@@ -78,11 +79,11 @@ if (!stateResult.success) {
 // When opening the window and the windows were split, open the windows again
 // Will only happen with macos
 if (state.hideHomeButton && !isServerWindow) {
-  window.electron.ipcRenderer.send(IpcEvent.OpenServerWindow)
+  sendEvent('open_server_window')
 }
 
 // Listen to main process events
-window.electron.ipcRenderer.on(IpcEvent.WindowUpdate, (_, windows: WindowsOpen) => {
+onEvent('window_update', (windows) => {
   if (isServerWindow) return
   const state = useLayoutZustand.getState()
 

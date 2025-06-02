@@ -20,7 +20,7 @@ import { useLayoutZustand } from '@renderer/context/layout.zustand'
 //
 //
 // COLUMNS
-const useRegisterGridColumns = () => {
+const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const registerMap = useRootZustand((z) => z.registerMapping[type])
 

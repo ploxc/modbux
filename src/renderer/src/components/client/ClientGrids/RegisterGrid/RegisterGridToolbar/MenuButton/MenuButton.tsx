@@ -14,7 +14,6 @@ const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (
     <FormGroup>
       <MenuRegisterOptions />
-
       <ScanUnitIds />
       <ScanRegistersButton setAnchor={setAnchor} />
       <LoadDummyDataButton setAnchor={setAnchor} />
@@ -23,7 +22,7 @@ const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
 })
 
 // Menu button for extra options menu
-const MenuButton = () => {
+const MenuButton = meme((): JSX.Element => {
   const scanRegistersOpen = useScanRegistersZustand((z) => z.open)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
@@ -55,6 +54,6 @@ const MenuButton = () => {
       </Popover>
     </>
   )
-}
+})
 
 export default MenuButton

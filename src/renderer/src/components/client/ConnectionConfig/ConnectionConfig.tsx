@@ -1,15 +1,24 @@
-import { Box, Button, ButtonProps, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import {
+  Box,
+  Button,
+  ButtonProps,
+  InputBaseComponentProps,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup
+} from '@mui/material'
 import RtuConfig from './RtuConfig/RtuConfig'
 import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { Protocol } from '@shared'
-import { useCallback } from 'react'
+import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 // Protocol
-const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
+const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const setProtocol = useRootZustand((z) => z.setProtocol)
 
@@ -26,9 +35,9 @@ const ProtocolSelect = ({ protocol }: { protocol: Protocol }) => {
       <ToggleButton value={'ModbusRtu'}>RTU</ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
-const ConnectButton = () => {
+const ConnectButton = meme(() => {
   const connectState = useRootZustand((z) => z.clientState.connectState)
   const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
@@ -43,7 +52,7 @@ const ConnectButton = () => {
     if (currentConnectedState === 'disconnected') {
       window.api.connect()
     }
-  }, [])
+  }, [setRegisterData])
 
   const disabled = ['connecting', 'disconnecting'].includes(connectState)
   const color: ButtonProps['color'] = connectState === 'connected' ? 'warning' : 'primary'
@@ -59,12 +68,12 @@ const ConnectButton = () => {
       {text}
     </Button>
   )
-}
+})
 
 //
 //
 // Unit Id
-const UnitId = () => {
+const UnitId = meme(() => {
   const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
 
   return (
@@ -76,15 +85,15 @@ const UnitId = () => {
       value={unitId}
       slotProps={{
         input: {
-          inputComponent: UnitIdInput as any,
+          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: useRootZustand.getState().setUnitId })
         }
       }}
     />
   )
-}
+})
 
-const ConnectionConfig = () => {
+const ConnectionConfig = meme(() => {
   const protocol = useRootZustand((z) => z.connectionConfig.protocol)
   return (
     <>
@@ -96,5 +105,6 @@ const ConnectionConfig = () => {
       </Box>
     </>
   )
-}
+})
+
 export default ConnectionConfig

@@ -1,4 +1,4 @@
-import { IpcEvent } from '@shared'
+import { IpcEvent, IpcEventPayloadMap } from '@shared'
 import { BrowserWindow } from 'electron'
 
 interface WindowsObject {
@@ -21,7 +21,7 @@ export class Windows {
     }
   }
 
-  public send = <A extends Array<any>>(event: IpcEvent, ...args: A) => {
+  public send = <E extends IpcEvent>(event: E, ...args: IpcEventPayloadMap[E]): void => {
     try {
       Object.values(this._windows).forEach((w) => w?.webContents.send(event, ...args))
     } catch (error) {
@@ -34,7 +34,7 @@ export class Windows {
   }
 
   // Main window access
-  get main() {
+  get main(): BrowserWindow | null {
     return this._windows.main
   }
   set main(main) {
@@ -43,7 +43,7 @@ export class Windows {
   }
 
   // Server window access
-  get server() {
+  get server(): BrowserWindow | null {
     return this._windows.server
   }
   set server(server) {
@@ -52,15 +52,13 @@ export class Windows {
   }
 
   // Send update when windows change
-  private _sendUpdate() {
+  private _sendUpdate(): void {
     const windowsOpen = {
       main: !!this._windows.main,
       server: !!this._windows.server
     }
     try {
-      Object.values(this._windows).forEach((w) =>
-        w?.webContents.send(IpcEvent.WindowUpdate, windowsOpen)
-      )
+      Object.values(this._windows).forEach((w) => w?.webContents.send('window_update', windowsOpen))
     } catch (error) {
       /**
        * When the window is closed on macos sending a window update will throw an error.

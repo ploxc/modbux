@@ -32,7 +32,7 @@ export const convertedValueColumn = (
   type: 'string',
   headerName: 'Value',
   width: 160,
-  valueGetter: (_, row) => {
+  valueGetter: (_, row): number | string | undefined => {
     const address = row.id
 
     // Get the defined datatype from the register map
@@ -82,18 +82,23 @@ export const convertedValueColumn = (
 
     if (showRaw) return Number(value)
 
-    let { scaledValue, precision } = convert(value, dataType, registerMap, address)
+    const { scaledValue, precision } = convert(value, dataType, registerMap, address)
     return round(scaledValue, precision)
   },
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
 
-const convert = (
+type ConvertFn = (
   value: string,
   dataType: DataType | undefined,
   registerMap: RegisterMapObject,
   address: number
 ) => {
+  scaledValue: number
+  precision: number
+}
+
+const convert: ConvertFn = (value, dataType, registerMap, address) => {
   // Get the scaling factor from the register map
   // And the decimal places for rounding the scaled value because js can add some unwanted
   // decimal places by deviding by the scaling factor

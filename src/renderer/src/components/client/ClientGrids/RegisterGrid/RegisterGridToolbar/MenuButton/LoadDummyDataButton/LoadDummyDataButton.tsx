@@ -25,7 +25,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
 
     dataState.setRegisterData(dummyData)
     setAnchor(null)
-  }, [])
+  }, [setAnchor])
 
   return (
     <Button sx={{ my: 1 }} variant="outlined" disabled={disabled} size="small" onClick={loadDummy}>

@@ -1,11 +1,13 @@
-import { TextField, Box } from '@mui/material'
+import { TextField, Box, InputBaseComponentProps } from '@mui/material'
 import HostInput from '@renderer/components/shared/inputs/HostInput'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
+import { ElementType } from 'react'
 
 // Host
-const Host = () => {
+const Host = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const host = useRootZustand((z) => z.connectionConfig.tcp.host)
   const hostValid = useRootZustand((z) => z.valid.host)
@@ -22,7 +24,7 @@ const Host = () => {
       value={host}
       slotProps={{
         input: {
-          inputComponent: HostInput as any,
+          inputComponent: HostInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setHost })
         }
       }}
@@ -33,12 +35,12 @@ const Host = () => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Port
-const Port = () => {
+const Port = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const port = useRootZustand((z) => String(z.connectionConfig.tcp.options.port))
 
@@ -52,15 +54,15 @@ const Port = () => {
       value={port}
       slotProps={{
         input: {
-          inputComponent: UIntInput as any,
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: useRootZustand.getState().setPort })
         }
       }}
     />
   )
-}
+})
 
-const TcpConfig = () => {
+const TcpConfig = (): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'no-wrap' }}>
       <Host />

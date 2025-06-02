@@ -4,7 +4,7 @@ export const getConventionalAddress = (
   type: RegisterType,
   address: string,
   addressBase: string
-) => {
+): number => {
   return type === 'discrete_inputs'
     ? Number(address) + 10000 + Number(addressBase)
     : type === 'holding_registers'
@@ -14,15 +14,15 @@ export const getConventionalAddress = (
         : Number(address) + Number(addressBase)
 }
 
-export const getBit = (word: number, bit: number) => (word & (2 ** bit)) === 2 ** bit
+export const getBit = (word: number, bit: number): boolean => (word & (2 ** bit)) === 2 ** bit
 
 // Regular most significant word first (big endian)
-export const bigEndian32 = (buffer: Buffer, offset: number) => {
+export const bigEndian32 = (buffer: Buffer, offset: number): Buffer => {
   return buffer.subarray(offset, offset + 4)
 }
 
 // Uncommon least significant word first (little endian)
-export const littleEndian32 = (buffer: Buffer, offset: number) => {
+export const littleEndian32 = (buffer: Buffer, offset: number): Buffer => {
   return Buffer.concat([
     buffer.subarray(offset + 2, offset + 4) as Uint8Array,
     buffer.subarray(offset, offset + 2) as Uint8Array
@@ -30,12 +30,12 @@ export const littleEndian32 = (buffer: Buffer, offset: number) => {
 }
 
 // Regular most significant word first (big endian)
-export const bigEndian64 = (buffer: Buffer, offset: number) => {
+export const bigEndian64 = (buffer: Buffer, offset: number): Buffer => {
   return buffer.subarray(offset, offset + 8)
 }
 
 // Uncommon least significant word first (little endian)
-export const littleEndian64 = (buffer: Buffer, offset: number) => {
+export const littleEndian64 = (buffer: Buffer, offset: number): Buffer => {
   return Buffer.concat([
     buffer.subarray(offset + 6, offset + 8) as Uint8Array,
     buffer.subarray(offset + 4, offset + 6) as Uint8Array,
@@ -122,9 +122,10 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
   }
 }
 
-export const notEmpty = (value: number | string) => String(value).replace('-', '').length > 0
+export const notEmpty = (value: number | string): boolean =>
+  String(value).replace('-', '').length > 0
 
-export const getRegisterLength = (dataType: DataType) => {
+export const getRegisterLength = (dataType: DataType): number => {
   switch (dataType) {
     case 'int16':
     case 'uint16':

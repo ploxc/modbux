@@ -1,6 +1,7 @@
 import ModbusRTU from 'modbus-serial'
 import { AppState } from '../state'
 import {
+  AddressGroup,
   BackendMessage,
   BaseDataType,
   bigEndian32,
@@ -8,7 +9,6 @@ import {
   ClientState,
   createRegisters,
   DataType,
-  IpcEvent,
   littleEndian32,
   littleEndian64,
   RawTransaction,
@@ -17,7 +17,7 @@ import {
   RegisterType,
   ScanRegistersParameters,
   ScanUnitIDParameters,
-  ScanUnitIdResult,
+  ScanUnitIDResult,
   Transaction,
   WriteParameters
 } from '@shared'
@@ -32,6 +32,19 @@ import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
 import { Windows } from '@shared'
+
+type BuildAddrInfosFn = (
+  items: [string, RegisterMapValue][]
+) => Array<{ address: number; registerCount: number }>
+
+type TryReadFn = (type: RegisterType, address: number, length: number) => Promise<RegisterData[]>
+
+type ScanUnitIdFn = ({
+  id,
+  address,
+  length,
+  registerTypes
+}: Omit<ScanUnitIDParameters, 'range' | 'timeout'> & { id: number }) => Promise<void>
 
 export interface ClientParams {
   appState: AppState
@@ -78,41 +91,41 @@ export class ModbusClient {
   }
 
   // Events
-  private _emitMessage = (message: BackendMessage) => {
-    this._windows.send(IpcEvent.BackendMessage, message)
+  private _emitMessage = (message: BackendMessage): void => {
+    this._windows.send('backend_message', message)
   }
-  private _sendClientState = () => {
-    this._windows.send(IpcEvent.ClientState, this._clientState)
+  private _sendClientState = (): void => {
+    this._windows.send('client_state', this._clientState)
   }
-  private _sendData = (data: RegisterData[]) => {
-    this._windows.send(IpcEvent.RegisterData, data)
+  private _sendData = (data: RegisterData[]): void => {
+    this._windows.send('register_data', data)
   }
-  private _sendTransaction = (transaction: Transaction) => {
-    this._windows.send(IpcEvent.Transaction, transaction)
+  private _sendTransaction = (transaction: Transaction): void => {
+    this._windows.send('transaction', transaction)
   }
-  private _sendUnitIdResult = (result: ScanUnitIdResult) => {
-    this._windows.send(IpcEvent.ScanUnitIDResult, result)
-  }
-
-  private _sendGroups = (groups: [number, number][]) => {
-    this._windows.send(IpcEvent.AddressGroups, groups)
+  private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
+    this._windows.send('scan_unit_id_result', result)
   }
 
-  private _sendScanProgress = async () => {
+  private _sendGroups = (groups: AddressGroup[]): void => {
+    this._windows.send('address_groups', groups)
+  }
+
+  private _sendScanProgress = async (): Promise<void> => {
     this._scansDone++
     const progress = round((this._scansDone / this._totalScans) * 100, 2)
-    this._windows.send(IpcEvent.ScanProgress, progress)
+    this._windows.send('scan_progress', progress)
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 
   //
   //
   // Utils
-  private _setConnected = () => {
+  private _setConnected = (): void => {
     this._clientState.connectState = 'connected'
     this._sendClientState()
   }
-  private _setDisconnected = () => {
+  private _setDisconnected = (): void => {
     this._clientState.connectState = 'disconnected'
     this.stopPolling()
     this._sendClientState()
@@ -121,7 +134,7 @@ export class ModbusClient {
   //
   //
   // Connect
-  public connect = async () => {
+  public connect = async (): Promise<void> => {
     this._clientState.connectState = 'connecting'
     this._sendClientState()
 
@@ -170,7 +183,7 @@ export class ModbusClient {
   //
   // Disconnect
   private _disconnectTimeout: NodeJS.Timeout | undefined
-  public disconnect = async () => {
+  public disconnect = async (): Promise<void> => {
     this._clientState.connectState = 'disconnecting'
     this._sendClientState()
     if (!this._client.isOpen) {
@@ -212,7 +225,7 @@ export class ModbusClient {
     }
   }
 
-  public read = async () => {
+  public read = async (): Promise<void> => {
     if (this._clientState.polling) {
       this._emitMessage({ message: 'Already polling', variant: 'warning', error: null })
       return
@@ -221,7 +234,7 @@ export class ModbusClient {
     await this._read()
   }
 
-  private _read = async () => {
+  private _read = async (): Promise<void> => {
     if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
       this._emitMessage({
         message: 'Cannot read, not connected',
@@ -229,7 +242,6 @@ export class ModbusClient {
         error: null
       })
       this._setDisconnected()
-      return
     }
 
     // Set unit id before reading (in case of TCP)
@@ -244,7 +256,7 @@ export class ModbusClient {
 
     const groups = this._appState.registerConfig.readConfiguration
       ? this.groupAddressInfos()
-      : ([[address, length]] as [number, number][])
+      : ([[address, length]] as AddressGroup[])
 
     for (const [a, l] of groups) {
       try {
@@ -318,7 +330,7 @@ export class ModbusClient {
   /**
    * Build AddrInfo entries including correct registerCount.
    */
-  private buildAddrInfos = (items: [string, RegisterMapValue][]) => {
+  private buildAddrInfos: BuildAddrInfosFn = (items) => {
     return items
       .map((item, idx, arr) => {
         const dataType = item[1].dataType
@@ -347,7 +359,7 @@ export class ModbusClient {
    * @param margin    - extra registers to include when last type is utf8 (default 0)
    * @returns         - array of [startAddress, count]
    */
-  private groupAddressInfos = (maxLength: number = 100): Array<[number, number]> => {
+  private groupAddressInfos = (maxLength: number = 100): Array<AddressGroup> => {
     const registers = this._appState.registerMapping?.[this._appState.registerConfig.type]
     if (!registers) return []
 
@@ -359,14 +371,14 @@ export class ModbusClient {
 
     const registerEntries = Object.entries(registers)
       .filter(isRegisterEntry)
-      .filter(([_, r]) => r.dataType !== undefined && r.dataType !== 'none')
+      .filter((entry) => entry[1].dataType !== undefined && entry[1].dataType !== 'none')
 
     const infos = this.buildAddrInfos(registerEntries)
 
     // 1) Make a shallow copy and sort by address ascending
     const sorted = infos.slice().sort((a, b) => a.address - b.address)
 
-    const groups: Array<[number, number]> = []
+    const groups: Array<AddressGroup> = []
     let i = 0 // index of the first ungrouped item
 
     // 2) Continue until we have grouped all items
@@ -415,7 +427,7 @@ export class ModbusClient {
   //
   //
   // Log Transaction
-  private _logTransaction = (errorMessage: string | undefined) => {
+  private _logTransaction = (errorMessage: string | undefined): void => {
     // Handle transactions, get the latest transaction from the transactions array
     const rawTransactions = Object.entries(this._client['_transactions']) as [
       string,
@@ -460,20 +472,20 @@ export class ModbusClient {
   //
   //
   // Polling
-  public startPolling = () => {
+  public startPolling = (): void => {
     clearTimeout(this._pollTimeout)
     this._clientState.polling = true
     this._sendClientState()
     this._poll()
   }
 
-  public stopPolling = () => {
+  public stopPolling = (): void => {
     clearTimeout(this._pollTimeout)
     this._clientState.polling = false
     this._sendClientState()
   }
 
-  private _poll = async () => {
+  private _poll = async (): Promise<void> => {
     clearTimeout(this._pollTimeout)
     if (!this._clientState.polling) return
     await this._read()
@@ -483,11 +495,7 @@ export class ModbusClient {
   //
   //
   // Reading
-  private _tryRead = async (
-    type: RegisterType,
-    address: number,
-    length: number
-  ): Promise<RegisterData[]> => {
+  private _tryRead: TryReadFn = async (type, address, length) => {
     let data: RegisterData[] = []
 
     switch (type) {
@@ -540,7 +548,7 @@ export class ModbusClient {
   //
   //
   // Conversion
-  private _convertRegisterData = (result: ReadRegisterResult, address: number) => {
+  private _convertRegisterData = (result: ReadRegisterResult, address: number): RegisterData[] => {
     if (!result) return []
 
     const { littleEndian } = this._appState.registerConfig
@@ -609,7 +617,7 @@ export class ModbusClient {
     return registerData
   }
 
-  private _convertBitData = (result: ReadCoilResult, address: number) => {
+  private _convertBitData = (result: ReadCoilResult, address: number): RegisterData[] => {
     const { length } = this._appState.registerConfig
     const { data } = result
 
@@ -682,7 +690,7 @@ export class ModbusClient {
   //
   //
   // Write
-  public write = async (writeParameters: WriteParameters) => {
+  public write = async (writeParameters: WriteParameters): Promise<void> => {
     const { address, type, value, dataType, single } = writeParameters
 
     let errorMessage: string | undefined
@@ -798,7 +806,7 @@ export class ModbusClient {
   //
   //
   // Scan Unit ID
-  public scanUnitIds = async (params: ScanUnitIDParameters) => {
+  public scanUnitIds = async (params: ScanUnitIDParameters): Promise<void> => {
     if (this._clientState.polling) {
       this._emitMessage({
         message: 'Cannot scan while polling is enabled',
@@ -823,21 +831,16 @@ export class ModbusClient {
     this._sendClientState()
   }
 
-  public stopScanningUnitIds = () => {
+  public stopScanningUnitIds = (): void => {
     // Set scanning unit id to false so the scanning is stopped
     // after the last asynchonous operation has completed.
     this._clientState.scanningUniId = false
   }
 
-  private _scanUnitIds = async ({
-    id,
-    address,
-    length,
-    registerTypes
-  }: Omit<ScanUnitIDParameters, 'range'> & { id: number }) => {
+  private _scanUnitIds: ScanUnitIdFn = async ({ address, id, length, registerTypes }) => {
     this._client.setID(id)
 
-    const result: ScanUnitIdResult = {
+    const result: ScanUnitIDResult = {
       id,
       registerTypes: [],
       requestedRegisterTypes: registerTypes,
@@ -926,7 +929,7 @@ export class ModbusClient {
   //
   //
   // Scan Registers
-  public scanRegisters = async (params: ScanRegistersParameters) => {
+  public scanRegisters = async (params: ScanRegistersParameters): Promise<void> => {
     if (this._clientState.polling) {
       this._emitMessage({
         message: 'Cannot scan while polling is enabled',
@@ -958,7 +961,7 @@ export class ModbusClient {
     this._sendClientState()
   }
 
-  private _scanRegister = async (address: number, length: number) => {
+  private _scanRegister = async (address: number, length: number): Promise<void> => {
     const type = this._appState.registerConfig.type
     if (address + length > 65535) length = 65535 - address
 
@@ -982,13 +985,13 @@ export class ModbusClient {
     this._sendData(data)
   }
 
-  public stopScanningRegisters = () => {
+  public stopScanningRegisters = (): void => {
     // Set scanning registers to false so the scanning is stopped
     // after the last asynchonous operation has completed.
     this._clientState.scanningRegisters = false
   }
 
-  get state() {
+  get state(): ClientState {
     return this._clientState
   }
 }

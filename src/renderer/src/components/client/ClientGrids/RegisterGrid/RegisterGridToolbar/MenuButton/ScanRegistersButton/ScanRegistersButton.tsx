@@ -16,7 +16,7 @@ const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
   const handleOpen = useCallback(() => {
     useScanRegistersZustand.getState().setOpen(true)
     setAnchor(null)
-  }, [])
+  }, [setAnchor])
 
   const text = registers16Bit ? 'Scan Registers' : 'Scan TRUE Bits'
   return (

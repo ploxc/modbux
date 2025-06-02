@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import {
   PersistedServerZustand,
@@ -6,7 +7,8 @@ import {
 } from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { IpcEvent, MAIN_SERVER_UUID, RegisterParams, SyncBoolsParameters } from '@shared'
+import { MAIN_SERVER_UUID, RegisterParams, SyncBoolsParameters } from '@shared'
+import { onEvent } from '@renderer/events'
 
 const getUsedAddresses = (registers: RegisterParams[]) => {
   const addressSet = new Set<number>()
@@ -113,7 +115,7 @@ export const useServerZustand = create<
             state.serverRegisters[uuid]['holding_registers']
           ).map((r) => r.params)
 
-          window.api.syncServerregisters({
+          window.api.syncServerRegister({
             uuid,
             registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
           })
@@ -299,7 +301,7 @@ export const useServerZustand = create<
 )
 
 // Clear when state is corrupted
-const clear = () => {
+const clear = (): void => {
   useServerZustand.persist.clearStorage()
   useServerZustand.setState(useServerZustand.getInitialState())
 }
@@ -316,14 +318,14 @@ if (!stateResult.success) {
 useServerZustand.getState().init()
 
 // Listen to events
-window.electron.ipcRenderer.on(IpcEvent.RegisterValue, (_, uuid, registerType, address, value) => {
+onEvent('register_value', ({ uuid, registerType, address, value }) => {
   const state = useServerZustand.getState()
   if (state.serverRegisters[uuid][registerType]?.[address]) {
     state.setRegisterValue(registerType, address, value, uuid)
   }
 })
 
-window.electron.ipcRenderer.on(IpcEvent.BooleanValue, (_, uuid, registerType, address, value) => {
+onEvent('boolean_value', ({ uuid, registerType, address, state: value }) => {
   const state = useServerZustand.getState()
   if (state.serverRegisters[uuid][registerType][address] === undefined) return
 

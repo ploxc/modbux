@@ -1,10 +1,12 @@
-import { Box, Button, Popover, TextField } from '@mui/material'
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { Box, Button, InputBaseComponentProps, Popover, TextField } from '@mui/material'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters } from '@shared'
-import { useCallback } from 'react'
+import { ElementType, useCallback } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
@@ -35,7 +37,7 @@ export const useAddBooleansZustand = create<AddBooleansZustand, [['zustand/mutat
   }))
 )
 
-const RangeField = () => {
+const RangeField = meme(() => {
   const address = useAddBooleansZustand((z) => String(z.address))
   const setAddress = useAddBooleansZustand((z) => z.setAddress)
   return (
@@ -47,15 +49,15 @@ const RangeField = () => {
       value={address}
       slotProps={{
         input: {
-          inputComponent: UIntInput as any,
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setAddress })
         }
       }}
     />
   )
-}
+})
 
-const AddBoolButton = () => {
+const AddBoolButton = meme(() => {
   const handleClick = useCallback(() => {
     const { registerType, address, setAddress } = useAddBooleansZustand.getState()
     useServerZustand.getState().addBools(registerType, Number(address))
@@ -69,9 +71,9 @@ const AddBoolButton = () => {
       Add
     </Button>
   )
-}
+})
 
-const RemoveBoolButton = () => {
+const RemoveBoolButton = meme(() => {
   const handleClick = useCallback(() => {
     const { registerType, address, setAddress } = useAddBooleansZustand.getState()
     useServerZustand.getState().removeBool(registerType, Number(address))
@@ -85,9 +87,9 @@ const RemoveBoolButton = () => {
       Remove
     </Button>
   )
-}
+})
 
-const AddBooleans = () => {
+const AddBooleans = (): JSX.Element => {
   const anchorEl = useAddBooleansZustand((z) => z.anchorEl)
   const setAnchorEl = useAddBooleansZustand((z) => z.setAnchorEl)
 

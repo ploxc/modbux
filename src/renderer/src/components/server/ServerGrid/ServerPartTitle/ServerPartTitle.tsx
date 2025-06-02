@@ -29,7 +29,7 @@ const AddButton = meme(
         const setRegisterType = useAddRegisterZustand.getState().setRegisterType
         setRegisterType(type)
       }
-    }, [type])
+    }, [titleRef, type])
 
     const icon =
       type === 'coils' || type === 'discrete_inputs' ? (

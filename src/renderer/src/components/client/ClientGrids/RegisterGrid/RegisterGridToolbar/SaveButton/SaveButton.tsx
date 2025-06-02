@@ -1,10 +1,11 @@
 import { Save } from '@mui/icons-material'
 import IconButton from '@mui/material/IconButton'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType } from '@shared'
 import { useCallback } from 'react'
 
-const SaveButton = () => {
+const SaveButton = meme(() => {
   const saveRegisterConfig = useCallback(() => {
     const z = useRootZustand.getState()
     const { registerMapping } = z
@@ -20,7 +21,7 @@ const SaveButton = () => {
 
     const registerMappingJson = JSON.stringify(registerMapping, null, 2)
 
-    var element = document.createElement('a')
+    const element = document.createElement('a')
     element.setAttribute(
       'href',
       'data:text/plain;charset=utf-8,' + encodeURIComponent(registerMappingJson)
@@ -61,6 +62,6 @@ const SaveButton = () => {
       <Save fontSize="small" />
     </IconButton>
   )
-}
+})
 
 export default SaveButton

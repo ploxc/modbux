@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { RegisterType } from '@shared'
 import { create } from 'zustand'

@@ -1,6 +1,7 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { DataType, RegisterData, RegisterMapObject, RegisterType } from '@shared'
+import { ReactNode } from 'react'
 
 export const scalingFactorColumn = (
   registerMap: RegisterMapObject,
@@ -12,13 +13,13 @@ export const scalingFactorColumn = (
   width: 60,
   type: 'number',
   editable: true,
-  valueGetter: (_, row) => {
+  valueGetter: (_, row): number => {
     const address = row.id
     const register = registerMap[address]
     if (!register?.scalingFactor) return 1
     return register.scalingFactor
   },
-  renderCell: ({ value, row }) => {
+  renderCell: ({ value, row }): ReactNode | undefined => {
     const enabledDatatypes: DataType[] = [
       'double',
       'float',

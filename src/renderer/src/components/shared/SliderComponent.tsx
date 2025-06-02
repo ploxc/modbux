@@ -8,7 +8,7 @@ interface Props {
   setValue: (value: number) => void
 }
 
-const SliderComponent = ({ label, value, setValue }: Props) => {
+const SliderComponent = ({ label, value, setValue }: Props): JSX.Element => {
   const labelWidth = 70
   const valueWidth = 25
 

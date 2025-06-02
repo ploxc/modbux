@@ -58,4 +58,6 @@ const ComInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
+ComInput.displayName = 'ComInput'
+
 export default ComInput

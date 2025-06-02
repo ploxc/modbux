@@ -1,6 +1,6 @@
 import { StyledSvg, StyledSvgProps } from './util'
 
-const Client = ({ sx }: StyledSvgProps) => {
+const Client = ({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg
       sx={sx}

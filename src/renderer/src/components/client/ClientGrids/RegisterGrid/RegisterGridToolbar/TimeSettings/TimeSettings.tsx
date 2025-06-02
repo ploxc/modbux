@@ -3,12 +3,13 @@ import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Popover from '@mui/material/Popover'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import SliderComponent from '@renderer/components/shared/SliderComponent'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 // Polling interval slider
-const PollRate = () => {
+const PollRate = (): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
   const setValue = useRootZustand((z) => z.setPollRate)
 
@@ -16,20 +17,23 @@ const PollRate = () => {
 }
 
 // Read Timeout slider
-const Timeout = () => {
+const Timeout = (): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
   const setValue = useRootZustand((z) => z.setTimeout)
 
   return <SliderComponent label="Timeout" value={value} setValue={(v) => setValue(v * 1000)} />
 }
 
-const TimeSettings = () => {
+const TimeSettings = meme(() => {
   const polling = useRootZustand((z) => z.clientState.polling)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
-  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(anchorEl ? null : event.currentTarget)
-  }
+  const handleOpenMenu = useCallback(
+    (event: React.MouseEvent<HTMLElement>): void => {
+      setAnchorEl(anchorEl ? null : event.currentTarget)
+    },
+    [anchorEl]
+  )
   return (
     <Box sx={{ display: 'flex' }}>
       <IconButton disabled={polling} size="small" color="primary" onClick={handleOpenMenu}>
@@ -48,5 +52,5 @@ const TimeSettings = () => {
       </Popover>
     </Box>
   )
-}
+})
 export default TimeSettings

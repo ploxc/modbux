@@ -1,11 +1,11 @@
 import { GridColDef } from '@mui/x-data-grid'
-import { RegisterType, ScanUnitIdResult } from '@shared'
+import { RegisterType, ScanUnitIDResult } from '@shared'
 import { useMemo } from 'react'
 import { useScanUnitIdZustand } from './_zustand'
 import { Box, Chip } from '@mui/material'
 import { CheckCircle, ErrorRounded } from '@mui/icons-material'
 
-const unitIdColumn: GridColDef<ScanUnitIdResult, number, number> = {
+const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
   field: 'id',
   headerName: 'Unit ID',
   hideable: false,
@@ -13,7 +13,7 @@ const unitIdColumn: GridColDef<ScanUnitIdResult, number, number> = {
   disableColumnMenu: true
 }
 
-const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIdResult> => ({
+const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIDResult> => ({
   field: registerType,
   type: 'boolean',
   headerName: name,
@@ -31,7 +31,7 @@ const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUn
   )
 })
 
-const errorColumn: GridColDef<ScanUnitIdResult> = {
+const errorColumn: GridColDef<ScanUnitIDResult> = {
   field: 'errorMessage',
   headerName: 'Error',
   flex: 1,
@@ -61,7 +61,7 @@ const errorColumn: GridColDef<ScanUnitIdResult> = {
     )
 }
 
-const useScanUnitIdColumns = () => {
+const useScanUnitIdColumns = (): GridColDef<ScanUnitIDResult>[] => {
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   return useMemo(() => {

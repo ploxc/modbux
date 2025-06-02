@@ -6,10 +6,15 @@ module.exports = {
     '@electron-toolkit/eslint-config-ts/recommended',
     '@electron-toolkit/eslint-config-prettier'
   ],
-  'prettier/prettier': [
-    'error',
-    {
-      endOfLine: 'auto'
-    }
-  ]
+  plugins: ['react-hooks'],
+  rules: {
+    'react-hooks/rules-of-hooks': 'error',
+    'react-hooks/exhaustive-deps': 'warn',
+    'prettier/prettier': [
+      'error',
+      {
+        endOfLine: 'auto'
+      }
+    ]
+  }
 }

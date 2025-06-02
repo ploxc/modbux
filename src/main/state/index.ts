@@ -26,7 +26,7 @@ export class AppState {
     this._readStateJson()
   }
 
-  private _readStateJson = () => {
+  private _readStateJson = (): void => {
     const userData = app.getPath('userData')
     const stateJsonPath = join(userData, 'state.json')
 
@@ -54,7 +54,7 @@ export class AppState {
     this._writeStateJson()
   }
 
-  private _writeStateJson = () => {
+  private _writeStateJson = (): void => {
     const userData = app.getPath('userData')
     const stateJsonPath = join(userData, 'state.json')
 
@@ -74,7 +74,7 @@ export class AppState {
     }
   }
 
-  public updateConnectionConfig(config: DeepPartial<ConnectionConfig>) {
+  public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
     this._connectionConfig = merge<ConnectionConfig, DeepPartial<ConnectionConfig>>(
       this._connectionConfig,
       config
@@ -82,7 +82,7 @@ export class AppState {
     this._writeStateJson()
   }
 
-  public updateRegisterConfig(config: DeepPartial<RegisterConfig>) {
+  public updateRegisterConfig(config: DeepPartial<RegisterConfig>): void {
     this._registerConfig = merge<RegisterConfig, DeepPartial<RegisterConfig>>(
       this._registerConfig,
       config
@@ -90,19 +90,19 @@ export class AppState {
     this._writeStateJson()
   }
 
-  public setRegisterMapping(mapping: RegisterMapping) {
+  public setRegisterMapping(mapping: RegisterMapping): void {
     this._registerMapping = mapping
   }
 
-  get connectionConfig() {
+  get connectionConfig(): ConnectionConfig {
     return this._connectionConfig
   }
 
-  get registerConfig() {
+  get registerConfig(): RegisterConfig {
     return this._registerConfig
   }
 
-  get registerMapping() {
+  get registerMapping(): RegisterMapping | undefined {
     return this._registerMapping
   }
 }

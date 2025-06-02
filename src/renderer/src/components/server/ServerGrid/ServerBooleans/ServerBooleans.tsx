@@ -4,6 +4,7 @@ import { BooleanRegisters } from '@shared'
 import { deepEqual } from 'fast-equals'
 import { useRef } from 'react'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ServerBooleanProps {
   name: string
@@ -14,7 +15,7 @@ interface ServerBooleanButtonProps {
   type: BooleanRegisters
 }
 
-const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
+const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) => {
   const bool = useServerZustand((z) => z.serverRegisters[z.selectedUuid][type][address])
 
   const variant = bool ? 'contained' : 'outlined'
@@ -29,14 +30,14 @@ const ServerBooleanButton = ({ address, type }: ServerBooleanButtonProps) => {
       {address}
     </Button>
   )
-}
+})
 
 interface ServerBooleanRowProps {
   addresses: number[]
   type: BooleanRegisters
 }
 
-const ServerBooleanRow = ({ addresses, type }: ServerBooleanRowProps) => {
+const ServerBooleanRow = meme(({ addresses, type }: ServerBooleanRowProps) => {
   return (
     <Box sx={{ display: 'flex', gap: 0.5 }}>
       {addresses.map((address) => (
@@ -44,15 +45,15 @@ const ServerBooleanRow = ({ addresses, type }: ServerBooleanRowProps) => {
       ))}
     </Box>
   )
-}
+})
 
-const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
+const ServerBooleanGroups = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const groupsMemory = useRef<number[][]>([])
   const groups = useServerZustand((z) => {
     // Split into groups of 4 adresses
     const booleans = Object.keys(z.serverRegisters[z.selectedUuid][type]).map((key) => Number(key))
 
-    let groups: number[][] = []
+    const groups: number[][] = []
     for (let i = 0; i < booleans.length; i += 4) groups.push(booleans.slice(i, i + 4))
 
     // Reverse is like you would see it in a binary forma, but I think it's confusing
@@ -66,9 +67,9 @@ const ServerBooleanGroups = ({ type }: Omit<ServerBooleanProps, 'name'>) => {
   return groups.map((adresses, i) => (
     <ServerBooleanRow key={`addresses_${type}_${i}`} addresses={adresses} type={type} />
   ))
-}
+})
 
-const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
+const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
   return (
     <Grid2
       size={{ xs: 6, md: 3.5, lg: 2.3 }}
@@ -102,6 +103,6 @@ const ServerBooleans = ({ name, type }: ServerBooleanProps) => {
       </Paper>
     </Grid2>
   )
-}
+})
 
 export default ServerBooleans

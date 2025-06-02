@@ -1,5 +1,5 @@
 import { ArrowRightAlt, Functions, Refresh } from '@mui/icons-material'
-import { FormLabel, IconButton } from '@mui/material'
+import { FormLabel, IconButton, InputBaseComponentProps } from '@mui/material'
 import Box from '@mui/material/Box'
 import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
@@ -13,7 +13,15 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { DataType, RegisterData, RegisterLinearInterpolation, RegisterType } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { forwardRef, RefObject, useCallback, useRef, useState } from 'react'
+import {
+  ElementType,
+  forwardRef,
+  ReactElement,
+  RefObject,
+  useCallback,
+  useRef,
+  useState
+} from 'react'
 import { IMask, IMaskInput } from 'react-imask'
 
 const defaultInterpolation: RegisterLinearInterpolation = { x1: '0', x2: '1', y1: '0', y2: '1' }
@@ -23,6 +31,7 @@ const isDefaultInterpolation = (interpolate: RegisterLinearInterpolation | undef
 }
 
 const ValueInput = meme(
+  // eslint-disable-next-line react/display-name
   forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
     const { set, ...other } = props
 
@@ -36,7 +45,7 @@ const ValueInput = meme(
           mapToRadix: ['.', ','] // symbols to process as radix
         }}
         inputRef={ref}
-        onAccept={(value: any) => {
+        onAccept={(value) => {
           set(value, true)
         }}
       />
@@ -59,7 +68,7 @@ const InputField = meme(({ interpolateKey, value, set }: InputFieldProps) => {
       value={value}
       slotProps={{
         input: {
-          inputComponent: ValueInput as any,
+          inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set })
         }
       }}
@@ -79,13 +88,13 @@ const useInterpolateValue = (
   key: keyof RegisterLinearInterpolation,
   type: RegisterType,
   address: number
-) =>
+): string =>
   useRootZustand((z) => {
     const interpolate = z.registerMapping[type][address]?.interpolate
     return interpolate !== undefined ? interpolate[key] : defaultInterpolation[key]
   })
 
-const InterpolationModal = ({ open, onClose, actionCellRef, type, address }: Props) => {
+const InterpolationModal = meme(({ open, onClose, actionCellRef, type, address }: Props) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
 
   const x1 = useInterpolateValue('x1', type, address)
@@ -149,6 +158,61 @@ const InterpolationModal = ({ open, onClose, actionCellRef, type, address }: Pro
       </Modal>
     )
   )
+})
+
+interface ActionProps {
+  type: RegisterType
+  address: number
+}
+
+const Action = ({ type, address }: ActionProps): JSX.Element => {
+  const [open, setOpen] = useState(false)
+
+  const actionCellRef = useRef<HTMLDivElement>(null)
+  const apiRef = useGridApiContext()
+
+  const enabledDatatypes: DataType[] = [
+    'double',
+    'float',
+    'int16',
+    'int32',
+    'int64',
+    'uint16',
+    'uint32',
+    'uint64'
+  ]
+
+  const dataType = useRootZustand((z) => z.registerMapping[type][address]?.dataType)
+  const enabled = dataType && enabledDatatypes.includes(dataType)
+  const isDefault = isDefaultInterpolation(
+    useRootZustand.getState().registerMapping[type][address]?.interpolate
+  )
+
+  return (
+    <>
+      <GridActionsCellItem
+        ref={actionCellRef}
+        disabled={!enabled}
+        icon={<Functions fontSize="small" />}
+        title="Interpolation"
+        label={''}
+        onClick={() => {
+          apiRef.current.selectRow(address, true, true)
+          setOpen(true)
+        }}
+        color={isDefault ? undefined : 'primary'}
+        sx={{ opacity: !enabled ? 0 : isDefault ? 0.2 : 1 }}
+      />
+
+      <InterpolationModal
+        address={address}
+        open={open}
+        onClose={() => setOpen(false)}
+        actionCellRef={actionCellRef}
+        type={type}
+      />
+    </>
+  )
 }
 
 export const interpolationColumn = (type: RegisterType): GridColDef<RegisterData> => ({
@@ -159,55 +223,9 @@ export const interpolationColumn = (type: RegisterType): GridColDef<RegisterData
   minWidth: 40,
   maxWidth: 40,
 
-  getActions: ({ row, id }) => {
-    const address = row.id
-    const [open, setOpen] = useState(false)
-
-    const actionCellRef = useRef<HTMLDivElement>(null)
-    const apiRef = useGridApiContext()
-
-    const enabledDatatypes: DataType[] = [
-      'double',
-      'float',
-      'int16',
-      'int32',
-      'int64',
-      'uint16',
-      'uint32',
-      'uint64'
-    ]
-
-    const dataType = useRootZustand((z) => z.registerMapping[type][address]?.dataType)
-    const enabled = dataType && enabledDatatypes.includes(dataType)
-    const isDefault = isDefaultInterpolation(
-      useRootZustand.getState().registerMapping[type][address]?.interpolate
-    )
-
+  getActions: ({ row }): ReactElement[] => {
     return row.isScanned
       ? []
-      : [
-          <>
-            <GridActionsCellItem
-              ref={actionCellRef}
-              disabled={!enabled}
-              icon={<Functions fontSize="small" />}
-              title="Interpolation"
-              label={''}
-              onClick={() => {
-                apiRef.current.selectRow(id, true, true)
-                setOpen(true)
-              }}
-              color={isDefault ? undefined : 'primary'}
-              sx={{ opacity: !enabled ? 0 : isDefault ? 0.2 : 1 }}
-            />
-            <InterpolationModal
-              address={address}
-              open={open}
-              onClose={() => setOpen(false)}
-              actionCellRef={actionCellRef}
-              type={type}
-            />
-          </>
-        ]
+      : [<Action key={`interpolation_action_${row.id}`} address={row.id} type={type} />]
   }
 })

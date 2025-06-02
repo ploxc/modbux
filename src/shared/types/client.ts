@@ -1,5 +1,6 @@
 import z from 'zod'
 import { BaseDataType, DataTypeSchema } from './datatype'
+import { BooleanRegisters, NumberRegisters } from './server'
 
 //
 //
@@ -210,3 +211,19 @@ export interface RawTransaction {
   request: Buffer
   responses: Buffer[]
 }
+
+export interface RegisterValue {
+  uuid: string
+  registerType: NumberRegisters
+  address: number
+  value: number
+}
+
+export interface BooleanValue {
+  uuid: string
+  registerType: BooleanRegisters
+  address: number
+  state: boolean
+}
+
+export type AddressGroup = [number, number]

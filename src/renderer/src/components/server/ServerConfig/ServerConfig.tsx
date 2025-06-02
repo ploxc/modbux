@@ -1,15 +1,16 @@
 //
 //
 
-import { TextField, Box } from '@mui/material'
+import { TextField, Box, InputBaseComponentProps } from '@mui/material'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { forwardRef } from 'react'
+import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 
 // Unit Id
-const UnitId = () => {
+const UnitId = meme(() => {
   const unitId = useServerZustand((z) => z.unitId[z.selectedUuid])
 
   return (
@@ -21,7 +22,7 @@ const UnitId = () => {
       value={unitId}
       slotProps={{
         input: {
-          inputComponent: UnitIdInput as any,
+          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({
             set: useServerZustand.getState().setUnitId
           })
@@ -29,10 +30,11 @@ const UnitId = () => {
       }}
     />
   )
-}
+})
 
 const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
+
   return (
     <IMaskInput
       {...other}
@@ -54,10 +56,12 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
+PortInput.displayName = 'PortInput'
+
 //
 //
 // Port
-const Port = () => {
+const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
   const portValid = useServerZustand((z) => z.portValid[z.selectedUuid])
 
@@ -71,7 +75,7 @@ const Port = () => {
       value={port}
       slotProps={{
         input: {
-          inputComponent: PortInput as any,
+          inputComponent: PortInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({
             set: useServerZustand.getState().setPort
           })
@@ -79,12 +83,12 @@ const Port = () => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Server Config
-const ServerConfig = () => {
+const ServerConfig = (): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
       <UnitId />

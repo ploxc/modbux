@@ -77,4 +77,6 @@ const HostInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
+HostInput.displayName = 'HostInput'
+
 export default HostInput

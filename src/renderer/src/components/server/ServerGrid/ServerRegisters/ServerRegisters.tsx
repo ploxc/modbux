@@ -3,7 +3,7 @@ import { Grid2, Paper, Box, IconButton, Grid2Props } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { deepEqual } from 'fast-equals'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
@@ -13,10 +13,10 @@ interface RowProps {
 }
 
 const RowEdit = meme(({ register }: RowProps) => {
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     const state = useAddRegisterZustand.getState()
     state.setEditRegister(register)
-  }
+  }, [register])
 
   return (
     <IconButton onClick={handleClick} size="small">
@@ -86,7 +86,7 @@ interface ServerRegistersProps {
   size: Grid2Props['size']
 }
 
-const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
+const ServerRegisters = meme(({ name, type, size }: ServerRegistersProps) => {
   return (
     <Grid2 size={size} height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}>
       <Paper
@@ -121,6 +121,6 @@ const ServerRegisters = ({ name, type, size }: ServerRegistersProps) => {
       </Paper>
     </Grid2>
   )
-}
+})
 
 export default ServerRegisters

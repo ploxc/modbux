@@ -38,7 +38,7 @@ const Footer = meme(() => {
 //
 //
 // DataGrid
-const RegisterGridContent = () => {
+const RegisterGridContent = (): JSX.Element => {
   const registerData = useDataZustand((z) => z.registerData)
   const registerMapping = useRootZustand((z) => z.registerMapping[z.registerConfig.type])
   const columns = useRegisterGridColumns()
@@ -55,7 +55,7 @@ const RegisterGridContent = () => {
     }
     if (readConfiguration) apiRef.current.setFilterModel(filterModel)
     else apiRef.current.setFilterModel({ items: [] })
-  }, [readConfiguration])
+  }, [apiRef, readConfiguration])
 
   return (
     <DataGrid
@@ -147,7 +147,7 @@ const RegisterGridContent = () => {
 //
 //
 // DataGrid paper
-const RegisterGrid = () => {
+const RegisterGrid = (): JSX.Element => {
   return (
     <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
       <RegisterGridContent />

@@ -4,7 +4,7 @@ import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import RegisterGrid from './RegisterGrid/RegisterGrid'
 
-const ClientGrids = () => {
+const ClientGrids = (): JSX.Element | null => {
   const showLog = useLayoutZustand((z) => z.showLog)
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
 

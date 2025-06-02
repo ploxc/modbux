@@ -32,7 +32,7 @@ const RegisterGridToolbar = meme(() => {
         <ReadButton />
         <ToggleEndianButton />
         <TimeSettings />
-        <RawButton/>
+        <RawButton />
       </Box>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
         <Box sx={{ display: 'flex' }}>

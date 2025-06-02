@@ -5,7 +5,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterData, dummyWords } from '@shared'
 import { Buffer } from 'buffer'
 
-export const showMapping = () => {
+export const showMapping = (): void => {
   const registerData: RegisterData[] = []
   const registerMapping = useRootZustand.getState().registerMapping
   const type = useRootZustand.getState().registerConfig.type
@@ -28,7 +28,7 @@ export const showMapping = () => {
   useDataZustand.getState().setRegisterData(registerData)
 }
 
-const ViewConfigButton = () => {
+const ViewConfigButton = (): JSX.Element => {
   const disabled = useRootZustand(
     (z) => Object.keys(z.registerMapping[z.registerConfig.type]).length === 0
   )

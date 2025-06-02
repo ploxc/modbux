@@ -1,79 +1,85 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { Api, ClientState, ConnectionConfig, RegisterConfig, RegisterData } from '@shared'
-import { IpcChannel, ipcInvoke } from '@backend'
+import { IPC_CHANNELS, IpcHandlerMap } from '@shared'
+import { events } from './events'
 
 const passedArgs = process.argv.slice(2)
 const isServerWindow = passedArgs.includes('is-server-window')
-//
-//
-// Custom APIs for renderer
-const api: Api = {
-  isServerWindow,
-  getConnectionConfig: (...args) =>
-    ipcInvoke<typeof args, ConnectionConfig>(IpcChannel.GetConnectionConfig),
 
-  updateConnectionConfig: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.UpdateConnectionConfig, ...args),
-
-  getRegisterConfig: (...args) =>
-    ipcInvoke<typeof args, RegisterConfig>(IpcChannel.GetRegisterConfig),
-
-  updateRegisterConfig: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.UpdateRegisterConfig, ...args),
-
-  getClientState: (...args) =>
-    ipcInvoke<typeof args, ClientState>(IpcChannel.GetClientState, ...args),
-
-  setRegisterMapping: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.SetRegisterMapping, ...args),
-
-  // Connections
-  connect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Connect, ...args),
-  disconnect: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Disconnect, ...args),
-
-  // Read/Write
-  read: (...args) => ipcInvoke<typeof args, RegisterData[] | undefined>(IpcChannel.Read, ...args),
-  startPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StartPolling, ...args),
-  stopPolling: (...args) => ipcInvoke<typeof args, void>(IpcChannel.StopPolling, ...args),
-  write: (...args) => ipcInvoke<typeof args, void>(IpcChannel.Write, ...args),
-
-  // Scan unit IDs
-  scanUnitIds: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ScanUnitIds, ...args),
-  stopScanningUnitIds: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.StopScanningUnitIds, ...args),
-
-  // Scan registers
-  scanRegisters: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ScanRegisters, ...args),
-  stopScanningRegisters: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.StopScanningRegisters, ...args),
-
-  // Server registers
-  addReplaceServerRegister: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.AddReplaceServerRegister, ...args),
-  removeServerRegister: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.RemoveServerRegister, ...args),
-  syncServerregisters: (...args) =>
-    ipcInvoke<typeof args, void>(IpcChannel.SyncServerRegisters, ...args),
-  resetRegisters: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetRegisters, ...args),
-  setBool: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetBool, ...args),
-  resetBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.ResetBools, ...args),
-  syncBools: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SyncBools, ...args),
-
-  // Server settings
-  restartServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.RestartServer, ...args),
-  setServerPort: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerPort, ...args),
-  setServerUnitId: (...args) => ipcInvoke<typeof args, void>(IpcChannel.SetServerUnitId, ...args),
-
-  // Multiple server additinos
-  createServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.CreateServer, ...args),
-  deleteServer: (...args) => ipcInvoke<typeof args, void>(IpcChannel.DeleteServer, ...args),
-
-  // App info
-  getAppVersion: (...args) => ipcInvoke<typeof args, string>(IpcChannel.GetAppVersion, ...args)
+export const ipcInvoke = <C extends keyof IpcHandlerMap>(
+  channel: C,
+  ...args: IpcHandlerMap[C]['args']
+): Promise<IpcHandlerMap[C]['return']> => {
+  return ipcRenderer.invoke(channel, ...args)
 }
 
-//
+type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? // If there's an underscore, concatenate Head with Capitalize of the next segment,
+    // then recursively process the remainder.
+    `${Head}${Capitalize<CamelCase<Tail>>}`
+  : // If no underscore remains, simply return S.
+    S
+
+/**
+ * Convert a snake_case string to camelCase.
+ * Example: "get_connection_config" → "getConnectionConfig"
+ */
+function snakeToCamel<S extends string>(
+  str: S
+): /* Return type is the same string, but transformed */
+string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
+/**
+ * Build an object whose keys are camelCase method names derived from
+ * the snake_case channel values, and whose values are functions that
+ * call ipcInvoke(channelName, ...args).
+ */
+const handlers = Object.fromEntries(
+  (Object.values(IPC_CHANNELS) as Array<keyof IpcHandlerMap>).map((channelName) => {
+    // channelName is a string like "get_connection_config"
+    const methodName = snakeToCamel(channelName) as CamelCase<typeof channelName>
+    return [
+      methodName,
+      (
+        ...args: IpcHandlerMap[typeof channelName]['args']
+      ):
+        | Promise<IpcHandlerMap[typeof channelName]['return']>
+        | IpcHandlerMap[typeof channelName]['return'] => ipcInvoke(channelName, ...args)
+    ]
+  })
+) as {
+  // We assert that handlers now matches the mapped type:
+  // For each channel C (snake_case) in IpcHandlerMap,
+  // produce a camelCase method name and signature.
+  [C in keyof IpcHandlerMap as CamelCase<C & string>]: (
+    ...args: IpcHandlerMap[C]['args']
+  ) => Promise<IpcHandlerMap[C]['return']>
+}
+
+type Handlers = typeof handlers
+
+/**
+ * Define your Api interface by combining `isServerWindow` plus
+ * all methods generated from IpcHandlerMap (in camelCase).
+ */
+export type Api = {
+  isServerWindow: boolean
+} & Handlers
+
+/**
+ * Finally, assemble the `api` object:
+ * - `isServerWindow` is a boolean checked at runtime
+ * - spread in all generated handler methods
+ */
+const api = {
+  isServerWindow,
+  ...handlers
+} as Api
+
+console.log(api)
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -81,6 +87,7 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+    contextBridge.exposeInMainWorld('events', events)
   } catch (error) {
     console.error(error)
   }
@@ -89,4 +96,6 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.api = api
+  // @ts-ignore (define in dts)
+  window.events = events
 }

@@ -1,6 +1,6 @@
 import { Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper } from '@mui/material'
 
-const EndianTable = () => {
+const EndianTable = (): JSX.Element => {
   return (
     <Paper sx={{ px: 3, py: 2, maxHeight: '66dvh', overflow: 'auto', minWidth: '80dvw' }}>
       <Typography variant="h6">Big-Endian vs Little-Endian Word Order</Typography>
@@ -89,8 +89,8 @@ const EndianTable = () => {
             first, and the high-order word (<strong>W1</strong>) is stored second.
           </li>
         </ul>
-        When communicating with Modbus devices, it's essential to know which endianness the device
-        uses to ensure correct data interpretation.
+        When communicating with Modbus devices, it{`'`}s essential to know which endianness the
+        device uses to ensure correct data interpretation.
       </Typography>
     </Paper>
   )

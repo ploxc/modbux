@@ -12,9 +12,11 @@ const UnitIdInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
       max={247}
       autofix
       inputRef={ref}
-      onAccept={(value: any) => set(value, true)}
+      onAccept={(value) => set(value, true)}
     />
   )
 })
+
+UnitIdInput.displayName = 'UnitIdInput'
 
 export default UnitIdInput

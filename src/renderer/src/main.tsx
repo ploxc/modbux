@@ -52,8 +52,6 @@ const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
   }
 }))
 
-
-
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
