@@ -1,6 +1,5 @@
 import {
   ConnectionConfig,
-  Protocol,
   RegisterConfig,
   RegisterData,
   RegisterDataWords
@@ -16,7 +15,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   },
   rtu: {
     com: 'COM3',
-    options: { baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' }
+    options: { baudRate: "9600", dataBits: 8, stopBits: 1, parity: 'none' }
   }
 }
 export const defaultRegisterConfig: RegisterConfig = {
@@ -29,7 +28,7 @@ export const defaultRegisterConfig: RegisterConfig = {
   advancedMode: false,
   show64BitValues: false,
   addressBase: '0',
-  showStringValues: false
+  readConfiguration: false
 }
 
 export const dummyWords: RegisterDataWords = {

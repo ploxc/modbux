@@ -1,6 +1,4 @@
-import ScanRegisters, {
-  useScanRegistersZustand
-} from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
+import { useScanRegistersZustand } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRef, useState } from 'react'
 import LoadDummyDataButton from './LoadDummyDataButton/LoadDummyDataButton'

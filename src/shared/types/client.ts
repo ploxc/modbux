@@ -75,7 +75,8 @@ export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
 
 // modbus-serial TcpPortOptions partial
 export const TcpPortOptionsSchema = z.object({
-  port: z.number()
+  port: z.number(),
+  timeout: z.number()
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
 
