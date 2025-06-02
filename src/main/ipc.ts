@@ -15,7 +15,14 @@ import {
   ResetBoolsParams,
   CreateServerParams,
   SetUnitIdParams,
-  AddRegisterParams
+  AddRegisterParams,
+  ConnectionConfigSchema,
+  defaultConnectionConfig,
+  defaultRegisterConfig,
+  RegisterConfigSchema,
+  ClientState,
+  ClientStateSchema,
+  defaultClientState
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
@@ -27,16 +34,35 @@ export const initIpc = (
   client: ModbusClient,
   server: ModbusServer
 ) => {
-  // Config and state
-  ipcHandle(IpcChannel.GetConnectionConfig, () => state.connectionConfig)
+  // Connnection config
+  ipcHandle(IpcChannel.GetConnectionConfig, (): ConnectionConfig => {
+    // Validate and return the current connection config, or default if invalid
+    const result = ConnectionConfigSchema.safeParse(state.connectionConfig)
+    if (result.success) return result.data
+    state.updateConnectionConfig(defaultConnectionConfig)
+    return defaultConnectionConfig
+  })
   ipcHandle(IpcChannel.UpdateConnectionConfig, (_, config: DeepPartial<ConnectionConfig>) =>
     state.updateConnectionConfig(config)
   )
-  ipcHandle(IpcChannel.GetRegisterConfig, () => state.registerConfig)
+  // Register config
+  ipcHandle(IpcChannel.GetRegisterConfig, (): RegisterConfig => {
+    // Validate and return the current register config, or default if invalid
+    const result = RegisterConfigSchema.safeParse(state.registerConfig)
+    if (result.success) return result.data
+    state.updateRegisterConfig(defaultRegisterConfig)
+    return defaultRegisterConfig
+  })
   ipcHandle(IpcChannel.UpdateRegisterConfig, (_, config: DeepPartial<RegisterConfig>) =>
     state.updateRegisterConfig(config)
   )
-  ipcHandle(IpcChannel.GetClientState, () => client.state)
+  // Client state
+  ipcHandle(IpcChannel.GetClientState, (): ClientState => {
+    // Validate and return the current client state, or default if invalid
+    const result = ClientStateSchema.safeParse(client.state)
+    if (result.success) return result.data
+    return defaultClientState
+  })
   ipcHandle(IpcChannel.SetRegisterMapping, (_, mapping: RegisterMapping) =>
     state.setRegisterMapping(mapping)
   )

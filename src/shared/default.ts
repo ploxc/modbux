@@ -1,4 +1,5 @@
 import {
+  ClientState,
   ConnectionConfig,
   RegisterConfig,
   RegisterData,
@@ -15,7 +16,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   },
   rtu: {
     com: 'COM3',
-    options: { baudRate: "9600", dataBits: 8, stopBits: 1, parity: 'none' }
+    options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
   }
 }
 export const defaultRegisterConfig: RegisterConfig = {
@@ -29,6 +30,13 @@ export const defaultRegisterConfig: RegisterConfig = {
   show64BitValues: false,
   addressBase: '0',
   readConfiguration: false
+}
+
+export const defaultClientState: ClientState = {
+  connectState: 'disconnected',
+  polling: false,
+  scanningUniId: false,
+  scanningRegisters: false
 }
 
 export const dummyWords: RegisterDataWords = {
