@@ -31,6 +31,11 @@ export const useRootZustand = create<
       registerConfig: defaultRegisterConfig,
       // Connection state
       // Register mapping
+      name: '',
+      setName: (name) =>
+        set((state) => {
+          state.name = name
+        }),
       registerMapping: {
         coils: {},
         discrete_inputs: {},
@@ -322,6 +327,7 @@ export const useRootZustand = create<
     {
       name: `root.zustand`,
       partialize: (state) => ({
+        name: state.name,
         connectionConfig: state.connectionConfig,
         registerConfig: state.registerConfig,
         registerMapping: state.registerMapping

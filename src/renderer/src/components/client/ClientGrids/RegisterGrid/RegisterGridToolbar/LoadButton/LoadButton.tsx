@@ -2,7 +2,7 @@ import { FileOpen } from '@mui/icons-material'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { RegisterMappingSchema } from '@shared'
+import { RegisterMapConfigSchema, RegisterMappingSchema } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 import { showMapping } from '../ViewConfigButton/ViewConfigButton'
@@ -33,15 +33,34 @@ const LoadButton = meme((): JSX.Element => {
         content = content.replaceAll('HoldingRegisters', 'holding_registers')
 
         const configObject = JSON.parse(content)
-        const configResult = RegisterMappingSchema.safeParse(configObject)
+        const configResult = RegisterMapConfigSchema.safeParse(configObject)
 
         if (configResult.success) {
-          const registerMapping = configResult.data
+          const { name, registerMapping } = configResult.data
+          if (name) state.setName(name)
           state.replaceRegisterMapping(registerMapping)
           enqueueSnackbar({ variant: 'success', message: 'Configuration opened successfully' })
-        } else {
+        }
+
+        // Legacy format, without name
+        const legacyConfigResult = RegisterMappingSchema.safeParse(configObject)
+
+        if (legacyConfigResult.success) {
+          state.setName('')
+          state.replaceRegisterMapping(legacyConfigResult.data)
+          enqueueSnackbar({
+            variant: 'warning',
+            message:
+              'Configuration opened successfully (legacy format), consider saving with the new format.'
+          })
+        }
+
+        if (!configResult.success && !legacyConfigResult.success) {
           enqueueSnackbar({ variant: 'error', message: 'Invalid Config' })
-          console.log(configResult.error)
+          console.log({
+            configResult: configResult.error,
+            legacyConfigResult: legacyConfigResult.error
+          })
         }
       } catch (error) {
         const tError = error as Error

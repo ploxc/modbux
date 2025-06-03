@@ -2,17 +2,20 @@ import { Delete } from '@mui/icons-material'
 import IconButton from '@mui/material/IconButton'
 
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 const ClearConfigButton = (): JSX.Element => {
-  const clearRegisterMapping = useRootZustand((z) => z.clearRegisterMapping)
-
   const [warn, setWarn] = useState(false)
+
+  const handleClick = useCallback(() => {
+    useRootZustand.getState().setName('')
+    useRootZustand.getState().clearRegisterMapping()
+  }, [])
 
   return (
     <IconButton
       size="small"
-      onClick={clearRegisterMapping}
+      onClick={handleClick}
       color={warn ? 'error' : 'primary'}
       title="clear datatype, scaling and comment configuration"
       onMouseEnter={() => setWarn(true)}

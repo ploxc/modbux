@@ -3,7 +3,7 @@ import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { ServerConfig, ServerConfigSchema, ServerRegistersSchema } from '@shared'
-import { DateTime } from 'luxon'
+import { snakeCase } from 'lodash'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 
@@ -101,9 +101,10 @@ const useSave: UseSaveHook = () => {
   const save = useCallback(() => {
     const z = useServerZustand.getState()
     const { serverRegisters, selectedUuid } = z
+    const name = z.name[selectedUuid] || ''
 
     const config: ServerConfig = {
-      name: z.name[selectedUuid] || '',
+      name,
       serverRegisters: serverRegisters[selectedUuid]
     }
     const configJson = JSON.stringify(config)
@@ -111,7 +112,7 @@ const useSave: UseSaveHook = () => {
     const element = document.createElement('a')
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(configJson))
 
-    const filename = `modbux_server_config_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}.json`
+    const filename = `modbux_server_${snakeCase(name)}.json`
 
     element.setAttribute('download', filename)
     element.style.display = 'none'

@@ -12,6 +12,25 @@ import ClearButton from './ClearButton/ClearButton'
 import ShowLogButton from './ShowLogButton/ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import RawButton from './RawButton/RawButton'
+import { useRootZustand } from '@renderer/context/root.zustand'
+import TextField from '@mui/material/TextField'
+
+const ClientConfigName = meme(() => {
+  const name = useRootZustand((z) => z.name || '')
+
+  return (
+    <TextField
+      fullWidth
+      sx={{ flex: 1, minWidth: 200, height: 28 }}
+      slotProps={{ input: { sx: { height: 28, fontSize: 12 } } }}
+      size="small"
+      color="primary"
+      placeholder="Client Configuration Name"
+      value={name}
+      onChange={(e) => useRootZustand.getState().setName(e.target.value)}
+    />
+  )
+})
 
 const RegisterGridToolbar = meme(() => {
   return (
@@ -22,7 +41,7 @@ const RegisterGridToolbar = meme(() => {
         pb: 0.5,
         background: theme.palette.background.default,
         display: 'flex',
-        justifyContent: 'space-between',
+        //justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: 1
       })}
@@ -34,13 +53,15 @@ const RegisterGridToolbar = meme(() => {
         <TimeSettings />
         <RawButton />
       </Box>
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: 1 }}>
+        <Box sx={{ flex: '1 1 0' }}></Box>
         <Box sx={{ display: 'flex' }}>
           <ViewConfigButton />
           <LoadButton />
           <SaveButton />
           <ClearConfigButton />
         </Box>
+        <ClientConfigName />
         <ClearButton />
         <ShowLogButton />
         <MenuButton />

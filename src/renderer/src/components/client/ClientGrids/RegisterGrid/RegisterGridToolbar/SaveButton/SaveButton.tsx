@@ -2,13 +2,14 @@ import { Save } from '@mui/icons-material'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { RegisterType } from '@shared'
+import { RegisterMapConfig, RegisterType } from '@shared'
+import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
   const saveRegisterConfig = useCallback(() => {
     const z = useRootZustand.getState()
-    const { registerMapping } = z
+    const { registerMapping, name } = z
 
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
@@ -19,7 +20,12 @@ const SaveButton = meme(() => {
       })
     })
 
-    const registerMappingJson = JSON.stringify(registerMapping, null, 2)
+    const registerMapConfig: RegisterMapConfig = {
+      name,
+      registerMapping
+    }
+
+    const registerMappingJson = JSON.stringify(registerMapConfig, null, 2)
 
     const element = document.createElement('a')
     element.setAttribute(
@@ -28,21 +34,12 @@ const SaveButton = meme(() => {
     )
 
     const {
-      connectionConfig: {
-        protocol,
-        tcp: {
-          host,
-          options: { port }
-        },
-        unitId
-      }
+      connectionConfig: { unitId }
     } = useRootZustand.getState()
 
-    const protocolText = protocol === 'ModbusTcp' ? '_tcp' : '_rtu'
-    const ipText = protocol === 'ModbusTcp' ? `_${host.replace(/\./g, '_')}_${port}` : ''
     const idText = `_id${unitId}`
 
-    const filename = `modbux${protocolText}${ipText}${idText}.json`
+    const filename = `modbux_client_${snakeCase(name)}${idText}.json`
 
     element.setAttribute('download', filename)
 

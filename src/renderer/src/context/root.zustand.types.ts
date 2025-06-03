@@ -21,6 +21,7 @@ interface Valid {
 }
 
 export const PersistedRootZustandSchema = z.object({
+  name: z.string(),
   registerMapping: RegisterMappingSchema,
   connectionConfig: ConnectionConfigSchema,
   registerConfig: RegisterConfigSchema
@@ -36,6 +37,7 @@ export type RootZusand = {
   lastSuccessfulTransactionMillis: number | null
   scanUnitIdResults: ScanUnitIDResult[]
   scanProgress: number
+  setName: (name: string) => void
   // Register mapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
     register: number,

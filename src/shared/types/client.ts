@@ -38,6 +38,12 @@ export const RegisterMappingSchema = z.object({
 })
 export type RegisterMapping = z.infer<typeof RegisterMappingSchema>
 
+export const RegisterMapConfigSchema = z.object({
+  name: z.string().optional(),
+  registerMapping: RegisterMappingSchema
+})
+export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>
+
 //
 //
 // Transaction
