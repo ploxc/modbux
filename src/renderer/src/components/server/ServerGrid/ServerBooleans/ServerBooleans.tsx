@@ -16,7 +16,11 @@ interface ServerBooleanButtonProps {
 }
 
 const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) => {
-  const bool = useServerZustand((z) => z.serverRegisters[z.selectedUuid][type][address])
+  const bool = useServerZustand((z) => {
+    const uuid = z.selectedUuid
+    const unitId = z.unitId[uuid]
+    return z.serverRegisters[uuid]?.[unitId]?.[type][address]
+  })
 
   const variant = bool ? 'contained' : 'outlined'
 
@@ -50,8 +54,12 @@ const ServerBooleanRow = meme(({ addresses, type }: ServerBooleanRowProps) => {
 const ServerBooleanGroups = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const groupsMemory = useRef<number[][]>([])
   const groups = useServerZustand((z) => {
+    const uuid = z.selectedUuid
+    const unitId = z.unitId[uuid]
     // Split into groups of 4 adresses
-    const booleans = Object.keys(z.serverRegisters[z.selectedUuid][type]).map((key) => Number(key))
+    const booleans = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] || []).map((key) =>
+      Number(key)
+    )
 
     const groups: number[][] = []
     for (let i = 0; i < booleans.length; i += 4) groups.push(booleans.slice(i, i + 4))

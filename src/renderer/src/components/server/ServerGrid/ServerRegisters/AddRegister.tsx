@@ -472,6 +472,7 @@ const AddButton = meme(() => {
     if (fixed) {
       serverState.addRegister({
         uuid: serverState.selectedUuid,
+        unitId: serverState.unitId[serverState.selectedUuid],
         params: {
           address: Number(address),
           value: Number(value),
@@ -484,6 +485,7 @@ const AddButton = meme(() => {
     } else {
       serverState.addRegister({
         uuid: serverState.selectedUuid,
+        unitId: serverState.unitId[serverState.selectedUuid],
         params: {
           address: Number(address),
           min: Number(min),
@@ -524,6 +526,7 @@ const DeleteButton = meme(() => {
     const serverState = useServerZustand.getState()
     serverState.removeRegister({
       uuid: serverState.selectedUuid,
+      unitId: serverState.unitId[serverState.selectedUuid],
       address: Number(address),
       registerType
     })

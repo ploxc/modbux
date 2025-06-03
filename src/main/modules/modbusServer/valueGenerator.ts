@@ -5,13 +5,15 @@ import {
   RegisterParamsBasePart,
   ServerData,
   BaseDataType,
-  RegisterParams
+  RegisterParams,
+  UnitIdString
 } from '@shared'
 import { round } from 'lodash'
 import { Windows } from '@shared'
 
 type ValueGeneratorParams = {
   uuid: string
+  unitId: UnitIdString
   windows: Windows
   serverData: ServerData
 } & RegisterParamsGeneratorPart &
@@ -19,6 +21,7 @@ type ValueGeneratorParams = {
 
 export class ValueGenerator {
   private _uuid: string
+  private _unitId: UnitIdString
   private _windows: Windows
   private _serverData: ServerData
   private _registerType: NumberRegisters
@@ -34,6 +37,7 @@ export class ValueGenerator {
 
   constructor({
     uuid,
+    unitId,
     windows,
     serverData,
     registerType,
@@ -46,6 +50,7 @@ export class ValueGenerator {
     comment
   }: ValueGeneratorParams) {
     this._uuid = uuid
+    this._unitId = unitId
     this._windows = windows
     this._serverData = serverData
     this._address = address
@@ -82,6 +87,7 @@ export class ValueGenerator {
   private _sendValue = (value: number): void => {
     this._windows.send('register_value', {
       uuid: this._uuid,
+      unitId: this._unitId,
       registerType: this._registerType,
       address: this._address,
       value

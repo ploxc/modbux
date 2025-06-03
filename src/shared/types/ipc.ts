@@ -13,7 +13,6 @@ import type {
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
-  SetUnitIdParams,
   ClientState,
   AddRegisterParams,
   RegisterData,
@@ -51,7 +50,6 @@ export const IPC_CHANNELS = [
   'sync_bools',
   'restart_server',
   'set_server_port',
-  'set_server_unit_id',
   'get_app_version',
   'create_server',
   'delete_server'
@@ -210,12 +208,6 @@ export interface IpcHandlerSpec {
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
-    return: void
-  }
-
-  /** Set the server unit ID */
-  ['set_server_unit_id']: {
-    args: [SetUnitIdParams]
     return: void
   }
 

@@ -1,24 +1,31 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { BaseDataType, DataType, NumberRegisters, ServerRegister } from '@shared'
+import { BaseDataType, DataType, NumberRegisters, ServerRegister, UnitIdString } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
 type GetAddressInUseFn = (
   uuid: string,
+  unitId: UnitIdString,
   registerType: NumberRegisters,
   dataType: DataType,
   address: number
 ) => boolean
 
-export const getAddressInUse: GetAddressInUseFn = (uuid, registerType, dataType, address) => {
+export const getAddressInUse: GetAddressInUseFn = (
+  uuid,
+  unitId,
+  registerType,
+  dataType,
+  address
+) => {
   // Validate so address is not already used when not in edit mode
   const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
   if (edit) return false
 
   const usedAddresses = registerType
-    ? useServerZustand.getState().usedAddresses[uuid][registerType] || []
+    ? useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] || []
     : []
 
   const addressesNeeded = ['double', 'uint64', 'int64'].includes(dataType)
@@ -94,8 +101,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         if (!registerType) return
 
         const uuid = useServerZustand.getState().selectedUuid
+        const unitId = useServerZustand.getState().unitId[uuid]
 
-        const addressInUse = getAddressInUse(uuid, registerType, dataType, Number(address))
+        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
 
         state.addressInUse = addressInUse
         state.valid.address = !!valid && !addressInUse
@@ -108,7 +116,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         if (!registerType) return
 
         const uuid = useServerZustand.getState().selectedUuid
-        const addressInUse = getAddressInUse(uuid, registerType, dataType, Number(address))
+        const unitId = useServerZustand.getState().unitId[uuid]
+
+        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
 
         state.addressInUse = addressInUse
         state.valid.address = String(address).length > 0 && !addressInUse
@@ -158,9 +168,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const { registerType } = getState()
         if (!registerType) return
 
-        const serverState = useServerZustand.getState()
+        const z = useServerZustand.getState()
         const usedAddresses =
-          serverState.usedAddresses[serverState.selectedUuid][registerType] || []
+          z.usedAddresses[z.selectedUuid][z.unitId[z.selectedUuid]]?.[registerType] || []
         for (let address = 0; address <= 65535; address++) {
           if (!usedAddresses.includes(address)) {
             state.address = String(address)

@@ -85,7 +85,6 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   ipcHandle('sync_bools', (_, params) => server.syncBools(params))
   ipcHandle('restart_server', (_, uuid) => server.restartServer(uuid))
   ipcHandle('set_server_port', (_, params) => server.setPort(params))
-  ipcHandle('set_server_unit_id', (_, params) => server.setId(params))
   ipcHandle('create_server', (_, params) => server.createServer(params))
   ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid))
 

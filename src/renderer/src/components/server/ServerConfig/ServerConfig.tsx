@@ -1,34 +1,72 @@
 //
 //
 
+import FormControl from '@mui/material/FormControl'
 import { TextField, Box, InputBaseComponentProps } from '@mui/material'
+import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
-import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
-import { useServerZustand } from '@renderer/context/server.zustand'
+import { checkHasConfig, useServerZustand } from '@renderer/context/server.zustand'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
+import Select from '@mui/material/Select'
+import { UnitIdString, UnitIdStringSchema } from '@shared'
+import MenuItem from '@mui/material/MenuItem'
+
+interface UnitIdMenuItemProps {
+  unitId: UnitIdString
+}
+
+const UnitIdMenuItem = meme(({ unitId }: UnitIdMenuItemProps) => {
+  const hasConfig = useServerZustand((z) => {
+    const reg = z.serverRegisters[z.selectedUuid]?.[unitId]
+    return checkHasConfig(reg)
+  })
+  return (
+    <Box
+      sx={(theme) => ({
+        background: hasConfig ? theme.palette.primary.dark : undefined,
+        px: 1,
+        mx: 0.5,
+        fontWeight: hasConfig ? 'bold' : undefined,
+        opacity: hasConfig ? 1 : 0.5,
+        width: '100%',
+        height: '100%',
+        borderRadius: 2
+      })}
+    >
+      {unitId}
+    </Box>
+  )
+})
 
 // Unit Id
 const UnitId = meme(() => {
   const unitId = useServerZustand((z) => z.unitId[z.selectedUuid])
+  const labelId = 'unit-id-select'
 
   return (
-    <TextField
-      label="Unit ID"
-      variant="outlined"
-      size="small"
-      sx={{ width: 80 }}
-      value={unitId}
-      slotProps={{
-        input: {
-          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({
-            set: useServerZustand.getState().setUnitId
-          })
-        }
-      }}
-    />
+    <FormControl size="small">
+      <InputLabel id={labelId}>Unit ID</InputLabel>
+      <Select
+        size="small"
+        labelId={labelId}
+        value={unitId}
+        label="Unit ID"
+        onChange={(e) => {
+          const result = UnitIdStringSchema.safeParse(e.target.value)
+          if (result.success) useServerZustand.getState().setUnitId(result.data)
+        }}
+        // sx={{ width: 80 }}
+        slotProps={{ input: { sx: { pr: 0, pl: 1 } } }}
+      >
+        {UnitIdStringSchema.options.map((unitId) => (
+          <MenuItem value={unitId} key={`unit_id_${unitId}`} sx={{ p: 0 }}>
+            <UnitIdMenuItem unitId={unitId} />
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   )
 })
 

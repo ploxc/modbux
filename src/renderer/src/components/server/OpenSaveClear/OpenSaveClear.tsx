@@ -2,7 +2,12 @@ import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { ServerConfig, ServerConfigSchema, ServerRegistersSchema } from '@shared'
+import {
+  ServerConfig,
+  ServerConfigSchema,
+  ServerRegistersSchema,
+  UnitIdStringSchema
+} from '@shared'
 import { snakeCase } from 'lodash'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
@@ -44,9 +49,14 @@ const useOpen: UseOpenHook = () => {
         const configResult = ServerConfigSchema.safeParse(configObject)
 
         if (configResult.success) {
-          const { serverRegisters, name } = configResult.data
+          const { serverRegistersPerUnit, name } = configResult.data
           state.setName(name)
-          state.replaceServerRegisters(serverRegisters)
+          UnitIdStringSchema.options.forEach((unitId) => {
+            const serverRegisters = serverRegistersPerUnit[unitId]
+            if (!serverRegisters) return
+            state.replaceServerRegisters(unitId, serverRegisters)
+          })
+
           enqueueSnackbar({ variant: 'success', message: 'Configuration opened successfully' })
         }
 
@@ -55,7 +65,7 @@ const useOpen: UseOpenHook = () => {
 
         if (legacyConfigResult.success) {
           state.setName('')
-          state.replaceServerRegisters(legacyConfigResult.data)
+          state.replaceServerRegisters('0', legacyConfigResult.data)
           enqueueSnackbar({
             variant: 'warning',
             message:
@@ -105,7 +115,7 @@ const useSave: UseSaveHook = () => {
 
     const config: ServerConfig = {
       name,
-      serverRegisters: serverRegisters[selectedUuid]
+      serverRegistersPerUnit: serverRegisters[selectedUuid]
     }
     const configJson = JSON.stringify(config)
 

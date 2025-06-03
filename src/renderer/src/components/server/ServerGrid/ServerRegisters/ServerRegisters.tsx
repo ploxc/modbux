@@ -66,7 +66,9 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
 const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
   const registersMemory = useRef<ServerRegister[number][]>([])
   const registers = useServerZustand((z) => {
-    const serverRegisters = Object.values(z.serverRegisters[z.selectedUuid][type])
+    const uuid = z.selectedUuid
+    const unitId = z.unitId[uuid]
+    const serverRegisters = Object.values(z.serverRegisters[uuid]?.[unitId]?.[type] || [])
     if (deepEqual(registersMemory.current, serverRegisters)) return registersMemory.current
     registersMemory.current = serverRegisters
     return serverRegisters
