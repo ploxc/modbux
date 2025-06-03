@@ -30,28 +30,28 @@ const isDefaultInterpolation = (interpolate: RegisterLinearInterpolation | undef
   return interpolate === undefined || deepEqual(interpolate, defaultInterpolation)
 }
 
-const ValueInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
+const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        {...{
-          thousandsSeparator: '',
-          radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','] // symbols to process as radix
-        }}
-        inputRef={ref}
-        onAccept={(value) => {
-          set(value, true)
-        }}
-      />
-    )
-  })
-)
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      {...{
+        thousandsSeparator: '',
+        radix: '.', // fractional delimiter
+        mapToRadix: ['.', ','] // symbols to process as radix
+      }}
+      inputRef={ref}
+      onAccept={(value) => {
+        set(value, true)
+      }}
+    />
+  )
+})
+
+ValueInputForward.displayName = 'ValueInput'
+const ValueInput = meme(ValueInputForward)
 
 interface InputFieldProps {
   interpolateKey: keyof RegisterLinearInterpolation

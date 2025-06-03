@@ -25,20 +25,20 @@ export const ScanProgress = meme(() => {
   ) : null
 })
 
-export const TimeoutInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={100}
-        max={10000}
-        autofix
-        inputRef={ref}
-        onAccept={(value) => set(value, true)}
-      />
-    )
-  })
-)
+const TimeoutInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={100}
+      max={10000}
+      autofix
+      inputRef={ref}
+      onAccept={(value) => set(value, true)}
+    />
+  )
+})
+
+TimeoutInputForward.displayName = 'TimeoutInput'
+export const TimeoutInput = meme(TimeoutInputForward)

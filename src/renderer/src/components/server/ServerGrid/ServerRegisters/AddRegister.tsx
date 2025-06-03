@@ -27,31 +27,31 @@ import { Delete } from '@mui/icons-material'
 //
 //
 // Address
-const AddressInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
+const AddressInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
 
-    // Set maximum address based on data type
-    const maxAddress = useAddRegisterZustand((z) => {
-      if (['int32', 'uint32', 'float'].includes(z.dataType)) return 65534
-      if (['int64', 'uint64', 'double'].includes(z.dataType)) return 65532
-      return 65535
-    })
-
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={0}
-        max={maxAddress}
-        autofix
-        inputRef={ref}
-        onAccept={(value) => set(value, notEmpty(value))}
-      />
-    )
+  // Set maximum address based on data type
+  const maxAddress = useAddRegisterZustand((z) => {
+    if (['int32', 'uint32', 'float'].includes(z.dataType)) return 65534
+    if (['int64', 'uint64', 'double'].includes(z.dataType)) return 65532
+    return 65535
   })
-)
+
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={0}
+      max={maxAddress}
+      autofix
+      inputRef={ref}
+      onAccept={(value) => set(value, notEmpty(value))}
+    />
+  )
+})
+
+AddressInputForward.displayName = 'AddressInput'
+const AddressInput = meme(AddressInputForward)
 
 const AddressField = meme(() => {
   const address = useAddRegisterZustand((z) => String(z.address))
@@ -151,34 +151,34 @@ const FixedOrGenerator = meme(() => {
 //
 //
 // Value Input
-const ValueInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
-    const dataType = useAddRegisterZustand((z) => z.dataType)
-    const { min, max, integer } = useMinMaxInteger(dataType)
+const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+  const dataType = useAddRegisterZustand((z) => z.dataType)
+  const { min, max, integer } = useMinMaxInteger(dataType)
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={min}
-        max={max}
-        autofix
-        {...{
-          scale: integer ? 0 : 7,
-          thousandsSeparator: '',
-          radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','] // symbols to process as radix
-        }}
-        inputRef={ref}
-        onAccept={(value) => {
-          set(value, notEmpty(value))
-        }}
-      />
-    )
-  })
-)
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={min}
+      max={max}
+      autofix
+      {...{
+        scale: integer ? 0 : 7,
+        thousandsSeparator: '',
+        radix: '.', // fractional delimiter
+        mapToRadix: ['.', ','] // symbols to process as radix
+      }}
+      inputRef={ref}
+      onAccept={(value) => {
+        set(value, notEmpty(value))
+      }}
+    />
+  )
+})
+
+ValueInputForward.displayName = 'ValueInput'
+const ValueInput = meme(ValueInputForward)
 
 const ValueInputComponent = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
@@ -215,61 +215,62 @@ const ValueInputComponent = meme(() => {
 //
 //
 // Min/Max Masks
-const MinInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
-    const dataType = useAddRegisterZustand((z) => z.dataType)
-    const maxValue = useAddRegisterZustand((z) => z.max)
-    const { min, max, integer } = useMinMaxInteger(dataType, 'min', maxValue)
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={min}
-        max={max}
-        autofix
-        {...{
-          scale: integer ? 0 : 7,
-          thousandsSeparator: '',
-          radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','] // symbols to process as radix
-        }}
-        inputRef={ref}
-        onAccept={(value) => set(value, notEmpty(value))}
-      />
-    )
-  })
-)
+const MinInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+  const dataType = useAddRegisterZustand((z) => z.dataType)
+  const maxValue = useAddRegisterZustand((z) => z.max)
+  const { min, max, integer } = useMinMaxInteger(dataType, 'min', maxValue)
 
-const MaxInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
-    const dataType = useAddRegisterZustand((z) => z.dataType)
-    const minValue = useAddRegisterZustand((z) => z.min)
-    const { min, integer, max } = useMinMaxInteger(dataType, 'max', minValue)
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={min}
+      max={max}
+      autofix
+      {...{
+        scale: integer ? 0 : 7,
+        thousandsSeparator: '',
+        radix: '.', // fractional delimiter
+        mapToRadix: ['.', ','] // symbols to process as radix
+      }}
+      inputRef={ref}
+      onAccept={(value) => set(value, notEmpty(value))}
+    />
+  )
+})
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={min}
-        max={max}
-        autofix
-        {...{
-          scale: integer ? 0 : 7,
-          thousandsSeparator: '',
-          radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','] // symbols to process as radix
-        }}
-        inputRef={ref}
-        onAccept={(value) => set(value, notEmpty(value))}
-      />
-    )
-  })
-)
+MinInputForward.displayName = 'MinInput'
+const MinInput = meme(MinInputForward)
+
+const MaxInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+  const dataType = useAddRegisterZustand((z) => z.dataType)
+  const minValue = useAddRegisterZustand((z) => z.min)
+  const { min, integer, max } = useMinMaxInteger(dataType, 'max', minValue)
+
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={min}
+      max={max}
+      autofix
+      {...{
+        scale: integer ? 0 : 7,
+        thousandsSeparator: '',
+        radix: '.', // fractional delimiter
+        mapToRadix: ['.', ','] // symbols to process as radix
+      }}
+      inputRef={ref}
+      onAccept={(value) => set(value, notEmpty(value))}
+    />
+  )
+})
+
+MaxInputForward.displayName = 'MaxInput'
+const MaxInput = meme(MaxInputForward)
 
 //
 //
@@ -325,28 +326,29 @@ const MaxTextField = meme(() => {
 //
 //
 // Interval
-const IntervalInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={1}
-        max={10}
-        autofix
-        {...{
-          scale: 0,
-          thousandsSeparator: ''
-        }}
-        inputRef={ref}
-        onAccept={(value) => set(value, notEmpty(value))}
-      />
-    )
-  })
-)
+const IntervalInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={1}
+      max={10}
+      autofix
+      {...{
+        scale: 0,
+        thousandsSeparator: ''
+      }}
+      inputRef={ref}
+      onAccept={(value) => set(value, notEmpty(value))}
+    />
+  )
+})
+
+IntervalInputForward.displayName = 'IntervalInput'
+const IntervalInput = meme(IntervalInputForward)
 
 const IntervalTextField = meme(() => {
   const interval = useAddRegisterZustand((z) => String(z.interval))

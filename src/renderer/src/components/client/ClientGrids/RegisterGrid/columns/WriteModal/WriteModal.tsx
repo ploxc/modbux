@@ -74,34 +74,34 @@ const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', neve
   }))
 )
 
-const ValueInput = meme(
-  // eslint-disable-next-line react/display-name
-  forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-    const { set, ...other } = props
-    const dataType = useValueInputZustand((z) => z.dataType)
-    const { min, max, integer } = useMinMaxInteger(dataType)
+const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+  const dataType = useValueInputZustand((z) => z.dataType)
+  const { min, max, integer } = useMinMaxInteger(dataType)
 
-    return (
-      <IMaskInput
-        {...other}
-        mask={IMask.MaskedNumber}
-        min={min}
-        max={max}
-        autofix
-        {...{
-          scale: integer ? 0 : 7,
-          thousandsSeparator: '',
-          radix: '.', // fractional delimiter
-          mapToRadix: ['.', ','] // symbols to process as radix
-        }}
-        inputRef={ref}
-        onAccept={(value) => {
-          set(value, notEmpty(value))
-        }}
-      />
-    )
-  })
-)
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={min}
+      max={max}
+      autofix
+      {...{
+        scale: integer ? 0 : 7,
+        thousandsSeparator: '',
+        radix: '.', // fractional delimiter
+        mapToRadix: ['.', ','] // symbols to process as radix
+      }}
+      inputRef={ref}
+      onAccept={(value) => {
+        set(value, notEmpty(value))
+      }}
+    />
+  )
+})
+
+ValueInputForward.displayName = 'ValueInput'
+const ValueInput = meme(ValueInputForward)
 
 const ValueInputComponent = meme(() => {
   const value = useValueInputZustand((z) => z.value)
@@ -324,6 +324,7 @@ const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props)
 
   useEffect(() => {
     setAddress(address)
+    // ! deliberate only once when the component mounts
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
