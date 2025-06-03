@@ -8,6 +8,7 @@ import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { sendEvent } from '@renderer/events'
 
 //
 //
@@ -187,7 +188,7 @@ const Home = meme(() => {
           <ServerButton />
           <Button
             onClick={() => {
-              window.events.send('open_server_window')
+              sendEvent('open_server_window')
             }}
           >
             <CallSplit

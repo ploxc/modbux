@@ -596,7 +596,7 @@ export class ModbusClient {
           uint32: buf32 ? buf32.readUInt32BE(0) : 0,
           float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
           unix: buf32
-            ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/mm/dd HH:mm:ss')
+            ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/MM/dd HH:mm:ss')
             : '',
 
           // 64 bits

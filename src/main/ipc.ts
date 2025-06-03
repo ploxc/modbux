@@ -3,8 +3,6 @@ import {
   ScanRegistersParameters,
   ConnectionConfigSchema,
   defaultConnectionConfig,
-  defaultRegisterConfig,
-  RegisterConfigSchema,
   ClientStateSchema,
   defaultClientState,
   IpcHandlerMap,
@@ -44,13 +42,6 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   ipcHandle('update_connection_config', (_, config) => state.updateConnectionConfig(config))
 
   // Register config
-  ipcHandle('get_register_config', () => {
-    // Validate and return the current register config, or default if invalid
-    const result = RegisterConfigSchema.safeParse(state.registerConfig)
-    if (result.success) return result.data
-    state.updateRegisterConfig(defaultRegisterConfig)
-    return defaultRegisterConfig
-  })
   ipcHandle('update_register_config', (_, config) => state.updateRegisterConfig(config))
 
   // Client state

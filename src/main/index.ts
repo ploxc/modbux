@@ -66,7 +66,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true
     },
     title: 'Modbux',
     icon: join(__dirname, 'assets', 'icon.png'),
@@ -112,6 +114,8 @@ onIpcEvent('open_server_window', () => {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       additionalArguments: ['is-server-window']
     },
     title: 'Server',

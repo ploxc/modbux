@@ -29,7 +29,6 @@ import { SharedProps } from 'notistack'
 export const IPC_CHANNELS = [
   'get_connection_config',
   'update_connection_config',
-  'get_register_config',
   'update_register_config',
   'get_client_state',
   'set_register_mapping',
@@ -64,8 +63,12 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  * IpcHandlerMap associates each IpcChannel with:
  * - args: the argument types that the renderer needs to pass
  * - return: the type that the handler in the main/backend returns
+ *
+ * ! NOTE: The keys below MUST exactly match IpcChannel.
+ * ! If you add a channel to IPC_CHANNELS, add it here.
+ * ! If you remove one, remove it here. No extras allowed.
  */
-export interface IpcHandlerMap {
+export interface IpcHandlerSpec {
   /** Retrieve the ConnectionConfig */
   ['get_connection_config']: {
     args: []
@@ -76,12 +79,6 @@ export interface IpcHandlerMap {
   ['update_connection_config']: {
     args: [DeepPartial<ConnectionConfig>]
     return: void
-  }
-
-  /** Retrieve the RegisterConfig */
-  ['get_register_config']: {
-    args: []
-    return: RegisterConfig
   }
 
   /** Update the RegisterConfig (DeepPartial) */
@@ -239,6 +236,10 @@ export interface IpcHandlerMap {
     args: []
     return: string
   }
+}
+
+export type IpcHandlerMap = {
+  [K in IpcChannel]: IpcHandlerSpec[K]
 }
 
 /**

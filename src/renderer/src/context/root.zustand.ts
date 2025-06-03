@@ -12,22 +12,18 @@ export const useRootZustand = create<
   [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
 >(
   persist(
-    mutative((set, getState) => ({
+    mutative((set, get) => ({
       // Config
       init: async () => {
-        // This could be the other way around, like using local storage and
-        // updating the backend state with it. But I leave it here for future reference
-        // so I can copy this to use the system where i store the data myself in appdata
-        const syncedConnectionConfig = await window.api.getConnectionConfig()
-        const syncedRegisterConfig = await window.api.getRegisterConfig()
-        const clientState = await window.api.getClientState()
+        const { connectionConfig, registerConfig } = get()
+        registerConfig.readConfiguration = false
+
+        window.api.updateConnectionConfig(connectionConfig)
+        window.api.updateRegisterConfig(registerConfig)
 
         set((state) => {
-          state.connectionConfig = syncedConnectionConfig
-          state.registerConfig = syncedRegisterConfig
-          state.clientState = clientState
           // On init always set the readConfiguration to false
-          state.registerConfig.readConfiguration = false
+          state.registerConfig.readConfiguration = registerConfig.readConfiguration
           state.ready = true
         })
       },
@@ -42,7 +38,7 @@ export const useRootZustand = create<
         input_registers: {}
       },
       setRegisterMapping: (register, key, value) => {
-        const type = getState().registerConfig.type
+        const type = get().registerConfig.type
 
         return set((state) => {
           if (!state.registerMapping[type][register]) {
@@ -107,7 +103,7 @@ export const useRootZustand = create<
       // Protocol
       setProtocol: (protocol) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -119,7 +115,7 @@ export const useRootZustand = create<
       // TCP
       setPort: (port) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -129,7 +125,7 @@ export const useRootZustand = create<
         }),
       setHost: (host, valid) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -143,7 +139,7 @@ export const useRootZustand = create<
       // RTU
       setCom: (com, valid) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -154,7 +150,7 @@ export const useRootZustand = create<
         }),
       setBaudRate: (baudRate) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -163,7 +159,7 @@ export const useRootZustand = create<
         }),
       setParity: (parity) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -172,7 +168,7 @@ export const useRootZustand = create<
         }),
       setDataBits: (dataBits) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -182,7 +178,7 @@ export const useRootZustand = create<
         }),
       setStopBits: (stopBits) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
           if (currentState.clientState.connectState !== 'disconnected') return
 
@@ -195,33 +191,33 @@ export const useRootZustand = create<
       // Layout configuration settings
       setAddressBase: (addressBase) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           state.registerConfig.addressBase = addressBase
           window.api.updateRegisterConfig({ addressBase })
         }),
       setShow64BitValues: (show64BitValues) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           state.registerConfig.show64BitValues = show64BitValues
           window.api.updateRegisterConfig({ show64BitValues })
         }),
       setAdvancedMode: (advancedMode) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           state.registerConfig.advancedMode = advancedMode
           window.api.updateRegisterConfig({ advancedMode })
         }),
       // Addressing
       setUnitId: (unitId) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           const newUnitId = Number(unitId)
           state.connectionConfig.unitId = newUnitId
           window.api.updateConnectionConfig({ unitId: newUnitId })
         }),
       setAddress: (address) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
 
           const newAddress = Number(address)
@@ -233,7 +229,7 @@ export const useRootZustand = create<
         }),
       setLength: (length, valid) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
 
           state.valid.lenght = !!valid
@@ -247,7 +243,7 @@ export const useRootZustand = create<
         }),
       setType: (type) =>
         set((state) => {
-          const currentState = getState()
+          const currentState = get()
           if (!currentState.ready) return
 
           state.registerConfig.type = type
@@ -258,20 +254,20 @@ export const useRootZustand = create<
         }),
       setLittleEndian: (littleEndian) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           state.registerConfig.littleEndian = littleEndian
           window.api.updateRegisterConfig({ littleEndian })
         }),
       setReadConfiguration: (readConfiguration) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
           state.registerConfig.readConfiguration = readConfiguration
           window.api.updateRegisterConfig({ readConfiguration })
         }),
       // Reading
       setPollRate: (pollRate) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
 
           if (pollRate % 1000 !== 0 || pollRate < 1000 || pollRate > 10000) {
             console.error(
@@ -285,7 +281,7 @@ export const useRootZustand = create<
         }),
       setTimeout: (timeout) =>
         set((state) => {
-          if (!getState().ready) return
+          if (!get().ready) return
 
           if (timeout % 1000 !== 0 || timeout < 1000 || timeout > 10000) {
             console.error('Invalid timeout. Must be a multiple of 1000 and between 1000 and 10000.')
