@@ -1,5 +1,5 @@
 import { DeleteFilled, EditFilled, PlusCircleFilled } from '@ant-design/icons'
-import { Box, IconButton } from '@mui/material'
+import { alpha, Box, IconButton } from '@mui/material'
 import { RegisterType } from '@shared'
 import { useRef, useCallback, MutableRefObject } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -7,6 +7,7 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 import AddBooleans, { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
 import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
 import AddRegister from '../ServerRegisters/AddRegister'
+import useServerGridZustand from '../serverGrid.zustand'
 
 const AddEdit = meme(({ type }: { type: RegisterType }) => {
   return ['coils', 'discrete_inputs'].includes(type) ? <AddBooleans /> : <AddRegister />
@@ -63,9 +64,46 @@ const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => 
   )
 })
 
+interface ServerPartTitleNameProps {
+  name: string
+  registerType: RegisterType
+}
+const ServerPartTitleName = meme(
+  ({ name, registerType }: ServerPartTitleNameProps): JSX.Element => {
+    const amount = useServerZustand((z) => {
+      const uuid = z.selectedUuid
+      const unitId = z.unitId[uuid]
+      const amount = Object.keys(z.serverRegisters[uuid][unitId]?.[registerType] || {}).length
+      return amount
+    })
+    return (
+      <Box
+        sx={(theme) => ({
+          flex: 1,
+          flexBasis: 0,
+          textAlign: 'center',
+          cursor: 'pointer',
+          mx: 1,
+          p: 0.25,
+          borderRadius: 2,
+          transition: 'background-color 250ms',
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.dark, 0.2)
+          }
+        })}
+        onClick={() => useServerGridZustand.getState().toggleCollapse(registerType)}
+      >
+        {name} ({amount})
+      </Box>
+    )
+  }
+)
+
 const ServerPartTitle = meme(
   ({ name, registerType }: { name: string; registerType: RegisterType }) => {
     const titleRef = useRef<HTMLDivElement>(null)
+    const collapse = useServerGridZustand((z) => z.collapse[registerType])
+
     return (
       <Box
         ref={titleRef}
@@ -82,14 +120,20 @@ const ServerPartTitle = meme(
           borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
         })}
       >
-        <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-          <DeleteButton registerType={registerType} />
-        </Box>
-        <Box sx={{ flex: 1, flexBasis: 0, textAlign: 'center' }}>{name}</Box>
-        <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-          <AddButton type={registerType} titleRef={titleRef} />
-        </Box>
-        <AddEdit type={registerType} />
+        {!collapse && (
+          <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+            <DeleteButton registerType={registerType} />
+          </Box>
+        )}
+        <ServerPartTitleName name={name} registerType={registerType} />
+        {!collapse && (
+          <>
+            <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+              <AddButton type={registerType} titleRef={titleRef} />
+            </Box>
+            <AddEdit type={registerType} />
+          </>
+        )}
       </Box>
     )
   }

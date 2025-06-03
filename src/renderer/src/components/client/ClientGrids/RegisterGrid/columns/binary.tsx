@@ -4,10 +4,10 @@ import { RegisterData } from '@shared'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface Props {
-  value: number
+  value: number | undefined
 }
 
-const WordLedDisplay = meme(({ value }: Props): JSX.Element => {
+const WordLedDisplay = meme(({ value = 0 }: Props): JSX.Element => {
   // Zorg dat we exact 16 bits hebben
   const bits = value
     .toString(2)

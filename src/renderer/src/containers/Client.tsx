@@ -7,10 +7,12 @@ import RegisterConfig from '../components/client/RegisterConfig/RegisterConfig'
 import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
 import ScanRegisters from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
+import { useRootZustand } from '@renderer/context/root.zustand'
 
 const Client = meme(() => {
+  const ready = useRootZustand((z) => z.ready)
   return (
-    <Fade in={true} timeout={500}>
+    <Fade in={ready} timeout={500}>
       <Box
         sx={{
           p: 3,

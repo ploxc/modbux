@@ -10,6 +10,7 @@ const ClearConfigButton = (): JSX.Element => {
   const handleClick = useCallback(() => {
     useRootZustand.getState().setName('')
     useRootZustand.getState().clearRegisterMapping()
+    useRootZustand.getState().setReadConfiguration(false)
   }, [])
 
   return (

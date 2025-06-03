@@ -329,14 +329,10 @@ export class ModbusServer {
   private _getHoldingRegister: (uuid: string) => IServiceVector['getHoldingRegister'] =
     (uuid) => async (address, unitId, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitId))
-      console.log({ unitIdSafe })
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
 
       const value = this._serverData.get(uuid)?.get(unitIdSafe.data)?.holding_registers[address]
-      console.log({ value })
       if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, 0)
-
-      console.log([address, unitId, value])
 
       cb(null, value)
     }

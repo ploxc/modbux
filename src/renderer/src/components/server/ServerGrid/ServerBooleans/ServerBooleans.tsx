@@ -1,10 +1,11 @@
-import { Button, Box, Grid2, Paper } from '@mui/material'
+import { Button, Box, Paper } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import useServerGridZustand from '../serverGrid.zustand'
 
 interface ServerBooleanProps {
   name: string
@@ -78,11 +79,25 @@ const ServerBooleanGroups = meme(({ type }: Omit<ServerBooleanProps, 'name'>) =>
 })
 
 const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
+  const collapse = useServerGridZustand((z) => z.collapse[type])
+  const allOtherCollapsed = useServerGridZustand((z) => {
+    const entries = Object.entries(z.collapse)
+    const filtered = entries.filter(([k]) => k !== type)
+    console.log(type, entries, filtered)
+    return filtered.every((entry) => entry[1])
+  })
+
+  useEffect(() => {
+    console.log({ allOtherCollapsed, type })
+  }, [allOtherCollapsed, type])
+
   return (
-    <Grid2
-      size={{ xs: 6, md: 3.5, lg: 2.3 }}
-      overflow={'auto'}
-      height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}
+    <Box
+      sx={{
+        flex: 0,
+        minWidth: collapse ? 160 : 280,
+        minHeight: collapse ? undefined : allOtherCollapsed ? '80%' : { xs: '30%', md: '48%' }
+      }}
     >
       <Paper
         variant="outlined"
@@ -106,10 +121,10 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
             p: 0.5
           }}
         >
-          <ServerBooleanGroups type={type} />
+          {!collapse && <ServerBooleanGroups type={type} />}
         </Box>
       </Paper>
-    </Grid2>
+    </Box>
   )
 })
 

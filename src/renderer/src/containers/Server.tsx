@@ -26,8 +26,9 @@ const ServerName = meme(() => {
 })
 
 const Server = meme(() => {
+  const ready = useServerZustand((z) => z.ready)
   return (
-    <Fade in={true} timeout={500}>
+    <Fade in={ready} timeout={500}>
       <Box
         sx={{
           p: 3,

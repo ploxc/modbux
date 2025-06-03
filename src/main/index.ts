@@ -60,7 +60,7 @@ function createWindow(): void {
   windows.main = new BrowserWindow({
     width: 1480,
     height: 1000,
-    minWidth: 640,
+    minWidth: 820,
     minHeight: 800,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -108,7 +108,7 @@ onIpcEvent('open_server_window', () => {
   windows.server = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 640,
+    minWidth: 820,
     minHeight: 800,
     autoHideMenuBar: true,
     webPreferences: {

@@ -21,7 +21,7 @@ const ClientConfigName = meme(() => {
   return (
     <TextField
       fullWidth
-      sx={{ flex: 1, minWidth: 200, height: 28 }}
+      sx={{ flex: 1, minWidth: 80, height: 28 }}
       slotProps={{ input: { sx: { height: 28, fontSize: 12 } } }}
       size="small"
       color="primary"

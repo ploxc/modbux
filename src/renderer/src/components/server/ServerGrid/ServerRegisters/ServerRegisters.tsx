@@ -1,12 +1,13 @@
 import { Edit } from '@mui/icons-material'
-import { Grid2, Paper, Box, IconButton, Grid2Props } from '@mui/material'
+import { Paper, Box, IconButton } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { deepEqual } from 'fast-equals'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
+import useServerGridZustand from '../serverGrid.zustand'
 
 interface RowProps {
   register: ServerRegister[number]
@@ -85,12 +86,28 @@ const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
 interface ServerRegistersProps {
   name: string
   type: NumberRegisters
-  size: Grid2Props['size']
 }
 
-const ServerRegisters = meme(({ name, type, size }: ServerRegistersProps) => {
+const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
+  const collapse = useServerGridZustand((z) => z.collapse[type])
+  const allOtherCollapsed = useServerGridZustand((z) => {
+    const entries = Object.entries(z.collapse)
+    const filtered = entries.filter(([k]) => k !== type)
+    console.log(type, entries, filtered)
+    return filtered.every((entry) => entry[1])
+  })
+  useEffect(() => {
+    console.log({ allOtherCollapsed, type })
+  }, [allOtherCollapsed, type])
+
   return (
-    <Grid2 size={size} height={{ xs: 'calc(33% - 8px)', md: 'calc(50% - 8px)', lg: '100%' }}>
+    <Box
+      sx={{
+        flex: collapse ? 0 : 1,
+        minWidth: collapse ? 160 : 600,
+        minHeight: collapse ? undefined : allOtherCollapsed ? '80%' : { xs: '30%', md: '48%' }
+      }}
+    >
       <Paper
         variant="outlined"
         sx={{
@@ -118,10 +135,10 @@ const ServerRegisters = meme(({ name, type, size }: ServerRegistersProps) => {
             fontSize: '0.9em'
           }}
         >
-          <ServerRegisterRows type={type} />
+          {!collapse && <ServerRegisterRows type={type} />}
         </Box>
       </Paper>
-    </Grid2>
+    </Box>
   )
 })
 

@@ -126,16 +126,16 @@ export const useServerZustand = create<
             const discreteInputs: boolean[] = Array(65535).fill(false)
 
             Object.values(state.serverRegisters[uuid]?.[unitId]?.['coils'] || {}).forEach(
-              (value, address) => (coils[address][unitId] = value)
+              (value, address) => (coils[address] = value)
             )
             Object.values(state.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] || {}).forEach(
-              (value, address) => (discreteInputs[address][unitId] = value)
+              (value, address) => (discreteInputs[address] = value)
             )
 
             window.api.syncBools({
               uuid,
               unitId,
-              coils: coils,
+              coils,
               discrete_inputs: discreteInputs
             })
 
