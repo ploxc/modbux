@@ -64,9 +64,14 @@ export class ModbusClient {
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
-
   private _totalScans = 1
   private _scansDone = 1
+
+  private _reconnectTimeout: NodeJS.Timeout | undefined
+  private _shouldAutoReconnect = true
+  private _reconnectDelay = 3000 // ms
+
+  private _deliberateDisconnect = false
 
   constructor({ appState, windows }: ClientParams) {
     this._client = new ModbusRTU()
@@ -80,13 +85,32 @@ export class ModbusClient {
         this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
       })
       .on('close', () => {
-        this._clientState.connectState = 'disconnected'
-        this._sendClientState()
-        this._emitMessage({
-          message: 'Connection closed',
-          variant: 'warning',
-          error: null
-        })
+        // If we were connected, go to 'connecting' and try to reconnect
+        if (this._shouldAutoReconnect) {
+          // Only emit reconnecting message if not already in connecting state
+          if (!this._reconnectTimeout) {
+            this._emitMessage({
+              message: 'Connection lost, attempting to reconnect...',
+              variant: 'warning',
+              error: null
+            })
+          }
+          this._clientState.connectState = 'connecting'
+          this._sendClientState()
+          this._scheduleReconnect()
+        } else {
+          this._clientState.connectState = 'disconnected'
+          this._sendClientState()
+          if (!this._deliberateDisconnect) {
+            this._emitMessage({
+              message: 'Connection closed unexpectedly',
+              variant: 'error',
+              error: null
+            })
+          } else {
+            this._deliberateDisconnect = false
+          }
+        }
       })
   }
 
@@ -134,7 +158,21 @@ export class ModbusClient {
   //
   //
   // Connect
+  // --- Auto-reconnect logic ---
+  private _reconnectTriggered = false
+  private _scheduleReconnect = (): void => {
+    if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
+    this._reconnectTimeout = setTimeout(() => {
+      this._reconnectTriggered = true
+      this.connect()
+    }, this._reconnectDelay)
+  }
+
+  // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
+    this._shouldAutoReconnect = true
+    if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
+    this._reconnectTimeout = undefined
     this._clientState.connectState = 'connecting'
     this._sendClientState()
 
@@ -145,6 +183,7 @@ export class ModbusClient {
     if (this._client.isOpen) {
       this._emitMessage({ message: 'Already connected', variant: 'warning', error: null })
       this._setConnected()
+      this._reconnectTriggered = false
       return
     }
 
@@ -155,11 +194,6 @@ export class ModbusClient {
     this._client['isDebugEnabled'] = true
 
     // Connect
-    const endpoint = protocol === 'ModbusTcp' ? `${host}:${tcpOptions.port}` : `${unitId}`
-    const message = `Connecting to modbus server/slave: ${endpoint} with ${protocol === 'ModbusTcp' ? 'TCP' : 'RTU'} protocol`
-    this._emitMessage({ message, variant: 'default', error: null })
-
-    // Weird, this is included in rtu options, but when autoOpen (not available in type) is false it doesn't work.
     rtuOptions['autoOpen'] = true
 
     try {
@@ -171,12 +205,27 @@ export class ModbusClient {
             stopBits: rtuOptions.stopBits,
             parity: rtuOptions.parity
           })
-      this._emitMessage({ message: 'Connected to server/slave', variant: 'success', error: null })
+      if (this._reconnectTriggered) {
+        this._emitMessage({
+          message: `Reconnected to server`,
+          variant: 'success',
+          error: null
+        })
+      } else {
+        this._emitMessage({
+          message: 'Connected to server',
+          variant: 'success',
+          error: null
+        })
+      }
+
       this._setConnected()
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
       this._setDisconnected()
     }
+
+    this._reconnectTriggered = false
   }
 
   //
@@ -184,6 +233,8 @@ export class ModbusClient {
   // Disconnect
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
+    this._shouldAutoReconnect = false
+    if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._clientState.connectState = 'disconnecting'
     this._sendClientState()
     if (!this._client.isOpen) {
@@ -191,9 +242,6 @@ export class ModbusClient {
       this._setDisconnected()
       return
     }
-
-    const message = 'Disconnecting from modbus server/slave'
-    this._emitMessage({ message, variant: 'default', error: null })
 
     try {
       await new Promise<void>((resolve) => {
@@ -212,10 +260,11 @@ export class ModbusClient {
         })
       })
       this._emitMessage({
-        message: 'Disconnected from server/slave',
-        variant: 'success',
+        message: 'Disconnected from server',
+        variant: 'default',
         error: null
       })
+      this._deliberateDisconnect = true
       this._setDisconnected()
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })

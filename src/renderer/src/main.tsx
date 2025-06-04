@@ -56,9 +56,10 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <SnackbarProvider
+        maxSnack={3}
         {...{
           preventDuplicate: true,
-          autoHideDuration: 6000,
+          autoHideDuration: 3000,
           Components: {
             error: StyledMaterialDesignContent,
             success: StyledMaterialDesignContent,
