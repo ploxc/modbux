@@ -132,7 +132,7 @@ const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
     <Box
       sx={{
         flex: collapse ? 0 : 1,
-        minWidth: collapse ? 160 : 600,
+        minWidth: collapse ? 160 : 560,
         minHeight: collapse ? undefined : allOtherCollapsed ? '80%' : { xs: '30%', md: '48%' }
       }}
     >
