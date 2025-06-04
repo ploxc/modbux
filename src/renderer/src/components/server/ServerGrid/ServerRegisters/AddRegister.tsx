@@ -56,7 +56,7 @@ const AddressInput = meme(AddressInputForward)
 const AddressField = meme(() => {
   const address = useAddRegisterZustand((z) => String(z.address))
   const addressInUse = useAddRegisterZustand((z) => z.addressInUse)
-  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
+  const addressFitError = useAddRegisterZustand((z) => z.addressFitError)
   const valid = useAddRegisterZustand((z) => z.valid.address)
   const setAddress = useAddRegisterZustand((z) => z.setAddress)
 
@@ -69,7 +69,6 @@ const AddressField = meme(() => {
   return (
     <FormControl error={!valid}>
       <TextField
-        disabled={edit}
         error={!valid}
         label="Address"
         variant="outlined"
@@ -87,6 +86,7 @@ const AddressField = meme(() => {
         }}
       />
       {addressInUse && <FormHelperText>In use</FormHelperText>}
+      {addressFitError && <FormHelperText>Data type does not fit at this address</FormHelperText>}
     </FormControl>
   )
 })
@@ -97,18 +97,14 @@ const AddressField = meme(() => {
 //
 // Data Type
 const DataTypeSelect = meme(() => {
-  const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const dataType = useAddRegisterZustand((z) => z.dataType)
   const setDataType = useAddRegisterZustand((z) => z.setDataType)
-
   useEffect(() => {
     const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
     if (edit) return
-    // Default the datatype to int16
     useAddRegisterZustand.getState().setDataType('int16')
   }, [])
-
-  return <DataTypeSelectInput disabled={edit} dataType={dataType} setDataType={setDataType} />
+  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
 //
@@ -463,7 +459,8 @@ const AddButton = meme(() => {
       comment,
       littleEndian,
       setRegisterType,
-      setEditRegister
+      setEditRegister,
+      serverRegisterEdit
     } = useAddRegisterZustand.getState()
     if (!registerType) return
 
@@ -481,6 +478,19 @@ const AddButton = meme(() => {
       comment,
       littleEndian,
       registerType
+    }
+
+    // If editing and the address has changed, remove the old register first
+    if (edit && serverRegisterEdit) {
+      const oldAddress = serverRegisterEdit.params.address
+      if (oldAddress !== Number(address)) {
+        z.removeRegister({
+          uuid,
+          unitId,
+          address: oldAddress,
+          registerType
+        })
+      }
     }
 
     if (fixed) {
@@ -505,7 +515,7 @@ const AddButton = meme(() => {
 
     setRegisterType(undefined)
     setEditRegister(undefined)
-  }, [])
+  }, [edit])
 
   return (
     <Button

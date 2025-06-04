@@ -20,21 +20,40 @@ export const getAddressInUse: GetAddressInUseFn = (
   dataType,
   address
 ) => {
-  // Validate so address is not already used when not in edit mode
-  const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
-  if (edit) return false
-
+  // In edit mode, ignore the register being edited for overlap check
+  const editRegister = useAddRegisterZustand.getState().serverRegisterEdit
   const usedAddresses = registerType
     ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
     : []
-
   const addressesNeeded = ['double', 'uint64', 'int64'].includes(dataType)
     ? [address, address + 1, address + 2, address + 3]
     : ['uint32', 'int32', 'float'].includes(dataType)
       ? [address, address + 1]
       : [address]
-
+  if (editRegister) {
+    // Remove the addresses of the register being edited from usedAddresses
+    const editAddresses = ['double', 'uint64', 'int64'].includes(editRegister.params.dataType)
+      ? [
+          editRegister.params.address,
+          editRegister.params.address + 1,
+          editRegister.params.address + 2,
+          editRegister.params.address + 3
+        ]
+      : ['uint32', 'int32', 'float'].includes(editRegister.params.dataType)
+        ? [editRegister.params.address, editRegister.params.address + 1]
+        : [editRegister.params.address]
+    const filteredUsed = usedAddresses.filter((a) => !editAddresses.includes(a))
+    return addressesNeeded.some((a) => filteredUsed.includes(Number(a)))
+  }
   return addressesNeeded.some((a) => usedAddresses.includes(Number(a)))
+}
+
+function getAddressFitError(dataType: BaseDataType, address: number): boolean {
+  // Check if the datatype fits at the address (address + size - 1 <= 65535)
+  let size = 1
+  if (['int32', 'uint32', 'float'].includes(dataType)) size = 2
+  if (['int64', 'uint64', 'double'].includes(dataType)) size = 4
+  return address + size - 1 > 65535
 }
 
 interface AddRegisterZustand {
@@ -51,6 +70,7 @@ interface AddRegisterZustand {
   }
   address: string
   addressInUse: boolean
+  addressFitError: boolean
   setAddress: MaskSetFn
   dataType: BaseDataType
   setDataType: (dataType: BaseDataType) => void
@@ -93,21 +113,21 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     },
     address: '0',
     addressInUse: false,
+    addressFitError: false,
     setAddress: (address, valid) =>
       set((state) => {
         state.address = address
-
         const { registerType, dataType } = getState()
         if (!registerType) return
-
         const z = useServerZustand.getState()
         const uuid = z.selectedUuid
         const unitId = z.getUnitId(uuid)
-
-        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
-
+        const addressNum = Number(address)
+        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum)
+        const addressFitError = getAddressFitError(dataType, addressNum)
         state.addressInUse = addressInUse
-        state.valid.address = !!valid && !addressInUse
+        state.addressFitError = addressFitError
+        state.valid.address = !!valid && !addressInUse && !addressFitError
       }),
     dataType: 'int16',
     setDataType: (dataType) =>
@@ -115,15 +135,15 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.dataType = dataType
         const { registerType, address } = getState()
         if (!registerType) return
-
         const z = useServerZustand.getState()
         const uuid = z.selectedUuid
         const unitId = z.getUnitId(uuid)
-
-        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
-
+        const addressNum = Number(address)
+        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum)
+        const addressFitError = getAddressFitError(dataType, addressNum)
         state.addressInUse = addressInUse
-        state.valid.address = String(address).length > 0 && !addressInUse
+        state.addressFitError = addressFitError
+        state.valid.address = String(address).length > 0 && !addressInUse && !addressFitError
       }),
     value: '0',
     valueValid: true,

@@ -9,7 +9,7 @@ import {
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
-  getRegisterLength,
+  DataType,
   MAIN_SERVER_UUID,
   RegisterParams,
   ServerRegisterEntry,
@@ -19,6 +19,7 @@ import {
   UnitIdStringSchema
 } from '@shared'
 import { onEvent } from '@renderer/events'
+import { round } from 'lodash'
 
 const defaultServerRegisters: ServerRegisters = {
   coils: {},
@@ -307,19 +308,21 @@ export const useServerZustand = create<
       },
       removeRegister: (removeParams) => {
         const { uuid, unitId, registerType, address } = removeParams
-        delete state.serverRegisters[uuid]?.[unitId]?.[registerType][address]
-        window.api.removeServerRegister(removeParams)
-        // Update used addresses
-        const usedAddresses = getUsedAddresses(
-          Object.values(state.serverRegisters[uuid]?.[unitId]?.[registerType] ?? []).map(
-            (r) => r.params
-          )
-        )
         set((state) => {
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
+          if (!state.serverRegisters[uuid][unitId]) {
+            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+          }
+          delete state.serverRegisters[uuid][unitId][registerType][address]
+          // Update used addresses after deletion
+          const usedAddresses = getUsedAddresses(
+            Object.values(state.serverRegisters[uuid][unitId][registerType]).map((r) => r.params)
+          )
           if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
           if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
           state.usedAddresses[uuid][unitId][registerType] = usedAddresses
         })
+        window.api.removeServerRegister(removeParams)
       },
       setRegisterValue: (type, address, value, optionalUuid, optionalUnitId) => {
         const uuid = optionalUuid ?? get().selectedUuid
@@ -429,21 +432,37 @@ if (!stateResult.success) {
 // Init server
 useServerZustand.getState().init()
 
+// Get the address in use for a specific register type and data type
+const getRegisterLength = (dataType: DataType): number => {
+  switch (dataType) {
+    case 'int16':
+    case 'uint16':
+      return 1
+    case 'int32':
+    case 'uint32':
+    case 'float':
+      return 2
+    case 'int64':
+    case 'uint64':
+    case 'double':
+      return 4
+    default:
+      return 0
+  }
+}
+
 // On raw register value result
 onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegisterValue }) => {
   const state = useServerZustand.getState()
 
   // 1) Find the “base entry” in state.serverRegisters[*][*][registerType]
   //    We look back up to 3 registers because the largest DataType (int64/double) uses 4 registers.
-  //    If a composite value started at register 104 (e.g. a 32-bit value occupies 104 and 105),
-  //    and the client just wrote to 105, we need to find that base index (104).
   let serverRegisterEntry: ServerRegisterEntry | undefined
   let entryAddress: number | undefined
 
   for (let cand = address; cand >= address - 3; cand--) {
     const maybe = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
     if (!maybe) continue
-
     // Found an entry at candidate index—this is our base
     serverRegisterEntry = maybe
     entryAddress = cand
@@ -459,10 +478,9 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 
   // 2) Calculate how many registers this DataType spans
   const registersCount = getRegisterLength(dataType)
+  if (registersCount < 1 || registersCount > 4) return // Defensive: only support 1-4 registers
 
   // 3) Determine which register‐offset was written
-  //    e.g. if dataType = 'int32' (2 registers) and entryAddress = 104,
-  //    and the client wrote at address = 105, then offsetRegisters = 1.
   const offsetRegisters = address - entryAddress
   if (offsetRegisters < 0 || offsetRegisters >= registersCount) {
     // Out of range for this composite entry—ignore
@@ -470,81 +488,96 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   }
 
   // 4) Serialize the current composite value into a byte buffer
-  //    We create a buffer of (registersCount * 2) bytes, then pack the currentValue.
   const byteLength = registersCount * 2
+  if (byteLength > 8) return // Defensive: DataView only supports up to 8 bytes for 64-bit types
   const buffer = new ArrayBuffer(byteLength)
   const view = new DataView(buffer)
 
-  switch (dataType) {
-    case 'int16':
-      view.setInt16(0, currentValue as number, littleEndian)
-      break
-    case 'uint16':
-      view.setUint16(0, currentValue as number, littleEndian)
-      break
-    case 'int32':
-      view.setInt32(0, currentValue as number, littleEndian)
-      break
-    case 'uint32':
-      view.setUint32(0, currentValue as number, littleEndian)
-      break
-    case 'float':
-      view.setFloat32(0, currentValue as number, littleEndian)
-      break
-    case 'int64':
-      view.setBigInt64(0, BigInt(currentValue as number), littleEndian)
-      break
-    case 'uint64':
-      view.setBigUint64(0, BigInt(currentValue as number), littleEndian)
-      break
-    case 'double':
-      view.setFloat64(0, currentValue as number, littleEndian)
-      break
-    default:
-      return
-  }
-
-  // 5) Overwrite just the one 16-bit register that the client wrote
-  //    Calculate the byte offset: each register is 2 bytes, so offsetRegisters * 2.
+  // Defensive: Clamp offset to buffer size
   const byteOffset = offsetRegisters * 2
-  //    Use setUint16 to write the new 16-bit word into the right position,
-  //    and pass `littleEndian` so that the word itself is stored in the correct byte order.
-  view.setUint16(byteOffset, rawRegisterValue, littleEndian)
+  if (byteOffset < 0 || byteOffset + 2 > byteLength) return
+
+  // Defensive: Only write if currentValue is a valid number (or bigint for 64-bit)
+  try {
+    switch (dataType) {
+      case 'int16':
+        view.setInt16(0, Number(currentValue) || 0, littleEndian)
+        break
+      case 'uint16':
+        view.setUint16(0, Number(currentValue) || 0, littleEndian)
+        break
+      case 'int32':
+        view.setInt32(0, Number(currentValue) || 0, littleEndian)
+        break
+      case 'uint32':
+        view.setUint32(0, Number(currentValue) || 0, littleEndian)
+        break
+      case 'float':
+        view.setFloat32(0, Number(currentValue) || 0, littleEndian)
+        break
+      case 'int64':
+        view.setBigInt64(0, BigInt(currentValue) || 0n, littleEndian)
+        break
+      case 'uint64':
+        view.setBigUint64(0, BigInt(currentValue) || 0n, littleEndian)
+        break
+      case 'double':
+        view.setFloat64(0, Number(currentValue) || 0, littleEndian)
+        break
+      default:
+        return
+    }
+    // 5) Overwrite just the one 16-bit register that the client wrote
+    view.setUint16(byteOffset, rawRegisterValue, littleEndian)
+  } catch (e) {
+    // Defensive: If any DataView error occurs, abort
+    console.error('register_value DataView error', e, {
+      dataType,
+      currentValue,
+      byteOffset,
+      byteLength
+    })
+    return
+  }
 
   // 6) Read back the full composite value from the buffer
-  let newComposite: number
-  switch (dataType) {
-    case 'int16':
-      newComposite = view.getInt16(0, littleEndian)
-      break
-    case 'uint16':
-      newComposite = view.getUint16(0, littleEndian)
-      break
-    case 'int32':
-      newComposite = view.getInt32(0, littleEndian)
-      break
-    case 'uint32':
-      newComposite = view.getUint32(0, littleEndian)
-      break
-    case 'float':
-      newComposite = view.getFloat32(0, littleEndian)
-      break
-    case 'int64':
-      newComposite = Number(view.getBigInt64(0, littleEndian))
-      break
-    case 'uint64':
-      newComposite = Number(view.getBigUint64(0, littleEndian))
-      break
-    case 'double':
-      newComposite = view.getFloat64(0, littleEndian)
-      break
-    default:
-      newComposite = 0
+  let newComposite: number | bigint = 0
+  try {
+    switch (dataType) {
+      case 'int16':
+        newComposite = view.getInt16(0, littleEndian)
+        break
+      case 'uint16':
+        newComposite = view.getUint16(0, littleEndian)
+        break
+      case 'int32':
+        newComposite = view.getInt32(0, littleEndian)
+        break
+      case 'uint32':
+        newComposite = view.getUint32(0, littleEndian)
+        break
+      case 'float':
+        newComposite = view.getFloat32(0, littleEndian)
+        break
+      case 'int64':
+        newComposite = view.getBigInt64(0, littleEndian)
+        break
+      case 'uint64':
+        newComposite = view.getBigUint64(0, littleEndian)
+        break
+      case 'double':
+        newComposite = view.getFloat64(0, littleEndian)
+        break
+      default:
+        newComposite = 0
+    }
+  } catch (e) {
+    console.error('register_value DataView read error', e, { dataType, byteLength })
+    return
   }
 
-  // 7) Store the recombined value back into state.serverRegisters at the base address.
-  //    We do NOT store rawRegisterValue here—the entry.value should always be the full composite.
-  state.setRegisterValue(registerType, entryAddress, newComposite, uuid, unitId)
+  const value = round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
+  state.setRegisterValue(registerType, entryAddress, value, uuid, unitId)
 })
 
 onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {

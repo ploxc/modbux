@@ -124,25 +124,3 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
 
 export const notEmpty = (value: number | string): boolean =>
   String(value).replace('-', '').length > 0
-
-export const getRegisterLength = (dataType: DataType): number => {
-  switch (dataType) {
-    case 'int16':
-    case 'uint16':
-    case 'float':
-    case 'double':
-      return 1
-    case 'int32':
-    case 'uint32':
-    case 'unix':
-      return 2
-    case 'int64':
-    case 'uint64':
-    case 'datetime':
-      return 4
-    case 'utf8':
-      return 8
-    default:
-      return 0
-  }
-}

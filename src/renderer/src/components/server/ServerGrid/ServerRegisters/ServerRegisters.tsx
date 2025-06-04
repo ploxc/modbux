@@ -3,8 +3,7 @@ import { Paper, Box, IconButton, alpha } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useCallback, useRef } from 'react'
-import { deepEqual } from 'fast-equals'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
@@ -27,7 +26,18 @@ const RowEdit = meme(({ register }: RowProps) => {
 })
 
 const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
-  return <Box sx={{ pr: 2 }}>{register.value}</Box>
+  const [displayValue, setDisplayValue] = useState(register.value)
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDisplayValue(register.value)
+    }, 10)
+    return (): void => {
+      clearTimeout(handle)
+    }
+  }, [register.value])
+
+  return <Box sx={{ pr: 2 }}>{displayValue}</Box>
 }
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {
@@ -90,21 +100,17 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
 })
 
 const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
-  const registersMemory = useRef<ServerRegister[number][]>([])
-  const registers = useServerZustand((z) => {
+  const registerMap = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-
-    const serverRegisters = Object.values(z.serverRegisters[uuid]?.[unitId]?.[type] ?? [])
-    if (deepEqual(registersMemory.current, serverRegisters)) return registersMemory.current
-    registersMemory.current = serverRegisters
-    return serverRegisters
+    return z.serverRegisters[uuid]?.[unitId]?.[type]
   })
+  const registers = useMemo(() => Object.values(registerMap ?? {}), [registerMap])
 
-  return registers.map((r) => (
+  return registers.map((register) => (
     <ServerRegisterRow
-      key={`server_register_${r.params.registerType.replace(/ /gm, '_')}_${r.params.address}`}
-      register={r}
+      key={`server_register_${register.params.registerType.replace(/ /gm, '_')}_${register.params.address}`}
+      register={register}
     />
   ))
 })

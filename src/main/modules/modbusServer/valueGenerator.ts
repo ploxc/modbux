@@ -78,6 +78,9 @@ export class ValueGenerator {
    * Disposes the generator: stops the interval and resets the register values to 0.
    */
   public dispose = (): void => {
+    console.log(
+      `[ValueGenerator.dispose] uuid=${this._uuid} unitId=${this._unitId} registerType=${this._registerType} address=${this._address} dataType=${this._dataType} min=${this._min} max=${this._max} littleEndian=${this._littleEndian} interval=${this._interval} comment=${this._comment}`
+    )
     clearInterval(this._intervalTimer)
 
     // Determine how many addresses to reset based on data type size
@@ -121,6 +124,9 @@ export class ValueGenerator {
    * Uses 2 decimals for float/double, 0 otherwise.
    */
   private _updateValue = async (): Promise<void> => {
+    console.log(
+      `[ValueGenerator.updateValue] uuid=${this._uuid} unitId=${this._unitId} registerType=${this._registerType} address=${this._address} dataType=${this._dataType} min=${this._min} max=${this._max} littleEndian=${this._littleEndian} interval=${this._interval} comment=${this._comment}`
+    )
     const decimals = ['float', 'double'].includes(this._dataType) ? 2 : 0
     const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
     this._updateServerData(value)
