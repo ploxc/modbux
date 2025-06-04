@@ -29,7 +29,7 @@ const SelectServer = meme(() => {
     const z = useServerZustand.getState()
     const newPort = findAvailablePort(Object.values(z.port).map((v) => Number(v)))
     if (!newPort) throw new Error('No available port')
-    z.createServer({ port: newPort, uuid: v4() }, true)
+    z.createServer({ port: newPort, uuid: v4() })
   }, [])
 
   const deleteServer = useCallback(() => {

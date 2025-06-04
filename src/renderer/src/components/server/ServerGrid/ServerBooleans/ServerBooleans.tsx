@@ -2,7 +2,7 @@ import { Button, Box, Paper } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import useServerGridZustand from '../serverGrid.zustand'
@@ -19,7 +19,7 @@ interface ServerBooleanButtonProps {
 const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) => {
   const bool = useServerZustand((z) => {
     const uuid = z.selectedUuid
-    const unitId = z.unitId[uuid]
+    const unitId = z.getUnitId(uuid)
     return z.serverRegisters[uuid]?.[unitId]?.[type][address]
   })
 
@@ -56,9 +56,10 @@ const ServerBooleanGroups = meme(({ type }: Omit<ServerBooleanProps, 'name'>) =>
   const groupsMemory = useRef<number[][]>([])
   const groups = useServerZustand((z) => {
     const uuid = z.selectedUuid
-    const unitId = z.unitId[uuid]
+    const unitId = z.getUnitId(uuid)
+
     // Split into groups of 4 adresses
-    const booleans = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] || []).map((key) =>
+    const booleans = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? []).map((key) =>
       Number(key)
     )
 
@@ -83,13 +84,8 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
   const allOtherCollapsed = useServerGridZustand((z) => {
     const entries = Object.entries(z.collapse)
     const filtered = entries.filter(([k]) => k !== type)
-    console.log(type, entries, filtered)
     return filtered.every((entry) => entry[1])
   })
-
-  useEffect(() => {
-    console.log({ allOtherCollapsed, type })
-  }, [allOtherCollapsed, type])
 
   return (
     <Box

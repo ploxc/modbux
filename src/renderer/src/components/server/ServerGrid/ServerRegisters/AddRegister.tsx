@@ -16,7 +16,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { ElementType, forwardRef, useCallback, useEffect, useState } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
-import { notEmpty } from '@shared'
+import { AddRegisterParams, notEmpty, RegisterParamsBasePart } from '@shared'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -467,34 +467,38 @@ const AddButton = meme(() => {
     } = useAddRegisterZustand.getState()
     if (!registerType) return
 
-    const serverState = useServerZustand.getState()
+    const z = useServerZustand.getState()
+    const uuid = z.selectedUuid
+    const unitId = z.getUnitId(uuid)
+
+    const commonParams: Omit<AddRegisterParams, 'params'> = {
+      uuid,
+      unitId
+    }
+    const baseRegisterParams: RegisterParamsBasePart = {
+      address: Number(address),
+      dataType,
+      comment,
+      littleEndian,
+      registerType
+    }
 
     if (fixed) {
-      serverState.addRegister({
-        uuid: serverState.selectedUuid,
-        unitId: serverState.unitId[serverState.selectedUuid],
+      z.addRegister({
+        ...commonParams,
         params: {
-          address: Number(address),
-          value: Number(value),
-          dataType,
-          comment,
-          littleEndian,
-          registerType
+          ...baseRegisterParams,
+          value: Number(value)
         }
       })
     } else {
-      serverState.addRegister({
-        uuid: serverState.selectedUuid,
-        unitId: serverState.unitId[serverState.selectedUuid],
+      z.addRegister({
+        ...commonParams,
         params: {
-          address: Number(address),
+          ...baseRegisterParams,
           min: Number(min),
           max: Number(max),
-          interval: Number(interval) * 1000,
-          dataType,
-          comment,
-          littleEndian,
-          registerType
+          interval: Number(interval) * 1000
         }
       })
     }
@@ -523,10 +527,13 @@ const DeleteButton = meme(() => {
       useAddRegisterZustand.getState()
     if (!registerType) return
 
-    const serverState = useServerZustand.getState()
-    serverState.removeRegister({
-      uuid: serverState.selectedUuid,
-      unitId: serverState.unitId[serverState.selectedUuid],
+    const z = useServerZustand.getState()
+    const uuid = z.selectedUuid
+    const unitId = z.getUnitId(uuid)
+
+    z.removeRegister({
+      uuid,
+      unitId,
       address: Number(address),
       registerType
     })

@@ -52,12 +52,12 @@ const getUsedAddresses = (registers: RegisterParams[]) => {
 }
 
 export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
-  const coils = reg?.coils || {}
+  const coils = reg?.coils ?? {}
   const hasCoils = Object.values(coils).some((v) => v)
-  const discrete = reg?.discrete_inputs || {}
+  const discrete = reg?.discrete_inputs ?? {}
   const hasDiscrete = Object.values(discrete).some((v) => v)
-  const hasInput = Object.values(reg?.input_registers || []).length > 0
-  const hasHolding = Object.values(reg?.holding_registers || []).length > 0
+  const hasInput = Object.values(reg?.input_registers ?? []).length > 0
+  const hasHolding = Object.values(reg?.holding_registers ?? []).length > 0
   return hasCoils || hasDiscrete || hasInput || hasHolding
 }
 
@@ -81,22 +81,23 @@ export const useServerZustand = create<
           state.unitId[uuid] = '0'
           state.serverRegisters[uuid] = {}
           state.usedAddresses[uuid] = {}
-          UnitIdStringSchema.options.forEach((unitId) => {
+          for (const unitId of UnitIdStringSchema.options) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
             state.usedAddresses[uuid][unitId] = { ...defaultUsedAddresses }
-          })
+          }
         }),
-      createServer: async (params, setUuidAsSelected) => {
-        await window.api.createServer(params)
-        const { uuid, port } = params
+      createServer: async (params) => {
+        const actualPort = await window.api.createServer(params)
+        const { uuid } = params
 
         set((state) => {
-          state.port[uuid] = String(port)
+          state.port[uuid] = String(actualPort)
           state.portValid[uuid] = true
+
           get().clean(uuid)
 
           state.uuids.push(uuid)
-          if (setUuidAsSelected) state.selectedUuid = uuid
+          state.selectedUuid = uuid
         })
       },
       deleteServer: async (uuid) => {
@@ -117,14 +118,29 @@ export const useServerZustand = create<
         })
         const state = get()
 
+        // Ensure every uuid has a unitId entry (for backward compatibility)
+        set((state) => {
+          for (const uuid of state.uuids) {
+            if (state.unitId[uuid] === undefined) {
+              state.unitId[uuid] = '0'
+            }
+          }
+        })
+
         // Synchorize settings
         for (const uuid of state.uuids) {
           const port = Number(state.port[uuid])
-          await window.api.setServerPort({ uuid, port })
+          const actualPort = await window.api.setServerPort({ uuid, port })
 
-          const unitIds = Object.keys(state.serverRegisters[uuid]) as UnitIdString[]
+          set((state) => {
+            state.port[uuid] = String(actualPort)
+          })
+
+          const serverRegister = state.serverRegisters[uuid]
+          if (!serverRegister) continue
+          const unitIds = Object.keys(serverRegister) as UnitIdString[]
           const unitIdsWithData = unitIds.filter((unitId) => {
-            const reg = state.serverRegisters[uuid][unitId]
+            const reg = serverRegister[unitId]
             return checkHasConfig(reg)
           })
 
@@ -133,10 +149,10 @@ export const useServerZustand = create<
             const coils: boolean[] = Array(65535).fill(false)
             const discreteInputs: boolean[] = Array(65535).fill(false)
 
-            Object.values(state.serverRegisters[uuid]?.[unitId]?.['coils'] || {}).forEach(
+            Object.values(state.serverRegisters[uuid]?.[unitId]?.['coils'] ?? {}).forEach(
               (value, address) => (coils[address] = value)
             )
-            Object.values(state.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] || {}).forEach(
+            Object.values(state.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] ?? {}).forEach(
               (value, address) => (discreteInputs[address] = value)
             )
 
@@ -149,10 +165,10 @@ export const useServerZustand = create<
 
             // Synchronize the value generators/registers with the server from persisted state
             const inputRegisterRegisterValues = Object.values(
-              state.serverRegisters[uuid]?.[unitId]?.['input_registers'] || []
+              state.serverRegisters[uuid]?.[unitId]?.['input_registers'] ?? []
             ).map((r) => r.params)
             const holdingRegisterRegisterValues = Object.values(
-              state.serverRegisters[uuid]?.[unitId]?.['holding_registers'] || []
+              state.serverRegisters[uuid]?.[unitId]?.['holding_registers'] ?? []
             ).map((r) => r.params)
 
             window.api.syncServerRegister({
@@ -165,17 +181,12 @@ export const useServerZustand = create<
             const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
 
             set((state) => {
+              if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
               if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
               state.usedAddresses[uuid][unitId]['input_registers'] = inputUsedAddresses
               state.usedAddresses[uuid][unitId]['holding_registers'] = holdingUsedAddresses
             })
           }
-
-          // ! I think this is redundant
-          // set((state) => {
-          //   state.port[uuid] = String(port)
-          //   state.unitId[uuid] = state.unitId[uuid]
-          // })
         }
 
         if (state.uuids.length === 0) {
@@ -191,79 +202,76 @@ export const useServerZustand = create<
         set((state) => {
           state.selectedUuid = uuid
         }),
-      setName: (name) =>
+      setName: (name) => {
+        const uuid = get().selectedUuid
         set((state) => {
-          const uuid = get().selectedUuid
           state.name[uuid] = name
-        }),
-      addBools: (registerType, address) =>
+        })
+      },
+      addBools: (registerType, address) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        const baseAddress = address - (address % 8)
         set((state) => {
-          const baseAddress = address - (address % 8)
-          const uuid = get().selectedUuid
-          const unitId = get().unitId[uuid]
-
           for (let i = baseAddress; i < baseAddress + 8; i++) {
             // Don't define when already defined
             if (state.serverRegisters[uuid]?.[unitId]?.[registerType][i]) continue
+            if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
             if (!state.serverRegisters[uuid][unitId]) {
               state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
             }
             state.serverRegisters[uuid][unitId][registerType][i] = false
             window.api.setBool({ uuid, unitId, registerType, address: i, state: false })
           }
-        }),
-      removeBool: (registerType, address) =>
+        })
+      },
+      removeBool: (registerType, address) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        const baseAddress = address - (address % 8)
         set((state) => {
-          const baseAddress = address - (address % 8)
-          const uuid = get().selectedUuid
-          const unitId = get().unitId[uuid]
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
-
           for (let i = baseAddress; i < baseAddress + 8; i++) {
             // Don't remove when not existing
             if (state.serverRegisters[uuid][unitId][registerType][i] === undefined) continue
             delete state.serverRegisters[uuid][unitId][registerType][i]
             window.api.setBool({ uuid, unitId, registerType, address: i, state: false })
           }
-        }),
-      setBool: (registerType, address, boolState, optionalUuid, optionalUnitId) =>
+        })
+      },
+      setBool: (registerType, address, boolState, optionalUuid, optionalUnitId) => {
+        const uuid = optionalUuid ?? get().selectedUuid
+        const unitId = optionalUnitId ?? get().getUnitId(uuid)
         set((state) => {
-          const uuid = optionalUuid || get().selectedUuid
-          const unitId = optionalUnitId || get().unitId[uuid]
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
-
           state.serverRegisters[uuid][unitId][registerType][address] = boolState
           window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
-        }),
-      resetBools: (registerType) =>
+        })
+      },
+      resetBools: (registerType) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        const currentState = get()
+        const currentCoils = new Array(65535).fill(false)
+        const currentDiscreteInputs = new Array(65535).fill(false)
+        Object.entries(currentState.serverRegisters.coils ?? {}).forEach(([k, v]) => {
+          currentCoils[Number(k)] = v
+        })
+        Object.entries(currentState.serverRegisters['discrete_inputs'] ?? {}).forEach(([k, v]) => {
+          currentDiscreteInputs[Number(k)] = v
+        })
         set((state) => {
-          const currentState = get()
-          const uuid = currentState.selectedUuid
-          const unitId = get().unitId[uuid]
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
           state.serverRegisters[uuid][unitId][registerType] = {}
-
-          const currentCoils = new Array(65535).fill(false)
-          const currentDiscreteInputs = new Array(65535).fill(false)
-
-          Object.entries(currentState.serverRegisters.coils || {}).forEach(([k, v]) => {
-            currentCoils[Number(k)] = v
-          })
-          Object.entries(currentState.serverRegisters['discrete_inputs'] || {}).forEach(
-            ([k, v]) => {
-              currentDiscreteInputs[Number(k)] = v
-            }
-          )
-
           const newBools: SyncBoolsParameters = {
             uuid,
             unitId,
@@ -271,107 +279,122 @@ export const useServerZustand = create<
             discrete_inputs: currentDiscreteInputs,
             [registerType]: new Array(65535).fill(false)
           }
-
           window.api.syncBools(newBools)
-        }),
-      addRegister: (addParams) =>
+        })
+      },
+      addRegister: (addParams) => {
+        const { uuid, unitId, params } = addParams
         set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-
-          const { uuid, unitId, params } = addParams
-          const { registerType, address } = params
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
-          state.serverRegisters[uuid][unitId][registerType][address] = { value: 0, params }
+          state.serverRegisters[uuid][unitId][params.registerType][params.address] = {
+            value: 0,
+            params
+          }
           window.api.addReplaceServerRegister(addParams)
-
           // Update used addresses
           const usedAddresses = getUsedAddresses(
-            Object.values(state.serverRegisters[uuid][unitId][registerType]).map((r) => r.params)
-          )
-          if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
-          state.usedAddresses[uuid][unitId][registerType] = usedAddresses
-        }),
-      removeRegister: (removeParams) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          const { uuid, unitId, registerType, address } = removeParams
-          delete state.serverRegisters[uuid]?.[unitId]?.[registerType][address]
-          window.api.removeServerRegister(removeParams)
-
-          // Update used addresses
-          const usedAddresses = getUsedAddresses(
-            Object.values(state.serverRegisters[uuid]?.[unitId]?.[registerType] || []).map(
+            Object.values(state.serverRegisters[uuid][unitId][params.registerType]).map(
               (r) => r.params
             )
           )
+          if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
+          if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
+          state.usedAddresses[uuid][unitId][params.registerType] = usedAddresses
+        })
+      },
+      removeRegister: (removeParams) => {
+        const { uuid, unitId, registerType, address } = removeParams
+        delete state.serverRegisters[uuid]?.[unitId]?.[registerType][address]
+        window.api.removeServerRegister(removeParams)
+        // Update used addresses
+        const usedAddresses = getUsedAddresses(
+          Object.values(state.serverRegisters[uuid]?.[unitId]?.[registerType] ?? []).map(
+            (r) => r.params
+          )
+        )
+        set((state) => {
+          if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
           if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
           state.usedAddresses[uuid][unitId][registerType] = usedAddresses
-        }),
-      setRegisterValue: (type, address, value, optionalUuid, optionalUnitId) =>
+        })
+      },
+      setRegisterValue: (type, address, value, optionalUuid, optionalUnitId) => {
+        const uuid = optionalUuid ?? get().selectedUuid
+        const unitId = optionalUnitId ?? get().getUnitId(uuid)
         set((state) => {
-          const uuid = optionalUuid || get().selectedUuid
-          const unitId = optionalUnitId || get().unitId[uuid]
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
-
           state.serverRegisters[uuid][unitId][type][address].value = value
-        }),
-      resetRegisters: (registerType) =>
+        })
+      },
+      resetRegisters: (registerType) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        window.api.resetRegisters({ uuid, unitId, registerType })
         set((state) => {
-          const uuid = get().selectedUuid
-          const unitId = get().unitId[uuid]
-
-          window.api.resetRegisters({ uuid, unitId, registerType })
-
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
             state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
           }
+          if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
           if (!state.usedAddresses[uuid][unitId]) {
             state.usedAddresses[uuid][unitId] = { ...defaultUsedAddresses }
           }
-
           state.serverRegisters[uuid][unitId][registerType] = {}
           state.usedAddresses[uuid][unitId][registerType] = []
-        }),
-      setPort: (port, valid) =>
+        })
+      },
+      setPort: async (port, valid) => {
+        const currentState = get()
+        const uuid = currentState.selectedUuid
+        if (!currentState.ready) return
+
+        // Port cannot be already used for a server
+        const { port: currentPorts, selectedUuid } = get()
+        const portAlreadyExists = Object.values(currentPorts).includes(port)
+        const portIsMyPort = port === currentPorts[selectedUuid]
+
+        if (portAlreadyExists && !portIsMyPort) valid = false
+        const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
         set((state) => {
-          const currentState = get()
-          const uuid = currentState.selectedUuid
-          if (!currentState.ready) return
-
-          // Port cannot be already used for a server
-          const { port: currentPorts, selectedUuid } = get()
-          const portAlreadyExists = Object.values(currentPorts).includes(port)
-          const portIsMyPort = port === currentPorts[selectedUuid]
-
-          if (portAlreadyExists && !portIsMyPort) valid = false
-
           state.portValid[uuid] = !!valid
-          state.port[uuid] = port
+          state.port[uuid] = String(actualPort)
 
           if (!valid || currentState.port[uuid] === port) return
-          window.api.setServerPort({ uuid, port: Number(port) })
-        }),
-      setUnitId: (unitId) =>
+        })
+      },
+      setUnitId: (unitId) => {
+        const currentState = get()
+        const uuid = currentState.selectedUuid
+        if (!currentState.ready) return
         set((state) => {
-          const currentState = get()
-          const uuid = currentState.selectedUuid
-          if (!currentState.ready) return
           state.unitId[uuid] = unitId
-        }),
-      replaceServerRegisters: (unitId, registers) =>
+        })
+      },
+      replaceServerRegisters: (unitId, registers) => {
+        const uuid = get().selectedUuid
         set((state) => {
-          const uuid = get().selectedUuid
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           state.serverRegisters[uuid][unitId] = registers
           get().init()
         })
+      },
+      getUnitId: (uuid: string): UnitIdString => {
+        const state = get()
+        let unitId = state.unitId[uuid]
+        if (unitId === undefined) {
+          set((state) => {
+            state.unitId[uuid] = '0'
+          })
+          unitId = '0'
+        }
+        return unitId as UnitIdString
+      }
     })),
     {
       name: `server.zustand`,
@@ -399,7 +422,7 @@ const state = useServerZustand.getState()
 
 const stateResult = PersistedServerZustandSchema.safeParse(state)
 if (!stateResult.success) {
-  console.log(stateResult.error)
+  console.warn(stateResult.error)
   clear()
 }
 

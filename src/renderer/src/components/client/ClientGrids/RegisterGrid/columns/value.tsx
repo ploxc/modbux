@@ -18,7 +18,7 @@ export const valueColumn = (
   width: number,
   type?: GridColDef['type']
 ): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
-  type: type || 'number',
+  type: type ?? 'number',
   field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,

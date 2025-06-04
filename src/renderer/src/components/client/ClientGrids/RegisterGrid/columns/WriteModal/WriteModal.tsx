@@ -336,7 +336,7 @@ const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props)
     >
       <Paper
         elevation={5}
-        sx={{ position: 'absolute', right, top: rect?.top || 0, display: 'flex' }}
+        sx={{ position: 'absolute', right, top: rect?.top ?? 0, display: 'flex' }}
       >
         {type === 'holding_registers' ? (
           <>

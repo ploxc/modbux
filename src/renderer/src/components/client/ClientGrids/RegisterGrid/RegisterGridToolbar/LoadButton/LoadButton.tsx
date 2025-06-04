@@ -57,7 +57,7 @@ const LoadButton = meme((): JSX.Element => {
 
         if (!configResult.success && !legacyConfigResult.success) {
           enqueueSnackbar({ variant: 'error', message: 'Invalid Config' })
-          console.log({
+          console.warn({
             configResult: configResult.error,
             legacyConfigResult: legacyConfigResult.error
           })

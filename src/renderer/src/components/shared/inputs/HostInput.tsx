@@ -52,7 +52,7 @@ const HostInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
         const parts = value.split('.')
 
         // Prevent entering more than 3 dots (IPv4 has 4 parts = 3 dots)
-        const dotCount = (value.match(/\./g) || []).length
+        const dotCount = (value.match(/\./g) ?? []).length
         if (char === '.' && dotCount >= 3) {
           return ''
         }

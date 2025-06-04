@@ -75,7 +75,10 @@ export const ServerRegistersSchema: z.ZodType<{
 })
 export type ServerRegisters = z.infer<typeof ServerRegistersSchema>
 
-export const ServerRegistersPerUnitSchema = z.record(UnitIdStringSchema, ServerRegistersSchema)
+export const ServerRegistersPerUnitSchema = z.record(
+  UnitIdStringSchema,
+  z.union([ServerRegistersSchema, z.undefined()])
+)
 export type ServerRegistersPerUnit = z.infer<typeof ServerRegistersPerUnitSchema>
 
 // Final server config schema

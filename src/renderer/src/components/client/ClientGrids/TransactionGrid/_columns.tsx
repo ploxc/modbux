@@ -91,7 +91,7 @@ const errorMessageColumn: GridColDef<Transaction, string> = {
   minWidth: 120,
   sortable: false,
   disableColumnMenu: true,
-  valueFormatter: (v) => v || '-'
+  valueFormatter: (v) => v ?? '-'
 }
 
 const useTransactionGridColumns = (): GridColDef<Transaction>[] => {

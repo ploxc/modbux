@@ -11,7 +11,7 @@ import Box from '@mui/material/Box'
 import ServerGrid from '@renderer/components/server/ServerGrid/ServerGrid'
 
 const ServerName = meme(() => {
-  const name = useServerZustand((z) => z.name[z.selectedUuid] || '')
+  const name = useServerZustand((z) => z.name[z.selectedUuid] ?? '')
   return (
     <TextField
       sx={{ flex: 1, minWidth: 200 }}

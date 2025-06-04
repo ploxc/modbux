@@ -73,7 +73,9 @@ const ServerPartTitleName = meme(
     const amount = useServerZustand((z) => {
       const uuid = z.selectedUuid
       const unitId = z.unitId[uuid]
-      const amount = Object.keys(z.serverRegisters[uuid][unitId]?.[registerType] || {}).length
+      if (!unitId) return 0
+
+      const amount = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
       return amount
     })
     return (

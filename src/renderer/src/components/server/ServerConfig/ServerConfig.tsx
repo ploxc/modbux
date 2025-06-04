@@ -42,7 +42,10 @@ const UnitIdMenuItem = meme(({ unitId }: UnitIdMenuItemProps) => {
 
 // Unit Id
 const UnitId = meme(() => {
-  const unitId = useServerZustand((z) => z.unitId[z.selectedUuid])
+  const unitId = useServerZustand((z) => {
+    const uuid = z.selectedUuid
+    return z.getUnitId(uuid)
+  })
   const labelId = 'unit-id-select'
 
   return (

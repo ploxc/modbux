@@ -202,13 +202,13 @@ export interface IpcHandlerSpec {
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
-    return: void
+    return: Promise<number>
   }
 
   /** Create a new server */
   ['create_server']: {
     args: [CreateServerParams]
-    return: void
+    return: Promise<number>
   }
 
   /** Delete an existing server (UUID) */

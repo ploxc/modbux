@@ -89,7 +89,7 @@ const useOpen: UseOpenHook = () => {
 
         if (!configResult.success && !legacyConfigResult.success) {
           enqueueSnackbar({ variant: 'error', message: 'Invalid Config' })
-          console.log({
+          console.warn({
             configResult: configResult.error,
             legacyConfigResult: legacyConfigResult.error
           })
@@ -123,12 +123,14 @@ const useSave: UseSaveHook = () => {
   const save = useCallback(() => {
     const z = useServerZustand.getState()
     const { serverRegisters, selectedUuid } = z
-    const name = z.name[selectedUuid] || ''
+    const name = z.name[selectedUuid] ?? ''
 
     const serverRegistersPerUnit: ServerRegistersPerUnit = {}
     const uuids = Object.keys(serverRegisters)
-    uuids.forEach((uuid) => {
+    for (const uuid of uuids) {
       const registersPerUnit = serverRegisters[uuid]
+      if (!registersPerUnit) continue
+
       Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
         if (!checkHasConfig(registers)) return
         if (!serverRegistersPerUnit[unitId]) {
@@ -136,7 +138,7 @@ const useSave: UseSaveHook = () => {
         }
         serverRegistersPerUnit[unitId] = registers
       })
-    })
+    }
 
     const config: ServerConfig = {
       name,

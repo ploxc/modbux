@@ -376,7 +376,7 @@ export class ModbusClient {
     const infos = this.buildAddrInfos(registerEntries)
 
     // 1) Make a shallow copy and sort by address ascending
-    const sorted = infos.slice().sort((a, b) => a.address - b.address)
+    const sorted = infos.slice().sort((a, b) => (a.address ?? 0) - (b.address ?? 0))
 
     const groups: Array<AddressGroup> = []
     let i = 0 // index of the first ungrouped item
@@ -624,7 +624,7 @@ export class ModbusClient {
     const registerData: RegisterData[] = []
 
     for (let i = 0; i < length; i++) {
-      const bit = data[i]
+      const bit = data[i] ?? false
       const rowData: RegisterData = {
         id: address + i,
         buffer: Buffer.from([0]),
@@ -681,7 +681,7 @@ export class ModbusClient {
     return (
       DateTime.utc(year, month, day, hour, minute, second, millisecond).toFormat(
         'yyyy/MM/dd HH:mm:ss'
-      ) || ''
+      ) ?? ''
     )
   }
 

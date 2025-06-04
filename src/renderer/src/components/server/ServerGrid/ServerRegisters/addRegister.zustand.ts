@@ -25,7 +25,7 @@ export const getAddressInUse: GetAddressInUseFn = (
   if (edit) return false
 
   const usedAddresses = registerType
-    ? useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] || []
+    ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
     : []
 
   const addressesNeeded = ['double', 'uint64', 'int64'].includes(dataType)
@@ -100,8 +100,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const { registerType, dataType } = getState()
         if (!registerType) return
 
-        const uuid = useServerZustand.getState().selectedUuid
-        const unitId = useServerZustand.getState().unitId[uuid]
+        const z = useServerZustand.getState()
+        const uuid = z.selectedUuid
+        const unitId = z.getUnitId(uuid)
 
         const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
 
@@ -115,8 +116,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const { registerType, address } = getState()
         if (!registerType) return
 
-        const uuid = useServerZustand.getState().selectedUuid
-        const unitId = useServerZustand.getState().unitId[uuid]
+        const z = useServerZustand.getState()
+        const uuid = z.selectedUuid
+        const unitId = z.getUnitId(uuid)
 
         const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, Number(address))
 
@@ -169,8 +171,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         if (!registerType) return
 
         const z = useServerZustand.getState()
-        const usedAddresses =
-          z.usedAddresses[z.selectedUuid][z.unitId[z.selectedUuid]]?.[registerType] || []
+        const uuid = z.selectedUuid
+        const unitId = z.getUnitId(uuid)
+
+        const usedAddresses = z.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
         for (let address = 0; address <= 65535; address++) {
           if (!usedAddresses.includes(address)) {
             state.address = String(address)

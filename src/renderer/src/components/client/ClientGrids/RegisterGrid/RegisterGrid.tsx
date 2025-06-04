@@ -80,7 +80,7 @@ const RegisterGridContent = (): JSX.Element => {
           'uint32',
           'uint64'
         ]
-        const dataType = registerMapping[id]?.dataType || 'none'
+        const dataType = registerMapping[id]?.dataType ?? 'none'
 
         if (field === 'scalingFactor' && !scalingEnabledDataTypes.includes(dataType)) {
           return false

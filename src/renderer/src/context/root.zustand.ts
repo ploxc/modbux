@@ -346,7 +346,7 @@ const clear = () => {
 
 const stateResult = PersistedRootZustandSchema.safeParse(state)
 if (!stateResult.success) {
-  console.log(stateResult.error)
+  console.warn(stateResult.error)
   clear()
 }
 

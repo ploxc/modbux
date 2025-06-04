@@ -16,7 +16,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import TextField from '@mui/material/TextField'
 
 const ClientConfigName = meme(() => {
-  const name = useRootZustand((z) => z.name || '')
+  const name = useRootZustand((z) => z.name ?? '')
 
   return (
     <TextField

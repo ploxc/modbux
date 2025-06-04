@@ -19,6 +19,7 @@ import { ServerTCP } from 'modbus-serial'
 import { Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal } from 'modbus-serial'
+import net from 'net'
 
 const getDefaultGenerators = (): ValueGenerators => ({
   input_registers: new Map(),
@@ -47,6 +48,7 @@ export const NEGATIVE_ACKNOWLEDGE = 7
 export const MEMORY_PARITY_ERROR = 8
 export const GATEWAY_PATH_UNAVAILABLE = 10
 export const GATEWAY_TARGET_FAILED = 11
+export const DEFAULT_MOBUS_PORT = 502
 
 type ServerDataUnitMap = Map<UnitIdString, ServerData>
 type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
@@ -144,43 +146,67 @@ export class ModbusServer {
   }
 
   /**
+   * Checks if a TCP port is available for binding.
+   */
+  private async _isPortAvailable(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const tester = net.createServer()
+      tester.once('error', () => {
+        resolve(false)
+      })
+      tester.once('listening', () => {
+        tester.close(() => resolve(true))
+      })
+      tester.listen(port, '0.0.0.0')
+    })
+  }
+
+  /**
    * Creates or recreates a Modbus TCP server for the given UUID and port.
    * If a server already exists, it is closed and replaced.
    * Also ensures value generator maps are initialized for all unitIds.
+   * Returns the actual port used (may differ from requested if taken).
    */
-  public createServer = async ({ uuid, port }: CreateServerParams): Promise<void> => {
-    const existingPorts = Array.from(this._port.values())
-    if (port && existingPorts.includes(port) && port !== this._port.get(uuid)) {
-      this._emitMessage({ message: `Port ${port} is already in use`, variant: 'error' })
-      return
-    }
-    this._port.set(uuid, port)
+  public createServer = async ({ uuid, port }: CreateServerParams): Promise<number> => {
+    let actualPort = port ?? DEFAULT_MOBUS_PORT
+    const maxAttempts = 100
+    let server: ServerTCP | undefined
 
-    const server = this._servers.get(uuid)
-    if (server) {
-      // Close the existing server before recreating
+    const existingServer = this._servers.get(uuid)
+    if (existingServer) {
       await new Promise<void>((resolve) => {
-        server.close((err) => {
+        existingServer.close((err) => {
           if (err)
             this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
           resolve()
         })
       })
     } else {
-      // Initialize value generator maps for all unitIds
       const perUnitMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(this._generatorMap, uuid)
       UnitIdStringSchema.options.forEach((unitId) => {
         perUnitMap.set(unitId, getDefaultGenerators())
       })
     }
 
-    this._servers.set(
-      uuid,
-      new ServerTCP(this._getVector(uuid), {
-        host: '0.0.0.0',
-        port: port || 502
-      })
-    )
+    for (let i = 0; i < maxAttempts; i++) {
+      const isAvailable = await this._isPortAvailable(actualPort)
+      if (isAvailable) {
+        server = new ServerTCP(this._getVector(uuid), {
+          host: '0.0.0.0',
+          port: actualPort
+        })
+        this._servers.set(uuid, server)
+        this._port.set(uuid, actualPort)
+        return actualPort
+      }
+      actualPort++
+    }
+    this._emitMessage({
+      message: 'No available port found',
+      variant: 'error',
+      error: undefined
+    })
+    throw new Error('No available port found')
   }
 
   /**
@@ -233,7 +259,7 @@ export class ModbusServer {
       this._generatorMap,
       uuid
     )
-    const serverGenerators = perUnitGeneratorMap.get(unitId) || getDefaultGenerators()
+    const serverGenerators = perUnitGeneratorMap.get(unitId) ?? getDefaultGenerators()
     if (!perUnitGeneratorMap.has(unitId)) perUnitGeneratorMap.set(unitId, serverGenerators)
     const generators = serverGenerators[registerType]
     const generator = generators.get(address)
@@ -242,7 +268,7 @@ export class ModbusServer {
 
     // Ensure server data map for this server and unitId
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
 
     // If a fixed value is provided, set the register directly
@@ -290,7 +316,7 @@ export class ModbusServer {
    */
   public removeRegister = ({ uuid, unitId, registerType, address }: RemoveRegisterParams): void => {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType][address] = 0
 
@@ -337,7 +363,7 @@ export class ModbusServer {
     generators?.clear()
 
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType] = new Array(65535).fill(0)
     this._setServerData(uuid, unitId, serverData)
@@ -349,7 +375,7 @@ export class ModbusServer {
    */
   public setBool = ({ uuid, unitId, registerType, address, state }: SetBooleanParameters): void => {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType][address] = state
     this._setServerData(uuid, unitId, serverData)
@@ -361,7 +387,7 @@ export class ModbusServer {
    */
   public resetBools = ({ uuid, unitId, registerType }: ResetBoolsParams): void => {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType] = new Array(65535).fill(false)
     this._setServerData(uuid, unitId, serverData)
@@ -373,7 +399,7 @@ export class ModbusServer {
   public syncBools = (params: SyncBoolsParameters): void => {
     const { uuid, unitId } = params
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     params['coils'].forEach((value, index) => (serverData['coils'][index] = value))
     params['discrete_inputs'].forEach((value, index) => {
@@ -384,10 +410,10 @@ export class ModbusServer {
 
   /**
    * Sets the port for a given server UUID by recreating the server on the new port.
-   * @param params - The server UUID and new port.
+   * Returns the actual port used (may differ from requested if taken).
    */
-  public setPort = async ({ uuid, port }: CreateServerParams): Promise<void> => {
-    await this.createServer({ uuid, port })
+  public setPort = async ({ uuid, port }: CreateServerParams): Promise<number> => {
+    return this.createServer({ uuid, port })
   }
 
   // -------------------------------------------------------------------------
@@ -464,7 +490,7 @@ export class ModbusServer {
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
       const unitId = unitIdSafe.data
 
-      const currentServerData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
+      const currentServerData = this._serverData.get(uuid)?.get(unitId) ?? getDefaultServerData()
       currentServerData.coils[address] = value
 
       const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
@@ -486,7 +512,7 @@ export class ModbusServer {
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
       const unitId = unitIdSafe.data
 
-      const currentServerData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
+      const currentServerData = this._serverData.get(uuid)?.get(unitId) ?? getDefaultServerData()
       currentServerData.holding_registers[address] = raw
 
       const perUnitMap = this._ensureInnerMap(this._serverData, uuid)

@@ -144,28 +144,30 @@ let splash: BrowserWindow | null = null
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  splash = new BrowserWindow({
-    width: 400,
-    height: 300,
-    frame: false,
-    transparent: false,
-    alwaysOnTop: true,
-    resizable: false,
-    show: false,
-    backgroundColor: '#181818',
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  })
+  if (os.platform() !== 'darwin') {
+    splash = new BrowserWindow({
+      width: 400,
+      height: 300,
+      frame: false,
+      transparent: false,
+      alwaysOnTop: true,
+      resizable: false,
+      show: false,
+      backgroundColor: '#181818',
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.js'),
+        sandbox: false,
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    })
 
-  splash.loadFile(join(__dirname, '../../resources/splash.html')).catch(console.error)
+    splash.loadFile(join(__dirname, '../../resources/splash.html')).catch(console.error)
 
-  splash.on('ready-to-show', () => {
-    splash?.show()
-  })
+    splash.on('ready-to-show', () => {
+      splash?.show()
+    })
+  }
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.harted')

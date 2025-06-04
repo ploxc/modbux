@@ -4,11 +4,11 @@ import {
   NumberRegisters,
   CreateServerParams,
   ServerRegisters,
-  ServerRegistersSchema,
   NumberRegistersSchema,
   AddRegisterParams,
   UnitIdStringSchema,
-  UnitIdString
+  UnitIdString,
+  ServerRegistersPerUnitSchema
 } from '@shared'
 import { MaskSetFn } from './root.zustand.types'
 import { z } from 'zod'
@@ -19,10 +19,13 @@ export type UsedAddresses = z.infer<typeof UsedAddressesSchema>
 export const PersistedServerZustandSchema = z.object({
   selectedUuid: z.string(),
   uuids: z.array(z.string()),
-  serverRegisters: z.record(z.record(UnitIdStringSchema, ServerRegistersSchema)),
-  usedAddresses: z.record(z.string(), z.record(UnitIdStringSchema, UsedAddressesSchema)),
+  serverRegisters: z.record(z.string(), z.union([ServerRegistersPerUnitSchema, z.undefined()])),
+  usedAddresses: z.record(
+    z.string(),
+    z.union([z.record(UnitIdStringSchema, UsedAddressesSchema), z.undefined()])
+  ),
   port: z.record(z.string(), z.string()),
-  unitId: z.record(z.string(), UnitIdStringSchema),
+  unitId: z.record(z.string(), z.union([UnitIdStringSchema, z.undefined()])),
   name: z.record(z.string(), z.string().optional()),
   portValid: z.record(z.string(), z.boolean())
 })
@@ -33,7 +36,7 @@ export type ServerZustand = {
   ready: boolean
   clean: (uuid: string) => void
   setSelectedUuid: (uuid: string) => void
-  createServer: (params: CreateServerParams, setUuidAsSelected?: boolean) => Promise<void>
+  createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
   init: () => Promise<void>
   addBools: (type: BooleanRegisters, address: number) => void
@@ -61,4 +64,5 @@ export type ServerZustand = {
   // Replace
   replaceServerRegisters: (unitId: UnitIdString, registers: ServerRegisters) => void
   setName: (name: string) => void
+  getUnitId: (uuid: string) => UnitIdString
 } & PersistedServerZustand

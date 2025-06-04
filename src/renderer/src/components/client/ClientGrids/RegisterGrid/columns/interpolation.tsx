@@ -119,8 +119,8 @@ const InterpolationModal = meme(({ open, onClose, actionCellRef, type, address }
           elevation={5}
           sx={{
             position: 'absolute',
-            left: rect?.left || 0,
-            top: rect?.top || 0,
+            left: rect?.left ?? 0,
+            top: rect?.top ?? 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 2,

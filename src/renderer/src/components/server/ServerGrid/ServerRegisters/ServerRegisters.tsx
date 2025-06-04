@@ -3,7 +3,7 @@ import { Paper, Box, IconButton, alpha } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { deepEqual } from 'fast-equals'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
@@ -93,8 +93,9 @@ const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
   const registersMemory = useRef<ServerRegister[number][]>([])
   const registers = useServerZustand((z) => {
     const uuid = z.selectedUuid
-    const unitId = z.unitId[uuid]
-    const serverRegisters = Object.values(z.serverRegisters[uuid]?.[unitId]?.[type] || [])
+    const unitId = z.getUnitId(uuid)
+
+    const serverRegisters = Object.values(z.serverRegisters[uuid]?.[unitId]?.[type] ?? [])
     if (deepEqual(registersMemory.current, serverRegisters)) return registersMemory.current
     registersMemory.current = serverRegisters
     return serverRegisters
@@ -118,12 +119,8 @@ const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
   const allOtherCollapsed = useServerGridZustand((z) => {
     const entries = Object.entries(z.collapse)
     const filtered = entries.filter(([k]) => k !== type)
-    console.log(type, entries, filtered)
     return filtered.every((entry) => entry[1])
   })
-  useEffect(() => {
-    console.log({ allOtherCollapsed, type })
-  }, [allOtherCollapsed, type])
 
   return (
     <Box
