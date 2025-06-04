@@ -223,7 +223,7 @@ export interface RegisterValue {
   unitId: UnitIdString
   registerType: NumberRegisters
   address: number
-  value: number
+  raw: number
 }
 
 export interface BooleanValue {

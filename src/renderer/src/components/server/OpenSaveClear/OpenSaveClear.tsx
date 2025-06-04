@@ -1,10 +1,11 @@
 import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useServerZustand } from '@renderer/context/server.zustand'
+import { checkHasConfig, useServerZustand } from '@renderer/context/server.zustand'
 import {
   ServerConfig,
   ServerConfigSchema,
+  ServerRegistersPerUnit,
   ServerRegistersSchema,
   UnitIdStringSchema
 } from '@shared'
@@ -36,6 +37,16 @@ const useOpen: UseOpenHook = () => {
 
       const state = useServerZustand.getState()
 
+      // Reset the server before opening a new configuration
+      // This way we can ensure that the server is in a clean state
+      // When unitId's are configured which are not present in the file
+      // there would be remaining registers in the server because
+      // they are now overwritten
+      await window.api.resetServer(state.selectedUuid)
+      // Also clean the zustand state
+      // to ensure that the state is in a clean state
+      state.clean(state.selectedUuid)
+
       let content = await file.text()
 
       try {
@@ -51,10 +62,13 @@ const useOpen: UseOpenHook = () => {
         if (configResult.success) {
           const { serverRegistersPerUnit, name } = configResult.data
           state.setName(name)
-          UnitIdStringSchema.options.forEach((unitId) => {
+          UnitIdStringSchema.options.forEach(async (unitId) => {
             const serverRegisters = serverRegistersPerUnit[unitId]
             if (!serverRegisters) return
+            const hasConfig = checkHasConfig(serverRegisters)
+            if (!hasConfig) return
             state.replaceServerRegisters(unitId, serverRegisters)
+            await new Promise((r) => setTimeout(r, 1))
           })
 
           enqueueSnackbar({ variant: 'success', message: 'Configuration opened successfully' })
@@ -85,8 +99,6 @@ const useOpen: UseOpenHook = () => {
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
       }
 
-      await window.api.restartServer(state.selectedUuid)
-
       // Need to initialize the server again after opening the configuration
       // to synchronize the front with backend registers
       await state.init()
@@ -113,9 +125,22 @@ const useSave: UseSaveHook = () => {
     const { serverRegisters, selectedUuid } = z
     const name = z.name[selectedUuid] || ''
 
+    const serverRegistersPerUnit: ServerRegistersPerUnit = {}
+    const uuids = Object.keys(serverRegisters)
+    uuids.forEach((uuid) => {
+      const registersPerUnit = serverRegisters[uuid]
+      Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
+        if (!checkHasConfig(registers)) return
+        if (!serverRegistersPerUnit[unitId]) {
+          serverRegistersPerUnit[unitId] = {}
+        }
+        serverRegistersPerUnit[unitId] = registers
+      })
+    })
+
     const config: ServerConfig = {
       name,
-      serverRegistersPerUnit: serverRegisters[selectedUuid]
+      serverRegistersPerUnit
     }
     const configJson = JSON.stringify(config)
 
@@ -141,13 +166,18 @@ const OpenSaveClear = meme(() => {
   const { opening, open } = useOpen()
   const { save } = useSave()
 
-  const clear = useCallback(() => {
-    const serverState = useServerZustand.getState()
-    serverState.setName('')
-    serverState.resetBools('coils')
-    serverState.resetBools('discrete_inputs')
-    serverState.resetRegisters('holding_registers')
-    serverState.resetRegisters('input_registers')
+  const clear = useCallback(async () => {
+    const state = useServerZustand.getState()
+    state.setName('')
+    // Reset the server before opening a new configuration
+    // This way we can ensure that the server is in a clean state
+    // When unitId's are configured which are not present in the file
+    // there would be remaining registers in the server because
+    // they are now overwritten
+    await window.api.resetServer(state.selectedUuid)
+    // Also clean the zustand state
+    // to ensure that the state is in a clean state
+    state.clean(state.selectedUuid)
   }, [])
 
   return (

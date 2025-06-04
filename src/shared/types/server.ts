@@ -75,14 +75,16 @@ export const ServerRegistersSchema: z.ZodType<{
 })
 export type ServerRegisters = z.infer<typeof ServerRegistersSchema>
 
+export const ServerRegistersPerUnitSchema = z.record(UnitIdStringSchema, ServerRegistersSchema)
+export type ServerRegistersPerUnit = z.infer<typeof ServerRegistersPerUnitSchema>
+
 // Final server config schema
 export const ServerConfigSchema = z.object({
   name: z.string(),
-  serverRegistersPerUnit: z.record(UnitIdStringSchema, ServerRegistersSchema)
+  serverRegistersPerUnit: ServerRegistersPerUnitSchema
 })
 export type ServerConfig = z.infer<typeof ServerConfigSchema>
 
-//
 //
 //
 //

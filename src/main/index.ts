@@ -55,7 +55,7 @@ if (!gotTheLock) {
   })
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   windows.main = new BrowserWindow({
     width: 1480,
@@ -63,6 +63,7 @@ function createWindow(): void {
     minWidth: 820,
     minHeight: 800,
     autoHideMenuBar: true,
+    show: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -96,6 +97,8 @@ function createWindow(): void {
   } else {
     windows.main.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return windows.main
 }
 
 //
@@ -135,10 +138,35 @@ onIpcEvent('open_server_window', () => {
   })
 })
 
+let splash: BrowserWindow | null = null
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  splash = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: false,
+    alwaysOnTop: true,
+    resizable: false,
+    show: false,
+    backgroundColor: '#181818',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  })
+
+  splash.loadFile(join(__dirname, '../../resources/splash.html')).catch(console.error)
+
+  splash.on('ready-to-show', () => {
+    splash?.show()
+  })
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.harted')
 
@@ -149,7 +177,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
+  const mainWindow = createWindow()
+
+  mainWindow.once('ready-to-show', () => {
+    if (splash) splash.close()
+    splash = null
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

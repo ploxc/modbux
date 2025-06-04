@@ -31,6 +31,7 @@ export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema
 
 export type ServerZustand = {
   ready: boolean
+  clean: (uuid: string) => void
   setSelectedUuid: (uuid: string) => void
   createServer: (params: CreateServerParams, setUuidAsSelected?: boolean) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>

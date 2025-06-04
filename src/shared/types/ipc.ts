@@ -48,11 +48,11 @@ export const IPC_CHANNELS = [
   'set_bool',
   'reset_bools',
   'sync_bools',
-  'restart_server',
   'set_server_port',
   'get_app_version',
   'create_server',
-  'delete_server'
+  'delete_server',
+  'reset_server'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -199,12 +199,6 @@ export interface IpcHandlerSpec {
     return: void
   }
 
-  /** Restart the server (UUID) */
-  ['restart_server']: {
-    args: [string]
-    return: void
-  }
-
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
@@ -227,6 +221,12 @@ export interface IpcHandlerSpec {
   ['get_app_version']: {
     args: []
     return: string
+  }
+
+  /** Reset an existing server (UUID) */
+  ['reset_server']: {
+    args: [string]
+    return: void
   }
 }
 

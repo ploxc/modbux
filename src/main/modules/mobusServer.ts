@@ -1,5 +1,4 @@
 import {
-  BackendMessage,
   RemoveRegisterParams,
   SetBooleanParameters,
   SyncBoolsParameters,
@@ -16,9 +15,10 @@ import {
   BooleanRegisters,
   NumberRegisters
 } from '@shared'
-import { IServiceVector, ServerTCP, FCallbackVal } from 'modbus-serial'
+import { ServerTCP } from 'modbus-serial'
 import { Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
+import type { IServiceVector, FCallbackVal } from 'modbus-serial'
 
 const getDefaultGenerators = (): ValueGenerators => ({
   input_registers: new Map(),
@@ -58,6 +58,10 @@ export interface ServerParams {
   windows: Windows
 }
 
+/**
+ * ModbusServer class manages Modbus TCP servers, register data, and value generators for each server and unitId.
+ * Handles server creation, deletion, register management, and value generator lifecycle.
+ */
 export class ModbusServer {
   private _port: Map<string, number> = new Map()
   private _servers: Map<string, ServerTCP> = new Map()
@@ -67,13 +71,20 @@ export class ModbusServer {
   private _serverData: ServerDataMap = new Map()
   private _generatorMap: ValueGeneratorsMap = new Map()
 
+  /**
+   * Construct a ModbusServer instance.
+   * @param windows - Windows IPC interface for backend/frontend communication.
+   */
   constructor({ windows }: ServerParams) {
     this._windows = windows
   }
 
-  // Generic “ensure inner map” helper.
-  //   • OuterMap is Map<string, M>, where M is some kind of Map<UnitIdString, T>.
-  //   • factory(): M must produce a fresh instance of that inner map type.
+  /**
+   * Ensures an inner map exists for a given UUID in the outer map, creating it if necessary.
+   * @param outerMap - The outer map (by UUID)
+   * @param uuid - The server UUID
+   * @returns The inner map for the UUID
+   */
   private _ensureInnerMap<T>(outerMap: Map<string, T>, uuid: string): T {
     let inner = outerMap.get(uuid)
     if (!inner) {
@@ -83,6 +94,10 @@ export class ModbusServer {
     return inner
   }
 
+  /**
+   * Returns a Modbus service vector for a given server UUID.
+   * This vector provides all the Modbus register accessors and mutators.
+   */
   private _getVector = (uuid: string): IServiceVector => ({
     getCoil: this._getCoil(uuid),
     getDiscreteInput: this._getDiscreteInput(uuid),
@@ -92,14 +107,58 @@ export class ModbusServer {
     setRegister: this._setHoldingRegister(uuid)
   })
 
+  /**
+   * Helper to set server data for a unitId in the server data map.
+   */
+  private _setServerData(uuid: string, unitId: UnitIdString, serverData: ServerData): void {
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    perUnitMap.set(unitId, serverData)
+  }
+
+  /**
+   * Helper to dispose all value generators in a ValueGeneratorsUnitMap.
+   * This stops all intervals and clears the generator maps.
+   */
+  private _disposeAllGenerators(unitMap: ValueGeneratorsUnitMap): void {
+    for (const registerTypeGenerators of unitMap.values()) {
+      registerTypeGenerators.holding_registers.forEach((g) => g.dispose())
+      registerTypeGenerators.input_registers.forEach((g) => g.dispose())
+      registerTypeGenerators.holding_registers.clear()
+      registerTypeGenerators.input_registers.clear()
+    }
+  }
+
+  /**
+   * Emits a backend message to the frontend via the Windows IPC interface.
+   */
+  private _emitMessage({
+    message,
+    variant,
+    error
+  }: {
+    message: string
+    variant: 'default' | 'error' | 'success' | 'warning' | 'info'
+    error?: Error
+  }): void {
+    this._windows.send('backend_message', { message, variant, error })
+  }
+
+  /**
+   * Creates or recreates a Modbus TCP server for the given UUID and port.
+   * If a server already exists, it is closed and replaced.
+   * Also ensures value generator maps are initialized for all unitIds.
+   */
   public createServer = async ({ uuid, port }: CreateServerParams): Promise<void> => {
     const existingPorts = Array.from(this._port.values())
-    if (port && existingPorts.includes(port) && port !== this._port.get(uuid))
-      throw new Error(`Port ${port} is already in use`)
+    if (port && existingPorts.includes(port) && port !== this._port.get(uuid)) {
+      this._emitMessage({ message: `Port ${port} is already in use`, variant: 'error' })
+      return
+    }
     this._port.set(uuid, port)
 
     const server = this._servers.get(uuid)
     if (server) {
+      // Close the existing server before recreating
       await new Promise<void>((resolve) => {
         server.close((err) => {
           if (err)
@@ -108,16 +167,9 @@ export class ModbusServer {
         })
       })
     } else {
-      // This is a brand‐new server uuid. We need to create and populate
-      // a Map<UnitIdString, ValueGenerators> under this._generatorMap.get(uuid).
-      //
-      // 1) Use _ensureInnerMap to either retrieve an existing inner‐map
-      //    (should be none, since server was missing) or create a fresh one.
+      // Initialize value generator maps for all unitIds
       const perUnitMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(this._generatorMap, uuid)
-
-      // 2) Populate that inner map for every valid unitId (0..255):
       UnitIdStringSchema.options.forEach((unitId) => {
-        // getDefaultGenerators() returns your default ValueGenerators for one unitId
         perUnitMap.set(unitId, getDefaultGenerators())
       })
     }
@@ -131,9 +183,15 @@ export class ModbusServer {
     )
   }
 
+  /**
+   * Deletes a Modbus TCP server for the given UUID, cleaning up all resources.
+   */
   public deleteServer = async (uuid: string): Promise<void> => {
     const server = this._servers.get(uuid)
-    if (!server) throw new Error(`No server found for UUID ${uuid}`)
+    if (!server) {
+      this._emitMessage({ message: `No server found for UUID ${uuid}`, variant: 'error' })
+      return
+    }
     await new Promise<void>((resolve) => {
       server.close((err) => {
         if (err)
@@ -146,56 +204,67 @@ export class ModbusServer {
     this._generatorMap.delete(uuid)
   }
 
-  //
-  //
-  // Events
-  private _emitMessage = (message: BackendMessage): void => {
-    this._windows.send('backend_message', message)
-  }
-
-  //
-  //
-  // Public methods
-  public setPort = async ({ uuid, port }: CreateServerParams): Promise<void> => {
-    await this.createServer({ uuid, port })
-  }
-  public restartServer = async (uuid: string): Promise<void> => {
+  /**
+   * Resets the server for a given UUID.
+   * Disposes all value generators, clears server data, and recreates the server.
+   */
+  public resetServer = async (uuid: string): Promise<void> => {
+    const unitIdGenerators = this._generatorMap.get(uuid)
+    if (unitIdGenerators) {
+      this._disposeAllGenerators(unitIdGenerators)
+    }
+    this._serverData.delete(uuid)
+    this._generatorMap.delete(uuid)
     const port = this._port.get(uuid)
-    if (!port) throw new Error('No port found for server')
-    await this.createServer({ uuid, port })
+    if (port) await this.createServer({ uuid, port })
   }
 
-  public addRegister = ({
-    uuid,
-    unitId,
-    params: { address, registerType, dataType, min, max, interval, value, littleEndian, comment }
-  }: AddRegisterParams): void => {
-    // Remove existing generator if exists
-    const serverGenerators = this._generatorMap.get(uuid)?.get(unitId) || getDefaultGenerators()
+  /**
+   * Adds a register or value generator for a given server and unitId.
+   * If a generator already exists at the address, it is disposed and replaced.
+   * If a fixed value is provided, sets the register directly.
+   */
+  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): void => {
+    const { address, registerType, dataType, min, max, interval, value, littleEndian, comment } =
+      params
+
+    // Ensure generator map for this server and unitId
+    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+      this._generatorMap,
+      uuid
+    )
+    const serverGenerators = perUnitGeneratorMap.get(unitId) || getDefaultGenerators()
+    if (!perUnitGeneratorMap.has(unitId)) perUnitGeneratorMap.set(unitId, serverGenerators)
     const generators = serverGenerators[registerType]
     const generator = generators.get(address)
-
     generator?.dispose()
-    generators.delete(address)
+    generators?.delete(address)
 
-    const serverData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
+    // Ensure server data map for this server and unitId
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
 
-    const fixedValue = value !== undefined
-
-    // Add fixed value to the serverdata
+    // If a fixed value is provided, set the register directly
+    const fixedValue = !interval && value !== undefined
     if (fixedValue) {
       const registers = createRegisters(dataType, value, littleEndian)
       registers.forEach((register, index) => {
-        serverData[registerType][address + index] = register
+        const registerAddress = address + index
+        serverData[registerType][registerAddress] = register
+        this._windows.send('register_value', {
+          uuid,
+          unitId,
+          registerType,
+          address: registerAddress,
+          raw: register
+        })
       })
-
-      const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-      perUnitMap.set(unitId, serverData)
-      this._windows.send('register_value', { uuid, unitId, registerType, address, value })
+      this._setServerData(uuid, unitId, serverData)
       return
     }
 
-    // Add a generator
+    // Otherwise, add a value generator for this register
     generators.set(
       address,
       new ValueGenerator({
@@ -214,85 +283,121 @@ export class ModbusServer {
       })
     )
   }
-  public removeRegisterValue = ({ uuid, registerType, address }: RemoveRegisterParams): void => {
-    // Reset fixed value
-    const serverData = this._serverData.get(uuid)
-    if (serverData) serverData[registerType][address] = 0
 
-    // Reset generator if exists
-    const serverGenerators = this._generatorMap.get(uuid)
+  /**
+   * Removes a register or value generator for a given server and unitId.
+   * Disposes the generator if it exists and resets the register value.
+   */
+  public removeRegister = ({ uuid, unitId, registerType, address }: RemoveRegisterParams): void => {
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    serverData[registerType][address] = 0
+
+    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+      this._generatorMap,
+      uuid
+    )
+    const serverGenerators = perUnitGeneratorMap.get(unitId)
     if (!serverGenerators) return
-
     const generators = serverGenerators[registerType]
     if (!generators) return
-
     const generator = generators.get(address)
     if (!generator) return
-
     generator.dispose()
     generators.delete(address)
   }
 
+  /**
+   * Synchronizes all register values for a given server and unitId.
+   * Resets all holding and input registers, then adds all provided registers.
+   */
   public syncServerRegisters = ({
     uuid,
     unitId,
     registerValues
   }: SyncRegisterValueParams): void => {
-    // Reset all registers before syncing
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
-    // Add all registers from the received array
     for (const params of registerValues) this.addRegister({ uuid, unitId, params })
   }
 
+  /**
+   * Resets all registers of a given type for a server and unitId.
+   * Disposes all generators for that register type and clears the register data.
+   */
   public resetRegisters = ({ uuid, unitId, registerType }: ResetRegistersParams): void => {
-    // Dispose all generators
-    const serverGenerators = this._generatorMap.get(uuid)
+    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+      this._generatorMap,
+      uuid
+    )
+    const serverGenerators = perUnitGeneratorMap.get(unitId)
     const generators = serverGenerators?.[registerType]
     generators?.forEach((generator) => generator.dispose())
+    generators?.clear()
 
-    // Reset server data
-    const serverData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType] = new Array(65535).fill(0)
-    perUnitMap.set(unitId, serverData)
+    this._setServerData(uuid, unitId, serverData)
   }
 
+  /**
+   * Sets a boolean value (coil or discrete input) for a given server and unitId.
+   * Updates the server data and emits a value change event.
+   */
   public setBool = ({ uuid, unitId, registerType, address, state }: SetBooleanParameters): void => {
-    const serverData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType][address] = state
-
-    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
-    perUnitMap.set(unitId, serverData)
-
+    this._setServerData(uuid, unitId, serverData)
     this._windows.send('boolean_value', { uuid, unitId, registerType, address, value: state })
   }
 
+  /**
+   * Resets all boolean values (coils or discrete inputs) for a given server and unitId.
+   */
   public resetBools = ({ uuid, unitId, registerType }: ResetBoolsParams): void => {
-    // Reset server data
-    const serverData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     serverData[registerType] = new Array(65535).fill(false)
-    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
-    perUnitMap.set(unitId, serverData)
+    this._setServerData(uuid, unitId, serverData)
   }
 
+  /**
+   * Synchronizes all boolean values (coils and discrete inputs) for a given server and unitId.
+   */
   public syncBools = (params: SyncBoolsParameters): void => {
     const { uuid, unitId } = params
-    const serverData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
-
-    // Sync coils and discrete inputs
+    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) || getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
     params['coils'].forEach((value, index) => (serverData['coils'][index] = value))
     params['discrete_inputs'].forEach((value, index) => {
       serverData['discrete_inputs'][index] = value
     })
-
-    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
-    perUnitMap.set(unitId, serverData)
+    this._setServerData(uuid, unitId, serverData)
   }
 
-  //
-  //
-  // Vector methods
+  /**
+   * Sets the port for a given server UUID by recreating the server on the new port.
+   * @param params - The server UUID and new port.
+   */
+  public setPort = async ({ uuid, port }: CreateServerParams): Promise<void> => {
+    await this.createServer({ uuid, port })
+  }
+
+  // -------------------------------------------------------------------------
+  // Vector methods for Modbus register access (used by modbus-serial)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns the value of a coil for a given address and unitId.
+   * Calls the callback with the value or a Modbus error.
+   */
   private _getCoil: (uuid: string) => IServiceVector['getCoil'] =
     (uuid) => async (address, unitIdNumber, cb) => {
       const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
@@ -304,6 +409,10 @@ export class ModbusServer {
       cb(null, value)
     }
 
+  /**
+   * Returns the value of a discrete input for a given address and unitId.
+   * Calls the callback with the value or a Modbus error.
+   */
   private _getDiscreteInput: (uuid: string) => IServiceVector['getDiscreteInput'] =
     (uuid) => async (address, unitIdNumber, cb) => {
       const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
@@ -315,6 +424,10 @@ export class ModbusServer {
       cb(null, value)
     }
 
+  /**
+   * Returns the value of an input register for a given address and unitId.
+   * Calls the callback with the value or a Modbus error.
+   */
   private _getInputRegister: (uuid: string) => IServiceVector['getInputRegister'] =
     (uuid) => async (address, unitId, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitId))
@@ -326,6 +439,10 @@ export class ModbusServer {
       cb(null, value)
     }
 
+  /**
+   * Returns the value of a holding register for a given address and unitId.
+   * Calls the callback with the value or a Modbus error.
+   */
   private _getHoldingRegister: (uuid: string) => IServiceVector['getHoldingRegister'] =
     (uuid) => async (address, unitId, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitId))
@@ -337,6 +454,10 @@ export class ModbusServer {
       cb(null, value)
     }
 
+  /**
+   * Sets the value of a coil for a given address and unitId.
+   * Updates the server data and emits a value change event.
+   */
   private _setCoil: (uuid: string) => IServiceVector['setCoil'] =
     (uuid) => async (address, value, unitIdNumber, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
@@ -355,24 +476,31 @@ export class ModbusServer {
       cb(null)
     }
 
+  /**
+   * Sets the value of a holding register for a given address and unitId.
+   * Updates the server data and emits a value change event.
+   */
   private _setHoldingRegister: (uuid: string) => IServiceVector['setRegister'] =
-    (uuid) => async (address, value, unitIdNumber, cb) => {
+    (uuid) => async (address, raw, unitIdNumber, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
       const unitId = unitIdSafe.data
 
       const currentServerData = this._serverData.get(uuid)?.get(unitId) || getDefaultServerData()
-      currentServerData.holding_registers[address] = value
+      currentServerData.holding_registers[address] = raw
 
       const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
       perUnitMap.set(unitId, currentServerData)
 
       const registerType: NumberRegisters = 'holding_registers'
-      this._windows.send('register_value', { uuid, unitId, registerType, address, value })
+      this._windows.send('register_value', { uuid, unitId, registerType, address, raw })
 
       cb(null)
     }
 
+  /**
+   * Helper for returning a Modbus error via callback and emitting a backend message.
+   */
   private _mbError<T>(code: number, cb: FCallbackVal<T>, value: T): void {
     const err = new Error()
     err['modbusErrorCode'] = code

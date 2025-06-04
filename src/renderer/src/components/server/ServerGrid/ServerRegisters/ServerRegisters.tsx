@@ -1,5 +1,5 @@
 import { Edit } from '@mui/icons-material'
-import { Paper, Box, IconButton } from '@mui/material'
+import { Paper, Box, IconButton, alpha } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -26,10 +26,14 @@ const RowEdit = meme(({ register }: RowProps) => {
   )
 })
 
+const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
+  return <Box sx={{ pr: 2 }}>{register.value}</Box>
+}
+
 const ServerRegisterRow = meme(({ register }: RowProps) => {
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         width: '100%',
         height: 28,
         borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
@@ -37,16 +41,37 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
 
         display: 'flex',
         alignItems: 'center',
-        gap: 1
-      }}
+        gap: 1,
+
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.primary.dark, 0.2)
+        }
+      })}
     >
+      {register.params.littleEndian && (
+        <Box
+          sx={(theme) => ({
+            fontSize: 10,
+            fontWeight: 'bold',
+            backgroundColor: theme.palette.primary.dark,
+            borderRadius: 1,
+            lineHeight: 1,
+            px: 0.5,
+            pt: 0.5,
+            pb: 0.35,
+            mb: 0.2
+          })}
+        >
+          LE
+        </Box>
+      )}
       <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>
         {register.params.address}
       </Box>
       <Box sx={{ width: 46, opacity: 0.5, flexShrink: 0 }}>
         {register.params.dataType.replace(/_/, ' ').toUpperCase()}
       </Box>
-      <Box sx={{ pr: 2 }}>{register.value}</Box>
+      <ServerRegisterValue register={register} />
       <Box
         sx={{
           flex: 1,

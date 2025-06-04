@@ -2,9 +2,10 @@ import { Edit } from '@mui/icons-material'
 import { GridActionsColDef, useGridApiContext } from '@mui/x-data-grid'
 import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType, RegisterData } from '@shared'
-import { ReactElement, useRef, useState } from 'react'
+import { ReactElement, useEffect, useRef, useState } from 'react'
 
 interface ActionProps {
   address: number
@@ -21,6 +22,15 @@ const Action = ({ address, type }: ActionProps): JSX.Element => {
   const disabled = useRootZustand((z) => {
     return z.clientState.polling || z.clientState.connectState !== 'connected'
   })
+
+  // Set values to raw when opening the write modal so you see what the value is without scaling
+  // The button colors yellow when active, so it's clear it's active so the user has to switch is off manually
+  useEffect(() => {
+    if (!open) return
+    const showRawValues = useLayoutZustand.getState().showClientRawValues
+    if (!showRawValues) useLayoutZustand.getState().toggleShowClientRawValues()
+  }, [open])
+
   return (
     <>
       <GridActionsCellItem

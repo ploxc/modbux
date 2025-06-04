@@ -103,14 +103,14 @@ const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, r
 ValueInputForward.displayName = 'ValueInput'
 const ValueInput = meme(ValueInputForward)
 
-const ValueInputComponent = meme(() => {
+const ValueInputComponent = meme(({ address }: { address: number }) => {
   const value = useValueInputZustand((z) => z.value)
   const valid = useValueInputZustand((z) => z.valid)
   const setValue = useValueInputZustand((z) => z.setValue)
 
   return (
     <TextField
-      label="Value"
+      label={`Address ${address} value`}
       variant="outlined"
       size="small"
       sx={{ minWidth: 100 }}
@@ -341,7 +341,7 @@ const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props)
         {type === 'holding_registers' ? (
           <>
             <DataTypeSelect address={address} />
-            <ValueInputComponent />
+            <ValueInputComponent address={address} />
             <WriteRegistersButton />
           </>
         ) : (

@@ -131,7 +131,6 @@ const ServerConfig = (): JSX.Element => {
     <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
       <UnitId />
       <Port />
-      {/* <Restart /> */}
     </Box>
   )
 }

@@ -19,6 +19,10 @@ type ValueGeneratorParams = {
 } & RegisterParamsGeneratorPart &
   RegisterParamsBasePart
 
+/**
+ * ValueGenerator generates and updates Modbus register values at a set interval.
+ * It supports various data types and updates the server data and notifies the frontend.
+ */
 export class ValueGenerator {
   private _uuid: string
   private _unitId: UnitIdString
@@ -32,9 +36,12 @@ export class ValueGenerator {
   private _littleEndian: boolean
   private _interval: number
   private _comment: string
-
   private _intervalTimer: NodeJS.Timeout
 
+  /**
+   * Constructs a ValueGenerator.
+   * @param params - All parameters required for value generation and server data update.
+   */
   constructor({
     uuid,
     unitId,
@@ -62,66 +69,68 @@ export class ValueGenerator {
     this._interval = interval
     this._comment = comment
 
-    // Set initial value and the interval so it keeps generating new values
+    // Set initial value and start periodic updates
     this._updateValue()
     this._intervalTimer = setInterval(this._updateValue, interval)
   }
 
+  /**
+   * Disposes the generator: stops the interval and resets the register values to 0.
+   */
   public dispose = (): void => {
-    // Clear the interval timer so updateing the value is stopped
     clearInterval(this._intervalTimer)
 
-    // Reset the values in the server data based on the length of the datatype
-    const addressesToReset = ['int16', 'uint16'].includes(this._dataType)
-      ? [this._address]
-      : ['uint32', 'int32', 'float'].includes(this._dataType)
-        ? [this._address, this._address + 1]
-        : [this._address, this._address + 1, this._address + 2, this._address + 3]
+    // Determine how many addresses to reset based on data type size
+    let addressesToReset: number[]
+    if (['int16', 'uint16'].includes(this._dataType)) {
+      addressesToReset = [this._address]
+    } else if (['uint32', 'int32', 'float'].includes(this._dataType)) {
+      addressesToReset = [this._address, this._address + 1]
+    } else {
+      // e.g. double, 64-bit types
+      addressesToReset = [this._address, this._address + 1, this._address + 2, this._address + 3]
+    }
 
     addressesToReset.forEach((address) => {
       this._serverData[this._registerType][address] = 0
     })
   }
 
-  // Send the value to the front-end
-  private _sendValue = (value: number): void => {
-    this._windows.send('register_value', {
-      uuid: this._uuid,
-      unitId: this._unitId,
-      registerType: this._registerType,
-      address: this._address,
-      value
-    })
-  }
-
-  // Update the value in the serverdata so it can be read by a client
+  /**
+   * Updates the value in the server data and notifies the frontend.
+   * @param value - The new value to write to the register(s).
+   */
   private _updateServerData = (value: number): void => {
     const registers = createRegisters(this._dataType, value, this._littleEndian)
 
-    switch (this._registerType) {
-      case 'input_registers':
-        registers.forEach((register, index) => {
-          this._serverData['input_registers'][this._address + index] = register
-        })
-        break
-      case 'holding_registers':
-        registers.forEach((register, index) => {
-          this._serverData['holding_registers'][this._address + index] = register
-        })
-        break
-    }
+    registers.forEach((register, index) => {
+      const registerAddress = this._address + index
+      this._serverData[this._registerType][registerAddress] = register
+      this._windows.send('register_value', {
+        uuid: this._uuid,
+        unitId: this._unitId,
+        registerType: this._registerType,
+        address: registerAddress,
+        raw: register
+      })
+    })
   }
 
+  /**
+   * Generates a new value and updates the server data.
+   * Uses 2 decimals for float/double, 0 otherwise.
+   */
   private _updateValue = async (): Promise<void> => {
     const decimals = ['float', 'double'].includes(this._dataType) ? 2 : 0
     const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
-    this._sendValue(value)
     this._updateServerData(value)
   }
 
-  // To be able to rebuild the generators we can so export the parameters
+  /**
+   * Returns the parameters needed to reconstruct this generator.
+   */
   get params(): RegisterParams {
-    const params: RegisterParams = {
+    return {
       address: this._address,
       registerType: this._registerType,
       dataType: this._dataType,
@@ -131,6 +140,5 @@ export class ValueGenerator {
       littleEndian: this._littleEndian,
       comment: this._comment
     }
-    return params
   }
 }

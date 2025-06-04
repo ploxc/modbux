@@ -77,13 +77,13 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
 
   // Server
   ipcHandle('add_replace_server_register', (_, params) => server.addRegister(params))
-  ipcHandle('remove_server_register', (_, params) => server.removeRegisterValue(params))
+  ipcHandle('remove_server_register', (_, params) => server.removeRegister(params))
   ipcHandle('sync_server_register', (_, params) => server.syncServerRegisters(params))
   ipcHandle('reset_registers', (_, params) => server.resetRegisters(params))
   ipcHandle('set_bool', (_, params) => server.setBool(params))
   ipcHandle('reset_bools', (_, params) => server.resetBools(params))
   ipcHandle('sync_bools', (_, params) => server.syncBools(params))
-  ipcHandle('restart_server', (_, uuid) => server.restartServer(uuid))
+  ipcHandle('reset_server', (_, uuid) => server.resetServer(uuid))
   ipcHandle('set_server_port', (_, params) => server.setPort(params))
   ipcHandle('create_server', (_, params) => server.createServer(params))
   ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid))

@@ -115,7 +115,6 @@ const useShiftKeyListener = (): void => {
 const ClearStorageButton = meme(() => {
   const clearStorage = useCallback(() => {
     useRootZustand.persist.clearStorage()
-    useLayoutZustand.persist.clearStorage()
     useServerZustand.persist.clearStorage()
   }, [])
 
@@ -123,7 +122,7 @@ const ClearStorageButton = meme(() => {
   return shiftKeyDown ? (
     <Button
       onClick={clearStorage}
-      sx={{ position: 'absolute', right: 16, bottom: 16 }}
+      sx={{ position: 'absolute', left: 16, bottom: 16 }}
       variant="outlined"
       size="small"
     >
@@ -138,7 +137,7 @@ const Version = meme(() => {
   return (
     <Typography
       color="primary"
-      fontSize={11}
+      fontSize={14}
       fontWeight={'bold'}
       sx={{ position: 'fixed', right: 16, bottom: 12, opacity: 0.8 }}
     >
