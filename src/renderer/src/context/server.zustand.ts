@@ -87,19 +87,40 @@ export const useServerZustand = create<
             state.usedAddresses[uuid][unitId] = { ...defaultUsedAddresses }
           }
         }),
+      /**
+       * Remove all state entries for uuids that are not present in the uuids array.
+       * This prevents memory leaks and UI bugs from stale state.
+       */
+      cleanOrphanedServerState: () => {
+        set((state) => {
+          const uuids = state.uuids
+          Object.keys(state.port).forEach((uuid) => {
+            if (!uuids.includes(uuid)) {
+              delete state.port[uuid]
+              delete state.portValid[uuid]
+              delete state.unitId[uuid]
+              delete state.serverRegisters[uuid]
+              delete state.usedAddresses[uuid]
+              delete state.name[uuid]
+            }
+          })
+        })
+      },
       createServer: async (params) => {
+        // Only update port from backend response, never from input
         const actualPort = await window.api.createServer(params)
-        const { uuid } = params
+        const { uuid, port } = params
+
+        console.log({ port, uuid, actualPort })
 
         set((state) => {
           state.port[uuid] = String(actualPort)
           state.portValid[uuid] = true
-
           get().clean(uuid)
-
           state.uuids.push(uuid)
           state.selectedUuid = uuid
         })
+        get().cleanOrphanedServerState()
       },
       deleteServer: async (uuid) => {
         await window.api.deleteServer(uuid)
@@ -112,6 +133,7 @@ export const useServerZustand = create<
           delete state.serverRegisters[uuid]
           delete state.usedAddresses[uuid]
         })
+        get().cleanOrphanedServerState()
       },
       init: async () => {
         set((state) => {
@@ -132,6 +154,8 @@ export const useServerZustand = create<
         for (const uuid of state.uuids) {
           const port = Number(state.port[uuid])
           const actualPort = await window.api.setServerPort({ uuid, port })
+
+          console.log({ port, uuid, actualPort })
 
           set((state) => {
             state.port[uuid] = String(actualPort)
@@ -194,6 +218,8 @@ export const useServerZustand = create<
           // Create the main server if no server exists in persisted state
           state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
         }
+
+        get().cleanOrphanedServerState()
 
         set((state) => {
           state.ready = true
@@ -357,18 +383,28 @@ export const useServerZustand = create<
         const uuid = currentState.selectedUuid
         if (!currentState.ready) return
 
+        const { port: currentPorts, selectedUuid } = get() // removed unused uuids
+
+        get().cleanOrphanedServerState()
+
         // Port cannot be already used for a server
-        const { port: currentPorts, selectedUuid } = get()
         const portAlreadyExists = Object.values(currentPorts).includes(port)
         const portIsMyPort = port === currentPorts[selectedUuid]
 
+        console.log({ portAlreadyExists, portIsMyPort, port, selectedUuid, currentPorts })
+
+        if (portIsMyPort) valid = true // If this is my port, it is always valid
         if (portAlreadyExists && !portIsMyPort) valid = false
-        const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
+
         set((state) => {
           state.portValid[uuid] = !!valid
-          state.port[uuid] = String(actualPort)
+        })
+        if (!valid) return
 
-          if (!valid || currentState.port[uuid] === port) return
+        // Only update port from backend response
+        const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
+        set((state) => {
+          state.port[uuid] = String(actualPort)
         })
       },
       setUnitId: (unitId) => {

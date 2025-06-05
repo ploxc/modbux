@@ -12,6 +12,7 @@ import { IMaskInput, IMask } from 'react-imask'
 import Select from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
+import React, { useState } from 'react'
 
 interface UnitIdMenuItemProps {
   unitId: UnitIdString
@@ -75,6 +76,13 @@ const UnitId = meme(() => {
 
 const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
+  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid])
+  const [localPort, setLocalPort] = useState(portFromStore)
+
+  // Sync localPort with store if store changes (e.g. after backend update)
+  React.useEffect(() => {
+    setLocalPort(portFromStore)
+  }, [portFromStore])
 
   return (
     <IMaskInput
@@ -84,15 +92,16 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       min={0}
       max={65535}
       inputRef={ref}
-      // Port cannot exist yet
-      validate={(v) => {
-        const { port, selectedUuid } = useServerZustand.getState()
-        const portAlreadyExists = Object.values(port).includes(v)
-        const portIsMyPort = v === port[selectedUuid]
-
-        return !portAlreadyExists || portIsMyPort
+      value={localPort}
+      onAccept={(value: string) => {
+        setLocalPort(value)
       }}
-      onAccept={(value: string) => set(value, value.length > 0)}
+      onBlur={() => {
+        // Only call set if the value is different from the store
+        if (localPort !== portFromStore) {
+          set(localPort, localPort.length > 0)
+        }
+      }}
     />
   )
 })
@@ -109,7 +118,7 @@ const Port = meme(() => {
   return (
     <TextField
       error={!portValid}
-      label="Port"
+      label={`Port ${port}`}
       variant="outlined"
       size="small"
       sx={{ width: 80 }}

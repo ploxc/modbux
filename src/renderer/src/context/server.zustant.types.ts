@@ -35,6 +35,11 @@ export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema
 export type ServerZustand = {
   ready: boolean
   clean: (uuid: string) => void
+  /**
+   * Remove all state entries for uuids that are not present in the uuids array.
+   * This prevents memory leaks and UI bugs from stale state.
+   */
+  cleanOrphanedServerState: () => void
   setSelectedUuid: (uuid: string) => void
   createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
