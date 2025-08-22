@@ -172,6 +172,13 @@ export class ModbusServer {
     const maxAttempts = 100
     let server: ServerTCP | undefined
 
+    // Always cleanup generators for this UUID before (re)initializing
+    const unitIdGenerators = this._generatorMap.get(uuid)
+    if (unitIdGenerators) {
+      this._disposeAllGenerators(unitIdGenerators)
+      this._generatorMap.delete(uuid)
+    }
+
     const existingServer = this._servers.get(uuid)
     if (existingServer) {
       await new Promise<void>((resolve) => {
@@ -181,12 +188,15 @@ export class ModbusServer {
           resolve()
         })
       })
-    } else {
-      const perUnitMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(this._generatorMap, uuid)
-      UnitIdStringSchema.options.forEach((unitId) => {
-        perUnitMap.set(unitId, getDefaultGenerators())
-      })
+      this._servers.delete(uuid)
+      this._port.delete(uuid)
     }
+
+    // (Re)initialize generator map for all unitIds
+    const perUnitMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(this._generatorMap, uuid)
+    UnitIdStringSchema.options.forEach((unitId) => {
+      perUnitMap.set(unitId, getDefaultGenerators())
+    })
 
     for (let i = 0; i < maxAttempts; i++) {
       const isAvailable = await this._isPortAvailable(actualPort)
@@ -343,6 +353,18 @@ export class ModbusServer {
     unitId,
     registerValues
   }: SyncRegisterValueParams): void => {
+    // Cleanup generators only for this unitId
+    const unitIdGenerators = this._generatorMap.get(uuid)
+    if (unitIdGenerators) {
+      const generators = unitIdGenerators.get(unitId)
+      if (generators) {
+        generators.holding_registers.forEach((g) => g.dispose())
+        generators.input_registers.forEach((g) => g.dispose())
+        generators.holding_registers.clear()
+        generators.input_registers.clear()
+      }
+      unitIdGenerators.set(unitId, getDefaultGenerators())
+    }
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
     for (const params of registerValues) this.addRegister({ uuid, unitId, params })
@@ -353,14 +375,17 @@ export class ModbusServer {
    * Disposes all generators for that register type and clears the register data.
    */
   public resetRegisters = ({ uuid, unitId, registerType }: ResetRegistersParams): void => {
+    // Dispose and clear only generators for this unitId and registerType
     const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
       this._generatorMap,
       uuid
     )
     const serverGenerators = perUnitGeneratorMap.get(unitId)
-    const generators = serverGenerators?.[registerType]
-    generators?.forEach((generator) => generator.dispose())
-    generators?.clear()
+    if (serverGenerators) {
+      const generators = serverGenerators[registerType]
+      generators.forEach((generator) => generator.dispose())
+      generators.clear()
+    }
 
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()

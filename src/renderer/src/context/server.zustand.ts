@@ -68,7 +68,7 @@ export const useServerZustand = create<
 >(
   persist(
     mutative((set, get) => ({
-      ready: false,
+      ready: { [MAIN_SERVER_UUID]: false },
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [],
       port: {},
@@ -135,9 +135,10 @@ export const useServerZustand = create<
         })
         get().cleanOrphanedServerState()
       },
-      init: async () => {
+      init: async (uuid) => {
         set((state) => {
-          state.ready = false
+          if (uuid) state.ready[uuid] = false
+          else for (const u of state.uuids) state.ready[u] = false
         })
         const state = get()
 
@@ -150,18 +151,18 @@ export const useServerZustand = create<
           }
         })
 
-        // Synchorize settings
-        for (const uuid of state.uuids) {
-          const port = Number(state.port[uuid])
-          const actualPort = await window.api.setServerPort({ uuid, port })
+        // Determine which uuid should be initialized when provided
+        const uuidsToSync = uuid ? [uuid] : state.uuids
 
-          console.log({ port, uuid, actualPort })
+        for (const syncUuid of uuidsToSync) {
+          const port = Number(state.port[syncUuid])
+          const actualPort = await window.api.setServerPort({ uuid: syncUuid, port })
 
           set((state) => {
-            state.port[uuid] = String(actualPort)
+            state.port[syncUuid] = String(actualPort)
           })
 
-          const serverRegister = state.serverRegisters[uuid]
+          const serverRegister = state.serverRegisters[syncUuid]
           if (!serverRegister) continue
           const unitIds = Object.keys(serverRegister) as UnitIdString[]
           const unitIdsWithData = unitIds.filter((unitId) => {
@@ -174,15 +175,15 @@ export const useServerZustand = create<
             const coils: boolean[] = Array(65535).fill(false)
             const discreteInputs: boolean[] = Array(65535).fill(false)
 
-            Object.values(state.serverRegisters[uuid]?.[unitId]?.['coils'] ?? {}).forEach(
+            Object.values(serverRegister[unitId]?.['coils'] ?? {}).forEach(
               (value, address) => (coils[address] = value)
             )
-            Object.values(state.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] ?? {}).forEach(
+            Object.values(serverRegister[unitId]?.['discrete_inputs'] ?? {}).forEach(
               (value, address) => (discreteInputs[address] = value)
             )
 
-            window.api.syncBools({
-              uuid,
+            await window.api.syncBools({
+              uuid: syncUuid,
               unitId,
               coils,
               discrete_inputs: discreteInputs
@@ -190,14 +191,14 @@ export const useServerZustand = create<
 
             // Synchronize the value generators/registers with the server from persisted state
             const inputRegisterRegisterValues = Object.values(
-              state.serverRegisters[uuid]?.[unitId]?.['input_registers'] ?? []
+              serverRegister[unitId]?.['input_registers'] ?? []
             ).map((r) => r.params)
             const holdingRegisterRegisterValues = Object.values(
-              state.serverRegisters[uuid]?.[unitId]?.['holding_registers'] ?? []
+              serverRegister[unitId]?.['holding_registers'] ?? []
             ).map((r) => r.params)
 
-            window.api.syncServerRegister({
-              uuid,
+            await window.api.syncServerRegister({
+              uuid: syncUuid,
               unitId,
               registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
             })
@@ -206,24 +207,27 @@ export const useServerZustand = create<
             const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
 
             set((state) => {
-              if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
-              if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
-              state.usedAddresses[uuid][unitId]['input_registers'] = inputUsedAddresses
-              state.usedAddresses[uuid][unitId]['holding_registers'] = holdingUsedAddresses
+              if (!state.usedAddresses[syncUuid]) state.usedAddresses[syncUuid] = {}
+              if (!state.usedAddresses[syncUuid][unitId]) state.usedAddresses[syncUuid][unitId] = {}
+              state.usedAddresses[syncUuid][unitId]['input_registers'] = inputUsedAddresses
+              state.usedAddresses[syncUuid][unitId]['holding_registers'] = holdingUsedAddresses
             })
           }
+
+          set((state) => {
+            state.ready[syncUuid] = true
+          })
         }
 
         if (state.uuids.length === 0) {
           // Create the main server if no server exists in persisted state
           state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+          set((state) => {
+            state.ready[MAIN_SERVER_UUID] = true
+          })
         }
 
         get().cleanOrphanedServerState()
-
-        set((state) => {
-          state.ready = true
-        })
       },
       setSelectedUuid: (uuid) =>
         set((state) => {
@@ -381,7 +385,7 @@ export const useServerZustand = create<
       setPort: async (port, valid) => {
         const currentState = get()
         const uuid = currentState.selectedUuid
-        if (!currentState.ready) return
+        if (!currentState.ready[uuid]) return
 
         const { port: currentPorts, selectedUuid } = get() // removed unused uuids
 
@@ -410,7 +414,7 @@ export const useServerZustand = create<
       setUnitId: (unitId) => {
         const currentState = get()
         const uuid = currentState.selectedUuid
-        if (!currentState.ready) return
+        if (!currentState.ready[uuid]) return
         set((state) => {
           state.unitId[uuid] = unitId
         })
@@ -420,7 +424,6 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           state.serverRegisters[uuid][unitId] = registers
-          get().init()
         })
       },
       getUnitId: (uuid: string): UnitIdString => {

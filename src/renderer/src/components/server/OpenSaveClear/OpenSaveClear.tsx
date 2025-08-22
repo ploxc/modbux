@@ -99,9 +99,8 @@ const useOpen: UseOpenHook = () => {
         enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
       }
 
-      // Need to initialize the server again after opening the configuration
-      // to synchronize the front with backend registers
-      await state.init()
+      // Synchronize only the selected server after opening the configuration
+      await state.init(state.selectedUuid)
 
       openingRef.current = false
       setOpening(false)

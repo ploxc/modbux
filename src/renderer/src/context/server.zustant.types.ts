@@ -33,7 +33,7 @@ export const PersistedServerZustandSchema = z.object({
 export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema>
 
 export type ServerZustand = {
-  ready: boolean
+  ready: { [uuid: string]: boolean }
   clean: (uuid: string) => void
   /**
    * Remove all state entries for uuids that are not present in the uuids array.
@@ -43,7 +43,7 @@ export type ServerZustand = {
   setSelectedUuid: (uuid: string) => void
   createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
-  init: () => Promise<void>
+  init: (uuid?: string) => Promise<void>
   addBools: (type: BooleanRegisters, address: number) => void
   removeBool: (type: BooleanRegisters, address: number) => void
   setBool: (
