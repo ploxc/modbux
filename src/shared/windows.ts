@@ -23,7 +23,12 @@ export class Windows {
 
   public send = <E extends IpcEvent>(event: E, ...args: IpcEventPayloadMap[E]): void => {
     try {
-      Object.values(this._windows).forEach((w) => w?.webContents.send(event, ...args))
+      Object.values(this._windows).forEach((w) => {
+        // Check if window exists and isn't destroyed
+        if (w && !w.isDestroyed() && w.webContents && !w.webContents.isDestroyed()) {
+          w.webContents.send(event, ...args)
+        }
+      })
     } catch (error) {
       /**
        * When the window is closed on macos sending a window update will throw an error.

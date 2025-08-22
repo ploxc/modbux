@@ -32,6 +32,22 @@ export const PersistedServerZustandSchema = z.object({
 
 export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema>
 
+export interface SetBoolParameters {
+  registerType: BooleanRegisters
+  address: number
+  boolState: boolean
+  optionalUuid?: string
+  optionalUnitId?: UnitIdString
+}
+
+export interface SetRegisterValueParameters {
+  registerType: NumberRegisters
+  address: number
+  value: number
+  optionalUuid?: string
+  optionalUnitId?: UnitIdString
+}
+
 export type ServerZustand = {
   ready: { [uuid: string]: boolean }
   clean: (uuid: string) => void
@@ -46,23 +62,11 @@ export type ServerZustand = {
   init: (uuid?: string) => Promise<void>
   addBools: (type: BooleanRegisters, address: number) => void
   removeBool: (type: BooleanRegisters, address: number) => void
-  setBool: (
-    type: BooleanRegisters,
-    address: number,
-    value: boolean,
-    uuid?: string,
-    unitId?: UnitIdString
-  ) => void
+  setBool: (params: SetBoolParameters | Array<SetBoolParameters>) => void
   resetBools: (type: BooleanRegisters) => void
   addRegister: (params: AddRegisterParams) => void
   removeRegister: (params: RemoveRegisterParams) => void
-  setRegisterValue: (
-    type: NumberRegisters,
-    address: number,
-    value: number,
-    uuid?: string,
-    unitId?: UnitIdString
-  ) => void
+  setRegisterValue: (params: SetRegisterValueParameters | Array<SetRegisterValueParameters>) => void
   resetRegisters: (type: NumberRegisters) => void
   setPort: MaskSetFn
   setUnitId: MaskSetFn<UnitIdString>

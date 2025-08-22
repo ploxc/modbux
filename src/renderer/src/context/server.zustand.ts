@@ -4,6 +4,8 @@ import {
   PersistedServerZustand,
   PersistedServerZustandSchema,
   ServerZustand,
+  SetBoolParameters,
+  SetRegisterValueParameters,
   UsedAddresses
 } from './server.zustant.types'
 import { mutative } from 'zustand-mutative'
@@ -273,16 +275,21 @@ export const useServerZustand = create<
           }
         })
       },
-      setBool: (registerType, address, boolState, optionalUuid, optionalUnitId) => {
-        const uuid = optionalUuid ?? get().selectedUuid
-        const unitId = optionalUnitId ?? get().getUnitId(uuid)
+      setBool: (params) => {
         set((state) => {
-          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
-          if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+          if (!Array.isArray(params)) params = [params]
+
+          for (const p of params) {
+            const { registerType, address, boolState, optionalUuid, optionalUnitId } = p
+            const uuid = optionalUuid ?? get().selectedUuid
+            const unitId = optionalUnitId ?? get().getUnitId(uuid)
+            if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
+            if (!state.serverRegisters[uuid][unitId]) {
+              state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            }
+            state.serverRegisters[uuid][unitId][registerType][address] = boolState
+            // window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
           }
-          state.serverRegisters[uuid][unitId][registerType][address] = boolState
-          window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
         })
       },
       resetBools: (registerType) => {
@@ -354,15 +361,20 @@ export const useServerZustand = create<
         })
         window.api.removeServerRegister(removeParams)
       },
-      setRegisterValue: (type, address, value, optionalUuid, optionalUnitId) => {
-        const uuid = optionalUuid ?? get().selectedUuid
-        const unitId = optionalUnitId ?? get().getUnitId(uuid)
+      setRegisterValue: (params) => {
+        if (!Array.isArray(params)) params = [params]
         set((state) => {
-          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
-          if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+          for (const p of params) {
+            const { registerType, address, value, optionalUuid, optionalUnitId } = p
+            const uuid = optionalUuid ?? get().selectedUuid
+            const unitId = optionalUnitId ?? get().getUnitId(uuid)
+
+            if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
+            if (!state.serverRegisters[uuid][unitId]) {
+              state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            }
+            state.serverRegisters[uuid][unitId][registerType][address].value = value
           }
-          state.serverRegisters[uuid][unitId][type][address].value = value
         })
       },
       resetRegisters: (registerType) => {
@@ -488,6 +500,30 @@ const getRegisterLength = (dataType: DataType): number => {
     default:
       return 0
   }
+}
+
+// Update register values in batches to avoid excessive re-renders
+const setRegisterParameterSet = new Set<SetRegisterValueParameters>()
+
+const updateRegisterCountMax = 250
+let updateRegisterCount = 0
+let updateRegisterTimeout: NodeJS.Timeout
+
+const delayedSetRegister = () => {
+  clearTimeout(updateRegisterTimeout)
+
+  const update = () => {
+    state.setRegisterValue(Array.from(setRegisterParameterSet))
+    setRegisterParameterSet.clear()
+    updateRegisterCount = 0
+  }
+
+  if (updateRegisterCount++ > updateRegisterCountMax) {
+    update()
+    return
+  }
+
+  updateRegisterTimeout = setTimeout(update, 50)
 }
 
 // On raw register value result
@@ -616,13 +652,55 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   }
 
   const value = round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
-  state.setRegisterValue(registerType, entryAddress, value, uuid, unitId)
+
+  setRegisterParameterSet.add({
+    registerType,
+    address: entryAddress,
+    value,
+    optionalUuid: uuid,
+    optionalUnitId: unitId
+  })
+
+  delayedSetRegister()
 })
+
+// Update boolean values in batches to avoid excessive re-renders
+const setBooleanParameterSet = new Set<SetBoolParameters>()
+
+const updateBoolCountMax = 250
+let updateBoolCount = 0
+let updateBoolTimeout: NodeJS.Timeout
+
+const delayedSetBool = () => {
+  clearTimeout(updateBoolTimeout)
+
+  const update = () => {
+    state.setBool(Array.from(setBooleanParameterSet))
+    setBooleanParameterSet.clear()
+    updateBoolCount = 0
+  }
+
+  if (updateBoolCount++ > updateBoolCountMax) {
+    update()
+    return
+  }
+
+  updateBoolTimeout = setTimeout(update, 50)
+}
 
 onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
   const state = useServerZustand.getState()
   if (state.serverRegisters[uuid]?.[unitId]?.[registerType][address] === undefined) return
 
   const currentBool = state.serverRegisters[uuid][unitId][registerType][address]
-  if (currentBool !== value) state.setBool(registerType, address, value, uuid, unitId)
+  if (currentBool !== value) {
+    setBooleanParameterSet.add({
+      registerType,
+      address,
+      boolState: value,
+      optionalUuid: uuid,
+      optionalUnitId: unitId
+    })
+    delayedSetBool()
+  }
 })
