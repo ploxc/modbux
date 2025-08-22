@@ -109,8 +109,8 @@ onIpcEvent('open_server_window', () => {
   if (windows.server) return
 
   windows.server = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1400,
+    height: 920,
     minWidth: 820,
     minHeight: 800,
     autoHideMenuBar: true,
