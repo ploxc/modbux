@@ -30,7 +30,9 @@ const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) =
       sx={{ flex: 1, flexBasis: 0 }}
       size="small"
       variant={variant}
-      onClick={() => useServerZustand.getState().setBool(type, address, !bool)}
+      onClick={() =>
+        useServerZustand.getState().setBool({ registerType: type, address, boolState: !bool })
+      }
     >
       {address}
     </Button>
