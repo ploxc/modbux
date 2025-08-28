@@ -503,7 +503,8 @@ const getRegisterLength = (dataType: DataType): number => {
 }
 
 // Update register values in batches to avoid excessive re-renders
-const setRegisterParameterSet = new Set<SetRegisterValueParameters>()
+const pendingCompositeValues = new Map<string, number | bigint>()
+const setRegisterParameterMap = new Map<string, SetRegisterValueParameters>()
 
 const updateRegisterCountMax = 250
 let updateRegisterCount = 0
@@ -513,8 +514,9 @@ const delayedSetRegister = () => {
   clearTimeout(updateRegisterTimeout)
 
   const update = () => {
-    state.setRegisterValue(Array.from(setRegisterParameterSet))
-    setRegisterParameterSet.clear()
+    state.setRegisterValue(Array.from(setRegisterParameterMap.values()))
+    setRegisterParameterMap.clear()
+    pendingCompositeValues.clear()
     updateRegisterCount = 0
   }
 
@@ -547,9 +549,10 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
     return
   }
 
-  // Extract the parameters and current composite value
-  const { params, value: currentValue } = serverRegisterEntry
-  const { dataType, littleEndian } = params
+  // Extract the parameters and current composite value (from cache when state isn't updated yet)
+  const cacheKey = `${uuid}-${unitId}-${registerType}-${entryAddress}`
+  const currentValue = pendingCompositeValues.get(cacheKey) ?? serverRegisterEntry.value
+  const { dataType, littleEndian } = serverRegisterEntry.params
 
   // 2) Calculate how many registers this DataType spans
   const registersCount = getRegisterLength(dataType)
@@ -653,7 +656,9 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 
   const value = round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
 
-  setRegisterParameterSet.add({
+  pendingCompositeValues.set(cacheKey, newComposite)
+
+  setRegisterParameterMap.set(cacheKey, {
     registerType,
     address: entryAddress,
     value,
@@ -665,7 +670,8 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 })
 
 // Update boolean values in batches to avoid excessive re-renders
-const setBooleanParameterSet = new Set<SetBoolParameters>()
+const setBooleanParameterSet = new Map<string, SetBoolParameters>()
+const pendingBooleanValues = new Map<string, boolean>()
 
 const updateBoolCountMax = 250
 let updateBoolCount = 0
@@ -675,8 +681,9 @@ const delayedSetBool = () => {
   clearTimeout(updateBoolTimeout)
 
   const update = () => {
-    state.setBool(Array.from(setBooleanParameterSet))
+    state.setBool(Array.from(setBooleanParameterSet.values()))
     setBooleanParameterSet.clear()
+    pendingBooleanValues.clear()
     updateBoolCount = 0
   }
 
@@ -692,9 +699,14 @@ onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
   const state = useServerZustand.getState()
   if (state.serverRegisters[uuid]?.[unitId]?.[registerType][address] === undefined) return
 
-  const currentBool = state.serverRegisters[uuid][unitId][registerType][address]
+  const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`
+  const currentBool =
+    pendingBooleanValues.get(cacheKey) ?? state.serverRegisters[uuid][unitId][registerType][address]
+
   if (currentBool !== value) {
-    setBooleanParameterSet.add({
+    pendingBooleanValues.set(cacheKey, value)
+
+    setBooleanParameterSet.set(cacheKey, {
       registerType,
       address,
       boolState: value,
