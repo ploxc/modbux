@@ -23,17 +23,17 @@ import {
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
 
-const defaultServerRegisters: ServerRegisters = {
+const getDefaultServerRegisters = (): ServerRegisters => ({
   coils: {},
   discrete_inputs: {},
   input_registers: {},
   holding_registers: {}
-}
+})
 
-const defaultUsedAddresses: UsedAddresses = {
+const getDefaultUsedAddresses = (): UsedAddresses => ({
   input_registers: [],
   holding_registers: []
-}
+})
 
 const getUsedAddresses = (registers: RegisterParams[]) => {
   const addressSet = new Set<number>()
@@ -85,8 +85,8 @@ export const useServerZustand = create<
           state.serverRegisters[uuid] = {}
           state.usedAddresses[uuid] = {}
           for (const unitId of UnitIdStringSchema.options) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
-            state.usedAddresses[uuid][unitId] = { ...defaultUsedAddresses }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
+            state.usedAddresses[uuid][unitId] = getDefaultUsedAddresses()
           }
         }),
       /**
@@ -251,7 +251,7 @@ export const useServerZustand = create<
             if (state.serverRegisters[uuid]?.[unitId]?.[registerType][i]) continue
             if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
             if (!state.serverRegisters[uuid][unitId]) {
-              state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+              state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
             state.serverRegisters[uuid][unitId][registerType][i] = false
             window.api.setBool({ uuid, unitId, registerType, address: i, state: false })
@@ -265,7 +265,7 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
           for (let i = baseAddress; i < baseAddress + 8; i++) {
             // Don't remove when not existing
@@ -285,7 +285,7 @@ export const useServerZustand = create<
             const unitId = optionalUnitId ?? get().getUnitId(uuid)
             if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
             if (!state.serverRegisters[uuid][unitId]) {
-              state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+              state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
             state.serverRegisters[uuid][unitId][registerType][address] = boolState
             // window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
@@ -307,7 +307,7 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
           state.serverRegisters[uuid][unitId][registerType] = {}
           const newBools: SyncBoolsParameters = {
@@ -325,7 +325,7 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
           state.serverRegisters[uuid][unitId][params.registerType][params.address] = {
             value: 0,
@@ -348,7 +348,7 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
           delete state.serverRegisters[uuid][unitId][registerType][address]
           // Update used addresses after deletion
@@ -371,7 +371,7 @@ export const useServerZustand = create<
 
             if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
             if (!state.serverRegisters[uuid][unitId]) {
-              state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+              state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
             state.serverRegisters[uuid][unitId][registerType][address].value = value
           }
@@ -384,11 +384,11 @@ export const useServerZustand = create<
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = { ...defaultServerRegisters }
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
           if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
           if (!state.usedAddresses[uuid][unitId]) {
-            state.usedAddresses[uuid][unitId] = { ...defaultUsedAddresses }
+            state.usedAddresses[uuid][unitId] = getDefaultUsedAddresses()
           }
           state.serverRegisters[uuid][unitId][registerType] = {}
           state.usedAddresses[uuid][unitId][registerType] = []
