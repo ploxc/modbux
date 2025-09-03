@@ -125,19 +125,14 @@ const useSave: UseSaveHook = () => {
     const name = z.name[selectedUuid] ?? ''
 
     const serverRegistersPerUnit: ServerRegistersPerUnit = {}
-    const uuids = Object.keys(serverRegisters)
-    for (const uuid of uuids) {
-      const registersPerUnit = serverRegisters[uuid]
-      if (!registersPerUnit) continue
 
-      Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
-        if (!checkHasConfig(registers)) return
-        if (!serverRegistersPerUnit[unitId]) {
-          serverRegistersPerUnit[unitId] = {}
-        }
-        serverRegistersPerUnit[unitId] = registers
-      })
-    }
+    const registersPerUnit = serverRegisters[selectedUuid]
+    if (!registersPerUnit) return
+
+    Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
+      if (!checkHasConfig(registers)) return
+      serverRegistersPerUnit[unitId] = registers
+    })
 
     const config: ServerConfig = {
       name,
