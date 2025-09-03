@@ -23,7 +23,7 @@ const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
 const SelectServer = meme(() => {
   const serverUuids = useServerZustand((z) => z.uuids)
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
-  const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 8)
+  const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 10)
 
   const addServer = useCallback(async () => {
     const z = useServerZustand.getState()
