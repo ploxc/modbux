@@ -348,18 +348,18 @@ export class ModbusClient {
     switch (dataType) {
       case 'int16':
       case 'uint16':
-      case 'float':
-      case 'double':
         return 1
 
+      case 'float':
       case 'int32':
       case 'uint32':
+      case 'datetime':
       case 'unix':
         return 2
 
       case 'int64':
       case 'uint64':
-      case 'datetime':
+      case 'double':
         return 4
 
       case 'utf8':
