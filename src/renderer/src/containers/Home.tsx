@@ -7,7 +7,6 @@ import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { useServerZustand } from '@renderer/context/server.zustand'
 import { sendEvent } from '@renderer/events'
 
 //
@@ -108,29 +107,6 @@ const useShiftKeyListener = (): void => {
   }, [keyDownListener, keyUpListener])
 }
 
-//
-//
-// Clear storage button
-// ! don't know if i will keep it, don't know if it's necessary or will be used
-const ClearStorageButton = meme(() => {
-  const clearStorage = useCallback(() => {
-    useRootZustand.persist.clearStorage()
-    useServerZustand.persist.clearStorage()
-  }, [])
-
-  const shiftKeyDown = useLayoutZustand((z) => z.homeShiftKeyDown)
-  return shiftKeyDown ? (
-    <Button
-      onClick={clearStorage}
-      sx={{ position: 'absolute', left: 16, bottom: 16 }}
-      variant="outlined"
-      size="small"
-    >
-      Clear Storage
-    </Button>
-  ) : null
-})
-
 const Version = meme(() => {
   const version = useRootZustand((z) => z.version)
 
@@ -197,7 +173,6 @@ const Home = meme(() => {
           </Button>
           <ClientButton />
         </Box>
-        <ClearStorageButton />
         <Version />
       </Box>
     </Fade>

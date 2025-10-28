@@ -72,13 +72,13 @@ export const useServerZustand = create<
     mutative((set, get) => ({
       ready: { [MAIN_SERVER_UUID]: false },
       selectedUuid: MAIN_SERVER_UUID,
-      uuids: [],
-      port: {},
-      portValid: {},
-      unitId: {},
-      serverRegisters: {},
-      usedAddresses: {},
-      name: {},
+      uuids: [MAIN_SERVER_UUID],
+      port: { [MAIN_SERVER_UUID]: '502' },
+      portValid: { [MAIN_SERVER_UUID]: true },
+      unitId: { [MAIN_SERVER_UUID]: undefined },
+      serverRegisters: { [MAIN_SERVER_UUID]: undefined },
+      usedAddresses: { [MAIN_SERVER_UUID]: undefined },
+      name: { [MAIN_SERVER_UUID]: undefined },
       clean: (uuid) =>
         set((state) => {
           state.unitId[uuid] = '0'
@@ -164,11 +164,18 @@ export const useServerZustand = create<
             state.port[syncUuid] = String(actualPort)
           })
 
-          const serverRegister = state.serverRegisters[syncUuid]
-          if (!serverRegister) continue
-          const unitIds = Object.keys(serverRegister) as UnitIdString[]
+          // Check if server registers are present in the state for the uuid (there should be)
+          let serverRegisters = state.serverRegisters[syncUuid]
+          if (!serverRegisters) {
+            serverRegisters = {}
+            set((state) => {
+              state.serverRegisters[syncUuid] = {}
+            })
+          }
+
+          const unitIds = Object.keys(serverRegisters) as UnitIdString[]
           const unitIdsWithData = unitIds.filter((unitId) => {
-            const reg = serverRegister[unitId]
+            const reg = serverRegisters[unitId]
             return checkHasConfig(reg)
           })
 
@@ -177,10 +184,10 @@ export const useServerZustand = create<
             const coils: boolean[] = Array(65535).fill(false)
             const discreteInputs: boolean[] = Array(65535).fill(false)
 
-            Object.values(serverRegister[unitId]?.['coils'] ?? {}).forEach(
+            Object.values(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
               (value, address) => (coils[address] = value)
             )
-            Object.values(serverRegister[unitId]?.['discrete_inputs'] ?? {}).forEach(
+            Object.values(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
               (value, address) => (discreteInputs[address] = value)
             )
 
@@ -193,10 +200,10 @@ export const useServerZustand = create<
 
             // Synchronize the value generators/registers with the server from persisted state
             const inputRegisterRegisterValues = Object.values(
-              serverRegister[unitId]?.['input_registers'] ?? []
+              serverRegisters[unitId]?.['input_registers'] ?? []
             ).map((r) => r.params)
             const holdingRegisterRegisterValues = Object.values(
-              serverRegister[unitId]?.['holding_registers'] ?? []
+              serverRegisters[unitId]?.['holding_registers'] ?? []
             ).map((r) => r.params)
 
             await window.api.syncServerRegister({
