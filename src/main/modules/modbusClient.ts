@@ -35,7 +35,7 @@ import { Windows } from '@shared'
 
 type BuildAddrInfosFn = (
   items: [string, RegisterMapValue][]
-) => Array<{ address: number; registerCount: number }>
+) => Array<{ address: number; registerCount: number; groupEnd: boolean }>
 
 type TryReadFn = (type: RegisterType, address: number, length: number) => Promise<RegisterData[]>
 
@@ -393,7 +393,8 @@ export class ModbusClient {
 
         return {
           address,
-          registerCount
+          registerCount,
+          groupEnd: !!item[1].groupEnd
         }
       })
       .filter((i) => i !== undefined)
@@ -432,28 +433,31 @@ export class ModbusClient {
 
     // 2) Continue until we have grouped all items
     while (i < sorted.length) {
-      // a) This block starts at the current item's address
+      // This block starts at the current item's address
       const startAddr = sorted[i].address
-      // b) Initial endAddr is the last register used by this item
+      // Initial endAddr is the last register used by this item
       let endAddr = startAddr + sorted[i].registerCount - 1
-      // c) j will scan forward to see how many items we can pack
+      // j will scan forward to see how many items we can pack
       let j = i
 
       // 3) Try to include as many following entries as still fit under maxLength
       while (j + 1 < sorted.length) {
-        const next = sorted.at(j + 1) // using .at() for safer access
-        if (!next) break // should never happen, but just in case
+        // Check if current item is marked as group end - if so, stop here
+        if (sorted[j].groupEnd) {
+          break
+        }
 
-        const nextEnd = next.address + next.registerCount - 1 // its last occupied register
-        const candidateEnd = Math.max(endAddr, nextEnd) // span covering both items
-        const span = candidateEnd - startAddr + 1 // total registers from start
+        const next = sorted.at(j + 1)
+        if (!next) break
+
+        const nextEnd = next.address + next.registerCount - 1
+        const candidateEnd = Math.max(endAddr, nextEnd)
+        const span = candidateEnd - startAddr + 1
 
         if (span <= maxLength) {
-          // if it still fits, extend our block
           endAddr = candidateEnd
           j++
         } else {
-          // otherwise stop growing this block
           break
         }
       }

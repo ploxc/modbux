@@ -31,9 +31,24 @@ string {
 }
 
 /**
- * Build an object whose keys are camelCase method names derived from
- * the snake_case channel values, and whose values are functions that
- * call ipcInvoke(channelName, ...args).
+ * AUTOMATIC IPC HANDLER GENERATION
+ *
+ * This code automatically converts snake_case IPC channels to camelCase methods.
+ *
+ * HOW IT WORKS:
+ * 1. Takes all channels from IPC_CHANNELS (e.g., 'get_connection_config')
+ * 2. Converts to camelCase (e.g., 'getConnectionConfig')
+ * 3. Creates a method that calls ipcInvoke with the original channel name
+ * 4. Exposes on window.api with full TypeScript support
+ *
+ * ADDING A NEW CHANNEL:
+ * 1. Add channel name to IPC_CHANNELS in shared/types/ipc.ts
+ * 2. Define args/return in IpcHandlerSpec
+ * 3. Done! Method is automatically available as window.api.yourMethodName()
+ *
+ * EXAMPLE:
+ *   IPC_CHANNELS: 'update_register_config'
+ *   → window.api.updateRegisterConfig(config)
  */
 const handlers = Object.fromEntries(
   (Object.values(IPC_CHANNELS) as Array<keyof IpcHandlerMap>).map((channelName) => {

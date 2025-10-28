@@ -45,7 +45,7 @@ export const useRootZustand = create<
       setRegisterMapping: (register, key, value) => {
         const type = get().registerConfig.type
 
-        return set((state) => {
+        set((state) => {
           if (!state.registerMapping[type][register]) {
             state.registerMapping[type][register] = { [key]: value }
             return
@@ -58,6 +58,8 @@ export const useRootZustand = create<
 
           state.registerMapping[type][register][key] = value
         })
+
+        window.api.setRegisterMapping(get().registerMapping)
       },
       replaceRegisterMapping: (registerMapping) =>
         set((state) => {

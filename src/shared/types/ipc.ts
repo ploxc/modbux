@@ -25,6 +25,18 @@ import type {
 } from '@shared'
 import { SharedProps } from 'notistack'
 
+/**
+ * IPC Channel Definitions
+ *
+ * Channel names are defined in snake_case (e.g., 'get_connection_config').
+ * These are automatically converted to camelCase methods on window.api
+ * in the preload script (e.g., window.api.getConnectionConfig()).
+ *
+ * To add a new IPC channel:
+ * 1. Add the channel name to IPC_CHANNELS
+ * 2. Define its args and return type in IpcHandlerSpec
+ * 3. The camelCase method will be automatically available on window.api
+ */
 export const IPC_CHANNELS = [
   'get_connection_config',
   'update_connection_config',
