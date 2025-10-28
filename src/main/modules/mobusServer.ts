@@ -125,8 +125,6 @@ export class ModbusServer {
     for (const registerTypeGenerators of unitMap.values()) {
       registerTypeGenerators.holding_registers.forEach((g) => g.dispose())
       registerTypeGenerators.input_registers.forEach((g) => g.dispose())
-      registerTypeGenerators.holding_registers.clear()
-      registerTypeGenerators.input_registers.clear()
     }
   }
 
@@ -172,13 +170,6 @@ export class ModbusServer {
     const maxAttempts = 100
     let server: ServerTCP | undefined
 
-    // Always cleanup generators for this UUID before (re)initializing
-    const unitIdGenerators = this._generatorMap.get(uuid)
-    if (unitIdGenerators) {
-      this._disposeAllGenerators(unitIdGenerators)
-      this._generatorMap.delete(uuid)
-    }
-
     const existingServer = this._servers.get(uuid)
     if (existingServer) {
       await new Promise<void>((resolve) => {
@@ -191,12 +182,6 @@ export class ModbusServer {
       this._servers.delete(uuid)
       this._port.delete(uuid)
     }
-
-    // (Re)initialize generator map for all unitIds
-    const perUnitMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(this._generatorMap, uuid)
-    UnitIdStringSchema.options.forEach((unitId) => {
-      perUnitMap.set(unitId, getDefaultGenerators())
-    })
 
     for (let i = 0; i < maxAttempts; i++) {
       const isAvailable = await this._isPortAvailable(actualPort)
@@ -270,7 +255,11 @@ export class ModbusServer {
       uuid
     )
     const serverGenerators = perUnitGeneratorMap.get(unitId) ?? getDefaultGenerators()
-    if (!perUnitGeneratorMap.has(unitId)) perUnitGeneratorMap.set(unitId, serverGenerators)
+
+    if (!perUnitGeneratorMap.has(unitId)) {
+      perUnitGeneratorMap.set(unitId, serverGenerators)
+    }
+
     const generators = serverGenerators[registerType]
     const generator = generators.get(address)
     generator?.dispose()
@@ -363,7 +352,6 @@ export class ModbusServer {
         generators.holding_registers.clear()
         generators.input_registers.clear()
       }
-      unitIdGenerators.set(unitId, getDefaultGenerators())
     }
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
