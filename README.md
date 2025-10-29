@@ -75,11 +75,11 @@ It's a typo I always made, _modbux_ instead of _modbus_. But it fits: it's your 
 
 Saved configs are JSON. Show Claude or ChatGPT a few example registers, paste your device documentation, ask it to complete the mapping. Load it back into Modbux, done. Welcome to 2025.
 
-## Contributing
+## Download
 
-Found a bug? Have a feature request? **Please open an issue!** Modbux was born from real-world frustrations, and your feedback helps make it better for everyone in the industry.
+**[Download the latest release](https://github.com/ploxc/modbux/releases/latest)**
 
-Feel free to contribute—whether it's reporting issues, suggesting features, or submitting pull requests. Let's build the Modbus tool we all wish we'd had from day one.
+Available for Windows and macOS
 
 ## Installation
 
@@ -137,6 +137,12 @@ yarn build:mac
 # For Linux
 yarn build:linux
 ```
+
+## Contributing
+
+Found a bug? Have a feature request? **Please open an issue!** Modbux was born from real-world frustrations, and your feedback helps make it better for everyone in the industry.
+
+Feel free to contribute—whether it's reporting issues, suggesting features, or submitting pull requests. Let's build the Modbus tool we all wish we'd had from day one.
 
 ## License
 
