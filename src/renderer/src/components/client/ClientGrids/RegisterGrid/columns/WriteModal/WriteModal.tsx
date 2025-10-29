@@ -307,7 +307,7 @@ interface Props {
   address: number
   open: boolean
   onClose: () => void
-  actionCellRef: RefObject<HTMLDivElement>
+  actionCellRef: RefObject<HTMLButtonElement>
   type: RegisterType
 }
 

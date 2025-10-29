@@ -80,7 +80,7 @@ interface Props {
   address: number
   open: boolean
   onClose: () => void
-  actionCellRef: RefObject<HTMLDivElement>
+  actionCellRef: RefObject<HTMLButtonElement>
   type: RegisterType
 }
 
@@ -168,7 +168,7 @@ interface ActionProps {
 const Action = ({ type, address }: ActionProps): JSX.Element => {
   const [open, setOpen] = useState(false)
 
-  const actionCellRef = useRef<HTMLDivElement>(null)
+  const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
   const enabledDatatypes: DataType[] = [

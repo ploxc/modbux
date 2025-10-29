@@ -81,6 +81,21 @@ Found a bug? Have a feature request? **Please open an issue!** Modbux was born f
 
 Feel free to contribute—whether it's reporting issues, suggesting features, or submitting pull requests. Let's build the Modbus tool we all wish we'd had from day one.
 
+## Installation
+
+### Windows
+
+Download the `.exe` file from releases.
+
+⚠️ **SmartScreen warning**: Click "More info" → "Run anyway"
+
+### macOS
+
+Download the `.dmg` file from releases.
+
+⚠️ **First time opening**: Right-click the app and select "Open"
+(or go to System Preferences → Security & Privacy → "Open Anyway")
+
 ## Build It Yourself
 
 Modbux is an Electron application built with React, TypeScript, and Material-UI.

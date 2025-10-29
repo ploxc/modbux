@@ -16,7 +16,7 @@ const Action = ({ address, type }: ActionProps): JSX.Element => {
   const [open, setOpen] = useState(false)
 
   const text = type === 'coils' ? 'Write Coil' : 'Write Register'
-  const actionCellRef = useRef<HTMLDivElement>(null)
+  const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
   const disabled = useRootZustand((z) => {

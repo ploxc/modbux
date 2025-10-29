@@ -22,7 +22,7 @@ export const bigEndian32 = (buffer: Buffer, offset: number): Buffer => {
 }
 
 // Uncommon least significant word first (little endian)
-export const littleEndian32 = (buffer: Buffer, offset: number): Buffer => {
+export const littleEndian32 = (buffer: Buffer, offset: number): Buffer<ArrayBuffer> => {
   return Buffer.concat([
     buffer.subarray(offset + 2, offset + 4) as Uint8Array,
     buffer.subarray(offset, offset + 2) as Uint8Array
@@ -35,7 +35,7 @@ export const bigEndian64 = (buffer: Buffer, offset: number): Buffer => {
 }
 
 // Uncommon least significant word first (little endian)
-export const littleEndian64 = (buffer: Buffer, offset: number): Buffer => {
+export const littleEndian64 = (buffer: Buffer, offset: number): Buffer<ArrayBuffer> => {
   return Buffer.concat([
     buffer.subarray(offset + 6, offset + 8) as Uint8Array,
     buffer.subarray(offset + 4, offset + 6) as Uint8Array,
