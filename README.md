@@ -95,7 +95,7 @@ Modbux is an Electron application built with React, TypeScript, and Material-UI.
 **Clone and install dependencies:**
 
 ```bash
-git clone [your-repo-url]
+git clone https://github.com/ploxc/modbux.git
 cd modbux
 yarn
 ```
