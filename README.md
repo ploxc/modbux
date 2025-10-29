@@ -33,10 +33,6 @@
 
 Save your configurations. Load them back. Your state persists between sessions, close the app and pick up right where you left off. Never lose that hard-won register mapping again.
 
-## Documentation
-
-For detailed usage instructions, see the [User Manual](./docs/MANUAL.md).
-
 ## UI
 
 ![Modbux Client UI](./resources/modbux-client.png)
