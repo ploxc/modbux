@@ -3,3 +3,8 @@ dist
 out
 .DS_Store
 *.log*
+.env
+.env.*
+*.p12
+*.cer
+*.certSigningRequest

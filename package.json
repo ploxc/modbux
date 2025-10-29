@@ -1,13 +1,21 @@
 {
   "name": "modbux",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "A Modbus Client/Server tool",
   "main": "./out/main/index.js",
   "author": {
     "name": "Jens De Ketelaere",
     "email": "deketelaerejens@gmail.com"
   },
-  "homepage": "https://electron-vite.org",
+  "license": "MIT",
+  "homepage": "https://github.com/ploxc/modbux",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ploxc/modbux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ploxc/modbux/issues"
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",

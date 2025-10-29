@@ -8,7 +8,7 @@
     "src/shared/**/*.ts"
   ],
   "compilerOptions": {
-    // "composite": true, // gives me errors with zustand, mutative
+    // "composite": true, // gave me errors with zustand, mutative
     "strict": true,
     "jsx": "react-jsx",
     "baseUrl": ".",

@@ -127,10 +127,11 @@ yarn build:mac
 yarn build:linux
 ```
 
-### Recommended IDE Setup
+## License
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
+## Third-Party Software
 
-_Built with [Electron](https://www.electronjs.org/), bootstrapped using `yarn create @quick-start/electron`_
+This software uses open-source packages with permissive licenses (MIT, ISC, Apache-2.0, BSD).
+All third-party licenses are included in the distributed application.
