@@ -28,20 +28,13 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
   const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
 
-  const address = useRootZustand((z) => z.registerConfig.address)
-  const length = useRootZustand((z) => z.registerConfig.length)
-
   const showRaw = useLayoutZustand((z) => z.showClientRawValues)
 
   return useMemo(() => {
     const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
-    const showConventionalAddress = Number(address) + length < 10000
-
     const columns: GridColDef<RegisterData>[] = [addressColumn]
-    if (showConventionalAddress || addressBase === '1') {
-      columns.push(conventionalAddresColumn(type, addressBase, showConventionalAddress))
-    }
+    columns.push(conventionalAddresColumn(type, addressBase))
 
     if (!registers16Bit) {
       columns.push(bitColumn)
@@ -86,7 +79,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     }
 
     return columns
-  }, [type, addressBase, advanced, show64Bit, registerMap, address, length, showRaw])
+  }, [type, addressBase, advanced, show64Bit, registerMap, showRaw])
 }
 
 export default useRegisterGridColumns

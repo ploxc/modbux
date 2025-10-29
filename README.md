@@ -1,6 +1,10 @@
 # Modbux
 
-## A Modbus Client & Server Simulation Tool That Actually Gets It
+> by [ploxc](https://github.com/ploxc)
+
+<img src="./resources/icon.png" alt="Logo" width="60" />
+
+## A Modbus Client & Server Simulation Tool
 
 **Modbux is the tool I desperately needed four years ago.** It handles both Modbus TCP and RTU, lets you assign datatypes to registers, scan for addresses and data, simulate servers for testing, and actually _understand_ what you're reading, all in one app.
 
@@ -31,7 +35,11 @@ Save your configurations. Load them back. Your state persists between sessions, 
 
 ## Documentation
 
-For detailed usage instructions, see the [User Manual](MANUAL.md).
+For detailed usage instructions, see the [User Manual](./docs/MANUAL.md).
+
+## UI
+
+![Modbux Client UI](./resources/modbux-client.png)
 
 ## Why This Exists
 

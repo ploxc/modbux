@@ -4,19 +4,19 @@ import { getConventionalAddress, RegisterData, RegisterType } from '@shared'
 
 export const conventionalAddresColumn = (
   type: RegisterType,
-  addressBase: string,
-  showConventionalAddress: boolean
+  addressBase: string
 ): GridColDef<RegisterData, number> => ({
   field: 'conventionalAddress',
   sortable: false,
   headerName: 'Conv.',
   width: 60,
   renderCell: ({ row }): JSX.Element => {
-    const value = showConventionalAddress
-      ? getConventionalAddress(type, String(row.id), addressBase)
-      : addressBase === '1'
-        ? row.id + Number(addressBase)
-        : ''
+    const value =
+      row.id < 10000
+        ? getConventionalAddress(type, String(row.id), addressBase)
+        : addressBase === '1'
+          ? row.id + Number(addressBase)
+          : ''
 
     return (
       <Box
