@@ -38,6 +38,7 @@
     "@electron-toolkit/utils": "^3.0.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
+    "@fontsource/inter": "^5.2.8",
     "@fontsource/roboto": "^5.1.0",
     "@mui/base": "^5.0.0-beta.40",
     "@mui/icons-material": "^6.1.0",

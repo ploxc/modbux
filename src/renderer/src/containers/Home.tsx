@@ -1,5 +1,5 @@
 import { CallSplit } from '@mui/icons-material'
-import { Fade, Box, Button, Typography } from '@mui/material'
+import { Fade, Box, Button, Typography, SxProps } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useCallback, useEffect } from 'react'
@@ -8,6 +8,8 @@ import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { sendEvent } from '@renderer/events'
+import Ploxc from '@renderer/svg/Ploxc'
+import GithubCat from '@renderer/svg/GithubCat'
 
 //
 //
@@ -107,20 +109,48 @@ const useShiftKeyListener = (): void => {
   }, [keyDownListener, keyUpListener])
 }
 
-const Version = meme(() => {
+const bottomElementsCommonSx: SxProps = {
+  position: 'fixed',
+  bottom: 12,
+  display: 'flex',
+  gap: 1,
+  opacity: 0.75,
+  textDecoration: 'none',
+  '&:hover': { opacity: 1 }
+}
+
+const PloxcLogo = (): JSX.Element => {
+  return (
+    <Box
+      component={'a'}
+      href="https://github.com/ploxc"
+      target="_blank"
+      rel="noreferrer"
+      sx={{ left: 16, ...bottomElementsCommonSx }}
+    >
+      <Ploxc sx={{ height: 18 }} />
+      <Typography sx={{ fontWeight: 800, color: '#cccccc' }}>Ploxc</Typography>
+    </Box>
+  )
+}
+
+const Version = (): JSX.Element => {
   const version = useRootZustand((z) => z.version)
 
   return (
-    <Typography
-      color="primary"
-      fontSize={14}
-      fontWeight={'bold'}
-      sx={{ position: 'fixed', right: 16, bottom: 12, opacity: 0.8 }}
+    <Box
+      component={'a'}
+      href="https://github.com/ploxc/modbux"
+      target="_blank"
+      sx={{ right: 16, ...bottomElementsCommonSx }}
     >
-      {version}
-    </Typography>
+      <Typography color="primary" fontSize={14} fontWeight={800}>
+        {version}
+      </Typography>
+      <GithubCat sx={{ width: 16 }} />
+    </Box>
   )
-})
+}
 
 //
 //
@@ -154,12 +184,7 @@ const Home = meme(() => {
             opacity: 0.1
           })}
         />
-        <Box
-          sx={() => ({
-            display: 'flex',
-            gap: 3
-          })}
-        >
+        <Box sx={() => ({ display: 'flex', gap: 3 })}>
           <ServerButton />
           <Button
             onClick={() => {
@@ -173,6 +198,7 @@ const Home = meme(() => {
           </Button>
           <ClientButton />
         </Box>
+        <PloxcLogo />
         <Version />
       </Box>
     </Fade>
