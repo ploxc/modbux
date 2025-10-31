@@ -8,30 +8,43 @@
 
 **Modbux is the tool I desperately needed four years ago.** It handles both Modbus TCP and RTU, lets you assign datatypes to registers, scan for addresses and data, simulate servers for testing, and actually _understand_ what you're reading, all in one app.
 
-## What It Does
+## Download
 
-**Client Side:**
+**[Download the latest release](https://github.com/ploxc/modbux/releases/latest)**
 
-- Read and write with full datatype support (int16, float32, double, timestamps, UTF-8 strings, you name it)
-- See _all_ data interpretations at once, no more guessing if it's big-endian or little-endian
-- Scan addresses _and_ registers (because sometimes docs are just wrong)
-- Handle ranges beyond 125 registers automatically
-- Switch between 0-based and 1-based addressing for visual reference
-- Apply scaling and linear interpolation
-- Full message logging, see exactly what's being sent and received
-- Works with both Modbus TCP and RTU
+Available for Windows and macOS
 
-**Server Side:**
+**[📖 Read the documentation](https://github.com/ploxc/modbux/wiki)**
 
-- Simulate up to 10 devices simultaneously
-- Each server has all 255 unit IDs available
-- Generate static or random moving values within ranges
-- Perfect for testing PLC code before commissioning
-- Auto-starts on launch, instant testing environment
+## Features
 
-**Split-view mode** lets you run client and server side-by-side. Test against your own simulations, create training scenarios, or validate implementations before ever leaving your desk.
+**Client Mode:**
 
-Save your configurations. Load them back. Your state persists between sessions, close the app and pick up right where you left off. Never lose that hard-won register mapping again.
+- Read/write with 16 data types (int16/32/64, uint16/32/64, float, double, timestamps, UTF-8 strings)
+- Advanced mode: see all data type interpretations simultaneously
+- Read Configuration mode: efficiently read only configured registers with automatic grouping
+- Scan Unit IDs and register ranges
+- Big-endian / Little-endian support
+- Scaling factors and linear interpolation
+- Transaction logging
+- Modbus TCP and RTU support
+- Configuration save/load (JSON)
+
+**Server Mode:**
+
+- Simulate up to 10 Modbus devices
+- 248 Unit IDs per server (0-247)
+- Static or random value generation
+- Instant auto-start for testing
+
+**Split Mode:**
+
+- Run client and server side-by-side in separate windows
+- Test against your own simulations locally
+
+**State Persistence:**
+
+- Everything saves automatically between sessions
 
 ## UI
 
@@ -74,12 +87,6 @@ It's a typo I always made, _modbux_ instead of _modbus_. But it fits: it's your 
 ## Pro Tip: Let AI Do the Boring Stuff
 
 Saved configs are JSON. Show Claude or ChatGPT a few example registers, paste your device documentation, ask it to complete the mapping. Load it back into Modbux, done. Welcome to 2025.
-
-## Download
-
-**[Download the latest release](https://github.com/ploxc/modbux/releases/latest)**
-
-Available for Windows and macOS
 
 ## Installation
 

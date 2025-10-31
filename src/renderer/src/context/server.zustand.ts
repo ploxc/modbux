@@ -118,6 +118,7 @@ export const useServerZustand = create<
         set((state) => {
           state.port[uuid] = String(actualPort)
           state.portValid[uuid] = true
+          state.ready[uuid] = true
           get().clean(uuid)
           state.uuids.push(uuid)
           state.selectedUuid = uuid
