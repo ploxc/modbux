@@ -14,7 +14,7 @@
 
 Available for Windows and macOS
 
-**[📖 Read the documentation](https://github.com/ploxc/modbux/wiki)**
+**[Read the documentation](https://github.com/ploxc/modbux/wiki)**
 
 ## Features
 
