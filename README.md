@@ -20,14 +20,13 @@ Available for Windows and macOS
 
 **Client Mode:**
 
-- Read/write with 16 data types (int16/32/64, uint16/32/64, float, double, timestamps, UTF-8 strings)
-- Advanced mode: see all data type interpretations simultaneously
+- Read/write with 11 data types (int16/32/64, uint16/32/64, float, double, timestamps, UTF-8 strings)
+- Advanced mode: see all numeric data type interpretations simultaneously
 - Read Configuration mode: efficiently read only configured registers with automatic grouping
 - Scan Unit IDs and register ranges
-- Big-endian / Little-endian support
+- Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
-- Transaction logging
-- Modbus TCP and RTU support
+- Modbus TCP and RTU support for client
 - Configuration save/load (JSON)
 
 **Server Mode:**
