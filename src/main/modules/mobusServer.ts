@@ -190,6 +190,13 @@ export class ModbusServer {
           host: '0.0.0.0',
           port: actualPort
         })
+
+        // // !Debug connection loss
+        // const netServer = server['_server'] as net.Server
+        // netServer.on('connection', (sock) => {
+        //   sock.destroy()
+        // })
+
         this._servers.set(uuid, server)
         this._port.set(uuid, actualPort)
         return actualPort

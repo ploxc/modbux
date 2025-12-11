@@ -235,10 +235,16 @@ export class ModbusClient {
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
+
+    const wasConnecting = this._clientState.connectState === 'connecting'
+
     this._clientState.connectState = 'disconnecting'
     this._sendClientState()
     if (!this._client.isOpen) {
-      this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
+      if (!wasConnecting) {
+        this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
+      }
+      this._client.destroy(() => {})
       this._setDisconnected()
       return
     }
