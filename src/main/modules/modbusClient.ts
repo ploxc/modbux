@@ -70,6 +70,9 @@ export class ModbusClient {
   private _reconnectTimeout: NodeJS.Timeout | undefined
   private _shouldAutoReconnect = true
   private _reconnectDelay = 3000 // ms
+  private _consecutiveReconnects = 0
+  private _maxConsecutiveReconnects = 5
+  private _reconnectResetTimeout: NodeJS.Timeout | undefined
 
   private _deliberateDisconnect = false
 
@@ -90,7 +93,7 @@ export class ModbusClient {
           // Only emit reconnecting message if not already in connecting state
           if (!this._reconnectTimeout) {
             this._emitMessage({
-              message: 'Connection lost, attempting to reconnect...',
+              message: `Connection lost, reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
               variant: 'warning',
               error: null
             })
@@ -170,6 +173,19 @@ export class ModbusClient {
   // --- Auto-reconnect logic ---
   private _reconnectTriggered = false
   private _scheduleReconnect = (): void => {
+    this._consecutiveReconnects++
+
+    if (this._consecutiveReconnects >= this._maxConsecutiveReconnects) {
+      this._shouldAutoReconnect = false
+      this._emitMessage({
+        message: 'Too many consecutive reconnect attempts, giving up',
+        variant: 'error',
+        error: null
+      })
+      this._setDisconnected()
+      return
+    }
+
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = setTimeout(() => {
       this._reconnectTriggered = true
@@ -180,6 +196,7 @@ export class ModbusClient {
   // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
     this._shouldAutoReconnect = true
+    if (!this._reconnectTriggered) this._consecutiveReconnects = 0
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = undefined
     this._clientState.connectState = 'connecting'
@@ -228,6 +245,10 @@ export class ModbusClient {
         })
       }
 
+      if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
+      this._reconnectResetTimeout = setTimeout(() => {
+        this._consecutiveReconnects = 0
+      }, 10000)
       this._setConnected()
     } catch (error) {
       const port = protocol === 'ModbusRtu' ? com : undefined
@@ -248,6 +269,8 @@ export class ModbusClient {
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
+    this._consecutiveReconnects = 0
+    if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
 
     const wasConnecting = this._clientState.connectState === 'connecting'
