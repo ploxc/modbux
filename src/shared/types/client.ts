@@ -235,3 +235,16 @@ export interface BooleanValue {
 }
 
 export type AddressGroup = [number, number]
+
+//
+//
+// Serial port discovery
+export interface SerialPortInfo {
+  path: string
+  manufacturer?: string
+}
+
+export interface SerialPortValidationResult {
+  valid: boolean
+  message: string
+}

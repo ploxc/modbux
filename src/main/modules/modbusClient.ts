@@ -70,6 +70,9 @@ export class ModbusClient {
   private _reconnectTimeout: NodeJS.Timeout | undefined
   private _shouldAutoReconnect = true
   private _reconnectDelay = 3000 // ms
+  private _consecutiveReconnects = 0
+  private _maxConsecutiveReconnects = 5
+  private _reconnectResetTimeout: NodeJS.Timeout | undefined
 
   private _deliberateDisconnect = false
 
@@ -90,7 +93,7 @@ export class ModbusClient {
           // Only emit reconnecting message if not already in connecting state
           if (!this._reconnectTimeout) {
             this._emitMessage({
-              message: 'Connection lost, attempting to reconnect...',
+              message: `Connection lost, reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
               variant: 'warning',
               error: null
             })
@@ -115,6 +118,15 @@ export class ModbusClient {
   }
 
   // Events
+  private _humanizeSerialError = (error: Error, port?: string): string => {
+    const prefix = port ? `${port}: ` : ''
+    const msg = error.message.toLowerCase()
+    if (msg.includes('file not found')) return `${prefix}Port not found or not available`
+    if (msg.includes('access denied') || msg.includes('permission denied'))
+      return `${prefix}Port access denied (already in use?)`
+    return error.message
+  }
+
   private _emitMessage = (message: BackendMessage): void => {
     this._windows.send('backend_message', message)
   }
@@ -161,6 +173,19 @@ export class ModbusClient {
   // --- Auto-reconnect logic ---
   private _reconnectTriggered = false
   private _scheduleReconnect = (): void => {
+    this._consecutiveReconnects++
+
+    if (this._consecutiveReconnects >= this._maxConsecutiveReconnects) {
+      this._shouldAutoReconnect = false
+      this._emitMessage({
+        message: 'Too many consecutive reconnect attempts, giving up',
+        variant: 'error',
+        error: null
+      })
+      this._setDisconnected()
+      return
+    }
+
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = setTimeout(() => {
       this._reconnectTriggered = true
@@ -171,6 +196,7 @@ export class ModbusClient {
   // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
     this._shouldAutoReconnect = true
+    if (!this._reconnectTriggered) this._consecutiveReconnects = 0
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = undefined
     this._clientState.connectState = 'connecting'
@@ -219,9 +245,18 @@ export class ModbusClient {
         })
       }
 
+      if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
+      this._reconnectResetTimeout = setTimeout(() => {
+        this._consecutiveReconnects = 0
+      }, 10000)
       this._setConnected()
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      const port = protocol === 'ModbusRtu' ? com : undefined
+      this._emitMessage({
+        message: this._humanizeSerialError(error as Error, port),
+        variant: 'error',
+        error
+      })
       this._setDisconnected()
     }
 
@@ -234,11 +269,19 @@ export class ModbusClient {
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
+    this._consecutiveReconnects = 0
+    if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
+
+    const wasConnecting = this._clientState.connectState === 'connecting'
+
     this._clientState.connectState = 'disconnecting'
     this._sendClientState()
     if (!this._client.isOpen) {
-      this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
+      if (!wasConnecting) {
+        this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
+      }
+      this._client.destroy(() => {})
       this._setDisconnected()
       return
     }
@@ -1042,6 +1085,40 @@ export class ModbusClient {
     // Set scanning registers to false so the scanning is stopped
     // after the last asynchonous operation has completed.
     this._clientState.scanningRegisters = false
+  }
+
+  // Serial port discovery
+  public listSerialPorts = async (): Promise<{ path: string; manufacturer?: string }[]> => {
+    try {
+      const ports = await ModbusRTU.getPorts()
+      return ports.map((p) => ({
+        path: p.path,
+        manufacturer: p.manufacturer ?? undefined
+      }))
+    } catch (error) {
+      const message = this._humanizeSerialError(error as Error)
+      this._emitMessage({ message, variant: 'error', error })
+      return []
+    }
+  }
+
+  public validateSerialPort = async (
+    portPath: string
+  ): Promise<{ valid: boolean; message: string }> => {
+    try {
+      const ports = await ModbusRTU.getPorts()
+      const found = ports.some((p) => p.path.toLowerCase() === portPath.toLowerCase())
+      return {
+        valid: found,
+        message: found
+          ? `Port "${portPath}" is available`
+          : `Port "${portPath}" was not found in available ports`
+      }
+    } catch (error) {
+      const message = this._humanizeSerialError(error as Error, portPath)
+      this._emitMessage({ message, variant: 'error', error })
+      return { valid: false, message }
+    }
   }
 
   get state(): ClientState {

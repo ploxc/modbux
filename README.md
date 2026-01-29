@@ -32,7 +32,7 @@ Available for Windows and macOS
 **Server Mode:**
 
 - Simulate up to 10 Modbus devices
-- 248 Unit IDs per server (0-247)
+- 256 Unit IDs per server (0-255)
 - Static or random value generation
 - Instant auto-start for testing
 

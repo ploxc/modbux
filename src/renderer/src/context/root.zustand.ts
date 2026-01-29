@@ -152,7 +152,6 @@ export const useRootZustand = create<
 
           state.valid.com = !!valid
           state.connectionConfig.rtu.com = com
-          if (!valid) return
           window.api.updateConnectionConfig({ rtu: { com } })
         }),
       setBaudRate: (baudRate) =>
@@ -324,7 +323,32 @@ export const useRootZustand = create<
       setVersion: (version) =>
         set((state) => {
           state.version = version
+        }),
+
+      // Serial port discovery
+      serialPorts: [],
+      serialPortsLoading: false,
+      serialPortValidating: false,
+      refreshSerialPorts: async () => {
+        set((state) => {
+          state.serialPortsLoading = true
         })
+        const ports = await window.api.listSerialPorts()
+        set((state) => {
+          state.serialPorts = ports
+          state.serialPortsLoading = false
+        })
+      },
+      validateSerialPort: async (portPath) => {
+        set((state) => {
+          state.serialPortValidating = true
+        })
+        const result = await window.api.validateSerialPort(portPath)
+        set((state) => {
+          state.serialPortValidating = false
+        })
+        return result
+      }
     })),
     {
       name: `root.zustand`,

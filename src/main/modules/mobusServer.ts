@@ -190,6 +190,15 @@ export class ModbusServer {
           host: '0.0.0.0',
           port: actualPort
         })
+
+        // // !Debug: Simulate connection loss by destroying incoming sockets after a delay.
+        // // - Short delay (e.g. 3000ms): triggers burst detection (reconnects fail within the 10s stability window)
+        // // - Long delay (e.g. 15000ms): allows stable connection, so the reconnect counter resets between drops
+        // const netServer = server['_server'] as net.Server
+        // netServer.on('connection', (sock) => {
+        //   setTimeout(() => sock.destroy(), 3000)
+        // })
+
         this._servers.set(uuid, server)
         this._port.set(uuid, actualPort)
         return actualPort
