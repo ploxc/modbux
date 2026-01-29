@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   ButtonProps,
+  CircularProgress,
   InputBaseComponentProps,
   TextField,
   ToggleButton,
@@ -43,7 +44,7 @@ const ConnectButton = meme(() => {
 
   const action = useCallback(() => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState
-    if (currentConnectedState === 'connected') {
+    if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
       setRegisterData([])
       return
@@ -54,14 +55,26 @@ const ConnectButton = meme(() => {
     }
   }, [setRegisterData])
 
-  const disabled = ['connecting', 'disconnecting'].includes(connectState)
-  const color: ButtonProps['color'] = connectState === 'connected' ? 'warning' : 'primary'
+  const disabled = ['disconnecting'].includes(connectState)
+
+  const color: ButtonProps['color'] = ['connecting', 'connected'].includes(connectState)
+    ? 'warning'
+    : 'primary'
+
   const text =
-    connectState === 'connected'
-      ? 'Disconnect'
-      : connectState === 'disconnected'
-        ? 'Connect'
-        : '...'
+    connectState === 'connected' ? (
+      'Disconnect'
+    ) : connectState === 'disconnected' ? (
+      'Connect'
+    ) : (
+      <CircularProgress
+        size={18}
+        title="Cancel"
+        sx={(theme) => ({
+          color: theme.palette.warning.contrastText
+        })}
+      />
+    )
 
   return (
     <Button sx={{ width: 100 }} disabled={disabled} onClick={action} color={color}>
