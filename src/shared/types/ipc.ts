@@ -21,7 +21,9 @@ import type {
   RegisterValue,
   BooleanValue,
   WindowsOpen,
-  AddressGroup
+  AddressGroup,
+  SerialPortInfo,
+  SerialPortValidationResult
 } from '@shared'
 import { SharedProps } from 'notistack'
 
@@ -64,7 +66,9 @@ export const IPC_CHANNELS = [
   'get_app_version',
   'create_server',
   'delete_server',
-  'reset_server'
+  'reset_server',
+  'list_serial_ports',
+  'validate_serial_port'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -239,6 +243,18 @@ export interface IpcHandlerSpec {
   ['reset_server']: {
     args: [string]
     return: void
+  }
+
+  /** List available serial ports */
+  ['list_serial_ports']: {
+    args: []
+    return: SerialPortInfo[]
+  }
+
+  /** Validate whether a serial port path exists */
+  ['validate_serial_port']: {
+    args: [string]
+    return: SerialPortValidationResult
   }
 }
 

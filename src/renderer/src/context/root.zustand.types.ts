@@ -9,7 +9,9 @@ import {
   ScanUnitIDResult,
   RegisterMappingSchema,
   ConnectionConfigSchema,
-  RegisterConfigSchema
+  RegisterConfigSchema,
+  SerialPortInfo,
+  SerialPortValidationResult
 } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import z from 'zod'
@@ -89,6 +91,13 @@ export type RootZusand = {
   setReadConfiguration: (readConfiguration: boolean) => void
   // Version
   setVersion: (version: string) => void
+
+  // Serial port discovery
+  serialPorts: SerialPortInfo[]
+  serialPortsLoading: boolean
+  serialPortValidating: boolean
+  refreshSerialPorts: () => Promise<void>
+  validateSerialPort: (portPath: string) => Promise<SerialPortValidationResult>
 } & PersistedRootZustand
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void

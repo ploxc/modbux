@@ -115,6 +115,15 @@ export class ModbusClient {
   }
 
   // Events
+  private _humanizeSerialError = (error: Error, port?: string): string => {
+    const prefix = port ? `${port}: ` : ''
+    const msg = error.message.toLowerCase()
+    if (msg.includes('file not found')) return `${prefix}Port not found or not available`
+    if (msg.includes('access denied') || msg.includes('permission denied'))
+      return `${prefix}Port access denied (already in use?)`
+    return error.message
+  }
+
   private _emitMessage = (message: BackendMessage): void => {
     this._windows.send('backend_message', message)
   }
@@ -221,7 +230,12 @@ export class ModbusClient {
 
       this._setConnected()
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      const port = protocol === 'ModbusRtu' ? com : undefined
+      this._emitMessage({
+        message: this._humanizeSerialError(error as Error, port),
+        variant: 'error',
+        error
+      })
       this._setDisconnected()
     }
 
@@ -1042,6 +1056,40 @@ export class ModbusClient {
     // Set scanning registers to false so the scanning is stopped
     // after the last asynchonous operation has completed.
     this._clientState.scanningRegisters = false
+  }
+
+  // Serial port discovery
+  public listSerialPorts = async (): Promise<{ path: string; manufacturer?: string }[]> => {
+    try {
+      const ports = await ModbusRTU.getPorts()
+      return ports.map((p) => ({
+        path: p.path,
+        manufacturer: p.manufacturer ?? undefined
+      }))
+    } catch (error) {
+      const message = this._humanizeSerialError(error as Error)
+      this._emitMessage({ message, variant: 'error', error })
+      return []
+    }
+  }
+
+  public validateSerialPort = async (
+    portPath: string
+  ): Promise<{ valid: boolean; message: string }> => {
+    try {
+      const ports = await ModbusRTU.getPorts()
+      const found = ports.some((p) => p.path.toLowerCase() === portPath.toLowerCase())
+      return {
+        valid: found,
+        message: found
+          ? `Port "${portPath}" is available`
+          : `Port "${portPath}" was not found in available ports`
+      }
+    } catch (error) {
+      const message = this._humanizeSerialError(error as Error, portPath)
+      this._emitMessage({ message, variant: 'error', error })
+      return { valid: false, message }
+    }
   }
 
   get state(): ClientState {

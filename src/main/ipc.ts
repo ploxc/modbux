@@ -90,6 +90,10 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
 
   // App Version
   ipcHandle('get_app_version', () => app.getVersion())
+
+  // Serial port discovery
+  ipcHandle('list_serial_ports', () => client.listSerialPorts())
+  ipcHandle('validate_serial_port', (_, portPath) => client.validateSerialPort(portPath))
 }
 
 /**
