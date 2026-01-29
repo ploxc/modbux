@@ -9,7 +9,7 @@ const UnitIdInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
       {...other}
       mask={IMask.MaskedNumber}
       min={0}
-      max={247}
+      max={255}
       autofix
       inputRef={ref}
       onAccept={(value) => set(value, true)}

@@ -50,7 +50,7 @@ const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
       {...other}
       mask={IMask.MaskedNumber}
       min={min}
-      max={247}
+      max={255}
       autofix
       inputRef={ref}
       onAccept={(value) => set(value, true)}
