@@ -39,7 +39,14 @@ const AddButton = meme(
         <PlusCircleFilled size={10} />
       )
     return (
-      <IconButton onClick={handleClick} size="small" color="primary">
+      <IconButton
+        data-testid={`add-${type}-btn`}
+        aria-label={`Add ${type.replace(/_/g, ' ')}`}
+        title={`Add ${type.replace(/_/g, ' ')}`}
+        onClick={handleClick}
+        size="small"
+        color="primary"
+      >
         {icon}
       </IconButton>
     )
@@ -58,7 +65,14 @@ const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => 
   }, [registerType])
 
   return (
-    <IconButton onClick={handleClick} size="small" color="primary">
+    <IconButton
+      data-testid={`delete-${registerType}-btn`}
+      aria-label={`Delete all ${registerType.replace(/_/g, ' ')}`}
+      title={`Delete all ${registerType.replace(/_/g, ' ')}`}
+      onClick={handleClick}
+      size="small"
+      color="primary"
+    >
       <DeleteFilled size={10} />
     </IconButton>
   )
@@ -80,6 +94,9 @@ const ServerPartTitleName = meme(
     })
     return (
       <Box
+        data-testid={`section-${registerType}`}
+        aria-label={`Toggle ${name} section`}
+        role="button"
         sx={(theme) => ({
           flex: 1,
           flexBasis: 0,

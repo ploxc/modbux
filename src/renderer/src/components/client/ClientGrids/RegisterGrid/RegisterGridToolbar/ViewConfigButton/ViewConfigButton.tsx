@@ -35,6 +35,8 @@ const ViewConfigButton = (): JSX.Element => {
 
   return (
     <IconButton
+      data-testid="view-config-btn"
+      aria-label="View configuration"
       disabled={disabled}
       size="small"
       onClick={showMapping}

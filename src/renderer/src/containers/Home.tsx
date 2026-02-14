@@ -20,6 +20,7 @@ const ClientButton = meme(() => {
   const connected = useRootZustand((z) => z.clientState.connectState === 'connected')
   return (
     <Button
+      data-testid="home-client-btn"
       variant="contained"
       sx={{
         display: 'flex',
@@ -61,6 +62,7 @@ const ServerButton = meme((): JSX.Element => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   return (
     <Button
+      data-testid="home-server-btn"
       variant="contained"
       sx={{
         display: 'flex',
@@ -122,6 +124,8 @@ const bottomElementsCommonSx: SxProps = {
 const PloxcLogo = (): JSX.Element => {
   return (
     <Box
+      data-testid="home-ploxc-link"
+      aria-label="Ploxc GitHub"
       component={'a'}
       href="https://github.com/ploxc"
       target="_blank"
@@ -139,6 +143,8 @@ const Version = (): JSX.Element => {
 
   return (
     <Box
+      data-testid="home-version-link"
+      aria-label="Modbux GitHub"
       component={'a'}
       href="https://github.com/ploxc/modbux"
       target="_blank"
@@ -187,6 +193,9 @@ const Home = meme(() => {
         <Box sx={() => ({ display: 'flex', gap: 3 })}>
           <ServerButton />
           <Button
+            data-testid="home-split-btn"
+            aria-label="Open server in separate window"
+            title="Open server in separate window"
             onClick={() => {
               sendEvent('open_server_window')
             }}

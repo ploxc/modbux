@@ -14,6 +14,7 @@ const ServerName = meme(() => {
   const name = useServerZustand((z) => z.name[z.selectedUuid] ?? '')
   return (
     <TextField
+      data-testid="server-name-input"
       sx={{ flex: 1, minWidth: 200 }}
       size="small"
       // variant="filled"

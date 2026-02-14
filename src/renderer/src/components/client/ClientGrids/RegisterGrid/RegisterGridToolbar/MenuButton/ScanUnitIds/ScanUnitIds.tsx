@@ -76,6 +76,7 @@ const MinTextField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={min}
+      data-testid="scan-min-unitid-input"
       slotProps={{
         input: {
           inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -99,6 +100,7 @@ const MaxTextField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={max}
+      data-testid="scan-max-unitid-input"
       slotProps={{
         input: {
           inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -127,6 +129,7 @@ const AddressField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={address}
+      data-testid="scan-unitid-address-input"
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -155,6 +158,7 @@ const LengthField = (): JSX.Element => {
       size="small"
       sx={{ width: 60 }}
       value={length}
+      data-testid="scan-unitid-length-input"
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -183,6 +187,7 @@ const TimeoutField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={timeout}
+      data-testid="scan-unitid-timeout-input"
       slotProps={{
         input: {
           inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -258,7 +263,13 @@ const ScanButton = (): JSX.Element => {
   const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
 
   return (
-    <Button disabled={disabled || polling} variant="contained" color={color} onClick={scan}>
+    <Button
+      disabled={disabled || polling}
+      variant="contained"
+      color={color}
+      onClick={scan}
+      data-testid="scan-unitid-start-stop-btn"
+    >
       {text}
     </Button>
   )
@@ -317,6 +328,7 @@ const ScanUnitIdsButton = (): JSX.Element => {
       size="small"
       variant="outlined"
       onClick={() => setScanUnitIdsOpen(true)}
+      data-testid="scan-unitids-btn"
     >
       Scan Unit ID{`'`}s
     </Button>

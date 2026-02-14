@@ -69,6 +69,7 @@ const AddressField = meme(() => {
   return (
     <FormControl error={!valid}>
       <TextField
+        data-testid="add-reg-address-input"
         error={!valid}
         label="Address"
         variant="outlined"
@@ -132,10 +133,14 @@ const FixedOrGenerator = meme(() => {
       onChange={(_, v) => v !== null && setFixed(v)}
       sx={{ flex: 1 }}
     >
-      <ToggleButton sx={{ flex: 1, flexBasis: 0 }} value={true}>
+      <ToggleButton data-testid="add-reg-fixed-btn" sx={{ flex: 1, flexBasis: 0 }} value={true}>
         Fixed
       </ToggleButton>
-      <ToggleButton sx={{ flex: 1, flexBasis: 0 }} value={false}>
+      <ToggleButton
+        data-testid="add-reg-generator-btn"
+        sx={{ flex: 1, flexBasis: 0 }}
+        value={false}
+      >
         Generator
       </ToggleButton>
     </ToggleButtonGroup>
@@ -190,6 +195,7 @@ const ValueInputComponent = meme(() => {
 
   return (
     <TextField
+      data-testid="add-reg-value-input"
       label="Value"
       variant="outlined"
       size="small"
@@ -278,6 +284,7 @@ const MinTextField = meme(() => {
 
   return (
     <TextField
+      data-testid="add-reg-min-input"
       error={!valid}
       label="Min Value"
       variant="outlined"
@@ -301,6 +308,7 @@ const MaxTextField = meme(() => {
 
   return (
     <TextField
+      data-testid="add-reg-max-input"
       error={!valid}
       label="Max Value"
       variant="outlined"
@@ -353,6 +361,7 @@ const IntervalTextField = meme(() => {
 
   return (
     <TextField
+      data-testid="add-reg-interval-input"
       error={!valid}
       label="Interval (s)"
       variant="outlined"
@@ -399,6 +408,7 @@ const CommentField = meme(() => {
 
   return (
     <TextField
+      data-testid="add-reg-comment-input"
       label="Comment"
       variant="outlined"
       size="small"
@@ -426,10 +436,17 @@ const ToggleEndianButton = meme(() => {
       value={littleEndian}
       onChange={(_, v) => v !== null && setLittleEndian(v)}
     >
-      <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
+      <ToggleButton
+        data-testid="add-reg-be-btn"
+        aria-label="Big Endian"
+        value={false}
+        sx={{ whiteSpace: 'nowrap' }}
+      >
         BE
       </ToggleButton>
-      <ToggleButton value={true}>LE</ToggleButton>
+      <ToggleButton data-testid="add-reg-le-btn" aria-label="Little Endian" value={true}>
+        LE
+      </ToggleButton>
     </ToggleButtonGroup>
   )
 })
@@ -519,6 +536,7 @@ const AddButton = meme(() => {
 
   return (
     <Button
+      data-testid="add-reg-submit-btn"
       sx={{ flex: 1, flexBasis: 0 }}
       disabled={!valid}
       variant="contained"
@@ -554,6 +572,7 @@ const DeleteButton = meme(() => {
 
   return (
     <Button
+      data-testid="add-reg-remove-btn"
       sx={{ flex: 1, flexBasis: 0 }}
       startIcon={<Delete />}
       variant="outlined"

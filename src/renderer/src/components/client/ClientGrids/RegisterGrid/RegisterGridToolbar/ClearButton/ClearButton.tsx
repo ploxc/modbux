@@ -14,7 +14,13 @@ const ClearButton = (): JSX.Element => {
   }, [setRegisterData])
 
   return (
-    <Button disabled={disabled} size="small" variant="outlined" onClick={handleClear}>
+    <Button
+      data-testid="clear-data-btn"
+      disabled={disabled}
+      size="small"
+      variant="outlined"
+      onClick={handleClear}
+    >
       Clear
     </Button>
   )

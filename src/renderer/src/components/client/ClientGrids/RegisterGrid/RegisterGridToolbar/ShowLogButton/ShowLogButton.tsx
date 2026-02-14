@@ -9,7 +9,7 @@ const ShowLogButton = (): JSX.Element => {
   const text = showLog ? 'Hide Log' : 'Show Log'
 
   return (
-    <Button size="small" variant={variant} onClick={toggleShowLog}>
+    <Button data-testid="show-log-btn" size="small" variant={variant} onClick={toggleShowLog}>
       {text}
     </Button>
   )

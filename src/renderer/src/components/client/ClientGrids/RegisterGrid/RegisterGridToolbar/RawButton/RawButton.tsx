@@ -10,6 +10,7 @@ const RawButton = (): JSX.Element => {
 
   return (
     <Button
+      data-testid="raw-btn"
       size="small"
       color={color}
       variant={variant}

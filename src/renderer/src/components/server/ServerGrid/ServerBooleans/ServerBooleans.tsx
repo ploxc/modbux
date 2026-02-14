@@ -27,6 +27,8 @@ const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) =
 
   return (
     <Button
+      data-testid={`server-bool-${type}-${address}`}
+      aria-label={`Toggle ${type} address ${address}`}
       sx={{ flex: 1, flexBasis: 0 }}
       size="small"
       variant={variant}

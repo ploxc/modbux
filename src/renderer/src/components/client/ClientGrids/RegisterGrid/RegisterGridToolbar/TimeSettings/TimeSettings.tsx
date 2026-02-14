@@ -36,7 +36,15 @@ const TimeSettings = meme(() => {
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      <IconButton disabled={polling} size="small" color="primary" onClick={handleOpenMenu}>
+      <IconButton
+        data-testid="time-settings-btn"
+        aria-label="Time settings"
+        title="Time settings"
+        disabled={polling}
+        size="small"
+        color="primary"
+        onClick={handleOpenMenu}
+      >
         <Timer />
       </IconButton>
       <Popover

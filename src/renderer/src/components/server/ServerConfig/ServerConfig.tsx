@@ -54,6 +54,7 @@ const UnitId = meme(() => {
     <FormControl size="small">
       <InputLabel id={labelId}>Unit ID</InputLabel>
       <Select
+        data-testid="server-unitid-select"
         size="small"
         labelId={labelId}
         value={unitId}
@@ -118,6 +119,7 @@ const Port = meme(() => {
 
   return (
     <TextField
+      data-testid="server-port-input"
       error={!portValid}
       label={`Port ${port}`}
       variant="outlined"

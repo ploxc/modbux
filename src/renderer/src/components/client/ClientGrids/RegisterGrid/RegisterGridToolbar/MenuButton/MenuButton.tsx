@@ -30,6 +30,9 @@ const MenuButton = meme((): JSX.Element => {
   return (
     <>
       <Button
+        data-testid="menu-btn"
+        aria-label="More options"
+        title="More options"
         ref={buttonRef}
         size="small"
         variant={'outlined'}

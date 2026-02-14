@@ -79,6 +79,7 @@ const LoadButton = meme((): JSX.Element => {
     <Box>
       {!opening && (
         <input
+          data-testid="load-config-file-input"
           accept="application/JSON"
           style={{ display: 'none' }}
           id="contained-button-file"
@@ -88,6 +89,8 @@ const LoadButton = meme((): JSX.Element => {
       )}
       <label htmlFor="contained-button-file">
         <IconButton
+          data-testid="load-config-btn"
+          aria-label="Load configuration"
           size="small"
           disabled={opening}
           color="primary"

@@ -19,6 +19,7 @@ const MenuRegisterOptions = (): JSX.Element | null => {
             size="small"
             checked={advanceMode}
             onChange={(e) => useRootZustand.getState().setAdvancedMode(e.target.checked)}
+            data-testid="advanced-mode-checkbox"
           />
         }
         label="Advanced mode"
@@ -30,6 +31,7 @@ const MenuRegisterOptions = (): JSX.Element | null => {
             size="small"
             checked={show64BitValues}
             onChange={(e) => useRootZustand.getState().setShow64BitValues(e.target.checked)}
+            data-testid="show-64bit-checkbox"
           />
         }
         label="Show 64 bit values"

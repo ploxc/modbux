@@ -51,6 +51,8 @@ const SaveButton = meme(() => {
 
   return (
     <IconButton
+      data-testid="save-config-btn"
+      aria-label="Save configuration"
       size="small"
       onClick={saveRegisterConfig}
       color="primary"

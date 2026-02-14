@@ -15,6 +15,8 @@ const ClearConfigButton = (): JSX.Element => {
 
   return (
     <IconButton
+      data-testid="clear-config-btn"
+      aria-label="Clear configuration"
       size="small"
       onClick={handleClick}
       color={warn ? 'error' : 'primary'}

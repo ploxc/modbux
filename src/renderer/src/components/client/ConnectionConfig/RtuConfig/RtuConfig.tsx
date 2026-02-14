@@ -108,6 +108,7 @@ const ComInput = meme(() => {
       disabled={disabled}
       options={ports.map((p) => p.path)}
       value={com}
+      data-testid="rtu-com-input"
       onInputChange={(_event, newValue) =>
         useRootZustand.getState().setCom(newValue, newValue.trim().length > 0)
       }
@@ -157,13 +158,23 @@ const ComActions = meme(() => {
         }
       }}
     >
-      <ToggleButton value="refresh" onClick={onRefresh} disabled={disabled || loading}>
+      <ToggleButton
+        value="refresh"
+        onClick={onRefresh}
+        disabled={disabled || loading}
+        data-testid="rtu-refresh-btn"
+        aria-label="Refresh COM ports"
+        title="Refresh COM ports"
+      >
         {loading ? <CircularProgress size={16} /> : <Refresh fontSize="small" />}
       </ToggleButton>
       <ToggleButton
         value="validate"
         onClick={onValidate}
         disabled={disabled || validating || !com || com.trim() === ''}
+        data-testid="rtu-validate-btn"
+        aria-label="Validate COM port"
+        title="Validate COM port"
       >
         {validating ? <CircularProgress size={16} /> : <CheckCircleOutline fontSize="small" />}
       </ToggleButton>
@@ -211,6 +222,7 @@ const BaudRateSelect = meme(() => {
         label="Baud Rate"
         onChange={(e) => setBaudRate(e.target.value as ModbusBaudRate)}
         sx={{ width: 100 }}
+        data-testid="rtu-baudrate-select"
       >
         {ModbusBaudRateSchema.options.map((value) => (
           <MenuItem key={`baud_rate_${value}`} value={value}>
@@ -246,6 +258,7 @@ const ParitySelect = meme(() => {
         label="Parity"
         onChange={(e) => setParity(e.target.value as SerialPortOptions['parity'])}
         sx={{ width: 85 }}
+        data-testid="rtu-parity-select"
       >
         {parityOptions.map((option) => (
           <MenuItem key={`parity_${option}`} value={option}>
@@ -281,6 +294,7 @@ const DataBitsSelect = meme(() => {
         label="Data Bits"
         onChange={(e) => setDataBits(Number(e.target.value))}
         sx={{ width: 75 }}
+        data-testid="rtu-databits-select"
       >
         {databitsOptions.map((option) => (
           <MenuItem key={`databits_${option}`} value={option}>
@@ -314,6 +328,7 @@ const StopBitsSelect = meme(() => {
         label="Stop Bits"
         onChange={(e) => setStopBits(Number(e.target.value))}
         sx={{ width: 75 }}
+        data-testid="rtu-stopbits-select"
       >
         {StopBitsOptions.map((option) => (
           <MenuItem key={`stopbits_${option}`} value={option}>
