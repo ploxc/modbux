@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { BaseDataType, DataType, NumberRegisters, ServerRegister, UnitIdString } from '@shared'
+import {
+  BaseDataType,
+  DataType,
+  getAddressFitError,
+  NumberRegisters,
+  ServerRegister,
+  UnitIdString
+} from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
@@ -46,14 +53,6 @@ export const getAddressInUse: GetAddressInUseFn = (
     return addressesNeeded.some((a) => filteredUsed.includes(Number(a)))
   }
   return addressesNeeded.some((a) => usedAddresses.includes(Number(a)))
-}
-
-function getAddressFitError(dataType: BaseDataType, address: number): boolean {
-  // Check if the datatype fits at the address (address + size - 1 <= 65535)
-  let size = 1
-  if (['int32', 'uint32', 'float'].includes(dataType)) size = 2
-  if (['int64', 'uint64', 'double'].includes(dataType)) size = 4
-  return address + size - 1 > 65535
 }
 
 interface AddRegisterZustand {

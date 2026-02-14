@@ -1,4 +1,4 @@
-import { BaseDataType, DataType, RegisterType } from './types'
+import { BaseDataType, DataType, RegisterParams, RegisterType, ServerRegisters } from './types'
 
 export const getConventionalAddress = (
   type: RegisterType,
@@ -132,4 +132,63 @@ export const humanizeSerialError = (error: Error, port?: string): string => {
   if (msg.includes('access denied') || msg.includes('permission denied'))
     return `${prefix}Port access denied (already in use?)`
   return error.message
+}
+
+export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
+  const addressSet = new Set<number>()
+  registers.forEach((p) => {
+    if (['int16', 'uint16'].includes(p.dataType)) addressSet.add(p.address)
+    if (['int32', 'uint32', 'float'].includes(p.dataType)) {
+      addressSet.add(p.address)
+      addressSet.add(p.address + 1)
+    }
+
+    if (['int64', 'uint64', 'double'].includes(p.dataType)) {
+      addressSet.add(p.address)
+      addressSet.add(p.address + 1)
+      addressSet.add(p.address + 2)
+      addressSet.add(p.address + 3)
+    }
+  })
+  return Array.from(addressSet)
+}
+
+export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
+  const coils = reg?.coils ?? {}
+  const hasCoils = Object.values(coils).some((v) => v)
+  const discrete = reg?.discrete_inputs ?? {}
+  const hasDiscrete = Object.values(discrete).some((v) => v)
+  const hasInput = Object.values(reg?.input_registers ?? []).length > 0
+  const hasHolding = Object.values(reg?.holding_registers ?? []).length > 0
+  return hasCoils || hasDiscrete || hasInput || hasHolding
+}
+
+export function getAddressFitError(dataType: BaseDataType, address: number): boolean {
+  let size = 1
+  if (['int32', 'uint32', 'float'].includes(dataType)) size = 2
+  if (['int64', 'uint64', 'double'].includes(dataType)) size = 4
+  return address + size - 1 > 65535
+}
+
+export const findAvailablePort = (usedPorts: number[]): number | undefined => {
+  const MIN_PORT = 502
+  const MAX_PORT = 1000
+
+  const usedSet = new Set(usedPorts)
+
+  const startPort = Math.max(MIN_PORT, Math.min(MAX_PORT, Math.max(...usedPorts, MIN_PORT - 1) + 1))
+
+  for (let port = startPort; port <= MAX_PORT; port++) {
+    if (!usedSet.has(port)) return port
+  }
+
+  for (let port = MIN_PORT; port < startPort; port++) {
+    if (!usedSet.has(port)) return port
+  }
+
+  return undefined
+}
+
+export function snakeToCamel<S extends string>(str: S): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
 }

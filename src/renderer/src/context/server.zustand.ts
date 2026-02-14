@@ -11,9 +11,10 @@ import {
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
+  checkHasConfig,
   DataType,
+  getUsedAddresses,
   MAIN_SERVER_UUID,
-  RegisterParams,
   ServerRegisterEntry,
   ServerRegisters,
   SyncBoolsParameters,
@@ -34,35 +35,6 @@ const getDefaultUsedAddresses = (): UsedAddresses => ({
   input_registers: [],
   holding_registers: []
 })
-
-const getUsedAddresses = (registers: RegisterParams[]) => {
-  const addressSet = new Set<number>()
-  registers.forEach((p) => {
-    if (['int16', 'uint16'].includes(p.dataType)) addressSet.add(p.address)
-    if (['int32', 'uint32', 'float'].includes(p.dataType)) {
-      addressSet.add(p.address)
-      addressSet.add(p.address + 1)
-    }
-
-    if (['int64', 'uint64', 'double'].includes(p.dataType)) {
-      addressSet.add(p.address)
-      addressSet.add(p.address + 1)
-      addressSet.add(p.address + 2)
-      addressSet.add(p.address + 3)
-    }
-  })
-  return Array.from(addressSet)
-}
-
-export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
-  const coils = reg?.coils ?? {}
-  const hasCoils = Object.values(coils).some((v) => v)
-  const discrete = reg?.discrete_inputs ?? {}
-  const hasDiscrete = Object.values(discrete).some((v) => v)
-  const hasInput = Object.values(reg?.input_registers ?? []).length > 0
-  const hasHolding = Object.values(reg?.holding_registers ?? []).length > 0
-  return hasCoils || hasDiscrete || hasInput || hasHolding
-}
 
 export const useServerZustand = create<
   ServerZustand,

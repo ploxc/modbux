@@ -1,7 +1,8 @@
 import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { checkHasConfig, useServerZustand } from '@renderer/context/server.zustand'
+import { useServerZustand } from '@renderer/context/server.zustand'
+import { checkHasConfig } from '@shared'
 import {
   ServerConfig,
   ServerConfigSchema,

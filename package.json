@@ -31,7 +31,8 @@
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "electron-vite build && playwright test"
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
@@ -62,6 +63,7 @@
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@electron-toolkit/eslint-config-ts": "^2.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@playwright/test": "^1.58.2",
     "@types/lodash": "^4.17.23",
     "@types/luxon": "^3.7.1",
     "@types/node": "^20.19.33",
