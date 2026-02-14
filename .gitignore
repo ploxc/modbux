@@ -19,5 +19,8 @@ out
 tmp
 temp
 
+# Test coverage
+coverage
+
 # Claude Code
 .claude/settings.local.json

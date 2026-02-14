@@ -124,3 +124,12 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
 
 export const notEmpty = (value: number | string): boolean =>
   String(value).replace('-', '').length > 0
+
+export const humanizeSerialError = (error: Error, port?: string): string => {
+  const prefix = port ? `${port}: ` : ''
+  const msg = error.message.toLowerCase()
+  if (msg.includes('file not found')) return `${prefix}Port not found or not available`
+  if (msg.includes('access denied') || msg.includes('permission denied'))
+    return `${prefix}Port access denied (already in use?)`
+  return error.message
+}

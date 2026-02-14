@@ -4,26 +4,23 @@ import {
   AddressGroup,
   BackendMessage,
   BaseDataType,
-  bigEndian32,
-  bigEndian64,
   ClientState,
+  convertBitData,
+  convertRegisterData,
   createRegisters,
-  DataType,
-  littleEndian32,
-  littleEndian64,
+  groupAddressInfos,
+  humanizeSerialError,
   RawTransaction,
   RegisterData,
-  RegisterMapValue,
   RegisterType,
   ScanRegistersParameters,
   ScanUnitIDParameters,
   ScanUnitIDResult,
   Transaction,
+  Windows,
   WriteParameters
 } from '@shared'
 import {
-  ReadCoilResult,
-  ReadRegisterResult,
   WriteCoilResult,
   WriteMultipleResult,
   WriteRegisterResult
@@ -31,11 +28,6 @@ import {
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
-import { Windows } from '@shared'
-
-type BuildAddrInfosFn = (
-  items: [string, RegisterMapValue][]
-) => Array<{ address: number; registerCount: number; groupEnd: boolean }>
 
 type TryReadFn = (type: RegisterType, address: number, length: number) => Promise<RegisterData[]>
 
@@ -118,15 +110,6 @@ export class ModbusClient {
   }
 
   // Events
-  private _humanizeSerialError = (error: Error, port?: string): string => {
-    const prefix = port ? `${port}: ` : ''
-    const msg = error.message.toLowerCase()
-    if (msg.includes('file not found')) return `${prefix}Port not found or not available`
-    if (msg.includes('access denied') || msg.includes('permission denied'))
-      return `${prefix}Port access denied (already in use?)`
-    return error.message
-  }
-
   private _emitMessage = (message: BackendMessage): void => {
     this._windows.send('backend_message', message)
   }
@@ -253,7 +236,7 @@ export class ModbusClient {
     } catch (error) {
       const port = protocol === 'ModbusRtu' ? com : undefined
       this._emitMessage({
-        message: this._humanizeSerialError(error as Error, port),
+        message: humanizeSerialError(error as Error, port),
         variant: 'error',
         error
       })
@@ -347,7 +330,7 @@ export class ModbusClient {
     const { type, address, length } = this._appState.registerConfig
 
     const groups = this._appState.registerConfig.readConfiguration
-      ? this.groupAddressInfos()
+      ? groupAddressInfos(this._appState.registerMapping?.[type])
       : ([[address, length]] as AddressGroup[])
 
     for (const [a, l] of groups) {
@@ -371,151 +354,6 @@ export class ModbusClient {
       this._sendGroups(groups)
       this._sendData(data)
     }
-  }
-
-  //
-  //
-  // Create adress ranges from register config
-  /**
-   * Determine how many Modbus registers to read for a given DataType.
-   * For Utf8, if `nextAddress` is provided we read up to that gap;
-   * otherwise we fall back to a safe default of 32 registers.
-   */
-  private getRegisterLength = (
-    dataType: DataType,
-    currentAddress: number,
-    nextAddress?: number
-  ): number => {
-    const DEFAULT_UTF8_REGISTERS = 24
-
-    switch (dataType) {
-      case 'int16':
-      case 'uint16':
-        return 1
-
-      case 'float':
-      case 'int32':
-      case 'uint32':
-      case 'datetime':
-      case 'unix':
-        return 2
-
-      case 'int64':
-      case 'uint64':
-      case 'double':
-        return 4
-
-      case 'utf8':
-        if (typeof nextAddress === 'number' && nextAddress > currentAddress) {
-          // only use the real gap if it's no larger than DEFAULT_UTF8_REGISTERS
-          const gap = nextAddress - currentAddress
-          return Math.min(gap, DEFAULT_UTF8_REGISTERS)
-        }
-        // fallback for when we don't know the next address or it's not helpful
-        return DEFAULT_UTF8_REGISTERS
-
-      default:
-        return 0
-    }
-  }
-
-  /**
-   * Build AddrInfo entries including correct registerCount.
-   */
-  private buildAddrInfos: BuildAddrInfosFn = (items) => {
-    return items
-      .map((item, idx, arr) => {
-        const dataType = item[1].dataType
-        if (!dataType || dataType === 'none') return undefined
-
-        const address = Number(item[0])
-
-        const next = arr[idx + 1]
-        const nextAddress = next?.[0] ? Number(next[0]) : undefined
-        const registerCount = this.getRegisterLength(dataType, address, nextAddress)
-
-        return {
-          address,
-          registerCount,
-          groupEnd: !!item[1].groupEnd
-        }
-      })
-      .filter((i) => i !== undefined)
-  }
-
-  /**
-   * Group a list of AddrInfo items into minimal continuous Modbus read blocks.
-   * If the last item in a block is type 'utf8', we over-read by `margin`.
-   *
-   * @param infos     - sorted array of { address, registerCount, type }
-   * @param maxLength - maximum registers per read (default 125)
-   * @param margin    - extra registers to include when last type is utf8 (default 0)
-   * @returns         - array of [startAddress, count]
-   */
-  private groupAddressInfos = (maxLength: number = 100): Array<AddressGroup> => {
-    const registers = this._appState.registerMapping?.[this._appState.registerConfig.type]
-    if (!registers) return []
-
-    const isRegisterEntry = (
-      tup: [string, RegisterMapValue | undefined]
-    ): tup is [string, RegisterMapValue] => {
-      return tup[1] !== undefined
-    }
-
-    const registerEntries = Object.entries(registers)
-      .filter(isRegisterEntry)
-      .filter((entry) => entry[1].dataType !== undefined && entry[1].dataType !== 'none')
-
-    const infos = this.buildAddrInfos(registerEntries)
-
-    // 1) Make a shallow copy and sort by address ascending
-    const sorted = infos.slice().sort((a, b) => (a.address ?? 0) - (b.address ?? 0))
-
-    const groups: Array<AddressGroup> = []
-    let i = 0 // index of the first ungrouped item
-
-    // 2) Continue until we have grouped all items
-    while (i < sorted.length) {
-      // This block starts at the current item's address
-      const startAddr = sorted[i].address
-      // Initial endAddr is the last register used by this item
-      let endAddr = startAddr + sorted[i].registerCount - 1
-      // j will scan forward to see how many items we can pack
-      let j = i
-
-      // 3) Try to include as many following entries as still fit under maxLength
-      while (j + 1 < sorted.length) {
-        // Check if current item is marked as group end - if so, stop here
-        if (sorted[j].groupEnd) {
-          break
-        }
-
-        const next = sorted.at(j + 1)
-        if (!next) break
-
-        const nextEnd = next.address + next.registerCount - 1
-        const candidateEnd = Math.max(endAddr, nextEnd)
-        const span = candidateEnd - startAddr + 1
-
-        if (span <= maxLength) {
-          endAddr = candidateEnd
-          j++
-        } else {
-          break
-        }
-      }
-
-      // 4) Compute final count = total registers from startAddr to endAddr (inclusive)
-      const count = endAddr - startAddr + 1
-
-      // 5) Record this block
-      groups.push([startAddr, count])
-
-      // 6) Advance i past all items we just grouped
-      i = j + 1
-    }
-
-    return groups
   }
 
   //
@@ -614,7 +452,7 @@ export class ModbusClient {
 
   private _readCoils = async (address: number, length: number): Promise<RegisterData[]> => {
     const result = await this._client.readCoils(address, length)
-    return this._convertBitData(result, address)
+    return convertBitData(result, address, this._appState.registerConfig.length, this._clientState.scanningRegisters)
   }
 
   private _readDiscreteInputs = async (
@@ -622,7 +460,7 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readDiscreteInputs(address, length)
-    return this._convertBitData(result, address)
+    return convertBitData(result, address, this._appState.registerConfig.length, this._clientState.scanningRegisters)
   }
 
   private _readInputRegisters = async (
@@ -630,7 +468,7 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readInputRegisters(address, length)
-    return this._convertRegisterData(result, address)
+    return convertRegisterData(result, address, this._appState.registerConfig.littleEndian, this._clientState.scanningRegisters)
   }
 
   private _readHoldingRegisters = async (
@@ -638,147 +476,7 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readHoldingRegisters(address, length)
-    return this._convertRegisterData(result, address)
-  }
-
-  //
-  //
-  // Conversion
-  private _convertRegisterData = (result: ReadRegisterResult, address: number): RegisterData[] => {
-    if (!result) return []
-
-    const { littleEndian } = this._appState.registerConfig
-
-    const { buffer } = result
-    const registerData: RegisterData[] = []
-
-    // A register contains 16 bits, so we handle 2 bytes at a time
-    const registers = result.buffer.byteLength / 2
-
-    for (let i = 0; i < registers; i++) {
-      const offset = i * 2 // Register (16 bits) = 2 bytes
-
-      // Only read int32, uint32, and float if we have 2 or more registers left
-      const inRange32 = i < registers - 1
-
-      // Only read BigInt64 and Double if we have 4 or more registers left
-      const inRange64 = i < registers - 3
-
-      // Apply 32 bit endianness
-      const buf32 = inRange32
-        ? littleEndian
-          ? littleEndian32(buffer, offset)
-          : bigEndian32(buffer, offset)
-        : undefined
-
-      // Apply 64 bit endianness
-      const buf64 = inRange64
-        ? littleEndian
-          ? littleEndian64(buffer, offset)
-          : bigEndian64(buffer, offset)
-        : undefined
-
-      // Define row data, read big endian data
-      const rowData: RegisterData = {
-        id: address + i,
-        buffer: buffer.subarray(offset, offset + 2),
-        hex: buffer.subarray(offset, offset + 2).toString('hex'),
-        words: {
-          int16: buffer.readInt16BE(offset),
-          uint16: buffer.readUInt16BE(offset),
-
-          // 32 bits
-          int32: buf32 ? buf32.readInt32BE(0) : 0,
-          uint32: buf32 ? buf32.readUInt32BE(0) : 0,
-          float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
-          unix: buf32
-            ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/MM/dd HH:mm:ss')
-            : '',
-
-          // 64 bits
-          int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
-          uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
-          double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
-          datetime: buf64 ? this._parseIEC870DateTime(buf64) : '',
-          // Replace null values with spaces
-          utf8: buffer ? Buffer.from(buffer.map((b) => (b === 0 ? 32 : b))).toString('utf-8') : ''
-        },
-        bit: false,
-        isScanned: this._clientState.scanningRegisters
-      }
-
-      registerData.push(rowData)
-    }
-
-    return registerData
-  }
-
-  private _convertBitData = (result: ReadCoilResult, address: number): RegisterData[] => {
-    const { length } = this._appState.registerConfig
-    const { data } = result
-
-    const registerData: RegisterData[] = []
-
-    for (let i = 0; i < length; i++) {
-      const bit = data[i] ?? false
-      const rowData: RegisterData = {
-        id: address + i,
-        buffer: Buffer.from([0]),
-        hex: '',
-        words: undefined,
-        bit,
-        isScanned: this._clientState.scanningRegisters
-      }
-
-      registerData.push(rowData)
-    }
-
-    return registerData
-  }
-
-  private _parseIEC870DateTime = (buf: Buffer): string => {
-    if (buf.length !== 8) return ''
-
-    const word1 = buf.readUInt16BE(0)
-    const word2 = buf.readUInt16BE(2)
-    const word3 = buf.readUInt16BE(4)
-    const word4 = buf.readUInt16BE(6)
-
-    if (word1 === 0xffff && word2 === 0xffff && word3 === 0xffff && word4 === 0xffff) {
-      return ''
-    }
-
-    const year = (word1 & 0b1111111) + 2000
-    const day = word2 & 0b11111
-    const month = (word2 >> 8) & 0b1111
-    const minute = word3 & 0b111111
-    const hour = (word3 >> 8) & 0b11111
-    const totalMs = word4
-    const second = Math.floor(totalMs / 1000)
-    const millisecond = totalMs % 1000
-    const isInvalid = (word3 & 0b10000000) !== 0
-
-    if (
-      year < 2000 ||
-      year > 2127 ||
-      month < 1 ||
-      month > 12 ||
-      day < 1 ||
-      day > 31 ||
-      hour > 23 ||
-      minute > 59 ||
-      second > 59 ||
-      millisecond > 999 ||
-      isInvalid
-    ) {
-      return ''
-    }
-
-    return (
-      DateTime.utc(year, month, day, hour, minute, second, millisecond).toFormat(
-        'yyyy/MM/dd HH:mm:ss'
-      ) ?? ''
-    )
+    return convertRegisterData(result, address, this._appState.registerConfig.littleEndian, this._clientState.scanningRegisters)
   }
 
   //
@@ -1096,7 +794,7 @@ export class ModbusClient {
         manufacturer: p.manufacturer ?? undefined
       }))
     } catch (error) {
-      const message = this._humanizeSerialError(error as Error)
+      const message = humanizeSerialError(error as Error)
       this._emitMessage({ message, variant: 'error', error })
       return []
     }
@@ -1115,7 +813,7 @@ export class ModbusClient {
           : `Port "${portPath}" was not found in available ports`
       }
     } catch (error) {
-      const message = this._humanizeSerialError(error as Error, portPath)
+      const message = humanizeSerialError(error as Error, portPath)
       this._emitMessage({ message, variant: 'error', error })
       return { valid: false, message }
     }

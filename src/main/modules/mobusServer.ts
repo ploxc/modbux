@@ -334,12 +334,10 @@ export class ModbusServer {
     )
     const serverGenerators = perUnitGeneratorMap.get(unitId)
     if (!serverGenerators) return
-    const generators = serverGenerators[registerType]
-    if (!generators) return
-    const generator = generators.get(address)
+    const generator = serverGenerators[registerType].get(address)
     if (!generator) return
     generator.dispose()
-    generators.delete(address)
+    serverGenerators[registerType].delete(address)
   }
 
   /**
