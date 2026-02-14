@@ -1,9 +1,4 @@
-import {
-  bigEndian32,
-  bigEndian64,
-  littleEndian32,
-  littleEndian64
-} from './utils'
+import { bigEndian32, bigEndian64, littleEndian32, littleEndian64 } from './utils'
 import type { RegisterData } from './types'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'

@@ -29,7 +29,12 @@ describe('Windows', () => {
       windows.main = mainWin as never
       windows.server = serverWin as never
 
-      windows.send('client_state', { connectState: 'connected', polling: false, scanningUniId: false, scanningRegisters: false } as never)
+      windows.send('client_state', {
+        connectState: 'connected',
+        polling: false,
+        scanningUniId: false,
+        scanningRegisters: false
+      } as never)
 
       expect(mainWin.webContents.send).toHaveBeenCalledWith(
         'client_state',
@@ -43,7 +48,12 @@ describe('Windows', () => {
 
     it('skips null windows', () => {
       // No windows set — should not throw
-      windows.send('client_state', { connectState: 'disconnected', polling: false, scanningUniId: false, scanningRegisters: false } as never)
+      windows.send('client_state', {
+        connectState: 'disconnected',
+        polling: false,
+        scanningUniId: false,
+        scanningRegisters: false
+      } as never)
     })
 
     it('skips destroyed windows', () => {
@@ -53,7 +63,12 @@ describe('Windows', () => {
       win.webContents.send.mockClear()
 
       win.isDestroyed.mockReturnValue(true)
-      windows.send('client_state', { connectState: 'disconnected', polling: false, scanningUniId: false, scanningRegisters: false } as never)
+      windows.send('client_state', {
+        connectState: 'disconnected',
+        polling: false,
+        scanningUniId: false,
+        scanningRegisters: false
+      } as never)
 
       expect(win.webContents.send).not.toHaveBeenCalled()
     })
@@ -65,7 +80,12 @@ describe('Windows', () => {
       win.webContents.send.mockClear()
 
       win.webContents.isDestroyed.mockReturnValue(true)
-      windows.send('client_state', { connectState: 'disconnected', polling: false, scanningUniId: false, scanningRegisters: false } as never)
+      windows.send('client_state', {
+        connectState: 'disconnected',
+        polling: false,
+        scanningUniId: false,
+        scanningRegisters: false
+      } as never)
 
       expect(win.webContents.send).not.toHaveBeenCalled()
     })
@@ -80,7 +100,12 @@ describe('Windows', () => {
 
       // Should not throw
       expect(() =>
-        windows.send('client_state', { connectState: 'disconnected', polling: false, scanningUniId: false, scanningRegisters: false } as never)
+        windows.send('client_state', {
+          connectState: 'disconnected',
+          polling: false,
+          scanningUniId: false,
+          scanningRegisters: false
+        } as never)
       ).not.toThrow()
     })
   })

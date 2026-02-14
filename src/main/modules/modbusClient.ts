@@ -20,11 +20,7 @@ import {
   Windows,
   WriteParameters
 } from '@shared'
-import {
-  WriteCoilResult,
-  WriteMultipleResult,
-  WriteRegisterResult
-} from 'modbus-serial/ModbusRTU'
+import { WriteCoilResult, WriteMultipleResult, WriteRegisterResult } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
@@ -452,7 +448,12 @@ export class ModbusClient {
 
   private _readCoils = async (address: number, length: number): Promise<RegisterData[]> => {
     const result = await this._client.readCoils(address, length)
-    return convertBitData(result, address, this._appState.registerConfig.length, this._clientState.scanningRegisters)
+    return convertBitData(
+      result,
+      address,
+      this._appState.registerConfig.length,
+      this._clientState.scanningRegisters
+    )
   }
 
   private _readDiscreteInputs = async (
@@ -460,7 +461,12 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readDiscreteInputs(address, length)
-    return convertBitData(result, address, this._appState.registerConfig.length, this._clientState.scanningRegisters)
+    return convertBitData(
+      result,
+      address,
+      this._appState.registerConfig.length,
+      this._clientState.scanningRegisters
+    )
   }
 
   private _readInputRegisters = async (
@@ -468,7 +474,12 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readInputRegisters(address, length)
-    return convertRegisterData(result, address, this._appState.registerConfig.littleEndian, this._clientState.scanningRegisters)
+    return convertRegisterData(
+      result,
+      address,
+      this._appState.registerConfig.littleEndian,
+      this._clientState.scanningRegisters
+    )
   }
 
   private _readHoldingRegisters = async (
@@ -476,7 +487,12 @@ export class ModbusClient {
     length: number
   ): Promise<RegisterData[]> => {
     const result = await this._client.readHoldingRegisters(address, length)
-    return convertRegisterData(result, address, this._appState.registerConfig.littleEndian, this._clientState.scanningRegisters)
+    return convertRegisterData(
+      result,
+      address,
+      this._appState.registerConfig.littleEndian,
+      this._clientState.scanningRegisters
+    )
   }
 
   //
