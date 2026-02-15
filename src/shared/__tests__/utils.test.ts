@@ -478,7 +478,7 @@ describe('getDummyRegisterData', () => {
     const data = getDummyRegisterData(0)
     expect(data.bit).toBe(false)
     expect(data.hex).toBe('0000')
-    expect(data.buffer).toEqual(Buffer.from([0, 0]))
+    expect(data.buffer).toEqual(Uint8Array.from([0, 0]))
     expect(data.isScanned).toBe(false)
   })
 

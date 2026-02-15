@@ -3,7 +3,6 @@ import IconButton from '@mui/material/IconButton'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterData, dummyWords } from '@shared'
-import { Buffer } from 'buffer'
 
 export const showMapping = (): void => {
   const registerData: RegisterData[] = []
@@ -16,7 +15,7 @@ export const showMapping = (): void => {
 
     const row: RegisterData = {
       id: address,
-      buffer: Buffer.from([0, 0]),
+      buffer: new Uint8Array([0, 0]),
       hex: '0000',
       words: { ...dummyWords },
       bit: false,

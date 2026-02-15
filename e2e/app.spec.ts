@@ -28,7 +28,13 @@ test.beforeAll(async () => {
 
   app.evaluate((ctx) => ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] }))
 
-  page = await app.firstWindow()
+  // On Windows/Linux a splash screen is created before the main window.
+  // Both are created synchronously so after firstWindow() both exist.
+  // The main window is always last. If the splash already closed, it's the only one.
+  await app.firstWindow()
+  const windows = app.windows()
+  page = windows[windows.length - 1]
+
   await page.waitForLoadState('domcontentloaded')
   await page.waitForTimeout(500)
 })

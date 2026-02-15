@@ -5,7 +5,6 @@ import {
   RegisterData,
   RegisterDataWords
 } from './types'
-import { Buffer } from 'buffer'
 
 export const defaultConnectionConfig: ConnectionConfig = {
   unitId: 1,
@@ -56,7 +55,7 @@ export const dummyWords: RegisterDataWords = {
 export const getDummyRegisterData = (register: number): RegisterData => ({
   bit: false,
   hex: '0000',
-  buffer: Buffer.from([0, 0]),
+  buffer: new Uint8Array([0, 0]),
   id: register,
   isScanned: false,
   words: { ...dummyWords }

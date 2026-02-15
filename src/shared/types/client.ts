@@ -185,7 +185,7 @@ export type RegisterConfig = z.infer<typeof RegisterConfigSchema>
 // Register Data
 export interface RegisterData {
   id: number
-  buffer: Buffer
+  buffer: Uint8Array
   hex: string
   words: RegisterDataWords | undefined
   bit: boolean
