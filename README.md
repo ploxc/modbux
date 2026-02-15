@@ -26,14 +26,14 @@ Available for Windows and macOS
 - Scan Unit IDs and register ranges
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
-- Modbus TCP and RTU support for client
+- Modbus TCP and RTU support with automatic COM port discovery
 - Configuration save/load (JSON)
 
 **Server Mode:**
 
 - Simulate up to 10 Modbus devices
 - 256 Unit IDs per server (0-255)
-- Static or random value generation
+- Static or random value generation with configurable intervals
 - Instant auto-start for testing
 
 **Split Mode:**
@@ -127,6 +127,26 @@ yarn
 
 ```bash
 yarn dev
+```
+
+### Testing
+
+**Run unit tests:**
+
+```bash
+yarn test
+```
+
+**Run unit tests in watch mode:**
+
+```bash
+yarn test:watch
+```
+
+**Run E2E tests:**
+
+```bash
+yarn test:e2e
 ```
 
 ### Build
