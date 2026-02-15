@@ -14,12 +14,10 @@
     "types": [
       "electron-vite/node",
     ],
-    "baseUrl": ".",
     "paths": {
       "@shared": [
-        "src/shared"
-      ],
-    },
-    "ignoreDeprecations": "6.0"
+        "./src/shared"
+      ]
+    }
   }
 }

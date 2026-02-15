@@ -4,9 +4,9 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { useCallback } from 'react'
 
 const ClearButton = (): JSX.Element => {
-  const disabled = useDataZustand(
-    (z) => z.registerData.length === 0 || useRootZustand.getState().clientState.polling
-  )
+  const noData = useDataZustand((z) => z.registerData.length === 0)
+  const polling = useRootZustand((z) => z.clientState.polling)
+  const disabled = noData || polling
   const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const handleClear = useCallback(() => {

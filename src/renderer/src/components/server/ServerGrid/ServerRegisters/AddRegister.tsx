@@ -16,7 +16,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { ElementType, forwardRef, useCallback, useEffect, useState } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
-import { AddRegisterParams, notEmpty, RegisterParamsBasePart } from '@shared'
+import { AddRegisterParams, BaseDataType, notEmpty, RegisterParamsBasePart } from '@shared'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -60,12 +60,6 @@ const AddressField = meme(() => {
   const valid = useAddRegisterZustand((z) => z.valid.address)
   const setAddress = useAddRegisterZustand((z) => z.setAddress)
 
-  useEffect(() => {
-    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
-    if (edit) return
-    useAddRegisterZustand.getState().initFirstUnusedAddress()
-  }, [])
-
   return (
     <FormControl error={!valid}>
       <TextField
@@ -100,11 +94,6 @@ const AddressField = meme(() => {
 const DataTypeSelect = meme(() => {
   const dataType = useAddRegisterZustand((z) => z.dataType)
   const setDataType = useAddRegisterZustand((z) => z.setDataType)
-  useEffect(() => {
-    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
-    if (edit) return
-    useAddRegisterZustand.getState().setDataType('int16')
-  }, [])
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
@@ -116,13 +105,6 @@ const DataTypeSelect = meme(() => {
 const FixedOrGenerator = meme(() => {
   const fixed = useAddRegisterZustand((z) => z.fixed)
   const setFixed = useAddRegisterZustand((z) => z.setFixed)
-
-  useEffect(() => {
-    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
-    if (edit) return
-    // Default fixed
-    setFixed(true)
-  }, [setFixed])
 
   return (
     <ToggleButtonGroup
@@ -185,13 +167,6 @@ const ValueInputComponent = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const valid = useAddRegisterZustand((z) => z.valid.value)
   const setValue = useAddRegisterZustand((z) => z.setValue)
-
-  useEffect(() => {
-    const edit = useAddRegisterZustand.getState().serverRegisterEdit !== undefined
-    if (edit) return
-    // Default the value to 0
-    setValue('0', true)
-  }, [setValue])
 
   return (
     <TextField
@@ -455,96 +430,138 @@ const ToggleEndianButton = meme(() => {
 //
 //
 //
-// Add button
-const AddButton = meme(() => {
+// Shared submit logic — adds or edits the register, returns the address and dataType used
+function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataType } | undefined {
+  const {
+    fixed,
+    address,
+    value,
+    dataType,
+    registerType,
+    min,
+    max,
+    interval,
+    comment,
+    littleEndian,
+    serverRegisterEdit
+  } = useAddRegisterZustand.getState()
+  if (!registerType) return undefined
+
+  const z = useServerZustand.getState()
+  const uuid = z.selectedUuid
+  const unitId = z.getUnitId(uuid)
+
+  const commonParams: Omit<AddRegisterParams, 'params'> = { uuid, unitId }
+  const baseRegisterParams: RegisterParamsBasePart = {
+    address: Number(address),
+    dataType,
+    comment,
+    littleEndian,
+    registerType
+  }
+
+  if (isEdit && serverRegisterEdit) {
+    const oldAddress = serverRegisterEdit.params.address
+    if (oldAddress !== Number(address)) {
+      z.removeRegister({ uuid, unitId, address: oldAddress, registerType })
+    }
+  }
+
+  if (fixed) {
+    z.addRegister({ ...commonParams, params: { ...baseRegisterParams, value: Number(value) } })
+  } else {
+    z.addRegister({
+      ...commonParams,
+      params: {
+        ...baseRegisterParams,
+        min: Number(min),
+        max: Number(max),
+        interval: Number(interval) * 1000
+      }
+    })
+  }
+
+  return { address: Number(address), dataType }
+}
+
+// Add buttons
+const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => {
     if (z.fixed) return z.valid.address && z.valid.value
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval
   })
 
-  const addRegister = useCallback(() => {
-    const {
-      fixed,
-      address,
-      value,
-      dataType,
-      registerType,
-      min,
-      max,
-      interval,
-      comment,
-      littleEndian,
-      setRegisterType,
-      setEditRegister,
-      serverRegisterEdit
-    } = useAddRegisterZustand.getState()
-    if (!registerType) return
-
-    const z = useServerZustand.getState()
-    const uuid = z.selectedUuid
-    const unitId = z.getUnitId(uuid)
-
-    const commonParams: Omit<AddRegisterParams, 'params'> = {
-      uuid,
-      unitId
-    }
-    const baseRegisterParams: RegisterParamsBasePart = {
-      address: Number(address),
-      dataType,
-      comment,
-      littleEndian,
-      registerType
-    }
-
-    // If editing and the address has changed, remove the old register first
-    if (edit && serverRegisterEdit) {
-      const oldAddress = serverRegisterEdit.params.address
-      if (oldAddress !== Number(address)) {
-        z.removeRegister({
-          uuid,
-          unitId,
-          address: oldAddress,
-          registerType
-        })
-      }
-    }
-
-    if (fixed) {
-      z.addRegister({
-        ...commonParams,
-        params: {
-          ...baseRegisterParams,
-          value: Number(value)
-        }
-      })
-    } else {
-      z.addRegister({
-        ...commonParams,
-        params: {
-          ...baseRegisterParams,
-          min: Number(min),
-          max: Number(max),
-          interval: Number(interval) * 1000
-        }
-      })
-    }
-
-    setRegisterType(undefined)
-    setEditRegister(undefined)
+  const handleAddAndClose = useCallback(() => {
+    const result = submitRegister(edit)
+    if (!result) return
+    const state = useAddRegisterZustand.getState()
+    state.resetToDefaults()
+    state.setRegisterType(undefined)
   }, [edit])
 
+  const handleAddAndNext = useCallback(() => {
+    const result = submitRegister(false)
+    if (!result) return
+    const { address, dataType } = result
+    const size = ['double', 'uint64', 'int64'].includes(dataType)
+      ? 4
+      : ['uint32', 'int32', 'float'].includes(dataType)
+        ? 2
+        : 1
+    const state = useAddRegisterZustand.getState()
+    // Reset value and comment, keep dataType/LE/fixed/min/max/interval
+    state.setValue('0', true)
+    state.setComment('')
+    state.initNextUnusedAddress(address + size)
+  }, [])
+
+  const handleEditSubmit = useCallback(() => {
+    const result = submitRegister(true)
+    if (!result) return
+    const state = useAddRegisterZustand.getState()
+    state.setRegisterType(undefined)
+    state.setEditRegister(undefined)
+  }, [])
+
+  if (edit) {
+    return (
+      <Button
+        data-testid="add-reg-submit-btn"
+        sx={{ flex: 1, flexBasis: 0 }}
+        disabled={!valid}
+        variant="contained"
+        color="primary"
+        onClick={handleEditSubmit}
+      >
+        Submit Change
+      </Button>
+    )
+  }
+
   return (
-    <Button
-      data-testid="add-reg-submit-btn"
-      sx={{ flex: 1, flexBasis: 0 }}
-      disabled={!valid}
-      variant="contained"
-      color="primary"
-      onClick={addRegister}
-    >
-      {edit ? 'Submit Change' : 'Add Register'}
-    </Button>
+    <>
+      <Button
+        data-testid="add-reg-submit-btn"
+        sx={{ flex: 1, flexBasis: 0 }}
+        disabled={!valid}
+        variant="contained"
+        color="primary"
+        onClick={handleAddAndClose}
+      >
+        Add & Close
+      </Button>
+      <Button
+        data-testid="add-reg-next-btn"
+        sx={{ flex: 1, flexBasis: 0 }}
+        disabled={!valid}
+        variant="outlined"
+        color="primary"
+        onClick={handleAddAndNext}
+      >
+        Add & Next
+      </Button>
+    </>
   )
 })
 
@@ -597,7 +614,17 @@ const AddRegister = meme(() => {
   const setRegisterType = useAddRegisterZustand((z) => z.setRegisterType)
   const setEditRegister = useAddRegisterZustand((z) => z.setEditRegister)
 
-  // Edit mode
+  // Reset to defaults when opening in add mode
+  useEffect(() => {
+    if (!registerType) return
+    if (edit) return
+    const state = useAddRegisterZustand.getState()
+    state.resetToDefaults()
+    state.setRegisterType(registerType)
+    state.initNextUnusedAddress()
+  }, [registerType, edit])
+
+  // Populate fields when opening in edit mode
   useEffect(() => {
     const state = useAddRegisterZustand.getState()
     if (!state.serverRegisterEdit) return
@@ -651,7 +678,7 @@ const AddRegister = meme(() => {
         <CommentField />
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <AddButton />
+          <AddButtons />
           {edit && <DeleteButton />}
         </Box>
       </Paper>

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { BaseDataTypeSchema } from './datatype'
 import { RegisterType } from './client'
-import { ValueGenerator } from 'src/main/modules/modbusServer/valueGenerator'
+import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
 
 // Zod schema for boolean register types

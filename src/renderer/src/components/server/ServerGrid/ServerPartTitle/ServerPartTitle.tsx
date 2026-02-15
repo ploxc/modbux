@@ -4,14 +4,9 @@ import { RegisterType } from '@shared'
 import { useRef, useCallback, MutableRefObject } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import AddBooleans, { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
+import { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
 import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
-import AddRegister from '../ServerRegisters/AddRegister'
 import useServerGridZustand from '../serverGrid.zustand'
-
-const AddEdit = meme(({ type }: { type: RegisterType }) => {
-  return ['coils', 'discrete_inputs'].includes(type) ? <AddBooleans /> : <AddRegister />
-})
 
 const AddButton = meme(
   ({
@@ -150,7 +145,6 @@ const ServerPartTitle = meme(
             <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
               <AddButton type={registerType} titleRef={titleRef} />
             </Box>
-            <AddEdit type={registerType} />
           </>
         )}
       </Box>

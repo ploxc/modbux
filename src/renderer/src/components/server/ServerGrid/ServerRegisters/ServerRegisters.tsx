@@ -20,7 +20,7 @@ const RowEdit = meme(({ register }: RowProps) => {
 
   return (
     <IconButton
-      data-testid={`server-edit-reg-${register.params.address}`}
+      data-testid={`server-edit-reg-${register.params.registerType}-${register.params.address}`}
       aria-label={`Edit register ${register.params.address}`}
       title={`Edit register ${register.params.address}`}
       onClick={handleClick}

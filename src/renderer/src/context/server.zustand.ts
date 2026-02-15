@@ -268,7 +268,7 @@ export const useServerZustand = create<
               state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
             state.serverRegisters[uuid][unitId][registerType][address] = boolState
-            // window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
+            window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
           }
         })
       },
