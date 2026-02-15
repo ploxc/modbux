@@ -3,6 +3,7 @@ import { useLayoutZustand } from './context/layout.zustand'
 import Home from './containers/Home'
 import Client from './containers/Client'
 import Server from './containers/Server'
+import UpdateBanner from './components/UpdateBanner'
 
 const App = (): JSX.Element => {
   const appType = useLayoutZustand((z) => z.appType)
@@ -12,10 +13,15 @@ const App = (): JSX.Element => {
       sx={{
         height: '100dvh',
         width: '100dvw',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
-      {appType === 'client' ? <Client /> : appType === 'server' ? <Server /> : <Home />}
+      <UpdateBanner />
+      <Box sx={{ flex: 1, overflow: 'hidden' }}>
+        {appType === 'client' ? <Client /> : appType === 'server' ? <Server /> : <Home />}
+      </Box>
     </Box>
   )
 }
