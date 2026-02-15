@@ -1,10 +1,9 @@
 import { Add, Delete } from '@mui/icons-material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { MAIN_SERVER_UUID } from '@shared'
+import { findAvailablePort, MAIN_SERVER_UUID } from '@shared'
 import { useCallback } from 'react'
 import { v4 } from 'uuid'
-import { findAvailablePort } from './findAvailablePort'
 import ButtonGroup from '@mui/material/ButtonGroup'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -14,7 +13,7 @@ import ToggleButton from '@mui/material/ToggleButton'
 const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
   const port = useServerZustand((z) => z.port[uuid])
   return (
-    <ToggleButton value={uuid} sx={{ px: 1.5 }}>
+    <ToggleButton data-testid={`select-server-${port}`} value={uuid} sx={{ px: 1.5 }}>
       {port}
     </ToggleButton>
   )
@@ -40,10 +39,19 @@ const SelectServer = meme(() => {
   return (
     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
       <ButtonGroup variant="contained" color="primary" sx={{ height: 36 }}>
-        <Button onClick={addServer} disabled={addDisabled}>
+        <Button
+          data-testid="add-server-btn"
+          aria-label="Add server"
+          title="Add server"
+          onClick={addServer}
+          disabled={addDisabled}
+        >
           <Add />
         </Button>
         <Button
+          data-testid="delete-server-btn"
+          aria-label="Delete server"
+          title="Delete server"
           onClick={deleteServer}
           variant="outlined"
           disabled={selectedUuid === MAIN_SERVER_UUID}

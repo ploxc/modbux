@@ -20,6 +20,7 @@ const ClientConfigName = meme(() => {
 
   return (
     <TextField
+      data-testid="client-config-name-input"
       fullWidth
       sx={{ flex: 1, minWidth: 80, height: 28 }}
       slotProps={{ input: { sx: { height: 28, fontSize: 12 } } }}

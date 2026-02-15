@@ -26,10 +26,17 @@ const ToggleEndianButton = (): JSX.Element | null => {
         value={littleEndian}
         onChange={(_, v) => v !== null && setLittleEndian(v)}
       >
-        <ToggleButton value={false} sx={{ whiteSpace: 'nowrap' }}>
+        <ToggleButton
+          data-testid="endian-be-btn"
+          aria-label="Big Endian"
+          value={false}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
           BE
         </ToggleButton>
-        <ToggleButton value={true}>LE</ToggleButton>
+        <ToggleButton data-testid="endian-le-btn" aria-label="Little Endian" value={true}>
+          LE
+        </ToggleButton>
       </ToggleButtonGroup>
     </Tooltip>
   )

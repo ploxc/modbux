@@ -42,6 +42,7 @@ const RangeField = meme(() => {
   const setAddress = useAddBooleansZustand((z) => z.setAddress)
   return (
     <TextField
+      data-testid="add-bool-address-input"
       label="Address"
       variant="outlined"
       size="small"
@@ -67,7 +68,7 @@ const AddBoolButton = meme(() => {
   }, [])
 
   return (
-    <Button size="small" onClick={handleClick}>
+    <Button data-testid="add-bool-add-btn" size="small" onClick={handleClick}>
       Add
     </Button>
   )
@@ -83,7 +84,7 @@ const RemoveBoolButton = meme(() => {
   }, [])
 
   return (
-    <Button size="small" onClick={handleClick}>
+    <Button data-testid="add-bool-remove-btn" size="small" onClick={handleClick}>
       Remove
     </Button>
   )

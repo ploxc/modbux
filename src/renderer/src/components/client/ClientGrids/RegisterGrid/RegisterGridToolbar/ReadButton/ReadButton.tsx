@@ -23,7 +23,14 @@ const ReadButton = (): JSX.Element => {
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
 
   return (
-    <Button disabled={disabled} color={color} size="small" variant="outlined" onClick={handleRead}>
+    <Button
+      data-testid="read-btn"
+      disabled={disabled}
+      color={color}
+      size="small"
+      variant="outlined"
+      onClick={handleRead}
+    >
       Read
     </Button>
   )

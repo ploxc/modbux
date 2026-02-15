@@ -4,14 +4,9 @@ import { RegisterType } from '@shared'
 import { useRef, useCallback, MutableRefObject } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import AddBooleans, { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
+import { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
 import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
-import AddRegister from '../ServerRegisters/AddRegister'
 import useServerGridZustand from '../serverGrid.zustand'
-
-const AddEdit = meme(({ type }: { type: RegisterType }) => {
-  return ['coils', 'discrete_inputs'].includes(type) ? <AddBooleans /> : <AddRegister />
-})
 
 const AddButton = meme(
   ({
@@ -39,7 +34,14 @@ const AddButton = meme(
         <PlusCircleFilled size={10} />
       )
     return (
-      <IconButton onClick={handleClick} size="small" color="primary">
+      <IconButton
+        data-testid={`add-${type}-btn`}
+        aria-label={`Add ${type.replace(/_/g, ' ')}`}
+        title={`Add ${type.replace(/_/g, ' ')}`}
+        onClick={handleClick}
+        size="small"
+        color="primary"
+      >
         {icon}
       </IconButton>
     )
@@ -58,7 +60,14 @@ const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => 
   }, [registerType])
 
   return (
-    <IconButton onClick={handleClick} size="small" color="primary">
+    <IconButton
+      data-testid={`delete-${registerType}-btn`}
+      aria-label={`Delete all ${registerType.replace(/_/g, ' ')}`}
+      title={`Delete all ${registerType.replace(/_/g, ' ')}`}
+      onClick={handleClick}
+      size="small"
+      color="primary"
+    >
       <DeleteFilled size={10} />
     </IconButton>
   )
@@ -80,6 +89,9 @@ const ServerPartTitleName = meme(
     })
     return (
       <Box
+        data-testid={`section-${registerType}`}
+        aria-label={`Toggle ${name} section`}
+        role="button"
         sx={(theme) => ({
           flex: 1,
           flexBasis: 0,
@@ -133,7 +145,6 @@ const ServerPartTitle = meme(
             <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
               <AddButton type={registerType} titleRef={titleRef} />
             </Box>
-            <AddEdit type={registerType} />
           </>
         )}
       </Box>

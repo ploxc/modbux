@@ -1,7 +1,8 @@
 import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { checkHasConfig, useServerZustand } from '@renderer/context/server.zustand'
+import { useServerZustand } from '@renderer/context/server.zustand'
+import { checkHasConfig } from '@shared'
 import {
   ServerConfig,
   ServerConfigSchema,
@@ -181,6 +182,7 @@ const OpenSaveClear = meme(() => {
       <div>
         {!opening && (
           <input
+            data-testid="server-open-file-input"
             accept="application/JSON"
             style={{ display: 'none' }}
             id="container-button-server-file"
@@ -190,19 +192,35 @@ const OpenSaveClear = meme(() => {
         )}
         <label htmlFor="container-button-server-file">
           <IconButton
+            data-testid="server-open-btn"
+            aria-label="Open configuration"
             color="primary"
             disabled={opening}
             component="span"
-            title="load a modbux server configuration file"
+            title="Open configuration"
           >
             <FileOpen />
           </IconButton>
         </label>
       </div>
-      <IconButton color="primary" disabled={opening} onClick={save}>
+      <IconButton
+        data-testid="server-save-btn"
+        aria-label="Save configuration"
+        title="Save configuration"
+        color="primary"
+        disabled={opening}
+        onClick={save}
+      >
         <Save />
       </IconButton>
-      <IconButton color="primary" disabled={opening} onClick={clear}>
+      <IconButton
+        data-testid="server-clear-btn"
+        aria-label="Clear configuration"
+        title="Clear configuration"
+        color="primary"
+        disabled={opening}
+        onClick={clear}
+      >
         <Delete />
       </IconButton>
     </Box>

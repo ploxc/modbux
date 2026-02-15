@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { BaseDataType, DataType, NumberRegisters, ServerRegister, UnitIdString } from '@shared'
+import {
+  BaseDataType,
+  DataType,
+  getAddressFitError,
+  NumberRegisters,
+  ServerRegister,
+  UnitIdString
+} from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
@@ -48,14 +55,6 @@ export const getAddressInUse: GetAddressInUseFn = (
   return addressesNeeded.some((a) => usedAddresses.includes(Number(a)))
 }
 
-function getAddressFitError(dataType: BaseDataType, address: number): boolean {
-  // Check if the datatype fits at the address (address + size - 1 <= 65535)
-  let size = 1
-  if (['int32', 'uint32', 'float'].includes(dataType)) size = 2
-  if (['int64', 'uint64', 'double'].includes(dataType)) size = 4
-  return address + size - 1 > 65535
-}
-
 interface AddRegisterZustand {
   serverRegisterEdit: ServerRegister[number] | undefined
   registerType: NumberRegisters | undefined
@@ -88,7 +87,8 @@ interface AddRegisterZustand {
   setMax: MaskSetFn
   fixed: boolean
   setFixed: (fixed: boolean) => void
-  initFirstUnusedAddress: () => void
+  initNextUnusedAddress: (startFrom?: number) => void
+  resetToDefaults: () => void
 }
 
 export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutative', never]]>(
@@ -185,9 +185,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       set((state) => {
         state.fixed = fixed
       }),
-    initFirstUnusedAddress: () =>
+    initNextUnusedAddress: (startFrom?: number) =>
       set((state) => {
-        const { registerType } = getState()
+        const { registerType, dataType } = getState()
         if (!registerType) return
 
         const z = useServerZustand.getState()
@@ -195,12 +195,38 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const unitId = z.getUnitId(uuid)
 
         const usedAddresses = z.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
-        for (let address = 0; address <= 65535; address++) {
-          if (!usedAddresses.includes(address)) {
-            state.address = String(address)
+        const start = startFrom ?? 0
+        const size = ['double', 'uint64', 'int64'].includes(dataType)
+          ? 4
+          : ['uint32', 'int32', 'float'].includes(dataType)
+            ? 2
+            : 1
+        for (let addr = start; addr <= 65535 - (size - 1); addr++) {
+          const needed = Array.from({ length: size }, (_, i) => addr + i)
+          if (needed.every((a) => !usedAddresses.includes(a))) {
+            state.address = String(addr)
+            state.addressInUse = false
+            state.addressFitError = false
+            state.valid.address = true
             break
           }
         }
+      }),
+    resetToDefaults: () =>
+      set((state) => {
+        state.address = '0'
+        state.dataType = 'int16'
+        state.value = '0'
+        state.min = '0'
+        state.max = '1'
+        state.interval = '1'
+        state.comment = ''
+        state.littleEndian = false
+        state.fixed = true
+        state.serverRegisterEdit = undefined
+        state.addressInUse = false
+        state.addressFitError = false
+        state.valid = { address: true, value: true, min: true, max: true, interval: true }
       })
   }))
 )

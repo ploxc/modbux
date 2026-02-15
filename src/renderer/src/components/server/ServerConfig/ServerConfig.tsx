@@ -6,7 +6,8 @@ import { TextField, Box, InputBaseComponentProps } from '@mui/material'
 import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
-import { checkHasConfig, useServerZustand } from '@renderer/context/server.zustand'
+import { useServerZustand } from '@renderer/context/server.zustand'
+import { checkHasConfig } from '@shared'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import Select from '@mui/material/Select'
@@ -53,6 +54,7 @@ const UnitId = meme(() => {
     <FormControl size="small">
       <InputLabel id={labelId}>Unit ID</InputLabel>
       <Select
+        data-testid="server-unitid-select"
         size="small"
         labelId={labelId}
         value={unitId}
@@ -117,6 +119,7 @@ const Port = meme(() => {
 
   return (
     <TextField
+      data-testid="server-port-input"
       error={!portValid}
       label={`Port ${port}`}
       variant="outlined"

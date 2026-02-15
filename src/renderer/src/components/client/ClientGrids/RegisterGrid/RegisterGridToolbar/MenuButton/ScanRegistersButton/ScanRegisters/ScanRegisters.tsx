@@ -109,6 +109,7 @@ const MinTextField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={min}
+      data-testid="scan-min-address-input"
       slotProps={{
         input: {
           inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -132,6 +133,7 @@ const MaxTextField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={max}
+      data-testid="scan-max-address-input"
       slotProps={{
         input: {
           inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -158,6 +160,7 @@ const LengthField = (): JSX.Element => {
       size="small"
       sx={{ width: 60 }}
       value={length}
+      data-testid="scan-length-input"
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -186,6 +189,7 @@ const TimeoutField = (): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={timeout}
+      data-testid="scan-timeout-input"
       slotProps={{
         input: {
           inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -234,7 +238,7 @@ const ScanButton = (): JSX.Element => {
   const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
 
   return (
-    <Button variant="contained" color={color} onClick={scan}>
+    <Button variant="contained" color={color} onClick={scan} data-testid="scan-start-stop-btn">
       {text}
     </Button>
   )

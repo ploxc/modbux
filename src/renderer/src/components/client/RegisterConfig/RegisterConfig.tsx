@@ -42,6 +42,7 @@ const TypeSelect = meme(() => {
         value={type}
         label="Type"
         onChange={(e) => handleChange(e.target.value as RegisterType)}
+        data-testid="reg-type-select"
       >
         <MenuItem value={'coils'}>Coils</MenuItem>
         <MenuItem value={'discrete_inputs'}>Discrete Inputs</MenuItem>
@@ -74,6 +75,7 @@ const Address = meme(() => {
       label="Address"
       variant="outlined"
       size="small"
+      data-testid="reg-address-input"
       sx={{ width: showConventionalAddress ? 160 : 110, '& .MuiInputBase-root': { pr: 0 } }}
       value={address}
       slotProps={{
@@ -147,8 +149,12 @@ const Address = meme(() => {
                 value={addressBase}
                 onChange={(_, v) => v !== null && setAddressBase(v)}
               >
-                <ToggleButton value={'0'}>0</ToggleButton>
-                <ToggleButton value={'1'}>1</ToggleButton>
+                <ToggleButton value={'0'} data-testid="reg-base-0-btn" aria-label="Address base 0">
+                  0
+                </ToggleButton>
+                <ToggleButton value={'1'} data-testid="reg-base-1-btn" aria-label="Address base 1">
+                  1
+                </ToggleButton>
               </ToggleButtonGroup>
             </Box>
           )
@@ -175,6 +181,7 @@ const Length = meme(() => {
       size="small"
       sx={{ width: 60 }}
       value={length}
+      data-testid="reg-length-input"
       error={!lengthValid}
       slotProps={{
         input: {
@@ -216,7 +223,11 @@ const ReadConfiguration = meme(() => {
       onChange={handleChange}
       title="Read all registers that have been configured with a data type"
     >
-      <ToggleButton value={true}>
+      <ToggleButton
+        value={true}
+        data-testid="reg-read-config-btn"
+        aria-label="Read all configured registers"
+      >
         <List />
       </ToggleButton>
     </ToggleButtonGroup>

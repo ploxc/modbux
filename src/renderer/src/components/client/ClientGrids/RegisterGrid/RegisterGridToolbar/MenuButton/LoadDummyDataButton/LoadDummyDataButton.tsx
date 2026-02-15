@@ -28,7 +28,14 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
   }, [setAnchor])
 
   return (
-    <Button sx={{ my: 1 }} variant="outlined" disabled={disabled} size="small" onClick={loadDummy}>
+    <Button
+      sx={{ my: 1 }}
+      variant="outlined"
+      disabled={disabled}
+      size="small"
+      onClick={loadDummy}
+      data-testid="load-dummy-data-btn"
+    >
       Load Dummy Data
     </Button>
   )

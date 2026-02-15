@@ -116,6 +116,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
       sx={{ minWidth: 100 }}
       value={value}
       error={!valid}
+      data-testid="write-value-input"
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -177,6 +178,7 @@ const WriteRegistersButton = meme(() => {
         variant="outlined"
         color="primary"
         onClick={() => handleWrite(true)}
+        data-testid="write-fc6-btn"
       >
         6
       </Button>
@@ -185,6 +187,7 @@ const WriteRegistersButton = meme(() => {
         variant="outlined"
         color="primary"
         onClick={() => handleWrite(false)}
+        data-testid="write-fc16-btn"
       >
         16
       </Button>
@@ -218,14 +221,30 @@ const CoilFunctionSelect = meme(() => {
         value={coilFunction}
         onChange={(_, v) => v !== null && setCoilFunction(v)}
       >
-        <ToggleButton sx={{ flex: 1, flexBasis: 0 }} title="FC5: Write single coils" value={5}>
+        <ToggleButton
+          sx={{ flex: 1, flexBasis: 0 }}
+          title="FC5: Write single coils"
+          value={5}
+          data-testid="write-fc5-btn"
+        >
           5
         </ToggleButton>
-        <ToggleButton sx={{ flex: 1, flexBasis: 0 }} title="FC15: Write multiple coils" value={15}>
+        <ToggleButton
+          sx={{ flex: 1, flexBasis: 0 }}
+          title="FC15: Write multiple coils"
+          value={15}
+          data-testid="write-fc15-btn"
+        >
           15
         </ToggleButton>
       </ToggleButtonGroup>
-      <Button variant="outlined" color="primary" onClick={handleWrite}>
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={handleWrite}
+        data-testid="write-submit-btn"
+        aria-label="Write coils"
+      >
         <Publish />
       </Button>
     </Box>

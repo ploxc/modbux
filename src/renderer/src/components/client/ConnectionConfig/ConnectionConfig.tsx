@@ -32,8 +32,12 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
       value={protocol}
       onChange={(_, v) => v !== null && setProtocol(v)}
     >
-      <ToggleButton value={'ModbusTcp'}>TCP</ToggleButton>
-      <ToggleButton value={'ModbusRtu'}>RTU</ToggleButton>
+      <ToggleButton value={'ModbusTcp'} data-testid="protocol-tcp-btn">
+        TCP
+      </ToggleButton>
+      <ToggleButton value={'ModbusRtu'} data-testid="protocol-rtu-btn">
+        RTU
+      </ToggleButton>
     </ToggleButtonGroup>
   )
 })
@@ -77,7 +81,13 @@ const ConnectButton = meme(() => {
     )
 
   return (
-    <Button sx={{ width: 100 }} disabled={disabled} onClick={action} color={color}>
+    <Button
+      sx={{ width: 100 }}
+      disabled={disabled}
+      onClick={action}
+      color={color}
+      data-testid="connect-btn"
+    >
       {text}
     </Button>
   )
@@ -96,6 +106,7 @@ const UnitId = meme(() => {
       size="small"
       sx={{ width: 60 }}
       value={unitId}
+      data-testid="client-unitid-input"
       slotProps={{
         input: {
           inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,

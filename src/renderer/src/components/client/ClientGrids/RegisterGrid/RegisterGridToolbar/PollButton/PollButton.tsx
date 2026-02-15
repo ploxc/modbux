@@ -15,6 +15,7 @@ const PollButton = (): JSX.Element => {
 
   return (
     <Button
+      data-testid="poll-btn"
       disabled={disabled}
       size="small"
       color={color}

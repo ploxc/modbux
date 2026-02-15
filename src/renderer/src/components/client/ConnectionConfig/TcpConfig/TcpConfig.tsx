@@ -22,6 +22,7 @@ const Host = meme(() => {
       sx={{ width: 130 }}
       error={!hostValid}
       value={host}
+      data-testid="tcp-host-input"
       slotProps={{
         input: {
           inputComponent: HostInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -52,6 +53,7 @@ const Port = meme(() => {
       size="small"
       sx={{ width: 60 }}
       value={port}
+      data-testid="tcp-port-input"
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,

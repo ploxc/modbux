@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { IPC_CHANNELS, IpcHandlerMap } from '@shared'
+import { IPC_CHANNELS, IpcHandlerMap, snakeToCamel } from '@shared'
 
 const passedArgs = process.argv.slice(2)
 const isServerWindow = passedArgs.includes('is-server-window')
@@ -18,17 +18,6 @@ type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
     `${Head}${Capitalize<CamelCase<Tail>>}`
   : // If no underscore remains, simply return S.
     S
-
-/**
- * Convert a snake_case string to camelCase.
- * Example: "get_connection_config" → "getConnectionConfig"
- */
-function snakeToCamel<S extends string>(
-  str: S
-): /* Return type is the same string, but transformed */
-string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-}
 
 /**
  * AUTOMATIC IPC HANDLER GENERATION

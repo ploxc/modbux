@@ -39,6 +39,7 @@ const Action = ({ address, type }: ActionProps): JSX.Element => {
         icon={<Edit fontSize="small" />}
         title={text}
         label={''}
+        data-testid={`write-action-${address}`}
         onClick={() => {
           apiRef.current.selectRow(address, true, true)
           setOpen(true)

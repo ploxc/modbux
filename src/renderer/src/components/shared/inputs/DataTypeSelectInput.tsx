@@ -14,6 +14,7 @@ const DataTypeSelectInput = meme(({ disabled, dataType, setDataType }: Props) =>
     <FormControl disabled={disabled} size="small">
       <InputLabel id={labelId}>Type</InputLabel>
       <Select
+        data-testid="add-reg-type-select"
         size="small"
         labelId={labelId}
         value={dataType}

@@ -10,14 +10,14 @@
   "compilerOptions": {
     "strict": true,
     "composite": true,
+    "moduleResolution": "bundler",
     "types": [
       "electron-vite/node",
     ],
-    "baseUrl": ".",
     "paths": {
       "@shared": [
-        "src/shared"
-      ],
+        "./src/shared"
+      ]
     }
   }
 }

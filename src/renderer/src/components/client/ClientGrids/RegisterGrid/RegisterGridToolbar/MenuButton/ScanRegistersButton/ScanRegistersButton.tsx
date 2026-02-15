@@ -20,7 +20,14 @@ const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
 
   const text = registers16Bit ? 'Scan Registers' : 'Scan TRUE Bits'
   return (
-    <Button disabled={disabled} sx={{ my: 1 }} size="small" variant="outlined" onClick={handleOpen}>
+    <Button
+      disabled={disabled}
+      sx={{ my: 1 }}
+      size="small"
+      variant="outlined"
+      onClick={handleOpen}
+      data-testid="scan-registers-btn"
+    >
       {text}
     </Button>
   )

@@ -27,6 +27,7 @@ const SliderComponent = ({ label, value, setValue }: Props): JSX.Element => {
       </Typography>
       <Box sx={{ px: 1, display: 'flex' }}>
         <Slider
+          aria-label={label}
           size="small"
           sx={{ width: 100 }}
           min={1}
