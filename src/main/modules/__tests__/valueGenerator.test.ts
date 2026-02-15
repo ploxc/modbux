@@ -338,7 +338,6 @@ describe('ValueGenerator', () => {
         min: -10,
         max: 10,
         interval: 5000,
-        littleEndian: true,
         comment: 'temperature'
       })
 

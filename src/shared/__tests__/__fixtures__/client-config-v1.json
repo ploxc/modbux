@@ -1,0 +1,24 @@
+{
+  "name": "Test Client Config",
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "input_registers": {
+      "0": {
+        "dataType": "int16",
+        "comment": "Temperature"
+      },
+      "1": {
+        "dataType": "int32",
+        "scalingFactor": 0.1,
+        "comment": "Pressure"
+      }
+    },
+    "holding_registers": {
+      "100": {
+        "dataType": "uint16",
+        "comment": "Setpoint"
+      }
+    }
+  }
+}

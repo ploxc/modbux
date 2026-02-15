@@ -61,6 +61,8 @@ export class ModbusClient {
   private _consecutiveReconnects = 0
   private _maxConsecutiveReconnects = 5
   private _reconnectResetTimeout: NodeJS.Timeout | undefined
+  private _reconnectWasPolling = false
+  private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
   private _deliberateDisconnect = false
 
@@ -78,6 +80,9 @@ export class ModbusClient {
       .on('close', () => {
         // If we were connected, go to 'connecting' and try to reconnect
         if (this._shouldAutoReconnect) {
+          // Remeber polling state before trying to reconnect
+          this._reconnectWasPolling = this._clientState.polling
+
           // Only emit reconnecting message if not already in connecting state
           if (!this._reconnectTimeout) {
             this._emitMessage({
@@ -161,6 +166,8 @@ export class ModbusClient {
         variant: 'error',
         error: null
       })
+      this._reconnectWasPolling = false
+      clearTimeout(this._reconnectResumePollingTimeout)
       this._setDisconnected()
       return
     }
@@ -216,6 +223,12 @@ export class ModbusClient {
           variant: 'success',
           error: null
         })
+        // Resume polling
+        clearTimeout(this._reconnectResumePollingTimeout)
+        this._reconnectResumePollingTimeout = setTimeout(() => {
+          if (this._reconnectWasPolling) this.startPolling()
+          this._reconnectWasPolling = false
+        }, 1000)
       } else {
         this._emitMessage({
           message: 'Connected to server',
@@ -307,11 +320,13 @@ export class ModbusClient {
 
   private _read = async (): Promise<void> => {
     if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
-      this._emitMessage({
-        message: 'Cannot read, not connected',
-        variant: 'warning',
-        error: null
-      })
+      if (!this._clientState.polling) {
+        this._emitMessage({
+          message: 'Cannot read, not connected',
+          variant: 'warning',
+          error: null
+        })
+      }
       this._setDisconnected()
     }
 

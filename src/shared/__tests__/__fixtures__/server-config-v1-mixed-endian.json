@@ -1,0 +1,45 @@
+{
+  "name": "Test Server Mixed Endian",
+  "serverRegistersPerUnit": {
+    "1": {
+      "coils": {},
+      "discrete_inputs": {},
+      "input_registers": {
+        "0": {
+          "value": 100,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "littleEndian": false,
+            "comment": "Register 1 - Big Endian",
+            "value": 100
+          }
+        },
+        "1": {
+          "value": 200,
+          "params": {
+            "address": 1,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "littleEndian": true,
+            "comment": "Register 2 - Little Endian",
+            "value": 200
+          }
+        },
+        "2": {
+          "value": 300,
+          "params": {
+            "address": 2,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "littleEndian": false,
+            "comment": "Register 3 - Big Endian",
+            "value": 300
+          }
+        }
+      },
+      "holding_registers": {}
+    }
+  }
+}

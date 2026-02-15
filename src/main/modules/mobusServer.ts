@@ -196,7 +196,7 @@ export class ModbusServer {
         // // - Long delay (e.g. 15000ms): allows stable connection, so the reconnect counter resets between drops
         // const netServer = server['_server'] as net.Server
         // netServer.on('connection', (sock) => {
-        //   setTimeout(() => sock.destroy(), 3000)
+        //   setTimeout(() => sock.destroy(), 15000)
         // })
 
         this._servers.set(uuid, server)
@@ -254,9 +254,8 @@ export class ModbusServer {
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
    */
-  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): void => {
-    const { address, registerType, dataType, min, max, interval, value, littleEndian, comment } =
-      params
+  public addRegister = ({ uuid, unitId, params, littleEndian }: AddRegisterParams): void => {
+    const { address, registerType, dataType, min, max, interval, value, comment } = params
 
     // Ensure generator map for this server and unitId
     const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
@@ -347,7 +346,8 @@ export class ModbusServer {
   public syncServerRegisters = ({
     uuid,
     unitId,
-    registerValues
+    registerValues,
+    littleEndian
   }: SyncRegisterValueParams): void => {
     // Cleanup generators only for this unitId
     const unitIdGenerators = this._generatorMap.get(uuid)
@@ -362,7 +362,7 @@ export class ModbusServer {
     }
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
-    for (const params of registerValues) this.addRegister({ uuid, unitId, params })
+    for (const params of registerValues) this.addRegister({ uuid, unitId, params, littleEndian })
   }
 
   /**

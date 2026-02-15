@@ -16,6 +16,7 @@ type ValueGeneratorParams = {
   unitId: UnitIdString
   windows: Windows
   serverData: ServerData
+  littleEndian: boolean
 } & RegisterParamsGeneratorPart &
   RegisterParamsBasePart
 
@@ -137,7 +138,6 @@ export class ValueGenerator {
       min: this._min,
       max: this._max,
       interval: this._interval,
-      littleEndian: this._littleEndian,
       comment: this._comment
     }
   }

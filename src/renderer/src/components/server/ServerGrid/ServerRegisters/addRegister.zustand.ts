@@ -77,8 +77,6 @@ interface AddRegisterZustand {
   setValue: MaskSetFn
   interval: string
   setInterval: MaskSetFn
-  littleEndian: boolean
-  setLittleEndian: (littleEndian: boolean) => void
   comment: string
   setComment: MaskSetFn
   min: string
@@ -158,11 +156,6 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.interval = interval
         state.valid.interval = !!valid
       }),
-    littleEndian: false,
-    setLittleEndian: (littleEndian) =>
-      set((state) => {
-        state.littleEndian = littleEndian
-      }),
     comment: '',
     setComment: (comment) =>
       set((state) => {
@@ -221,7 +214,6 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.max = '1'
         state.interval = '1'
         state.comment = ''
-        state.littleEndian = false
         state.fixed = true
         state.serverRegisterEdit = undefined
         state.addressInUse = false

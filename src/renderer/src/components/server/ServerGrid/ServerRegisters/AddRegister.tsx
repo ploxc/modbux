@@ -397,34 +397,7 @@ const CommentField = meme(() => {
 //
 //
 //
-// Toggle endianness button
-const ToggleEndianButton = meme(() => {
-  const littleEndian = useAddRegisterZustand((z) => z.littleEndian)
-  const setLittleEndian = useAddRegisterZustand((z) => z.setLittleEndian)
-
-  return (
-    <ToggleButtonGroup
-      sx={{ height: 37.13 }}
-      size="small"
-      exclusive
-      color="primary"
-      value={littleEndian}
-      onChange={(_, v) => v !== null && setLittleEndian(v)}
-    >
-      <ToggleButton
-        data-testid="add-reg-be-btn"
-        aria-label="Big Endian"
-        value={false}
-        sx={{ whiteSpace: 'nowrap' }}
-      >
-        BE
-      </ToggleButton>
-      <ToggleButton data-testid="add-reg-le-btn" aria-label="Little Endian" value={true}>
-        LE
-      </ToggleButton>
-    </ToggleButtonGroup>
-  )
-})
+// Toggle endianness button removed - now global per server
 
 //
 //
@@ -442,7 +415,6 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
     max,
     interval,
     comment,
-    littleEndian,
     serverRegisterEdit
   } = useAddRegisterZustand.getState()
   if (!registerType) return undefined
@@ -451,12 +423,12 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
   const uuid = z.selectedUuid
   const unitId = z.getUnitId(uuid)
 
-  const commonParams: Omit<AddRegisterParams, 'params'> = { uuid, unitId }
+  const littleEndian = z.littleEndian[uuid] ?? false
+  const commonParams: Omit<AddRegisterParams, 'params'> = { uuid, unitId, littleEndian }
   const baseRegisterParams: RegisterParamsBasePart = {
     address: Number(address),
     dataType,
     comment,
-    littleEndian,
     registerType
   }
 
@@ -629,14 +601,13 @@ const AddRegister = meme(() => {
     const state = useAddRegisterZustand.getState()
     if (!state.serverRegisterEdit) return
 
-    const { address, comment, dataType, littleEndian, registerType, interval, max, min, value } =
+    const { address, comment, dataType, registerType, interval, max, min, value } =
       state.serverRegisterEdit.params
 
     state.setFixed(value !== undefined)
     state.setAddress(String(address))
     state.setRegisterType(registerType)
     state.setComment(comment)
-    state.setLittleEndian(littleEndian)
     state.setInterval(interval ? String(interval / 1000) : '1')
     state.setMax(String(max))
     state.setMin(String(min))
@@ -670,7 +641,6 @@ const AddRegister = meme(() => {
         </Typography>
         <FixedOrGenerator />
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <ToggleEndianButton />
           <AddressField />
           <DataTypeSelect />
           <ValueParameters />

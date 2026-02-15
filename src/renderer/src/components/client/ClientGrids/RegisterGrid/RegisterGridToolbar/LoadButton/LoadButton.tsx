@@ -2,7 +2,7 @@ import { FileOpen } from '@mui/icons-material'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { RegisterMapConfigSchema, RegisterMappingSchema } from '@shared'
+import { migrateClientConfig } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 import { showMapping } from '../ViewConfigButton/ViewConfigButton'
@@ -23,48 +23,44 @@ const LoadButton = meme((): JSX.Element => {
 
       const state = useRootZustand.getState()
 
-      let content = await file.text()
+      const content = await file.text()
 
       try {
-        // replace legacy strings
-        content = content.replaceAll('InputRegisters', 'input_registers')
-        content = content.replaceAll('DiscreteInputs', 'discrete_inputs')
-        content = content.replaceAll('Coils', 'coils')
-        content = content.replaceAll('HoldingRegisters', 'holding_registers')
+        // Use migration framework to handle all config versions
+        const migrationResult = migrateClientConfig(content)
+        const { config, migrated, warning } = migrationResult
 
-        const configObject = JSON.parse(content)
-        const configResult = RegisterMapConfigSchema.safeParse(configObject)
+        // Set name and register mapping
+        if (config.name) state.setName(config.name)
+        state.replaceRegisterMapping(config.registerMapping)
 
-        if (configResult.success) {
-          const { name, registerMapping } = configResult.data
-          if (name) state.setName(name)
-          state.replaceRegisterMapping(registerMapping)
-          enqueueSnackbar({ variant: 'success', message: 'Configuration opened successfully' })
-        }
-
-        // Legacy format, without name
-        const legacyConfigResult = RegisterMappingSchema.safeParse(configObject)
-
-        if (legacyConfigResult.success) {
-          state.setName('')
-          state.replaceRegisterMapping(legacyConfigResult.data)
+        // Show success notification
+        if (migrated) {
           enqueueSnackbar({
-            variant: 'warning',
-            message:
-              'Configuration opened successfully (legacy format), consider saving with the new format.'
+            variant: 'info',
+            message: 'Configuration updated from older format',
+            autoHideDuration: 5000
+          })
+        } else {
+          enqueueSnackbar({
+            variant: 'success',
+            message: 'Configuration opened successfully'
           })
         }
 
-        if (!configResult.success && !legacyConfigResult.success) {
-          enqueueSnackbar({ variant: 'error', message: 'Invalid Config' })
-          console.warn({
-            configResult: configResult.error,
-            legacyConfigResult: legacyConfigResult.error
+        // Show warning for future version
+        if (warning === 'FUTURE_VERSION') {
+          enqueueSnackbar({
+            variant: 'warning',
+            message:
+              'This config was created with a newer version of Modbux. Some features may not work correctly.',
+            persist: true
           })
         }
       } catch (error) {
         const tError = error as Error
-        enqueueSnackbar({ variant: 'error', message: `INVALID JSON: ${tError.message}` })
+        enqueueSnackbar({ variant: 'error', message: `Failed to load config: ${tError.message}` })
+        console.error('Config load error:', error)
       }
 
       openingRef.current = false

@@ -64,23 +64,6 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
         }
       })}
     >
-      {register.params.littleEndian && (
-        <Box
-          sx={(theme) => ({
-            fontSize: 10,
-            fontWeight: 'bold',
-            backgroundColor: theme.palette.primary.dark,
-            borderRadius: 1,
-            lineHeight: 1,
-            px: 0.5,
-            pt: 0.5,
-            pb: 0.35,
-            mb: 0.2
-          })}
-        >
-          LE
-        </Box>
-      )}
       <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>
         {register.params.address}
       </Box>

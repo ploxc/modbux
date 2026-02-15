@@ -11,18 +11,23 @@ import {
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
-  checkHasConfig,
-  DataType,
   getUsedAddresses,
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
   ServerRegisters,
   SyncBoolsParameters,
   UnitIdString,
-  UnitIdStringSchema
+  UnitIdStringSchema,
+  migrateServerRegistersState,
+  getRegisterLength
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
+import {
+  extractUnitIdsWithData,
+  syncBoolsWithBackend,
+  syncRegistersWithBackend
+} from './server.zustand.helpers'
 
 const getDefaultServerRegisters = (): ServerRegisters => ({
   coils: {},
@@ -51,6 +56,7 @@ export const useServerZustand = create<
       serverRegisters: { [MAIN_SERVER_UUID]: undefined },
       usedAddresses: { [MAIN_SERVER_UUID]: undefined },
       name: { [MAIN_SERVER_UUID]: undefined },
+      littleEndian: { [MAIN_SERVER_UUID]: false },
       clean: (uuid) =>
         set((state) => {
           state.unitId[uuid] = '0'
@@ -76,6 +82,7 @@ export const useServerZustand = create<
               delete state.serverRegisters[uuid]
               delete state.usedAddresses[uuid]
               delete state.name[uuid]
+              delete state.littleEndian[uuid]
             }
           })
         })
@@ -107,6 +114,7 @@ export const useServerZustand = create<
           delete state.unitId[uuid]
           delete state.serverRegisters[uuid]
           delete state.usedAddresses[uuid]
+          delete state.littleEndian[uuid]
         })
         get().cleanOrphanedServerState()
       },
@@ -117,11 +125,14 @@ export const useServerZustand = create<
         })
         const state = get()
 
-        // Ensure every uuid has a unitId entry (for backward compatibility)
+        // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
         set((state) => {
           for (const uuid of state.uuids) {
             if (state.unitId[uuid] === undefined) {
               state.unitId[uuid] = '0'
+            }
+            if (state.littleEndian[uuid] === undefined) {
+              state.littleEndian[uuid] = false // Default to Big-Endian
             }
           }
         })
@@ -146,44 +157,16 @@ export const useServerZustand = create<
             })
           }
 
-          const unitIds = Object.keys(serverRegisters) as UnitIdString[]
-          const unitIdsWithData = unitIds.filter((unitId) => {
-            const reg = serverRegisters[unitId]
-            return checkHasConfig(reg)
-          })
+          const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
 
           for (const unitId of unitIdsWithData) {
             // Synchronize the boolean states with the server from persisted state
-            const coils: boolean[] = Array(65535).fill(false)
-            const discreteInputs: boolean[] = Array(65535).fill(false)
-
-            Object.values(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
-              (value, address) => (coils[address] = value)
-            )
-            Object.values(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
-              (value, address) => (discreteInputs[address] = value)
-            )
-
-            await window.api.syncBools({
-              uuid: syncUuid,
-              unitId,
-              coils,
-              discrete_inputs: discreteInputs
-            })
+            await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
 
             // Synchronize the value generators/registers with the server from persisted state
-            const inputRegisterRegisterValues = Object.values(
-              serverRegisters[unitId]?.['input_registers'] ?? []
-            ).map((r) => r.params)
-            const holdingRegisterRegisterValues = Object.values(
-              serverRegisters[unitId]?.['holding_registers'] ?? []
-            ).map((r) => r.params)
-
-            await window.api.syncServerRegister({
-              uuid: syncUuid,
-              unitId,
-              registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
-            })
+            const littleEndian = !!state.littleEndian[syncUuid]
+            const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
+              await syncRegistersWithBackend(serverRegisters, unitId, syncUuid, littleEndian)
 
             const inputUsedAddresses = getUsedAddresses(inputRegisterRegisterValues)
             const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
@@ -300,8 +283,11 @@ export const useServerZustand = create<
           window.api.syncBools(newBools)
         })
       },
-      addRegister: (addParams) => {
+      addRegister: async (addParams) => {
         const { uuid, unitId, params } = addParams
+        // Get littleEndian from global state
+        const littleEndian = get().littleEndian[uuid] ?? false
+
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
           if (!state.serverRegisters[uuid][unitId]) {
@@ -311,7 +297,6 @@ export const useServerZustand = create<
             value: 0,
             params
           }
-          window.api.addReplaceServerRegister(addParams)
           // Update used addresses
           const usedAddresses = getUsedAddresses(
             Object.values(state.serverRegisters[uuid][unitId][params.registerType]).map(
@@ -321,6 +306,14 @@ export const useServerZustand = create<
           if (!state.usedAddresses[uuid]) state.usedAddresses[uuid] = {}
           if (!state.usedAddresses[uuid][unitId]) state.usedAddresses[uuid][unitId] = {}
           state.usedAddresses[uuid][unitId][params.registerType] = usedAddresses
+        })
+
+        // Send to backend with littleEndian from global state
+        await window.api.addReplaceServerRegister({
+          uuid,
+          unitId,
+          params,
+          littleEndian
         })
       },
       removeRegister: (removeParams) => {
@@ -411,6 +404,24 @@ export const useServerZustand = create<
           state.unitId[uuid] = unitId
         })
       },
+      setLittleEndian: async (littleEndian) => {
+        const currentState = get()
+        const uuid = currentState.selectedUuid
+        if (!currentState.ready[uuid]) return
+
+        set((state) => {
+          state.littleEndian[uuid] = littleEndian
+        })
+
+        const serverRegisters = currentState.serverRegisters[uuid]
+        if (!serverRegisters) return
+
+        const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
+
+        for (const unitId of unitIdsWithData) {
+          await syncRegistersWithBackend(serverRegisters, unitId, uuid, littleEndian)
+        }
+      },
       replaceServerRegisters: (unitId, registers) => {
         const uuid = get().selectedUuid
         set((state) => {
@@ -432,6 +443,17 @@ export const useServerZustand = create<
     })),
     {
       name: `server.zustand`,
+      version: 2,
+      migrate: (persistedState, version) => {
+        // Version 0/1 (old format with littleEndian per register)
+        if (version < 2) {
+          return migrateServerRegistersState(
+            persistedState as Record<string, unknown>
+          ) as PersistedServerZustand
+        }
+        // Already v2, no migration needed
+        return persistedState as PersistedServerZustand
+      },
       partialize: (state) => ({
         name: state.name,
         port: state.port,
@@ -440,7 +462,8 @@ export const useServerZustand = create<
         serverRegisters: state.serverRegisters,
         unitId: state.unitId,
         usedAddresses: state.usedAddresses,
-        uuids: state.uuids
+        uuids: state.uuids,
+        littleEndian: state.littleEndian
       })
     }
   )
@@ -462,25 +485,6 @@ if (!stateResult.success) {
 
 // Init server
 useServerZustand.getState().init()
-
-// Get the address in use for a specific register type and data type
-const getRegisterLength = (dataType: DataType): number => {
-  switch (dataType) {
-    case 'int16':
-    case 'uint16':
-      return 1
-    case 'int32':
-    case 'uint32':
-    case 'float':
-      return 2
-    case 'int64':
-    case 'uint64':
-    case 'double':
-      return 4
-    default:
-      return 0
-  }
-}
 
 // Update register values in batches to avoid excessive re-renders
 const pendingCompositeValues = new Map<string, number | bigint>()
@@ -532,10 +536,12 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   // Extract the parameters and current composite value (from cache when state isn't updated yet)
   const cacheKey = `${uuid}-${unitId}-${registerType}-${entryAddress}`
   const currentValue = pendingCompositeValues.get(cacheKey) ?? serverRegisterEntry.value
-  const { dataType, littleEndian } = serverRegisterEntry.params
+  const { dataType } = serverRegisterEntry.params
+  // Get littleEndian from global server state
+  const littleEndian = state.littleEndian[uuid] ?? false
 
   // 2) Calculate how many registers this DataType spans
-  const registersCount = getRegisterLength(dataType)
+  const registersCount = getRegisterLength(dataType, address)
   if (registersCount < 1 || registersCount > 4) return // Defensive: only support 1-4 registers
 
   // 3) Determine which register‐offset was written

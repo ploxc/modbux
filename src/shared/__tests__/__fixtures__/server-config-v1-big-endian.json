@@ -1,0 +1,48 @@
+{
+  "name": "Test Server Big Endian",
+  "serverRegistersPerUnit": {
+    "1": {
+      "coils": {},
+      "discrete_inputs": {},
+      "input_registers": {
+        "0": {
+          "value": 100,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "littleEndian": false,
+            "comment": "Temperature",
+            "value": 100
+          }
+        },
+        "1": {
+          "value": 12345678,
+          "params": {
+            "address": 1,
+            "registerType": "input_registers",
+            "dataType": "int32",
+            "littleEndian": false,
+            "comment": "Counter",
+            "min": 0,
+            "max": 100,
+            "interval": 1000
+          }
+        }
+      },
+      "holding_registers": {
+        "100": {
+          "value": 500,
+          "params": {
+            "address": 100,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "littleEndian": false,
+            "comment": "Setpoint",
+            "value": 500
+          }
+        }
+      }
+    }
+  }
+}

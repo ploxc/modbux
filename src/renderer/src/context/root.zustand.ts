@@ -16,7 +16,6 @@ export const useRootZustand = create<
       // Config
       init: async () => {
         const { connectionConfig, registerConfig } = get()
-        registerConfig.readConfiguration = false
 
         window.api.updateConnectionConfig(connectionConfig)
         window.api.updateRegisterConfig(registerConfig)

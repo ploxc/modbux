@@ -235,11 +235,6 @@ const ReadConfiguration = meme(() => {
 })
 
 const RegisterConfig = meme(() => {
-  // Reset reading configuration on load
-  useEffect(() => {
-    useRootZustand.getState().setReadConfiguration(false)
-  }, [])
-
   return (
     <>
       <TypeSelect />

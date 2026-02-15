@@ -51,7 +51,7 @@ type RegisterDef = {
   registerType: 'holding_registers' | 'input_registers'
   address: number
   dataType: string
-  littleEndian?: boolean
+  next?: boolean
 } & (
   | { mode: 'fixed'; value: string; comment?: string }
   | { mode: 'generator'; min: string; max: string; interval: string; comment?: string }
@@ -84,7 +84,8 @@ const SERVER_1_UNIT_0: ServerConfig = {
       dataType: 'INT16',
       mode: 'fixed',
       value: '-100',
-      comment: 'test int16 negative'
+      comment: 'test int16 negative',
+      next: true
     },
     {
       registerType: 'holding_registers',
@@ -92,7 +93,8 @@ const SERVER_1_UNIT_0: ServerConfig = {
       dataType: 'UINT16',
       mode: 'fixed',
       value: '500',
-      comment: 'test uint16'
+      comment: 'test uint16',
+      next: true
     },
     {
       registerType: 'holding_registers',
@@ -100,7 +102,8 @@ const SERVER_1_UNIT_0: ServerConfig = {
       dataType: 'INT32',
       mode: 'fixed',
       value: '-70000',
-      comment: 'test int32 negative'
+      comment: 'test int32 negative',
+      next: true
     },
     {
       registerType: 'holding_registers',
@@ -141,15 +144,6 @@ const SERVER_1_UNIT_0: ServerConfig = {
       mode: 'fixed',
       value: '2.718',
       comment: 'test double'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 20,
-      dataType: 'INT32',
-      mode: 'fixed',
-      value: '12345',
-      littleEndian: true,
-      comment: 'LE int32'
     },
     {
       registerType: 'holding_registers',
@@ -284,23 +278,22 @@ async function cell(p: Page, rowId: number, field: string): Promise<string> {
   return ((await loc.textContent()) ?? '').trim()
 }
 
+let prevUsedNext = false
+
 /**
  * Add a register with full config support.
  * Uses either "Add & Close" or "Add & Next" button based on `useNext` param.
  * Assumes modal is NOT open yet.
  */
-async function addRegister(p: Page, reg: RegisterDef, useNext = false): Promise<void> {
+async function addRegister(p: Page, reg: RegisterDef): Promise<void> {
   // Open modal
-  await p.getByTestId(`add-${reg.registerType}-btn`).click()
-  await p.waitForTimeout(300)
+  if (!prevUsedNext) {
+    await p.getByTestId(`add-${reg.registerType}-btn`).click()
+    await p.waitForTimeout(300)
+  }
 
   // Select data type
   await selectDataType(p, reg.dataType)
-
-  // Set endianness if needed
-  if (reg.littleEndian) {
-    await p.getByTestId('add-reg-le-btn').click()
-  }
 
   // Fill address
   const addressInput = p.getByTestId('add-reg-address-input').locator('input')
@@ -333,10 +326,12 @@ async function addRegister(p: Page, reg: RegisterDef, useNext = false): Promise<
   }
 
   // Submit with either "Add & Close" or "Add & Next"
-  if (useNext) {
+  if (reg.next) {
     await p.getByTestId('add-reg-next-btn').click()
+    prevUsedNext = true
   } else {
     await p.getByTestId('add-reg-submit-btn').click()
+    prevUsedNext = false
   }
   await p.waitForTimeout(300)
 }
@@ -531,7 +526,7 @@ test.describe.serial('Server 1 — Configure main server', () => {
     // Verify counts
     await expect(page.getByTestId('section-coils')).toContainText('(16)')
     await expect(page.getByTestId('section-discrete_inputs')).toContainText('(8)')
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
     await expect(page.getByTestId('section-input_registers')).toContainText('(3)')
   })
 
@@ -544,7 +539,7 @@ test.describe.serial('Server 1 — Configure main server', () => {
     await page.waitForTimeout(100)
     await page.getByTestId('add-reg-submit-btn').click()
     await page.waitForTimeout(300)
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
   })
 
   test('configure server 1, unit ID 1', async () => {
@@ -557,7 +552,7 @@ test.describe.serial('Server 1 — Configure main server', () => {
   test('switch back to unit ID 0 — verify data preserved', async () => {
     await selectUnitId(page, '0')
     await expect(page.getByTestId('section-coils')).toContainText('(16)')
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
     await expect(page.getByTestId('section-input_registers')).toContainText('(3)')
   })
 
@@ -629,7 +624,7 @@ test.describe.serial('Server 2 — Second server configuration', () => {
   test('switch to server 1 — verify isolation', async () => {
     await page.getByTestId('select-server-502').click()
     await page.waitForTimeout(300)
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
   })
 })
 
@@ -645,12 +640,11 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.waitForTimeout(300)
   })
 
-  test('open modal — verify defaults (BE, Fixed, INT16)', async () => {
+  test('open modal — verify defaults (Fixed, INT16)', async () => {
     await page.getByTestId('add-holding_registers-btn').click()
     await page.waitForTimeout(300)
 
     // Check defaults (ToggleButtons use Mui-selected)
-    await expect(page.getByTestId('add-reg-be-btn')).toHaveClass(/Mui-selected/)
     await expect(page.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
     const typeSelect = page.getByTestId('add-reg-type-select')
     await expect(typeSelect).toContainText('INT16')
@@ -660,11 +654,10 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.waitForTimeout(300)
   })
 
-  test('open modal, change to LE + Generator + FLOAT', async () => {
+  test('open modal, change to Generator + FLOAT', async () => {
     await page.getByTestId('add-holding_registers-btn').click()
     await page.waitForTimeout(300)
 
-    await page.getByTestId('add-reg-le-btn').click()
     await page.getByTestId('add-reg-generator-btn').click()
     await selectDataType(page, 'FLOAT')
     await page.waitForTimeout(200)
@@ -679,7 +672,6 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.waitForTimeout(300)
 
     // Should be back to defaults (ToggleButtons use Mui-selected)
-    await expect(page.getByTestId('add-reg-be-btn')).toHaveClass(/Mui-selected/)
     await expect(page.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
     const typeSelect = page.getByTestId('add-reg-type-select')
     await expect(typeSelect).toContainText('INT16')
@@ -692,8 +684,7 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.getByTestId('add-holding_registers-btn').click()
     await page.waitForTimeout(300)
 
-    // Configure: address 100, LE, UINT32, Generator, min 50, max 200, interval 5
-    await page.getByTestId('add-reg-le-btn').click()
+    // Configure: address 100, UINT32, Generator, min 50, max 200, interval 5
     await selectDataType(page, 'UINT32')
     await page.getByTestId('add-reg-generator-btn').click()
     const addressInput = page.getByTestId('add-reg-address-input').locator('input')
@@ -719,9 +710,6 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     const newAddress = await addressInput.inputValue()
     expect(newAddress).toBe('102')
 
-    // Verify: LE preserved (ToggleButton uses Mui-selected)
-    await expect(page.getByTestId('add-reg-le-btn')).toHaveClass(/Mui-selected/)
-
     // Verify: Generator mode preserved
     await expect(page.getByTestId('add-reg-generator-btn')).toHaveClass(/Mui-selected/)
 
@@ -746,8 +734,7 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.getByTestId('add-input_registers-btn').click()
     await page.waitForTimeout(300)
 
-    // Should be back to defaults (BE, Fixed, INT16) - ToggleButtons use Mui-selected
-    await expect(page.getByTestId('add-reg-be-btn')).toHaveClass(/Mui-selected/)
+    // Should be back to defaults (Fixed, INT16) - ToggleButtons use Mui-selected
     await expect(page.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
     const typeSelect = page.getByTestId('add-reg-type-select')
     await expect(typeSelect).toContainText('INT16')
@@ -764,7 +751,7 @@ test.describe.serial('AddRegister modal — state reset and preserve', () => {
     await page.waitForTimeout(1000)
 
     // Verify holding registers count is back to 10
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
   })
 })
 
@@ -848,11 +835,6 @@ test.describe.serial('Client reads — Server 1, Unit 0', () => {
   test('verify DOUBLE at address 16 ≈ 2.718', async () => {
     const val = await cell(page, 16, 'word_double')
     expect(val).toContain('2.718')
-  })
-
-  test('verify LE INT32 at address 20 (word-swapped)', async () => {
-    expect(await cell(page, 20, 'hex')).toBe('3039')
-    expect(await cell(page, 21, 'hex')).toBe('0000')
   })
 
   test('verify generator at address 22 is in range 0-1000', async () => {
@@ -1103,7 +1085,125 @@ test.describe.serial('Client reads — Server 2, Unit 0', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════
-// 10. SERVER VERIFICATION — All data intact
+// 10. ENDIANNESS — Switch server to LE, verify client reads
+// ═══════════════════════════════════════════════════════════════════════
+
+test.describe.serial('Endianness — Switch server 1 to Little Endian', () => {
+  test('navigate to server 1 and switch to Little Endian', async () => {
+    await page.getByTestId('home-btn').click()
+    await page.waitForTimeout(600)
+    await page.getByTestId('home-server-btn').click()
+    await page.waitForTimeout(600)
+
+    await page.getByTestId('select-server-502').click()
+    await page.waitForTimeout(300)
+    await selectUnitId(page, '0')
+    await page.waitForTimeout(300)
+
+    // Switch to Little Endian
+    await page.getByTestId('server-endian-le-btn').click()
+    await page.waitForTimeout(500)
+
+    // Verify LE button is selected
+    await expect(page.getByTestId('server-endian-le-btn')).toHaveClass(/Mui-selected/)
+  })
+
+  test('navigate to client and connect to server 1, unit 0', async () => {
+    await page.getByTestId('home-btn').click()
+    await page.waitForTimeout(600)
+    await page.getByTestId('home-client-btn').click()
+    await page.waitForTimeout(600)
+
+    await connectClient(page, '127.0.0.1', '502', '0')
+  })
+
+  test('switch client to Little Endian', async () => {
+    await selectRegisterType(page, 'Holding Registers')
+    await page.getByTestId('endian-le-btn').click()
+    await page.waitForTimeout(200)
+    await expect(page.getByTestId('endian-le-btn')).toHaveClass(/Mui-selected/)
+  })
+
+  test('read holding registers 0-20 in LE', async () => {
+    await readRegisters(page, '0', '20')
+  })
+
+  test('verify INT16 at address 0 = 999 (LE has no effect on 16-bit)', async () => {
+    expect(await cell(page, 0, 'hex')).toBe('03E7')
+    expect(await cell(page, 0, 'word_int16')).toBe('999')
+  })
+
+  test('verify UINT16 at address 1 = 500 (LE has no effect on 16-bit)', async () => {
+    expect(await cell(page, 1, 'hex')).toBe('01F4')
+    expect(await cell(page, 1, 'word_uint16')).toBe('500')
+  })
+
+  test('verify INT32 at address 2 = -70000 (LE word order swapped)', async () => {
+    // BE was [0xFFFE, 0xEE90], LE swaps to [0xEE90, 0xFFFE]
+    expect(await cell(page, 2, 'hex')).toBe('EE90')
+    expect(await cell(page, 3, 'hex')).toBe('FFFE')
+    // Interpreted value should still be correct with client in LE mode
+    expect(await cell(page, 2, 'word_int32')).toBe('-70000')
+  })
+
+  test('verify UINT32 at address 4 = 100000 (LE word order swapped)', async () => {
+    // BE was [0x0001, 0x86A0], LE swaps to [0x86A0, 0x0001]
+    expect(await cell(page, 4, 'hex')).toBe('86A0')
+    expect(await cell(page, 5, 'hex')).toBe('0001')
+    expect(await cell(page, 4, 'word_uint32')).toBe('100000')
+  })
+
+  test('verify FLOAT at address 6 ≈ 3.14 (LE word order swapped)', async () => {
+    // BE was [0x4048, 0xF5C3], LE swaps to [0xF5C3, 0x4048]
+    expect(await cell(page, 6, 'hex')).toBe('F5C3')
+    const val = await cell(page, 6, 'word_float')
+    expect(val).toContain('3.14')
+  })
+
+  test('verify INT64 at address 8 = -1000000 (LE)', async () => {
+    expect(await cell(page, 8, 'word_int64')).toBe('-1000000')
+  })
+
+  test('verify UINT64 at address 12 = 2000000 (LE)', async () => {
+    expect(await cell(page, 12, 'word_uint64')).toBe('2000000')
+  })
+
+  test('verify DOUBLE at address 16 ≈ 2.718 (LE)', async () => {
+    const val = await cell(page, 16, 'word_double')
+    expect(val).toContain('2.718')
+  })
+
+  test('clear LE holding data', async () => {
+    await clearData(page)
+  })
+
+  test('switch client back to Big Endian', async () => {
+    await page.getByTestId('endian-be-btn').click()
+    await page.waitForTimeout(200)
+    await expect(page.getByTestId('endian-be-btn')).toHaveClass(/Mui-selected/)
+  })
+
+  test('disconnect from server 1', async () => {
+    await disconnectClient(page)
+  })
+
+  test('switch server 1 back to Big Endian', async () => {
+    await page.getByTestId('home-btn').click()
+    await page.waitForTimeout(600)
+    await page.getByTestId('home-server-btn').click()
+    await page.waitForTimeout(600)
+
+    await page.getByTestId('select-server-502').click()
+    await page.waitForTimeout(300)
+
+    await page.getByTestId('server-endian-be-btn').click()
+    await page.waitForTimeout(500)
+    await expect(page.getByTestId('server-endian-be-btn')).toHaveClass(/Mui-selected/)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════
+// 11. SERVER VERIFICATION — All data intact (after LE round-trip)
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Server data verification', () => {
@@ -1120,7 +1220,7 @@ test.describe.serial('Server data verification', () => {
     await selectUnitId(page, '0')
     await expect(page.getByTestId('section-coils')).toContainText('(16)')
     await expect(page.getByTestId('section-discrete_inputs')).toContainText('(8)')
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(10)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
     await expect(page.getByTestId('section-input_registers')).toContainText('(3)')
   })
 
@@ -1142,7 +1242,7 @@ test.describe.serial('Server data verification', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════
-// 11. CLEANUP — Clear all server data
+// 12. CLEANUP — Clear all server data
 // ═══════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Cleanup operations', () => {

@@ -2,7 +2,13 @@
 //
 
 import FormControl from '@mui/material/FormControl'
-import { TextField, Box, InputBaseComponentProps } from '@mui/material'
+import {
+  TextField,
+  Box,
+  InputBaseComponentProps,
+  ToggleButtonGroup,
+  ToggleButton
+} from '@mui/material'
 import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -14,6 +20,43 @@ import Select from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
 import React, { useState } from 'react'
+
+const EndianToggle = meme(() => {
+  const selectedUuid = useServerZustand((z) => z.selectedUuid)
+  const littleEndian = useServerZustand((z) => z.littleEndian[selectedUuid] ?? false)
+  const setLittleEndian = useServerZustand((z) => z.setLittleEndian)
+  const ready = useServerZustand((z) => z.ready[selectedUuid])
+
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      color="primary"
+      value={littleEndian}
+      disabled={!ready}
+      onChange={(_, v) => v !== null && setLittleEndian(v)}
+    >
+      <ToggleButton
+        data-testid="server-endian-be-btn"
+        aria-label="Big Endian"
+        value={false}
+        sx={{ whiteSpace: 'nowrap', px: 1.5 }}
+        title="Big-Endian (Modbus standard)"
+      >
+        BE
+      </ToggleButton>
+      <ToggleButton
+        data-testid="server-endian-le-btn"
+        aria-label="Little Endian"
+        value={true}
+        sx={{ px: 1.5 }}
+        title="Little-Endian (rare, check device docs)"
+      >
+        LE
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+})
 
 interface UnitIdMenuItemProps {
   unitId: UnitIdString
@@ -144,6 +187,7 @@ const Port = meme(() => {
 const ServerConfig = (): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
+      <EndianToggle />
       <UnitId />
       <Port />
     </Box>
