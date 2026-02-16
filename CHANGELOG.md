@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.0] - Unreleased
 
+### Added
+
+- **Three new register data types:**
+  - **UTF-8 strings:** Store text values across multiple registers (1-124 registers)
+    - String input field with real-time byte counter to prevent overflow
+    - Register length selector to specify how many registers to use
+  - **Unix timestamps:** Store and display timestamps as seconds since epoch
+    - Displayed in human-readable format (e.g., 2025/02/16 14:30:45)
+    - Toggle between UTC and local time display
+  - **Datetime (IEC 870-5):** Industry-standard datetime format for SCADA systems
+    - DateTime picker for easy timestamp entry with UTC toggle
+    - Displayed in human-readable format
+
+- **Time-based value generators for Unix and Datetime types:**
+  - Registers automatically update to current system time at configured intervals
+  - Useful for simulating real-time devices and testing timestamp handling
+
 ### Changed
 
 - **Endianness is now a global server setting** instead of per-register configuration
@@ -29,19 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Client polling now resumes on reconnect** — when the connection drops and auto-reconnects, polling continues automatically instead of silently stopping
-- **Client register config state preserved** — `readConfiguration` is no longer reset on navigation or client load, preventing loss of user settings
-
-### Improved
-
-- Extracted `getRegisterLength` to shared utilities for reuse across frontend and backend
-- Extracted server register sync helpers for cleaner state management
-
-### Technical Details
-
-- Config schema version: v1 → v2
-- `RegisterParams.littleEndian` removed → now `ServerConfig.littleEndian` (global)
-- Migration framework with sequential migration pattern for future updates
-- Comprehensive test coverage (18 migration tests + E2E endianness round-trip tests)
+- **Client register config state preserved** — `readConfiguration` is no longer reset on navigation or client load.
 
 ### Migration Notes
 
@@ -51,12 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backward incompatibility:** Configs saved in v1.5.0+ cannot be opened in older Modbux versions
   - This is intentional to enable the improved architecture
   - Keep backups of configs if you need to downgrade
-
-### For Developers
-
-- New migration framework in `src/shared/configMigration.ts`
-- Zustand persist middleware now includes version-based migration
-- Test fixtures for v1/v2 configs in `src/shared/__tests__/__fixtures__/`
 
 ---
 
