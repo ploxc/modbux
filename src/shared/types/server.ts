@@ -38,7 +38,9 @@ export const RegisterParamsBasePartSchema = z.object({
   address: z.number(),
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
-  comment: z.string()
+  comment: z.string(),
+  length: z.number().optional(),
+  stringValue: z.string().optional()
 })
 export type RegisterParamsBasePart = z.infer<typeof RegisterParamsBasePartSchema>
 

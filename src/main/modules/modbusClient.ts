@@ -493,7 +493,8 @@ export class ModbusClient {
       result,
       address,
       this._appState.registerConfig.littleEndian,
-      this._clientState.scanningRegisters
+      this._clientState.scanningRegisters,
+      this._appState.registerConfig.readLocalTime
     )
   }
 
@@ -506,7 +507,8 @@ export class ModbusClient {
       result,
       address,
       this._appState.registerConfig.littleEndian,
-      this._clientState.scanningRegisters
+      this._clientState.scanningRegisters,
+      this._appState.registerConfig.readLocalTime
     )
   }
 

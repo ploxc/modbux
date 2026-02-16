@@ -12,12 +12,20 @@ import {
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
+const getRegisterSize = (dataType: DataType, length?: number): number => {
+  if (['double', 'uint64', 'int64', 'datetime'].includes(dataType)) return 4
+  if (['uint32', 'int32', 'float', 'unix'].includes(dataType)) return 2
+  if (dataType === 'utf8') return length ?? 10
+  return 1
+}
+
 type GetAddressInUseFn = (
   uuid: string,
   unitId: UnitIdString,
   registerType: NumberRegisters,
   dataType: DataType,
-  address: number
+  address: number,
+  length?: number
 ) => boolean
 
 export const getAddressInUse: GetAddressInUseFn = (
@@ -25,30 +33,23 @@ export const getAddressInUse: GetAddressInUseFn = (
   unitId,
   registerType,
   dataType,
-  address
+  address,
+  length
 ) => {
-  // In edit mode, ignore the register being edited for overlap check
   const editRegister = useAddRegisterZustand.getState().serverRegisterEdit
   const usedAddresses = registerType
     ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
     : []
-  const addressesNeeded = ['double', 'uint64', 'int64'].includes(dataType)
-    ? [address, address + 1, address + 2, address + 3]
-    : ['uint32', 'int32', 'float'].includes(dataType)
-      ? [address, address + 1]
-      : [address]
+
+  const size = getRegisterSize(dataType, length)
+  const addressesNeeded = Array.from({ length: size }, (_, i) => address + i)
+
   if (editRegister) {
-    // Remove the addresses of the register being edited from usedAddresses
-    const editAddresses = ['double', 'uint64', 'int64'].includes(editRegister.params.dataType)
-      ? [
-          editRegister.params.address,
-          editRegister.params.address + 1,
-          editRegister.params.address + 2,
-          editRegister.params.address + 3
-        ]
-      : ['uint32', 'int32', 'float'].includes(editRegister.params.dataType)
-        ? [editRegister.params.address, editRegister.params.address + 1]
-        : [editRegister.params.address]
+    const editSize = getRegisterSize(editRegister.params.dataType, editRegister.params.length)
+    const editAddresses = Array.from(
+      { length: editSize },
+      (_, i) => editRegister.params.address + i
+    )
     const filteredUsed = usedAddresses.filter((a) => !editAddresses.includes(a))
     return addressesNeeded.some((a) => filteredUsed.includes(Number(a)))
   }
@@ -85,6 +86,12 @@ interface AddRegisterZustand {
   setMax: MaskSetFn
   fixed: boolean
   setFixed: (fixed: boolean) => void
+  stringValue: string
+  setStringValue: (value: string) => void
+  registerLength: string
+  setRegisterLength: MaskSetFn
+  showDatePickerUtc: boolean
+  setShowDatePickerUtc: (utc: boolean) => void
   initNextUnusedAddress: (startFrom?: number) => void
   resetToDefaults: () => void
 }
@@ -115,14 +122,22 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     setAddress: (address, valid) =>
       set((state) => {
         state.address = address
-        const { registerType, dataType } = getState()
+        const { registerType, dataType, registerLength } = getState()
         if (!registerType) return
         const z = useServerZustand.getState()
         const uuid = z.selectedUuid
         const unitId = z.getUnitId(uuid)
         const addressNum = Number(address)
-        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum)
-        const addressFitError = getAddressFitError(dataType, addressNum)
+        const length = dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+        const addressInUse = getAddressInUse(
+          uuid,
+          unitId,
+          registerType,
+          dataType,
+          addressNum,
+          length
+        )
+        const addressFitError = getAddressFitError(dataType, addressNum, length)
         state.addressInUse = addressInUse
         state.addressFitError = addressFitError
         state.valid.address = !!valid && !addressInUse && !addressFitError
@@ -131,14 +146,31 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     setDataType: (dataType) =>
       set((state) => {
         state.dataType = dataType
-        const { registerType, address } = getState()
+        // Force fixed mode for utf8
+        if (dataType === 'utf8') {
+          state.fixed = true
+        }
+        // Initialize value to current timestamp for unix/datetime
+        if (['unix', 'datetime'].includes(dataType)) {
+          state.value = String(Date.now())
+          state.valid.value = true
+        }
+        const { registerType, address, registerLength } = getState()
         if (!registerType) return
         const z = useServerZustand.getState()
         const uuid = z.selectedUuid
         const unitId = z.getUnitId(uuid)
         const addressNum = Number(address)
-        const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum)
-        const addressFitError = getAddressFitError(dataType, addressNum)
+        const length = dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+        const addressInUse = getAddressInUse(
+          uuid,
+          unitId,
+          registerType,
+          dataType,
+          addressNum,
+          length
+        )
+        const addressFitError = getAddressFitError(dataType, addressNum, length)
         state.addressInUse = addressInUse
         state.addressFitError = addressFitError
         state.valid.address = String(address).length > 0 && !addressInUse && !addressFitError
@@ -178,9 +210,45 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       set((state) => {
         state.fixed = fixed
       }),
+    stringValue: '',
+    setStringValue: (value) =>
+      set((state) => {
+        state.stringValue = value
+      }),
+    registerLength: '10',
+    setRegisterLength: (registerLength, valid) =>
+      set((state) => {
+        state.registerLength = registerLength
+        // Revalidate address when length changes (for utf8)
+        const { registerType, dataType, address } = getState()
+        if (!registerType || dataType !== 'utf8') return
+        const z = useServerZustand.getState()
+        const uuid = z.selectedUuid
+        const unitId = z.getUnitId(uuid)
+        const addressNum = Number(address)
+        const length = Number(registerLength) || 10
+        const addressInUse = getAddressInUse(
+          uuid,
+          unitId,
+          registerType,
+          dataType,
+          addressNum,
+          length
+        )
+        const addressFitError = getAddressFitError(dataType, addressNum, length)
+        state.addressInUse = addressInUse
+        state.addressFitError = addressFitError
+        state.valid.address =
+          String(address).length > 0 && !!valid && !addressInUse && !addressFitError
+      }),
+    showDatePickerUtc: false,
+    setShowDatePickerUtc: (utc) =>
+      set((state) => {
+        state.showDatePickerUtc = utc
+      }),
     initNextUnusedAddress: (startFrom?: number) =>
       set((state) => {
-        const { registerType, dataType } = getState()
+        const { registerType, dataType, registerLength } = getState()
         if (!registerType) return
 
         const z = useServerZustand.getState()
@@ -189,11 +257,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
 
         const usedAddresses = z.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
         const start = startFrom ?? 0
-        const size = ['double', 'uint64', 'int64'].includes(dataType)
-          ? 4
-          : ['uint32', 'int32', 'float'].includes(dataType)
-            ? 2
-            : 1
+        const size = getRegisterSize(
+          dataType,
+          dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+        )
         for (let addr = start; addr <= 65535 - (size - 1); addr++) {
           const needed = Array.from({ length: size }, (_, i) => addr + i)
           if (needed.every((a) => !usedAddresses.includes(a))) {
@@ -215,6 +282,8 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.interval = '1'
         state.comment = ''
         state.fixed = true
+        state.stringValue = ''
+        state.registerLength = '10'
         state.serverRegisterEdit = undefined
         state.addressInUse = false
         state.addressFitError = false

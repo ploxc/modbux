@@ -21,6 +21,9 @@ import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSele
 import { useMinMaxInteger } from '@renderer/hooks'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { Delete } from '@mui/icons-material'
+import { DateTimePicker, LocalizationProvider } from '@mui/x-date-pickers'
+import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon'
+import { DateTime } from 'luxon'
 
 //
 //
@@ -32,8 +35,9 @@ const AddressInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props,
 
   // Set maximum address based on data type
   const maxAddress = useAddRegisterZustand((z) => {
-    if (['int32', 'uint32', 'float'].includes(z.dataType)) return 65534
-    if (['int64', 'uint64', 'double'].includes(z.dataType)) return 65532
+    if (['int32', 'uint32', 'float', 'unix'].includes(z.dataType)) return 65534
+    if (['int64', 'uint64', 'double', 'datetime'].includes(z.dataType)) return 65532
+    if (z.dataType === 'utf8') return Math.max(0, 65535 - (Number(z.registerLength) || 10) + 1)
     return 65535
   })
 
@@ -105,6 +109,10 @@ const DataTypeSelect = meme(() => {
 const FixedOrGenerator = meme(() => {
   const fixed = useAddRegisterZustand((z) => z.fixed)
   const setFixed = useAddRegisterZustand((z) => z.setFixed)
+  const dataType = useAddRegisterZustand((z) => z.dataType)
+
+  // UTF-8 is always fixed — hide toggle
+  if (dataType === 'utf8') return null
 
   return (
     <ToggleButtonGroup
@@ -357,13 +365,163 @@ const IntervalTextField = meme(() => {
 //
 //
 //
+// DateTimePicker for unix/datetime fixed mode
+const DateTimeField = meme(() => {
+  const value = useAddRegisterZustand((z) => z.value)
+  const showDatePickerUtc = useAddRegisterZustand((z) => z.showDatePickerUtc)
+  const setValue = useAddRegisterZustand((z) => z.setValue)
+  const setShowDatePickerUtc = useAddRegisterZustand((z) => z.setShowDatePickerUtc)
+
+  const dateValue = value && value !== '0' ? DateTime.fromMillis(Number(value)) : DateTime.now()
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterLuxon}>
+      <DateTimePicker
+        timezone={showDatePickerUtc ? 'UTC' : undefined}
+        label="Date & Time"
+        value={dateValue}
+        onChange={(dt) => {
+          if (dt && dt.isValid) {
+            setValue(String(dt.toMillis()), true)
+          }
+        }}
+        ampm={false}
+        slotProps={{
+          textField: {
+            size: 'small',
+            sx: { minWidth: 220 },
+            inputProps: { 'data-testid': 'add-reg-datetime-input' }
+          }
+        }}
+      />
+      <ToggleButtonGroup size="small" value={showDatePickerUtc} color="primary">
+        <ToggleButton
+          value={true}
+          data-testid="add-reg-datetime-show-utc"
+          aria-label="Show UTC time for datepicker"
+          title="Show UTC time for datepicker"
+          onChange={() => setShowDatePickerUtc(!showDatePickerUtc)}
+        >
+          UTC
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </LocalizationProvider>
+  )
+})
+
+//
+//
+//
+//
+// String value input for utf8
+const StringValueField = meme(() => {
+  const stringValue = useAddRegisterZustand((z) => z.stringValue)
+  const setStringValue = useAddRegisterZustand((z) => z.setStringValue)
+  const registerLength = useAddRegisterZustand((z) => z.registerLength)
+  const maxBytes = (Number(registerLength) || 10) * 2
+
+  return (
+    <TextField
+      data-testid="add-reg-string-input"
+      label="String Value"
+      variant="outlined"
+      size="small"
+      sx={{ minWidth: 200, flex: 1 }}
+      value={stringValue}
+      onChange={(e) => setStringValue(e.target.value)}
+      helperText={`${new TextEncoder().encode(stringValue).length} / ${maxBytes} bytes`}
+      error={new TextEncoder().encode(stringValue).length > maxBytes}
+    />
+  )
+})
+
+//
+//
+//
+//
+// Register length input for utf8
+const RegisterLengthForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+  const { set, ...other } = props
+
+  return (
+    <IMaskInput
+      {...other}
+      mask={IMask.MaskedNumber}
+      min={1}
+      max={124}
+      autofix
+      scale={0}
+      thousandsSeparator=""
+      inputRef={ref}
+      onAccept={(value) => set(value, notEmpty(value))}
+    />
+  )
+})
+
+RegisterLengthForward.displayName = 'RegisterLengthInput'
+const RegisterLengthInput = meme(RegisterLengthForward)
+
+const RegisterLengthField = meme(() => {
+  const registerLength = useAddRegisterZustand((z) => z.registerLength)
+  const setRegisterLength = useAddRegisterZustand((z) => z.setRegisterLength)
+
+  return (
+    <TextField
+      data-testid="add-reg-length-input"
+      label="Registers"
+      variant="outlined"
+      size="small"
+      sx={{ width: 90 }}
+      value={registerLength}
+      slotProps={{
+        input: {
+          inputComponent: RegisterLengthInput as unknown as ElementType<
+            InputBaseComponentProps,
+            'input'
+          >,
+          inputProps: maskInputProps({ set: setRegisterLength })
+        }
+      }}
+    />
+  )
+})
+
+//
+//
+//
+//
 // ValueParameters
 const ValueParameters = meme(() => {
   const fixed = useAddRegisterZustand((z) => z.fixed)
+  const dataType = useAddRegisterZustand((z) => z.dataType)
 
-  return fixed ? (
-    <ValueInputComponent />
-  ) : (
+  // UTF-8: string input + register length
+  if (dataType === 'utf8') {
+    return (
+      <>
+        <StringValueField />
+        <RegisterLengthField />
+      </>
+    )
+  }
+
+  // Unix/datetime fixed: date picker
+  if (['unix', 'datetime'].includes(dataType) && fixed) {
+    return <DateTimeField />
+  }
+
+  // Unix/datetime generator: only interval
+  if (['unix', 'datetime'].includes(dataType) && !fixed) {
+    return <IntervalTextField />
+  }
+
+  // Numeric fixed: value input
+  if (fixed) {
+    return <ValueInputComponent />
+  }
+
+  // Numeric generator: min/max/interval
+  return (
     <>
       <MinTextField />
       <MaxTextField />
@@ -415,6 +573,8 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
     max,
     interval,
     comment,
+    stringValue,
+    registerLength,
     serverRegisterEdit
   } = useAddRegisterZustand.getState()
   if (!registerType) return undefined
@@ -439,7 +599,35 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
     }
   }
 
-  if (fixed) {
+  if (dataType === 'utf8') {
+    // UTF-8: always fixed, pass stringValue and length
+    z.addRegister({
+      ...commonParams,
+      params: {
+        ...baseRegisterParams,
+        value: 0,
+        stringValue,
+        length: Number(registerLength) || 10
+      }
+    })
+  } else if (['unix', 'datetime'].includes(dataType)) {
+    if (fixed) {
+      // Fixed timestamp from date picker (value stored as ms)
+      const timestamp = dataType === 'unix' ? Math.floor(Number(value) / 1000) : Number(value)
+      z.addRegister({ ...commonParams, params: { ...baseRegisterParams, value: timestamp } })
+    } else {
+      // Generator: system time, only interval matters
+      z.addRegister({
+        ...commonParams,
+        params: {
+          ...baseRegisterParams,
+          min: 0,
+          max: 0,
+          interval: Number(interval) * 1000
+        }
+      })
+    }
+  } else if (fixed) {
     z.addRegister({ ...commonParams, params: { ...baseRegisterParams, value: Number(value) } })
   } else {
     z.addRegister({
@@ -460,6 +648,10 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
 const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => {
+    if (z.dataType === 'utf8') return z.valid.address
+    if (['unix', 'datetime'].includes(z.dataType)) {
+      return z.fixed ? z.valid.address : z.valid.address && z.valid.interval
+    }
     if (z.fixed) return z.valid.address && z.valid.value
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval
   })
@@ -476,15 +668,18 @@ const AddButtons = meme(() => {
     const result = submitRegister(false)
     if (!result) return
     const { address, dataType } = result
-    const size = ['double', 'uint64', 'int64'].includes(dataType)
-      ? 4
-      : ['uint32', 'int32', 'float'].includes(dataType)
-        ? 2
-        : 1
     const state = useAddRegisterZustand.getState()
+    const size = ['double', 'uint64', 'int64', 'datetime'].includes(dataType)
+      ? 4
+      : ['uint32', 'int32', 'float', 'unix'].includes(dataType)
+        ? 2
+        : dataType === 'utf8'
+          ? Number(state.registerLength) || 10
+          : 1
     // Reset value and comment, keep dataType/LE/fixed/min/max/interval
     state.setValue('0', true)
     state.setComment('')
+    if (dataType === 'utf8') state.setStringValue('')
     state.initNextUnusedAddress(address + size)
   }, [])
 
@@ -601,8 +796,18 @@ const AddRegister = meme(() => {
     const state = useAddRegisterZustand.getState()
     if (!state.serverRegisterEdit) return
 
-    const { address, comment, dataType, registerType, interval, max, min, value } =
-      state.serverRegisterEdit.params
+    const {
+      address,
+      comment,
+      dataType,
+      registerType,
+      interval,
+      max,
+      min,
+      value,
+      stringValue,
+      length
+    } = state.serverRegisterEdit.params
 
     state.setFixed(value !== undefined)
     state.setAddress(String(address))
@@ -611,7 +816,19 @@ const AddRegister = meme(() => {
     state.setInterval(interval ? String(interval / 1000) : '1')
     state.setMax(String(max))
     state.setMin(String(min))
-    state.setValue(String(value))
+
+    if (dataType === 'utf8') {
+      state.setStringValue(stringValue ?? '')
+      state.setRegisterLength(String(length ?? 10), true)
+      state.setValue('0', true)
+    } else if (['unix', 'datetime'].includes(dataType) && value !== undefined) {
+      // Convert stored value back to ms for the date picker
+      const ms = dataType === 'unix' ? Number(value) * 1000 : Number(value)
+      state.setValue(String(ms), true)
+    } else {
+      state.setValue(String(value))
+    }
+
     state.setDataType(dataType)
   }, [edit])
 

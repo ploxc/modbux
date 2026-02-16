@@ -23,13 +23,13 @@ export const getRegisterLength = (
     case 'float':
     case 'int32':
     case 'uint32':
-    case 'datetime':
     case 'unix':
       return 2
 
     case 'int64':
     case 'uint64':
     case 'double':
+    case 'datetime':
       return 4
 
     case 'utf8':

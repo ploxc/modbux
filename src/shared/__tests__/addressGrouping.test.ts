@@ -12,7 +12,6 @@ describe('getRegisterLength', () => {
     expect(getRegisterLength('int32', 0)).toBe(2)
     expect(getRegisterLength('uint32', 0)).toBe(2)
     expect(getRegisterLength('float', 0)).toBe(2)
-    expect(getRegisterLength('datetime', 0)).toBe(2)
     expect(getRegisterLength('unix', 0)).toBe(2)
   })
 
@@ -20,6 +19,7 @@ describe('getRegisterLength', () => {
     expect(getRegisterLength('int64', 0)).toBe(4)
     expect(getRegisterLength('uint64', 0)).toBe(4)
     expect(getRegisterLength('double', 0)).toBe(4)
+    expect(getRegisterLength('datetime', 0)).toBe(4)
   })
 
   it('returns 0 for unknown type', () => {

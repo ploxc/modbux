@@ -4,6 +4,7 @@ import {
   SyncBoolsParameters,
   SyncRegisterValueParams,
   createRegisters,
+  createStringRegisters,
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
@@ -255,7 +256,18 @@ export class ModbusServer {
    * If a fixed value is provided, sets the register directly.
    */
   public addRegister = ({ uuid, unitId, params, littleEndian }: AddRegisterParams): void => {
-    const { address, registerType, dataType, min, max, interval, value, comment } = params
+    const {
+      address,
+      registerType,
+      dataType,
+      min,
+      max,
+      interval,
+      value,
+      comment,
+      stringValue,
+      length
+    } = params
 
     // Ensure generator map for this server and unitId
     const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
@@ -281,7 +293,10 @@ export class ModbusServer {
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
     if (fixedValue) {
-      const registers = createRegisters(dataType, value, littleEndian)
+      const registers =
+        dataType === 'utf8'
+          ? createStringRegisters(stringValue ?? '', length ?? 10)
+          : createRegisters(dataType, value, littleEndian)
       registers.forEach((register, index) => {
         const registerAddress = address + index
         serverData[registerType][registerAddress] = register
@@ -312,7 +327,9 @@ export class ModbusServer {
         interval,
         littleEndian,
         registerType,
-        comment
+        comment,
+        stringValue,
+        length
       })
     )
   }

@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import {
-  migrateServerConfig,
-  migrateClientConfig,
-  migrateServerRegistersState
-} from '../configMigration'
+import { migrateServerConfig } from '../migrations/server/config'
+import { migrateClientConfig } from '../migrations/client/config'
+import { migrateServerRegistersState } from '../migrations/server/zustand'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 

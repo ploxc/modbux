@@ -28,7 +28,8 @@ export const defaultRegisterConfig: RegisterConfig = {
   advancedMode: false,
   show64BitValues: false,
   addressBase: '0',
-  readConfiguration: false
+  readConfiguration: false,
+  readLocalTime: false
 }
 
 export const defaultClientState: ClientState = {

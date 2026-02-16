@@ -51,8 +51,8 @@ export const createRegisters = (
 ): number[] => {
   let bufferSize = 2
 
-  if (['int32', 'uint32', 'float'].includes(dataType)) bufferSize = 4
-  if (['int64', 'uint64', 'double'].includes(dataType)) bufferSize = 8
+  if (['int32', 'uint32', 'float', 'unix'].includes(dataType)) bufferSize = 4
+  if (['int64', 'uint64', 'double', 'datetime'].includes(dataType)) bufferSize = 8
 
   let buffer = Buffer.alloc(bufferSize)
 
@@ -87,6 +87,14 @@ export const createRegisters = (
       buffer.writeDoubleBE(value, 0)
       if (littleEndian) buffer = littleEndian64(buffer, 0)
       break
+    case 'unix':
+      buffer.writeUInt32BE(value >>> 0, 0)
+      if (littleEndian) buffer = littleEndian32(buffer, 0)
+      break
+    case 'datetime':
+      buffer = encodeIEC870DateTime(value)
+      if (littleEndian) buffer = littleEndian64(buffer, 0)
+      break
   }
 
   // Convert bytes to array of 16-bit words.
@@ -96,6 +104,34 @@ export const createRegisters = (
     registers.push(bytes[i] * 256 + bytes[i + 1])
   }
 
+  return registers
+}
+
+/**
+ * Encode a timestamp (milliseconds) to IEC 870-5 datetime format (8 bytes / 4 registers).
+ */
+export const encodeIEC870DateTime = (timestampMs: number): Buffer<ArrayBuffer> => {
+  // Clamp to year 2000 minimum (IEC 870-5 uses year offset from 2000)
+  const dt = new Date(Math.max(timestampMs, 946684800000))
+  const buf = Buffer.alloc(8)
+  buf.writeUInt16BE(dt.getUTCFullYear() - 2000, 0)
+  buf.writeUInt16BE(((dt.getUTCMonth() + 1) << 8) | dt.getUTCDate(), 2)
+  buf.writeUInt16BE((dt.getUTCHours() << 8) | dt.getUTCMinutes(), 4)
+  buf.writeUInt16BE(dt.getUTCSeconds() * 1000 + dt.getUTCMilliseconds(), 6)
+  return buf
+}
+
+/**
+ * Encode a UTF-8 string to Modbus registers (null-padded).
+ */
+export const createStringRegisters = (text: string, registerCount: number): number[] => {
+  const byteLength = registerCount * 2
+  const buf = Buffer.alloc(byteLength, 0)
+  buf.write(text, 'utf-8')
+  const registers: number[] = []
+  for (let i = 0; i < byteLength; i += 2) {
+    registers.push(buf[i] * 256 + buf[i + 1])
+  }
   return registers
 }
 
@@ -117,6 +153,12 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
       return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Closest approximation for float
     case 'double':
       return { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY } // Double in JS is the same as float
+    case 'unix':
+      return { min: 0, max: 4294967295 } // uint32 range (seconds since epoch)
+    case 'datetime':
+      return { min: 0, max: 4102444799 } // ~2100-01-01
+    case 'utf8':
+      return { min: 0, max: 0 } // N/A for strings
     default:
       return { min: 0, max: 0 }
   }
@@ -137,17 +179,13 @@ export const humanizeSerialError = (error: Error, port?: string): string => {
 export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
   const addressSet = new Set<number>()
   registers.forEach((p) => {
-    if (['int16', 'uint16'].includes(p.dataType)) addressSet.add(p.address)
-    if (['int32', 'uint32', 'float'].includes(p.dataType)) {
-      addressSet.add(p.address)
-      addressSet.add(p.address + 1)
-    }
+    let size = 1
+    if (['int32', 'uint32', 'float', 'unix'].includes(p.dataType)) size = 2
+    else if (['int64', 'uint64', 'double', 'datetime'].includes(p.dataType)) size = 4
+    else if (p.dataType === 'utf8') size = p.length ?? 10
 
-    if (['int64', 'uint64', 'double'].includes(p.dataType)) {
-      addressSet.add(p.address)
-      addressSet.add(p.address + 1)
-      addressSet.add(p.address + 2)
-      addressSet.add(p.address + 3)
+    for (let i = 0; i < size; i++) {
+      addressSet.add(p.address + i)
     }
   })
   return Array.from(addressSet)
@@ -163,10 +201,15 @@ export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
   return hasCoils || hasDiscrete || hasInput || hasHolding
 }
 
-export function getAddressFitError(dataType: BaseDataType, address: number): boolean {
+export function getAddressFitError(
+  dataType: BaseDataType,
+  address: number,
+  length?: number
+): boolean {
   let size = 1
-  if (['int32', 'uint32', 'float'].includes(dataType)) size = 2
-  if (['int64', 'uint64', 'double'].includes(dataType)) size = 4
+  if (['int32', 'uint32', 'float', 'unix'].includes(dataType)) size = 2
+  if (['int64', 'uint64', 'double', 'datetime'].includes(dataType)) size = 4
+  if (dataType === 'utf8') size = length ?? 10
   return address + size - 1 > 65535
 }
 

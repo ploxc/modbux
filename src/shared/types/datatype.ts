@@ -9,9 +9,13 @@ export const BaseDataTypeSchema = z.enum([
   'int64',
   'uint64',
   'float',
-  'double'
+  'double',
+  'unix',
+  'datetime',
+  'utf8'
 ])
 export type BaseDataType = z.infer<typeof BaseDataTypeSchema>
 
-export const DataTypeSchema = z.enum([...BaseDataTypeSchema.options, 'unix', 'datetime', 'utf8'])
+// DataType is identical to BaseDataType (all types are now simulatable)
+export const DataTypeSchema = BaseDataTypeSchema
 export type DataType = z.infer<typeof DataTypeSchema>

@@ -1,5 +1,6 @@
 import {
   createRegisters,
+  createStringRegisters,
   NumberRegisters,
   RegisterParamsGeneratorPart,
   RegisterParamsBasePart,
@@ -37,6 +38,8 @@ export class ValueGenerator {
   private _littleEndian: boolean
   private _interval: number
   private _comment: string
+  private _stringValue: string
+  private _length: number
   private _intervalTimer: NodeJS.Timeout
 
   /**
@@ -55,7 +58,9 @@ export class ValueGenerator {
     max,
     littleEndian,
     interval,
-    comment
+    comment,
+    stringValue,
+    length
   }: ValueGeneratorParams) {
     this._uuid = uuid
     this._unitId = unitId
@@ -69,6 +74,8 @@ export class ValueGenerator {
     this._registerType = registerType
     this._interval = interval
     this._comment = comment
+    this._stringValue = stringValue ?? ''
+    this._length = length ?? 10
 
     // Set initial value and start periodic updates
     this._updateValue()
@@ -82,27 +89,32 @@ export class ValueGenerator {
     clearInterval(this._intervalTimer)
 
     // Determine how many addresses to reset based on data type size
-    let addressesToReset: number[]
+    let size: number
     if (['int16', 'uint16'].includes(this._dataType)) {
-      addressesToReset = [this._address]
-    } else if (['uint32', 'int32', 'float'].includes(this._dataType)) {
-      addressesToReset = [this._address, this._address + 1]
+      size = 1
+    } else if (['uint32', 'int32', 'float', 'unix'].includes(this._dataType)) {
+      size = 2
+    } else if (['int64', 'uint64', 'double', 'datetime'].includes(this._dataType)) {
+      size = 4
+    } else if (this._dataType === 'utf8') {
+      size = this._length
     } else {
-      // e.g. double, 64-bit types
-      addressesToReset = [this._address, this._address + 1, this._address + 2, this._address + 3]
+      size = 1
     }
 
-    addressesToReset.forEach((address) => {
-      this._serverData[this._registerType][address] = 0
-    })
+    for (let i = 0; i < size; i++) {
+      this._serverData[this._registerType][this._address + i] = 0
+    }
   }
 
   /**
    * Updates the value in the server data and notifies the frontend.
-   * @param value - The new value to write to the register(s).
    */
   private _updateServerData = (value: number): void => {
-    const registers = createRegisters(this._dataType, value, this._littleEndian)
+    const registers =
+      this._dataType === 'utf8'
+        ? createStringRegisters(this._stringValue, this._length)
+        : createRegisters(this._dataType, value, this._littleEndian)
 
     registers.forEach((register, index) => {
       const registerAddress = this._address + index
@@ -119,12 +131,31 @@ export class ValueGenerator {
 
   /**
    * Generates a new value and updates the server data.
-   * Uses 2 decimals for float/double, 0 otherwise.
    */
   private _updateValue = async (): Promise<void> => {
-    const decimals = ['float', 'double'].includes(this._dataType) ? 2 : 0
-    const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
-    this._updateServerData(value)
+    switch (this._dataType) {
+      case 'unix': {
+        // Generator: current system time (seconds since epoch)
+        this._updateServerData(Math.floor(Date.now() / 1000))
+        break
+      }
+      case 'datetime': {
+        // Generator: current system time (milliseconds for IEC 870 encoding)
+        this._updateServerData(Date.now())
+        break
+      }
+      case 'utf8': {
+        // UTF-8 is always fixed — write once, no periodic changes
+        this._updateServerData(0)
+        break
+      }
+      default: {
+        // Numeric random value
+        const decimals = ['float', 'double'].includes(this._dataType) ? 2 : 0
+        const value = round(Math.random() * (this._max - this._min) + this._min, decimals)
+        this._updateServerData(value)
+      }
+    }
   }
 
   /**
@@ -138,7 +169,8 @@ export class ValueGenerator {
       min: this._min,
       max: this._max,
       interval: this._interval,
-      comment: this._comment
+      comment: this._comment,
+      ...(this._dataType === 'utf8' ? { stringValue: this._stringValue, length: this._length } : {})
     }
   }
 }

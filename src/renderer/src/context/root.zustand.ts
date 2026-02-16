@@ -3,7 +3,13 @@ import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import { PersistedRootZustand, PersistedRootZustandSchema, RootZusand } from './root.zustand.types'
-import { defaultConnectionConfig, defaultRegisterConfig } from '@shared'
+import {
+  defaultConnectionConfig,
+  defaultRegisterConfig,
+  CURRENT_ROOT_ZUSTAND_VERSION,
+  migrateRootState
+} from '@shared'
+import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
 import { onEvent } from '@renderer/events'
 
@@ -212,6 +218,12 @@ export const useRootZustand = create<
           state.registerConfig.advancedMode = advancedMode
           window.api.updateRegisterConfig({ advancedMode })
         }),
+      setReadLocalTime: (readLocalTime) =>
+        set((state) => {
+          if (!get().ready) return
+          state.registerConfig.readLocalTime = readLocalTime
+          window.api.updateRegisterConfig({ readLocalTime })
+        }),
       // Addressing
       setUnitId: (unitId) =>
         set((state) => {
@@ -351,6 +363,8 @@ export const useRootZustand = create<
     })),
     {
       name: `root.zustand`,
+      version: CURRENT_ROOT_ZUSTAND_VERSION,
+      migrate: (state, version) => migrateRootState(state, version) as PersistedRootZustand,
       partialize: (state) => ({
         name: state.name,
         connectionConfig: state.connectionConfig,
@@ -367,6 +381,10 @@ const state = useRootZustand.getState()
 const clear = () => {
   useRootZustand.persist.clearStorage()
   useRootZustand.setState(useRootZustand.getInitialState())
+  enqueueSnackbar({
+    variant: 'error',
+    message: 'Client configuration was corrupted and has been reset to defaults.'
+  })
 }
 
 const stateResult = PersistedRootZustandSchema.safeParse(state)

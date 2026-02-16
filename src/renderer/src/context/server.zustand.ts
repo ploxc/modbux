@@ -19,9 +19,11 @@ import {
   UnitIdString,
   UnitIdStringSchema,
   migrateServerRegistersState,
+  CURRENT_SERVER_ZUSTAND_VERSION,
   getRegisterLength
 } from '@shared'
 import { onEvent } from '@renderer/events'
+import { enqueueSnackbar } from 'notistack'
 import { round } from 'lodash'
 import {
   extractUnitIdsWithData,
@@ -443,7 +445,7 @@ export const useServerZustand = create<
     })),
     {
       name: `server.zustand`,
-      version: 2,
+      version: CURRENT_SERVER_ZUSTAND_VERSION,
       migrate: (persistedState, version) => {
         // Version 0/1 (old format with littleEndian per register)
         if (version < 2) {
@@ -473,6 +475,10 @@ export const useServerZustand = create<
 const clear = (): void => {
   useServerZustand.persist.clearStorage()
   useServerZustand.setState(useServerZustand.getInitialState())
+  enqueueSnackbar({
+    variant: 'error',
+    message: 'Server configuration was corrupted and has been reset to defaults.'
+  })
 }
 
 const state = useServerZustand.getState()
@@ -540,6 +546,9 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   // Get littleEndian from global server state
   const littleEndian = state.littleEndian[uuid] ?? false
 
+  // Skip composite merging for types that don't use numeric compositing
+  if (dataType === 'utf8') return // Strings: no composite value
+
   // 2) Calculate how many registers this DataType spans
   const registersCount = getRegisterLength(dataType, address)
   if (registersCount < 1 || registersCount > 4) return // Defensive: only support 1-4 registers
@@ -574,6 +583,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         view.setInt32(0, Number(currentValue) || 0, littleEndian)
         break
       case 'uint32':
+      case 'unix':
         view.setUint32(0, Number(currentValue) || 0, littleEndian)
         break
       case 'float':
@@ -583,6 +593,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         view.setBigInt64(0, BigInt(currentValue) || 0n, littleEndian)
         break
       case 'uint64':
+      case 'datetime':
         view.setBigUint64(0, BigInt(currentValue) || 0n, littleEndian)
         break
       case 'double':
@@ -618,6 +629,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         newComposite = view.getInt32(0, littleEndian)
         break
       case 'uint32':
+      case 'unix':
         newComposite = view.getUint32(0, littleEndian)
         break
       case 'float':
@@ -627,6 +639,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         newComposite = view.getBigInt64(0, littleEndian)
         break
       case 'uint64':
+      case 'datetime':
         newComposite = view.getBigUint64(0, littleEndian)
         break
       case 'double':
