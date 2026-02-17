@@ -31,9 +31,25 @@ test.beforeAll(async () => {
   // On Windows/Linux a splash screen is created before the main window.
   // Both are created synchronously so after firstWindow() both exist.
   // The main window is always last. If the splash already closed, it's the only one.
-  await app.firstWindow()
-  const windows = app.windows()
-  page = windows[windows.length - 1]
+  const searchForMainWindow = true
+  let searchCount = 0
+
+  while (searchForMainWindow && searchCount < 10) {
+    searchCount++
+
+    const windows = app.windows()
+    const count = windows.length
+    const title = await windows[0]?.title()
+
+    if (count === 1 && title === 'Modbux') {
+      page = windows[0]
+      break
+    }
+
+    await new Promise((r) => setTimeout(r, 1000))
+  }
+
+  if (!page) throw new Error('Modbux main window not found!')
 
   await page.waitForLoadState('domcontentloaded')
   await page.waitForTimeout(500)
