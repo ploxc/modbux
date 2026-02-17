@@ -417,8 +417,15 @@ const DateTimeField = meme(() => {
 const StringValueField = meme(() => {
   const stringValue = useAddRegisterZustand((z) => z.stringValue)
   const setStringValue = useAddRegisterZustand((z) => z.setStringValue)
-  const registerLength = useAddRegisterZustand((z) => z.registerLength)
-  const maxBytes = (Number(registerLength) || 10) * 2
+  const maxBytes = useAddRegisterZustand((z) => (Number(z.registerLength) || 10) * 2)
+  const valid = useAddRegisterZustand((z) => z.valid.stringValue)
+
+  useEffect(() => {
+    // Reevaluate string length when changing register Length
+    setStringValue(useAddRegisterZustand.getState().stringValue)
+  }, [maxBytes, setStringValue])
+
+  const helperText = `${new TextEncoder().encode(stringValue).length} / ${maxBytes} bytes`
 
   return (
     <TextField
@@ -429,8 +436,8 @@ const StringValueField = meme(() => {
       sx={{ minWidth: 200, flex: 1 }}
       value={stringValue}
       onChange={(e) => setStringValue(e.target.value)}
-      helperText={`${new TextEncoder().encode(stringValue).length} / ${maxBytes} bytes`}
-      error={new TextEncoder().encode(stringValue).length > maxBytes}
+      helperText={helperText}
+      error={!valid}
     />
   )
 })
@@ -463,11 +470,13 @@ const RegisterLengthInput = meme(RegisterLengthForward)
 
 const RegisterLengthField = meme(() => {
   const registerLength = useAddRegisterZustand((z) => z.registerLength)
+  const valid = useAddRegisterZustand((z) => z.valid.registerLength)
   const setRegisterLength = useAddRegisterZustand((z) => z.setRegisterLength)
 
   return (
     <TextField
       data-testid="add-reg-length-input"
+      error={!valid}
       label="Registers"
       variant="outlined"
       size="small"
@@ -648,7 +657,9 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
 const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const valid = useAddRegisterZustand((z) => {
-    if (z.dataType === 'utf8') return z.valid.address
+    if (z.dataType === 'utf8') {
+      return z.valid.address && z.valid.stringValue && z.valid.registerLength
+    }
     if (['unix', 'datetime'].includes(z.dataType)) {
       return z.fixed ? z.valid.address : z.valid.address && z.valid.interval
     }
