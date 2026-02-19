@@ -103,7 +103,8 @@ const RegisterGridContent = (): JSX.Element => {
           background: theme.palette.background.default
         },
         '& .MuiDataGrid-filler > div': {
-          border: 'none !important'
+          borderTop: 'none',
+          borderBottom: 'none'
         }
       })}
       localeText={{

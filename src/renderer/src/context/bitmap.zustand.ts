@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { BitMapConfig } from '../../../shared/types/bitmap'
+import { BitMapConfig } from '@shared'
 
 // ─── Note ────────────────────────────────────────────────────────────────────
-// After the types merge (adding `bitMap` to RegisterMapValue and 'bitmap' to
-// DataTypeSchema), the `bitComments` map below can be removed and comments
-// should be read/written via:
+// After the types merge (adding `bitMap` to RegisterMapValue), the
+// `bitComments` map below can be removed and comments should be read/written
+// via:
 //   useRootZustand.getState().setRegisterMapping(address, 'bitMap', config)
 //   useRootZustand.getState().registerMapping[type][address]?.bitMap
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,16 +23,15 @@ interface BitMapZustand {
    */
   bitComments: Record<number, BitMapConfig>
   setBitComment: (address: number, bitIndex: number, comment: string | undefined) => void
-  getBitConfig: (address: number) => BitMapConfig
 }
 
 export const useBitMapZustand = create<BitMapZustand, [['zustand/mutative', never]]>(
-  mutative((set, get) => ({
+  mutative((set) => ({
     expandedAddress: null,
 
     toggleExpanded: (address): void =>
       set((state) => {
-        state.expandedAddress = get().expandedAddress === address ? null : address
+        state.expandedAddress = state.expandedAddress === address ? null : address
       }),
 
     collapse: (): void =>
@@ -49,8 +49,6 @@ export const useBitMapZustand = create<BitMapZustand, [['zustand/mutative', neve
         } else {
           state.bitComments[address][String(bitIndex)] = { comment }
         }
-      }),
-
-    getBitConfig: (address): BitMapConfig => get().bitComments[address] ?? {}
+      })
   }))
 )

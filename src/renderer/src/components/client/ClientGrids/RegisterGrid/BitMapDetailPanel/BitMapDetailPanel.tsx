@@ -2,6 +2,7 @@ import { Box } from '@mui/material'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import BitIndicator from './BitIndicator'
 
@@ -15,9 +16,10 @@ const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => {
-  const row = useDataZustand((z) => z.registerData.find((r) => r.id === address))
-  const uint16 = row?.words?.uint16 ?? 0
+const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Element => {
+  const uint16 = useDataZustand(
+    (z) => z.registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
+  )
 
   const setBitComment = useBitMapZustand((z) => z.setBitComment)
   // Select the map entry directly (no ?? {} — that would create a new object every render → infinite loop)
@@ -32,9 +34,12 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
   const handleToggle = useCallback(
     (bitIndex: number, currentValue: boolean) => {
       if (!canWrite) return
+      // Read current value from store to avoid stale closure on rapid toggles
+      const currentUint16 =
+        useDataZustand.getState().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
       const newUint16 = currentValue
-        ? uint16 & ~(1 << bitIndex) // clear bit
-        : uint16 | (1 << bitIndex) // set bit
+        ? currentUint16 & ~(1 << bitIndex) // clear bit
+        : currentUint16 | (1 << bitIndex) // set bit
       window.api.write({
         address,
         dataType: 'uint16',
@@ -43,7 +48,7 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
         single: true
       })
     },
-    [address, canWrite, uint16]
+    [address, canWrite]
   )
 
   const handleCommentChange = useCallback(
@@ -98,7 +103,7 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
       </Box>
     </Box>
   )
-}
+})
 
 export const BITMAP_DETAIL_HEIGHT = 220 // 4 rows × ~52px card + container padding + border
 

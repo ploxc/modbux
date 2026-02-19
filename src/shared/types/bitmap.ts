@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
-// ─── Merge instructions ────────────────────────────────────────────────────────
-// 1. In datatype.ts  → add 'bitmap' to BaseDataTypeSchema enum options
-// 2. In client.ts    → import { BitMapConfigSchema } from './bitmap'
-//                       and add:  bitMap: BitMapConfigSchema.optional()
-//                       to RegisterMapValueSchema
-// ──────────────────────────────────────────────────────────────────────────────
+// ─── Merge TODO ──────────────────────────────────────────────────────────────
+// In client.ts → import { BitMapConfigSchema } from './bitmap'
+//                and add:  bitMap: BitMapConfigSchema.optional()
+//                to RegisterMapValueSchema
+// ('bitmap' is already in BaseDataTypeSchema)
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** One entry per bit (index 0–15). */
 export const BitMapEntrySchema = z.object({

@@ -1,7 +1,7 @@
 import { GridRow, GridRowProps } from '@mui/x-data-grid/components/GridRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { BITMAP_DATATYPE } from '../../../../../../../shared/types/bitmap'
+import { BITMAP_DATATYPE } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,11 +17,11 @@ const BitMapRow = (props: GridRowProps): JSX.Element => {
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const isExpanded = expandedAddress === address
 
-  const type = useRootZustand((z) => z.registerConfig.type)
-  const registerMap = useRootZustand((z) => z.registerMapping[type])
-  const isBitMap = (registerMap[address]?.dataType as string) === BITMAP_DATATYPE
+  const isBitmap =
+    useRootZustand((z) => z.registerMapping[z.registerConfig.type][address]?.dataType) ===
+    BITMAP_DATATYPE
 
-  if (!isBitMap) {
+  if (!isBitmap) {
     // Fast path: render as normal row, no overhead
     return <GridRow {...props} />
   }
@@ -43,7 +43,7 @@ const BitMapRow = (props: GridRowProps): JSX.Element => {
       <GridRow {...rowProps} />
 
       {/* Detail panel in the space below the row cells */}
-      {isBitMap && isExpanded && (
+      {isBitmap && isExpanded && (
         <div style={{ overflow: 'hidden' }}>
           <BitMapDetailPanel address={address} />
         </div>
