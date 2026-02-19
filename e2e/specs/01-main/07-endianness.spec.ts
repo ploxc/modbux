@@ -23,7 +23,7 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
 
   test('configure server 1, unit 0', async ({ mainPage }) => {
     await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(9)')
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
   })
 
   test('switch server 1 to Little Endian', async ({ mainPage }) => {

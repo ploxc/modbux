@@ -62,7 +62,26 @@ export async function addRegister(
   await addressInput.fill(String(reg.address))
   await p.waitForTimeout(t(100, fast))
 
-  if (reg.mode === 'fixed') {
+  if (reg.mode === 'fixed-utf8') {
+    // UTF-8: always fixed, fill string value and register length
+    const lengthInput = p.getByTestId('add-reg-length-input').locator('input')
+    await lengthInput.fill(String(reg.length))
+    await p.waitForTimeout(t(100, fast))
+    const stringInput = p.getByTestId('add-reg-string-input').locator('input')
+    await stringInput.fill(reg.stringValue)
+    await p.waitForTimeout(t(100, fast))
+  } else if (reg.mode === 'fixed-datetime') {
+    // UNIX/DATETIME fixed: date picker is shown by default, just leave as-is (current time)
+    await p.getByTestId('add-reg-fixed-btn').click()
+    await p.waitForTimeout(t(100, fast))
+  } else if (reg.mode === 'generator-datetime') {
+    // UNIX/DATETIME generator: only interval
+    await p.getByTestId('add-reg-generator-btn').click()
+    await p.waitForTimeout(t(100, fast))
+    const intervalInput = p.getByTestId('add-reg-interval-input').locator('input')
+    await intervalInput.fill(reg.interval)
+    await p.waitForTimeout(t(100, fast))
+  } else if (reg.mode === 'fixed') {
     await p.getByTestId('add-reg-fixed-btn').click()
     await p.waitForTimeout(t(100, fast))
     const valueInput = p.getByTestId('add-reg-value-input').locator('input')

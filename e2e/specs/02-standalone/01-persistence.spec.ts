@@ -108,7 +108,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     expect(await nameField.inputValue()).toBe('Main Server')
     // Check register counts
     await selectUnitId(page, '0')
-    await expect(page.getByTestId('section-holding_registers')).toContainText('(9)')
+    await expect(page.getByTestId('section-holding_registers')).toContainText('(12)')
     await expect(page.getByTestId('section-input_registers')).toContainText('(3)')
     await expect(page.getByTestId('section-coils')).toContainText('(16)')
     await expect(page.getByTestId('section-discrete_inputs')).toContainText('(8)')

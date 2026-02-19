@@ -84,6 +84,30 @@ export const SERVER_1_UNIT_0: ServerConfig = {
       interval: '1',
       comment: 'generator int16'
     },
+    {
+      registerType: 'holding_registers',
+      address: 24,
+      dataType: 'UTF-8',
+      mode: 'fixed-utf8',
+      stringValue: 'Hello',
+      length: 10,
+      comment: 'test utf8'
+    },
+    {
+      registerType: 'holding_registers',
+      address: 34,
+      dataType: 'UNIX',
+      mode: 'fixed-datetime',
+      comment: 'test unix timestamp'
+    },
+    {
+      registerType: 'holding_registers',
+      address: 36,
+      dataType: 'DATETIME',
+      mode: 'generator-datetime',
+      interval: '5',
+      comment: 'test datetime generator'
+    },
 
     // Input registers
     {

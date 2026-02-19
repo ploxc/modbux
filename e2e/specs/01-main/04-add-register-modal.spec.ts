@@ -1,5 +1,10 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToServer, selectDataType, selectUnitId, addRegister } from '../../fixtures/helpers'
+import {
+  navigateToServer,
+  selectDataType,
+  selectUnitId,
+  addRegister
+} from '../../fixtures/helpers'
 import type { RegisterDef } from '../../fixtures/types'
 
 test.describe.serial('AddRegister modal — state management and validation', () => {
@@ -21,6 +26,17 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     const typeSelect = mainPage.getByTestId('add-reg-type-select')
     await expect(typeSelect).toContainText('INT16')
 
+    // Verify all default fields visible
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-value-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-comment-input')).toBeVisible()
+
+    // Buttons: Add & Close + Add & Next
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toContainText('Add & Close')
+    await expect(mainPage.getByTestId('add-reg-next-btn')).toBeVisible()
+    // Remove button should NOT be visible in add mode
+    await expect(mainPage.getByTestId('add-reg-remove-btn')).not.toBeVisible()
+
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
   })
@@ -32,6 +48,13 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.getByTestId('add-reg-generator-btn').click()
     await selectDataType(mainPage, 'FLOAT')
     await mainPage.waitForTimeout(200)
+
+    // Generator fields visible
+    await expect(mainPage.getByTestId('add-reg-min-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-max-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-interval-input')).toBeVisible()
+    // Value input hidden in generator mode
+    await expect(mainPage.getByTestId('add-reg-value-input')).not.toBeVisible()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
@@ -49,7 +72,11 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
-  test('Add & Next: address advances, mode/type preserved, comment reset', async ({ mainPage }) => {
+  // ─── Add & Next chaining ──────────────────────────────────────────────
+
+  test('Add & Next: address advances, mode/type preserved, comment reset', async ({
+    mainPage
+  }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
@@ -99,6 +126,40 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
+  test('Add & Next for UTF-8: string reset, address advances by register length', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    await selectDataType(mainPage, 'UTF-8')
+    await mainPage.waitForTimeout(200)
+
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('200')
+    const lengthInput = mainPage.getByTestId('add-reg-length-input').locator('input')
+    await lengthInput.fill('5')
+    await mainPage.waitForTimeout(100)
+    const stringInput = mainPage.getByTestId('add-reg-string-input').locator('input')
+    await stringInput.fill('Test')
+    await mainPage.waitForTimeout(200)
+
+    await mainPage.getByTestId('add-reg-next-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // Address advanced from 200 by 5 registers to 205
+    expect(await addressInput.inputValue()).toBe('205')
+    // UTF-8 type preserved
+    await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UTF-8')
+    // Register length preserved
+    expect(await lengthInput.inputValue()).toBe('5')
+    // String value reset
+    expect(await stringInput.inputValue()).toBe('')
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
   test('switch to input_registers — verify modal reset between register types', async ({
     mainPage
   }) => {
@@ -114,16 +175,45 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
-  test('remove the test register at holding 100', async ({ mainPage }) => {
+  // ─── Edit mode ────────────────────────────────────────────────────────
+
+  test('edit mode: shows Submit Change + Remove, no Add & Next', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-edit-reg-holding_registers-100').click()
+    await mainPage.waitForTimeout(300)
+
+    // Edit mode buttons
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toContainText('Submit Change')
+    await expect(mainPage.getByTestId('add-reg-remove-btn')).toBeVisible()
+    // Add & Next should NOT be visible in edit mode
+    await expect(mainPage.getByTestId('add-reg-next-btn')).not.toBeVisible()
+
+    // Verify loaded values
+    await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UINT32')
+    await expect(mainPage.getByTestId('add-reg-generator-btn')).toHaveClass(/Mui-selected/)
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    expect(await addressInput.inputValue()).toBe('100')
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
+  test('remove test registers via edit modal', async ({ mainPage }) => {
+    // Remove register at 100
     await mainPage.getByTestId('server-edit-reg-holding_registers-100').click()
     await mainPage.waitForTimeout(500)
     await mainPage.getByTestId('add-reg-remove-btn').click()
-    await mainPage.waitForTimeout(1000)
+    await mainPage.waitForTimeout(500)
+
+    // Remove UTF-8 register at 200
+    await mainPage.getByTestId('server-edit-reg-holding_registers-200').click()
+    await mainPage.waitForTimeout(500)
+    await mainPage.getByTestId('add-reg-remove-btn').click()
+    await mainPage.waitForTimeout(500)
   })
 
   // ─── Per data type field visibility ──────────────────────────────────
 
-  test('INT16: value input visible, string input not visible', async ({ mainPage }) => {
+  test('INT16 fixed: value input visible, string/datetime hidden', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
@@ -132,6 +222,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
     await expect(mainPage.getByTestId('add-reg-value-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-string-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-input')).not.toBeVisible()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
@@ -147,12 +238,14 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await expect(mainPage.getByTestId('add-reg-string-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-length-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-generator-btn')).not.toBeVisible()
+    // Value input hidden for UTF-8
+    await expect(mainPage.getByTestId('add-reg-value-input')).not.toBeVisible()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
   })
 
-  test('UNIX: datetime input visible in fixed mode', async ({ mainPage }) => {
+  test('UNIX fixed: datetime picker visible, value input hidden', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
@@ -163,12 +256,32 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-value-input')).not.toBeVisible()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
   })
 
-  test('DATETIME: datetime input visible in fixed mode', async ({ mainPage }) => {
+  test('UNIX generator: interval visible, datetime/min/max hidden', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    await selectDataType(mainPage, 'UNIX')
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByTestId('add-reg-generator-btn').click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('add-reg-interval-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-min-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-max-input')).not.toBeVisible()
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
+  test('DATETIME fixed: datetime picker visible', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
@@ -184,7 +297,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
-  // ─── Additional validation tests ─────────────────────────────────────
+  // ─── Validation tests ─────────────────────────────────────────────────
 
   test('address duplicate detection: add at 50, try duplicate', async ({ mainPage }) => {
     // Add register at address 50
@@ -214,10 +327,10 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.getByTestId('server-edit-reg-holding_registers-50').click()
     await mainPage.waitForTimeout(500)
     await mainPage.getByTestId('add-reg-remove-btn').click()
-    await mainPage.waitForTimeout(1000)
+    await mainPage.waitForTimeout(500)
   })
 
-  test('address fit: DOUBLE at 65534 shows error', async ({ mainPage }) => {
+  test('address fit: DOUBLE at 65534 gets auto-corrected to 65532', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
@@ -228,10 +341,9 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await addressInput.fill('65534')
     await mainPage.waitForTimeout(300)
 
-    // !changed: the imask input field corrects the value automatically
+    // IMask auto-corrects the value
     const val = await addressInput.inputValue()
     expect(Number(val)).toBe(65532)
-    //await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
@@ -250,6 +362,20 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(200)
     const val = await valueInput.inputValue()
     expect(Number(val)).toBe(65535)
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
+  test('submit disabled when address is empty', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('')
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)

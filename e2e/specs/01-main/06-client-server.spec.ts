@@ -25,7 +25,7 @@ test.describe.serial('Client-Server Integration', () => {
 
   test('configure server 1, unit 0', async ({ mainPage }) => {
     await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(9)')
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
     await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(16)')
     await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
