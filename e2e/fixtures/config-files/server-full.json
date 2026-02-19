@@ -1,0 +1,179 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Main Server",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": false,
+        "4": false,
+        "5": true,
+        "6": false,
+        "7": false,
+        "8": false,
+        "9": false,
+        "10": false,
+        "11": false,
+        "12": false,
+        "13": false,
+        "14": false,
+        "15": false
+      },
+      "discrete_inputs": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": true,
+        "4": false,
+        "5": false,
+        "6": false,
+        "7": false
+      },
+      "holding_registers": {
+        "0": {
+          "value": -100,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "test int16 negative",
+            "value": -100
+          }
+        },
+        "1": {
+          "value": 500,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "test uint16",
+            "value": 500
+          }
+        },
+        "2": {
+          "value": -70000,
+          "params": {
+            "address": 2,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "test int32 negative",
+            "value": -70000
+          }
+        },
+        "4": {
+          "value": 100000,
+          "params": {
+            "address": 4,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "test uint32",
+            "value": 100000
+          }
+        },
+        "6": {
+          "value": 3.14,
+          "params": {
+            "address": 6,
+            "registerType": "holding_registers",
+            "dataType": "float",
+            "comment": "test float",
+            "value": 3.14
+          }
+        },
+        "8": {
+          "value": -1000000,
+          "params": {
+            "address": 8,
+            "registerType": "holding_registers",
+            "dataType": "int64",
+            "comment": "test int64 negative",
+            "value": -1000000
+          }
+        },
+        "12": {
+          "value": 2000000,
+          "params": {
+            "address": 12,
+            "registerType": "holding_registers",
+            "dataType": "uint64",
+            "comment": "test uint64",
+            "value": 2000000
+          }
+        },
+        "16": {
+          "value": 2.718,
+          "params": {
+            "address": 16,
+            "registerType": "holding_registers",
+            "dataType": "double",
+            "comment": "test double",
+            "value": 2.718
+          }
+        }
+      },
+      "input_registers": {
+        "0": {
+          "value": 200,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "comment": "input int16",
+            "value": 200
+          }
+        },
+        "1": {
+          "value": 9.81,
+          "params": {
+            "address": 1,
+            "registerType": "input_registers",
+            "dataType": "float",
+            "comment": "input float",
+            "value": 9.81
+          }
+        }
+      }
+    },
+    "1": {
+      "coils": {
+        "0": false,
+        "1": false,
+        "2": true,
+        "3": false,
+        "4": false,
+        "5": false,
+        "6": false,
+        "7": false
+      },
+      "discrete_inputs": {},
+      "holding_registers": {
+        "0": {
+          "value": 777,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "unit1 holding",
+            "value": 777
+          }
+        }
+      },
+      "input_registers": {
+        "0": {
+          "value": 888,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "comment": "unit1 input",
+            "value": 888
+          }
+        }
+      }
+    }
+  }
+}

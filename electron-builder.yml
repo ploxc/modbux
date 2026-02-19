@@ -32,7 +32,9 @@ mac:
   notarize: false
   target:
     - target: dmg
-      arch: universal
+      arch: x64
+    - target: dmg
+      arch: arm64
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
 linux:

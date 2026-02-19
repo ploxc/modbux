@@ -78,7 +78,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^4.0.18",
     "electron": "^32.3.3",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "26.7.0",
     "electron-vite": "^2.3.0",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.5",

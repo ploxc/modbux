@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Basic Server",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {},
+      "discrete_inputs": {},
+      "input_registers": {
+        "0": {
+          "value": 200,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "int16",
+            "comment": "temperature",
+            "value": 200
+          }
+        }
+      },
+      "holding_registers": {
+        "0": {
+          "value": 100,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "setpoint",
+            "value": 100
+          }
+        },
+        "1": {
+          "value": 500,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "counter",
+            "value": 500
+          }
+        }
+      }
+    }
+  }
+}

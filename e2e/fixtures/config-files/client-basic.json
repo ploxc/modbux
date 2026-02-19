@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Test Client",
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "holding_registers": {
+      "0": {
+        "dataType": "int16",
+        "scalingFactor": 1,
+        "comment": "setpoint",
+        "groupEnd": false
+      },
+      "1": {
+        "dataType": "uint16",
+        "scalingFactor": 0.1,
+        "comment": "temperature scaled",
+        "groupEnd": false
+      }
+    },
+    "input_registers": {
+      "0": {
+        "dataType": "int16",
+        "scalingFactor": 1,
+        "comment": "sensor value",
+        "groupEnd": false
+      }
+    }
+  }
+}

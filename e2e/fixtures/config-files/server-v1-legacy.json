@@ -1,0 +1,23 @@
+{
+  "name": "Legacy Server",
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {},
+      "discrete_inputs": {},
+      "input_registers": {},
+      "holding_registers": {
+        "0": {
+          "value": 42,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "littleEndian": false,
+            "comment": "legacy register",
+            "value": 42
+          }
+        }
+      }
+    }
+  }
+}

@@ -263,6 +263,7 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
   return (
     <Button
       size="small"
+      data-testid={`write-coil-${address}-select-btn`}
       variant={state ? 'contained' : 'outlined'}
       color="primary"
       onClick={() => setCoils(!state, index)}

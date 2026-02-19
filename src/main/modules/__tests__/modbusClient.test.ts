@@ -1273,7 +1273,7 @@ describe('ModbusClient', () => {
 
       // Should have stopped after first unit's input_registers
       const results = getWindowCalls('scan_unit_id_result')
-      expect(results.length).toBeLessThanOrEqual(1)
+      expect(results.length).toBe(1)
     })
   })
 
