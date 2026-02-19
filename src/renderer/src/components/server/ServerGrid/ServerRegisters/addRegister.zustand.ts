@@ -11,15 +11,9 @@ import {
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
+import { getRegisterSize, isAddressInUse } from './addRegister.zustand.helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const getRegisterSize = (dataType: DataType, length?: number): number => {
-  if (['double', 'uint64', 'int64', 'datetime'].includes(dataType)) return 4
-  if (['uint32', 'int32', 'float', 'unix'].includes(dataType)) return 2
-  if (dataType === 'utf8') return length ?? 10
-  return 1
-}
 
 type GetAddressInUseFn = (
   uuid: string,
@@ -43,19 +37,19 @@ export const getAddressInUse: GetAddressInUseFn = (
     ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
     : []
 
-  const size = getRegisterSize(dataType, length)
-  const addressesNeeded = Array.from({ length: size }, (_, i) => address + i)
-
-  if (editRegister) {
-    const editSize = getRegisterSize(editRegister.params.dataType, editRegister.params.length)
-    const editAddresses = Array.from(
-      { length: editSize },
-      (_, i) => editRegister.params.address + i
-    )
-    const filteredUsed = usedAddresses.filter((a) => !editAddresses.includes(a))
-    return addressesNeeded.some((a) => filteredUsed.includes(Number(a)))
-  }
-  return addressesNeeded.some((a) => usedAddresses.includes(Number(a)))
+  return isAddressInUse(
+    usedAddresses,
+    dataType,
+    address,
+    length,
+    editRegister
+      ? {
+          dataType: editRegister.params.dataType,
+          address: editRegister.params.address,
+          length: editRegister.params.length
+        }
+      : undefined
+  )
 }
 
 // ─── Address validation ──────────────────────────────────────────────────────

@@ -21,6 +21,20 @@ test.describe.serial('Home screen and navigation', () => {
     await expect(mainPage.getByTestId('home-ploxc-link')).toBeVisible()
   })
 
+  test('version link points to modbux github and shows version number', async ({ mainPage }) => {
+    const versionLink = mainPage.getByTestId('home-version-link')
+    await expect(versionLink).toHaveAttribute('href', 'https://github.com/ploxc/modbux')
+    await expect(versionLink).toHaveAttribute('target', '_blank')
+    const text = await versionLink.textContent()
+    expect(text).toMatch(/\d+\.\d+\.\d+/)
+  })
+
+  test('ploxc link points to ploxc github', async ({ mainPage }) => {
+    const ploxcLink = mainPage.getByTestId('home-ploxc-link')
+    await expect(ploxcLink).toHaveAttribute('href', 'https://github.com/ploxc')
+    await expect(ploxcLink).toHaveAttribute('target', '_blank')
+  })
+
   test('navigate to Server view and back', async ({ mainPage }) => {
     await mainPage.getByTestId('home-server-btn').click()
     await mainPage.waitForTimeout(600)

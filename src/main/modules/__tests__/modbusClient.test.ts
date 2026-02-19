@@ -1251,14 +1251,14 @@ describe('ModbusClient', () => {
         data: [true],
         buffer: Buffer.from([0x01])
       })
-      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
-      })
-      mockModbusRTU.readInputRegisters.mockImplementation(async () => {
-        // Stop scanning right after input_registers completes
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        // Stop scanning right after holding_registers completes
         client.stopScanningUnitIds()
         return { data: [0], buffer: Buffer.alloc(2) }
+      })
+      mockModbusRTU.readInputRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
       })
 
       const scanPromise = client.scanUnitIds({
@@ -1271,9 +1271,9 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
 
-      // Should have stopped after first unit's input_registers
+      // Should have stopped after first unit's holding_registers (before input_registers)
       const results = getWindowCalls('scan_unit_id_result')
-      expect(results.length).toBe(1)
+      expect(results.length).toBe(0)
     })
   })
 

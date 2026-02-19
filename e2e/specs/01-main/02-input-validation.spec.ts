@@ -85,9 +85,17 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     // Submit button should be disabled or address should show error
     const submitBtn = mainPage.getByTestId('add-reg-submit-btn')
     await expect(submitBtn).toBeDisabled()
+
+    // Close modal and clean up the test register
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+    await mainPage.getByTestId('delete-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
   })
 
   test('address fit error: INT32 at address 65535 does not fit', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
     await selectDataType(mainPage, 'INT32')
     const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
     await addressInput.fill('65535')
@@ -149,41 +157,99 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     await mainPage.waitForTimeout(200)
     const val = await lengthInput.inputValue()
     expect(Number(val)).toBe(124)
+  })
 
-    // Close modal
+  test('UTF-8 address max adjusts with register length', async ({ mainPage }) => {
+    // With length=124, max address = 65535 - 124 + 1 = 65412
+    const lengthInput = mainPage.getByTestId('add-reg-length-input').locator('input')
+    await lengthInput.fill('124')
+    await mainPage.waitForTimeout(200)
+
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('65535')
+    await mainPage.waitForTimeout(200)
+    const val = await addressInput.inputValue()
+    expect(Number(val)).toBe(65412)
+  })
+
+  // ─── Unix / Datetime data type inputs ──────────────────────────────
+
+  test('UNIX fixed mode: date picker and UTC toggle visible', async ({ mainPage }) => {
+    await selectDataType(mainPage, 'UNIX')
+    await mainPage.waitForTimeout(300)
+
+    await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
+    // Value input should NOT be visible (replaced by date picker)
+    await expect(mainPage.getByTestId('add-reg-value-input')).not.toBeVisible()
+  })
+
+  test('UNIX UTC toggle switches timezone display', async ({ mainPage }) => {
+    const utcBtn = mainPage.getByTestId('add-reg-datetime-show-utc')
+    // Click to toggle UTC on
+    await utcBtn.click()
+    await mainPage.waitForTimeout(200)
+    await expect(utcBtn).toHaveClass(/Mui-selected/)
+    // Click again to toggle off
+    await utcBtn.click()
+    await mainPage.waitForTimeout(200)
+    await expect(utcBtn).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('DATETIME fixed mode: date picker and UTC toggle visible', async ({ mainPage }) => {
+    await selectDataType(mainPage, 'DATETIME')
+    await mainPage.waitForTimeout(300)
+
+    await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
+  })
+
+  test('UNIX generator mode: only interval visible, no date picker', async ({ mainPage }) => {
+    await selectDataType(mainPage, 'UNIX')
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByTestId('add-reg-generator-btn').click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('add-reg-interval-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-datetime-input')).not.toBeVisible()
+    // Min/Max should NOT be visible for time-based generators
+    await expect(mainPage.getByTestId('add-reg-min-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-max-input')).not.toBeVisible()
+  })
+
+  test('interval input clamped to max 10', async ({ mainPage }) => {
+    const intervalInput = mainPage.getByTestId('add-reg-interval-input').locator('input')
+    await intervalInput.fill('100')
+    await mainPage.waitForTimeout(200)
+    expect(Number(await intervalInput.inputValue())).toBe(10)
+  })
+
+  // ─── Larger numeric value clamping ─────────────────────────────────
+
+  test('INT32 value clamped to 2147483647', async ({ mainPage }) => {
+    await selectDataType(mainPage, 'INT32')
+    await mainPage.getByTestId('add-reg-fixed-btn').click()
+    await mainPage.waitForTimeout(200)
+
+    const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')
+    await valueInput.fill('9999999999')
+    await mainPage.waitForTimeout(200)
+    expect(Number(await valueInput.inputValue())).toBe(2147483647)
+  })
+
+  test('UINT32 value clamped to 4294967295', async ({ mainPage }) => {
+    await selectDataType(mainPage, 'UINT32')
+    await mainPage.waitForTimeout(200)
+
+    const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')
+    await valueInput.fill('9999999999')
+    await mainPage.waitForTimeout(200)
+    expect(Number(await valueInput.inputValue())).toBe(4294967295)
+
+    // Close modal for next section
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
   })
-
-  // !delete: this is not an issue, the app randomises between the two values, even if max is
-  // !        smaller than min
-  // test('min/max validation: min > max disables submit', async ({ mainPage }) => {
-  //   // Switch to a numeric type with generator mode
-  //   await selectDataType(mainPage, 'INT16')
-  //   await mainPage.waitForTimeout(200)
-
-  //   // Use a free address
-  //   const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
-  //   await addressInput.fill('20')
-  //   await mainPage.waitForTimeout(200)
-
-  //   await mainPage.getByTestId('add-reg-generator-btn').click()
-  //   await mainPage.waitForTimeout(200)
-
-  //   const minInput = mainPage.getByTestId('add-reg-min-input').locator('input')
-  //   const maxInput = mainPage.getByTestId('add-reg-max-input').locator('input')
-
-  //   await minInput.fill('500')
-  //   await maxInput.fill('100')
-  //   await mainPage.waitForTimeout(300)
-
-  //   const submitBtn = mainPage.getByTestId('add-reg-submit-btn')
-  //   await expect(submitBtn).toBeDisabled()
-
-  //   // Close modal
-  //   await mainPage.keyboard.press('Escape')
-  //   await mainPage.waitForTimeout(300)
-  // })
 
   // ─── Client connection input validation ──────────────────────────────
 
