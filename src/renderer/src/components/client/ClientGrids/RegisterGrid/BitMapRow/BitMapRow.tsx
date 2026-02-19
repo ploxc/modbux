@@ -2,41 +2,13 @@ import { GridRow, GridRowProps } from '@mui/x-data-grid/components/GridRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { BITMAP_DATATYPE } from '../../../../../../../shared/types/bitmap'
-import BitMapDetailPanel, { BITMAP_DETAIL_HEIGHT } from '../BitMapDetailPanel/BitMapDetailPanel'
-
-export const BITMAP_ROW_HEIGHT = 40 // standard compact row height
+import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BitMapRow
-//
-// Used as `slots.row` in the DataGrid.  For normal rows it renders exactly
-// like the default GridRow.  For rows whose dataType is 'bitmap' it:
-//   • Wraps GridRow in an outer div that owns the virtual-scroller height slot
-//   • Passes GridRow without the position style so cells render at rowHeight (40px)
-//   • Renders BitMapDetailPanel in the remaining space below when expanded
-//
-// Integration (add to RegisterGrid.tsx after merge):
-//
-//   import BitMapRow, { BITMAP_ROW_HEIGHT } from './BitMapRow/BitMapRow'
-//   import { BITMAP_DETAIL_HEIGHT } from './BitMapDetailPanel/BitMapDetailPanel'
-//   import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
-//   import { BITMAP_DATATYPE } from '../../../shared/types/bitmap'
-//
-//   // Inside RegisterGridContent, alongside existing hooks:
-//   const registerMapping = useRootZustand(z => z.registerMapping[z.registerConfig.type])
-//   const expandedAddress = useBitMapZustand(z => z.expandedAddress)
-//
-//   <DataGrid
-//     ...
-//     slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
-//     getRowHeight={({ id }) => {
-//       const isBitmap = registerMapping[id as number]?.dataType === BITMAP_DATATYPE
-//       const isExpanded = expandedAddress === id
-//       return isBitmap && isExpanded
-//         ? BITMAP_ROW_HEIGHT + BITMAP_DETAIL_HEIGHT
-//         : BITMAP_ROW_HEIGHT
-//     }}
-//   />
+// BitMapRow – used as `slots.row` in the DataGrid.
+// Normal rows render as GridRow unchanged.
+// Bitmap rows wrap GridRow + BitMapDetailPanel in an outer div that owns
+// the virtual-scroller height slot when expanded.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BitMapRow = (props: GridRowProps): JSX.Element => {
@@ -67,12 +39,12 @@ const BitMapRow = (props: GridRowProps): JSX.Element => {
       style={style}
       data-id={address}
     >
-      {/* Normal row cells — no position style, height comes from rowHeight prop */}
+      {/* Override --height CSS var + min/max-height so MUI class rules don't stretch the row */}
       <GridRow {...rowProps} />
 
       {/* Detail panel in the space below the row cells */}
       {isBitMap && isExpanded && (
-        <div style={{ height: BITMAP_DETAIL_HEIGHT, overflow: 'hidden' }}>
+        <div style={{ overflow: 'hidden' }}>
           <BitMapDetailPanel address={address} />
         </div>
       )}

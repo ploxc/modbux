@@ -1,5 +1,5 @@
 import { KeyboardArrowDown, KeyboardArrowRight } from '@mui/icons-material'
-import { Box, IconButton } from '@mui/material'
+import { Box } from '@mui/material'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { RegisterData, RegisterMapObject } from '@shared'
@@ -23,7 +23,7 @@ interface ExpandCellProps {
   isBitMap: boolean
 }
 
-const ExpandCell = ({ address, isBitMap }: ExpandCellProps): JSX.Element => {
+export const ExpandCell = ({ address, isBitMap }: ExpandCellProps): JSX.Element => {
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const toggleExpanded = useBitMapZustand((z) => z.toggleExpanded)
   const isExpanded = expandedAddress === address
@@ -31,19 +31,32 @@ const ExpandCell = ({ address, isBitMap }: ExpandCellProps): JSX.Element => {
   if (!isBitMap) return <></>
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-      <IconButton
-        size="small"
-        onClick={() => toggleExpanded(address)}
-        title={isExpanded ? 'Collapse bitmap detail' : 'Expand bitmap detail'}
-        sx={{ p: 0.25 }}
+    <Box
+      onClick={() => toggleExpanded(address)}
+      title={isExpanded ? 'Hide bitmap detail' : 'Show bitmap detail'}
+      sx={(theme) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        px: 1.5,
+        height: '100%',
+        width: '100%',
+        cursor: 'pointer',
+        color: isExpanded ? theme.palette.primary.main : theme.palette.text.secondary,
+        '&:hover': { color: theme.palette.primary.main }
+      })}
+    >
+      {isExpanded ? (
+        <KeyboardArrowDown fontSize="small" />
+      ) : (
+        <KeyboardArrowRight fontSize="small" />
+      )}
+      <Box
+        component="span"
+        sx={{ fontFamily: 'monospace', fontSize: '0.78rem', fontWeight: 600, letterSpacing: 0.5 }}
       >
-        {isExpanded ? (
-          <KeyboardArrowDown fontSize="small" />
-        ) : (
-          <KeyboardArrowRight fontSize="small" />
-        )}
-      </IconButton>
+        {isExpanded ? 'hide' : 'show'}
+      </Box>
     </Box>
   )
 }

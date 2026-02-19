@@ -13,6 +13,7 @@ import { GridFilterModel } from '@mui/x-data-grid/models/gridFilterModel'
 import { GridLogicOperator } from '@mui/x-data-grid/models/gridFilterItem'
 import { DataGrid } from '@mui/x-data-grid/DataGrid/DataGrid'
 import { DataType } from '@shared'
+import BitMapRow from './BitMapRow/BitMapRow'
 //
 //
 //
@@ -100,12 +101,15 @@ const RegisterGridContent = (): JSX.Element => {
         },
         '& .MuiDataGrid-toolbarContainer': {
           background: theme.palette.background.default
+        },
+        '& .MuiDataGrid-filler > div': {
+          border: 'none !important'
         }
       })}
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
-      slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
       //
       //
       // Row update

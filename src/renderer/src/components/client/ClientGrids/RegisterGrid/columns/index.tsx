@@ -6,7 +6,6 @@ import { addressColumn } from './address'
 import { conventionalAddresColumn } from './conventionalAddress'
 import { bitColumn } from './bit'
 import { dataTypeColumn } from './dataType'
-import { convertedValueColumn } from './convertedValue'
 import { scalingFactorColumn } from './scalingFactor'
 import { hexColumn } from './hex'
 import { binaryColumn } from './binary'
@@ -16,6 +15,7 @@ import { writeActionColumn } from './write'
 import { interpolationColumn } from './interpolation'
 import { groupEndColumn } from './groupEnd'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
+import { bitmapValueColumn } from './bitmapValueColumn'
 
 //
 //
@@ -43,7 +43,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     if (registers16Bit) {
       columns.push(
         dataTypeColumn(registerMap),
-        convertedValueColumn(registerMap, showRaw),
+        bitmapValueColumn(registerMap, showRaw),
         scalingFactorColumn(registerMap, type),
         interpolationColumn(type),
         groupEndColumn(registerMap),

@@ -9,9 +9,9 @@ interface BitMapDetailPanelProps {
   address: number
 }
 
-// Bits are displayed MSB→LSB (bit 15 top-left, bit 0 bottom-right),
-// matching the binary column convention in the grid.
-const BIT_INDICES = Array.from({ length: 16 }, (_, i) => 15 - i)
+// Bits are displayed column-major: 0–3 down column 1, 4–7 down column 2, etc.
+// This matches natural bit ordering left-to-right, top-to-bottom.
+const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -20,8 +20,8 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
   const uint16 = row?.words?.uint16 ?? 0
 
   const setBitComment = useBitMapZustand((z) => z.setBitComment)
-  const getBitConfig = useBitMapZustand((z) => z.getBitConfig)
-  const bitConfig = getBitConfig(address)
+  // Select the map entry directly (no ?? {} — that would create a new object every render → infinite loop)
+  const bitConfig = useBitMapZustand((z) => z.bitComments[address])
 
   const registerType = useRootZustand((z) => z.registerConfig.type)
   const writable = registerType === 'holding_registers'
@@ -68,18 +68,21 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
       <Box
         sx={{
           display: 'grid',
-          // 4 columns default (wide)
+          // Column-major: 4 rows × 4 columns → bits 0–3 go down col 1, 4–7 col 2, etc.
+          gridAutoFlow: 'column',
+          gridTemplateRows: 'repeat(4, auto)',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 0,
-          // Narrow: 8 columns  (≤ ~560px container width)
+          // Narrow: 8 rows × 2 columns
           '@container (max-width: 560px)': {
-            gridTemplateColumns: 'repeat(8, 1fr)'
+            gridTemplateRows: 'repeat(8, auto)',
+            gridTemplateColumns: 'repeat(2, 1fr)'
           }
         }}
       >
         {BIT_INDICES.map((bitIndex) => {
           const value = Boolean((uint16 >> bitIndex) & 1)
-          const comment = bitConfig[String(bitIndex)]?.comment
+          const comment = bitConfig?.[String(bitIndex)]?.comment
           return (
             <BitIndicator
               key={bitIndex}
@@ -97,6 +100,6 @@ const BitMapDetailPanel = ({ address }: BitMapDetailPanelProps): JSX.Element => 
   )
 }
 
-export const BITMAP_DETAIL_HEIGHT = 148 // 4 rows × ~30px + padding + border
+export const BITMAP_DETAIL_HEIGHT = 220 // 4 rows × ~52px card + container padding + border
 
 export default BitMapDetailPanel
