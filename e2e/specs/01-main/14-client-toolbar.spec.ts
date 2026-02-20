@@ -1,85 +1,174 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToClient } from '../../fixtures/helpers'
-
-// TODO: Client toolbar and display options tests
-// These tests cover toolbar buttons and display settings in the client view.
-//
-// Test IDs to cover:
-// - raw-btn                → Toggle raw register values display (hex/decimal)
-// - show-log-btn           → Toggle transaction log visibility
-// - time-settings-btn      → Open time format settings (for UNIX/DATETIME display)
-// - load-dummy-data-btn    → Load dummy/sample data into the register grid
-// - reg-base-0-btn         → Set register address base to 0 (default Modbus)
-// - reg-base-1-btn         → Set register address base to 1 (PLC convention)
-// - read-local-time-checkbox → Toggle reading local time for UNIX/DATETIME registers
-// - reg-read-config-btn    → Open register read configuration dialog
-//
-// Tests to implement:
-// 1. Raw button toggles between decoded values and raw hex/uint16 display
-// 2. Show log button reveals/hides the transaction log panel
-// 3. Transaction log shows Modbus request/response frames
-// 4. Time settings opens a dialog/popover for configuring time display format
-// 5. Load dummy data populates the grid with sample registers
-// 6. Address base 0 vs 1: register addresses shift by 1
-// 7. Read local time checkbox affects UNIX/DATETIME register interpretation
-// 8. Register read config button opens configuration for read operations
+import {
+  navigateToClient,
+  connectClient,
+  disconnectClient,
+  readRegisters,
+  cell,
+  selectRegisterType,
+  enableAdvancedMode,
+  cleanServerState,
+  setupServerConfig,
+  clearData
+} from '../../fixtures/helpers'
+import { SERVER_1_UNIT_0 } from '../../fixtures/test-data'
 
 test.describe.serial('Client toolbar — display options and utilities', () => {
-  test('navigate to client view', async ({ mainPage }) => {
+  // ─── Setup ──────────────────────────────────────────────────────────
+
+  test('clean and setup server', async ({ mainPage }) => {
+    await cleanServerState(mainPage)
+    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
+  })
+
+  test('navigate to client and connect', async ({ mainPage }) => {
     await navigateToClient(mainPage)
+    await connectClient(mainPage, '127.0.0.1', '502', '0')
   })
 
-  // ─── Raw display toggle ─────────────────────────────────────────────
-
-  test.skip('raw button toggles raw register display', async ({ mainPage }) => {
-    // TODO: Connect to server, read registers, toggle raw-btn
-    // Verify: values switch between decoded (e.g., "100") and raw (hex/uint16)
+  test('enable advanced mode', async ({ mainPage }) => {
+    await enableAdvancedMode(mainPage)
   })
 
-  // ─── Transaction log ────────────────────────────────────────────────
-
-  test.skip('show log button reveals transaction log panel', async ({ mainPage }) => {
-    // TODO: Click show-log-btn, verify log panel becomes visible
-  })
-
-  test.skip('transaction log shows Modbus frames after read', async ({ mainPage }) => {
-    // TODO: Perform a read, verify log shows request/response entries
-  })
-
-  // ─── Time settings ──────────────────────────────────────────────────
-
-  test.skip('time settings button opens time format configuration', async ({ mainPage }) => {
-    // TODO: Click time-settings-btn, verify dialog/popover appears
-  })
-
-  // ─── Dummy data ─────────────────────────────────────────────────────
-
-  test.skip('load dummy data populates register grid', async ({ mainPage }) => {
-    // TODO: Click load-dummy-data-btn, verify grid has sample data
+  test('read registers', async ({ mainPage }) => {
+    await selectRegisterType(mainPage, 'Holding Registers')
+    await readRegisters(mainPage, '0', '40')
   })
 
   // ─── Address base ───────────────────────────────────────────────────
 
-  test.skip('address base 0 shows addresses starting from 0', async ({ mainPage }) => {
-    // TODO: Click reg-base-0-btn, verify address column starts at 0
+  test('address base 0 is selected by default', async ({ mainPage }) => {
+    const base0Btn = mainPage.getByTestId('reg-base-0-btn')
+    await expect(base0Btn).toHaveClass(/Mui-selected/)
+
+    // First row address should show "0"
+    const addr = await cell(mainPage, 0, 'address')
+    expect(addr).toBe('0')
   })
 
-  test.skip('address base 1 shifts addresses by 1', async ({ mainPage }) => {
-    // TODO: Click reg-base-1-btn, verify address column starts at 1
+  test('address base 1 shifts addresses by 1', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-base-1-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    const base1Btn = mainPage.getByTestId('reg-base-1-btn')
+    await expect(base1Btn).toHaveClass(/Mui-selected/)
+
+    // First row address should now show "1"
+    const addr = await cell(mainPage, 0, 'address')
+    expect(addr).toBe('1')
+
+    // Reset back to base 0
+    await mainPage.getByTestId('reg-base-0-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    const addrReset = await cell(mainPage, 0, 'address')
+    expect(addrReset).toBe('0')
   })
 
-  // ─── Read local time ────────────────────────────────────────────────
+  // ─── Raw display toggle ─────────────────────────────────────────────
 
-  test.skip('read local time checkbox toggles time interpretation', async ({ mainPage }) => {
-    // TODO: Open menu, toggle read-local-time-checkbox
-    // Verify: UNIX/DATETIME values change between UTC and local time
+  test('raw button toggles raw register display', async ({ mainPage }) => {
+    // Capture a value before toggling raw mode
+    const valueBefore = await cell(mainPage, 0, 'word_int16')
+    expect(valueBefore).toBe('-100')
+
+    // Toggle raw mode on
+    await mainPage.getByTestId('raw-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // In raw mode, the value column should show raw uint16 (65436 for -100)
+    const valueRaw = await cell(mainPage, 0, 'word_int16')
+    expect(valueRaw).not.toBe('-100')
+
+    // Toggle raw mode off
+    await mainPage.getByTestId('raw-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    const valueAfter = await cell(mainPage, 0, 'word_int16')
+    expect(valueAfter).toBe('-100')
+  })
+
+  // ─── Transaction log ────────────────────────────────────────────────
+
+  test('show log button reveals log panel', async ({ mainPage }) => {
+    // Click show log
+    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.waitForTimeout(500)
+
+    // Verify a log panel or container becomes visible
+    const logPanel = mainPage
+      .locator('[class*="log"], [data-testid*="log-panel"], [data-testid*="transaction-log"]')
+      .first()
+    await expect(logPanel).toBeVisible({ timeout: 3000 })
+
+    // Click again to hide
+    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.waitForTimeout(500)
+  })
+
+  // ─── Load dummy data ────────────────────────────────────────────────
+
+  test('load dummy data populates register grid', async ({ mainPage }) => {
+    // Clear current data first
+    await clearData(mainPage)
+    await mainPage.waitForTimeout(300)
+
+    // Open menu and click load dummy data
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.waitForTimeout(300)
+    await mainPage.getByTestId('load-dummy-data-btn').click()
+    await mainPage.waitForTimeout(500)
+
+    // Verify grid has data — first row should have some hex content
+    const firstRowHex = await cell(mainPage, 0, 'hex')
+    expect(firstRowHex.length).toBeGreaterThan(0)
+  })
+
+  // Read real data again for subsequent tests
+  test('re-read registers after dummy data', async ({ mainPage }) => {
+    await clearData(mainPage)
+    await mainPage.waitForTimeout(200)
+    await readRegisters(mainPage, '0', '40')
+  })
+
+  // ─── Time settings ──────────────────────────────────────────────────
+
+  test('time settings opens dialog', async ({ mainPage }) => {
+    await mainPage.getByTestId('time-settings-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // Verify a dialog/popover appeared
+    const dialog = mainPage
+      .locator('[role="dialog"], [role="presentation"], .MuiPopover-root, .MuiDialog-root')
+      .first()
+    await expect(dialog).toBeVisible({ timeout: 3000 })
+
+    // Close with Escape
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
   })
 
   // ─── Register read config ──────────────────────────────────────────
 
-  test.skip('register read config button opens read configuration', async ({ mainPage }) => {
-    // TODO: Click reg-read-config-btn, verify dialog opens
-    // This configures how registers are read (batch size, timeout, etc.)
+  test('register read config opens dialog', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-read-config-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // Verify a dialog appeared
+    const dialog = mainPage
+      .locator('[role="dialog"], [role="presentation"], .MuiPopover-root, .MuiDialog-root')
+      .first()
+    await expect(dialog).toBeVisible({ timeout: 3000 })
+
+    // Close with Escape
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
+  // ─── Cleanup ────────────────────────────────────────────────────────
+
+  test('disconnect client', async ({ mainPage }) => {
+    await disconnectClient(mainPage)
   })
 })
