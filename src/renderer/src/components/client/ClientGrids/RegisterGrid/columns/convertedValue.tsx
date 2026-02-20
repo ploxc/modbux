@@ -67,11 +67,10 @@ export const convertedValueColumn = (
         register = registerMap[address + count]
       }
 
-      // Slice the string to the right length and return it
-      // In the backend the string is converted from the whole buffer so
-      // we can use a variable length by doing this logic
-      const startIndex = address - startAddress
-      return value.slice(startIndex * 2, (startIndex + count) * 2)
+      // Slice the string to the right length
+      // The utf8 value starts from the current register's offset,
+      // so we slice from 0 (each register = 2 characters for ASCII)
+      return value.slice(0, count * 2)
     }
 
     // Return a string when it's a string :D

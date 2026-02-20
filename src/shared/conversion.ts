@@ -121,8 +121,9 @@ export const convertRegisterData = (
         uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
         double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
         datetime: buf64 ? parseIEC870DateTime(buf64, localTime) : '',
-        // Replace null values with spaces
-        utf8: Buffer.from(buffer.map((b) => (b === 0 ? 32 : b))).toString('utf-8')
+        // Replace null values with spaces — start from current register offset
+        // so character indexing aligns with register positions
+        utf8: Buffer.from(buffer.subarray(offset).map((b) => (b === 0 ? 32 : b))).toString('utf-8')
       },
       bit: false,
       isScanned: isScanning

@@ -234,6 +234,59 @@ describe('convertRegisterData', () => {
     expect(data[0].words?.utf8).toContain('A')
     expect(data[0].words?.utf8).not.toContain('\0')
   })
+
+  describe('utf8 per-row offset', () => {
+    it('utf8 starts from the current register offset', () => {
+      // "Hello" = 0x4865 0x6C6C 0x6F00
+      const result = makeResult([0x4865, 0x6c6c, 0x6f00])
+      const data = convertRegisterData(result, 0, false, false, false)
+
+      // Row 0 sees the full string from offset 0
+      expect(data[0].words?.utf8).toBe('Hello ')
+      // Row 1 starts at byte offset 2 → "llo " + trailing
+      expect(data[1].words?.utf8?.startsWith('llo')).toBe(true)
+      // Row 2 starts at offset 4 → "o "
+      expect(data[2].words?.utf8).toBe('o ')
+    })
+
+    it('utf8 is correct when preceded by non-ASCII data', () => {
+      // This is the actual bug scenario:
+      // Register 0: 0xFF9C (int16 -100, non-ASCII bytes)
+      // Register 1: 0x4865 ("He")
+      // Register 2: 0x6C6C ("ll")
+      // Register 3: 0x6F00 ("o\0")
+      const result = makeResult([0xff9c, 0x4865, 0x6c6c, 0x6f00])
+      const data = convertRegisterData(result, 0, false, false, false)
+
+      // Row 1 should start with "He", unaffected by non-ASCII at row 0
+      expect(data[1].words?.utf8?.startsWith('Hello')).toBe(true)
+    })
+
+    it('utf8 handles multi-register string at higher address', () => {
+      // Simulate: addr 0-1 = binary junk, addr 2-6 = "Hello World" (5.5 regs)
+      const junk = [0xffff, 0xeedd]
+      const hello = [0x4865, 0x6c6c, 0x6f20, 0x576f, 0x726c]
+      const result = makeResult([...junk, ...hello])
+      const data = convertRegisterData(result, 0, false, false, false)
+
+      // Row at index 2 (address 2) should start with "Hello Worl"
+      expect(data[2].words?.utf8?.startsWith('Hello Worl')).toBe(true)
+    })
+
+    it('utf8 with single character register', () => {
+      const result = makeResult([0x4100]) // "A\0" → "A "
+      const data = convertRegisterData(result, 10, false, false, false)
+      expect(data[0].words?.utf8).toBe('A ')
+    })
+
+    it('utf8 with empty (all null) registers', () => {
+      const result = makeResult([0x0000, 0x0000])
+      const data = convertRegisterData(result, 0, false, false, false)
+      // Nulls become spaces
+      expect(data[0].words?.utf8).toBe('    ')
+      expect(data[1].words?.utf8).toBe('  ')
+    })
+  })
 })
 
 describe('convertBitData', () => {
