@@ -51,6 +51,12 @@ export const useRootZustand = create<
         const type = get().registerConfig.type
 
         set((state) => {
+          // Remove register from mapping when data type is set to 'none'
+          if (key === 'dataType' && value === 'none') {
+            delete state.registerMapping[type][register]
+            return
+          }
+
           if (!state.registerMapping[type][register]) {
             state.registerMapping[type][register] = { [key]: value }
             return
