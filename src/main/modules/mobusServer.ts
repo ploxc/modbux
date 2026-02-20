@@ -20,6 +20,7 @@ import { ServerTCP } from 'modbus-serial'
 import { Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal } from 'modbus-serial'
+import { getRegisterLength } from '@shared'
 import net from 'net'
 
 const getDefaultGenerators = (): ValueGenerators => ({
@@ -338,11 +339,22 @@ export class ModbusServer {
    * Removes a register or value generator for a given server and unitId.
    * Disposes the generator if it exists and resets the register value.
    */
-  public removeRegister = ({ uuid, unitId, registerType, address }: RemoveRegisterParams): void => {
+  public removeRegister = ({
+    uuid,
+    unitId,
+    registerType,
+    address,
+    dataType
+  }: RemoveRegisterParams): void => {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
-    serverData[registerType][address] = 0
+
+    // Reset all registers occupied by this data type
+    const registerCount = getRegisterLength(dataType, address)
+    for (let i = 0; i < registerCount; i++) {
+      serverData[registerType][address + i] = 0
+    }
 
     const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
       this._generatorMap,
