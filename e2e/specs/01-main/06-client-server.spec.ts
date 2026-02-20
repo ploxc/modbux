@@ -10,32 +10,44 @@ import {
   navigateToServer,
   navigateToClient,
   enableAdvancedMode,
-  cleanServerState
+  cleanServerState,
+  selectUnitId
 } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
+import { SERVER_2_UNIT_0 } from '../../fixtures/test-data'
+import { resolve } from 'path'
+
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
+const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-server1-unit0.json')
 
 test.describe.serial('Client-Server Integration', () => {
   let server2Port: string
 
-  // ─── Setup: clean state and configure both servers ─────────────────
+  // ─── Setup: load server config and configure second server ───────
 
   test('clean server state', async ({ mainPage }) => {
     await cleanServerState(mainPage)
   })
 
-  test('configure server 1, unit 0', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
-    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
+  test('load server 1 config via file (all data types, 2 units)', async ({ mainPage }) => {
+    const fileInput = mainPage.getByTestId('server-open-file-input')
+    await fileInput.setInputFiles(SERVER_CONFIG)
+    await mainPage.waitForTimeout(1000)
+
+    // Verify config loaded: unit 0 holding registers
+    // 11 entries: int16, uint16, int32, uint32, float, int64, uint64, double, utf8, unix, datetime
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(11)')
+    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(2)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(16)')
     await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
   })
 
-  test('configure server 1, unit 1', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_1, true)
+  test('verify unit 1 loaded from config', async ({ mainPage }) => {
+    await selectUnitId(mainPage, '1')
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(1)')
     await expect(mainPage.getByTestId('section-input_registers')).toContainText('(1)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')
+    await selectUnitId(mainPage, '0')
   })
 
   test('add second server and configure unit 0', async ({ mainPage }) => {
@@ -84,10 +96,12 @@ test.describe.serial('Client-Server Integration', () => {
       await connectClient(mainPage, '127.0.0.1', '502', '0')
     })
 
-    test('read holding registers 0-22', async ({ mainPage }) => {
+    test('read holding registers 0-30', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Holding Registers')
-      await readRegisters(mainPage, '0', '23')
+      await readRegisters(mainPage, '0', '31')
     })
+
+    // ─── Hex + word column verification (raw data transfer) ────────
 
     test('verify INT16 at address 0 = -100', async ({ mainPage }) => {
       expect(await cell(mainPage, 0, 'hex')).toBe('FF9C')
@@ -130,20 +144,109 @@ test.describe.serial('Client-Server Integration', () => {
       expect(val).toContain('2.718')
     })
 
-    test('verify generator at address 22 is in range 0-1000', async ({ mainPage }) => {
-      const hex = await cell(mainPage, 22, 'hex')
-      const decVal = parseInt(hex, 16)
-      expect(decVal).toBeGreaterThanOrEqual(0)
-      expect(decVal).toBeLessThanOrEqual(1000)
+    // ─── UTF-8 at address 20 (5 registers) ─────────────────────────
+
+    test('verify UTF-8 "Hello" at address 20 — hex encoded', async ({ mainPage }) => {
+      // "Hello" big-endian: 'H'=0x48 'e'=0x65 → 0x4865, 'l'=0x6C 'l'=0x6C → 0x6C6C, 'o'=0x6F '\0'=0x00 → 0x6F00
+      expect(await cell(mainPage, 20, 'hex')).toBe('4865')
+      expect(await cell(mainPage, 21, 'hex')).toBe('6C6C')
+      expect(await cell(mainPage, 22, 'hex')).toBe('6F00')
+      expect(await cell(mainPage, 23, 'hex')).toBe('0000')
+      expect(await cell(mainPage, 24, 'hex')).toBe('0000')
+    })
+
+    // ─── UNIX timestamp at address 25 (2 registers) ────────────────
+
+    test('verify UNIX 1700000000 at address 25 — hex 6553 F100', async ({ mainPage }) => {
+      expect(await cell(mainPage, 25, 'hex')).toBe('6553')
+      expect(await cell(mainPage, 26, 'hex')).toBe('F100')
+    })
+
+    // ─── DATETIME at address 27 (4 registers, IEC 870-5) ───────────
+
+    test('verify DATETIME 2024/06/15 10:30:45 at address 27 — hex encoded', async ({
+      mainPage
+    }) => {
+      // IEC 870-5: year=24→0x0018, (6<<8)|15→0x060F, (10<<8)|30→0x0A1E, 45*1000→0xAFC8
+      expect(await cell(mainPage, 27, 'hex')).toBe('0018')
+      expect(await cell(mainPage, 28, 'hex')).toBe('060F')
+      expect(await cell(mainPage, 29, 'hex')).toBe('0A1E')
+      expect(await cell(mainPage, 30, 'hex')).toBe('AFC8')
+    })
+
+    // ─── Value column with client config mapping ───────────────────
+    // Load client config that maps datatypes + scaling, verify the
+    // decoded values in the 'value' column (full end-to-end chain)
+
+    test('load client config and re-read for value column verification', async ({ mainPage }) => {
+      const fileInput = mainPage.getByTestId('load-config-file-input')
+      await fileInput.setInputFiles(CLIENT_CONFIG)
+      await mainPage.waitForTimeout(1000)
+      // Re-read so the value column can compute decoded values with the new mapping
+      await readRegisters(mainPage, '0', '31')
+    })
+
+    test('value column: INT16 at address 0 = -100', async ({ mainPage }) => {
+      expect(await cell(mainPage, 0, 'value')).toBe('-100')
+    })
+
+    test('value column: UINT16 at address 1 with scaling 0.1 = 50', async ({ mainPage }) => {
+      // Server value is 500, scaling factor 0.1 → displayed as 50
+      expect(await cell(mainPage, 1, 'value')).toBe('50')
+    })
+
+    test('value column: INT32 at address 2 = -70000', async ({ mainPage }) => {
+      expect(await cell(mainPage, 2, 'value')).toBe('-70000')
+    })
+
+    test('value column: UINT32 at address 4 = 100000', async ({ mainPage }) => {
+      expect(await cell(mainPage, 4, 'value')).toBe('100000')
+    })
+
+    test('value column: FLOAT at address 6 ≈ 3.14', async ({ mainPage }) => {
+      const val = await cell(mainPage, 6, 'value')
+      expect(val).toContain('3.14')
+    })
+
+    test('value column: INT64 at address 8 = -1000000', async ({ mainPage }) => {
+      expect(await cell(mainPage, 8, 'value')).toBe('-1000000')
+    })
+
+    test('value column: UINT64 at address 12 = 2000000', async ({ mainPage }) => {
+      expect(await cell(mainPage, 12, 'value')).toBe('2000000')
+    })
+
+    test('value column: DOUBLE at address 16 ≈ 2.718', async ({ mainPage }) => {
+      const val = await cell(mainPage, 16, 'value')
+      expect(val).toContain('2.718')
+    })
+
+    test('value column: UTF-8 at address 20 = "Hello"', async ({ mainPage }) => {
+      const val = await cell(mainPage, 20, 'value')
+      expect(val).toContain('Hello')
+    })
+
+    test('value column: UNIX at address 25 = 2023/11/14 22:13:20', async ({ mainPage }) => {
+      // 1700000000 seconds since epoch = 2023/11/14 22:13:20 UTC
+      const val = await cell(mainPage, 25, 'value')
+      expect(val).toBe('2023/11/14 22:13:20')
+    })
+
+    test('value column: DATETIME at address 27 = 2024/06/15 10:30:45', async ({ mainPage }) => {
+      // IEC 870-5 encoded: 2024/06/15 10:30:45.000
+      const val = await cell(mainPage, 27, 'value')
+      expect(val).toBe('2024/06/15 10:30:45')
     })
 
     test('clear holding data', async ({ mainPage }) => {
       await clearData(mainPage)
     })
 
-    test('read input registers 0-3', async ({ mainPage }) => {
+    // ─── Input registers ───────────────────────────────────────────
+
+    test('read input registers 0-2', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Input Registers')
-      await readRegisters(mainPage, '0', '4')
+      await readRegisters(mainPage, '0', '3')
     })
 
     test('verify INT16 at input address 0 = 200', async ({ mainPage }) => {
@@ -157,32 +260,31 @@ test.describe.serial('Client-Server Integration', () => {
       expect(val).toContain('9.81')
     })
 
-    test('verify generator at input address 3 is in range 100-500', async ({ mainPage }) => {
-      const hex = await cell(mainPage, 3, 'hex')
-      const decVal = parseInt(hex, 16)
-      expect(decVal).toBeGreaterThanOrEqual(100)
-      expect(decVal).toBeLessThanOrEqual(500)
+    // Value column (client mapping already loaded)
+
+    test('value column: input INT16 at address 0 = 200', async ({ mainPage }) => {
+      expect(await cell(mainPage, 0, 'value')).toBe('200')
+    })
+
+    test('value column: input FLOAT at address 1 ≈ 9.81', async ({ mainPage }) => {
+      const val = await cell(mainPage, 1, 'value')
+      expect(val).toContain('9.81')
     })
 
     test('clear input data', async ({ mainPage }) => {
       await clearData(mainPage)
     })
 
+    // ─── Coils ─────────────────────────────────────────────────────
+
     test('read coils 0-15', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Coils')
       await readRegisters(mainPage, '0', '16')
     })
 
-    test('verify coil 0 is FALSE', async ({ mainPage }) => {
-      expect(await cell(mainPage, 0, 'bit')).toBe('FALSE')
-    })
-
-    test('verify coil 5 is TRUE', async ({ mainPage }) => {
+    test('verify coil 5 is TRUE, rest FALSE', async ({ mainPage }) => {
       expect(await cell(mainPage, 5, 'bit')).toBe('TRUE')
-    })
-
-    test('verify remaining coils are FALSE', async ({ mainPage }) => {
-      for (const addr of [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
+      for (const addr of [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
         expect(await cell(mainPage, addr, 'bit')).toBe('FALSE')
       }
     })
@@ -191,16 +293,15 @@ test.describe.serial('Client-Server Integration', () => {
       await clearData(mainPage)
     })
 
+    // ─── Discrete inputs ───────────────────────────────────────────
+
     test('read discrete inputs 0-7', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Discrete Inputs')
       await readRegisters(mainPage, '0', '8')
     })
 
-    test('verify DI 3 is TRUE', async ({ mainPage }) => {
+    test('verify DI 3 is TRUE, rest FALSE', async ({ mainPage }) => {
       expect(await cell(mainPage, 3, 'bit')).toBe('TRUE')
-    })
-
-    test('verify remaining DIs are FALSE', async ({ mainPage }) => {
       for (const addr of [0, 1, 2, 4, 5, 6, 7]) {
         expect(await cell(mainPage, addr, 'bit')).toBe('FALSE')
       }

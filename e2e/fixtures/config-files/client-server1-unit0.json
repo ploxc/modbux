@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Server 1 Unit 0",
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "holding_registers": {
+      "0": { "dataType": "int16", "comment": "test int16 negative" },
+      "1": { "dataType": "uint16", "scalingFactor": 0.1, "comment": "test uint16 scaled" },
+      "2": { "dataType": "int32", "comment": "test int32 negative" },
+      "4": { "dataType": "uint32", "comment": "test uint32" },
+      "6": { "dataType": "float", "comment": "test float" },
+      "8": { "dataType": "int64", "comment": "test int64 negative" },
+      "12": { "dataType": "uint64", "comment": "test uint64" },
+      "16": { "dataType": "double", "comment": "test double" },
+      "20": { "dataType": "utf8", "comment": "test utf8" },
+      "25": { "dataType": "unix", "comment": "test unix timestamp" },
+      "27": { "dataType": "datetime", "comment": "test datetime" }
+    },
+    "input_registers": {
+      "0": { "dataType": "int16", "comment": "input int16" },
+      "1": { "dataType": "float", "comment": "input float" }
+    }
+  }
+}
