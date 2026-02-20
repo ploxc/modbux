@@ -463,7 +463,13 @@ function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataT
   if (isEdit && serverRegisterEdit) {
     const oldAddress = serverRegisterEdit.params.address
     if (oldAddress !== Number(address)) {
-      z.removeRegister({ uuid, unitId, address: oldAddress, registerType })
+      z.removeRegister({
+        uuid,
+        unitId,
+        address: oldAddress,
+        registerType,
+        dataType: serverRegisterEdit.params.dataType
+      })
     }
   }
 
@@ -576,11 +582,16 @@ const DeleteButton = meme(() => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
 
+    const addr = Number(address)
+    const entry = z.serverRegisters[uuid]?.[unitId]?.[registerType]?.[addr]
+    const dataType = entry?.params?.dataType ?? 'uint16'
+
     z.removeRegister({
       uuid,
       unitId,
-      address: Number(address),
-      registerType
+      address: addr,
+      registerType,
+      dataType
     })
 
     setRegisterType(undefined)
