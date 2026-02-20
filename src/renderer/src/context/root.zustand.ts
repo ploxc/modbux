@@ -251,7 +251,7 @@ export const useRootZustand = create<
 
           state.valid.lenght = !!valid
           const newLength = Number(length)
-          state.registerConfig.length = Number(length)
+          state.registerConfig.length = newLength
           if (!valid) return
           window.api.updateRegisterConfig({ length: newLength })
 

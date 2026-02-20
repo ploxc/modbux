@@ -261,8 +261,8 @@ export const useServerZustand = create<
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
         const currentState = get()
-        const currentCoils = new Array(65535).fill(false)
-        const currentDiscreteInputs = new Array(65535).fill(false)
+        const currentCoils = new Array(65536).fill(false)
+        const currentDiscreteInputs = new Array(65536).fill(false)
         Object.entries(currentState.serverRegisters.coils ?? {}).forEach(([k, v]) => {
           currentCoils[Number(k)] = v
         })
@@ -280,7 +280,7 @@ export const useServerZustand = create<
             unitId,
             coils: currentCoils,
             discrete_inputs: currentDiscreteInputs,
-            [registerType]: new Array(65535).fill(false)
+            [registerType]: new Array(65536).fill(false)
           }
           window.api.syncBools(newBools)
         })

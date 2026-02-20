@@ -34,10 +34,10 @@ const getDefaultServerData = (): {
   input_registers: number[]
   holding_registers: number[]
 } => ({
-  coils: new Array(65535).fill(false),
-  discrete_inputs: new Array(65535).fill(false),
-  input_registers: new Array(65535).fill(0),
-  holding_registers: new Array(65535).fill(0)
+  coils: new Array(65536).fill(false),
+  discrete_inputs: new Array(65536).fill(false),
+  input_registers: new Array(65536).fill(0),
+  holding_registers: new Array(65536).fill(0)
 })
 
 export const ILLEGAL_FUNCTION = 1
@@ -414,7 +414,7 @@ export class ModbusServer {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
-    serverData[registerType] = new Array(65535).fill(0)
+    serverData[registerType] = new Array(65536).fill(0)
     this._setServerData(uuid, unitId, serverData)
   }
 
@@ -438,7 +438,7 @@ export class ModbusServer {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
-    serverData[registerType] = new Array(65535).fill(false)
+    serverData[registerType] = new Array(65536).fill(false)
     this._setServerData(uuid, unitId, serverData)
   }
 

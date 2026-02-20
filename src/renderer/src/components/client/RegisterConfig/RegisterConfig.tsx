@@ -63,7 +63,7 @@ const Address = meme(() => {
   const displayValue = String(address + base)
 
   const handleSetAddress = useCallback(
-    (v: number) => setAddress(Math.max(0, v - base)),
+    (v: string) => setAddress(String(Math.max(0, Number(v) - base))),
     [setAddress, base]
   )
 
@@ -79,7 +79,7 @@ const Address = meme(() => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleSetAddress }),
+          inputProps: maskInputProps({ set: handleSetAddress, max: 65535 + base }),
           endAdornment: (
             <ToggleButtonGroup
               size="small"
@@ -109,6 +109,7 @@ const Length = meme(() => {
   const length = useRootZustand((z) => String(z.registerConfig.length))
   const lengthValid = useRootZustand((z) => z.valid.lenght)
   const setLength = useRootZustand((z) => z.setLength)
+  const address = useRootZustand((z) => z.registerConfig.address)
   const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
 
   return (
@@ -124,7 +125,7 @@ const Length = meme(() => {
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength })
+          inputProps: maskInputProps({ set: setLength, max: 65536 - address })
         }
       }}
     />

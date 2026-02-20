@@ -20,8 +20,8 @@ export const syncBoolsWithBackend = async (
   unitId: UnitIdString,
   syncUuid: string
 ): Promise<void> => {
-  const coils: boolean[] = Array(65535).fill(false)
-  const discreteInputs: boolean[] = Array(65535).fill(false)
+  const coils: boolean[] = Array(65536).fill(false)
+  const discreteInputs: boolean[] = Array(65536).fill(false)
 
   Object.values(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
     (value, address) => (coils[address] = value)

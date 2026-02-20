@@ -1359,7 +1359,7 @@ describe('ModbusClient', () => {
     })
 
     // ! Coverage-only: exercises address+length clamping in _scanRegister
-    it('clamps length when address + length exceeds 65535', async () => {
+    it('clamps length when address + length exceeds 65536', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
@@ -1371,9 +1371,9 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(1000)
       await scanPromise
 
-      // The first read starts at 65530 with length 10, but 65530+10=65540 > 65535
-      // so length should be clamped to 65535 - 65530 = 5
-      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65530, 5)
+      // The first read starts at 65530 with length 10, but 65530+10=65540 > 65536
+      // so length should be clamped to 65536 - 65530 = 6
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65530, 6)
     })
 
     // ! Coverage-only: exercises d.bit filter branch in _scanRegister

@@ -3,14 +3,14 @@ import { forwardRef } from 'react'
 import { MaskInputProps } from './types'
 
 const UIntInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
+  const { set, max = 65535, ...other } = props
   return (
     <IMaskInput
       {...other}
       autofix
       mask={IMask.MaskedNumber}
       min={0}
-      max={65535}
+      max={max}
       inputRef={ref}
       onAccept={(value: string) => set(value, value.length > 0)}
     />

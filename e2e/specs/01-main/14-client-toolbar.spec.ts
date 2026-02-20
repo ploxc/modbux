@@ -43,27 +43,39 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(base0Btn).toHaveClass(/Mui-selected/)
 
     // First row address should show "0"
-    const addr = await cell(mainPage, 0, 'address')
+    const addr = await cell(mainPage, 0, 'id')
     expect(addr).toBe('0')
   })
 
-  test('address base 1 shifts addresses by 1', async ({ mainPage }) => {
+  test('address base 1 shifts grid addresses and input by 1', async ({ mainPage }) => {
+    const addressInput = mainPage.getByTestId('reg-address-input').locator('input')
+
+    // Capture address input value with base 0
+    const inputBase0 = await addressInput.inputValue()
+
     await mainPage.getByTestId('reg-base-1-btn').click()
     await mainPage.waitForTimeout(300)
 
     const base1Btn = mainPage.getByTestId('reg-base-1-btn')
     await expect(base1Btn).toHaveClass(/Mui-selected/)
 
-    // First row address should now show "1"
-    const addr = await cell(mainPage, 0, 'address')
+    // Grid address should now show "1"
+    const addr = await cell(mainPage, 0, 'id')
     expect(addr).toBe('1')
+
+    // Address input should also shift by +1
+    const inputBase1 = await addressInput.inputValue()
+    expect(Number(inputBase1)).toBe(Number(inputBase0) + 1)
 
     // Reset back to base 0
     await mainPage.getByTestId('reg-base-0-btn').click()
     await mainPage.waitForTimeout(300)
 
-    const addrReset = await cell(mainPage, 0, 'address')
+    const addrReset = await cell(mainPage, 0, 'id')
     expect(addrReset).toBe('0')
+
+    const inputReset = await addressInput.inputValue()
+    expect(inputReset).toBe(inputBase0)
   })
 
   // ─── Raw display toggle ─────────────────────────────────────────────

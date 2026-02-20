@@ -5,10 +5,10 @@ import type { ServerData, UnitIdString, Windows } from '@shared'
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
 const createServerData = (): ServerData => ({
-  coils: new Array(65535).fill(false),
-  discrete_inputs: new Array(65535).fill(false),
-  input_registers: new Array(65535).fill(0),
-  holding_registers: new Array(65535).fill(0)
+  coils: new Array(65536).fill(false),
+  discrete_inputs: new Array(65536).fill(false),
+  input_registers: new Array(65536).fill(0),
+  holding_registers: new Array(65536).fill(0)
 })
 
 describe('ValueGenerator', () => {

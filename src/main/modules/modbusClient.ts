@@ -790,7 +790,7 @@ export class ModbusClient {
 
   private _scanRegister = async (address: number, length: number): Promise<void> => {
     const type = this._appState.registerConfig.type
-    if (address + length > 65535) length = 65535 - address
+    if (address + length > 65536) length = 65536 - address
 
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined
