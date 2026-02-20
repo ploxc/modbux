@@ -43,14 +43,15 @@ function toRegisterDef(params: any): RegisterDef {
     }
   }
 
-  // Generator (has interval)
+  // Generator (has interval — config stores ms, UI expects seconds)
   if (params.interval !== undefined) {
+    const intervalSeconds = String(params.interval / 1000)
     if (dataType === 'DATETIME' || dataType === 'UNIX') {
       return {
         ...base,
         dataType,
         mode: 'generator-datetime',
-        interval: String(params.interval),
+        interval: intervalSeconds,
         comment: params.comment
       }
     }
@@ -60,7 +61,7 @@ function toRegisterDef(params: any): RegisterDef {
       mode: 'generator',
       min: String(params.min),
       max: String(params.max),
-      interval: String(params.interval),
+      interval: intervalSeconds,
       comment: params.comment
     }
   }

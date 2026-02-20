@@ -48,6 +48,7 @@ const TimeSettings = meme(() => {
         <Timer />
       </IconButton>
       <Popover
+        data-testid="time-settings-popover"
         open={!!anchorEl}
         onClose={() => setAnchorEl(null)}
         anchorEl={anchorEl}

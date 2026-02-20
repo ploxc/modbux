@@ -135,7 +135,7 @@
             "comment": "generator int16",
             "min": 0,
             "max": 1000,
-            "interval": 1
+            "interval": 1000
           }
         },
         "26": {
@@ -157,7 +157,7 @@
             "comment": "test datetime generator",
             "min": 0,
             "max": 0,
-            "interval": 5
+            "interval": 5000
           }
         }
       },
@@ -191,7 +191,7 @@
             "comment": "input generator",
             "min": 100,
             "max": 500,
-            "interval": 2
+            "interval": 2000
           }
         }
       }

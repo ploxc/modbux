@@ -9,8 +9,7 @@ import {
   selectRegisterType,
   enableAdvancedMode,
   cleanServerState,
-  loadServerConfig,
-  clearData
+  loadServerConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -135,7 +134,13 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   test('raw button toggles raw display mode', async ({ mainPage }) => {
     const rawBtn = mainPage.getByTestId('raw-btn')
 
-    // Raw mode should be off by default
+    // Ensure raw mode is off before testing toggle
+    const classes = await rawBtn.getAttribute('class')
+    if (classes?.includes('containedWarning')) {
+      await rawBtn.click()
+      await mainPage.waitForTimeout(300)
+    }
+
     await expect(rawBtn).not.toHaveClass(/containedWarning/)
 
     // Toggle raw mode on
@@ -152,83 +157,135 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Transaction log ────────────────────────────────────────────────
 
   test('show log button reveals log panel', async ({ mainPage }) => {
+    const logBtn = mainPage.getByTestId('show-log-btn')
+    const logPanel = mainPage.getByTestId('transaction-log-panel')
+
     // Click show log
-    await mainPage.getByTestId('show-log-btn').click()
+    await logBtn.click()
     await mainPage.waitForTimeout(500)
 
-    // Verify a log panel or container becomes visible
-    const logPanel = mainPage
-      .locator('[class*="log"], [data-testid*="log-panel"], [data-testid*="transaction-log"]')
-      .first()
-    await expect(logPanel).toBeVisible({ timeout: 3000 })
+    await expect(logBtn).toContainText('Hide Log')
+    await expect(logPanel).toBeVisible()
 
     // Click again to hide
-    await mainPage.getByTestId('show-log-btn').click()
+    await logBtn.click()
     await mainPage.waitForTimeout(500)
+    await expect(logBtn).toContainText('Show Log')
+    await expect(logPanel).not.toBeVisible()
+  })
+
+  // ─── Register read config toggle ──────────────────────────────────
+
+  test('read config button is disabled when no registers configured', async ({ mainPage }) => {
+    const btn = mainPage.getByTestId('reg-read-config-btn')
+    await expect(btn).toBeDisabled()
+  })
+
+  test('read config button enables after setting a data type', async ({ mainPage }) => {
+    // Double-click the data type cell on row 0 to open the select
+    const row = mainPage.locator('.MuiDataGrid-row').first()
+    const dataTypeCell = row.locator('[data-field="dataType"]')
+    await dataTypeCell.dblclick()
+    await mainPage.waitForTimeout(300)
+
+    // Select INT16 from the dropdown
+    await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
+    await mainPage.keyboard.press('Enter')
+    await mainPage.waitForTimeout(300)
+
+    // Button should now be enabled
+    const btn = mainPage.getByTestId('reg-read-config-btn')
+    await expect(btn).toBeEnabled()
+  })
+
+  test('read config button toggles on and off', async ({ mainPage }) => {
+    const btn = mainPage.getByTestId('reg-read-config-btn')
+
+    // Toggle on
+    await btn.click()
+    await mainPage.waitForTimeout(300)
+    await expect(btn).toHaveClass(/Mui-selected/)
+
+    // Toggle off
+    await btn.click()
+    await mainPage.waitForTimeout(300)
+    await expect(btn).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('read config button disables when data type is removed', async ({ mainPage }) => {
+    // First toggle on
+    const btn = mainPage.getByTestId('reg-read-config-btn')
+    await btn.click()
+    await mainPage.waitForTimeout(300)
+    await expect(btn).toHaveClass(/Mui-selected/)
+
+    // Remove data type (set back to NONE)
+    const row = mainPage.locator('.MuiDataGrid-row').first()
+    const dataTypeCell = row.locator('[data-field="dataType"]')
+    await dataTypeCell.dblclick()
+    await mainPage.waitForTimeout(300)
+    await mainPage.getByRole('option', { name: 'NONE' }).click()
+    await mainPage.keyboard.press('Enter')
+    await mainPage.waitForTimeout(300)
+
+    // Button should be disabled and no longer selected
+    await expect(btn).toBeDisabled()
   })
 
   // ─── Load dummy data ────────────────────────────────────────────────
 
-  test('load dummy data populates register grid', async ({ mainPage }) => {
-    // Clear current data first
-    await clearData(mainPage)
-    await mainPage.waitForTimeout(300)
-
-    // Open menu and click load dummy data
+  test('load dummy data button is disabled when connected', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
     await mainPage.waitForTimeout(300)
+    await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeDisabled()
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(200)
+  })
+
+  test('disconnect clears grid and enables dummy data', async ({ mainPage }) => {
+    await disconnectClient(mainPage)
+    await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')
+
+    // Grid should be empty after disconnect
+    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCount).toBe(0)
+  })
+
+  test('load dummy data button is enabled when disconnected', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.waitForTimeout(300)
+    await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(200)
+  })
+
+  test('load dummy data populates register grid', async ({ mainPage }) => {
+    // Wait for disconnected state before opening menu
+    await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')
+
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.waitForTimeout(300)
+    await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.waitForTimeout(500)
 
-    // Verify grid has data — first row should have some hex content
-    const firstRowHex = await cell(mainPage, 0, 'hex')
-    expect(firstRowHex.length).toBeGreaterThan(0)
-  })
-
-  // Read real data again for subsequent tests
-  test('re-read registers after dummy data', async ({ mainPage }) => {
-    await clearData(mainPage)
-    await mainPage.waitForTimeout(200)
-    await readRegisters(mainPage, '0', '40')
+    // Verify grid has data
+    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCount).toBeGreaterThan(0)
   })
 
   // ─── Time settings ──────────────────────────────────────────────────
 
-  test('time settings opens dialog', async ({ mainPage }) => {
+  test('time settings opens popover', async ({ mainPage }) => {
     await mainPage.getByTestId('time-settings-btn').click()
     await mainPage.waitForTimeout(300)
 
-    // Verify a dialog/popover appeared
-    const dialog = mainPage
-      .locator('[role="dialog"], [role="presentation"], .MuiPopover-root, .MuiDialog-root')
-      .first()
-    await expect(dialog).toBeVisible({ timeout: 3000 })
+    const popover = mainPage.getByTestId('time-settings-popover')
+    await expect(popover).toBeVisible()
 
-    // Close with Escape
+    // Close popover
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(300)
-  })
-
-  // ─── Register read config ──────────────────────────────────────────
-
-  test('register read config opens dialog', async ({ mainPage }) => {
-    await mainPage.getByTestId('reg-read-config-btn').click()
-    await mainPage.waitForTimeout(300)
-
-    // Verify a dialog appeared
-    const dialog = mainPage
-      .locator('[role="dialog"], [role="presentation"], .MuiPopover-root, .MuiDialog-root')
-      .first()
-    await expect(dialog).toBeVisible({ timeout: 3000 })
-
-    // Close with Escape
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
-  })
-
-  // ─── Cleanup ────────────────────────────────────────────────────────
-
-  test('disconnect client', async ({ mainPage }) => {
-    await disconnectClient(mainPage)
+    await expect(popover).not.toBeVisible()
   })
 })
