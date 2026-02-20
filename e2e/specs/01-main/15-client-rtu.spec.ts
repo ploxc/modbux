@@ -18,9 +18,12 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
   })
 
-  test('switch to RTU protocol', async ({ mainPage }) => {
+  test('switch to RTU hides TCP fields and shows RTU fields', async ({ mainPage }) => {
     await mainPage.getByTestId('protocol-rtu-btn').click()
     await mainPage.waitForTimeout(300)
+
+    // TCP fields should be hidden
+    await expect(mainPage.getByTestId('tcp-host-input')).not.toBeVisible()
 
     // RTU config fields should appear
     await expect(mainPage.getByTestId('rtu-baudrate-select')).toBeVisible()
@@ -56,6 +59,15 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await mainPage.waitForTimeout(200)
   })
 
+  test('changing baudrate persists selection', async ({ mainPage }) => {
+    await mainPage.getByTestId('rtu-baudrate-select').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByRole('option', { name: '115200' }).click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('rtu-baudrate-select')).toContainText('115200')
+  })
+
   test('parity select has expected options', async ({ mainPage }) => {
     await mainPage.getByTestId('rtu-parity-select').click()
     await mainPage.waitForTimeout(200)
@@ -67,6 +79,15 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(200)
+  })
+
+  test('changing parity persists selection', async ({ mainPage }) => {
+    await mainPage.getByTestId('rtu-parity-select').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByRole('option', { name: 'even' }).click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('rtu-parity-select')).toContainText('even')
   })
 
   test('data bits select has expected options', async ({ mainPage }) => {
@@ -82,6 +103,15 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await mainPage.waitForTimeout(200)
   })
 
+  test('changing data bits persists selection', async ({ mainPage }) => {
+    await mainPage.getByTestId('rtu-databits-select').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByRole('option', { name: '7' }).click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('rtu-databits-select')).toContainText('7')
+  })
+
   test('stop bits select has expected options', async ({ mainPage }) => {
     await mainPage.getByTestId('rtu-stopbits-select').click()
     await mainPage.waitForTimeout(200)
@@ -91,6 +121,15 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
 
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(200)
+  })
+
+  test('changing stop bits persists selection', async ({ mainPage }) => {
+    await mainPage.getByTestId('rtu-stopbits-select').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.getByRole('option', { name: '2' }).click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('rtu-stopbits-select')).toContainText('2')
   })
 
   // ─── COM port ───────────────────────────────────────────────────────
@@ -107,22 +146,35 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await mainPage.getByTestId('rtu-refresh-btn').click()
     await mainPage.waitForTimeout(500)
 
-    // Verify the page is still functional (no crash)
+    // Verify the page is still functional
     await expect(mainPage.getByTestId('rtu-baudrate-select')).toBeVisible()
     await expect(mainPage.getByTestId('protocol-rtu-btn')).toBeVisible()
   })
 
   // ─── Protocol switching ─────────────────────────────────────────────
 
-  test('switch back to TCP preserves protocol state', async ({ mainPage }) => {
+  test('switch to TCP hides RTU fields', async ({ mainPage }) => {
     await mainPage.getByTestId('protocol-tcp-btn').click()
     await mainPage.waitForTimeout(300)
 
     // TCP fields should be visible again
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
 
+    // RTU fields should be hidden
+    await expect(mainPage.getByTestId('rtu-baudrate-select')).not.toBeVisible()
+
     // TCP button should be selected
-    const tcpBtn = mainPage.getByTestId('protocol-tcp-btn')
-    await expect(tcpBtn).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('protocol-tcp-btn')).toHaveClass(/Mui-selected/)
+  })
+
+  test('switching back to RTU preserves changed values', async ({ mainPage }) => {
+    await mainPage.getByTestId('protocol-rtu-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // Previously changed values should still be set
+    await expect(mainPage.getByTestId('rtu-baudrate-select')).toContainText('115200')
+    await expect(mainPage.getByTestId('rtu-parity-select')).toContainText('even')
+    await expect(mainPage.getByTestId('rtu-databits-select')).toContainText('7')
+    await expect(mainPage.getByTestId('rtu-stopbits-select')).toContainText('2')
   })
 })
