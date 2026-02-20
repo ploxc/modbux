@@ -265,7 +265,8 @@ describe('ModbusServer', () => {
         uuid,
         unitId,
         registerType: 'holding_registers',
-        address: 5
+        address: 5,
+        dataType: 'uint16'
       })
 
       // No error should occur
@@ -294,7 +295,8 @@ describe('ModbusServer', () => {
         uuid,
         unitId,
         registerType: 'holding_registers',
-        address: 0
+        address: 0,
+        dataType: 'uint16'
       })
 
       // After removal, advancing time should not produce new values
@@ -310,9 +312,97 @@ describe('ModbusServer', () => {
         uuid,
         unitId,
         registerType: 'holding_registers',
-        address: 0
+        address: 0,
+        dataType: 'uint16'
       })
       // Should not throw
+    })
+
+    it('resets all registers occupied by a multi-register type (int32)', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+
+      // Add int32 at address 0 — occupies addresses 0 and 1
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'int32',
+          littleEndian: false,
+          comment: '',
+          value: 70000, // 0x00011170 → addr 0 = 1, addr 1 = 4464
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      // Verify both registers are set
+      const cb0 = vi.fn()
+      await vector.getHoldingRegister!(0, 1, cb0)
+      expect(cb0).toHaveBeenCalledWith(null, 1) // high word
+
+      const cb1 = vi.fn()
+      await vector.getHoldingRegister!(1, 1, cb1)
+      expect(cb1).toHaveBeenCalledWith(null, 4464) // low word
+
+      // Remove the register
+      server.removeRegister({
+        uuid,
+        unitId,
+        registerType: 'holding_registers',
+        address: 0,
+        dataType: 'int32'
+      })
+
+      // Both addresses should be reset to 0
+      const cb0After = vi.fn()
+      await vector.getHoldingRegister!(0, 1, cb0After)
+      expect(cb0After).toHaveBeenCalledWith(null, 0)
+
+      const cb1After = vi.fn()
+      await vector.getHoldingRegister!(1, 1, cb1After)
+      expect(cb1After).toHaveBeenCalledWith(null, 0)
+    })
+
+    it('resets all registers occupied by a 64-bit type (double)', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+
+      // Add double at address 0 — occupies addresses 0, 1, 2, 3
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'double',
+          littleEndian: false,
+          comment: '',
+          value: 3.14,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      // Remove the register
+      server.removeRegister({
+        uuid,
+        unitId,
+        registerType: 'holding_registers',
+        address: 0,
+        dataType: 'double'
+      })
+
+      // All 4 addresses should be reset to 0
+      for (let i = 0; i < 4; i++) {
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(i, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, 0)
+      }
     })
 
     it('handles removing non-existent address from existing generators', () => {
@@ -336,7 +426,8 @@ describe('ModbusServer', () => {
         uuid,
         unitId,
         registerType: 'holding_registers',
-        address: 99
+        address: 99,
+        dataType: 'uint16'
       })
       // Should not throw — generator at address 0 is untouched
     })

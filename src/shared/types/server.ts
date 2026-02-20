@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseDataTypeSchema } from './datatype'
+import { BaseDataType, BaseDataTypeSchema } from './datatype'
 import { RegisterType } from './client'
 import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
@@ -105,6 +105,7 @@ export interface RemoveRegisterParams {
   unitId: UnitIdString
   registerType: NumberRegisters
   address: number
+  dataType: BaseDataType
 }
 
 export interface SyncRegisterValueParams {
