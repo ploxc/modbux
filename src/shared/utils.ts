@@ -1,18 +1,4 @@
-import { BaseDataType, DataType, RegisterParams, RegisterType, ServerRegisters } from './types'
-
-export const getConventionalAddress = (
-  type: RegisterType,
-  address: string,
-  addressBase: string
-): number => {
-  return type === 'discrete_inputs'
-    ? Number(address) + 10000 + Number(addressBase)
-    : type === 'holding_registers'
-      ? Number(address) + 40000 + Number(addressBase)
-      : type === 'input_registers'
-        ? Number(address) + 30000 + Number(addressBase)
-        : Number(address) + Number(addressBase)
-}
+import { BaseDataType, DataType, RegisterParams, ServerRegisters } from './types'
 
 export const getBit = (word: number, bit: number): boolean => (word & (2 ** bit)) === 2 ** bit
 

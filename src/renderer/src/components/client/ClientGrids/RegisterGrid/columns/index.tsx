@@ -3,7 +3,6 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterData } from '@shared'
 import { useMemo } from 'react'
 import { addressColumn } from './address'
-import { conventionalAddresColumn } from './conventionalAddress'
 import { bitColumn } from './bit'
 import { dataTypeColumn } from './dataType'
 import { convertedValueColumn } from './convertedValue'
@@ -33,8 +32,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   return useMemo(() => {
     const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
-    const columns: GridColDef<RegisterData>[] = [addressColumn]
-    columns.push(conventionalAddresColumn(type, addressBase))
+    const columns: GridColDef<RegisterData>[] = [addressColumn(addressBase)]
 
     if (!registers16Bit) {
       columns.push(bitColumn)

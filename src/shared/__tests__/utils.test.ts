@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  getConventionalAddress,
   getBit,
   bigEndian32,
   littleEndian32,
@@ -12,31 +11,6 @@ import {
   humanizeSerialError
 } from '../utils'
 import { getDummyRegisterData, dummyWords, MAIN_SERVER_UUID } from '../default'
-
-// ---------------------------------------------------------------------------
-// getConventionalAddress
-// ---------------------------------------------------------------------------
-describe('getConventionalAddress', () => {
-  it('adds 0 offset for coils', () => {
-    expect(getConventionalAddress('coils', '10', '0')).toBe(10)
-    expect(getConventionalAddress('coils', '10', '1')).toBe(11)
-  })
-
-  it('adds 10000 offset for discrete_inputs', () => {
-    expect(getConventionalAddress('discrete_inputs', '5', '0')).toBe(10005)
-    expect(getConventionalAddress('discrete_inputs', '5', '1')).toBe(10006)
-  })
-
-  it('adds 30000 offset for input_registers', () => {
-    expect(getConventionalAddress('input_registers', '100', '0')).toBe(30100)
-    expect(getConventionalAddress('input_registers', '100', '1')).toBe(30101)
-  })
-
-  it('adds 40000 offset for holding_registers', () => {
-    expect(getConventionalAddress('holding_registers', '0', '0')).toBe(40000)
-    expect(getConventionalAddress('holding_registers', '0', '1')).toBe(40001)
-  })
-})
 
 // ---------------------------------------------------------------------------
 // getBit
