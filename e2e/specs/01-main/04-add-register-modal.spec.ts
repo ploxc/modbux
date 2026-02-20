@@ -1,10 +1,5 @@
 import { test, expect } from '../../fixtures/electron-app'
-import {
-  navigateToServer,
-  selectDataType,
-  selectUnitId,
-  addRegister
-} from '../../fixtures/helpers'
+import { navigateToServer, selectDataType, selectUnitId, addRegister } from '../../fixtures/helpers'
 import type { RegisterDef } from '../../fixtures/types'
 
 test.describe.serial('AddRegister modal — state management and validation', () => {
@@ -74,9 +69,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
   // ─── Add & Next chaining ──────────────────────────────────────────────
 
-  test('Add & Next: address advances, mode/type preserved, comment reset', async ({
-    mainPage
-  }) => {
+  test('Add & Next: address advances, mode/type preserved, comment reset', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)
 
