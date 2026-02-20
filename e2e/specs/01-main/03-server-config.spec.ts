@@ -34,7 +34,7 @@ test.describe.serial('Server configuration', () => {
 
   test('verify server name after config', async ({ mainPage }) => {
     const nameInput = mainPage.getByTestId('server-name-input').locator('input')
-    expect(await nameInput.inputValue()).toBe('Main Server')
+    expect(await nameInput.inputValue()).toBe('Integration Test Server')
   })
 
   test('verify register counts after config', async ({ mainPage }) => {
@@ -77,7 +77,7 @@ test.describe.serial('Server configuration', () => {
   // ─── Verify new data types via edit modal ─────────────────────────
 
   test('verify UTF-8 register via edit modal', async ({ mainPage }) => {
-    await mainPage.getByTestId('server-edit-reg-holding_registers-24').click()
+    await mainPage.getByTestId('server-edit-reg-holding_registers-20').click()
     await mainPage.waitForTimeout(300)
 
     // Verify data type
@@ -87,7 +87,7 @@ test.describe.serial('Server configuration', () => {
     expect(await stringInput.inputValue()).toBe('Hello')
     // Verify register length
     const lengthInput = mainPage.getByTestId('add-reg-length-input').locator('input')
-    expect(await lengthInput.inputValue()).toBe('10')
+    expect(await lengthInput.inputValue()).toBe('5')
     // Generator toggle should be hidden for UTF-8
     await expect(mainPage.getByTestId('add-reg-generator-btn')).not.toBeVisible()
 
@@ -96,7 +96,7 @@ test.describe.serial('Server configuration', () => {
   })
 
   test('verify UNIX register via edit modal', async ({ mainPage }) => {
-    await mainPage.getByTestId('server-edit-reg-holding_registers-34').click()
+    await mainPage.getByTestId('server-edit-reg-holding_registers-26').click()
     await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UNIX')
@@ -109,7 +109,7 @@ test.describe.serial('Server configuration', () => {
   })
 
   test('verify DATETIME generator register via edit modal', async ({ mainPage }) => {
-    await mainPage.getByTestId('server-edit-reg-holding_registers-36').click()
+    await mainPage.getByTestId('server-edit-reg-holding_registers-28').click()
     await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('DATETIME')
@@ -126,7 +126,7 @@ test.describe.serial('Server configuration', () => {
   })
 
   test('verify generator settings via edit modal', async ({ mainPage }) => {
-    await mainPage.getByTestId('server-edit-reg-holding_registers-22').click()
+    await mainPage.getByTestId('server-edit-reg-holding_registers-25').click()
     await mainPage.waitForTimeout(300)
 
     // Verify generator mode is selected
@@ -168,7 +168,7 @@ test.describe.serial('Server configuration', () => {
   // ─── Multi-unit configuration ─────────────────────────────────────
 
   test('configure server 1, unit ID 1', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_1)
+    await setupServerConfig(mainPage, SERVER_1_UNIT_1, true)
 
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(1)')
@@ -210,7 +210,7 @@ test.describe.serial('Server configuration', () => {
   })
 
   test('configure server 2', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_2_UNIT_0)
+    await setupServerConfig(mainPage, SERVER_2_UNIT_0, true)
 
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')

@@ -4,7 +4,7 @@ import {
   cell,
   readRegisters,
   clearData,
-  setupServerConfig,
+  loadServerConfig,
   connectClient,
   disconnectClient,
   navigateToServer,
@@ -12,7 +12,11 @@ import {
   enableAdvancedMode,
   cleanServerState
 } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
+import { resolve } from 'path'
+
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
+const SERVER_2_CONFIG = resolve(CONFIG_DIR, 'server-2.json')
 
 test.describe.serial('Polling and Generator verification', () => {
   let server2Port: string
@@ -23,15 +27,15 @@ test.describe.serial('Polling and Generator verification', () => {
     await cleanServerState(mainPage)
   })
 
-  test('configure server 1, unit 0', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
+  test('load server 1 config', async ({ mainPage }) => {
+    await loadServerConfig(mainPage, SERVER_CONFIG)
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
   })
 
-  test('add second server and configure', async ({ mainPage }) => {
+  test('add second server and load config', async ({ mainPage }) => {
     await mainPage.getByTestId('add-server-btn').click()
     await mainPage.waitForTimeout(500)
-    await setupServerConfig(mainPage, SERVER_2_UNIT_0, true)
+    await loadServerConfig(mainPage, SERVER_2_CONFIG)
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
   })
 
@@ -46,9 +50,9 @@ test.describe.serial('Polling and Generator verification', () => {
     test('connect to server 1 and read initial generator value', async ({ mainPage }) => {
       await connectClient(mainPage, '127.0.0.1', '502', '0')
       await selectRegisterType(mainPage, 'Holding Registers')
-      await readRegisters(mainPage, '22', '1')
+      await readRegisters(mainPage, '25', '1')
 
-      const hex = await cell(mainPage, 22, 'hex')
+      const hex = await cell(mainPage, 25, 'hex')
       const val = parseInt(hex, 16)
       expect(val).toBeGreaterThanOrEqual(0)
       expect(val).toBeLessThanOrEqual(1000)
@@ -56,7 +60,7 @@ test.describe.serial('Polling and Generator verification', () => {
 
     test('poll and verify generator values change', async ({ mainPage }) => {
       // Read initial value
-      const hex1 = await cell(mainPage, 22, 'hex')
+      const hex1 = await cell(mainPage, 25, 'hex')
       const val1 = parseInt(hex1, 16)
 
       // Start polling
@@ -64,7 +68,7 @@ test.describe.serial('Polling and Generator verification', () => {
       await mainPage.waitForTimeout(3000)
 
       // Read new value after polling
-      const hex2 = await cell(mainPage, 22, 'hex')
+      const hex2 = await cell(mainPage, 25, 'hex')
       const val2 = parseInt(hex2, 16)
 
       // Both values should be in range 0-1000

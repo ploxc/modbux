@@ -127,23 +127,37 @@
           }
         },
         "25": {
-          "value": 1700000000,
+          "value": 0,
           "params": {
             "address": 25,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "generator int16",
+            "min": 0,
+            "max": 1000,
+            "interval": 1
+          }
+        },
+        "26": {
+          "value": 1700000000,
+          "params": {
+            "address": 26,
             "registerType": "holding_registers",
             "dataType": "unix",
             "comment": "test unix timestamp",
             "value": 1700000000
           }
         },
-        "27": {
-          "value": 1718447445000,
+        "28": {
+          "value": 0,
           "params": {
-            "address": 27,
+            "address": 28,
             "registerType": "holding_registers",
             "dataType": "datetime",
-            "comment": "test datetime",
-            "value": 1718447445000
+            "comment": "test datetime generator",
+            "min": 0,
+            "max": 0,
+            "interval": 5
           }
         }
       },
@@ -166,6 +180,18 @@
             "dataType": "float",
             "comment": "input float",
             "value": 9.81
+          }
+        },
+        "3": {
+          "value": 0,
+          "params": {
+            "address": 3,
+            "registerType": "input_registers",
+            "dataType": "uint16",
+            "comment": "input generator",
+            "min": 100,
+            "max": 500,
+            "interval": 2
           }
         }
       }

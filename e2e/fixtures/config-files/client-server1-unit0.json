@@ -15,8 +15,8 @@
       "12": { "dataType": "uint64", "comment": "test uint64" },
       "16": { "dataType": "double", "comment": "test double" },
       "20": { "dataType": "utf8", "comment": "test utf8" },
-      "25": { "dataType": "unix", "comment": "test unix timestamp" },
-      "27": { "dataType": "datetime", "comment": "test datetime" }
+      "26": { "dataType": "unix", "comment": "test unix timestamp" },
+      "28": { "dataType": "datetime", "comment": "test datetime" }
     },
     "input_registers": {
       "0": { "dataType": "int16", "comment": "input int16" },

@@ -1,6 +1,10 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { setupServerConfig, selectUnitId, cleanServerState } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
+import { loadServerConfig, selectUnitId, cleanServerState } from '../../fixtures/helpers'
+import { resolve } from 'path'
+
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
+const SERVER_2_CONFIG = resolve(CONFIG_DIR, 'server-2.json')
 
 test.describe.serial('Cleanup Operations', () => {
   // Setup: clean state first, then create full state to clean up
@@ -9,12 +13,11 @@ test.describe.serial('Cleanup Operations', () => {
   })
 
   test('setup servers', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
-    await setupServerConfig(mainPage, SERVER_1_UNIT_1, true)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
     // Add second server
     await mainPage.getByTestId('add-server-btn').click()
     await mainPage.waitForTimeout(500)
-    await setupServerConfig(mainPage, SERVER_2_UNIT_0, true)
+    await loadServerConfig(mainPage, SERVER_2_CONFIG)
   })
 
   test('clear server 2 register data', async ({ mainPage }) => {

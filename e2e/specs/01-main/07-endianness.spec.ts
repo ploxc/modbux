@@ -4,7 +4,7 @@ import {
   cell,
   readRegisters,
   clearData,
-  setupServerConfig,
+  loadServerConfig,
   connectClient,
   disconnectClient,
   navigateToServer,
@@ -12,7 +12,9 @@ import {
   enableAdvancedMode,
   cleanServerState
 } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0 } from '../../fixtures/test-data'
+import { resolve } from 'path'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 test.describe.serial('Endianness — Little Endian round-trip', () => {
   // ─── Setup: clean state and configure server 1 ─────────────────────
@@ -21,8 +23,8 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
     await cleanServerState(mainPage)
   })
 
-  test('configure server 1, unit 0', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
+  test('load server config', async ({ mainPage }) => {
+    await loadServerConfig(mainPage, SERVER_CONFIG)
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
   })
 

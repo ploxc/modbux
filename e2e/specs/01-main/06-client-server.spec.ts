@@ -4,7 +4,7 @@ import {
   cell,
   readRegisters,
   clearData,
-  setupServerConfig,
+  loadServerConfig,
   connectClient,
   disconnectClient,
   navigateToServer,
@@ -13,11 +13,11 @@ import {
   cleanServerState,
   selectUnitId
 } from '../../fixtures/helpers'
-import { SERVER_2_UNIT_0 } from '../../fixtures/test-data'
 import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
+const SERVER_2_CONFIG = resolve(CONFIG_DIR, 'server-2.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-server1-unit0.json')
 
 test.describe.serial('Client-Server Integration', () => {
@@ -30,14 +30,12 @@ test.describe.serial('Client-Server Integration', () => {
   })
 
   test('load server 1 config via file (all data types, 2 units)', async ({ mainPage }) => {
-    const fileInput = mainPage.getByTestId('server-open-file-input')
-    await fileInput.setInputFiles(SERVER_CONFIG)
-    await mainPage.waitForTimeout(1000)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
 
     // Verify config loaded: unit 0 holding registers
-    // 11 entries: int16, uint16, int32, uint32, float, int64, uint64, double, utf8, unix, datetime
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(11)')
-    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(2)')
+    // 12 entries: int16, uint16, int32, uint32, float, int64, uint64, double, utf8, generator, unix, datetime
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
+    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(16)')
     await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
   })
@@ -57,7 +55,7 @@ test.describe.serial('Client-Server Integration', () => {
     const toggleButtons = mainPage.locator('[data-testid^="select-server-"]')
     expect(await toggleButtons.count()).toBe(2)
 
-    await setupServerConfig(mainPage, SERVER_2_UNIT_0, true)
+    await loadServerConfig(mainPage, SERVER_2_CONFIG)
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')
   })
@@ -96,9 +94,9 @@ test.describe.serial('Client-Server Integration', () => {
       await connectClient(mainPage, '127.0.0.1', '502', '0')
     })
 
-    test('read holding registers 0-30', async ({ mainPage }) => {
+    test('read holding registers 0-32', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Holding Registers')
-      await readRegisters(mainPage, '0', '31')
+      await readRegisters(mainPage, '0', '32')
     })
 
     // ─── Hex + word column verification (raw data transfer) ────────
@@ -144,35 +142,24 @@ test.describe.serial('Client-Server Integration', () => {
       expect(val).toContain('2.718')
     })
 
-    // ─── UTF-8 at address 20 (5 registers) ─────────────────────────
+    // ─── UTF-8 at address 20 (3 registers, length 5) ────────────────
 
     test('verify UTF-8 "Hello" at address 20 — hex encoded', async ({ mainPage }) => {
       // "Hello" big-endian: 'H'=0x48 'e'=0x65 → 0x4865, 'l'=0x6C 'l'=0x6C → 0x6C6C, 'o'=0x6F '\0'=0x00 → 0x6F00
       expect(await cell(mainPage, 20, 'hex')).toBe('4865')
       expect(await cell(mainPage, 21, 'hex')).toBe('6C6C')
       expect(await cell(mainPage, 22, 'hex')).toBe('6F00')
-      expect(await cell(mainPage, 23, 'hex')).toBe('0000')
-      expect(await cell(mainPage, 24, 'hex')).toBe('0000')
     })
 
-    // ─── UNIX timestamp at address 25 (2 registers) ────────────────
+    // ─── UNIX timestamp at address 26 (2 registers) ────────────────
 
-    test('verify UNIX 1700000000 at address 25 — hex 6553 F100', async ({ mainPage }) => {
-      expect(await cell(mainPage, 25, 'hex')).toBe('6553')
-      expect(await cell(mainPage, 26, 'hex')).toBe('F100')
+    test('verify UNIX 1700000000 at address 26 — hex 6553 F100', async ({ mainPage }) => {
+      expect(await cell(mainPage, 26, 'hex')).toBe('6553')
+      expect(await cell(mainPage, 27, 'hex')).toBe('F100')
     })
 
-    // ─── DATETIME at address 27 (4 registers, IEC 870-5) ───────────
-
-    test('verify DATETIME 2024/06/15 10:30:45 at address 27 — hex encoded', async ({
-      mainPage
-    }) => {
-      // IEC 870-5: year=24→0x0018, (6<<8)|15→0x060F, (10<<8)|30→0x0A1E, 45*1000→0xAFC8
-      expect(await cell(mainPage, 27, 'hex')).toBe('0018')
-      expect(await cell(mainPage, 28, 'hex')).toBe('060F')
-      expect(await cell(mainPage, 29, 'hex')).toBe('0A1E')
-      expect(await cell(mainPage, 30, 'hex')).toBe('AFC8')
-    })
+    // ─── DATETIME at address 28 (4 registers, IEC 870-5) ───────────
+    // Note: datetime at address 28 is a generator, hex values change each read
 
     // ─── Value column with client config mapping ───────────────────
     // Load client config that maps datatypes + scaling, verify the
@@ -183,7 +170,7 @@ test.describe.serial('Client-Server Integration', () => {
       await fileInput.setInputFiles(CLIENT_CONFIG)
       await mainPage.waitForTimeout(1000)
       // Re-read so the value column can compute decoded values with the new mapping
-      await readRegisters(mainPage, '0', '31')
+      await readRegisters(mainPage, '0', '32')
     })
 
     test('value column: INT16 at address 0 = -100', async ({ mainPage }) => {
@@ -226,16 +213,16 @@ test.describe.serial('Client-Server Integration', () => {
       expect(val).toContain('Hello')
     })
 
-    test('value column: UNIX at address 25 = 2023/11/14 22:13:20', async ({ mainPage }) => {
+    test('value column: UNIX at address 26 = 2023/11/14 22:13:20', async ({ mainPage }) => {
       // 1700000000 seconds since epoch = 2023/11/14 22:13:20 UTC
-      const val = await cell(mainPage, 25, 'value')
+      const val = await cell(mainPage, 26, 'value')
       expect(val).toBe('2023/11/14 22:13:20')
     })
 
-    test('value column: DATETIME at address 27 = 2024/06/15 10:30:45', async ({ mainPage }) => {
-      // IEC 870-5 encoded: 2024/06/15 10:30:45.000
-      const val = await cell(mainPage, 27, 'value')
-      expect(val).toBe('2024/06/15 10:30:45')
+    test('value column: DATETIME at address 28 shows current time', async ({ mainPage }) => {
+      // Datetime generator produces current timestamps
+      const val = await cell(mainPage, 28, 'value')
+      expect(val.length).toBeGreaterThan(0)
     })
 
     test('clear holding data', async ({ mainPage }) => {

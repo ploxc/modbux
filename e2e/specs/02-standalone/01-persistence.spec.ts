@@ -6,8 +6,9 @@ import {
   type Page
 } from '@playwright/test'
 import { resolve } from 'path'
-import { setupServerConfig, selectUnitId } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0 } from '../../fixtures/test-data'
+import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 // This test manages its own app lifecycle (no shared fixture)
 let app: ElectronApplication
@@ -52,7 +53,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await page.getByTestId('home-server-btn').click()
     await page.waitForTimeout(600)
     // Set up server config
-    await setupServerConfig(page, SERVER_1_UNIT_0, true)
+    await loadServerConfig(page, SERVER_CONFIG)
   })
 
   test('configure client connection settings', async () => {
@@ -105,7 +106,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await page.waitForTimeout(600)
     // Check server name
     const nameField = page.getByTestId('server-name-input').locator('input')
-    expect(await nameField.inputValue()).toBe('Main Server')
+    expect(await nameField.inputValue()).toBe('Integration Test Server')
     // Check register counts
     await selectUnitId(page, '0')
     await expect(page.getByTestId('section-holding_registers')).toContainText('(12)')

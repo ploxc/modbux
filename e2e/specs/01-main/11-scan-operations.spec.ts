@@ -1,13 +1,15 @@
 import { test, expect } from '../../fixtures/electron-app'
 import {
-  setupServerConfig,
+  loadServerConfig,
   navigateToClient,
   connectClient,
   disconnectClient,
   enableAdvancedMode,
   cleanServerState
 } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0, SERVER_1_UNIT_1 } from '../../fixtures/test-data'
+import { resolve } from 'path'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 test.describe.serial('Scan Operations', () => {
   // Setup: clean state and configure server with registers on multiple unit IDs
@@ -15,9 +17,8 @@ test.describe.serial('Scan Operations', () => {
     await cleanServerState(mainPage)
   })
 
-  test('setup server with multiple units', async ({ mainPage }) => {
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
-    await setupServerConfig(mainPage, SERVER_1_UNIT_1, true)
+  test('load server config', async ({ mainPage }) => {
+    await loadServerConfig(mainPage, SERVER_CONFIG)
   })
 
   test('navigate to client and connect', async ({ mainPage }) => {

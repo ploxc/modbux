@@ -1,198 +1,109 @@
-import type { ServerConfig } from './types'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { RegisterDef, BoolDef, ServerConfig } from './types'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
-// Server 1 (port 502, unit 0) — comprehensive test coverage of all data types
-export const SERVER_1_UNIT_0: ServerConfig = {
-  port: 502,
-  name: 'Main Server',
-  unitId: '0',
-  registers: [
-    // Holding registers — all data types
+// Single source of truth: JSON config files
+const CONFIG_DIR = resolve(__dirname, './config-files')
+
+function loadJson(filename: string): any {
+  return JSON.parse(readFileSync(resolve(CONFIG_DIR, filename), 'utf-8'))
+}
+
+interface JsonConfig {
+  name: string
+  serverRegistersPerUnit: Record<
+    string,
     {
-      registerType: 'holding_registers',
-      address: 0,
-      dataType: 'INT16',
-      mode: 'fixed',
-      value: '-100',
-      comment: 'test int16 negative',
-      next: true
-    },
-    {
-      registerType: 'holding_registers',
-      address: 1,
-      dataType: 'UINT16',
-      mode: 'fixed',
-      value: '500',
-      comment: 'test uint16',
-      next: true
-    },
-    {
-      registerType: 'holding_registers',
-      address: 2,
-      dataType: 'INT32',
-      mode: 'fixed',
-      value: '-70000',
-      comment: 'test int32 negative',
-      next: true
-    },
-    {
-      registerType: 'holding_registers',
-      address: 4,
-      dataType: 'UINT32',
-      mode: 'fixed',
-      value: '100000',
-      comment: 'test uint32'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 6,
-      dataType: 'FLOAT',
-      mode: 'fixed',
-      value: '3.14',
-      comment: 'test float'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 8,
-      dataType: 'INT64',
-      mode: 'fixed',
-      value: '-1000000',
-      comment: 'test int64 negative'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 12,
-      dataType: 'UINT64',
-      mode: 'fixed',
-      value: '2000000',
-      comment: 'test uint64'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 16,
-      dataType: 'DOUBLE',
-      mode: 'fixed',
-      value: '2.718',
-      comment: 'test double'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 22,
-      dataType: 'INT16',
-      mode: 'generator',
-      min: '0',
-      max: '1000',
-      interval: '1',
-      comment: 'generator int16'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 24,
+      coils: Record<string, boolean>
+      discrete_inputs: Record<string, boolean>
+      holding_registers: Record<string, { value: number; params: any }>
+      input_registers: Record<string, { value: number; params: any }>
+    }
+  >
+}
+
+/** Map dataType string to the correct RegisterDef mode */
+function toRegisterDef(params: any): RegisterDef {
+  const dataType = params.dataType.toUpperCase() as string
+  const base = {
+    registerType: params.registerType,
+    address: params.address
+  }
+
+  // UTF-8 fixed
+  if (dataType === 'UTF-8' || dataType === 'UTF8') {
+    return {
+      ...base,
       dataType: 'UTF-8',
       mode: 'fixed-utf8',
-      stringValue: 'Hello',
-      length: 10,
-      comment: 'test utf8'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 34,
-      dataType: 'UNIX',
-      mode: 'fixed-datetime',
-      comment: 'test unix timestamp'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 36,
-      dataType: 'DATETIME',
-      mode: 'generator-datetime',
-      interval: '5',
-      comment: 'test datetime generator'
-    },
+      stringValue: params.stringValue ?? '',
+      length: params.length ?? 10,
+      comment: params.comment
+    }
+  }
 
-    // Input registers
-    {
-      registerType: 'input_registers',
-      address: 0,
-      dataType: 'INT16',
-      mode: 'fixed',
-      value: '200',
-      comment: 'input int16'
-    },
-    {
-      registerType: 'input_registers',
-      address: 1,
-      dataType: 'FLOAT',
-      mode: 'fixed',
-      value: '9.81',
-      comment: 'input float'
-    },
-    {
-      registerType: 'input_registers',
-      address: 3,
-      dataType: 'UINT16',
+  // Generator (has interval)
+  if (params.interval !== undefined) {
+    if (dataType === 'DATETIME' || dataType === 'UNIX') {
+      return {
+        ...base,
+        dataType,
+        mode: 'generator-datetime',
+        interval: String(params.interval),
+        comment: params.comment
+      }
+    }
+    return {
+      ...base,
+      dataType,
       mode: 'generator',
-      min: '100',
-      max: '500',
-      interval: '2',
-      comment: 'input generator'
+      min: String(params.min),
+      max: String(params.max),
+      interval: String(params.interval),
+      comment: params.comment
     }
-  ],
-  bools: [
-    { registerType: 'coils', address: 0, state: false },
-    { registerType: 'coils', address: 5, state: true },
-    { registerType: 'coils', address: 8, state: false },
-    { registerType: 'discrete_inputs', address: 3, state: true }
-  ]
+  }
+
+  // Fixed datetime (unix/datetime without interval)
+  if (dataType === 'DATETIME' || dataType === 'UNIX') {
+    return { ...base, dataType, mode: 'fixed-datetime', comment: params.comment }
+  }
+
+  // Fixed numeric
+  return { ...base, dataType, mode: 'fixed', value: String(params.value), comment: params.comment }
 }
 
-// Server 1, unit ID 1 — separate unit config
-export const SERVER_1_UNIT_1: Omit<ServerConfig, 'port'> = {
-  name: 'Main Server',
-  unitId: '1',
-  registers: [
-    {
-      registerType: 'holding_registers',
-      address: 0,
-      dataType: 'UINT16',
-      mode: 'fixed',
-      value: '777',
-      comment: 'unit1 holding'
-    },
-    {
-      registerType: 'input_registers',
-      address: 0,
-      dataType: 'INT16',
-      mode: 'fixed',
-      value: '888',
-      comment: 'unit1 input'
+/** Parse a JSON server config into a ServerConfig for a specific unitId */
+export function parseServerConfig(config: JsonConfig, unitId: string, port?: number): ServerConfig {
+  const unitData = config.serverRegistersPerUnit[unitId]
+  if (!unitData) throw new Error(`Unit ${unitId} not found in config`)
+
+  const registers: RegisterDef[] = []
+  for (const regType of ['holding_registers', 'input_registers'] as const) {
+    const entries = Object.values(unitData[regType])
+    entries.forEach((entry, i) => {
+      const def = toRegisterDef(entry.params)
+      if (i < entries.length - 1) def.next = true
+      registers.push(def)
+    })
+  }
+
+  const bools: BoolDef[] = []
+  for (const boolType of ['coils', 'discrete_inputs'] as const) {
+    for (const [addr, state] of Object.entries(unitData[boolType])) {
+      bools.push({ registerType: boolType, address: Number(addr), state })
     }
-  ],
-  bools: [{ registerType: 'coils', address: 2, state: true }]
+  }
+
+  return { port: port ?? 502, name: config.name, unitId, registers, bools }
 }
 
-// Server 2 (auto port) — minimal config
-export const SERVER_2_UNIT_0: Omit<ServerConfig, 'port'> = {
-  name: 'Second Server',
-  unitId: '0',
-  registers: [
-    {
-      registerType: 'holding_registers',
-      address: 0,
-      dataType: 'INT16',
-      mode: 'fixed',
-      value: '42',
-      comment: 'server2 register'
-    },
-    {
-      registerType: 'holding_registers',
-      address: 1,
-      dataType: 'UINT16',
-      mode: 'generator',
-      min: '10',
-      max: '90',
-      interval: '3',
-      comment: 'server2 generator'
-    }
-  ],
-  bools: [{ registerType: 'coils', address: 0, state: true }]
-}
+// Server 1 (port 502) — all data types + generators
+const server1Config = loadJson('server-integration.json') as JsonConfig
+export const SERVER_1_UNIT_0 = parseServerConfig(server1Config, '0', 502)
+export const SERVER_1_UNIT_1 = parseServerConfig(server1Config, '1')
+
+// Server 2 (auto port) — minimal config with generator
+const server2Config = loadJson('server-2.json') as JsonConfig
+export const SERVER_2_UNIT_0 = parseServerConfig(server2Config, '0')
