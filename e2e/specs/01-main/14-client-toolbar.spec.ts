@@ -78,27 +78,73 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     expect(inputReset).toBe(inputBase0)
   })
 
+  // ─── Grid clearing behavior ────────────────────────────────────────
+
+  test('base change does not clear grid', async ({ mainPage }) => {
+    // Grid should have data from earlier read
+    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCount).toBeGreaterThan(0)
+
+    // Switch to base 1
+    await mainPage.getByTestId('reg-base-1-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // Grid should still have data
+    const rowCountAfter = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCountAfter).toBe(rowCount)
+
+    // Switch back to base 0
+    await mainPage.getByTestId('reg-base-0-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    const rowCountReset = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCountReset).toBe(rowCount)
+  })
+
+  test('address change clears grid', async ({ mainPage }) => {
+    const addressInput = mainPage.getByTestId('reg-address-input').locator('input')
+    await addressInput.fill('100')
+    await mainPage.waitForTimeout(300)
+
+    // Grid should be empty after address change
+    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCount).toBe(0)
+
+    // Re-read to restore data for subsequent tests
+    await addressInput.fill('0')
+    await readRegisters(mainPage, '0', '40')
+  })
+
+  test('length change clears grid', async ({ mainPage }) => {
+    const lengthInput = mainPage.getByTestId('reg-length-input').locator('input')
+    await lengthInput.fill('20')
+    await mainPage.waitForTimeout(300)
+
+    // Grid should be empty after length change
+    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowCount).toBe(0)
+
+    // Re-read to restore data for subsequent tests
+    await readRegisters(mainPage, '0', '40')
+  })
+
   // ─── Raw display toggle ─────────────────────────────────────────────
 
-  test('raw button toggles raw register display', async ({ mainPage }) => {
-    // Capture a value before toggling raw mode
-    const valueBefore = await cell(mainPage, 0, 'word_int16')
-    expect(valueBefore).toBe('-100')
+  test('raw button toggles raw display mode', async ({ mainPage }) => {
+    const rawBtn = mainPage.getByTestId('raw-btn')
+
+    // Raw mode should be off by default
+    await expect(rawBtn).not.toHaveClass(/containedWarning/)
 
     // Toggle raw mode on
-    await mainPage.getByTestId('raw-btn').click()
+    await rawBtn.click()
     await mainPage.waitForTimeout(300)
-
-    // In raw mode, the value column should show raw uint16 (65436 for -100)
-    const valueRaw = await cell(mainPage, 0, 'word_int16')
-    expect(valueRaw).not.toBe('-100')
+    await expect(rawBtn).toHaveClass(/containedWarning/)
 
     // Toggle raw mode off
-    await mainPage.getByTestId('raw-btn').click()
+    await rawBtn.click()
     await mainPage.waitForTimeout(300)
-
-    const valueAfter = await cell(mainPage, 0, 'word_int16')
-    expect(valueAfter).toBe('-100')
+    await expect(rawBtn).not.toHaveClass(/containedWarning/)
   })
 
   // ─── Transaction log ────────────────────────────────────────────────

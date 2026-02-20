@@ -238,6 +238,8 @@ export const useRootZustand = create<
           if (!currentState.ready) return
 
           const newAddress = Number(address)
+          if (newAddress === currentState.registerConfig.address) return
+
           state.registerConfig.address = newAddress
           window.api.updateRegisterConfig({ address: newAddress })
 
