@@ -28,13 +28,73 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
   })
 
-  test('enable advanced mode', async ({ mainPage }) => {
-    await enableAdvancedMode(mainPage)
-  })
-
   test('read registers', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
     await readRegisters(mainPage, '0', '40')
+  })
+
+  // ─── Advanced mode & 64-bit toggle ────────────────────────────────
+
+  test('advanced mode is off by default — no value columns visible', async ({ mainPage }) => {
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
+    await expect(header.locator('[data-field="word_uint16"]')).not.toBeVisible()
+    await expect(header.locator('[data-field="word_float"]')).not.toBeVisible()
+  })
+
+  test('enabling advanced mode shows value columns', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage
+      .getByTestId('advanced-mode-checkbox')
+      .waitFor({ state: 'visible', timeout: 5000 })
+    await mainPage.getByTestId('advanced-mode-checkbox').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="word_int16"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_uint16"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_int32"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_uint32"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_float"]')).toBeVisible()
+
+    // 64-bit columns should not be visible yet
+    await expect(header.locator('[data-field="word_int64"]')).not.toBeVisible()
+  })
+
+  test('enabling 64-bit shows int64, uint64, double columns', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.getByTestId('show-64bit-checkbox').waitFor({ state: 'visible', timeout: 5000 })
+    await mainPage.getByTestId('show-64bit-checkbox').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="word_int64"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_uint64"]')).toBeVisible()
+    await expect(header.locator('[data-field="word_double"]')).toBeVisible()
+  })
+
+  test('disabling advanced mode hides all value columns', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage
+      .getByTestId('advanced-mode-checkbox')
+      .waitFor({ state: 'visible', timeout: 5000 })
+    await mainPage.getByTestId('advanced-mode-checkbox').click()
+    await mainPage.waitForTimeout(200)
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
+    await expect(header.locator('[data-field="word_float"]')).not.toBeVisible()
+    await expect(header.locator('[data-field="word_int64"]')).not.toBeVisible()
+  })
+
+  test('re-enable advanced mode with 64-bit for remaining tests', async ({ mainPage }) => {
+    await enableAdvancedMode(mainPage)
   })
 
   // ─── Address base ───────────────────────────────────────────────────

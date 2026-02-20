@@ -115,7 +115,10 @@ const TransactionGridContent = meme(() => {
 // DataGrid paper
 const TransactionGrid = (): JSX.Element => {
   return (
-    <Paper data-testid="transaction-log-panel" sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
+    <Paper
+      data-testid="transaction-log-panel"
+      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}
+    >
       <TransactionGridContent />
     </Paper>
   )
