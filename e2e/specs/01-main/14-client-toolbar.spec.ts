@@ -9,17 +9,19 @@ import {
   selectRegisterType,
   enableAdvancedMode,
   cleanServerState,
-  setupServerConfig,
+  loadServerConfig,
   clearData
 } from '../../fixtures/helpers'
-import { SERVER_1_UNIT_0 } from '../../fixtures/test-data'
+import { resolve } from 'path'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Setup ──────────────────────────────────────────────────────────
 
-  test('clean and setup server', async ({ mainPage }) => {
+  test('clean and load server config', async ({ mainPage }) => {
     await cleanServerState(mainPage)
-    await setupServerConfig(mainPage, SERVER_1_UNIT_0, true)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
   })
 
   test('navigate to client and connect', async ({ mainPage }) => {

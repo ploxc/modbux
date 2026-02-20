@@ -252,6 +252,16 @@ export async function disconnectClient(p: Page): Promise<void> {
   await expect(p.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
 }
 
+/**
+ * Load a server config from a JSON file via the server file input.
+ * Must already be on the server view.
+ */
+export async function loadServerConfig(p: Page, configPath: string): Promise<void> {
+  const fileInput = p.getByTestId('server-open-file-input')
+  await fileInput.setInputFiles(configPath)
+  await p.waitForTimeout(1000)
+}
+
 /** Navigate to Server view from any view */
 export async function navigateToServer(p: Page): Promise<void> {
   // !changed: when alreay at the home page it should just go to the view
