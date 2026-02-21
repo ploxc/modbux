@@ -1,5 +1,12 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToServer, setupServerConfig, selectUnitId } from '../../fixtures/helpers'
+import {
+  navigateToServer,
+  navigateToClient,
+  setupServerConfig,
+  selectUnitId,
+  setServerPanelCollapsed,
+  expandAllServerPanels
+} from '../../fixtures/helpers'
 import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
 
 test.describe.serial('Server configuration', () => {
@@ -175,12 +182,74 @@ test.describe.serial('Server configuration', () => {
     await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
   })
 
-  test('section collapse/expand works', async ({ mainPage }) => {
-    await mainPage.getByTestId('section-holding_registers').click()
-    await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).not.toBeVisible()
+  // ─── Panel collapse/expand ─────────────────────────────────────────
 
-    await mainPage.getByTestId('section-holding_registers').click()
+  test('collapse all four panels hides content and action buttons', async ({ mainPage }) => {
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
+    await setServerPanelCollapsed(mainPage, 'holding_registers', true)
+    await setServerPanelCollapsed(mainPage, 'input_registers', true)
+
+    // Boolean content hidden
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).not.toBeVisible()
+
+    // Register content hidden
+    await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('server-edit-reg-input_registers-0')).not.toBeVisible()
+
+    // Add/delete buttons hidden for all types
+    await expect(mainPage.getByTestId('add-coils-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('delete-coils-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-holding_registers-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('delete-holding_registers-btn')).not.toBeVisible()
+  })
+
+  test('section headers still show register counts when collapsed', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(16)')
+    await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
+    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
+  })
+
+  test('expand all four panels restores content and action buttons', async ({ mainPage }) => {
+    await expandAllServerPanels(mainPage)
+
+    // Boolean content visible
+    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).toBeVisible()
+
+    // Register content visible
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-edit-reg-input_registers-0')).toBeVisible()
+
+    // Add/delete buttons visible
+    await expect(mainPage.getByTestId('add-coils-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('delete-coils-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('add-holding_registers-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('delete-holding_registers-btn')).toBeVisible()
+  })
+
+  test('collapse state persists across navigation', async ({ mainPage }) => {
+    // Collapse coils and discrete inputs
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+
+    // Navigate to client and back to server
+    await navigateToClient(mainPage)
+    await navigateToServer(mainPage)
+
+    // Collapsed panels should still be collapsed
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).not.toBeVisible()
+
+    // Non-collapsed panels should still be expanded
+    await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-edit-reg-input_registers-0')).toBeVisible()
+
+    // Re-expand for clean state
+    await expandAllServerPanels(mainPage)
   })
 
   // ─── Multi-server configuration ───────────────────────────────────

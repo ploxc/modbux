@@ -12,7 +12,10 @@ import {
   disableAdvancedMode,
   cleanServerState,
   setupServerConfig,
-  clearData
+  clearData,
+  setServerPanelCollapsed,
+  expandAllServerPanels,
+  navigateToServer
 } from '../../fixtures/helpers'
 import { HUAWEI_UNIT_0 } from '../../fixtures/test-data'
 import { resolve } from 'path'
@@ -21,10 +24,27 @@ const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
 
 test.describe.serial('Huawei Smart Logger — comprehensive integration test', () => {
-  // ─── Server setup (manual fast mode) ─────────────────────────────-
   test('clean server state', async ({ mainPage }) => {
     await cleanServerState(mainPage)
   })
+
+  // ─── Collapse empty panels ────────────────────────────────────────
+
+  test('collapse empty panels — all except holding registers', async ({ mainPage }) => {
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
+    await setServerPanelCollapsed(mainPage, 'input_registers', true)
+
+    // Add buttons should be hidden for collapsed panels
+    await expect(mainPage.getByTestId('add-coils-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-discrete_inputs-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-input_registers-btn')).not.toBeVisible()
+
+    // Holding registers panel should still be expanded
+    await expect(mainPage.getByTestId('add-holding_registers-btn')).toBeVisible()
+  })
+
+  // ─── Server setup (manual fast mode) ─────────────────────────────-
 
   test('setup Huawei Smart Logger server manually (fast mode)', async ({ mainPage }) => {
     test.setTimeout(180_000) // 80 registers in fast mode needs ~2-3 min
@@ -312,5 +332,10 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
     const viewBtn = mainPage.getByTestId('view-config-btn')
     await expect(viewBtn).toBeDisabled()
+  })
+
+  test('expand all server panels for clean state', async ({ mainPage }) => {
+    await navigateToServer(mainPage)
+    await expandAllServerPanels(mainPage)
   })
 })

@@ -504,6 +504,30 @@ export async function writeCoil(p: Page, address: number, state: boolean): Promi
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).not.toBeVisible()
 }
 
+/** Ensure a server panel is in the desired collapse state */
+export async function setServerPanelCollapsed(
+  p: Page,
+  type: 'holding_registers' | 'input_registers' | 'coils' | 'discrete_inputs',
+  collapsed: boolean
+): Promise<void> {
+  const isExpanded = await p.getByTestId(`add-${type}-btn`).isVisible()
+  if (collapsed === isExpanded) {
+    await p.getByTestId(`section-${type}`).click()
+  }
+}
+
+/** Expand all server panels (useful for cleanup after collapsing) */
+export async function expandAllServerPanels(p: Page): Promise<void> {
+  for (const type of [
+    'coils',
+    'discrete_inputs',
+    'holding_registers',
+    'input_registers'
+  ] as const) {
+    await setServerPanelCollapsed(p, type, false)
+  }
+}
+
 /** Clear all registers of a given type on the server */
 export async function clearRegisterType(
   p: Page,
