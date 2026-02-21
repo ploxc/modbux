@@ -1,0 +1,847 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Huawei Smart Logger",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {},
+      "discrete_inputs": {},
+      "holding_registers": {
+        "40000": {
+          "value": 0,
+          "params": {
+            "address": 40000,
+            "registerType": "holding_registers",
+            "dataType": "unix",
+            "comment": "Date & Time (UTC)",
+            "min": 0,
+            "max": 0,
+            "interval": 1000
+          }
+        },
+        "40002": {
+          "value": 12345,
+          "params": {
+            "address": 40002,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "City",
+            "value": 12345
+          }
+        },
+        "40004": {
+          "value": 1,
+          "params": {
+            "address": 40004,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Daylight Saving Time Enabled",
+            "value": 1
+          }
+        },
+        "40005": {
+          "value": 3600,
+          "params": {
+            "address": 40005,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Time zone offset (s)",
+            "value": 3600
+          }
+        },
+        "40007": {
+          "value": 1,
+          "params": {
+            "address": 40007,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DST state (0: not entered, 1: entered)",
+            "value": 1
+          }
+        },
+        "40008": {
+          "value": 60,
+          "params": {
+            "address": 40008,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DST offset (min)",
+            "value": 60
+          }
+        },
+        "40009": {
+          "value": 1748961632,
+          "params": {
+            "address": 40009,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Local Time",
+            "value": 1748961632
+          }
+        },
+        "40011": {
+          "value": 2025,
+          "params": {
+            "address": 40011,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Year",
+            "value": 2025
+          }
+        },
+        "40012": {
+          "value": 6,
+          "params": {
+            "address": 40012,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Month",
+            "value": 6
+          }
+        },
+        "40013": {
+          "value": 3,
+          "params": {
+            "address": 40013,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Day",
+            "value": 3
+          }
+        },
+        "40014": {
+          "value": 16,
+          "params": {
+            "address": 40014,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Hour",
+            "value": 16
+          }
+        },
+        "40015": {
+          "value": 46,
+          "params": {
+            "address": 40015,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Minute",
+            "value": 46
+          }
+        },
+        "40016": {
+          "value": 12,
+          "params": {
+            "address": 40016,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Second",
+            "value": 12
+          }
+        },
+        "40204": {
+          "value": 0,
+          "params": {
+            "address": 40204,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Transfer trip (0: Run, 1: Fault outage)",
+            "value": 0
+          }
+        },
+        "40420": {
+          "value": 4294967295,
+          "params": {
+            "address": 40420,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Active Adjustment of all inverters (kW)",
+            "value": 4294967295
+          }
+        },
+        "40422": {
+          "value": 2147483647,
+          "params": {
+            "address": 40422,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Reactive Adjustment of all inverters (kVar)",
+            "value": 2147483647
+          }
+        },
+        "40424": {
+          "value": 4294967295,
+          "params": {
+            "address": 40424,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Active Adjustment of all inverters (kW) VOLATILE",
+            "value": 4294967295
+          }
+        },
+        "40426": {
+          "value": 0,
+          "params": {
+            "address": 40426,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Reactive Adjustment of all inverters (kVar) VOLATILE",
+            "value": 0
+          }
+        },
+        "40428": {
+          "value": 990,
+          "params": {
+            "address": 40428,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Active adjustment % (all inverters)",
+            "value": 990
+          }
+        },
+        "40429": {
+          "value": 30000,
+          "params": {
+            "address": 40429,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Power Factor (-1,-0.8]U[0.8,1]",
+            "value": 30000
+          }
+        },
+        "40500": {
+          "value": 0,
+          "params": {
+            "address": 40500,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "DC Current (A)",
+            "min": 500,
+            "max": 520,
+            "interval": 1000
+          }
+        },
+        "40521": {
+          "value": 0,
+          "params": {
+            "address": 40521,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Input Power (kW)",
+            "min": 2000000,
+            "max": 2004452,
+            "interval": 1000
+          }
+        },
+        "40523": {
+          "value": 123456789,
+          "params": {
+            "address": 40523,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "CO2 Reduction (kg)",
+            "value": 123456789
+          }
+        },
+        "40525": {
+          "value": 0,
+          "params": {
+            "address": 40525,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Active Power (kW)",
+            "min": 1800000,
+            "max": 1802356,
+            "interval": 1000
+          }
+        },
+        "40532": {
+          "value": 0,
+          "params": {
+            "address": 40532,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Power Factor",
+            "min": 999,
+            "max": 1000,
+            "interval": 1000
+          }
+        },
+        "40543": {
+          "value": 1,
+          "params": {
+            "address": 40543,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Plant status Qinghai (1: Unlimited, 2: Limited, 3: Idle, 4: Outage, 5: Comm interrupt)",
+            "value": 1
+          }
+        },
+        "40544": {
+          "value": 0,
+          "params": {
+            "address": 40544,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Reactive Power (kVar)",
+            "min": 230,
+            "max": 245,
+            "interval": 1000
+          }
+        },
+        "40550": {
+          "value": 12345678900,
+          "params": {
+            "address": 40550,
+            "registerType": "holding_registers",
+            "dataType": "uint64",
+            "comment": "CO2 Reduction (kg) - larger value range",
+            "value": 12345678900
+          }
+        },
+        "40554": {
+          "value": 0,
+          "params": {
+            "address": 40554,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "DC current 2 (A) - larger value range",
+            "min": 5020,
+            "max": 5045,
+            "interval": 1000
+          }
+        },
+        "40560": {
+          "value": 65432485,
+          "params": {
+            "address": 40560,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Total energy generated by all inverters (kWh)",
+            "value": 65432485
+          }
+        },
+        "40562": {
+          "value": 35445,
+          "params": {
+            "address": 40562,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Total energy daily (kWh)",
+            "value": 35445
+          }
+        },
+        "40564": {
+          "value": 98,
+          "params": {
+            "address": 40564,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Duration of daily power generation (h)",
+            "value": 98
+          }
+        },
+        "40566": {
+          "value": 1,
+          "params": {
+            "address": 40566,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Plant status Xinjiang",
+            "value": 1
+          }
+        },
+        "40567": {
+          "value": 1,
+          "params": {
+            "address": 40567,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Plant status Ningxia",
+            "value": 1
+          }
+        },
+        "40568": {
+          "value": 0,
+          "params": {
+            "address": 40568,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Active alarm sequence number",
+            "value": 0
+          }
+        },
+        "40570": {
+          "value": 0,
+          "params": {
+            "address": 40570,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Historical alarm sequence number",
+            "value": 0
+          }
+        },
+        "40572": {
+          "value": 0,
+          "params": {
+            "address": 40572,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Phase A current (A)",
+            "min": 5020,
+            "max": 5045,
+            "interval": 1000
+          }
+        },
+        "40573": {
+          "value": 0,
+          "params": {
+            "address": 40573,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Phase B current (A)",
+            "min": 5020,
+            "max": 5045,
+            "interval": 1000
+          }
+        },
+        "40574": {
+          "value": 0,
+          "params": {
+            "address": 40574,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Phase C current (A)",
+            "min": 5020,
+            "max": 5045,
+            "interval": 1000
+          }
+        },
+        "40575": {
+          "value": 0,
+          "params": {
+            "address": 40575,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Voltage AB (V)",
+            "min": 4000,
+            "max": 4023,
+            "interval": 1000
+          }
+        },
+        "40576": {
+          "value": 0,
+          "params": {
+            "address": 40576,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Voltage BC (V)",
+            "min": 4000,
+            "max": 4023,
+            "interval": 1000
+          }
+        },
+        "40577": {
+          "value": 0,
+          "params": {
+            "address": 40577,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Voltage CA (V)",
+            "min": 4000,
+            "max": 4023,
+            "interval": 1000
+          }
+        },
+        "40685": {
+          "value": 0,
+          "params": {
+            "address": 40685,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Inverter Efficiency (%)",
+            "min": 9845,
+            "max": 9854,
+            "interval": 1000
+          }
+        },
+        "40693": {
+          "value": 12554,
+          "params": {
+            "address": 40693,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Max reactive adjustment (kVar)",
+            "value": 12554
+          }
+        },
+        "40695": {
+          "value": -12554,
+          "params": {
+            "address": 40695,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Min reactive adjustment (kVar)",
+            "value": -12554
+          }
+        },
+        "40697": {
+          "value": 12345,
+          "params": {
+            "address": 40697,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Max active adjustment (kW)",
+            "value": 12345
+          }
+        },
+        "40699": {
+          "value": 1,
+          "params": {
+            "address": 40699,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "0: Locked - 1: Unlocked",
+            "value": 1
+          }
+        },
+        "40700": {
+          "value": 37,
+          "params": {
+            "address": 40700,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DI status (BITMAP: bit0=DI1..bit7=DI8)",
+            "value": 37
+          }
+        },
+        "40713": {
+          "value": 0,
+          "params": {
+            "address": 40713,
+            "registerType": "holding_registers",
+            "dataType": "utf8",
+            "comment": "ESN",
+            "stringValue": "HW-SL3000A",
+            "length": 10,
+            "value": 0
+          }
+        },
+        "40736": {
+          "value": 0,
+          "params": {
+            "address": 40736,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Device access status (0: done, 1: in progress, 2: failed)",
+            "value": 0
+          }
+        },
+        "40737": {
+          "value": 4,
+          "params": {
+            "address": 40737,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Active Mode (0: No limit, 4: Remote scheduling)",
+            "value": 4
+          }
+        },
+        "40738": {
+          "value": 20000,
+          "params": {
+            "address": 40738,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Target total active power (kW)",
+            "value": 20000
+          }
+        },
+        "40740": {
+          "value": 2,
+          "params": {
+            "address": 40740,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Reactive Mode (2: Reactive power fix control)",
+            "value": 2
+          }
+        },
+        "40741": {
+          "value": 1,
+          "params": {
+            "address": 40741,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Reactive power curve mode (0: PF, 1: reactive fixed)",
+            "value": 1
+          }
+        },
+        "40742": {
+          "value": 123,
+          "params": {
+            "address": 40742,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Reactive power scheduling target value",
+            "value": 123
+          }
+        },
+        "40802": {
+          "value": 100,
+          "params": {
+            "address": 40802,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Active Scheduling percentage (%)",
+            "value": 100
+          }
+        },
+        "41124": {
+          "value": 1234,
+          "params": {
+            "address": 41124,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "CO2 emission reduction coefficient (kg/kWh)",
+            "value": 1234
+          }
+        },
+        "41934": {
+          "value": 1800000,
+          "params": {
+            "address": 41934,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "PV Module capacity (kW)",
+            "value": 1800000
+          }
+        },
+        "41936": {
+          "value": 2000000,
+          "params": {
+            "address": 41936,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Rated plant capacity (kW)",
+            "value": 2000000
+          }
+        },
+        "41938": {
+          "value": 60000,
+          "params": {
+            "address": 41938,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Total rated capacity of grid-connected inverters (kW)",
+            "value": 60000
+          }
+        },
+        "41940": {
+          "value": 750,
+          "params": {
+            "address": 41940,
+            "registerType": "holding_registers",
+            "dataType": "uint32",
+            "comment": "Conversion coefficient",
+            "value": 750
+          }
+        },
+        "41942": {
+          "value": 0,
+          "params": {
+            "address": 41942,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Status of communication",
+            "value": 0
+          }
+        },
+        "41947": {
+          "value": 0,
+          "params": {
+            "address": 41947,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Communication abnormal shutdown (0: Disable, 1: Enable)",
+            "value": 0
+          }
+        },
+        "41948": {
+          "value": 300,
+          "params": {
+            "address": 41948,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Communication abnormal detection time (s) [60-1800]",
+            "value": 300
+          }
+        },
+        "41949": {
+          "value": 1,
+          "params": {
+            "address": 41949,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Auto start upon communication recovery (0: Disable, 1: Enable)",
+            "value": 1
+          }
+        },
+        "42017": {
+          "value": 2025,
+          "params": {
+            "address": 42017,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Year",
+            "value": 2025
+          }
+        },
+        "42018": {
+          "value": 6,
+          "params": {
+            "address": 42018,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Month",
+            "value": 6
+          }
+        },
+        "42019": {
+          "value": 3,
+          "params": {
+            "address": 42019,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Day",
+            "value": 3
+          }
+        },
+        "42020": {
+          "value": 16,
+          "params": {
+            "address": 42020,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Hour",
+            "value": 16
+          }
+        },
+        "42021": {
+          "value": 46,
+          "params": {
+            "address": 42021,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Minute",
+            "value": 46
+          }
+        },
+        "42022": {
+          "value": 12,
+          "params": {
+            "address": 42022,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "SystemTime: Second",
+            "value": 12
+          }
+        },
+        "42150": {
+          "value": 0,
+          "params": {
+            "address": 42150,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Current error during scanning",
+            "value": 0
+          }
+        },
+        "50000": {
+          "value": 2048,
+          "params": {
+            "address": 50000,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Alarm Info 1 (BITMAP: bit3=Abnormal Active Schedule, bit11=Abnormal Reactive Schedule)",
+            "value": 2048
+          }
+        },
+        "50001": {
+          "value": 8,
+          "params": {
+            "address": 50001,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Alarm Info 2 (BITMAP: bit1=MCB, bit2=Cubicle, bit3=AddrConflict, bit4=SPD, bit5-12=DI1-8, bit13=24V, bit14=License)",
+            "value": 8
+          }
+        },
+        "50002": {
+          "value": 0,
+          "params": {
+            "address": 50002,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Alarm Info 3 (BITMAP: bit0-14=Certificate alarms)",
+            "value": 0
+          }
+        },
+        "65521": {
+          "value": 5,
+          "params": {
+            "address": 65521,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Device list change number",
+            "value": 5
+          }
+        },
+        "65522": {
+          "value": 1,
+          "params": {
+            "address": 65522,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Port number",
+            "value": 1
+          }
+        },
+        "65523": {
+          "value": 0,
+          "params": {
+            "address": 65523,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Device Address",
+            "value": 0
+          }
+        },
+        "65524": {
+          "value": 0,
+          "params": {
+            "address": 65524,
+            "registerType": "holding_registers",
+            "dataType": "utf8",
+            "comment": "Device name",
+            "stringValue": "SmartLogger",
+            "length": 10,
+            "value": 0
+          }
+        },
+        "65534": {
+          "value": 45057,
+          "params": {
+            "address": 65534,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Device connection status (0xB000=Disconnected, 0xB001=Online)",
+            "value": 45057
+          }
+        }
+      },
+      "input_registers": {}
+    }
+  }
+}

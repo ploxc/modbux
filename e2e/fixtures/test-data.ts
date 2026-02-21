@@ -108,3 +108,7 @@ export const SERVER_1_UNIT_1 = parseServerConfig(server1Config, '1')
 // Server 2 (auto port) — minimal config with generator
 const server2Config = loadJson('server-2.json') as JsonConfig
 export const SERVER_2_UNIT_0 = parseServerConfig(server2Config, '0')
+
+// Huawei Smart Logger (port 502) — comprehensive real-world config
+const huaweiConfig = loadJson('server-huawei-smartlogger.json') as JsonConfig
+export const HUAWEI_UNIT_0 = parseServerConfig(huaweiConfig, '0', 502)

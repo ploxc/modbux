@@ -1,6 +1,6 @@
 import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../../types/client'
 import { MigrationResult, Migration } from '../types'
-import { applyLegacyStringReplacements } from '../shared'
+import { applyLegacyStringReplacements, formatZodError } from '../shared'
 
 export const CURRENT_CLIENT_CONFIG_VERSION = 2
 
@@ -42,7 +42,7 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
     const result = RegisterMapConfigSchema.safeParse(parsed)
     if (!result.success) {
       throw new Error(
-        `Invalid client config v${CURRENT_CLIENT_CONFIG_VERSION}: ${result.error.message}`
+        `Invalid client config v${CURRENT_CLIENT_CONFIG_VERSION}: ${formatZodError(result.error)}`
       )
     }
     return {
@@ -78,7 +78,7 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
   // Validate final result
   const result = RegisterMapConfigSchema.safeParse(config)
   if (!result.success) {
-    throw new Error(`Migration produced invalid config: ${result.error.message}`)
+    throw new Error(`Migration produced invalid config: ${formatZodError(result.error)}`)
   }
 
   return {

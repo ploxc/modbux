@@ -6,7 +6,7 @@ import {
   ServerRegisters
 } from '../../types/server'
 import { MigrationResult, Migration } from '../types'
-import { applyLegacyStringReplacements } from '../shared'
+import { applyLegacyStringReplacements, formatZodError } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 
 export const CURRENT_SERVER_CONFIG_VERSION = 2
@@ -92,7 +92,7 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
     const result = ServerConfigSchema.safeParse(parsed)
     if (!result.success) {
       throw new Error(
-        `Invalid server config v${CURRENT_SERVER_CONFIG_VERSION}: ${result.error.message}`
+        `Invalid server config v${CURRENT_SERVER_CONFIG_VERSION}: ${formatZodError(result.error)}`
       )
     }
     return {
@@ -128,7 +128,7 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
   // Validate final result
   const result = ServerConfigSchema.safeParse(config)
   if (!result.success) {
-    throw new Error(`Migration produced invalid config: ${result.error.message}`)
+    throw new Error(`Migration produced invalid config: ${formatZodError(result.error)}`)
   }
 
   return {
