@@ -1,0 +1,1215 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Large Config Server (120 regs)",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {},
+      "discrete_inputs": {},
+      "input_registers": {},
+      "holding_registers": {
+        "0": {
+          "value": 1,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-000",
+            "value": 1
+          }
+        },
+        "1": {
+          "value": 2,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-001",
+            "value": 2
+          }
+        },
+        "2": {
+          "value": 3,
+          "params": {
+            "address": 2,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-002",
+            "value": 3
+          }
+        },
+        "3": {
+          "value": 4,
+          "params": {
+            "address": 3,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-003",
+            "value": 4
+          }
+        },
+        "4": {
+          "value": 5,
+          "params": {
+            "address": 4,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-004",
+            "value": 5
+          }
+        },
+        "5": {
+          "value": 6,
+          "params": {
+            "address": 5,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-005",
+            "value": 6
+          }
+        },
+        "6": {
+          "value": 7,
+          "params": {
+            "address": 6,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-006",
+            "value": 7
+          }
+        },
+        "7": {
+          "value": 8,
+          "params": {
+            "address": 7,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-007",
+            "value": 8
+          }
+        },
+        "8": {
+          "value": 9,
+          "params": {
+            "address": 8,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-008",
+            "value": 9
+          }
+        },
+        "9": {
+          "value": 10,
+          "params": {
+            "address": 9,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-009",
+            "value": 10
+          }
+        },
+        "10": {
+          "value": 11,
+          "params": {
+            "address": 10,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-010",
+            "value": 11
+          }
+        },
+        "11": {
+          "value": 12,
+          "params": {
+            "address": 11,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-011",
+            "value": 12
+          }
+        },
+        "12": {
+          "value": 13,
+          "params": {
+            "address": 12,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-012",
+            "value": 13
+          }
+        },
+        "13": {
+          "value": 14,
+          "params": {
+            "address": 13,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-013",
+            "value": 14
+          }
+        },
+        "14": {
+          "value": 15,
+          "params": {
+            "address": 14,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-014",
+            "value": 15
+          }
+        },
+        "15": {
+          "value": 16,
+          "params": {
+            "address": 15,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-015",
+            "value": 16
+          }
+        },
+        "16": {
+          "value": 17,
+          "params": {
+            "address": 16,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-016",
+            "value": 17
+          }
+        },
+        "17": {
+          "value": 18,
+          "params": {
+            "address": 17,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-017",
+            "value": 18
+          }
+        },
+        "18": {
+          "value": 19,
+          "params": {
+            "address": 18,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-018",
+            "value": 19
+          }
+        },
+        "19": {
+          "value": 20,
+          "params": {
+            "address": 19,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-019",
+            "value": 20
+          }
+        },
+        "20": {
+          "value": 21,
+          "params": {
+            "address": 20,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-020",
+            "value": 21
+          }
+        },
+        "21": {
+          "value": 22,
+          "params": {
+            "address": 21,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-021",
+            "value": 22
+          }
+        },
+        "22": {
+          "value": 23,
+          "params": {
+            "address": 22,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-022",
+            "value": 23
+          }
+        },
+        "23": {
+          "value": 24,
+          "params": {
+            "address": 23,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-023",
+            "value": 24
+          }
+        },
+        "24": {
+          "value": 25,
+          "params": {
+            "address": 24,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-024",
+            "value": 25
+          }
+        },
+        "25": {
+          "value": 26,
+          "params": {
+            "address": 25,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-025",
+            "value": 26
+          }
+        },
+        "26": {
+          "value": 27,
+          "params": {
+            "address": 26,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-026",
+            "value": 27
+          }
+        },
+        "27": {
+          "value": 28,
+          "params": {
+            "address": 27,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-027",
+            "value": 28
+          }
+        },
+        "28": {
+          "value": 29,
+          "params": {
+            "address": 28,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-028",
+            "value": 29
+          }
+        },
+        "29": {
+          "value": 30,
+          "params": {
+            "address": 29,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-029",
+            "value": 30
+          }
+        },
+        "30": {
+          "value": 31,
+          "params": {
+            "address": 30,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-030",
+            "value": 31
+          }
+        },
+        "31": {
+          "value": 32,
+          "params": {
+            "address": 31,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-031",
+            "value": 32
+          }
+        },
+        "32": {
+          "value": 33,
+          "params": {
+            "address": 32,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-032",
+            "value": 33
+          }
+        },
+        "33": {
+          "value": 34,
+          "params": {
+            "address": 33,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-033",
+            "value": 34
+          }
+        },
+        "34": {
+          "value": 35,
+          "params": {
+            "address": 34,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-034",
+            "value": 35
+          }
+        },
+        "35": {
+          "value": 36,
+          "params": {
+            "address": 35,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-035",
+            "value": 36
+          }
+        },
+        "36": {
+          "value": 37,
+          "params": {
+            "address": 36,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-036",
+            "value": 37
+          }
+        },
+        "37": {
+          "value": 38,
+          "params": {
+            "address": 37,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-037",
+            "value": 38
+          }
+        },
+        "38": {
+          "value": 39,
+          "params": {
+            "address": 38,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-038",
+            "value": 39
+          }
+        },
+        "39": {
+          "value": 40,
+          "params": {
+            "address": 39,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-039",
+            "value": 40
+          }
+        },
+        "40": {
+          "value": 41,
+          "params": {
+            "address": 40,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-040",
+            "value": 41
+          }
+        },
+        "41": {
+          "value": 42,
+          "params": {
+            "address": 41,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-041",
+            "value": 42
+          }
+        },
+        "42": {
+          "value": 43,
+          "params": {
+            "address": 42,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-042",
+            "value": 43
+          }
+        },
+        "43": {
+          "value": 44,
+          "params": {
+            "address": 43,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-043",
+            "value": 44
+          }
+        },
+        "44": {
+          "value": 45,
+          "params": {
+            "address": 44,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-044",
+            "value": 45
+          }
+        },
+        "45": {
+          "value": 46,
+          "params": {
+            "address": 45,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-045",
+            "value": 46
+          }
+        },
+        "46": {
+          "value": 47,
+          "params": {
+            "address": 46,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-046",
+            "value": 47
+          }
+        },
+        "47": {
+          "value": 48,
+          "params": {
+            "address": 47,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-047",
+            "value": 48
+          }
+        },
+        "48": {
+          "value": 49,
+          "params": {
+            "address": 48,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-048",
+            "value": 49
+          }
+        },
+        "49": {
+          "value": 50,
+          "params": {
+            "address": 49,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-049",
+            "value": 50
+          }
+        },
+        "50": {
+          "value": 51,
+          "params": {
+            "address": 50,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-050",
+            "value": 51
+          }
+        },
+        "51": {
+          "value": 52,
+          "params": {
+            "address": 51,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-051",
+            "value": 52
+          }
+        },
+        "52": {
+          "value": 53,
+          "params": {
+            "address": 52,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-052",
+            "value": 53
+          }
+        },
+        "53": {
+          "value": 54,
+          "params": {
+            "address": 53,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-053",
+            "value": 54
+          }
+        },
+        "54": {
+          "value": 55,
+          "params": {
+            "address": 54,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-054",
+            "value": 55
+          }
+        },
+        "55": {
+          "value": 56,
+          "params": {
+            "address": 55,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-055",
+            "value": 56
+          }
+        },
+        "56": {
+          "value": 57,
+          "params": {
+            "address": 56,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-056",
+            "value": 57
+          }
+        },
+        "57": {
+          "value": 58,
+          "params": {
+            "address": 57,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-057",
+            "value": 58
+          }
+        },
+        "58": {
+          "value": 59,
+          "params": {
+            "address": 58,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-058",
+            "value": 59
+          }
+        },
+        "59": {
+          "value": 60,
+          "params": {
+            "address": 59,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-059",
+            "value": 60
+          }
+        },
+        "60": {
+          "value": 61,
+          "params": {
+            "address": 60,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-060",
+            "value": 61
+          }
+        },
+        "61": {
+          "value": 62,
+          "params": {
+            "address": 61,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-061",
+            "value": 62
+          }
+        },
+        "62": {
+          "value": 63,
+          "params": {
+            "address": 62,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-062",
+            "value": 63
+          }
+        },
+        "63": {
+          "value": 64,
+          "params": {
+            "address": 63,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-063",
+            "value": 64
+          }
+        },
+        "64": {
+          "value": 65,
+          "params": {
+            "address": 64,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-064",
+            "value": 65
+          }
+        },
+        "65": {
+          "value": 66,
+          "params": {
+            "address": 65,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-065",
+            "value": 66
+          }
+        },
+        "66": {
+          "value": 67,
+          "params": {
+            "address": 66,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-066",
+            "value": 67
+          }
+        },
+        "67": {
+          "value": 68,
+          "params": {
+            "address": 67,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-067",
+            "value": 68
+          }
+        },
+        "68": {
+          "value": 69,
+          "params": {
+            "address": 68,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-068",
+            "value": 69
+          }
+        },
+        "69": {
+          "value": 70,
+          "params": {
+            "address": 69,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-069",
+            "value": 70
+          }
+        },
+        "70": {
+          "value": 71,
+          "params": {
+            "address": 70,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-070",
+            "value": 71
+          }
+        },
+        "71": {
+          "value": 72,
+          "params": {
+            "address": 71,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-071",
+            "value": 72
+          }
+        },
+        "72": {
+          "value": 73,
+          "params": {
+            "address": 72,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-072",
+            "value": 73
+          }
+        },
+        "73": {
+          "value": 74,
+          "params": {
+            "address": 73,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-073",
+            "value": 74
+          }
+        },
+        "74": {
+          "value": 75,
+          "params": {
+            "address": 74,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-074",
+            "value": 75
+          }
+        },
+        "75": {
+          "value": 76,
+          "params": {
+            "address": 75,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-075",
+            "value": 76
+          }
+        },
+        "76": {
+          "value": 77,
+          "params": {
+            "address": 76,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-076",
+            "value": 77
+          }
+        },
+        "77": {
+          "value": 78,
+          "params": {
+            "address": 77,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-077",
+            "value": 78
+          }
+        },
+        "78": {
+          "value": 79,
+          "params": {
+            "address": 78,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-078",
+            "value": 79
+          }
+        },
+        "79": {
+          "value": 80,
+          "params": {
+            "address": 79,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-079",
+            "value": 80
+          }
+        },
+        "80": {
+          "value": 81,
+          "params": {
+            "address": 80,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-080",
+            "value": 81
+          }
+        },
+        "81": {
+          "value": 82,
+          "params": {
+            "address": 81,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-081",
+            "value": 82
+          }
+        },
+        "82": {
+          "value": 83,
+          "params": {
+            "address": 82,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-082",
+            "value": 83
+          }
+        },
+        "83": {
+          "value": 84,
+          "params": {
+            "address": 83,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-083",
+            "value": 84
+          }
+        },
+        "84": {
+          "value": 85,
+          "params": {
+            "address": 84,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-084",
+            "value": 85
+          }
+        },
+        "85": {
+          "value": 86,
+          "params": {
+            "address": 85,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-085",
+            "value": 86
+          }
+        },
+        "86": {
+          "value": 87,
+          "params": {
+            "address": 86,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-086",
+            "value": 87
+          }
+        },
+        "87": {
+          "value": 88,
+          "params": {
+            "address": 87,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-087",
+            "value": 88
+          }
+        },
+        "88": {
+          "value": 89,
+          "params": {
+            "address": 88,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-088",
+            "value": 89
+          }
+        },
+        "89": {
+          "value": 90,
+          "params": {
+            "address": 89,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-089",
+            "value": 90
+          }
+        },
+        "90": {
+          "value": 91,
+          "params": {
+            "address": 90,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-090",
+            "value": 91
+          }
+        },
+        "91": {
+          "value": 92,
+          "params": {
+            "address": 91,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-091",
+            "value": 92
+          }
+        },
+        "92": {
+          "value": 93,
+          "params": {
+            "address": 92,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-092",
+            "value": 93
+          }
+        },
+        "93": {
+          "value": 94,
+          "params": {
+            "address": 93,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-093",
+            "value": 94
+          }
+        },
+        "94": {
+          "value": 95,
+          "params": {
+            "address": 94,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-094",
+            "value": 95
+          }
+        },
+        "95": {
+          "value": 96,
+          "params": {
+            "address": 95,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-095",
+            "value": 96
+          }
+        },
+        "96": {
+          "value": 97,
+          "params": {
+            "address": 96,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-096",
+            "value": 97
+          }
+        },
+        "97": {
+          "value": 98,
+          "params": {
+            "address": 97,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-097",
+            "value": 98
+          }
+        },
+        "98": {
+          "value": 99,
+          "params": {
+            "address": 98,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-098",
+            "value": 99
+          }
+        },
+        "99": {
+          "value": 100,
+          "params": {
+            "address": 99,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-099",
+            "value": 100
+          }
+        },
+        "100": {
+          "value": 101,
+          "params": {
+            "address": 100,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-100",
+            "value": 101
+          }
+        },
+        "101": {
+          "value": 102,
+          "params": {
+            "address": 101,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-101",
+            "value": 102
+          }
+        },
+        "102": {
+          "value": 103,
+          "params": {
+            "address": 102,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-102",
+            "value": 103
+          }
+        },
+        "103": {
+          "value": 104,
+          "params": {
+            "address": 103,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-103",
+            "value": 104
+          }
+        },
+        "104": {
+          "value": 105,
+          "params": {
+            "address": 104,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-104",
+            "value": 105
+          }
+        },
+        "105": {
+          "value": 106,
+          "params": {
+            "address": 105,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-105",
+            "value": 106
+          }
+        },
+        "106": {
+          "value": 107,
+          "params": {
+            "address": 106,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-106",
+            "value": 107
+          }
+        },
+        "107": {
+          "value": 108,
+          "params": {
+            "address": 107,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-107",
+            "value": 108
+          }
+        },
+        "108": {
+          "value": 109,
+          "params": {
+            "address": 108,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-108",
+            "value": 109
+          }
+        },
+        "109": {
+          "value": 110,
+          "params": {
+            "address": 109,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-109",
+            "value": 110
+          }
+        },
+        "110": {
+          "value": 111,
+          "params": {
+            "address": 110,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-110",
+            "value": 111
+          }
+        },
+        "111": {
+          "value": 112,
+          "params": {
+            "address": 111,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-111",
+            "value": 112
+          }
+        },
+        "112": {
+          "value": 113,
+          "params": {
+            "address": 112,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-112",
+            "value": 113
+          }
+        },
+        "113": {
+          "value": 114,
+          "params": {
+            "address": 113,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-113",
+            "value": 114
+          }
+        },
+        "114": {
+          "value": 115,
+          "params": {
+            "address": 114,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-114",
+            "value": 115
+          }
+        },
+        "115": {
+          "value": 116,
+          "params": {
+            "address": 115,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-115",
+            "value": 116
+          }
+        },
+        "116": {
+          "value": 117,
+          "params": {
+            "address": 116,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-116",
+            "value": 117
+          }
+        },
+        "117": {
+          "value": 118,
+          "params": {
+            "address": 117,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-117",
+            "value": 118
+          }
+        },
+        "118": {
+          "value": 119,
+          "params": {
+            "address": 118,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-118",
+            "value": 119
+          }
+        },
+        "119": {
+          "value": 120,
+          "params": {
+            "address": 119,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "reg-119",
+            "value": 120
+          }
+        }
+      }
+    }
+  }
+}

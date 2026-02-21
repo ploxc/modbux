@@ -1,0 +1,613 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Large Config (120 registers)",
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "input_registers": {},
+    "holding_registers": {
+      "0": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-000"
+      },
+      "1": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-001"
+      },
+      "2": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-002"
+      },
+      "3": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-003"
+      },
+      "4": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-004"
+      },
+      "5": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-005"
+      },
+      "6": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-006"
+      },
+      "7": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-007"
+      },
+      "8": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-008"
+      },
+      "9": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-009"
+      },
+      "10": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-010"
+      },
+      "11": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-011"
+      },
+      "12": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-012"
+      },
+      "13": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-013"
+      },
+      "14": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-014"
+      },
+      "15": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-015"
+      },
+      "16": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-016"
+      },
+      "17": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-017"
+      },
+      "18": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-018"
+      },
+      "19": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-019"
+      },
+      "20": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-020"
+      },
+      "21": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-021"
+      },
+      "22": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-022"
+      },
+      "23": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-023"
+      },
+      "24": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-024"
+      },
+      "25": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-025"
+      },
+      "26": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-026"
+      },
+      "27": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-027"
+      },
+      "28": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-028"
+      },
+      "29": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-029"
+      },
+      "30": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-030"
+      },
+      "31": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-031"
+      },
+      "32": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-032"
+      },
+      "33": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-033"
+      },
+      "34": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-034"
+      },
+      "35": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-035"
+      },
+      "36": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-036"
+      },
+      "37": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-037"
+      },
+      "38": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-038"
+      },
+      "39": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-039"
+      },
+      "40": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-040"
+      },
+      "41": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-041"
+      },
+      "42": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-042"
+      },
+      "43": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-043"
+      },
+      "44": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-044"
+      },
+      "45": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-045"
+      },
+      "46": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-046"
+      },
+      "47": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-047"
+      },
+      "48": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-048"
+      },
+      "49": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-049"
+      },
+      "50": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-050"
+      },
+      "51": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-051"
+      },
+      "52": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-052"
+      },
+      "53": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-053"
+      },
+      "54": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-054"
+      },
+      "55": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-055"
+      },
+      "56": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-056"
+      },
+      "57": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-057"
+      },
+      "58": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-058"
+      },
+      "59": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-059"
+      },
+      "60": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-060"
+      },
+      "61": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-061"
+      },
+      "62": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-062"
+      },
+      "63": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-063"
+      },
+      "64": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-064"
+      },
+      "65": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-065"
+      },
+      "66": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-066"
+      },
+      "67": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-067"
+      },
+      "68": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-068"
+      },
+      "69": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-069"
+      },
+      "70": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-070"
+      },
+      "71": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-071"
+      },
+      "72": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-072"
+      },
+      "73": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-073"
+      },
+      "74": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-074"
+      },
+      "75": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-075"
+      },
+      "76": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-076"
+      },
+      "77": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-077"
+      },
+      "78": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-078"
+      },
+      "79": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-079"
+      },
+      "80": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-080"
+      },
+      "81": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-081"
+      },
+      "82": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-082"
+      },
+      "83": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-083"
+      },
+      "84": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-084"
+      },
+      "85": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-085"
+      },
+      "86": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-086"
+      },
+      "87": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-087"
+      },
+      "88": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-088"
+      },
+      "89": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-089"
+      },
+      "90": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-090"
+      },
+      "91": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-091"
+      },
+      "92": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-092"
+      },
+      "93": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-093"
+      },
+      "94": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-094"
+      },
+      "95": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-095"
+      },
+      "96": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-096"
+      },
+      "97": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-097"
+      },
+      "98": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-098"
+      },
+      "99": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-099"
+      },
+      "100": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-100"
+      },
+      "101": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-101"
+      },
+      "102": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-102"
+      },
+      "103": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-103"
+      },
+      "104": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-104"
+      },
+      "105": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-105"
+      },
+      "106": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-106"
+      },
+      "107": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-107"
+      },
+      "108": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-108"
+      },
+      "109": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-109"
+      },
+      "110": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-110"
+      },
+      "111": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-111"
+      },
+      "112": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-112"
+      },
+      "113": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-113"
+      },
+      "114": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-114"
+      },
+      "115": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-115"
+      },
+      "116": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-116"
+      },
+      "117": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-117"
+      },
+      "118": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-118"
+      },
+      "119": {
+        "dataType": "uint16",
+        "scalingFactor": 1,
+        "comment": "reg-119"
+      }
+    }
+  }
+}
