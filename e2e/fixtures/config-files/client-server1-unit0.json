@@ -2,6 +2,7 @@
   "version": 2,
   "modbuxVersion": "1.5.0",
   "name": "Server 1 Unit 0",
+  "littleEndian": false,
   "registerMapping": {
     "coils": {},
     "discrete_inputs": {},

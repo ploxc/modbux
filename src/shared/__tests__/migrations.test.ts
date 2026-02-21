@@ -225,6 +225,7 @@ describe('configMigration', () => {
         expect(result.fromVersion).toBe(1)
         expect(result.config.version).toBe(2)
         expect(result.config.name).toBe('Test Client Config')
+        expect(result.config.littleEndian).toBe(false)
         expect(result.config.registerMapping).toBeDefined()
       })
 
@@ -241,6 +242,7 @@ describe('configMigration', () => {
 
         expect(result.migrated).toBe(true)
         expect(result.config.version).toBe(2)
+        expect(result.config.littleEndian).toBe(false)
         expect(result.config.registerMapping).toBeDefined()
       })
     })
@@ -253,6 +255,7 @@ describe('configMigration', () => {
         expect(result.migrated).toBe(false)
         expect(result.fromVersion).toBe(2)
         expect(result.config.version).toBe(2)
+        expect(result.config.littleEndian).toBe(false)
       })
     })
 

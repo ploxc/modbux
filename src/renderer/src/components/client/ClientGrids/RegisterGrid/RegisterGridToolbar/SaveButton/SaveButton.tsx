@@ -27,6 +27,7 @@ const SaveButton = meme(() => {
       version: 2,
       modbuxVersion,
       name,
+      littleEndian: z.registerConfig.littleEndian,
       registerMapping
     }
 

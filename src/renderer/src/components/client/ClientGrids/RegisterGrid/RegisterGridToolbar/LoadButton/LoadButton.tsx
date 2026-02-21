@@ -30,8 +30,9 @@ const LoadButton = meme((): JSX.Element => {
         const migrationResult = migrateClientConfig(content)
         const { config, migrated, warning } = migrationResult
 
-        // Set name and register mapping
+        // Set name, endianness and register mapping
         if (config.name) state.setName(config.name)
+        state.setLittleEndian(config.littleEndian)
         state.replaceRegisterMapping(config.registerMapping)
 
         // Show success notification

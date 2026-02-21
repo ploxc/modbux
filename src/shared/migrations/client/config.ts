@@ -24,6 +24,7 @@ function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
     version: 2,
     modbuxVersion: '1.5.0',
     name: config.name,
+    littleEndian: false,
     registerMapping: config.registerMapping ?? (v1Config as RegisterMapping)
   }
 }

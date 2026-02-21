@@ -7,6 +7,7 @@ import { tmpdir } from 'os'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CONFIG_FILES = {
   serverBasic: resolve(CONFIG_DIR, 'server-basic.json'),
+  serverBasicLE: resolve(CONFIG_DIR, 'server-basic-le.json'),
   serverFull: resolve(CONFIG_DIR, 'server-full.json'),
   serverLegacy: resolve(CONFIG_DIR, 'server-v1-legacy.json'),
   clientBasic: resolve(CONFIG_DIR, 'client-basic.json')
@@ -92,6 +93,25 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
 
   test('verify endianness: Big Endian after loading full config', async ({ mainPage }) => {
     await expect(mainPage.getByTestId('server-endian-be-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('server-endian-le-btn')).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('load LE server config — endian toggle switches to Little Endian', async ({ mainPage }) => {
+    const fileInput = mainPage.getByTestId('server-open-file-input')
+    await fileInput.setInputFiles(CONFIG_FILES.serverBasicLE)
+    await mainPage.waitForTimeout(1000)
+
+    await expect(mainPage.getByTestId('server-endian-le-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('server-endian-be-btn')).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('load BE server config — endian toggle switches back to Big Endian', async ({ mainPage }) => {
+    const fileInput = mainPage.getByTestId('server-open-file-input')
+    await fileInput.setInputFiles(CONFIG_FILES.serverFull)
+    await mainPage.waitForTimeout(1000)
+
+    await expect(mainPage.getByTestId('server-endian-be-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('server-endian-le-btn')).not.toHaveClass(/Mui-selected/)
   })
 
   // ─── Save config with content verification ────────────────────────────

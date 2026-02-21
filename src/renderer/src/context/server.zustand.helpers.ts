@@ -1,5 +1,5 @@
 import { checkHasConfig, RegisterParams, UnitIdString } from '@shared'
-import { PersistedServerZustand } from './server.zustant.types'
+import { PersistedServerZustand } from './server.zustand.types'
 
 type DefinedServerRegisters = Exclude<
   PersistedServerZustand['serverRegisters'][UnitIdString],

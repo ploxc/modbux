@@ -7,7 +7,7 @@ import {
   SetBoolParameters,
   SetRegisterValueParameters,
   UsedAddresses
-} from './server.zustant.types'
+} from './server.zustand.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {

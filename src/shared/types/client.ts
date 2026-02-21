@@ -43,6 +43,7 @@ export const RegisterMapConfigSchema = z.object({
   version: z.number(),
   modbuxVersion: z.string(),
   name: z.string().optional(),
+  littleEndian: z.boolean(),
   registerMapping: RegisterMappingSchema
 })
 export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>

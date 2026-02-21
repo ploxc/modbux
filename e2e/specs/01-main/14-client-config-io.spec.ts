@@ -7,6 +7,7 @@ import { tmpdir } from 'os'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CONFIG_FILES = {
   clientBasic: resolve(CONFIG_DIR, 'client-basic.json'),
+  clientBasicLE: resolve(CONFIG_DIR, 'client-basic-le.json'),
   clientComprehensive: resolve(CONFIG_DIR, 'client-server1-unit0.json')
 }
 
@@ -94,6 +95,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
 
     expect(config.version).toBe(2)
     expect(config.name).toBe('Test Client')
+    expect(config.littleEndian).toBe(false)
     expect(config.registerMapping).toBeDefined()
     expect(config.registerMapping.holding_registers).toBeDefined()
     expect(Object.keys(config.registerMapping.holding_registers)).toHaveLength(2)
@@ -154,5 +156,30 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(grid).toContainText('UTF8')
     await expect(grid).toContainText('UNIX')
     await expect(grid).toContainText('DATETIME')
+  })
+
+  // ─── Endianness restore on config load ──────────────────────────────
+
+  test('verify endian toggle is Big Endian after loading BE config', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('endian-be-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('endian-le-btn')).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('load LE config — endian toggle switches to Little Endian', async ({ mainPage }) => {
+    const fileInput = mainPage.getByTestId('load-config-file-input')
+    await fileInput.setInputFiles(CONFIG_FILES.clientBasicLE)
+    await mainPage.waitForTimeout(1000)
+
+    await expect(mainPage.getByTestId('endian-le-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('endian-be-btn')).not.toHaveClass(/Mui-selected/)
+  })
+
+  test('load BE config — endian toggle switches back to Big Endian', async ({ mainPage }) => {
+    const fileInput = mainPage.getByTestId('load-config-file-input')
+    await fileInput.setInputFiles(CONFIG_FILES.clientBasic)
+    await mainPage.waitForTimeout(1000)
+
+    await expect(mainPage.getByTestId('endian-be-btn')).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('endian-le-btn')).not.toHaveClass(/Mui-selected/)
   })
 })

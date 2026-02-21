@@ -2,6 +2,7 @@
   "version": 2,
   "modbuxVersion": "1.5.0",
   "name": "Huawei Smart Logger",
+  "littleEndian": false,
   "registerMapping": {
     "coils": {},
     "discrete_inputs": {},
