@@ -66,16 +66,16 @@ test.describe.serial('Scan Unit IDs', () => {
   })
 
   test('start button text is "Start Scanning"', async ({ mainPage }) => {
-    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
-      'Start Scanning'
-    )
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Start Scanning')
   })
 
   // ─── Register type toggle buttons ──────────────────────────────────
 
   test('Holding Registers is selected by default', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Holding Registers' })
+    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
+      hasText: 'Holding Registers'
+    })
     await expect(holdingBtn).toHaveClass(/Mui-selected/)
   })
 
@@ -100,7 +100,9 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(coilsBtn).toHaveClass(/Mui-selected/)
 
     // Holding should still be selected (multi-select)
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Holding Registers' })
+    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
+      hasText: 'Holding Registers'
+    })
     await expect(holdingBtn).toHaveClass(/Mui-selected/)
 
     // Deselect coils again for clean state
@@ -110,7 +112,9 @@ test.describe.serial('Scan Unit IDs', () => {
 
   test('start button is disabled when no register types selected', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Holding Registers' })
+    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
+      hasText: 'Holding Registers'
+    })
 
     // Deselect the only selected type
     await holdingBtn.click()

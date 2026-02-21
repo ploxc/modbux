@@ -105,7 +105,9 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
     await expect(mainPage.getByTestId('server-endian-be-btn')).not.toHaveClass(/Mui-selected/)
   })
 
-  test('load BE server config — endian toggle switches back to Big Endian', async ({ mainPage }) => {
+  test('load BE server config — endian toggle switches back to Big Endian', async ({
+    mainPage
+  }) => {
     const fileInput = mainPage.getByTestId('server-open-file-input')
     await fileInput.setInputFiles(CONFIG_FILES.serverFull)
     await mainPage.waitForTimeout(1000)

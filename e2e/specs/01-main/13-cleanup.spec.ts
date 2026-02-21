@@ -1,5 +1,10 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { loadServerConfig, selectUnitId, cleanServerState, clearRegisterType } from '../../fixtures/helpers'
+import {
+  loadServerConfig,
+  selectUnitId,
+  cleanServerState,
+  clearRegisterType
+} from '../../fixtures/helpers'
 import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')

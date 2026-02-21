@@ -10,7 +10,13 @@
  * Run headed:
  *   npx playwright test e2e/specs/99-hardware/02-iem3000-reconnect.spec.ts --headed
  */
-import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import {
+  test,
+  expect,
+  _electron as electron,
+  type ElectronApplication,
+  type Page
+} from '@playwright/test'
 import { resolve } from 'path'
 import {
   enableAdvancedMode,

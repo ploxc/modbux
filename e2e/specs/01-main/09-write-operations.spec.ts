@@ -11,7 +11,6 @@ import {
   navigateToClient,
   enableAdvancedMode,
   cleanServerState,
-  selectDataType,
   writeRegister,
   writeCoil
 } from '../../fixtures/helpers'
