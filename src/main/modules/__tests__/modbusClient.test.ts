@@ -930,6 +930,32 @@ describe('ModbusClient', () => {
   })
 
   describe('scan unit ids full flow', () => {
+    it('calls setID for each unit ID in range', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+
+      // Clear mocks after connect
+      mockModbusRTU.setID.mockClear()
+
+      const scanPromise = client.scanUnitIds({
+        range: [5, 7],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(5)
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(6)
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(7)
+      expect(mockModbusRTU.setID).toHaveBeenCalledTimes(3)
+    })
+
     it('scans range and emits results for each unit', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockResolvedValue({
@@ -1278,6 +1304,45 @@ describe('ModbusClient', () => {
   })
 
   describe('scan registers full flow', () => {
+    it('sets unit ID before scanning', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      appState.updateConnectionConfig({ unitId: 42 })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 5],
+        length: 5,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(42)
+    })
+
+    it('calls setID before the first read operation', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      appState.updateConnectionConfig({ unitId: 99 })
+
+      // Clear mocks after connect (which also calls setID)
+      mockModbusRTU.setID.mockClear()
+      mockModbusRTU.readHoldingRegisters.mockClear()
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 5],
+        length: 5,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      // setID must have been called before the first read
+      const setIdOrder = mockModbusRTU.setID.mock.invocationCallOrder[0]
+      const readOrder = mockModbusRTU.readHoldingRegisters.mock.invocationCallOrder[0]
+      expect(setIdOrder).toBeLessThan(readOrder)
+    })
+
     it('scans address range and sends non-zero data', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])

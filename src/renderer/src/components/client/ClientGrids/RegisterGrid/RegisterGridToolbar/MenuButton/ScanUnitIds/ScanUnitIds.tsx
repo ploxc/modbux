@@ -9,11 +9,11 @@ import {
   ToggleButtonGroup
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
-import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
+import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
+import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ElementType, forwardRef, useCallback, useMemo } from 'react'
-import { IMaskInput, IMask } from 'react-imask'
+import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
 import { ScanProgress, TimeoutInput } from '../ScanProgress/ScanProgress'
@@ -21,119 +21,25 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
 //
-// Min/Max Masks
-const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const max = useScanUnitIdZustand((z) => z.range[1])
-
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={0}
-      max={max}
-      autofix
-      inputRef={ref}
-      onAccept={(value) => set(value, true)}
-    />
-  )
-})
-
-MinInput.displayName = 'MinInput'
-
-const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const min = useScanUnitIdZustand((z) => z.range[0])
-
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={min}
-      max={255}
-      autofix
-      inputRef={ref}
-      onAccept={(value) => set(value, true)}
-    />
-  )
-})
-
-MaxInput.displayName = 'MaxInput'
-
-//
-//
-// Min Max components
-const MinTextField = (): JSX.Element => {
+// Start Unit ID field
+const StartUnitIdField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const min = useScanUnitIdZustand((z) => String(z.range[0]))
-  const setMinRange = useScanUnitIdZustand((z) => z.setMinRange)
+  const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
+  const setStartUnitId = useScanUnitIdZustand((z) => z.setStartUnitId)
 
   return (
     <TextField
       disabled={scanning}
-      label="Min Unit ID"
+      label="Start Unit ID"
       variant="outlined"
       size="small"
-      sx={{ width: 90 }}
-      value={min}
-      data-testid="scan-min-unitid-input"
-      slotProps={{
-        input: {
-          inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMinRange })
-        }
-      }}
-    />
-  )
-}
-
-const MaxTextField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const max = useScanUnitIdZustand((z) => String(z.range[1]))
-  const setMaxRange = useScanUnitIdZustand((z) => z.setMaxRange)
-
-  return (
-    <TextField
-      disabled={scanning}
-      label="Max Unit ID"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={max}
-      data-testid="scan-max-unitid-input"
-      slotProps={{
-        input: {
-          inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMaxRange })
-        }
-      }}
-    />
-  )
-}
-
-//
-//
-//
-//
-// Address field
-const AddressField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const address = useScanUnitIdZustand((z) => String(z.address))
-  const setAddress = useScanUnitIdZustand((z) => z.setAddress)
-
-  return (
-    <TextField
-      disabled={scanning}
-      label="Address"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={address}
-      data-testid="scan-unitid-address-input"
+      sx={{ width: 100 }}
+      value={startUnitId}
+      data-testid="scan-start-unitid-input"
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setAddress })
+          inputProps: maskInputProps({ set: setStartUnitId, max: 255 })
         }
       }}
     />
@@ -142,6 +48,50 @@ const AddressField = (): JSX.Element => {
 
 //
 //
+// Count field
+const CountField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const count = useScanUnitIdZustand((z) => String(z.count))
+  const setCount = useScanUnitIdZustand((z) => z.setCount)
+
+  return (
+    <TextField
+      disabled={scanning}
+      label="Count"
+      variant="outlined"
+      size="small"
+      sx={{ width: 80 }}
+      value={count}
+      data-testid="scan-unitid-count-input"
+      slotProps={{
+        input: {
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+          inputProps: maskInputProps({ set: setCount, max: 256 })
+        }
+      }}
+    />
+  )
+}
+
+//
+//
+// Address field with base toggle
+const AddressField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const address = useScanUnitIdZustand((z) => z.address)
+  const setAddress = useScanUnitIdZustand((z) => z.setAddress)
+
+  return (
+    <AddressBaseInput
+      disabled={scanning}
+      address={address}
+      setAddress={setAddress}
+      testId="scan-unitid-address-input"
+      baseTestId="scan-unitid-base"
+    />
+  )
+}
+
 //
 //
 // Length field
@@ -171,8 +121,6 @@ const LengthField = (): JSX.Element => {
 
 //
 //
-//
-//
 // Timeout field
 const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
@@ -200,8 +148,6 @@ const TimeoutField = (): JSX.Element => {
 
 //
 //
-//
-//
 // Select register types
 const SelectRegisterTypes = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
@@ -227,8 +173,6 @@ const SelectRegisterTypes = (): JSX.Element => {
 
 //
 //
-//
-//
 // Scan button
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
@@ -248,12 +192,12 @@ const ScanButton = (): JSX.Element => {
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
 
-    const { address, length, range, registerTypes, timeout } = state
+    const { address, length, startUnitId, count, registerTypes, timeout } = state
 
     window.api.scanUnitIds({
       address,
       length,
-      range,
+      range: [startUnitId, startUnitId + count - 1],
       registerTypes,
       timeout
     })
@@ -275,8 +219,6 @@ const ScanButton = (): JSX.Element => {
   )
 }
 
-//
-//
 //
 //
 // Scan result grid
@@ -337,8 +279,6 @@ const ScanUnitIdsButton = (): JSX.Element => {
 
 //
 //
-//
-//
 // MAIN
 const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
@@ -374,8 +314,8 @@ const ScanUnitIds = meme(() => {
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <MinTextField />
-              <MaxTextField />
+              <StartUnitIdField />
+              <CountField />
               <AddressField />
               <LengthField />
               <TimeoutField />

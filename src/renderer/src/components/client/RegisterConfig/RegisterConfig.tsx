@@ -10,10 +10,10 @@ import {
   ToggleButton,
   InputBaseComponentProps
 } from '@mui/material'
+import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType } from '@shared'
@@ -55,49 +55,15 @@ const TypeSelect = meme(() => {
 const Address = meme(() => {
   const address = useRootZustand((z) => z.registerConfig.address)
   const setAddress = useRootZustand((z) => z.setAddress)
-  const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
-  const setAddressBase = useRootZustand((z) => z.setAddressBase)
   const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
 
-  const base = Number(addressBase)
-  const displayValue = String(address + base)
-
-  const handleSetAddress = useCallback(
-    (v: string) => setAddress(String(Math.max(0, Number(v) - base))),
-    [setAddress, base]
-  )
-
   return (
-    <TextField
+    <AddressBaseInput
       disabled={readConfiguration}
-      label="Address"
-      variant="outlined"
-      size="small"
-      data-testid="reg-address-input"
-      sx={{ width: 110, '& .MuiInputBase-root': { pr: 0 } }}
-      value={displayValue}
-      slotProps={{
-        input: {
-          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleSetAddress, max: 65535 + base }),
-          endAdornment: (
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              color="primary"
-              value={addressBase}
-              onChange={(_, v) => v !== null && setAddressBase(v)}
-            >
-              <ToggleButton value={'0'} data-testid="reg-base-0-btn" aria-label="Address base 0">
-                0
-              </ToggleButton>
-              <ToggleButton value={'1'} data-testid="reg-base-1-btn" aria-label="Address base 1">
-                1
-              </ToggleButton>
-            </ToggleButtonGroup>
-          )
-        }
-      }}
+      address={address}
+      setAddress={setAddress}
+      testId="reg-address-input"
+      baseTestId="reg-base"
     />
   )
 })

@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ElementType, forwardRef, useCallback, useMemo } from 'react'
+import { ElementType, useCallback, useMemo } from 'react'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { IMaskInput, IMask } from 'react-imask'
+import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { MaskSetFn } from '@renderer/context/root.zustand.types'
-import LengthInput from '@renderer/components/shared/inputs/LengthInput'
+import UIntInput from '@renderer/components/shared/inputs/UintInput'
+import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
+import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ScanProgress, TimeoutInput } from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -15,11 +16,12 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 interface ScanRegistersZustand {
   open: boolean
   setOpen: (open: boolean) => void
-  range: [number, number]
-  setMinRange: MaskSetFn
-  setMaxRange: MaskSetFn
-  length: number
-  setLength: MaskSetFn
+  address: number
+  setAddress: MaskSetFn
+  scanLength: number
+  setScanLength: MaskSetFn
+  chunkSize: number
+  setChunkSize: MaskSetFn
   timeout: number
   setTimeout: MaskSetFn
 }
@@ -30,21 +32,20 @@ export const useScanRegistersZustand = create<ScanRegistersZustand, [['zustand/m
       set((state) => {
         state.open = open
       }),
-    range: [0, 9999],
-    setMinRange: (min) =>
+    address: 0,
+    setAddress: (address) =>
       set((state) => {
-        state.range[0] = Number(min)
-        if (state.range[1] < state.range[0]) state.range[1] = state.range[0]
+        state.address = Number(address)
       }),
-    setMaxRange: (max) =>
+    scanLength: 10000,
+    setScanLength: (scanLength) =>
       set((state) => {
-        state.range[1] = Number(max)
-        if (state.range[0] > state.range[1]) state.range[0] = state.range[1]
+        state.scanLength = Number(scanLength)
       }),
-    length: 100,
-    setLength: (length) =>
+    chunkSize: 100,
+    setChunkSize: (chunkSize) =>
       set((state) => {
-        state.length = Number(length)
+        state.chunkSize = Number(chunkSize)
       }),
     timeout: 500,
     setTimeout: (timeout) =>
@@ -56,90 +57,25 @@ export const useScanRegistersZustand = create<ScanRegistersZustand, [['zustand/m
 
 //
 //
-// Min/Max Masks
-const MinInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const max = useScanRegistersZustand((z) => z.range[1])
-
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={0}
-      max={max}
-      autofix
-      inputRef={ref}
-      onAccept={(value) => set(value, true)}
-    />
-  )
-})
-
-MinInput.displayName = 'MinInput'
-
-const MaxInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, ...other } = props
-  const min = useScanRegistersZustand((z) => z.range[0])
-
-  return (
-    <IMaskInput
-      {...other}
-      mask={IMask.MaskedNumber}
-      min={min}
-      max={65535}
-      autofix
-      inputRef={ref}
-      onAccept={(value) => set(value, true)}
-    />
-  )
-})
-
-MaxInput.displayName = 'MaxInput'
-
-//
-//
-// Min Max components
-const MinTextField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const min = useScanRegistersZustand((z) => String(z.range[0]))
-  const setMinRange = useScanRegistersZustand((z) => z.setMinRange)
+// Unit ID field (syncs with main connection config)
+const UnitIdField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
+  const setUnitId = useRootZustand((z) => z.setUnitId)
 
   return (
     <TextField
       disabled={scanning}
-      label="Min Address"
+      label="Unit ID"
       variant="outlined"
       size="small"
-      sx={{ width: 90 }}
-      value={min}
-      data-testid="scan-min-address-input"
+      sx={{ width: 60 }}
+      value={unitId}
+      data-testid="scan-unitid-input"
       slotProps={{
         input: {
-          inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMinRange })
-        }
-      }}
-    />
-  )
-}
-
-const MaxTextField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const max = useScanRegistersZustand((z) => String(z.range[1]))
-  const setMaxRange = useScanRegistersZustand((z) => z.setMaxRange)
-
-  return (
-    <TextField
-      disabled={scanning}
-      label="Max Address"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={max}
-      data-testid="scan-max-address-input"
-      slotProps={{
-        input: {
-          inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMaxRange })
+          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+          inputProps: maskInputProps({ set: setUnitId })
         }
       }}
     />
@@ -148,11 +84,30 @@ const MaxTextField = (): JSX.Element => {
 
 //
 //
-// Length Input
-const LengthField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const length = useScanRegistersZustand((z) => String(z.length))
-  const setLength = useScanRegistersZustand((z) => z.setLength)
+// Address field with base toggle
+const AddressField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const address = useScanRegistersZustand((z) => z.address)
+  const setAddress = useScanRegistersZustand((z) => z.setAddress)
+
+  return (
+    <AddressBaseInput
+      disabled={scanning}
+      address={address}
+      setAddress={setAddress}
+      testId="scan-address-input"
+      baseTestId="scan-base"
+    />
+  )
+}
+
+//
+//
+// Scan Length field
+const ScanLengthField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const scanLength = useScanRegistersZustand((z) => String(z.scanLength))
+  const setScanLength = useScanRegistersZustand((z) => z.setScanLength)
 
   return (
     <TextField
@@ -160,13 +115,13 @@ const LengthField = (): JSX.Element => {
       label="Length"
       variant="outlined"
       size="small"
-      sx={{ width: 60 }}
-      value={length}
+      sx={{ width: 90 }}
+      value={scanLength}
       data-testid="scan-length-input"
       slotProps={{
         input: {
-          inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength })
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+          inputProps: maskInputProps({ set: setScanLength })
         }
       }}
     />
@@ -175,11 +130,39 @@ const LengthField = (): JSX.Element => {
 
 //
 //
+// Chunk Size field
+const ChunkSizeField = (): JSX.Element => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
+  const setChunkSize = useScanRegistersZustand((z) => z.setChunkSize)
+  const type = useRootZustand((z) => z.registerConfig.type)
+  const isCoilType = ['coils', 'discrete_inputs'].includes(type)
+  const max = isCoilType ? 2000 : 125
+
+  return (
+    <TextField
+      disabled={scanning}
+      label="Chunk Size"
+      variant="outlined"
+      size="small"
+      sx={{ width: 90 }}
+      value={chunkSize}
+      data-testid="scan-chunk-size-input"
+      slotProps={{
+        input: {
+          inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+          inputProps: maskInputProps({ set: setChunkSize, max })
+        }
+      }}
+    />
+  )
+}
+
 //
 //
 // Timeout field
 const TimeoutField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => String(z.timeout))
   const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
 
@@ -204,8 +187,6 @@ const TimeoutField = (): JSX.Element => {
 
 //
 //
-//
-//
 // Scan button
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
@@ -221,15 +202,16 @@ const ScanButton = (): JSX.Element => {
     const state = useScanRegistersZustand.getState()
     const rootState = useRootZustand.getState()
     const dataState = useDataZustand.getState()
+    rootState.setReadConfiguration(false)
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
     dataState.setRegisterData([])
 
-    const { length, range, timeout } = state
+    const { address, scanLength, chunkSize, timeout } = state
 
     await window.api.scanRegisters({
-      addressRange: range,
-      length,
+      addressRange: [address, address + scanLength - 1],
+      length: chunkSize,
       timeout
     })
 
@@ -287,9 +269,10 @@ const ScanRegisters = meme(() => {
           }}
         >
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <MinTextField />
-            <MaxTextField />
-            <LengthField />
+            <UnitIdField />
+            <AddressField />
+            <ScanLengthField />
+            <ChunkSizeField />
             <TimeoutField />
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>

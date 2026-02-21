@@ -73,27 +73,33 @@ test.describe.serial('Scan Registers', () => {
     await mainPage.getByTestId('menu-btn').click()
     await mainPage.getByTestId('scan-registers-btn').click()
     // The dialog opens with form inputs visible
-    await expect(mainPage.getByTestId('scan-min-address-input')).toBeVisible()
-    await expect(mainPage.getByTestId('scan-max-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-unitid-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-length-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-chunk-size-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-timeout-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-start-stop-btn')).toBeVisible()
   })
 
   // ─── Default values ─────────────────────────────────────────────────
 
-  test('default min address is 0', async ({ mainPage }) => {
-    const input = mainPage.getByTestId('scan-min-address-input').locator('input')
+  test('default unit ID matches connection config', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-input').locator('input')
     await expect(input).toHaveValue('0')
   })
 
-  test('default max address is 9999', async ({ mainPage }) => {
-    const input = mainPage.getByTestId('scan-max-address-input').locator('input')
-    await expect(input).toHaveValue('9999')
+  test('default address is 0', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-address-input').locator('input')
+    await expect(input).toHaveValue('0')
   })
 
-  test('default length is 100', async ({ mainPage }) => {
+  test('default length is 10000', async ({ mainPage }) => {
     const input = mainPage.getByTestId('scan-length-input').locator('input')
+    await expect(input).toHaveValue('10000')
+  })
+
+  test('default chunk size is 100', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-chunk-size-input').locator('input')
     await expect(input).toHaveValue('100')
   })
 
@@ -106,44 +112,47 @@ test.describe.serial('Scan Registers', () => {
     await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning')
   })
 
-  // ─── Input validation ──────────────────────────────────────────────
+  // ─── Unit ID syncs with main view ──────────────────────────────────
 
-  test('min address cannot exceed max address (autofix)', async ({ mainPage }) => {
-    const minInput = mainPage.getByTestId('scan-min-address-input').locator('input')
-    const maxInput = mainPage.getByTestId('scan-max-address-input').locator('input')
+  test('changing unit ID in scan dialog updates main connection config', async ({ mainPage }) => {
+    const scanUnitId = mainPage.getByTestId('scan-unitid-input').locator('input')
+    await scanUnitId.fill('5')
+    await expect(scanUnitId).toHaveValue('5')
 
-    // Set max to 50 first, then try to set min higher
-    await maxInput.fill('50')
-    await minInput.fill('999')
-    // IMask autofix clamps min to max
-    await expect(minInput).toHaveValue('50')
+    // Close dialog and verify the main toolbar unit ID changed
+    await mainPage.keyboard.press('Escape')
+    const mainUnitId = mainPage.getByTestId('client-unitid-input').locator('input')
+    await expect(mainUnitId).toHaveValue('5')
 
-    // Reset
-    await minInput.fill('0')
-    await maxInput.fill('9999')
+    // Reset back to 0 via main toolbar
+    await mainUnitId.fill('0')
   })
 
-  test('setting min above max clamps max to match', async ({ mainPage }) => {
-    const minInput = mainPage.getByTestId('scan-min-address-input').locator('input')
-    const maxInput = mainPage.getByTestId('scan-max-address-input').locator('input')
+  // ─── Address base toggle ───────────────────────────────────────────
 
-    // First set max to a low value, then set min above it
-    await maxInput.fill('100')
-    await expect(maxInput).toHaveValue('100')
-    await minInput.fill('200')
-    // Zustand setter clamps max up to match min
-    await expect(maxInput).toHaveValue('200')
+  test('address base toggle switches between 0 and 1', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.getByTestId('scan-registers-btn').click()
 
-    // Reset
-    await maxInput.fill('9999')
-    await minInput.fill('0')
+    const addressInput = mainPage.getByTestId('scan-address-input').locator('input')
+
+    // Default base is 0, address displays as 0
+    await expect(addressInput).toHaveValue('0')
+
+    // Switch to base 1 — displayed address shifts by +1
+    await mainPage.getByTestId('scan-base-1-btn').click()
+    await expect(addressInput).toHaveValue('1')
+
+    // Switch back to base 0
+    await mainPage.getByTestId('scan-base-0-btn').click()
+    await expect(addressInput).toHaveValue('0')
   })
 
   // ─── Close and reopen ──────────────────────────────────────────────
 
   test('dialog can be closed with Escape', async ({ mainPage }) => {
     await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('scan-min-address-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).not.toBeVisible()
   })
 
   // ─── Scan execution: narrow range ──────────────────────────────────
@@ -151,14 +160,14 @@ test.describe.serial('Scan Registers', () => {
   test('open dialog and configure narrow scan range', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
     await mainPage.getByTestId('scan-registers-btn').click()
-    await expect(mainPage.getByTestId('scan-min-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
-    const minAddr = mainPage.getByTestId('scan-min-address-input').locator('input')
-    await minAddr.fill('0')
-    const maxAddr = mainPage.getByTestId('scan-max-address-input').locator('input')
-    await maxAddr.fill('25')
+    const address = mainPage.getByTestId('scan-address-input').locator('input')
+    await address.fill('0')
     const length = mainPage.getByTestId('scan-length-input').locator('input')
-    await length.fill('1')
+    await length.fill('26')
+    const chunkSize = mainPage.getByTestId('scan-chunk-size-input').locator('input')
+    await chunkSize.fill('1')
     const timeout = mainPage.getByTestId('scan-timeout-input').locator('input')
     await timeout.fill('500')
   })
@@ -177,7 +186,7 @@ test.describe.serial('Scan Registers', () => {
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
 
     // Server has holding registers at addresses 0,1,2,4,6,8,12,16,20,25 in range 0-25
-    // Scan with length=1 probes each address individually
+    // Scan with chunkSize=1 probes each address individually
     const count = await rows.count()
     expect(count).toBeGreaterThanOrEqual(9)
   })
@@ -189,25 +198,25 @@ test.describe.serial('Scan Registers', () => {
     await expect(mainPage.locator('.MuiDataGrid-row[data-id="6"]')).toBeVisible()
   })
 
-  // ─── Scan with larger length ───────────────────────────────────────
+  // ─── Scan with larger chunk size ────────────────────────────────────
 
-  test('clear data and open dialog for larger-length scan', async ({ mainPage }) => {
+  test('clear data and open dialog for larger-chunk scan', async ({ mainPage }) => {
     await clearData(mainPage)
     await mainPage.getByTestId('menu-btn').click()
     await mainPage.getByTestId('scan-registers-btn').click()
-    await expect(mainPage.getByTestId('scan-min-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
-    const minAddr = mainPage.getByTestId('scan-min-address-input').locator('input')
-    await minAddr.fill('0')
-    const maxAddr = mainPage.getByTestId('scan-max-address-input').locator('input')
-    await maxAddr.fill('30')
+    const address = mainPage.getByTestId('scan-address-input').locator('input')
+    await address.fill('0')
     const length = mainPage.getByTestId('scan-length-input').locator('input')
-    await length.fill('10')
+    await length.fill('31')
+    const chunkSize = mainPage.getByTestId('scan-chunk-size-input').locator('input')
+    await chunkSize.fill('10')
     const timeout = mainPage.getByTestId('scan-timeout-input').locator('input')
     await timeout.fill('500')
   })
 
-  test('scan with length=10 completes and shows results', async ({ mainPage }) => {
+  test('scan with chunkSize=10 completes and shows results', async ({ mainPage }) => {
     await mainPage.getByTestId('scan-start-stop-btn').click()
     await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({
       timeout: 30000
@@ -229,14 +238,14 @@ test.describe.serial('Scan Registers', () => {
     await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
     await mainPage.getByTestId('scan-registers-btn').click()
-    await expect(mainPage.getByTestId('scan-min-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
-    const minAddr = mainPage.getByTestId('scan-min-address-input').locator('input')
-    await minAddr.fill('0')
-    const maxAddr = mainPage.getByTestId('scan-max-address-input').locator('input')
-    await maxAddr.fill('15')
+    const address = mainPage.getByTestId('scan-address-input').locator('input')
+    await address.fill('0')
     const length = mainPage.getByTestId('scan-length-input').locator('input')
-    await length.fill('1')
+    await length.fill('16')
+    const chunkSize = mainPage.getByTestId('scan-chunk-size-input').locator('input')
+    await chunkSize.fill('1')
     const timeout = mainPage.getByTestId('scan-timeout-input').locator('input')
     await timeout.fill('500')
 
@@ -261,14 +270,14 @@ test.describe.serial('Scan Registers', () => {
     await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
     await mainPage.getByTestId('scan-registers-btn').click()
-    await expect(mainPage.getByTestId('scan-min-address-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
-    const minAddr = mainPage.getByTestId('scan-min-address-input').locator('input')
-    await minAddr.fill('0')
-    const maxAddr = mainPage.getByTestId('scan-max-address-input').locator('input')
-    await maxAddr.fill('5')
+    const address = mainPage.getByTestId('scan-address-input').locator('input')
+    await address.fill('0')
     const length = mainPage.getByTestId('scan-length-input').locator('input')
-    await length.fill('1')
+    await length.fill('6')
+    const chunkSize = mainPage.getByTestId('scan-chunk-size-input').locator('input')
+    await chunkSize.fill('1')
     const timeout = mainPage.getByTestId('scan-timeout-input').locator('input')
     await timeout.fill('500')
 
@@ -282,6 +291,49 @@ test.describe.serial('Scan Registers', () => {
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
     const count = await rows.count()
     expect(count).toBeGreaterThanOrEqual(3)
+  })
+
+  // ─── Fields disabled during scanning + stop mid-scan ─────────────
+
+  test('fields are disabled while scanning and stop works', async ({ mainPage }) => {
+    await clearData(mainPage)
+    await selectRegisterType(mainPage, 'Holding Registers')
+
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.getByTestId('scan-registers-btn').click()
+    await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
+
+    // Configure a very large range so scanning takes time
+    const address = mainPage.getByTestId('scan-address-input').locator('input')
+    await address.fill('0')
+    const length = mainPage.getByTestId('scan-length-input').locator('input')
+    await length.fill('65535')
+    const chunkSize = mainPage.getByTestId('scan-chunk-size-input').locator('input')
+    await chunkSize.fill('1')
+    const timeout = mainPage.getByTestId('scan-timeout-input').locator('input')
+    await timeout.fill('500')
+
+    await mainPage.getByTestId('scan-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Stop Scanning')
+
+    // While scanning, all config fields should be disabled
+    await expect(mainPage.getByTestId('scan-unitid-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-address-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-length-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-chunk-size-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-timeout-input').locator('input')).toBeDisabled()
+
+    // Stop scan — dialog auto-closes when the scan promise resolves after stop
+    await mainPage.getByTestId('scan-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({ timeout: 10000 })
+
+    // The scan was stopped early — results are in the main DataGrid.
+    // Address 0 should have been reached, but the last holding register
+    // (address 26, unix timestamp) should NOT have been reached.
+    const rows = mainPage.locator('.MuiDataGrid-row')
+    await expect(rows.first()).toBeVisible({ timeout: 5000 })
+    await expect(mainPage.locator('.MuiDataGrid-row[data-id="0"]')).toBeVisible()
+    await expect(mainPage.locator('.MuiDataGrid-row[data-id="26"]')).not.toBeVisible()
   })
 
   // ─── Cleanup ───────────────────────────────────────────────────────

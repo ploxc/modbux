@@ -32,21 +32,21 @@ test.describe.serial('Scan Unit IDs', () => {
     await mainPage.getByTestId('scan-unitids-btn').click()
 
     // All form inputs should be visible
-    await expect(mainPage.getByTestId('scan-min-unitid-input')).toBeVisible()
-    await expect(mainPage.getByTestId('scan-max-unitid-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-start-unitid-input')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-unitid-count-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-unitid-address-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-unitid-length-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-unitid-timeout-input')).toBeVisible()
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeVisible()
   })
 
-  test('default min unit ID is 0', async ({ mainPage }) => {
-    const input = mainPage.getByTestId('scan-min-unitid-input').locator('input')
+  test('default start unit ID is 0', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-start-unitid-input').locator('input')
     await expect(input).toHaveValue('0')
   })
 
-  test('default max unit ID is 10', async ({ mainPage }) => {
-    const input = mainPage.getByTestId('scan-max-unitid-input').locator('input')
+  test('default count is 10', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-count-input').locator('input')
     await expect(input).toHaveValue('10')
   })
 
@@ -125,54 +125,13 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeEnabled()
   })
 
-  // ─── Input validation ──────────────────────────────────────────────
-
-  test('min unit ID cannot exceed max unit ID (autofix)', async ({ mainPage }) => {
-    const minInput = mainPage.getByTestId('scan-min-unitid-input').locator('input')
-    const maxInput = mainPage.getByTestId('scan-max-unitid-input').locator('input')
-
-    await maxInput.fill('5')
-    await minInput.fill('99')
-    // IMask autofix clamps min to max
-    await expect(minInput).toHaveValue('5')
-
-    // Reset
-    await minInput.fill('0')
-    await maxInput.fill('10')
-  })
-
-  test('setting min above max clamps max to match', async ({ mainPage }) => {
-    const minInput = mainPage.getByTestId('scan-min-unitid-input').locator('input')
-    const maxInput = mainPage.getByTestId('scan-max-unitid-input').locator('input')
-
-    // First set max to a low value, then set min above it
-    await maxInput.fill('3')
-    await expect(maxInput).toHaveValue('3')
-    await minInput.fill('8')
-    // Zustand setter clamps max up to match min
-    await expect(maxInput).toHaveValue('8')
-
-    // Reset
-    await maxInput.fill('10')
-    await minInput.fill('0')
-  })
-
-  test('max unit ID is capped at 255', async ({ mainPage }) => {
-    const maxInput = mainPage.getByTestId('scan-max-unitid-input').locator('input')
-    await maxInput.fill('999')
-    await expect(maxInput).toHaveValue('255')
-
-    // Reset
-    await maxInput.fill('10')
-  })
-
   // ─── Scan execution: holding registers only ─────────────────────────
 
   test('configure and start unit ID scan', async ({ mainPage }) => {
-    const minUnit = mainPage.getByTestId('scan-min-unitid-input').locator('input')
-    await minUnit.fill('0')
-    const maxUnit = mainPage.getByTestId('scan-max-unitid-input').locator('input')
-    await maxUnit.fill('5')
+    const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
+    await startUnit.fill('0')
+    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
+    await count.fill('6')
     const address = mainPage.getByTestId('scan-unitid-address-input').locator('input')
     await address.fill('0')
     const length = mainPage.getByTestId('scan-unitid-length-input').locator('input')
@@ -234,8 +193,8 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(diBtn).toHaveClass(/Mui-selected/)
     await expect(irBtn).toHaveClass(/Mui-selected/)
 
-    const maxUnit = mainPage.getByTestId('scan-max-unitid-input').locator('input')
-    await maxUnit.fill('3')
+    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
+    await count.fill('4')
     const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
     await timeout.fill('500')
 
@@ -281,11 +240,61 @@ test.describe.serial('Scan Unit IDs', () => {
     expect(count).toBeGreaterThanOrEqual(3)
   })
 
+  // ─── Fields disabled during scanning + stop mid-scan ─────────────
+
+  test('fields are disabled while scanning and stop works', async ({ mainPage }) => {
+    // Configure max range so scanning takes time
+    const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
+    await startUnit.fill('0')
+    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
+    await count.fill('256')
+    const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
+    await timeout.fill('500')
+
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Stop Scanning')
+
+    // While scanning, all config fields should be disabled
+    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-address-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-length-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-timeout-input').locator('input')).toBeDisabled()
+
+    // Stop scan mid-operation
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
+      'Start Scanning',
+      { timeout: 10000 }
+    )
+
+    // Fields should be re-enabled after stopping
+    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeEnabled()
+    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeEnabled()
+  })
+
+  // ─── Address base toggle ──────────────────────────────────────────
+
+  test('address base toggle on address field switches between 0 and 1', async ({ mainPage }) => {
+    const addressInput = mainPage.getByTestId('scan-unitid-address-input').locator('input')
+
+    // Default base is 0, address displays as 0
+    await expect(addressInput).toHaveValue('0')
+
+    // Switch to base 1
+    await mainPage.getByTestId('scan-unitid-base-1-btn').click()
+    await expect(addressInput).toHaveValue('1')
+
+    // Switch back to base 0
+    await mainPage.getByTestId('scan-unitid-base-0-btn').click()
+    await expect(addressInput).toHaveValue('0')
+  })
+
   // ─── Close dialog ──────────────────────────────────────────────────
 
   test('close unit ID scan dialog', async ({ mainPage }) => {
     await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('scan-min-unitid-input')).not.toBeVisible()
+    await expect(mainPage.getByTestId('scan-start-unitid-input')).not.toBeVisible()
   })
 
   test('close menu dialog', async ({ mainPage }) => {

@@ -766,6 +766,8 @@ export class ModbusClient {
       return
     }
 
+    const { unitId } = this._appState.connectionConfig
+    this._client.setID(unitId)
     this._client.setTimeout(params.timeout)
 
     this._totalScans = Math.ceil(
