@@ -266,6 +266,50 @@ export async function disconnectClient(p: Page): Promise<void> {
 }
 
 /**
+ * Switch to RTU protocol and configure serial parameters.
+ * Does NOT set COM port — that must be done manually (e.g. via page.pause()).
+ * After calling this, click connect-btn separately once the COM port is set.
+ */
+export async function connectClientRTU(
+  p: Page,
+  unitId: string,
+  baudrate = '9600',
+  parity = 'none',
+  databits = '8',
+  stopbits = '1'
+): Promise<void> {
+  await p.getByTestId('protocol-rtu-btn').click()
+  await expect(p.getByTestId('rtu-baudrate-select')).toBeVisible()
+
+  // Set baudrate
+  await p.getByTestId('rtu-baudrate-select').click()
+  await p.getByRole('option', { name: baudrate }).click()
+
+  // Set parity
+  await p.getByTestId('rtu-parity-select').click()
+  await p.getByRole('option', { name: parity }).click()
+
+  // Set databits
+  await p.getByTestId('rtu-databits-select').click()
+  await p.getByRole('option', { name: databits }).click()
+
+  // Set stopbits
+  await p.getByTestId('rtu-stopbits-select').click()
+  await p.getByRole('option', { name: stopbits }).click()
+
+  // Set unit ID
+  const unitIdInput = p.getByTestId('client-unitid-input').locator('input')
+  await unitIdInput.fill(unitId)
+}
+
+/** Load a client config from a JSON file via the client file input */
+export async function loadClientConfig(p: Page, configPath: string): Promise<void> {
+  const fileInput = p.getByTestId('load-config-file-input')
+  await fileInput.setInputFiles(configPath)
+  await p.waitForTimeout(1000)
+}
+
+/**
  * Load a server config from a JSON file via the server file input.
  * Must already be on the server view.
  */
@@ -444,11 +488,7 @@ export async function writeRegister(
 }
 
 /** Write a coil state via the write dialog */
-export async function writeCoil(
-  p: Page,
-  address: number,
-  state: boolean
-): Promise<void> {
+export async function writeCoil(p: Page, address: number, state: boolean): Promise<void> {
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 

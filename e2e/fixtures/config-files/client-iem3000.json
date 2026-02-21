@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "modbuxVersion": "1.5.0",
+  "name": "Schneider iEM3000",
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "holding_registers": {
+      "2999": { "dataType": "float", "scalingFactor": 1, "comment": "Phase 1 Current (A)" },
+      "3001": { "dataType": "float", "scalingFactor": 1, "comment": "Phase 2 Current (A)" },
+      "3003": { "dataType": "float", "scalingFactor": 1, "comment": "Phase 3 Current (A)" },
+      "3019": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V12 (V)" },
+      "3021": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V23 (V)" },
+      "3023": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V31 (V)" },
+      "3027": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V1N (V)" },
+      "3029": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V2N (V)" },
+      "3031": { "dataType": "float", "scalingFactor": 1, "comment": "Voltage V3N (V)" },
+      "3053": { "dataType": "float", "scalingFactor": 1, "comment": "Active Power P1 (W)" },
+      "3055": { "dataType": "float", "scalingFactor": 1, "comment": "Active Power P2 (W)" },
+      "3057": { "dataType": "float", "scalingFactor": 1, "comment": "Active Power P3 (W)" },
+      "3059": { "dataType": "float", "scalingFactor": 1, "comment": "Active Power Total (W)" },
+      "3061": { "dataType": "float", "scalingFactor": 1, "comment": "Reactive Power Q1 (VAR)" },
+      "3063": { "dataType": "float", "scalingFactor": 1, "comment": "Reactive Power Q2 (VAR)" },
+      "3065": { "dataType": "float", "scalingFactor": 1, "comment": "Reactive Power Q3 (VAR)" },
+      "3067": { "dataType": "float", "scalingFactor": 1, "comment": "Reactive Power Total (VAR)" },
+      "3069": { "dataType": "float", "scalingFactor": 1, "comment": "Apparent Power S1 (VA)" },
+      "3071": { "dataType": "float", "scalingFactor": 1, "comment": "Apparent Power S2 (VA)" },
+      "3073": { "dataType": "float", "scalingFactor": 1, "comment": "Apparent Power S3 (VA)" },
+      "3075": { "dataType": "float", "scalingFactor": 1, "comment": "Apparent Power Total (VA)" },
+      "3077": { "dataType": "float", "scalingFactor": 1, "comment": "Power Factor PF1" },
+      "3079": { "dataType": "float", "scalingFactor": 1, "comment": "Power Factor PF2" },
+      "3081": { "dataType": "float", "scalingFactor": 1, "comment": "Power Factor PF3" },
+      "3083": { "dataType": "float", "scalingFactor": 1, "comment": "Power Factor Total" }
+    },
+    "input_registers": {}
+  }
+}
