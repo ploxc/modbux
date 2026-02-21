@@ -8,6 +8,7 @@ import {
   cell,
   selectRegisterType,
   enableAdvancedMode,
+  disableAdvancedMode,
   cleanServerState,
   loadServerConfig,
   clearData
@@ -134,75 +135,77 @@ async function scrollCell(p: any, rowId: number, field: string): Promise<string>
 
 /** Load dummy data at a specific address range (must be disconnected) */
 async function loadDummyData(p: any, address: string, length: string): Promise<void> {
-  const addressInput = p.getByTestId('reg-address-input').locator('input')
-  await addressInput.fill(address)
-  const lengthInput = p.getByTestId('reg-length-input').locator('input')
-  await lengthInput.fill(length)
-  await p.waitForTimeout(300)
+  await test.step(`load dummy data @ ${address} (len ${length})`, async () => {
+    const addressInput = p.getByTestId('reg-address-input').locator('input')
+    await addressInput.fill(address)
+    const lengthInput = p.getByTestId('reg-length-input').locator('input')
+    await lengthInput.fill(length)
 
-  await p.getByTestId('menu-btn').click()
-  await p.waitForTimeout(300)
-  await p.getByTestId('load-dummy-data-btn').click()
-  await p.waitForTimeout(500)
+    await p.getByTestId('menu-btn').click()
+    const dummyBtn = p.getByTestId('load-dummy-data-btn')
+    await expect(dummyBtn).toBeVisible()
+    await dummyBtn.click()
+
+    // Wait for the first row of this range to appear
+    await expect(p.locator(`.MuiDataGrid-row[data-id="${address}"]`)).toBeVisible()
+  })
 }
 
 /** Configure a register row: dataType, scalingFactor, comment, interpolation */
 async function configureRegister(p: any, rowId: number, reg: ClientRegister): Promise<void> {
-  const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
+  const label = `${reg.dataType.toUpperCase()} @ ${rowId}${reg.comment ? ` (${reg.comment})` : ''}`
 
-  // Data type (dropdown select)
-  const displayType = reg.dataType.toUpperCase()
-  await row.locator('[data-field="dataType"]').dblclick()
-  await p.waitForTimeout(300)
-  await p.getByRole('option', { name: displayType, exact: true }).click()
-  await p.keyboard.press('Enter')
-  await p.waitForTimeout(300)
+  await test.step(`configure: ${label}`, async () => {
+    const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
 
-  // Scaling factor (only if != 1)
-  if (reg.scalingFactor !== 1) {
-    await row.locator('[data-field="scalingFactor"]').dblclick()
-    await p.waitForTimeout(200)
-    const sfInput = row.locator('[data-field="scalingFactor"] input')
-    await sfInput.fill(String(reg.scalingFactor))
+    // Data type (dropdown select)
+    const displayType = reg.dataType.toUpperCase()
+    await row.locator('[data-field="dataType"]').dblclick()
+    await expect(p.getByRole('option', { name: displayType, exact: true })).toBeVisible()
+    await p.getByRole('option', { name: displayType, exact: true }).click()
     await p.keyboard.press('Enter')
-    await p.waitForTimeout(200)
-  }
 
-  // Comment
-  if (reg.comment) {
-    await row.locator('[data-field="comment"]').dblclick()
-    await p.waitForTimeout(200)
-    const commentInput = row.locator('[data-field="comment"] input')
-    await commentInput.fill(reg.comment)
-    await p.keyboard.press('Enter')
-    await p.waitForTimeout(200)
-  }
-
-  // Interpolation (modal with x1, x2, y1, y2 fields)
-  if (reg.interpolate) {
-    const interpBtn = row.locator('button[title="Interpolation"]')
-    await interpBtn.click()
-    await p.waitForTimeout(500)
-
-    const modal = p.locator('.MuiModal-root')
-
-    for (const key of ['x1', 'x2', 'y1', 'y2'] as const) {
-      const field = modal.locator(`label:has-text("${key}")`).locator('..').locator('input')
-      await field.click({ clickCount: 3 })
-      await field.fill(reg.interpolate[key])
-      await p.waitForTimeout(200)
+    // Scaling factor (only if != 1)
+    if (reg.scalingFactor !== 1) {
+      await row.locator('[data-field="scalingFactor"]').dblclick()
+      const sfInput = row.locator('[data-field="scalingFactor"] input')
+      await expect(sfInput).toBeVisible()
+      await sfInput.fill(String(reg.scalingFactor))
+      await p.keyboard.press('Enter')
     }
 
-    await p.keyboard.press('Escape')
-    await p.waitForTimeout(300)
-  }
+    // Comment
+    if (reg.comment) {
+      await row.locator('[data-field="comment"]').dblclick()
+      const commentInput = row.locator('[data-field="comment"] input')
+      await expect(commentInput).toBeVisible()
+      await commentInput.fill(reg.comment)
+      await p.keyboard.press('Enter')
+    }
+
+    // Interpolation (modal with x1, x2, y1, y2 fields)
+    if (reg.interpolate) {
+      const interpBtn = row.locator('button[title="Interpolation"]')
+      await interpBtn.click()
+
+      const modal = p.locator('.MuiModal-root')
+      await expect(modal).toBeVisible()
+
+      for (const key of ['x1', 'x2', 'y1', 'y2'] as const) {
+        const field = modal.locator(`label:has-text("${key}")`).locator('..').locator('input')
+        await field.click({ clickCount: 3 })
+        await field.fill(reg.interpolate[key])
+      }
+
+      await p.keyboard.press('Escape')
+      await expect(modal).not.toBeVisible()
+    }
+  })
 }
 
 // ─── Tests ────────────────────────────────────────────────────────
 
 test.describe.serial('Huawei Smart Logger — JSON server + manual client config', () => {
-  test.setTimeout(120_000)
-
   // ─── Server setup (JSON load) ──────────────────────────────────
 
   test('clean server state', async ({ mainPage }) => {
@@ -218,6 +221,9 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('navigate to client', async ({ mainPage }) => {
     await navigateToClient(mainPage)
     await selectRegisterType(mainPage, 'Holding Registers')
+    // Disable advanced mode to avoid horizontal scrolling during cell editing
+    // (extra columns push comment/scalingFactor off-screen, causing Playwright scroll delays)
+    await disableAdvancedMode(mainPage)
   })
 
   // Generate a test per address group — all derived from client JSON
@@ -225,6 +231,8 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     test(`configure group ${group.start} (${group.registers.length} regs, len ${group.length})`, async ({
       mainPage
     }) => {
+      test.setTimeout(group.registers.length * 2000 + 20_000)
+
       await loadDummyData(mainPage, String(group.start), String(group.length))
 
       for (const { address, reg } of group.registers) {

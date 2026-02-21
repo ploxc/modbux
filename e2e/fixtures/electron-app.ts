@@ -56,6 +56,12 @@ export const test = base.extend<{}, ElectronFixtures>({
       await page.waitForLoadState('domcontentloaded')
       await page.waitForTimeout(500)
 
+      // Disable CSS animations/transitions globally for faster test execution
+      await page.addStyleTag({
+        content:
+          '*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }'
+      })
+
       await use(page)
     },
     { scope: 'worker' }

@@ -35,7 +35,28 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   // ─── Advanced mode & 64-bit toggle ────────────────────────────────
 
-  test('advanced mode is off by default — no value columns visible', async ({ mainPage }) => {
+  test('disable advanced mode — no value columns visible', async ({ mainPage }) => {
+    // Ensure advanced mode is off (earlier specs may have enabled it)
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage
+      .getByTestId('advanced-mode-checkbox')
+      .waitFor({ state: 'visible', timeout: 5000 })
+
+    const advInput = mainPage
+      .getByTestId('advanced-mode-checkbox')
+      .locator('input[type="checkbox"]')
+    if (await advInput.isChecked()) {
+      await mainPage.getByTestId('advanced-mode-checkbox').click()
+      await mainPage.waitForTimeout(200)
+    }
+
+    // 64-bit checkbox should be disabled when advanced mode is off
+    const show64Checkbox = mainPage.getByTestId('show-64bit-checkbox')
+    await expect(show64Checkbox).toHaveClass(/Mui-disabled/)
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(200)
+
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
     await expect(header.locator('[data-field="word_uint16"]')).not.toBeVisible()
@@ -49,8 +70,18 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       .waitFor({ state: 'visible', timeout: 5000 })
     await mainPage.getByTestId('advanced-mode-checkbox').click()
     await mainPage.waitForTimeout(200)
+
+    // Ensure 64-bit is off (earlier specs may have left it on)
+    const show64Input = mainPage
+      .getByTestId('show-64bit-checkbox')
+      .locator('input[type="checkbox"]')
+    if (await show64Input.isChecked()) {
+      await mainPage.getByTestId('show-64bit-checkbox').click()
+      await mainPage.waitForTimeout(200)
+    }
+
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await mainPage.waitForTimeout(200)
 
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int16"]')).toBeVisible()
@@ -59,7 +90,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(header.locator('[data-field="word_uint32"]')).toBeVisible()
     await expect(header.locator('[data-field="word_float"]')).toBeVisible()
 
-    // 64-bit columns should not be visible yet
+    // 64-bit columns should not be visible (explicitly disabled above)
     await expect(header.locator('[data-field="word_int64"]')).not.toBeVisible()
   })
 
@@ -236,60 +267,123 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   // ─── Register read config toggle ──────────────────────────────────
 
-  test('read config button is disabled when no registers configured', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await expect(btn).toBeDisabled()
+  for (const regType of ['Holding Registers', 'Input Registers']) {
+    test(`[${regType}] read config: clear config → button disabled`, async ({ mainPage }) => {
+      await selectRegisterType(mainPage, regType)
+      await mainPage.getByTestId('clear-config-btn').click()
+
+      const btn = mainPage.getByTestId('reg-read-config-btn')
+      await expect(btn).toBeDisabled()
+    })
+
+    test(`[${regType}] read config: set data type → button enabled`, async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '10')
+
+      const row = mainPage.locator('.MuiDataGrid-row').first()
+      await row.locator('[data-field="dataType"]').dblclick()
+      await mainPage.waitForTimeout(300)
+      await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
+      await mainPage.keyboard.press('Enter')
+      await mainPage.waitForTimeout(300)
+
+      await expect(mainPage.getByTestId('reg-read-config-btn')).toBeEnabled()
+    })
+
+    test(`[${regType}] read config: toggle on and off`, async ({ mainPage }) => {
+      const btn = mainPage.getByTestId('reg-read-config-btn')
+
+      await btn.click()
+      await mainPage.waitForTimeout(300)
+      await expect(btn).toHaveClass(/Mui-selected/)
+
+      await btn.click()
+      await mainPage.waitForTimeout(300)
+      await expect(btn).not.toHaveClass(/Mui-selected/)
+    })
+
+    test(`[${regType}] read config: remove data type → button disabled`, async ({ mainPage }) => {
+      const btn = mainPage.getByTestId('reg-read-config-btn')
+      await btn.click()
+      await mainPage.waitForTimeout(300)
+      await expect(btn).toHaveClass(/Mui-selected/)
+
+      const row = mainPage.locator('.MuiDataGrid-row').first()
+      await row.locator('[data-field="dataType"]').dblclick()
+      await mainPage.waitForTimeout(300)
+      await mainPage.getByRole('option', { name: 'NONE' }).click()
+      await mainPage.keyboard.press('Enter')
+      await mainPage.waitForTimeout(300)
+
+      await expect(btn).toBeDisabled()
+    })
+  }
+
+  // ─── Coils & Discrete Inputs — toolbar differences ─────────────────
+
+  for (const regType of ['Coils', 'Discrete Inputs']) {
+    test(`[${regType}] no endian toggle visible`, async ({ mainPage }) => {
+      await selectRegisterType(mainPage, regType)
+
+      await expect(mainPage.getByTestId('endian-be-btn')).not.toBeVisible()
+      await expect(mainPage.getByTestId('endian-le-btn')).not.toBeVisible()
+    })
+
+    test(`[${regType}] no advanced mode or 64-bit options in menu`, async ({ mainPage }) => {
+      await mainPage.getByTestId('menu-btn').click()
+      await mainPage.waitForTimeout(200)
+
+      await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
+      await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
+
+      await mainPage.keyboard.press('Escape')
+    })
+
+    test(`[${regType}] scan button says "Scan TRUE Bits"`, async ({ mainPage }) => {
+      await mainPage.getByTestId('menu-btn').click()
+      await mainPage.waitForTimeout(200)
+
+      await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
+
+      await mainPage.keyboard.press('Escape')
+    })
+
+    test(`[${regType}] grid shows bit column, no dataType column`, async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+
+      const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+      await expect(header.locator('[data-field="bit"]')).toBeVisible()
+      await expect(header.locator('[data-field="dataType"]')).not.toBeVisible()
+      await expect(header.locator('[data-field="hex"]')).not.toBeVisible()
+    })
+  }
+
+  test('[Coils] write action column is visible', async ({ mainPage }) => {
+    await selectRegisterType(mainPage, 'Coils')
+    await readRegisters(mainPage, '0', '8')
+
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="actions"]')).toBeVisible()
   })
 
-  test('read config button enables after setting a data type', async ({ mainPage }) => {
-    // Double-click the data type cell on row 0 to open the select
-    const row = mainPage.locator('.MuiDataGrid-row').first()
-    const dataTypeCell = row.locator('[data-field="dataType"]')
-    await dataTypeCell.dblclick()
-    await mainPage.waitForTimeout(300)
+  test('[Discrete Inputs] no write action column (read-only)', async ({ mainPage }) => {
+    await selectRegisterType(mainPage, 'Discrete Inputs')
+    await readRegisters(mainPage, '0', '8')
 
-    // Select INT16 from the dropdown
-    await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
-    await mainPage.keyboard.press('Enter')
-    await mainPage.waitForTimeout(300)
-
-    // Button should now be enabled
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await expect(btn).toBeEnabled()
+    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
+    await expect(header.locator('[data-field="actions"]')).not.toBeVisible()
   })
 
-  test('read config button toggles on and off', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
+  // Verify 16-bit register features are back after switching
+  test('[Holding Registers] endian toggle and advanced mode return', async ({ mainPage }) => {
+    await selectRegisterType(mainPage, 'Holding Registers')
 
-    // Toggle on
-    await btn.click()
-    await mainPage.waitForTimeout(300)
-    await expect(btn).toHaveClass(/Mui-selected/)
+    await expect(mainPage.getByTestId('endian-be-btn')).toBeVisible()
 
-    // Toggle off
-    await btn.click()
-    await mainPage.waitForTimeout(300)
-    await expect(btn).not.toHaveClass(/Mui-selected/)
-  })
-
-  test('read config button disables when data type is removed', async ({ mainPage }) => {
-    // First toggle on
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await mainPage.waitForTimeout(300)
-    await expect(btn).toHaveClass(/Mui-selected/)
-
-    // Remove data type (set back to NONE)
-    const row = mainPage.locator('.MuiDataGrid-row').first()
-    const dataTypeCell = row.locator('[data-field="dataType"]')
-    await dataTypeCell.dblclick()
-    await mainPage.waitForTimeout(300)
-    await mainPage.getByRole('option', { name: 'NONE' }).click()
-    await mainPage.keyboard.press('Enter')
-    await mainPage.waitForTimeout(300)
-
-    // Button should be disabled and no longer selected
-    await expect(btn).toBeDisabled()
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.waitForTimeout(200)
+    await expect(mainPage.getByTestId('advanced-mode-checkbox')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
+    await mainPage.keyboard.press('Escape')
   })
 
   // ─── Load dummy data ────────────────────────────────────────────────

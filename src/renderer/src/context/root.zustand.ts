@@ -13,6 +13,15 @@ import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
 import { onEvent } from '@renderer/events'
 
+// Debounced IPC sync — avoids flooding the main process on rapid cell edits
+let _ipcTimer: ReturnType<typeof setTimeout> | null = null
+function syncRegisterMappingToMain(): void {
+  if (_ipcTimer) clearTimeout(_ipcTimer)
+  _ipcTimer = setTimeout(() => {
+    window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+  }, 150)
+}
+
 export const useRootZustand = create<
   RootZusand,
   [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
@@ -70,7 +79,7 @@ export const useRootZustand = create<
           state.registerMapping[type][register][key] = value
         })
 
-        window.api.setRegisterMapping(get().registerMapping)
+        syncRegisterMappingToMain()
       },
       replaceRegisterMapping: (registerMapping) =>
         set((state) => {
@@ -327,6 +336,7 @@ export const useRootZustand = create<
       addScanUnitIdResult: (scanUnitIDResult) =>
         set((state) => {
           state.scanUnitIdResults.unshift(scanUnitIDResult)
+          while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
         }),
       clearScanUnitIdResults: () =>
         set((state) => {

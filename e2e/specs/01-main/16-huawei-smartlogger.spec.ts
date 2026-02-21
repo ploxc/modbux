@@ -43,6 +43,9 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('navigate to client', async ({ mainPage }) => {
     await navigateToClient(mainPage)
+    // Ensure TCP mode (previous spec may leave client in RTU mode)
+    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible({ timeout: 3000 })
   })
 
   test('connect to server', async ({ mainPage }) => {

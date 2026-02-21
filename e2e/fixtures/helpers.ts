@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import type { RegisterDef, ServerConfig } from './types'
 
 /** Scale a timeout for fast mode: 300→75ms, 200→50ms, ≤100→0ms, 500→100ms */
@@ -42,6 +42,7 @@ export async function cell(p: Page, rowId: number, field: string): Promise<strin
 
 /**
  * Add a register with full config support.
+ * Uses test.step() for named reporting per register.
  * @param modalAlreadyOpen - set to true if modal is already open (e.g. after "Add & Next")
  * @param fast             - minimal delays; use in setup-only helpers, not in spec tests
  */
@@ -51,93 +52,96 @@ export async function addRegister(
   modalAlreadyOpen = false,
   fast = false
 ): Promise<void> {
-  if (!modalAlreadyOpen) {
-    await p.getByTestId(`add-${reg.registerType}-btn`).click()
-    await p.waitForTimeout(t(300, fast))
-  }
+  const label = `${reg.dataType} @ ${reg.address} (${reg.mode}${reg.comment ? `, ${reg.comment}` : ''})`
 
-  await selectDataType(p, reg.dataType, fast)
+  await test.step(`add register: ${label}`, async () => {
+    const modal = p.getByTestId('add-reg-address-input')
 
-  const addressInput = p.getByTestId('add-reg-address-input').locator('input')
-  await addressInput.fill(String(reg.address))
-  await p.waitForTimeout(t(100, fast))
+    if (!modalAlreadyOpen) {
+      await p.getByTestId(`add-${reg.registerType}-btn`).click()
+      await expect(modal).toBeVisible()
+    }
 
-  if (reg.mode === 'fixed-utf8') {
-    // UTF-8: always fixed, fill string value and register length
-    const lengthInput = p.getByTestId('add-reg-length-input').locator('input')
-    await lengthInput.fill(String(reg.length))
-    await p.waitForTimeout(t(100, fast))
-    const stringInput = p.getByTestId('add-reg-string-input').locator('input')
-    await stringInput.fill(reg.stringValue)
-    await p.waitForTimeout(t(100, fast))
-  } else if (reg.mode === 'fixed-datetime') {
-    // UNIX/DATETIME fixed: date picker is shown by default, just leave as-is (current time)
-    await p.getByTestId('add-reg-fixed-btn').click()
-    await p.waitForTimeout(t(100, fast))
-  } else if (reg.mode === 'generator-datetime') {
-    // UNIX/DATETIME generator: only interval
-    await p.getByTestId('add-reg-generator-btn').click()
-    await p.waitForTimeout(t(100, fast))
-    const intervalInput = p.getByTestId('add-reg-interval-input').locator('input')
-    await intervalInput.fill(reg.interval)
-    await p.waitForTimeout(t(100, fast))
-  } else if (reg.mode === 'fixed') {
-    await p.getByTestId('add-reg-fixed-btn').click()
-    await p.waitForTimeout(t(100, fast))
-    const valueInput = p.getByTestId('add-reg-value-input').locator('input')
-    await valueInput.fill(reg.value)
-    await p.waitForTimeout(t(100, fast))
-  } else {
-    await p.getByTestId('add-reg-generator-btn').click()
-    await p.waitForTimeout(t(100, fast))
-    const minInput = p.getByTestId('add-reg-min-input').locator('input')
-    await minInput.fill(reg.min)
-    const maxInput = p.getByTestId('add-reg-max-input').locator('input')
-    await maxInput.fill(reg.max)
-    const intervalInput = p.getByTestId('add-reg-interval-input').locator('input')
-    await intervalInput.fill(reg.interval)
-    await p.waitForTimeout(t(100, fast))
-  }
+    await selectDataType(p, reg.dataType, fast)
 
-  if (reg.comment) {
-    const commentInput = p.getByTestId('add-reg-comment-input').locator('input')
-    await commentInput.fill(reg.comment)
-  }
+    const addressInput = modal.locator('input')
+    await addressInput.fill(String(reg.address))
 
-  if (reg.next) {
-    await p.getByTestId('add-reg-next-btn').click()
-  } else {
-    await p.getByTestId('add-reg-submit-btn').click()
-  }
-  await p.waitForTimeout(t(300, fast))
+    if (reg.mode === 'fixed-utf8') {
+      const lengthInput = p.getByTestId('add-reg-length-input').locator('input')
+      await lengthInput.fill(String(reg.length))
+      const stringInput = p.getByTestId('add-reg-string-input').locator('input')
+      await stringInput.fill(reg.stringValue)
+    } else if (reg.mode === 'fixed-datetime') {
+      await p.getByTestId('add-reg-fixed-btn').click()
+    } else if (reg.mode === 'generator-datetime') {
+      await p.getByTestId('add-reg-generator-btn').click()
+      const intervalInput = p.getByTestId('add-reg-interval-input').locator('input')
+      await expect(intervalInput).toBeVisible()
+      await intervalInput.fill(reg.interval)
+    } else if (reg.mode === 'fixed') {
+      await p.getByTestId('add-reg-fixed-btn').click()
+      const valueInput = p.getByTestId('add-reg-value-input').locator('input')
+      await expect(valueInput).toBeVisible()
+      await valueInput.fill(reg.value)
+    } else {
+      await p.getByTestId('add-reg-generator-btn').click()
+      const minInput = p.getByTestId('add-reg-min-input').locator('input')
+      await expect(minInput).toBeVisible()
+      await minInput.fill(reg.min)
+      const maxInput = p.getByTestId('add-reg-max-input').locator('input')
+      await maxInput.fill(reg.max)
+      const intervalInput = p.getByTestId('add-reg-interval-input').locator('input')
+      await intervalInput.fill(reg.interval)
+    }
+
+    if (reg.comment) {
+      const commentInput = p.getByTestId('add-reg-comment-input').locator('input')
+      await commentInput.fill(reg.comment)
+    }
+
+    if (reg.next) {
+      await p.getByTestId('add-reg-next-btn').click()
+      // After "Add & Next", modal stays open with cleared address
+      await expect(addressInput).toBeVisible()
+    } else {
+      await p.getByTestId('add-reg-submit-btn').click()
+      // After submit, modal closes
+      await expect(modal).not.toBeVisible()
+    }
+  })
 }
 
 /** Add coils starting at the given address (adds a group of 8) */
 export async function addCoils(p: Page, address: number, fast = false): Promise<void> {
-  await p.getByTestId('add-coils-btn').click()
-  await p.waitForTimeout(t(300, fast))
+  await test.step(`add coils @ ${address}`, async () => {
+    await p.getByTestId('add-coils-btn').click()
+    const modal = p.getByTestId('add-bool-address-input')
+    await expect(modal).toBeVisible()
 
-  const addressInput = p.getByTestId('add-bool-address-input').locator('input')
-  await addressInput.fill(String(address))
-  await p.getByTestId('add-bool-add-btn').click()
-  await p.waitForTimeout(t(200, fast))
+    await modal.locator('input').fill(String(address))
+    await p.getByTestId('add-bool-add-btn').click()
+    await p.waitForTimeout(t(200, fast))
 
-  await p.keyboard.press('Escape')
-  await p.waitForTimeout(t(200, fast))
+    await p.keyboard.press('Escape')
+    await expect(modal).not.toBeVisible()
+  })
 }
 
 /** Add discrete inputs starting at the given address (adds a group of 8) */
 export async function addDiscreteInputs(p: Page, address: number, fast = false): Promise<void> {
-  await p.getByTestId('add-discrete_inputs-btn').click()
-  await p.waitForTimeout(t(300, fast))
+  await test.step(`add discrete inputs @ ${address}`, async () => {
+    await p.getByTestId('add-discrete_inputs-btn').click()
+    const modal = p.getByTestId('add-bool-address-input')
+    await expect(modal).toBeVisible()
 
-  const addressInput = p.getByTestId('add-bool-address-input').locator('input')
-  await addressInput.fill(String(address))
-  await p.getByTestId('add-bool-add-btn').click()
-  await p.waitForTimeout(t(200, fast))
+    await modal.locator('input').fill(String(address))
+    await p.getByTestId('add-bool-add-btn').click()
+    await p.waitForTimeout(t(200, fast))
 
-  await p.keyboard.press('Escape')
-  await p.waitForTimeout(t(200, fast))
+    await p.keyboard.press('Escape')
+    await expect(modal).not.toBeVisible()
+  })
 }
 
 /** Set client address and length, then read */
@@ -146,9 +150,9 @@ export async function readRegisters(p: Page, address: string, length: string): P
   await addressInput.fill(address)
   const lengthInput = p.getByTestId('reg-length-input').locator('input')
   await lengthInput.fill(length)
-  await p.waitForTimeout(100)
   await p.getByTestId('read-btn').click()
-  await p.waitForTimeout(1500)
+  // Wait for at least one row to appear with the requested start address
+  await expect(p.locator(`.MuiDataGrid-row[data-id="${address}"]`)).toBeVisible({ timeout: 5000 })
 }
 
 /** Clear the client data grid */
@@ -170,10 +174,18 @@ export async function setupServerConfig(
   config: ServerConfig | Omit<ServerConfig, 'port'>,
   fast = false
 ): Promise<void> {
-  const nameField = p.getByTestId('server-name-input').locator('input')
-  await nameField.fill(config.name)
+  const msPerRegister = fast ? 1000 : 2000
+  const total = config.registers.length + config.bools.length
+  test.setTimeout(total * msPerRegister + 15_000)
 
-  await selectUnitId(p, config.unitId, fast)
+  await test.step(`set server name: ${config.name}`, async () => {
+    const nameField = p.getByTestId('server-name-input').locator('input')
+    await nameField.fill(config.name)
+  })
+
+  await test.step(`select unit ID: ${config.unitId}`, async () => {
+    await selectUnitId(p, config.unitId, fast)
+  })
 
   if (fast) {
     // Group registers by type (preserving original order within each type).
@@ -191,7 +203,6 @@ export async function setupServerConfig(
       }
     }
   } else {
-    // Original behaviour: respect the `next` flag on each RegisterDef
     let modalOpen = false
     for (const reg of config.registers) {
       await addRegister(p, reg, modalOpen)
@@ -217,14 +228,16 @@ export async function setupServerConfig(
     await addDiscreteInputs(p, start, fast)
   }
 
-  await p.waitForTimeout(t(500, fast))
-
-  for (const bool of config.bools) {
-    if (bool.state) {
-      const btn = p.getByTestId(`server-bool-${bool.registerType}-${bool.address}`)
-      await btn.click()
-      await p.waitForTimeout(t(100, fast))
-    }
+  if (config.bools.length > 0) {
+    await test.step(`toggle ${config.bools.filter((b) => b.state).length} bools`, async () => {
+      for (const bool of config.bools) {
+        if (bool.state) {
+          const btn = p.getByTestId(`server-bool-${bool.registerType}-${bool.address}`)
+          await btn.click()
+          await p.waitForTimeout(t(100, fast))
+        }
+      }
+    })
   }
 }
 
@@ -236,12 +249,12 @@ export async function connectClient(
   unitId: string
 ): Promise<void> {
   const hostInput = p.getByTestId('tcp-host-input').locator('input')
+  await expect(hostInput).toBeVisible({ timeout: 5000 })
   await hostInput.fill(host)
   const portInput = p.getByTestId('tcp-port-input').locator('input')
   await portInput.fill(port)
   const unitIdInput = p.getByTestId('client-unitid-input').locator('input')
   await unitIdInput.fill(unitId)
-  await p.waitForTimeout(200)
   await p.getByTestId('connect-btn').click()
   await expect(p.getByTestId('connect-btn')).toContainText('Disconnect', { timeout: 5000 })
 }
@@ -264,40 +277,39 @@ export async function loadServerConfig(p: Page, configPath: string): Promise<voi
 
 /** Navigate to Server view from any view */
 export async function navigateToServer(p: Page): Promise<void> {
-  // !changed: when alreay at the home page it should just go to the view
   if (await p.getByTestId('home-server-btn').isVisible()) {
     await p.getByTestId('home-server-btn').click()
   } else {
     await p.getByTestId('home-btn').click()
-    await p.waitForTimeout(600)
+    await expect(p.getByTestId('home-server-btn')).toBeVisible({ timeout: 5000 })
     await p.getByTestId('home-server-btn').click()
   }
 
-  await p.waitForTimeout(600)
+  // Wait for server view to be ready
+  await expect(p.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
 }
 
 /** Navigate to Client view from any view */
 export async function navigateToClient(p: Page): Promise<void> {
-  // !changed: when alreay at the home page it should just go to the view
   if (await p.getByTestId('home-client-btn').isVisible()) {
     await p.getByTestId('home-client-btn').click()
   } else {
     await p.getByTestId('home-btn').click()
-    await p.waitForTimeout(600)
+    await expect(p.getByTestId('home-client-btn')).toBeVisible({ timeout: 5000 })
     await p.getByTestId('home-client-btn').click()
   }
 
-  await p.waitForTimeout(600)
+  // Wait for client view to be ready (use protocol-agnostic element)
+  await expect(p.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
 }
 
 /** Navigate to Home from any view */
 export async function navigateToHome(p: Page): Promise<void> {
-  // Check if already on home page
   if (await p.getByTestId('home-server-btn').isVisible()) {
     return
   }
   await p.getByTestId('home-btn').click()
-  await p.waitForTimeout(600)
+  await expect(p.getByTestId('home-server-btn')).toBeVisible({ timeout: 5000 })
 }
 
 /**
@@ -334,29 +346,35 @@ export async function cleanServerState(p: Page): Promise<void> {
 }
 
 /**
- * Enable advanced mode and 64-bit values in the client menu.
- * Idempotent: only clicks a checkbox if it isn't already checked.
- * Safe to call even if a previous spec already enabled it.
+ * Toggle advanced mode (and 64-bit values) in the client menu.
+ * Idempotent: only clicks checkboxes when their state doesn't match `enabled`.
  */
-export async function enableAdvancedMode(p: Page): Promise<void> {
-  await selectRegisterType(p, 'Holding Registers')
+export async function setAdvancedMode(p: Page, enabled: boolean): Promise<void> {
+  if (enabled) await selectRegisterType(p, 'Holding Registers')
 
   await p.getByTestId('menu-btn').click()
-  // Wait for the menu popover to fully mount before interacting
   await p.getByTestId('advanced-mode-checkbox').waitFor({ state: 'visible', timeout: 5000 })
 
   const advInput = p.getByTestId('advanced-mode-checkbox').locator('input[type="checkbox"]')
-  if (!(await advInput.isChecked())) {
+  if ((await advInput.isChecked()) !== enabled) {
     await p.getByTestId('advanced-mode-checkbox').click()
     await p.waitForTimeout(200)
   }
 
-  const show64Input = p.getByTestId('show-64bit-checkbox').locator('input[type="checkbox"]')
-  if (!(await show64Input.isChecked())) {
-    await p.getByTestId('show-64bit-checkbox').click()
-    await p.waitForTimeout(200)
+  if (enabled) {
+    const show64Input = p.getByTestId('show-64bit-checkbox').locator('input[type="checkbox"]')
+    if (!(await show64Input.isChecked())) {
+      await p.getByTestId('show-64bit-checkbox').click()
+      await p.waitForTimeout(200)
+    }
   }
 
   await p.keyboard.press('Escape')
   await p.waitForTimeout(200)
 }
+
+/** Convenience alias for setAdvancedMode(p, true) */
+export const enableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p, true)
+
+/** Convenience alias for setAdvancedMode(p, false) */
+export const disableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p, false)
