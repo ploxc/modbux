@@ -33,7 +33,6 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     // view-config-btn pushes the register mapping into the grid as rows (not a dialog)
     await selectRegisterType(mainPage, 'Holding Registers')
     await mainPage.getByTestId('view-config-btn').click()
-    await mainPage.waitForTimeout(500)
 
     // Grid should show rows for configured addresses (0 and 1 from client-basic.json)
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
@@ -64,7 +63,6 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   test('view config for input registers', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Input Registers')
     await mainPage.getByTestId('view-config-btn').click()
-    await mainPage.waitForTimeout(500)
 
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
     await expect(row0).toBeVisible()
@@ -110,7 +108,6 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
 
   test('clear client config — verify mappings removed', async ({ mainPage }) => {
     await mainPage.getByTestId('clear-config-btn').click()
-    await mainPage.waitForTimeout(500)
 
     // After clearing, view-config-btn should be disabled (no mappings)
     const viewBtn = mainPage.getByTestId('view-config-btn')
@@ -142,7 +139,6 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   test('verify comprehensive config — view shows all data types in grid', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
     await mainPage.getByTestId('view-config-btn').click()
-    await mainPage.waitForTimeout(500)
 
     // client-server1-unit0.json has: int16@0, uint16@1, int32@2, uint32@4, float@6,
     // int64@8, uint64@12, double@16, utf8@20, unix@25, datetime@27

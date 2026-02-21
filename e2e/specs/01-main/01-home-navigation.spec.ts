@@ -37,25 +37,17 @@ test.describe.serial('Home screen and navigation', () => {
 
   test('navigate to Server view and back', async ({ mainPage }) => {
     await mainPage.getByTestId('home-server-btn').click()
-    await mainPage.waitForTimeout(600)
-
     await expect(mainPage.getByTestId('section-coils')).toBeVisible()
 
     await mainPage.getByTestId('home-btn').click()
-    await mainPage.waitForTimeout(600)
-
     await expect(mainPage.getByTestId('home-server-btn')).toBeVisible()
   })
 
   test('navigate to Client view and back', async ({ mainPage }) => {
     await mainPage.getByTestId('home-client-btn').click()
-    await mainPage.waitForTimeout(600)
-
     await expect(mainPage.getByTestId('connect-btn')).toBeVisible()
 
     await mainPage.getByTestId('home-btn').click()
-    await mainPage.waitForTimeout(600)
-
     await expect(mainPage.getByTestId('home-client-btn')).toBeVisible()
   })
 })

@@ -7,10 +7,10 @@ import {
   loadServerConfig,
   connectClient,
   disconnectClient,
-  navigateToServer,
   navigateToClient,
   enableAdvancedMode,
-  cleanServerState
+  cleanServerState,
+  getServer2Port
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -61,25 +61,25 @@ test.describe.serial('Polling and Generator verification', () => {
     test('poll and verify generator values change', async ({ mainPage }) => {
       // Read initial value
       const hex1 = await cell(mainPage, 25, 'hex')
+      expect(hex1).toMatch(/^[0-9A-Fa-f]+$/)
       const val1 = parseInt(hex1, 16)
-
-      // Start polling
-      await mainPage.getByTestId('poll-btn').click()
-      await mainPage.waitForTimeout(3000)
-
-      // Read new value after polling
-      const hex2 = await cell(mainPage, 25, 'hex')
-      const val2 = parseInt(hex2, 16)
-
-      // Both values should be in range 0-1000
       expect(val1).toBeGreaterThanOrEqual(0)
       expect(val1).toBeLessThanOrEqual(1000)
-      expect(val2).toBeGreaterThanOrEqual(0)
-      expect(val2).toBeLessThanOrEqual(1000)
+
+      // Start polling and wait for value to change
+      await mainPage.getByTestId('poll-btn').click()
+
+      await expect(async () => {
+        const hex2 = await cell(mainPage, 25, 'hex')
+        expect(hex2).toMatch(/^[0-9A-Fa-f]+$/)
+        const val2 = parseInt(hex2, 16)
+        expect(val2).toBeGreaterThanOrEqual(0)
+        expect(val2).toBeLessThanOrEqual(1000)
+        expect(val2).not.toBe(val1)
+      }).toPass({ timeout: 10000 })
 
       // Stop polling
       await mainPage.getByTestId('poll-btn').click()
-      await mainPage.waitForTimeout(300)
       await clearData(mainPage)
     })
 
@@ -92,17 +92,7 @@ test.describe.serial('Polling and Generator verification', () => {
 
   test.describe.serial('Server 2 polling', () => {
     test('get server 2 port and connect', async ({ mainPage }) => {
-      await navigateToServer(mainPage)
-
-      const toggleButtons = mainPage.locator('[data-testid^="select-server-"]')
-      const secondServer = toggleButtons.nth(1)
-      await secondServer.click()
-      await mainPage.waitForTimeout(300)
-
-      const portInput = mainPage.getByTestId('server-port-input').locator('input')
-      server2Port = await portInput.inputValue()
-
-      await navigateToClient(mainPage)
+      server2Port = await getServer2Port(mainPage)
       await connectClient(mainPage, '127.0.0.1', server2Port, '0')
     })
 
@@ -112,25 +102,25 @@ test.describe.serial('Polling and Generator verification', () => {
 
       // Read initial value
       const hex1 = await cell(mainPage, 1, 'hex')
+      expect(hex1).toMatch(/^[0-9A-Fa-f]+$/)
       const val1 = parseInt(hex1, 16)
-
-      // Start polling — wait longer due to interval=3s
-      await mainPage.getByTestId('poll-btn').click()
-      await mainPage.waitForTimeout(5000)
-
-      // Read new value after polling
-      const hex2 = await cell(mainPage, 1, 'hex')
-      const val2 = parseInt(hex2, 16)
-
-      // Both values should be in range 10-90
       expect(val1).toBeGreaterThanOrEqual(10)
       expect(val1).toBeLessThanOrEqual(90)
-      expect(val2).toBeGreaterThanOrEqual(10)
-      expect(val2).toBeLessThanOrEqual(90)
+
+      // Start polling and wait for value to change (interval=3s)
+      await mainPage.getByTestId('poll-btn').click()
+
+      await expect(async () => {
+        const hex2 = await cell(mainPage, 1, 'hex')
+        expect(hex2).toMatch(/^[0-9A-Fa-f]+$/)
+        const val2 = parseInt(hex2, 16)
+        expect(val2).toBeGreaterThanOrEqual(10)
+        expect(val2).toBeLessThanOrEqual(90)
+        expect(val2).not.toBe(val1)
+      }).toPass({ timeout: 10000 })
 
       // Stop polling
       await mainPage.getByTestId('poll-btn').click()
-      await mainPage.waitForTimeout(300)
       await clearData(mainPage)
     })
 

@@ -5,6 +5,14 @@ import { type Page } from '@playwright/test'
 let serverPage: Page
 
 test.describe.serial('Split View — Server in separate window', () => {
+  test.afterAll(async ({ electronApp }) => {
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()
+        .filter((w) => w.getTitle() === 'Server')
+        .forEach((w) => w.close())
+    })
+  })
+
   test('navigate to home', async ({ mainPage }) => {
     await navigateToHome(mainPage)
   })
@@ -24,10 +32,10 @@ test.describe.serial('Split View — Server in separate window', () => {
 
   test('main window shows client (home button hidden)', async ({ mainPage }) => {
     await expect(mainPage.getByTestId('connect-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('home-btn')).not.toBeVisible()
   })
 
   test('server window shows server interface', async () => {
-    await serverPage.waitForTimeout(1000)
     await expect(serverPage.getByTestId('section-coils')).toBeVisible()
     await expect(serverPage.getByTestId('section-holding_registers')).toBeVisible()
   })
@@ -41,7 +49,6 @@ test.describe.serial('Split View — Server in separate window', () => {
         .find((w) => w.getTitle() === 'Server')
         ?.close()
     })
-    await mainPage.waitForTimeout(1000)
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()
   })
 })

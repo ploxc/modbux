@@ -7,11 +7,11 @@ import {
   loadServerConfig,
   connectClient,
   disconnectClient,
-  navigateToServer,
   navigateToClient,
   enableAdvancedMode,
   cleanServerState,
-  selectUnitId
+  selectUnitId,
+  getServer2Port
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -70,21 +70,17 @@ test.describe.serial('Client-Server Integration', () => {
   test('advanced mode checkboxes hidden on Coils', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Coils')
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
     await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
   })
 
   test('advanced mode checkboxes hidden on Discrete Inputs', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Discrete Inputs')
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
     await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
   })
 
   // ─── Server 1, Unit 0 reads ────────────────────────────────────────
@@ -345,17 +341,7 @@ test.describe.serial('Client-Server Integration', () => {
 
   test.describe.serial('Server 2, Unit 0 reads', () => {
     test('get server 2 port', async ({ mainPage }) => {
-      await navigateToServer(mainPage)
-
-      const toggleButtons = mainPage.locator('[data-testid^="select-server-"]')
-      const secondServer = toggleButtons.nth(1)
-      await secondServer.click()
-      await mainPage.waitForTimeout(300)
-
-      const portInput = mainPage.getByTestId('server-port-input').locator('input')
-      server2Port = await portInput.inputValue()
-
-      await navigateToClient(mainPage)
+      server2Port = await getServer2Port(mainPage)
     })
 
     test('connect to server 2, unit 0', async ({ mainPage }) => {

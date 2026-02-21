@@ -6,8 +6,10 @@ import {
   disconnectClient,
   readRegisters,
   cell,
+  scrollToRow,
   selectRegisterType,
   enableAdvancedMode,
+  disableAdvancedMode,
   cleanServerState,
   setupServerConfig,
   clearData
@@ -43,9 +45,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('navigate to client', async ({ mainPage }) => {
     await navigateToClient(mainPage)
-    // Ensure TCP mode (previous spec may leave client in RTU mode)
-    await mainPage.getByTestId('protocol-tcp-btn').click()
-    await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible({ timeout: 3000 })
   })
 
   test('connect to server', async ({ mainPage }) => {
@@ -164,14 +163,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   // ─── Load client config ────────────────────────────────────────────
 
   test('disable advanced mode for config view', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage
-      .getByTestId('advanced-mode-checkbox')
-      .waitFor({ state: 'visible', timeout: 5000 })
-    await mainPage.getByTestId('advanced-mode-checkbox').click()
-    await mainPage.waitForTimeout(200)
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await disableAdvancedMode(mainPage)
   })
 
   test('load Huawei client config', async ({ mainPage }) => {
@@ -207,10 +199,8 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await expect(grid).toContainText('INT32')
     await expect(grid).toContainText('UINT64')
 
-    // Scroll the virtual scroller to the bottom to render UTF8 rows (40713, 65524)
-    const scroller = mainPage.locator('.MuiDataGrid-virtualScroller')
-    await scroller.evaluate((el) => (el.scrollTop = el.scrollHeight))
-    await mainPage.waitForTimeout(300)
+    // Scroll to a UTF8 row (40713) to render it
+    await scrollToRow(mainPage, 40713)
     await expect(grid).toContainText('UTF8')
   })
 
@@ -252,7 +242,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     // Enable read configuration mode
     const btn = mainPage.getByTestId('reg-read-config-btn')
     await btn.click()
-    await mainPage.waitForTimeout(300)
     await expect(btn).toHaveClass(/Mui-selected/)
 
     // Trigger a read — should read configured registers
@@ -289,7 +278,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   test('disable read configuration mode', async ({ mainPage }) => {
     const btn = mainPage.getByTestId('reg-read-config-btn')
     await btn.click()
-    await mainPage.waitForTimeout(300)
     await expect(btn).not.toHaveClass(/Mui-selected/)
   })
 
@@ -301,7 +289,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('load dummy data when disconnected', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.waitForTimeout(500)
@@ -322,7 +309,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('clear client config', async ({ mainPage }) => {
     await mainPage.getByTestId('clear-config-btn').click()
-    await mainPage.waitForTimeout(500)
 
     const viewBtn = mainPage.getByTestId('view-config-btn')
     await expect(viewBtn).toBeDisabled()

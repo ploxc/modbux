@@ -16,7 +16,6 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
 
   test('open holding_registers add modal — verify default state', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
-    await mainPage.waitForTimeout(300)
 
     // Default mode is Fixed
     await expect(mainPage.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
@@ -80,7 +79,6 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     await mainPage.waitForTimeout(300)
     const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
     await addressInput.fill('0')
-    await mainPage.waitForTimeout(300)
 
     // Submit button should be disabled or address should show error
     const submitBtn = mainPage.getByTestId('add-reg-submit-btn')
@@ -139,7 +137,6 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     mainPage
   }) => {
     await selectDataType(mainPage, 'UTF-8')
-    await mainPage.waitForTimeout(300)
 
     // String input should be visible
     await expect(mainPage.getByTestId('add-reg-string-input')).toBeVisible()
@@ -176,7 +173,6 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
 
   test('UNIX fixed mode: date picker and UTC toggle visible', async ({ mainPage }) => {
     await selectDataType(mainPage, 'UNIX')
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
@@ -188,17 +184,14 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     const utcBtn = mainPage.getByTestId('add-reg-datetime-show-utc')
     // Click to toggle UTC on
     await utcBtn.click()
-    await mainPage.waitForTimeout(200)
     await expect(utcBtn).toHaveClass(/Mui-selected/)
     // Click again to toggle off
     await utcBtn.click()
-    await mainPage.waitForTimeout(200)
     await expect(utcBtn).not.toHaveClass(/Mui-selected/)
   })
 
   test('DATETIME fixed mode: date picker and UTC toggle visible', async ({ mainPage }) => {
     await selectDataType(mainPage, 'DATETIME')
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
@@ -208,7 +201,6 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     await selectDataType(mainPage, 'UNIX')
     await mainPage.waitForTimeout(200)
     await mainPage.getByTestId('add-reg-generator-btn').click()
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-interval-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-datetime-input')).not.toBeVisible()

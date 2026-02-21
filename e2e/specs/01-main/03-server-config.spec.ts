@@ -48,7 +48,6 @@ test.describe.serial('Server configuration', () => {
 
   test('edit holding register 0 value from -100 to 999', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-0').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toContainText('Submit Change')
 
@@ -57,7 +56,6 @@ test.describe.serial('Server configuration', () => {
     await mainPage.waitForTimeout(100)
 
     await mainPage.getByTestId('add-reg-submit-btn').click()
-    await mainPage.waitForTimeout(300)
 
     // Count should remain unchanged
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
@@ -78,7 +76,6 @@ test.describe.serial('Server configuration', () => {
 
   test('verify UTF-8 register via edit modal', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-20').click()
-    await mainPage.waitForTimeout(300)
 
     // Verify data type
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UTF-8')
@@ -97,7 +94,6 @@ test.describe.serial('Server configuration', () => {
 
   test('verify UNIX register via edit modal', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-26').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UNIX')
     // Fixed mode: date picker should be visible
@@ -110,7 +106,6 @@ test.describe.serial('Server configuration', () => {
 
   test('verify DATETIME generator register via edit modal', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-28').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('DATETIME')
     // Generator mode: interval should be visible, no date picker
@@ -127,7 +122,6 @@ test.describe.serial('Server configuration', () => {
 
   test('verify generator settings via edit modal', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-25').click()
-    await mainPage.waitForTimeout(300)
 
     // Verify generator mode is selected
     await expect(mainPage.getByTestId('add-reg-generator-btn')).toHaveClass(/Mui-selected/)
@@ -154,14 +148,12 @@ test.describe.serial('Server configuration', () => {
 
   test('toggle to Little Endian', async ({ mainPage }) => {
     await mainPage.getByTestId('server-endian-le-btn').click()
-    await mainPage.waitForTimeout(200)
     await expect(mainPage.getByTestId('server-endian-le-btn')).toHaveClass(/Mui-selected/)
     await expect(mainPage.getByTestId('server-endian-be-btn')).not.toHaveClass(/Mui-selected/)
   })
 
   test('toggle back to Big Endian', async ({ mainPage }) => {
     await mainPage.getByTestId('server-endian-be-btn').click()
-    await mainPage.waitForTimeout(200)
     await expect(mainPage.getByTestId('server-endian-be-btn')).toHaveClass(/Mui-selected/)
   })
 
@@ -185,11 +177,9 @@ test.describe.serial('Server configuration', () => {
 
   test('section collapse/expand works', async ({ mainPage }) => {
     await mainPage.getByTestId('section-holding_registers').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).not.toBeVisible()
 
     await mainPage.getByTestId('section-holding_registers').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).toBeVisible()
   })
 
@@ -218,7 +208,6 @@ test.describe.serial('Server configuration', () => {
 
   test('switch to server 1 — verify isolation', async ({ mainPage }) => {
     await mainPage.getByTestId('select-server-502').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
   })

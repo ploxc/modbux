@@ -8,7 +8,8 @@ import {
 import { resolve } from 'path'
 import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
 
-const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
 
 // This test manages its own app lifecycle (no shared fixture)
 let app: ElectronApplication
@@ -51,7 +52,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await launchApp(true) // clean start
     // Navigate to server
     await page.getByTestId('home-server-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
     // Set up server config
     await loadServerConfig(page, SERVER_CONFIG)
   })
@@ -59,9 +60,9 @@ test.describe.serial('Persistence — State survives app restart', () => {
   test('configure client connection settings', async () => {
     // Navigate to client
     await page.getByTestId('home-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('home-server-btn')).toBeVisible({ timeout: 5000 })
     await page.getByTestId('home-client-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
     // Fill in connection config
     const hostInput = page.getByTestId('tcp-host-input').locator('input')
     await hostInput.fill('192.168.1.100')
@@ -86,13 +87,13 @@ test.describe.serial('Persistence — State survives app restart', () => {
   test('verify client connection settings persisted', async () => {
     // Navigate to client
     await page.getByTestId('home-client-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
     const hostInput = page.getByTestId('tcp-host-input').locator('input')
-    expect(await hostInput.inputValue()).toBe('192.168.1.100')
+    await expect(hostInput).toHaveValue('192.168.1.100')
     const portInput = page.getByTestId('tcp-port-input').locator('input')
-    expect(await portInput.inputValue()).toBe('5020')
+    await expect(portInput).toHaveValue('5020')
     const unitIdInput = page.getByTestId('client-unitid-input').locator('input')
-    expect(await unitIdInput.inputValue()).toBe('5')
+    await expect(unitIdInput).toHaveValue('5')
   })
 
   test('verify connection state is disconnected after restart', async () => {
@@ -101,12 +102,12 @@ test.describe.serial('Persistence — State survives app restart', () => {
 
   test('verify server config persisted', async () => {
     await page.getByTestId('home-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('home-server-btn')).toBeVisible({ timeout: 5000 })
     await page.getByTestId('home-server-btn').click()
-    await page.waitForTimeout(600)
+    await expect(page.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
     // Check server name
     const nameField = page.getByTestId('server-name-input').locator('input')
-    expect(await nameField.inputValue()).toBe('Integration Test Server')
+    await expect(nameField).toHaveValue('Integration Test Server')
     // Check register counts
     await selectUnitId(page, '0')
     await expect(page.getByTestId('section-holding_registers')).toContainText('(12)')
@@ -117,6 +118,6 @@ test.describe.serial('Persistence — State survives app restart', () => {
 
   test('verify server port persisted', async () => {
     const portInput = page.getByTestId('server-port-input').locator('input')
-    expect(await portInput.inputValue()).toBe('502')
+    await expect(portInput).toHaveValue('502')
   })
 })

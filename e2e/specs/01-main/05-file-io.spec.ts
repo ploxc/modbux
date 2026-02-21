@@ -38,7 +38,6 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
   test('verify loaded register values via edit modal', async ({ mainPage }) => {
     // Check holding register 0 = INT16, value 100
     await mainPage.getByTestId('server-edit-reg-holding_registers-0').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('INT16')
     const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')
     expect(await valueInput.inputValue()).toBe('100')
@@ -153,7 +152,6 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
 
   test('verify legacy register migrated correctly', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-0').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('INT16')
     const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')

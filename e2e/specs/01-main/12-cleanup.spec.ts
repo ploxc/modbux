@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { loadServerConfig, selectUnitId, cleanServerState } from '../../fixtures/helpers'
+import { loadServerConfig, selectUnitId, cleanServerState, clearRegisterType } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
@@ -21,47 +21,31 @@ test.describe.serial('Cleanup Operations', () => {
   })
 
   test('clear server 2 register data', async ({ mainPage }) => {
-    await mainPage.getByTestId('delete-holding_registers-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(0)')
-    await mainPage.getByTestId('delete-coils-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-coils')).toContainText('(0)')
+    await clearRegisterType(mainPage, 'holding_registers')
+    await clearRegisterType(mainPage, 'coils')
   })
 
   test('delete server 2', async ({ mainPage }) => {
     await mainPage.getByTestId('delete-server-btn').click()
-    await mainPage.waitForTimeout(300)
     const remaining = mainPage.locator('[data-testid^="select-server-"]')
-    expect(await remaining.count()).toBe(1)
+    await expect(remaining).toHaveCount(1)
+    await expect(mainPage.getByTestId('select-server-502')).toBeVisible()
   })
 
   test('clear server 1, unit 1 data', async ({ mainPage }) => {
     await mainPage.getByTestId('select-server-502').click()
-    await mainPage.waitForTimeout(300)
     await selectUnitId(mainPage, '1')
-    await mainPage.getByTestId('delete-holding_registers-btn').click()
-    await mainPage.waitForTimeout(200)
-    await mainPage.getByTestId('delete-input_registers-btn').click()
-    await mainPage.waitForTimeout(200)
-    await mainPage.getByTestId('delete-coils-btn').click()
-    await mainPage.waitForTimeout(200)
+    await clearRegisterType(mainPage, 'holding_registers')
+    await clearRegisterType(mainPage, 'input_registers')
+    await clearRegisterType(mainPage, 'coils')
   })
 
   test('clear server 1, unit 0 data', async ({ mainPage }) => {
     await selectUnitId(mainPage, '0')
-    await mainPage.getByTestId('delete-coils-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-coils')).toContainText('(0)')
-    await mainPage.getByTestId('delete-discrete_inputs-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(0)')
-    await mainPage.getByTestId('delete-holding_registers-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(0)')
-    await mainPage.getByTestId('delete-input_registers-btn').click()
-    await mainPage.waitForTimeout(200)
-    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(0)')
+    await clearRegisterType(mainPage, 'coils')
+    await clearRegisterType(mainPage, 'discrete_inputs')
+    await clearRegisterType(mainPage, 'holding_registers')
+    await clearRegisterType(mainPage, 'input_registers')
   })
 
   test('main server cannot be deleted', async ({ mainPage }) => {

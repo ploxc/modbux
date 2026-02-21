@@ -9,7 +9,8 @@ import {
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
-const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
 
 test.describe.serial('Scan Operations', () => {
   // Setup: clean state and configure server with registers on multiple unit IDs
@@ -30,9 +31,7 @@ test.describe.serial('Scan Operations', () => {
   // Register Scan
   test('open register scan dialog', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await mainPage.getByTestId('scan-registers-btn').click()
-    await mainPage.waitForTimeout(500)
   })
 
   test('configure and start register scan', async ({ mainPage }) => {
@@ -57,16 +56,19 @@ test.describe.serial('Scan Operations', () => {
     // Modal auto-closed, results are in the main DataGrid
     const rows = mainPage.locator('.MuiDataGrid-row')
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
+    // Server config has addresses 0,1,2,4,6,8,12,16,20,25,26,28 in range 0-25
+    // Scan with length=1 finds individual addresses, at least 9 expected
     const count = await rows.count()
-    expect(count).toBeGreaterThan(0)
+    expect(count).toBeGreaterThanOrEqual(9)
+    // Verify specific known addresses appear in scan results
+    await expect(mainPage.locator('.MuiDataGrid-row[data-id="0"]')).toBeVisible()
+    await expect(mainPage.locator('.MuiDataGrid-row[data-id="6"]')).toBeVisible()
   })
 
   // Unit ID Scan
   test('open unit ID scan dialog', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await mainPage.getByTestId('scan-unitids-btn').click()
-    await mainPage.waitForTimeout(500)
   })
 
   test('configure and start unit ID scan', async ({ mainPage }) => {
@@ -94,26 +96,22 @@ test.describe.serial('Scan Operations', () => {
     const modal = mainPage.locator('.MuiModal-root')
     const rows = modal.locator('.MuiDataGrid-row')
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
+    // At least 2 unit IDs respond (server may respond to unconfigured unit IDs too)
     const count = await rows.count()
-    // Unit IDs 0 and 1 are configured, so at least 2 rows
     expect(count).toBeGreaterThanOrEqual(2)
 
     // Verify rows for unit ID 0 and 1 exist
-    const unit0Row = modal.locator('.MuiDataGrid-row[data-id="0"]')
-    await expect(unit0Row).toBeVisible()
-    const unit1Row = modal.locator('.MuiDataGrid-row[data-id="1"]')
-    await expect(unit1Row).toBeVisible()
+    await expect(modal.locator('.MuiDataGrid-row[data-id="0"]')).toBeVisible()
+    await expect(modal.locator('.MuiDataGrid-row[data-id="1"]')).toBeVisible()
   })
 
   test('close unit ID scan dialog', async ({ mainPage }) => {
     // Escape works now that scanning is finished
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
   })
 
   test('close menu dialog', async ({ mainPage }) => {
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
   })
 
   test('disconnect', async ({ mainPage }) => {

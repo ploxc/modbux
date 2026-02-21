@@ -378,3 +378,131 @@ export const enableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p,
 
 /** Convenience alias for setAdvancedMode(p, false) */
 export const disableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p, false)
+
+// ─── Shared helpers extracted from specs ───────────────────────────
+
+/** Scroll the DataGrid virtual scroller so a specific row is visible */
+export async function scrollToRow(p: Page, rowId: number): Promise<void> {
+  const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
+  const scroller = p.locator('.MuiDataGrid-virtualScroller')
+
+  // If already visible, nothing to do
+  if ((await row.count()) > 0 && (await row.isVisible())) return
+
+  // Scroll down in steps until the row appears
+  const scrollHeight = await scroller.evaluate((el: HTMLElement) => el.scrollHeight)
+  const step = 300
+  for (let pos = 0; pos <= scrollHeight; pos += step) {
+    await scroller.evaluate((el: HTMLElement, y: number) => (el.scrollTop = y), pos)
+    await p.waitForTimeout(150)
+    if ((await row.count()) > 0 && (await row.isVisible())) return
+  }
+}
+
+/** Read a cell value, scrolling to the row if needed */
+export async function scrollCell(p: Page, rowId: number, field: string): Promise<string> {
+  await scrollToRow(p, rowId)
+  return cell(p, rowId, field)
+}
+
+/** Set server endianness (must be on the server view) */
+export async function setServerEndianness(p: Page, endian: 'be' | 'le'): Promise<void> {
+  const btn = p.getByTestId(`server-endian-${endian}-btn`)
+  await btn.click()
+  await expect(btn).toHaveClass(/Mui-selected/)
+}
+
+/** Set client endianness (must be on the client view) */
+export async function setClientEndianness(p: Page, endian: 'be' | 'le'): Promise<void> {
+  const btn = p.getByTestId(`endian-${endian}-btn`)
+  await btn.click()
+  await expect(btn).toHaveClass(/Mui-selected/)
+}
+
+/** Write a value to a holding register via the write dialog */
+export async function writeRegister(
+  p: Page,
+  address: number,
+  value: string,
+  fc: 'fc6' | 'fc16',
+  dataType?: string
+): Promise<void> {
+  await p.getByTestId(`write-action-${address}`).click()
+  await expect(p.getByTestId('write-value-input')).toBeVisible()
+
+  if (dataType) {
+    await selectDataType(p, dataType)
+  }
+
+  const valueInput = p.getByTestId('write-value-input').locator('input')
+  await valueInput.fill(value)
+
+  await p.getByTestId(`write-${fc}-btn`).click()
+  // Close the write dialog
+  await p.keyboard.press('Escape')
+  await expect(p.getByTestId('write-value-input')).not.toBeVisible({ timeout: 5000 })
+}
+
+/** Write a coil state via the write dialog */
+export async function writeCoil(
+  p: Page,
+  address: number,
+  state: boolean
+): Promise<void> {
+  await p.getByTestId(`write-action-${address}`).click()
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
+
+  if (state) {
+    await p.getByTestId(`write-coil-${address}-select-btn`).click()
+  }
+
+  await p.getByTestId('write-fc5-btn').click()
+  await p.getByTestId('write-submit-btn').click()
+
+  // Close the dialog
+  await p.keyboard.press('Escape')
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).not.toBeVisible()
+}
+
+/** Clear all registers of a given type on the server */
+export async function clearRegisterType(
+  p: Page,
+  type: 'holding_registers' | 'input_registers' | 'coils' | 'discrete_inputs'
+): Promise<void> {
+  await p.getByTestId(`delete-${type}-btn`).click()
+  await expect(p.getByTestId(`section-${type}`)).toContainText('(0)')
+}
+
+/** Load dummy data at a specific address range (must be disconnected) */
+export async function loadDummyData(p: Page, address: string, length: string): Promise<void> {
+  await test.step(`load dummy data @ ${address} (len ${length})`, async () => {
+    const addressInput = p.getByTestId('reg-address-input').locator('input')
+    await addressInput.fill(address)
+    const lengthInput = p.getByTestId('reg-length-input').locator('input')
+    await lengthInput.fill(length)
+
+    await p.getByTestId('menu-btn').click()
+    const dummyBtn = p.getByTestId('load-dummy-data-btn')
+    await expect(dummyBtn).toBeVisible()
+    await dummyBtn.click()
+
+    // Wait for the first row of this range to appear
+    await expect(p.locator(`.MuiDataGrid-row[data-id="${address}"]`)).toBeVisible()
+  })
+}
+
+/** Get the port of the second server (navigates to server view and back to client) */
+export async function getServer2Port(p: Page): Promise<string> {
+  await navigateToServer(p)
+
+  const toggleButtons = p.locator('[data-testid^="select-server-"]')
+  const secondServer = toggleButtons.nth(1)
+  await secondServer.click()
+  await expect(p.getByTestId('server-port-input')).toBeVisible()
+
+  const portInput = p.getByTestId('server-port-input').locator('input')
+  const port = await portInput.inputValue()
+
+  await navigateToClient(p)
+  return port
+}

@@ -11,7 +11,9 @@ import {
   navigateToClient,
   enableAdvancedMode,
   cleanServerState,
-  selectDataType
+  selectDataType,
+  writeRegister,
+  writeCoil
 } from '../../fixtures/helpers'
 
 test.describe.serial('Write Operations', () => {
@@ -101,14 +103,7 @@ test.describe.serial('Write Operations', () => {
     })
 
     test('write INT16 via FC6 (single register)', async ({ mainPage }) => {
-      await mainPage.getByTestId('write-action-0').click()
-      await mainPage.waitForTimeout(300)
-
-      const valueInput = mainPage.getByTestId('write-value-input').locator('input')
-      await valueInput.fill('555')
-
-      await mainPage.getByTestId('write-fc6-btn').click()
-      await mainPage.waitForTimeout(1000)
+      await writeRegister(mainPage, 0, '555', 'fc6')
     })
 
     test('verify INT16 written value', async ({ mainPage }) => {
@@ -119,15 +114,7 @@ test.describe.serial('Write Operations', () => {
 
     test('write UINT16 via FC16 (multiple registers)', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '6')
-
-      await mainPage.getByTestId('write-action-1').click()
-      await mainPage.waitForTimeout(300)
-
-      const valueInput = mainPage.getByTestId('write-value-input').locator('input')
-      await valueInput.fill('999')
-
-      await mainPage.getByTestId('write-fc16-btn').click()
-      await mainPage.waitForTimeout(1000)
+      await writeRegister(mainPage, 1, '999', 'fc16')
     })
 
     test('verify UINT16 written value', async ({ mainPage }) => {
@@ -138,22 +125,35 @@ test.describe.serial('Write Operations', () => {
 
     test('write INT32 via FC16', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '6')
-
-      await mainPage.getByTestId('write-action-2').click()
-      await mainPage.waitForTimeout(300)
-
-      await selectDataType(mainPage, 'INT32')
-
-      const valueInput = mainPage.getByTestId('write-value-input').locator('input')
-      await valueInput.fill('50000')
-
-      await mainPage.getByTestId('write-fc16-btn').click()
-      await mainPage.waitForTimeout(1000)
+      await writeRegister(mainPage, 2, '50000', 'fc16', 'INT32')
     })
 
     test('verify INT32 written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '2', '2')
       expect(await cell(mainPage, 2, 'word_int32')).toBe('50000')
+      await clearData(mainPage)
+    })
+
+    test('write FLOAT via FC16', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '6')
+      await writeRegister(mainPage, 4, '3.14', 'fc16', 'FLOAT')
+    })
+
+    test('verify FLOAT written value', async ({ mainPage }) => {
+      await readRegisters(mainPage, '4', '2')
+      const val = await cell(mainPage, 4, 'word_float')
+      expect(val).toContain('3.14')
+      await clearData(mainPage)
+    })
+
+    test('write negative INT16 value', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '6')
+      await writeRegister(mainPage, 0, '-100', 'fc6', 'INT16')
+    })
+
+    test('verify negative INT16 written value', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '1')
+      expect(await cell(mainPage, 0, 'word_int16')).toBe('-100')
       await clearData(mainPage)
     })
   })
@@ -166,30 +166,24 @@ test.describe.serial('Write Operations', () => {
       await readRegisters(mainPage, '0', '8')
     })
 
-    test('write single coil via FC5', async ({ mainPage }) => {
-      // ! temporary, should be a helper function
-      const address = 0
-
-      await mainPage.getByTestId(`write-action-${address}`).click()
-      await mainPage.waitForTimeout(300)
-
-      // ! select button state should be checked! - it changes variant (filled/contained)
-      await mainPage.getByTestId(`write-coil-${address}-select-btn`).click()
-      await mainPage.waitForTimeout(300)
-
-      await mainPage.getByTestId('write-fc5-btn').click()
-      await mainPage.waitForTimeout(300)
-
-      await mainPage.getByTestId('write-submit-btn').click()
-      await mainPage.waitForTimeout(1000)
-
-      await mainPage.keyboard.press('Escape')
-      await mainPage.waitForTimeout(300)
+    test('write coil TRUE via FC5', async ({ mainPage }) => {
+      await writeCoil(mainPage, 0, true)
     })
 
-    test('verify coil written', async ({ mainPage }) => {
+    test('verify coil written TRUE', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
       expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
+      await clearData(mainPage)
+    })
+
+    test('write coil back to FALSE via FC5', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+      await writeCoil(mainPage, 0, false)
+    })
+
+    test('verify coil written FALSE', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+      expect(await cell(mainPage, 0, 'bit')).toBe('FALSE')
       await clearData(mainPage)
     })
   })

@@ -6,12 +6,14 @@ import {
   disconnectClient,
   readRegisters,
   cell,
+  scrollCell,
   selectRegisterType,
   enableAdvancedMode,
   disableAdvancedMode,
   cleanServerState,
   loadServerConfig,
-  clearData
+  clearData,
+  loadDummyData
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
@@ -108,48 +110,6 @@ function buildGroups(regs: Record<string, ClientRegister>, maxLength: number = 3
 const GROUPS = buildGroups(holdingRegisters)
 
 // ─── Helpers ──────────────────────────────────────────────────────
-
-/** Scroll the DataGrid virtual scroller so a specific row is visible */
-async function scrollToRow(p: any, rowId: number): Promise<void> {
-  const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
-  const scroller = p.locator('.MuiDataGrid-virtualScroller')
-
-  // If already visible, nothing to do
-  if ((await row.count()) > 0 && (await row.isVisible())) return
-
-  // Scroll down in steps until the row appears
-  const scrollHeight = await scroller.evaluate((el: HTMLElement) => el.scrollHeight)
-  const step = 300
-  for (let pos = 0; pos <= scrollHeight; pos += step) {
-    await scroller.evaluate((el: HTMLElement, y: number) => (el.scrollTop = y), pos)
-    await p.waitForTimeout(150)
-    if ((await row.count()) > 0 && (await row.isVisible())) return
-  }
-}
-
-/** Read a cell value, scrolling to the row if needed */
-async function scrollCell(p: any, rowId: number, field: string): Promise<string> {
-  await scrollToRow(p, rowId)
-  return cell(p, rowId, field)
-}
-
-/** Load dummy data at a specific address range (must be disconnected) */
-async function loadDummyData(p: any, address: string, length: string): Promise<void> {
-  await test.step(`load dummy data @ ${address} (len ${length})`, async () => {
-    const addressInput = p.getByTestId('reg-address-input').locator('input')
-    await addressInput.fill(address)
-    const lengthInput = p.getByTestId('reg-length-input').locator('input')
-    await lengthInput.fill(length)
-
-    await p.getByTestId('menu-btn').click()
-    const dummyBtn = p.getByTestId('load-dummy-data-btn')
-    await expect(dummyBtn).toBeVisible()
-    await dummyBtn.click()
-
-    // Wait for the first row of this range to appear
-    await expect(p.locator(`.MuiDataGrid-row[data-id="${address}"]`)).toBeVisible()
-  })
-}
 
 /** Configure a register row: dataType, scalingFactor, comment, interpolation */
 async function configureRegister(p: any, rowId: number, reg: ClientRegister): Promise<void> {
@@ -260,7 +220,6 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
 
     const btn = mainPage.getByTestId('reg-read-config-btn')
     await btn.click()
-    await mainPage.waitForTimeout(300)
     await expect(btn).toHaveClass(/Mui-selected/)
 
     await mainPage.getByTestId('read-btn').click()
@@ -295,7 +254,6 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('disable read configuration mode', async ({ mainPage }) => {
     const btn = mainPage.getByTestId('reg-read-config-btn')
     await btn.click()
-    await mainPage.waitForTimeout(300)
     await expect(btn).not.toHaveClass(/Mui-selected/)
   })
 

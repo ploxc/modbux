@@ -15,7 +15,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
   test('open modal — verify defaults (Fixed selected, INT16)', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
     const typeSelect = mainPage.getByTestId('add-reg-type-select')
@@ -42,7 +41,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
     await mainPage.getByTestId('add-reg-generator-btn').click()
     await selectDataType(mainPage, 'FLOAT')
-    await mainPage.waitForTimeout(200)
 
     // Generator fields visible
     await expect(mainPage.getByTestId('add-reg-min-input')).toBeVisible()
@@ -57,7 +55,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
   test('reopen modal — verify state reset to defaults (Fixed, INT16)', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
-    await mainPage.waitForTimeout(300)
 
     await expect(mainPage.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
     const typeSelect = mainPage.getByTestId('add-reg-type-select')
@@ -91,7 +88,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
     // Click "Add & Next"
     await mainPage.getByTestId('add-reg-next-btn').click()
-    await mainPage.waitForTimeout(300)
 
     // Modal should still be open
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeVisible()
@@ -157,7 +153,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     mainPage
   }) => {
     await mainPage.getByTestId('add-input_registers-btn').click()
-    await mainPage.waitForTimeout(300)
 
     // Should be back to defaults
     await expect(mainPage.getByTestId('add-reg-fixed-btn')).toHaveClass(/Mui-selected/)
@@ -172,7 +167,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
   test('edit mode: shows Submit Change + Remove, no Add & Next', async ({ mainPage }) => {
     await mainPage.getByTestId('server-edit-reg-holding_registers-100').click()
-    await mainPage.waitForTimeout(300)
 
     // Edit mode buttons
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toContainText('Submit Change')
@@ -211,7 +205,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
 
     await selectDataType(mainPage, 'INT16')
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-value-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-string-input')).not.toBeVisible()
@@ -226,7 +219,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
 
     await selectDataType(mainPage, 'UTF-8')
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-string-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-length-input')).toBeVisible()
@@ -246,7 +238,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(200)
 
     await mainPage.getByTestId('add-reg-fixed-btn').click()
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-datetime-show-utc')).toBeVisible()
@@ -263,7 +254,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await selectDataType(mainPage, 'UNIX')
     await mainPage.waitForTimeout(200)
     await mainPage.getByTestId('add-reg-generator-btn').click()
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-interval-input')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-datetime-input')).not.toBeVisible()
@@ -282,7 +272,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(200)
 
     await mainPage.getByTestId('add-reg-fixed-btn').click()
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-datetime-input')).toBeVisible()
 
@@ -308,7 +297,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
     const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
     await addressInput.fill('50')
-    await mainPage.waitForTimeout(300)
 
     // Submit should be disabled
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
@@ -366,7 +354,6 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
     const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
     await addressInput.fill('')
-    await mainPage.waitForTimeout(200)
 
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 

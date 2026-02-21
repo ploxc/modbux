@@ -13,7 +13,8 @@ import {
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
-const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
+const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
 
 test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Setup ──────────────────────────────────────────────────────────
@@ -47,7 +48,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       .locator('input[type="checkbox"]')
     if (await advInput.isChecked()) {
       await mainPage.getByTestId('advanced-mode-checkbox').click()
-      await mainPage.waitForTimeout(200)
     }
 
     // 64-bit checkbox should be disabled when advanced mode is off
@@ -55,7 +55,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(show64Checkbox).toHaveClass(/Mui-disabled/)
 
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
 
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
@@ -81,7 +80,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     }
 
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
 
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int16"]')).toBeVisible()
@@ -100,7 +98,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByTestId('show-64bit-checkbox').click()
     await mainPage.waitForTimeout(200)
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
 
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int64"]')).toBeVisible()
@@ -116,7 +113,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByTestId('advanced-mode-checkbox').click()
     await mainPage.waitForTimeout(200)
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
 
     const header = mainPage.locator('.MuiDataGrid-columnHeaders')
     await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
@@ -146,7 +142,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     const inputBase0 = await addressInput.inputValue()
 
     await mainPage.getByTestId('reg-base-1-btn').click()
-    await mainPage.waitForTimeout(300)
 
     const base1Btn = mainPage.getByTestId('reg-base-1-btn')
     await expect(base1Btn).toHaveClass(/Mui-selected/)
@@ -229,19 +224,16 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     const classes = await rawBtn.getAttribute('class')
     if (classes?.includes('containedWarning')) {
       await rawBtn.click()
-      await mainPage.waitForTimeout(300)
     }
 
     await expect(rawBtn).not.toHaveClass(/containedWarning/)
 
     // Toggle raw mode on
     await rawBtn.click()
-    await mainPage.waitForTimeout(300)
     await expect(rawBtn).toHaveClass(/containedWarning/)
 
     // Toggle raw mode off
     await rawBtn.click()
-    await mainPage.waitForTimeout(300)
     await expect(rawBtn).not.toHaveClass(/containedWarning/)
   })
 
@@ -253,14 +245,12 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
     // Click show log
     await logBtn.click()
-    await mainPage.waitForTimeout(500)
 
     await expect(logBtn).toContainText('Hide Log')
     await expect(logPanel).toBeVisible()
 
     // Click again to hide
     await logBtn.click()
-    await mainPage.waitForTimeout(500)
     await expect(logBtn).toContainText('Show Log')
     await expect(logPanel).not.toBeVisible()
   })
@@ -284,7 +274,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       await mainPage.waitForTimeout(300)
       await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
       await mainPage.keyboard.press('Enter')
-      await mainPage.waitForTimeout(300)
 
       await expect(mainPage.getByTestId('reg-read-config-btn')).toBeEnabled()
     })
@@ -293,18 +282,15 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       const btn = mainPage.getByTestId('reg-read-config-btn')
 
       await btn.click()
-      await mainPage.waitForTimeout(300)
       await expect(btn).toHaveClass(/Mui-selected/)
 
       await btn.click()
-      await mainPage.waitForTimeout(300)
       await expect(btn).not.toHaveClass(/Mui-selected/)
     })
 
     test(`[${regType}] read config: remove data type → button disabled`, async ({ mainPage }) => {
       const btn = mainPage.getByTestId('reg-read-config-btn')
       await btn.click()
-      await mainPage.waitForTimeout(300)
       await expect(btn).toHaveClass(/Mui-selected/)
 
       const row = mainPage.locator('.MuiDataGrid-row').first()
@@ -312,7 +298,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       await mainPage.waitForTimeout(300)
       await mainPage.getByRole('option', { name: 'NONE' }).click()
       await mainPage.keyboard.press('Enter')
-      await mainPage.waitForTimeout(300)
 
       await expect(btn).toBeDisabled()
     })
@@ -330,7 +315,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
     test(`[${regType}] no advanced mode or 64-bit options in menu`, async ({ mainPage }) => {
       await mainPage.getByTestId('menu-btn').click()
-      await mainPage.waitForTimeout(200)
 
       await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
       await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
@@ -340,7 +324,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
     test(`[${regType}] scan button says "Scan TRUE Bits"`, async ({ mainPage }) => {
       await mainPage.getByTestId('menu-btn').click()
-      await mainPage.waitForTimeout(200)
 
       await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
 
@@ -380,7 +363,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(mainPage.getByTestId('endian-be-btn')).toBeVisible()
 
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(200)
     await expect(mainPage.getByTestId('advanced-mode-checkbox')).toBeVisible()
     await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
     await mainPage.keyboard.press('Escape')
@@ -390,10 +372,8 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   test('load dummy data button is disabled when connected', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeDisabled()
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
   })
 
   test('disconnect clears grid and enables dummy data', async ({ mainPage }) => {
@@ -407,10 +387,8 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   test('load dummy data button is enabled when disconnected', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
   })
 
   test('load dummy data populates register grid', async ({ mainPage }) => {
@@ -418,7 +396,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')
 
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.waitForTimeout(300)
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.waitForTimeout(500)
@@ -432,14 +409,12 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   test('time settings opens popover', async ({ mainPage }) => {
     await mainPage.getByTestId('time-settings-btn').click()
-    await mainPage.waitForTimeout(300)
 
     const popover = mainPage.getByTestId('time-settings-popover')
     await expect(popover).toBeVisible()
 
     // Close popover
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
     await expect(popover).not.toBeVisible()
   })
 })
