@@ -345,9 +345,14 @@ export class ModbusClient {
       ? groupAddressInfos(this._appState.registerMapping?.[type])
       : ([[address, length]] as AddressGroup[])
 
-    for (const [a, l] of groups) {
+    for (let gi = 0; gi < groups.length; gi++) {
+      const [a, l] = groups[gi]
       try {
-        data.push(...(await this._tryRead(type, a, l)))
+        const rows = await this._tryRead(type, a, l)
+        rows.forEach((r) => {
+          r.groupIndex = gi
+        })
+        data.push(...rows)
       } catch (error) {
         const readError = error as Error
         errorMessage = readError.message
@@ -366,7 +371,8 @@ export class ModbusClient {
                   words: undefined,
                   bit: false,
                   isScanned: false,
-                  error: errorMessage
+                  error: errorMessage,
+                  groupIndex: gi
                 })
               }
             }

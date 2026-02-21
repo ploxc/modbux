@@ -423,6 +423,26 @@ export const enableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p,
 /** Convenience alias for setAdvancedMode(p, false) */
 export const disableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p, false)
 
+/** Set readConfiguration toggle to the desired state */
+export async function setReadConfiguration(p: Page, enabled: boolean): Promise<void> {
+  const btn = p.getByTestId('reg-read-config-btn')
+  const isSelected = await btn.evaluate((el) => el.classList.contains('Mui-selected'))
+  if (isSelected !== enabled) {
+    await btn.click()
+  }
+  if (enabled) {
+    await expect(btn).toHaveClass(/Mui-selected/)
+  } else {
+    await expect(btn).not.toHaveClass(/Mui-selected/)
+  }
+}
+
+/** Convenience alias for setReadConfiguration(p, true) */
+export const enableReadConfiguration = (p: Page): Promise<void> => setReadConfiguration(p, true)
+
+/** Convenience alias for setReadConfiguration(p, false) */
+export const disableReadConfiguration = (p: Page): Promise<void> => setReadConfiguration(p, false)
+
 // ─── Shared helpers extracted from specs ───────────────────────────
 
 /** Scroll the DataGrid virtual scroller so a specific row is visible */

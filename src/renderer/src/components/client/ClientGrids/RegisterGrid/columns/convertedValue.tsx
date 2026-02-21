@@ -32,7 +32,7 @@ export const convertedValueColumn = (
   type: 'string',
   headerName: 'Value',
   width: 160,
-  renderCell: (params) => {
+  renderCell: (params): JSX.Element | string => {
     if (params.row.error) {
       return (
         <span style={{ color: 'var(--mui-palette-error-main)' }} title={params.row.error}>

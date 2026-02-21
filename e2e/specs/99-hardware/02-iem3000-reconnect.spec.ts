@@ -12,7 +12,13 @@
  */
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
-import { enableAdvancedMode, loadClientConfig, scrollCell } from '../../fixtures/helpers'
+import {
+  enableAdvancedMode,
+  enableReadConfiguration,
+  disableReadConfiguration,
+  loadClientConfig,
+  scrollCell
+} from '../../fixtures/helpers'
 
 const MAIN_JS = resolve(__dirname, '../../../out/main/index.js')
 const CLIENT_CONFIG = resolve(__dirname, '../../fixtures/config-files/client-iem3000.json')
@@ -53,10 +59,7 @@ async function connectAndRead(): Promise<void> {
   await page.waitForTimeout(2000)
 
   // Enable read-config and read
-  const btn = page.getByTestId('reg-read-config-btn')
-  const isSelected = await btn.evaluate((el) => el.classList.contains('Mui-selected'))
-  if (!isSelected) await btn.click()
-  await expect(btn).toHaveClass(/Mui-selected/)
+  await enableReadConfiguration(page)
 
   await page.getByTestId('read-btn').click()
   await page.waitForTimeout(5000)
@@ -74,9 +77,7 @@ async function verifyPhaseCurrents(): Promise<void> {
 
 async function closeApp(): Promise<void> {
   // Disable read-config before closing
-  const btn = page.getByTestId('reg-read-config-btn')
-  const isSelected = await btn.evaluate((el) => el.classList.contains('Mui-selected'))
-  if (isSelected) await btn.click()
+  await disableReadConfiguration(page)
 
   // Disconnect
   await page.getByTestId('connect-btn').click()
@@ -179,9 +180,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
 
   test('session 3 — disconnect and switch to TCP', async () => {
     // Disable read-config
-    const btn = page.getByTestId('reg-read-config-btn')
-    const isSelected = await btn.evaluate((el) => el.classList.contains('Mui-selected'))
-    if (isSelected) await btn.click()
+    await disableReadConfiguration(page)
 
     // Disconnect
     await page.getByTestId('connect-btn').click()

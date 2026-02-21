@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToClient, selectRegisterType, cell } from '../../fixtures/helpers'
+import {
+  navigateToClient,
+  selectRegisterType,
+  cell,
+  enableReadConfiguration,
+  disableReadConfiguration
+} from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
 
@@ -34,7 +40,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     mainPage
   }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
-    await mainPage.getByTestId('reg-read-config-btn').click()
+    await enableReadConfiguration(mainPage)
 
     // Grid should show rows for configured addresses (0 and 1 from client-basic.json)
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
@@ -75,7 +81,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
 
     // Switch back to holding registers and disable readConfiguration
     await selectRegisterType(mainPage, 'Holding Registers')
-    await mainPage.getByTestId('reg-read-config-btn').click()
+    await disableReadConfiguration(mainPage)
   })
 
   test('save client config — verify download content', async ({ electronApp, mainPage }) => {
@@ -143,7 +149,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     mainPage
   }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
-    await mainPage.getByTestId('reg-read-config-btn').click()
+    await enableReadConfiguration(mainPage)
 
     // client-server1-unit0.json has: int16@0, uint16@1, int32@2, uint32@4, float@6,
     // int64@8, uint64@12, double@16, utf8@20, unix@25, datetime@27
@@ -161,7 +167,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(grid).toContainText('DATETIME')
 
     // Disable readConfiguration
-    await mainPage.getByTestId('reg-read-config-btn').click()
+    await disableReadConfiguration(mainPage)
   })
 
   // ─── Endianness restore on config load ──────────────────────────────

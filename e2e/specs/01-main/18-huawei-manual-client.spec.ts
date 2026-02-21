@@ -10,6 +10,8 @@ import {
   selectRegisterType,
   enableAdvancedMode,
   disableAdvancedMode,
+  enableReadConfiguration,
+  disableReadConfiguration,
   cleanServerState,
   loadServerConfig,
   clearData,
@@ -218,9 +220,7 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('readConfiguration reads all manually configured registers', async ({ mainPage }) => {
     await clearData(mainPage)
 
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).toHaveClass(/Mui-selected/)
+    await enableReadConfiguration(mainPage)
 
     await mainPage.getByTestId('read-btn').click()
     await mainPage.waitForTimeout(5000)
@@ -252,9 +252,7 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   })
 
   test('disable read configuration mode', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).not.toHaveClass(/Mui-selected/)
+    await disableReadConfiguration(mainPage)
   })
 
   // ─── Range reads with value verification ───────────────────────

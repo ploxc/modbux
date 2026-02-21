@@ -635,7 +635,46 @@ describe('ModbusClient', () => {
       const errorRow = sentData.find((d: any) => d.id === 0)
       expect(errorRow?.error).toContain('read timeout')
 
+      // Error rows get groupIndex 0 (first group failed)
+      expect(errorRow?.groupIndex).toBe(0)
+
+      // Successful rows get groupIndex 1 (second group succeeded)
+      const successRow = sentData.find((d: any) => d.id === 100)
+      expect(successRow?.groupIndex).toBe(1)
+
       // Second group should still be read
+      expect(callCount).toBe(2)
+    })
+
+    it('sets groupIndex on readConfiguration rows', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {
+          0: { dataType: 'uint16' },
+          100: { dataType: 'uint16' }
+        }
+      })
+
+      let callCount = 0
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        callCount++
+        return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
+      })
+
+      await client.read()
+
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBeGreaterThan(0)
+      const sentData = dataCalls.at(-1)?.[1]
+      // Two groups: [0,1] and [100,1] → groupIndex 0 and 1
+      const row0 = sentData.find((d: any) => d.id === 0)
+      const row100 = sentData.find((d: any) => d.id === 100)
+      expect(row0?.groupIndex).toBe(0)
+      expect(row100?.groupIndex).toBe(1)
       expect(callCount).toBe(2)
     })
 

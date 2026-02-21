@@ -196,6 +196,7 @@ export interface RegisterData {
   bit: boolean
   isScanned: boolean
   error?: string
+  groupIndex?: number
 }
 
 export interface RegisterDataWords {

@@ -8,6 +8,8 @@ import {
   cell,
   selectRegisterType,
   enableAdvancedMode,
+  enableReadConfiguration,
+  disableReadConfiguration,
   cleanServerState,
   loadServerConfig
 } from '../../fixtures/helpers'
@@ -279,19 +281,13 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     })
 
     test(`[${regType}] read config: toggle on and off`, async ({ mainPage }) => {
-      const btn = mainPage.getByTestId('reg-read-config-btn')
-
-      await btn.click()
-      await expect(btn).toHaveClass(/Mui-selected/)
-
-      await btn.click()
-      await expect(btn).not.toHaveClass(/Mui-selected/)
+      await enableReadConfiguration(mainPage)
+      await disableReadConfiguration(mainPage)
     })
 
     test(`[${regType}] read config: remove data type → button disabled`, async ({ mainPage }) => {
+      await enableReadConfiguration(mainPage)
       const btn = mainPage.getByTestId('reg-read-config-btn')
-      await btn.click()
-      await expect(btn).toHaveClass(/Mui-selected/)
 
       const row = mainPage.locator('.MuiDataGrid-row').first()
       await row.locator('[data-field="dataType"]').dblclick()

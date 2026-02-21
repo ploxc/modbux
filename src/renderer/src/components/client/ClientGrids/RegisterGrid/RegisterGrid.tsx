@@ -79,9 +79,7 @@ const RegisterGridContent = (): JSX.Element => {
       rowHeight={40}
       columnHeaderHeight={48}
       hideFooterPagination
-      getRowClassName={(params) =>
-        (params.row as RegisterData).error ? 'register-error-row' : ''
-      }
+      getRowClassName={(params) => ((params.row as RegisterData).error ? 'register-error-row' : '')}
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (field === 'comment') return true
@@ -121,12 +119,29 @@ const RegisterGridContent = (): JSX.Element => {
           '&:hover': {
             backgroundColor: alpha(theme.palette.error.main, 0.12)
           }
+        },
+        '& .group-column-even, .group-column-odd': {
+          textAlign: 'center',
+          fontSize: '0.7rem'
+        },
+        '& .group-column-even': {
+          backgroundColor: alpha(theme.palette.primary.main, 0.1)
+        },
+        '& .group-column-odd': {
+          backgroundColor: alpha(theme.palette.primary.main, 0.22)
         }
       })}
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
       slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      getCellClassName={({ field, row }) =>
+        field === 'groupIndex' && row.groupIndex !== undefined
+          ? row.groupIndex % 2 === 0
+            ? 'group-column-even'
+            : 'group-column-odd'
+          : ''
+      }
       //
       //
       // Row update

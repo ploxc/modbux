@@ -19,6 +19,8 @@ import {
   loadClientConfig,
   disconnectClient,
   enableAdvancedMode,
+  enableReadConfiguration,
+  disableReadConfiguration,
   scrollCell,
   clearData
 } from '../../fixtures/helpers'
@@ -26,6 +28,7 @@ import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-iem3000.json')
+const CLIENT_CONFIG_ERROR = resolve(CONFIG_DIR, 'client-iem3000-error.json')
 
 test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
   // ─── Setup ──────────────────────────────────────────────────────────
@@ -78,10 +81,7 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
   test('read all configured registers via read-config', async ({ mainPage }) => {
     test.setTimeout(30_000)
 
-    // Enable read configuration mode
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).toHaveClass(/Mui-selected/)
+    await enableReadConfiguration(mainPage)
 
     // Trigger read
     await mainPage.getByTestId('read-btn').click()
@@ -173,12 +173,42 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     expect(after).not.toBe(before)
   })
 
+  // ─── Illegal address error ─────────────────────────────────────────
+
+  test('load error config with out-of-range address 3109', async ({ mainPage }) => {
+    await loadClientConfig(mainPage, CLIENT_CONFIG_ERROR)
+  })
+
+  test('read with illegal address shows error for 3109', async ({ mainPage }) => {
+    test.setTimeout(30_000)
+
+    // Re-enable readConfiguration (loadClientConfig resets it to false)
+    await enableReadConfiguration(mainPage)
+
+    // Trigger read
+    await mainPage.getByTestId('read-btn').click()
+    await mainPage.waitForTimeout(5000)
+
+    // Scroll to address 3109 and check error message
+    const errorText = await scrollCell(mainPage, 3109, 'value')
+    expect(errorText).toContain('Illegal data address')
+  })
+
+  test('valid addresses still show data after error config', async ({ mainPage }) => {
+    // Address 2999 should still have valid float data
+    const value = Number(await scrollCell(mainPage, 2999, 'word_float'))
+    expect(value).toBeGreaterThanOrEqual(15)
+    expect(value).toBeLessThanOrEqual(22)
+  })
+
+  test('reload original config after error test', async ({ mainPage }) => {
+    await loadClientConfig(mainPage, CLIENT_CONFIG)
+  })
+
   // ─── Cleanup ───────────────────────────────────────────────────────
 
   test('disable read-config mode', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).not.toHaveClass(/Mui-selected/)
+    await disableReadConfiguration(mainPage)
   })
 
   test('disconnect from Arduino', async ({ mainPage }) => {

@@ -1,0 +1,117 @@
+{
+	"version": 2,
+	"modbuxVersion": "1.5.0-alpha",
+	"name": "Arduino iEM3000 Simulation (error test)",
+	"littleEndian": false,
+	"registerMapping": {
+		"coils": {},
+		"discrete_inputs": {},
+		"input_registers": {},
+		"holding_registers": {
+			"2999": {
+				"dataType": "float",
+				"comment": "Current L1 (A)"
+			},
+			"3001": {
+				"dataType": "float",
+				"comment": "Current L2 (A)"
+			},
+			"3003": {
+				"dataType": "float",
+				"comment": "Current L3 (A)"
+			},
+			"3019": {
+				"dataType": "float",
+				"comment": "Voltage L1-L2 (V)"
+			},
+			"3021": {
+				"dataType": "float",
+				"comment": "Voltage L2-L3 (V)"
+			},
+			"3023": {
+				"dataType": "float",
+				"comment": "Voltage L3-L1 (V)"
+			},
+			"3027": {
+				"dataType": "float",
+				"comment": "Voltage L1-N (V)"
+			},
+			"3029": {
+				"dataType": "float",
+				"comment": "Voltage L2-N (V)"
+			},
+			"3031": {
+				"dataType": "float",
+				"comment": "Voltage L3-N (V)"
+			},
+			"3053": {
+				"dataType": "float",
+				"comment": "Active Power L1 (W)"
+			},
+			"3055": {
+				"dataType": "float",
+				"comment": "Active Power L2 (W)"
+			},
+			"3057": {
+				"dataType": "float",
+				"comment": "Active Power L3 (W)"
+			},
+			"3059": {
+				"dataType": "float",
+				"comment": "Active Power Total (W)"
+			},
+			"3061": {
+				"dataType": "float",
+				"comment": "Reactive Power L1 (VAr)"
+			},
+			"3063": {
+				"dataType": "float",
+				"comment": "Reactive Power L2 (VAr)"
+			},
+			"3065": {
+				"dataType": "float",
+				"comment": "Reactive Power L3 (VAr)"
+			},
+			"3067": {
+				"dataType": "float",
+				"comment": "Reactive Power Total (VAr)"
+			},
+			"3069": {
+				"dataType": "float",
+				"comment": "Apparent Power L1 (VA)"
+			},
+			"3071": {
+				"dataType": "float",
+				"comment": "Apparent Power L2 (VA)"
+			},
+			"3073": {
+				"dataType": "float",
+				"comment": "Apparent Power L3 (VA)"
+			},
+			"3075": {
+				"dataType": "float",
+				"comment": "Apparent Power Total (VA)"
+			},
+			"3077": {
+				"dataType": "float",
+				"comment": "Power Factor L1"
+			},
+			"3079": {
+				"dataType": "float",
+				"comment": "Power Factor L2"
+			},
+			"3081": {
+				"dataType": "float",
+				"comment": "Power Factor L3"
+			},
+			"3083": {
+				"dataType": "float",
+				"comment": "Power Factor Total"
+			},
+			"3109": {
+				"dataType": "float",
+				"comment": "Frequency (Hz)"
+			}
+		}
+	}
+}

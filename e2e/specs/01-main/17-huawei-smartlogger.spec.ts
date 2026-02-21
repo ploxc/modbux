@@ -10,6 +10,8 @@ import {
   selectRegisterType,
   enableAdvancedMode,
   disableAdvancedMode,
+  enableReadConfiguration,
+  disableReadConfiguration,
   cleanServerState,
   setupServerConfig,
   setServerPanelCollapsed,
@@ -196,7 +198,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('enable readConfiguration — shows all configured registers', async ({ mainPage }) => {
-    await mainPage.getByTestId('reg-read-config-btn').click()
+    await enableReadConfiguration(mainPage)
     await mainPage.waitForTimeout(500)
 
     // DataGrid virtualizes rows — only visible ones are in DOM
@@ -244,9 +246,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('disable readConfiguration after config view', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).not.toHaveClass(/Mui-selected/)
+    await disableReadConfiguration(mainPage)
   })
 
   // ─── Read Configuration mode ──────────────────────────────────────
@@ -262,9 +262,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('read configuration reads only configured registers', async ({ mainPage }) => {
     // Enable read configuration mode (grid is already empty from previous disable)
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).toHaveClass(/Mui-selected/)
+    await enableReadConfiguration(mainPage)
 
     // Trigger a read — should read configured registers
     await mainPage.getByTestId('read-btn').click()
@@ -298,9 +296,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('disable read configuration mode', async ({ mainPage }) => {
-    const btn = mainPage.getByTestId('reg-read-config-btn')
-    await btn.click()
-    await expect(btn).not.toHaveClass(/Mui-selected/)
+    await disableReadConfiguration(mainPage)
   })
 
   // ─── Disconnect and dummy data ─────────────────────────────────────
