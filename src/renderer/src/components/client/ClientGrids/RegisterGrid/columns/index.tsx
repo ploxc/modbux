@@ -28,7 +28,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
   const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
 
-  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => z.readConfiguration)
   const showRaw = useLayoutZustand((z) => z.showClientRawValues)
 
   return useMemo(() => {

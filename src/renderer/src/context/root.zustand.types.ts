@@ -35,6 +35,7 @@ export type RootZusand = {
   version: string
   clientState: ClientState
   ready: boolean
+  readConfiguration: boolean
   valid: Valid
   lastSuccessfulTransactionMillis: number | null
   scanUnitIdResults: ScanUnitIDResult[]

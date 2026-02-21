@@ -80,6 +80,23 @@ describe('AppState', () => {
     })
   })
 
+  describe('setReadConfiguration', () => {
+    it('defaults to false', () => {
+      expect(state.readConfiguration).toBe(false)
+    })
+
+    it('sets readConfiguration to true', () => {
+      state.setReadConfiguration(true)
+      expect(state.readConfiguration).toBe(true)
+    })
+
+    it('sets readConfiguration back to false', () => {
+      state.setReadConfiguration(true)
+      state.setReadConfiguration(false)
+      expect(state.readConfiguration).toBe(false)
+    })
+  })
+
   describe('setRegisterMapping', () => {
     it('sets register mapping', () => {
       const mapping = {

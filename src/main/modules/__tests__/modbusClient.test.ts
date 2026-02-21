@@ -580,9 +580,25 @@ describe('ModbusClient', () => {
       expect(dataCalls.length).toBe(1)
     })
 
+    it('readConfiguration without backend mapping falls back to normal read', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+
+      // readConfiguration is true but registerMapping was never synced to backend.
+      // The backend should fall back to [[address, length]] instead of silently
+      // producing no data.
+      appState.setReadConfiguration(true)
+
+      await client.read()
+
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBe(1)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
+    })
+
     it('uses group-based reads when readConfiguration is true', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setReadConfiguration(true)
       appState.setRegisterMapping({
         coils: {},
         discrete_inputs: {},
@@ -608,7 +624,7 @@ describe('ModbusClient', () => {
 
     it('handles read error and continues to next group', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setReadConfiguration(true)
       appState.setRegisterMapping({
         coils: {},
         discrete_inputs: {},
@@ -648,7 +664,7 @@ describe('ModbusClient', () => {
 
     it('sets groupIndex on readConfiguration rows', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setReadConfiguration(true)
       appState.setRegisterMapping({
         coils: {},
         discrete_inputs: {},

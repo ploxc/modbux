@@ -68,7 +68,8 @@ export const IPC_CHANNELS = [
   'delete_server',
   'reset_server',
   'list_serial_ports',
-  'validate_serial_port'
+  'validate_serial_port',
+  'set_read_configuration'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -255,6 +256,12 @@ export interface IpcHandlerSpec {
   ['validate_serial_port']: {
     args: [string]
     return: SerialPortValidationResult
+  }
+
+  /** Set the readConfiguration flag (session-only, not persisted) */
+  ['set_read_configuration']: {
+    args: [boolean]
+    return: void
   }
 }
 

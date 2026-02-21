@@ -49,7 +49,7 @@ const RegisterGridContent = (): JSX.Element => {
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
-  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => z.readConfiguration)
   const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {

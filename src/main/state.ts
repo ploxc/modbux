@@ -18,6 +18,7 @@ export class AppState {
   private _connectionConfig = defaultConnectionConfig
   private _registerConfig = defaultRegisterConfig
   private _registerMapping?: RegisterMapping
+  private _readConfiguration = false
 
   constructor() {
     /** No Construction */
@@ -51,5 +52,13 @@ export class AppState {
 
   get registerMapping(): RegisterMapping | undefined {
     return this._registerMapping
+  }
+
+  public setReadConfiguration(value: boolean): void {
+    this._readConfiguration = value
+  }
+
+  get readConfiguration(): boolean {
+    return this._readConfiguration
   }
 }

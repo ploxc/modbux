@@ -26,7 +26,7 @@ const TypeSelect = meme(() => {
   const type = useRootZustand((z) => z.registerConfig.type)
 
   const handleChange = useCallback((type: RegisterType) => {
-    if (!useRootZustand.getState().registerConfig.readConfiguration) {
+    if (!useRootZustand.getState().readConfiguration) {
       useDataZustand.getState().setRegisterData([])
     }
     useRootZustand.getState().setType(type)
@@ -58,7 +58,7 @@ const TypeSelect = meme(() => {
 const Address = meme(() => {
   const address = useRootZustand((z) => z.registerConfig.address)
   const setAddress = useRootZustand((z) => z.setAddress)
-  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => z.readConfiguration)
 
   return (
     <AddressBaseInput
@@ -79,7 +79,7 @@ const Length = meme(() => {
   const lengthValid = useRootZustand((z) => z.valid.lenght)
   const setLength = useRootZustand((z) => z.setLength)
   const address = useRootZustand((z) => z.registerConfig.address)
-  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => z.readConfiguration)
 
   return (
     <TextField
@@ -102,7 +102,7 @@ const Length = meme(() => {
 })
 
 const ReadConfiguration = meme(() => {
-  const readConfiguration = useRootZustand((z) => !!z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => !!z.readConfiguration)
   const handleChange = useCallback((_: React.MouseEvent, v: boolean | null) => {
     const toggleState = !!v
 
@@ -122,7 +122,7 @@ const ReadConfiguration = meme(() => {
   useEffect(() => {
     if (!disabled) return
     const state = useRootZustand.getState()
-    if (disabled && state.registerConfig.readConfiguration) state.setReadConfiguration(false)
+    if (disabled && state.readConfiguration) state.setReadConfiguration(false)
   }, [disabled])
 
   return (

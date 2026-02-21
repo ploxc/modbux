@@ -50,7 +50,7 @@ const ConnectButton = meme(() => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
-      if (!useRootZustand.getState().registerConfig.readConfiguration) {
+      if (!useRootZustand.getState().readConfiguration) {
         setRegisterData([])
       }
       return

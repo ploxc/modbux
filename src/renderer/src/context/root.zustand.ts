@@ -34,10 +34,10 @@ export const useRootZustand = create<
 
         window.api.updateConnectionConfig(connectionConfig)
         window.api.updateRegisterConfig(registerConfig)
+        window.api.setReadConfiguration(false)
 
         set((state) => {
-          // readConfiguration is runtime-only state, always start with it off
-          state.registerConfig.readConfiguration = false
+          state.readConfiguration = false
           state.ready = true
         })
       },
@@ -118,6 +118,7 @@ export const useRootZustand = create<
           state.clientState = clientState
         }),
       ready: false,
+      readConfiguration: false,
 
       // Configuration actions
       valid: {
@@ -253,7 +254,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ address: newAddress })
 
           // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
             useDataZustand.getState().setRegisterData([])
         }),
       setLength: (length, valid) =>
@@ -268,7 +269,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ length: newLength })
 
           // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
             useDataZustand.getState().setRegisterData([])
         }),
       setType: (type) =>
@@ -280,7 +281,7 @@ export const useRootZustand = create<
           window.api.updateRegisterConfig({ type })
 
           // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
             useDataZustand.getState().setRegisterData([])
         }),
       setLittleEndian: (littleEndian) =>
@@ -292,8 +293,8 @@ export const useRootZustand = create<
       setReadConfiguration: (readConfiguration) =>
         set((state) => {
           if (!get().ready) return
-          state.registerConfig.readConfiguration = readConfiguration
-          window.api.updateRegisterConfig({ readConfiguration })
+          state.readConfiguration = readConfiguration
+          window.api.setReadConfiguration(readConfiguration)
         }),
       // Reading
       setPollRate: (pollRate) =>

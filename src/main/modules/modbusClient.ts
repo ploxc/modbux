@@ -341,9 +341,10 @@ export class ModbusClient {
 
     const { type, address, length } = this._appState.registerConfig
 
-    const groups = this._appState.registerConfig.readConfiguration
+    const configGroups = this._appState.readConfiguration
       ? groupAddressInfos(this._appState.registerMapping?.[type])
-      : ([[address, length]] as AddressGroup[])
+      : []
+    const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
     for (let gi = 0; gi < groups.length; gi++) {
       const [a, l] = groups[gi]
@@ -357,7 +358,7 @@ export class ModbusClient {
         const readError = error as Error
         errorMessage = readError.message
 
-        if (this._appState.registerConfig.readConfiguration) {
+        if (this._appState.readConfiguration) {
           // Generate error placeholder rows for configured addresses in this failed group
           const mapping = this._appState.registerMapping?.[type]
           if (mapping) {
