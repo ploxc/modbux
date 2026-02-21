@@ -41,10 +41,12 @@ export const useScanUnitIdZustand = create<ScanUnitIdZustand, [['zustand/mutativ
     setMinRange: (min) =>
       set((state) => {
         state.range[0] = Number(min)
+        if (state.range[1] < state.range[0]) state.range[1] = state.range[0]
       }),
     setMaxRange: (max) =>
       set((state) => {
         state.range[1] = Number(max)
+        if (state.range[0] > state.range[1]) state.range[0] = state.range[1]
       }),
     registerTypes: ['holding_registers'],
     setRegisterTypes: (types) =>
