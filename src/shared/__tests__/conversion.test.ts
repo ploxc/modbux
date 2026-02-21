@@ -4,13 +4,13 @@ import { parseIEC870DateTime, convertRegisterData, convertBitData } from '../con
 
 describe('parseIEC870DateTime', () => {
   it('returns empty string for wrong buffer length', () => {
-    expect(parseIEC870DateTime(Buffer.alloc(4), false)).toBe('')
-    expect(parseIEC870DateTime(Buffer.alloc(10), false)).toBe('')
+    expect(parseIEC870DateTime(Buffer.alloc(4))).toBe('')
+    expect(parseIEC870DateTime(Buffer.alloc(10))).toBe('')
   })
 
   it('returns empty string for all-0xFFFF sentinel', () => {
     const buf = Buffer.alloc(8, 0xff)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string when invalid flag is set', () => {
@@ -20,7 +20,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((6 << 8) | 15, 2) // month=6, day=15
     buf.writeUInt16BE(0x0080 | (10 << 8) | 30, 4) // hour=10, minute=30 + invalid flag
     buf.writeUInt16BE(0, 6) // 0ms
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string for out-of-range month', () => {
@@ -29,7 +29,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((13 << 8) | 1, 2) // month=13 (invalid), day=1
     buf.writeUInt16BE((10 << 8) | 0, 4) // hour=10, minute=0
     buf.writeUInt16BE(0, 6)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string for out-of-range day', () => {
@@ -38,7 +38,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((1 << 8) | 0, 2) // month=1, day=0 (invalid)
     buf.writeUInt16BE((10 << 8) | 0, 4)
     buf.writeUInt16BE(0, 6)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string for hour > 23', () => {
@@ -47,7 +47,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((6 << 8) | 15, 2) // month=6, day=15
     buf.writeUInt16BE((24 << 8) | 30, 4) // hour=24 (invalid)
     buf.writeUInt16BE(0, 6)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string for minute > 59', () => {
@@ -56,7 +56,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((6 << 8) | 15, 2)
     buf.writeUInt16BE((10 << 8) | 60, 4) // minute=60 (invalid)
     buf.writeUInt16BE(0, 6)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('returns empty string for second > 59', () => {
@@ -65,7 +65,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((6 << 8) | 15, 2)
     buf.writeUInt16BE((10 << 8) | 30, 4)
     buf.writeUInt16BE(60_000, 6) // 60 seconds (invalid)
-    expect(parseIEC870DateTime(buf, false)).toBe('')
+    expect(parseIEC870DateTime(buf)).toBe('')
   })
 
   it('parses a valid IEC 870-5 datetime', () => {
@@ -76,7 +76,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((14 << 8) | 30, 4) // hour=14, minute=30
     buf.writeUInt16BE(45 * 1000 + 123, 6) // 45.123 seconds
 
-    expect(parseIEC870DateTime(buf, false)).toBe('2025/03/15 14:30:45')
+    expect(parseIEC870DateTime(buf)).toBe('2025/03/15 14:30:45')
   })
 
   it('parses midnight correctly', () => {
@@ -86,7 +86,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE(0, 4) // hour=0, minute=0
     buf.writeUInt16BE(0, 6) // 0 ms
 
-    expect(parseIEC870DateTime(buf, false)).toBe('2024/01/01 00:00:00')
+    expect(parseIEC870DateTime(buf)).toBe('2024/01/01 00:00:00')
   })
 
   it('parses end of day correctly', () => {
@@ -96,7 +96,7 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE((23 << 8) | 59, 4) // 23:59
     buf.writeUInt16BE(59 * 1000 + 999, 6) // 59.999 seconds
 
-    expect(parseIEC870DateTime(buf, false)).toBe('2024/12/31 23:59:59')
+    expect(parseIEC870DateTime(buf)).toBe('2024/12/31 23:59:59')
   })
 })
 
@@ -108,12 +108,12 @@ describe('convertRegisterData', () => {
   }
 
   it('returns empty array for null-ish result', () => {
-    expect(convertRegisterData(null as never, 0, false, false, false)).toEqual([])
+    expect(convertRegisterData(null as never, 0, false, false)).toEqual([])
   })
 
   it('converts a single register (uint16)', () => {
     const result = makeResult([1234])
-    const data = convertRegisterData(result, 100, false, false, false)
+    const data = convertRegisterData(result, 100, false, false)
 
     expect(data).toHaveLength(1)
     expect(data[0].id).toBe(100)
@@ -125,13 +125,13 @@ describe('convertRegisterData', () => {
 
   it('sets isScanned flag', () => {
     const result = makeResult([0])
-    const data = convertRegisterData(result, 0, false, true, false)
+    const data = convertRegisterData(result, 0, false, true)
     expect(data[0].isScanned).toBe(true)
   })
 
   it('converts multiple registers with correct ids', () => {
     const result = makeResult([10, 20, 30])
-    const data = convertRegisterData(result, 5, false, false, false)
+    const data = convertRegisterData(result, 5, false, false)
 
     expect(data).toHaveLength(3)
     expect(data[0].id).toBe(5)
@@ -142,7 +142,7 @@ describe('convertRegisterData', () => {
   it('reads 32-bit values across two registers (big endian)', () => {
     // int32 value: 70000 = 0x00011170
     const result = makeResult([0x0001, 0x1170])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
 
     expect(data[0].words?.int32).toBe(70000)
     expect(data[0].words?.uint32).toBe(70000)
@@ -152,7 +152,7 @@ describe('convertRegisterData', () => {
     // int32 70000 = 0x00011170 → big endian words [0x0001, 0x1170]
     // When written in big endian and read with little endian swap:
     const result = makeResult([0x1170, 0x0001])
-    const data = convertRegisterData(result, 0, true, false, false)
+    const data = convertRegisterData(result, 0, true, false)
 
     expect(data[0].words?.int32).toBe(70000)
   })
@@ -165,7 +165,7 @@ describe('convertRegisterData', () => {
     const lo = buf.readUInt16BE(2)
 
     const result = makeResult([hi, lo])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
 
     expect(data[0].words?.float).toBeCloseTo(3.14, 2)
   })
@@ -182,7 +182,7 @@ describe('convertRegisterData', () => {
 
     // Feed words in swapped order (little endian word order)
     const result = makeResult([w3, w2, w1, w0])
-    const data = convertRegisterData(result, 0, true, false, false)
+    const data = convertRegisterData(result, 0, true, false)
 
     expect(data[0].words?.double).toBe(1.0)
   })
@@ -197,14 +197,14 @@ describe('convertRegisterData', () => {
     const w3 = buf.readUInt16BE(6)
 
     const result = makeResult([w0, w1, w2, w3])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
 
     expect(data[0].words?.double).toBe(1.0)
   })
 
   it('returns 0 for 32-bit fields on the last register', () => {
     const result = makeResult([1234])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
 
     // Only 1 register, so 32-bit values should default to 0
     expect(data[0].words?.int32).toBe(0)
@@ -213,7 +213,7 @@ describe('convertRegisterData', () => {
 
   it('returns 0 / BigInt(0) for 64-bit fields with fewer than 4 registers', () => {
     const result = makeResult([1, 2])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
 
     expect(data[0].words?.int64).toBe(BigInt(0))
     expect(data[0].words?.uint64).toBe(BigInt(0))
@@ -222,14 +222,14 @@ describe('convertRegisterData', () => {
 
   it('produces correct hex representation', () => {
     const result = makeResult([0x00ff])
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
     expect(data[0].hex).toBe('00ff')
   })
 
   it('replaces null bytes with spaces in utf8', () => {
     // Buffer with null (0x00) bytes
     const result = makeResult([0x4100]) // 'A' followed by null
-    const data = convertRegisterData(result, 0, false, false, false)
+    const data = convertRegisterData(result, 0, false, false)
     // The null byte should become a space (0x20)
     expect(data[0].words?.utf8).toContain('A')
     expect(data[0].words?.utf8).not.toContain('\0')
@@ -239,7 +239,7 @@ describe('convertRegisterData', () => {
     it('utf8 starts from the current register offset', () => {
       // "Hello" = 0x4865 0x6C6C 0x6F00
       const result = makeResult([0x4865, 0x6c6c, 0x6f00])
-      const data = convertRegisterData(result, 0, false, false, false)
+      const data = convertRegisterData(result, 0, false, false)
 
       // Row 0 sees the full string from offset 0
       expect(data[0].words?.utf8).toBe('Hello ')
@@ -256,7 +256,7 @@ describe('convertRegisterData', () => {
       // Register 2: 0x6C6C ("ll")
       // Register 3: 0x6F00 ("o\0")
       const result = makeResult([0xff9c, 0x4865, 0x6c6c, 0x6f00])
-      const data = convertRegisterData(result, 0, false, false, false)
+      const data = convertRegisterData(result, 0, false, false)
 
       // Row 1 should start with "He", unaffected by non-ASCII at row 0
       expect(data[1].words?.utf8?.startsWith('Hello')).toBe(true)
@@ -267,7 +267,7 @@ describe('convertRegisterData', () => {
       const junk = [0xffff, 0xeedd]
       const hello = [0x4865, 0x6c6c, 0x6f20, 0x576f, 0x726c]
       const result = makeResult([...junk, ...hello])
-      const data = convertRegisterData(result, 0, false, false, false)
+      const data = convertRegisterData(result, 0, false, false)
 
       // Row at index 2 (address 2) should start with "Hello Worl"
       expect(data[2].words?.utf8?.startsWith('Hello Worl')).toBe(true)
@@ -275,13 +275,13 @@ describe('convertRegisterData', () => {
 
     it('utf8 with single character register', () => {
       const result = makeResult([0x4100]) // "A\0" → "A "
-      const data = convertRegisterData(result, 10, false, false, false)
+      const data = convertRegisterData(result, 10, false, false)
       expect(data[0].words?.utf8).toBe('A ')
     })
 
     it('utf8 with empty (all null) registers', () => {
       const result = makeResult([0x0000, 0x0000])
-      const data = convertRegisterData(result, 0, false, false, false)
+      const data = convertRegisterData(result, 0, false, false)
       // Nulls become spaces
       expect(data[0].words?.utf8).toBe('    ')
       expect(data[1].words?.utf8).toBe('  ')

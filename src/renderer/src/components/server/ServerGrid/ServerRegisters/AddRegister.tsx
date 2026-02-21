@@ -399,7 +399,7 @@ const DateTimeField = meme(() => {
           value={true}
           data-testid="add-reg-datetime-show-utc"
           aria-label="Show UTC time for datepicker"
-          title="Show UTC time for datepicker"
+          title="Toggle UTC/local display — register is always encoded in UTC"
           onChange={() => setShowDatePickerUtc(!showDatePickerUtc)}
         >
           UTC

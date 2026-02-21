@@ -180,8 +180,7 @@ export const RegisterConfigSchema = z.object({
   advancedMode: z.boolean(),
   show64BitValues: z.boolean(),
   addressBase: z.enum(['0', '1']),
-  readConfiguration: z.boolean(),
-  readLocalTime: z.boolean()
+  readConfiguration: z.boolean()
 })
 export type RegisterConfig = z.infer<typeof RegisterConfigSchema>
 

@@ -233,12 +233,6 @@ export const useRootZustand = create<
           state.registerConfig.advancedMode = advancedMode
           window.api.updateRegisterConfig({ advancedMode })
         }),
-      setReadLocalTime: (readLocalTime) =>
-        set((state) => {
-          if (!get().ready) return
-          state.registerConfig.readLocalTime = readLocalTime
-          window.api.updateRegisterConfig({ readLocalTime })
-        }),
       // Addressing
       setUnitId: (unitId) =>
         set((state) => {

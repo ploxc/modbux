@@ -13,7 +13,7 @@ export interface ReadCoilResultLike {
   buffer: Buffer
 }
 
-export const parseIEC870DateTime = (buf: Buffer, localTime: boolean): string => {
+export const parseIEC870DateTime = (buf: Buffer): string => {
   if (buf.length !== 8) return ''
 
   const word1 = buf.readUInt16BE(0)
@@ -51,8 +51,7 @@ export const parseIEC870DateTime = (buf: Buffer, localTime: boolean): string => 
     return ''
   }
 
-  let datetime = DateTime.utc(year, month, day, hour, minute, second, millisecond)
-  if (localTime) datetime = datetime.toLocal()
+  const datetime = DateTime.utc(year, month, day, hour, minute, second, millisecond)
 
   return datetime.toFormat('yyyy/MM/dd HH:mm:ss')
 }
@@ -61,8 +60,7 @@ export const convertRegisterData = (
   result: ReadRegisterResultLike,
   address: number,
   littleEndian: boolean,
-  isScanning: boolean,
-  localTime: boolean
+  isScanning: boolean
 ): RegisterData[] => {
   if (!result) return []
 
@@ -109,18 +107,16 @@ export const convertRegisterData = (
         uint32: buf32 ? buf32.readUInt32BE(0) : 0,
         float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
         unix: buf32
-          ? localTime
-            ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/MM/dd HH:mm:ss')
-            : DateTime.fromMillis(buf32.readUInt32BE(0) * 1000)
-                .toUTC()
-                .toFormat('yyyy/MM/dd HH:mm:ss')
+          ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000)
+              .toUTC()
+              .toFormat('yyyy/MM/dd HH:mm:ss')
           : '',
 
         // 64 bits
         int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
         uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
         double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
-        datetime: buf64 ? parseIEC870DateTime(buf64, localTime) : '',
+        datetime: buf64 ? parseIEC870DateTime(buf64) : '',
         // Replace null values with spaces — start from current register offset
         // so character indexing aligns with register positions
         utf8: Buffer.from(buffer.subarray(offset).map((b) => (b === 0 ? 32 : b))).toString('utf-8')

@@ -11,11 +11,7 @@ export function migrateRootState(
   const state = persistedState as Record<string, unknown>
 
   if (version < 2) {
-    // v1→v2: added readLocalTime to registerConfig
-    const registerConfig = state.registerConfig as Record<string, unknown> | undefined
-    if (registerConfig && !('readLocalTime' in registerConfig)) {
-      registerConfig.readLocalTime = false
-    }
+    // v1→v2: (reserved for future migrations)
   }
 
   return state
