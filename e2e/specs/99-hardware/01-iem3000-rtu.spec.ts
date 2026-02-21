@@ -64,6 +64,9 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Disconnect', {
       timeout: 10_000
     })
+
+    // Wait for Arduino DTR reset (serial port open triggers board reboot)
+    await mainPage.waitForTimeout(2000)
   })
 
   test('enable advanced mode', async ({ mainPage }) => {

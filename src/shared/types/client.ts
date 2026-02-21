@@ -195,6 +195,7 @@ export interface RegisterData {
   words: RegisterDataWords | undefined
   bit: boolean
   isScanned: boolean
+  error?: string
 }
 
 export interface RegisterDataWords {

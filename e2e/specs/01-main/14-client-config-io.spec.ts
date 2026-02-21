@@ -30,10 +30,11 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(nameInput).toHaveValue('Test Client')
   })
 
-  test('view config button — populates grid with configured registers', async ({ mainPage }) => {
-    // view-config-btn pushes the register mapping into the grid as rows (not a dialog)
+  test('enable readConfiguration — populates grid with configured registers', async ({
+    mainPage
+  }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
-    await mainPage.getByTestId('view-config-btn').click()
+    await mainPage.getByTestId('reg-read-config-btn').click()
 
     // Grid should show rows for configured addresses (0 and 1 from client-basic.json)
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
@@ -61,9 +62,8 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     expect(comment1).toBe('temperature scaled')
   })
 
-  test('view config for input registers', async ({ mainPage }) => {
+  test('switch to input registers — grid repopulates with config', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Input Registers')
-    await mainPage.getByTestId('view-config-btn').click()
 
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
     await expect(row0).toBeVisible()
@@ -73,8 +73,9 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     const comment = await cell(mainPage, 0, 'comment')
     expect(comment).toBe('sensor value')
 
-    // Switch back to holding registers
+    // Switch back to holding registers and disable readConfiguration
     await selectRegisterType(mainPage, 'Holding Registers')
+    await mainPage.getByTestId('reg-read-config-btn').click()
   })
 
   test('save client config — verify download content', async ({ electronApp, mainPage }) => {
@@ -111,9 +112,9 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   test('clear client config — verify mappings removed', async ({ mainPage }) => {
     await mainPage.getByTestId('clear-config-btn').click()
 
-    // After clearing, view-config-btn should be disabled (no mappings)
-    const viewBtn = mainPage.getByTestId('view-config-btn')
-    await expect(viewBtn).toBeDisabled()
+    // After clearing, read-config toggle should be disabled (no mappings)
+    const readConfigBtn = mainPage.getByTestId('reg-read-config-btn')
+    await expect(readConfigBtn).toBeDisabled()
 
     // Config name should also be cleared
     const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
@@ -138,9 +139,11 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(nameInput).toHaveValue('Server 1 Unit 0')
   })
 
-  test('verify comprehensive config — view shows all data types in grid', async ({ mainPage }) => {
+  test('verify comprehensive config — readConfiguration shows all data types in grid', async ({
+    mainPage
+  }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
-    await mainPage.getByTestId('view-config-btn').click()
+    await mainPage.getByTestId('reg-read-config-btn').click()
 
     // client-server1-unit0.json has: int16@0, uint16@1, int32@2, uint32@4, float@6,
     // int64@8, uint64@12, double@16, utf8@20, unix@25, datetime@27
@@ -156,6 +159,9 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(grid).toContainText('UTF8')
     await expect(grid).toContainText('UNIX')
     await expect(grid).toContainText('DATETIME')
+
+    // Disable readConfiguration
+    await mainPage.getByTestId('reg-read-config-btn').click()
   })
 
   // ─── Endianness restore on config load ──────────────────────────────

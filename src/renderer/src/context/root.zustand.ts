@@ -36,8 +36,8 @@ export const useRootZustand = create<
         window.api.updateRegisterConfig(registerConfig)
 
         set((state) => {
-          // On init always set the readConfiguration to false
-          state.registerConfig.readConfiguration = registerConfig.readConfiguration
+          // readConfiguration is runtime-only state, always start with it off
+          state.registerConfig.readConfiguration = false
           state.ready = true
         })
       },
@@ -258,8 +258,9 @@ export const useRootZustand = create<
           state.registerConfig.address = newAddress
           window.api.updateRegisterConfig({ address: newAddress })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setLength: (length, valid) =>
         set((state) => {
@@ -272,8 +273,9 @@ export const useRootZustand = create<
           if (!valid) return
           window.api.updateRegisterConfig({ length: newLength })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setType: (type) =>
         set((state) => {
@@ -283,8 +285,9 @@ export const useRootZustand = create<
           state.registerConfig.type = type
           window.api.updateRegisterConfig({ type })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.registerConfig.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setLittleEndian: (littleEndian) =>
         set((state) => {

@@ -17,6 +17,7 @@ import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType } from '@shared'
+import { showMapping } from '@renderer/context/data.zustand'
 import { ElementType, useCallback, useEffect } from 'react'
 
 // Protocol
@@ -25,7 +26,9 @@ const TypeSelect = meme(() => {
   const type = useRootZustand((z) => z.registerConfig.type)
 
   const handleChange = useCallback((type: RegisterType) => {
-    useDataZustand.getState().setRegisterData([])
+    if (!useRootZustand.getState().registerConfig.readConfiguration) {
+      useDataZustand.getState().setRegisterData([])
+    }
     useRootZustand.getState().setType(type)
   }, [])
 
@@ -104,7 +107,11 @@ const ReadConfiguration = meme(() => {
     const toggleState = !!v
 
     // When read configuration is enabled, send the configuration to the backend API
-    if (toggleState) window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+    // and immediately show the configured registers in the grid
+    if (toggleState) {
+      window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+      showMapping()
+    }
     useRootZustand.getState().setReadConfiguration(toggleState)
   }, [])
 

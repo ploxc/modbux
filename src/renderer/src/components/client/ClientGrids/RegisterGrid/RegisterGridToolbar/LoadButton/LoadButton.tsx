@@ -5,7 +5,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { migrateClientConfig } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
-import { showMapping } from '../ViewConfigButton/ViewConfigButton'
+import { showMapping } from '@renderer/context/data.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 const LoadButton = meme((): JSX.Element => {

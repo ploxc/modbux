@@ -328,6 +328,7 @@ export class ModbusClient {
         })
       }
       this._setDisconnected()
+      return
     }
 
     // Set unit id before reading (in case of TCP)
@@ -350,11 +351,33 @@ export class ModbusClient {
       } catch (error) {
         const readError = error as Error
         errorMessage = readError.message
-        this._emitMessage({
-          message: `${errorMessage} [addr:${a}, len:${l}]`,
-          variant: 'error',
-          error
-        })
+
+        if (this._appState.registerConfig.readConfiguration) {
+          // Generate error placeholder rows for configured addresses in this failed group
+          const mapping = this._appState.registerMapping?.[type]
+          if (mapping) {
+            for (const [addrStr, mapValue] of Object.entries(mapping)) {
+              const addr = Number(addrStr)
+              if (addr >= a && addr < a + l && mapValue?.dataType && mapValue.dataType !== 'none') {
+                data.push({
+                  id: addr,
+                  buffer: new Uint8Array(2),
+                  hex: '0000',
+                  words: undefined,
+                  bit: false,
+                  isScanned: false,
+                  error: errorMessage
+                })
+              }
+            }
+          }
+        } else {
+          this._emitMessage({
+            message: `${errorMessage} [addr:${a}, len:${l}, id:${this._appState.connectionConfig.unitId}]`,
+            variant: 'error',
+            error
+          })
+        }
       }
       this._logTransaction(errorMessage)
       if (this._clientState.connectState !== 'connected') break

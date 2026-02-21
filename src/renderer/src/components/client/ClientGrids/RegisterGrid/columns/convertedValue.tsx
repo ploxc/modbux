@@ -32,7 +32,18 @@ export const convertedValueColumn = (
   type: 'string',
   headerName: 'Value',
   width: 160,
+  renderCell: (params) => {
+    if (params.row.error) {
+      return (
+        <span style={{ color: 'var(--mui-palette-error-main)' }} title={params.row.error}>
+          {params.row.error}
+        </span>
+      )
+    }
+    return params.formattedValue
+  },
   valueGetter: (_, row): number | string | undefined => {
+    if (row.error) return undefined
     const address = row.id
 
     // Get the defined datatype from the register map

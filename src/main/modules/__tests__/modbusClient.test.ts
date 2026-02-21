@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Windows } from '@shared'
@@ -627,8 +628,13 @@ describe('ModbusClient', () => {
 
       await client.read()
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('read timeout'))).toBe(true)
+      // In readConfiguration mode, errors go into data rows, not snackbar messages
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBeGreaterThan(0)
+      const sentData = dataCalls.at(-1)?.[1]
+      const errorRow = sentData.find((d: any) => d.id === 0)
+      expect(errorRow?.error).toContain('read timeout')
+
       // Second group should still be read
       expect(callCount).toBe(2)
     })

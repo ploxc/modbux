@@ -12,7 +12,6 @@ import {
   disableAdvancedMode,
   cleanServerState,
   setupServerConfig,
-  clearData,
   setServerPanelCollapsed,
   expandAllServerPanels,
   navigateToServer
@@ -196,8 +195,8 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await expect(nameInput).toHaveValue('Huawei Smart Logger')
   })
 
-  test('view config shows all configured registers', async ({ mainPage }) => {
-    await mainPage.getByTestId('view-config-btn').click()
+  test('enable readConfiguration — shows all configured registers', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-read-config-btn').click()
     await mainPage.waitForTimeout(500)
 
     // DataGrid virtualizes rows — only visible ones are in DOM
@@ -244,6 +243,12 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     expect(comment).toContain('Power Factor')
   })
 
+  test('disable readConfiguration after config view', async ({ mainPage }) => {
+    const btn = mainPage.getByTestId('reg-read-config-btn')
+    await btn.click()
+    await expect(btn).not.toHaveClass(/Mui-selected/)
+  })
+
   // ─── Read Configuration mode ──────────────────────────────────────
 
   test('re-enable advanced mode for read config tests', async ({ mainPage }) => {
@@ -256,10 +261,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('read configuration reads only configured registers', async ({ mainPage }) => {
-    // Clear the grid first
-    await clearData(mainPage)
-
-    // Enable read configuration mode
+    // Enable read configuration mode (grid is already empty from previous disable)
     const btn = mainPage.getByTestId('reg-read-config-btn')
     await btn.click()
     await expect(btn).toHaveClass(/Mui-selected/)
@@ -330,8 +332,8 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   test('clear client config', async ({ mainPage }) => {
     await mainPage.getByTestId('clear-config-btn').click()
 
-    const viewBtn = mainPage.getByTestId('view-config-btn')
-    await expect(viewBtn).toBeDisabled()
+    const readConfigBtn = mainPage.getByTestId('reg-read-config-btn')
+    await expect(readConfigBtn).toBeDisabled()
   })
 
   test('expand all server panels for clean state', async ({ mainPage }) => {
