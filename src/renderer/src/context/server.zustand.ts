@@ -577,6 +577,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         view.setInt16(0, Number(currentValue) || 0, littleEndian)
         break
       case 'uint16':
+      case 'bitmap':
         view.setUint16(0, Number(currentValue) || 0, littleEndian)
         break
       case 'int32':
@@ -623,6 +624,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         newComposite = view.getInt16(0, littleEndian)
         break
       case 'uint16':
+      case 'bitmap':
         newComposite = view.getUint16(0, littleEndian)
         break
       case 'int32':

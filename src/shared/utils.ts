@@ -47,6 +47,7 @@ export const createRegisters = (
       buffer.writeInt16BE(value, 0)
       break
     case 'uint16':
+    case 'bitmap':
       buffer.writeUInt16BE(value, 0)
       break
     case 'int32':
@@ -126,6 +127,7 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
     case 'int16':
       return { min: -32768, max: 32767 }
     case 'uint16':
+    case 'bitmap':
       return { min: 0, max: 65535 }
     case 'int32':
       return { min: -2147483648, max: 2147483647 }

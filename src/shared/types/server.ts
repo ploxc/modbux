@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { BaseDataType, BaseDataTypeSchema } from './datatype'
+import { BitMapConfigSchema } from './bitmap'
 import { RegisterType } from './client'
 import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
@@ -40,7 +41,8 @@ export const RegisterParamsBasePartSchema = z.object({
   dataType: BaseDataTypeSchema,
   comment: z.string(),
   length: z.number().optional(),
-  stringValue: z.string().optional()
+  stringValue: z.string().optional(),
+  bitMap: BitMapConfigSchema.optional()
 })
 export type RegisterParamsBasePart = z.infer<typeof RegisterParamsBasePartSchema>
 

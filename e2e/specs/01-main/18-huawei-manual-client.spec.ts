@@ -234,8 +234,8 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     // Spot-check comments from different groups (scroll to off-screen rows)
     expect(await scrollCell(mainPage, 40011, 'comment')).toBe('Year')
     expect(await scrollCell(mainPage, 40429, 'comment')).toContain('Power Factor')
-    expect(await scrollCell(mainPage, 40700, 'comment')).toBe('DI status (BITMAP)')
-    expect(await scrollCell(mainPage, 50000, 'comment')).toBe('Alarm Info 1 (BITMAP)')
+    expect(await scrollCell(mainPage, 40700, 'comment')).toBe('DI status')
+    expect(await scrollCell(mainPage, 50000, 'comment')).toBe('Alarm Info 1')
   })
 
   test('readConfig validates scaling factors survived', async ({ mainPage }) => {
@@ -358,7 +358,7 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     // Verify comments round-tripped
     expect(hr['40011'].comment).toBe('Year')
     expect(hr['40429'].comment).toContain('Power Factor')
-    expect(hr['50000'].comment).toBe('Alarm Info 1 (BITMAP)')
+    expect(hr['50000'].comment).toBe('Alarm Info 1')
     expect(hr['40713'].comment).toBe('ESN')
     expect(hr['65534'].comment).toBe('Device connection status')
 

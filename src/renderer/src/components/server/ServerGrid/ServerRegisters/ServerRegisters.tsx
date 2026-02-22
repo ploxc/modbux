@@ -1,4 +1,4 @@
-import { Edit } from '@mui/icons-material'
+import { Edit, ExpandLess, ExpandMore } from '@mui/icons-material'
 import { Paper, Box, IconButton, alpha } from '@mui/material'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
+import ServerBitMapDetail from './ServerBitMapDetail'
 import { DateTime } from 'luxon'
 
 interface RowProps {
@@ -78,43 +79,67 @@ const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
 }
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {
+  const isBitmap = register.params.dataType === 'bitmap'
+  const [expanded, setExpanded] = useState(false)
+
   return (
-    <Box
-      sx={(theme) => ({
-        width: '100%',
-        height: 28,
-        borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-        pl: 1,
-
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-
-        '&:hover': {
-          backgroundColor: alpha(theme.palette.primary.dark, 0.2)
-        }
-      })}
-    >
-      <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>
-        {register.params.address}
-      </Box>
-      <Box sx={{ width: 60, opacity: 0.5, flexShrink: 0 }}>
-        {register.params.dataType.replace(/_/, ' ').toUpperCase()}
-      </Box>
-      <ServerRegisterValue register={register} />
+    <Box>
       <Box
-        sx={{
-          flex: 1,
-          textAlign: 'right',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}
-        title={register.params.comment}
+        sx={(theme) => ({
+          width: '100%',
+          height: 28,
+          borderBottom: expanded ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+          pl: 1,
+
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.dark, 0.2)
+          }
+        })}
       >
-        {register.params.comment}
+        <Box sx={(theme) => ({ width: 38, color: theme.palette.primary.main })}>
+          {register.params.address}
+        </Box>
+        <Box sx={{ width: 60, opacity: 0.5, flexShrink: 0 }}>
+          {register.params.dataType.replace(/_/, ' ').toUpperCase()}
+        </Box>
+        {isBitmap && (
+          <IconButton
+            data-testid={`server-bitmap-expand-${register.params.address}`}
+            size="small"
+            onClick={() => setExpanded((prev) => !prev)}
+            sx={{ p: 0 }}
+          >
+            {expanded ? (
+              <ExpandLess fontSize="small" />
+            ) : (
+              <ExpandMore fontSize="small" />
+            )}
+          </IconButton>
+        )}
+        <ServerRegisterValue register={register} />
+        <Box
+          sx={{
+            flex: 1,
+            textAlign: 'right',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+          title={register.params.comment}
+        >
+          {register.params.comment}
+        </Box>
+        <RowEdit register={register} />
       </Box>
-      <RowEdit register={register} />
+      {isBitmap && expanded && (
+        <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)' }}>
+          <ServerBitMapDetail register={register} />
+        </Box>
+      )}
     </Box>
   )
 })

@@ -59,7 +59,21 @@
       "40695": { "dataType": "int32", "scalingFactor": 0.1, "comment": "Min reactive adjustment (kVar)" },
       "40697": { "dataType": "uint32", "scalingFactor": 0.1, "comment": "Max active adjustment (kW)" },
       "40699": { "dataType": "uint16", "scalingFactor": 1, "comment": "Locked/Unlocked" },
-      "40700": { "dataType": "uint16", "scalingFactor": 1, "comment": "DI status (BITMAP)" },
+      "40700": {
+        "dataType": "bitmap",
+        "scalingFactor": 1,
+        "comment": "DI status",
+        "bitMap": {
+          "0": { "comment": "DI1" },
+          "1": { "comment": "DI2" },
+          "2": { "comment": "DI3" },
+          "3": { "comment": "DI4" },
+          "4": { "comment": "DI5" },
+          "5": { "comment": "DI6" },
+          "6": { "comment": "DI7" },
+          "7": { "comment": "DI8" }
+        }
+      },
       "40713": { "dataType": "utf8", "scalingFactor": 1, "comment": "ESN" },
       "40736": { "dataType": "uint16", "scalingFactor": 1, "comment": "Device access status" },
       "40737": { "dataType": "uint16", "scalingFactor": 1, "comment": "Active Mode" },
@@ -84,9 +98,46 @@
       "42021": { "dataType": "uint16", "scalingFactor": 1, "comment": "SystemTime: Minute" },
       "42022": { "dataType": "uint16", "scalingFactor": 1, "comment": "SystemTime: Second" },
       "42150": { "dataType": "uint16", "scalingFactor": 0.01, "comment": "Current error during scanning" },
-      "50000": { "dataType": "uint16", "scalingFactor": 1, "comment": "Alarm Info 1 (BITMAP)" },
-      "50001": { "dataType": "uint16", "scalingFactor": 1, "comment": "Alarm Info 2 (BITMAP)" },
-      "50002": { "dataType": "uint16", "scalingFactor": 1, "comment": "Alarm Info 3 (BITMAP)" },
+      "50000": {
+        "dataType": "bitmap",
+        "scalingFactor": 1,
+        "comment": "Alarm Info 1",
+        "bitMap": {
+          "3": { "comment": "Active Schedule" },
+          "11": { "comment": "Reactive Schedule" }
+        }
+      },
+      "50001": {
+        "dataType": "bitmap",
+        "scalingFactor": 1,
+        "comment": "Alarm Info 2",
+        "bitMap": {
+          "1": { "comment": "MCB" },
+          "2": { "comment": "Cubicle" },
+          "3": { "comment": "Addr Conflict" },
+          "4": { "comment": "SPD" },
+          "5": { "comment": "DI1" },
+          "6": { "comment": "DI2" },
+          "7": { "comment": "DI3" },
+          "8": { "comment": "DI4" },
+          "9": { "comment": "DI5" },
+          "10": { "comment": "DI6" },
+          "11": { "comment": "DI7" },
+          "12": { "comment": "DI8" },
+          "13": { "comment": "24V" },
+          "14": { "comment": "License" }
+        }
+      },
+      "50002": {
+        "dataType": "bitmap",
+        "scalingFactor": 1,
+        "comment": "Alarm Info 3",
+        "bitMap": {
+          "0": { "comment": "Cert alarm 1" },
+          "1": { "comment": "Cert alarm 2" },
+          "2": { "comment": "Cert alarm 3" }
+        }
+      },
       "65521": { "dataType": "uint16", "scalingFactor": 1, "comment": "Device list change number" },
       "65522": { "dataType": "uint16", "scalingFactor": 1, "comment": "Port number" },
       "65523": { "dataType": "uint16", "scalingFactor": 1, "comment": "Device Address" },

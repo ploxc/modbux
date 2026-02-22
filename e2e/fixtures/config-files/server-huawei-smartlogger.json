@@ -511,9 +511,19 @@
           "params": {
             "address": 40700,
             "registerType": "holding_registers",
-            "dataType": "uint16",
-            "comment": "DI status (BITMAP: bit0=DI1..bit7=DI8)",
-            "value": 37
+            "dataType": "bitmap",
+            "comment": "DI status",
+            "value": 37,
+            "bitMap": {
+              "0": { "comment": "DI1" },
+              "1": { "comment": "DI2" },
+              "2": { "comment": "DI3" },
+              "3": { "comment": "DI4" },
+              "4": { "comment": "DI5" },
+              "5": { "comment": "DI6" },
+              "6": { "comment": "DI7" },
+              "7": { "comment": "DI8" }
+            }
           }
         },
         "40713": {
@@ -763,9 +773,13 @@
           "params": {
             "address": 50000,
             "registerType": "holding_registers",
-            "dataType": "uint16",
-            "comment": "Alarm Info 1 (BITMAP: bit3=Abnormal Active Schedule, bit11=Abnormal Reactive Schedule)",
-            "value": 2048
+            "dataType": "bitmap",
+            "comment": "Alarm Info 1",
+            "value": 2048,
+            "bitMap": {
+              "3": { "comment": "Active Schedule" },
+              "11": { "comment": "Reactive Schedule" }
+            }
           }
         },
         "50001": {
@@ -773,9 +787,25 @@
           "params": {
             "address": 50001,
             "registerType": "holding_registers",
-            "dataType": "uint16",
-            "comment": "Alarm Info 2 (BITMAP: bit1=MCB, bit2=Cubicle, bit3=AddrConflict, bit4=SPD, bit5-12=DI1-8, bit13=24V, bit14=License)",
-            "value": 8
+            "dataType": "bitmap",
+            "comment": "Alarm Info 2",
+            "value": 8,
+            "bitMap": {
+              "1": { "comment": "MCB" },
+              "2": { "comment": "Cubicle" },
+              "3": { "comment": "Addr Conflict" },
+              "4": { "comment": "SPD" },
+              "5": { "comment": "DI1" },
+              "6": { "comment": "DI2" },
+              "7": { "comment": "DI3" },
+              "8": { "comment": "DI4" },
+              "9": { "comment": "DI5" },
+              "10": { "comment": "DI6" },
+              "11": { "comment": "DI7" },
+              "12": { "comment": "DI8" },
+              "13": { "comment": "24V" },
+              "14": { "comment": "License" }
+            }
           }
         },
         "50002": {
@@ -783,9 +813,14 @@
           "params": {
             "address": 50002,
             "registerType": "holding_registers",
-            "dataType": "uint16",
-            "comment": "Alarm Info 3 (BITMAP: bit0-14=Certificate alarms)",
-            "value": 0
+            "dataType": "bitmap",
+            "comment": "Alarm Info 3",
+            "value": 0,
+            "bitMap": {
+              "0": { "comment": "Cert alarm 1" },
+              "1": { "comment": "Cert alarm 2" },
+              "2": { "comment": "Cert alarm 3" }
+            }
           }
         },
         "65521": {

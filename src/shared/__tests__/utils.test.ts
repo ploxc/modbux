@@ -135,6 +135,20 @@ describe('createRegisters', () => {
     })
   })
 
+  describe('bitmap', () => {
+    it('produces a single register identical to uint16', () => {
+      expect(createRegisters('bitmap', 42, false)).toEqual([42])
+    })
+
+    it('converts zero', () => {
+      expect(createRegisters('bitmap', 0, false)).toEqual([0])
+    })
+
+    it('converts max value', () => {
+      expect(createRegisters('bitmap', 65535, false)).toEqual([65535])
+    })
+  })
+
   describe('int32 (big endian)', () => {
     it('converts positive value to 2 registers', () => {
       const regs = createRegisters('int32', 70000, false)
@@ -311,6 +325,10 @@ describe('getMinMaxValues', () => {
 
   it('returns correct range for uint16', () => {
     expect(getMinMaxValues('uint16')).toEqual({ min: 0, max: 65535 })
+  })
+
+  it('returns correct range for bitmap (same as uint16)', () => {
+    expect(getMinMaxValues('bitmap')).toEqual({ min: 0, max: 65535 })
   })
 
   it('returns correct range for int32', () => {

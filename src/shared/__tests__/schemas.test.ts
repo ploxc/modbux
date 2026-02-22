@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { RegisterMapObjectSchema } from '../types/client'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
+import { RegisterParamsSchema } from '../types/server'
 
 describe('RegisterMapObjectSchema', () => {
   it('accepts numeric string keys', () => {
@@ -44,6 +45,40 @@ describe('RegisterMapObjectSchema', () => {
       }
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('Server RegisterParamsSchema — bitMap', () => {
+  const baseParams = {
+    address: 10,
+    registerType: 'holding_registers',
+    dataType: 'bitmap',
+    comment: 'status word',
+    value: 0
+  }
+
+  it('accepts bitmap register with bitMap config', () => {
+    const result = RegisterParamsSchema.safeParse({
+      ...baseParams,
+      bitMap: {
+        '0': { comment: 'run' },
+        '5': { comment: 'alarm' }
+      }
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts bitmap register without bitMap config', () => {
+    const result = RegisterParamsSchema.safeParse(baseParams)
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects bitMap with invalid bit index', () => {
+    const result = RegisterParamsSchema.safeParse({
+      ...baseParams,
+      bitMap: { '16': { comment: 'out of range' } }
+    })
+    expect(result.success).toBe(false)
   })
 })
 

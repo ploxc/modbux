@@ -220,6 +220,10 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await expect(grid).toContainText('INT32')
     await expect(grid).toContainText('UINT64')
 
+    // Scroll to bitmap rows (50000) to render them
+    await scrollToRow(mainPage, 50000)
+    await expect(grid).toContainText('BITMAP')
+
     // Scroll to a UTF8 row (40713) to render it
     await scrollToRow(mainPage, 40713)
     await expect(grid).toContainText('UTF8')

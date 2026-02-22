@@ -1,6 +1,9 @@
 import { test, expect } from '../../fixtures/electron-app'
 import {
   navigateToClient,
+  navigateToServer,
+  cleanServerState,
+  addRegister,
   selectRegisterType,
   loadClientConfig,
   loadDummyData,
@@ -159,5 +162,90 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
 
     // Bit indicators should no longer be visible
     await expect(mainPage.getByTestId('bit-indicator-0')).not.toBeVisible()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server-side bitmap tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe.serial('Server bitmap — expand, bit toggle & comment', () => {
+  test('navigate to server and clear state', async ({ mainPage }) => {
+    await cleanServerState(mainPage)
+  })
+
+  test('add bitmap register with fixed value 5 (bits 0 & 2 set)', async ({ mainPage }) => {
+    await addRegister(mainPage, {
+      registerType: 'holding_registers',
+      address: 100,
+      dataType: 'BITMAP',
+      mode: 'fixed',
+      value: '5',
+      comment: 'server status'
+    })
+  })
+
+  test('bitmap expand button visible', async ({ mainPage }) => {
+    const expandBtn = mainPage.getByTestId('server-bitmap-expand-100')
+    await expect(expandBtn).toBeVisible()
+  })
+
+  test('expand bitmap row — detail panel visible', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-bitmap-expand-100').click()
+    await mainPage.waitForTimeout(300)
+
+    const detail = mainPage.getByTestId('server-bitmap-detail-100')
+    await expect(detail).toBeVisible()
+
+    // All 16 bits should be rendered
+    await expect(mainPage.getByTestId('server-bit-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-bit-15')).toBeVisible()
+  })
+
+  test('verify initial bit states (value=5 → bits 0,2 on)', async ({ mainPage }) => {
+    // Bit 0 circle should be "on" (success color)
+    const bit0Circle = mainPage.getByTestId('server-bit-circle-0')
+    await expect(bit0Circle).toBeVisible()
+
+    // Bit 1 circle should be "off"
+    const bit1Circle = mainPage.getByTestId('server-bit-circle-1')
+    await expect(bit1Circle).toBeVisible()
+
+    // Bit 2 circle should be "on"
+    const bit2Circle = mainPage.getByTestId('server-bit-circle-2')
+    await expect(bit2Circle).toBeVisible()
+  })
+
+  test('toggle bit 1 on (value changes 5 → 7)', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-bit-circle-1').click()
+    await mainPage.waitForTimeout(500)
+
+    // Value in the register row should now show 7
+    const row = mainPage.getByTestId('server-edit-reg-holding_registers-100')
+    await expect(row).toBeVisible()
+  })
+
+  test('add comment to bit 0', async ({ mainPage }) => {
+    // Click the comment area of bit 0 to start editing
+    const bit0 = mainPage.getByTestId('server-bit-0')
+    await bit0.locator('span.MuiTypography-root').last().click()
+    await mainPage.waitForTimeout(200)
+
+    // Type comment and press Enter
+    const input = bit0.locator('input')
+    await input.fill('motor running')
+    await input.press('Enter')
+    await mainPage.waitForTimeout(300)
+
+    // Verify comment is displayed
+    await expect(bit0).toContainText('motor running')
+  })
+
+  test('collapse bitmap row', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-bitmap-expand-100').click()
+    await mainPage.waitForTimeout(300)
+
+    // Detail panel should no longer be visible
+    await expect(mainPage.getByTestId('server-bitmap-detail-100')).not.toBeVisible()
   })
 })
