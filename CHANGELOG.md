@@ -5,7 +5,7 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - Unreleased
+## [2.0.0] - Unreleased
 
 ### Added
 
@@ -71,11 +71,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migration Notes
 
-- **Automatic migration:** Old configs (pre-v1.5.0) are auto-migrated when loaded
+- **Automatic migration:** Old configs (pre-v2.0.0) are auto-migrated when loaded
 - **Mixed endianness warning:** If a v1 config had registers with different byte orders, the most common setting is used globally with a warning notification
-- **Backward incompatibility:** Configs saved in v1.5.0+ cannot be opened in older Modbux versions
+- **Backward incompatibility:** Configs saved in v2.0.0+ cannot be opened in older Modbux versions
   - This is intentional to enable the improved architecture
   - Keep backups of configs if you need to downgrade
+
+---
+
+## [1.4.2] - 2026-02-20
+
+### Fixed
+
+- Multi-register data types (int32/float/int64/double) not fully cleared on removal — all occupied registers are now reset, not just the start address
 
 ---
 
