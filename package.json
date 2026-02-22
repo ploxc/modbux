@@ -33,6 +33,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
+    "presentation": "npx playwright test --config playwright.presentation.config.ts",
     "checkup": "yarn lint && yarn typecheck && yarn test && yarn test:e2e"
   },
   "dependencies": {

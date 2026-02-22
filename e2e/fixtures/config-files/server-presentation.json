@@ -1,0 +1,235 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Solar Edge 10K",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {
+        "0": { "value": true, "comment": "Inverter ON" },
+        "1": { "value": true, "comment": "Grid Relay" },
+        "2": { "value": true, "comment": "MPPT Active" },
+        "3": { "value": false, "comment": "Night Mode" },
+        "4": { "value": true, "comment": "Fan Running" },
+        "5": { "value": false, "comment": "Overtemp Alert" },
+        "6": { "value": false, "comment": "Ground Fault" },
+        "7": { "value": true, "comment": "Communication OK" }
+      },
+      "discrete_inputs": {
+        "0": { "value": true, "comment": "DC Input Present" },
+        "1": { "value": true, "comment": "Grid Connected" },
+        "2": { "value": false, "comment": "Emergency Stop" },
+        "3": { "value": true, "comment": "Door Closed" },
+        "4": { "value": false, "comment": "Surge Detected" },
+        "5": { "value": true, "comment": "Firmware OK" },
+        "6": { "value": false, "comment": "Config Changed" },
+        "7": { "value": true, "comment": "Watchdog OK" }
+      },
+      "holding_registers": {
+        "0": {
+          "value": 387,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DC Voltage (V)",
+            "value": 387
+          }
+        },
+        "1": {
+          "value": 0,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DC Current (0.1 A)",
+            "min": 50,
+            "max": 145,
+            "interval": 2000
+          }
+        },
+        "2": {
+          "value": 0,
+          "params": {
+            "address": 2,
+            "registerType": "holding_registers",
+            "dataType": "float",
+            "comment": "AC Power (kW)",
+            "min": 1.8,
+            "max": 9.7,
+            "interval": 1000
+          }
+        },
+        "4": {
+          "value": 50.01,
+          "params": {
+            "address": 4,
+            "registerType": "holding_registers",
+            "dataType": "float",
+            "comment": "Grid Frequency (Hz)",
+            "value": 50.01
+          }
+        },
+        "6": {
+          "value": 0,
+          "params": {
+            "address": 6,
+            "registerType": "holding_registers",
+            "dataType": "int32",
+            "comment": "Energy Today (Wh)",
+            "min": 15000,
+            "max": 48000,
+            "interval": 3000
+          }
+        },
+        "8": {
+          "value": 1847523.75,
+          "params": {
+            "address": 8,
+            "registerType": "holding_registers",
+            "dataType": "double",
+            "comment": "Lifetime Energy (kWh)",
+            "value": 1847523.75
+          }
+        },
+        "12": {
+          "value": 21,
+          "params": {
+            "address": 12,
+            "registerType": "holding_registers",
+            "dataType": "bitmap",
+            "comment": "System Status",
+            "value": 21
+          }
+        },
+        "13": {
+          "value": 255,
+          "params": {
+            "address": 13,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Temp (0.1 °C)",
+            "value": 255
+          }
+        },
+        "14": {
+          "value": 0,
+          "params": {
+            "address": 14,
+            "registerType": "holding_registers",
+            "dataType": "utf8",
+            "comment": "Model Name",
+            "stringValue": "SE-10K",
+            "length": 6,
+            "value": 0
+          }
+        },
+        "17": {
+          "value": 0,
+          "params": {
+            "address": 17,
+            "registerType": "holding_registers",
+            "dataType": "unix",
+            "comment": "Last Update",
+            "min": 0,
+            "max": 0,
+            "interval": 5000
+          }
+        },
+        "19": {
+          "value": 0,
+          "params": {
+            "address": 19,
+            "registerType": "holding_registers",
+            "dataType": "datetime",
+            "comment": "System Clock",
+            "min": 0,
+            "max": 0,
+            "interval": 5000
+          }
+        }
+      },
+      "input_registers": {
+        "0": {
+          "value": 2304,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "uint16",
+            "comment": "Firmware Version",
+            "value": 2304
+          }
+        },
+        "1": {
+          "value": 0,
+          "params": {
+            "address": 1,
+            "registerType": "input_registers",
+            "dataType": "float",
+            "comment": "Grid Voltage (V)",
+            "min": 228,
+            "max": 242,
+            "interval": 1000
+          }
+        },
+        "3": {
+          "value": 9850,
+          "params": {
+            "address": 3,
+            "registerType": "input_registers",
+            "dataType": "uint16",
+            "comment": "Power Factor (0.001)",
+            "value": 9850
+          }
+        }
+      }
+    },
+    "1": {
+      "coils": {
+        "0": { "value": true, "comment": "Inverter ON" },
+        "1": { "value": false, "comment": "Grid Relay" },
+        "2": { "value": false, "comment": "MPPT Active" },
+        "3": { "value": true, "comment": "Night Mode" },
+        "4": { "value": false, "comment": "Fan Running" },
+        "5": { "value": false, "comment": "Overtemp Alert" },
+        "6": { "value": false, "comment": "Ground Fault" },
+        "7": { "value": true, "comment": "Communication OK" }
+      },
+      "discrete_inputs": {},
+      "holding_registers": {
+        "0": {
+          "value": 0,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DC Voltage (V)",
+            "value": 0
+          }
+        },
+        "1": {
+          "value": 0,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "DC Current (0.1 A)",
+            "value": 0
+          }
+        }
+      },
+      "input_registers": {
+        "0": {
+          "value": 2304,
+          "params": {
+            "address": 0,
+            "registerType": "input_registers",
+            "dataType": "uint16",
+            "comment": "Firmware Version",
+            "value": 2304
+          }
+        }
+      }
+    }
+  }
+}
