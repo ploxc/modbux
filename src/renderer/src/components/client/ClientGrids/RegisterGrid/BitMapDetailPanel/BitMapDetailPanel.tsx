@@ -1,9 +1,9 @@
 import { Box } from '@mui/material'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
+import { BitColor, BitMapConfig } from '@shared'
 import BitIndicator from './BitIndicator'
 
 interface BitMapDetailPanelProps {
@@ -21,9 +21,8 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     (z) => z.registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
   )
 
-  const setBitComment = useBitMapZustand((z) => z.setBitComment)
-  // Select the map entry directly (no ?? {} — that would create a new object every render → infinite loop)
-  const bitConfig = useBitMapZustand((z) => z.bitComments[address])
+  const bitConfig = useRootZustand((z) => z.registerMapping[z.registerConfig.type][address]?.bitMap)
+  const setRegisterMapping = useRootZustand((z) => z.setRegisterMapping)
 
   const registerType = useRootZustand((z) => z.registerConfig.type)
   const writable = registerType === 'holding_registers'
@@ -34,7 +33,6 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
   const handleToggle = useCallback(
     (bitIndex: number, currentValue: boolean) => {
       if (!canWrite) return
-      // Read current value from store to avoid stale closure on rapid toggles
       const currentUint16 =
         useDataZustand.getState().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
       const newUint16 = currentValue
@@ -51,12 +49,47 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     [address, canWrite]
   )
 
+  const updateBitMap = useCallback(
+    (bitIndex: number, patch: Record<string, unknown>) => {
+      const current = bitConfig ?? {}
+      const entry = current[String(bitIndex)] ?? {}
+      const updated: BitMapConfig = {
+        ...current,
+        [String(bitIndex)]: { ...entry, ...patch }
+      }
+      // Clean undefined values from the entry
+      const updatedEntry = updated[String(bitIndex)]
+      if (updatedEntry) {
+        if (!updatedEntry.comment) delete updatedEntry.comment
+        if (!updatedEntry.color || updatedEntry.color === 'default') delete updatedEntry.color
+        if (!updatedEntry.invert) delete updatedEntry.invert
+        // Remove entry entirely if empty
+        if (Object.keys(updatedEntry).length === 0) delete updated[String(bitIndex)]
+      }
+      setRegisterMapping(address, 'bitMap', Object.keys(updated).length > 0 ? updated : undefined)
+    },
+    [address, bitConfig, setRegisterMapping]
+  )
+
   const handleCommentChange = useCallback(
     (bitIndex: number, comment: string | undefined) => {
-      setBitComment(address, bitIndex, comment)
-      // TODO after merge: z.setRegisterMapping(address, 'bitMap', updatedConfig)
+      updateBitMap(bitIndex, { comment })
     },
-    [address, setBitComment]
+    [updateBitMap]
+  )
+
+  const handleColorChange = useCallback(
+    (bitIndex: number, color: BitColor | undefined) => {
+      updateBitMap(bitIndex, { color })
+    },
+    [updateBitMap]
+  )
+
+  const handleInvertChange = useCallback(
+    (bitIndex: number, invert: boolean) => {
+      updateBitMap(bitIndex, { invert: invert || undefined })
+    },
+    [updateBitMap]
   )
 
   return (
@@ -87,16 +120,20 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
       >
         {BIT_INDICES.map((bitIndex) => {
           const value = Boolean((uint16 >> bitIndex) & 1)
-          const comment = bitConfig?.[String(bitIndex)]?.comment
+          const entry = bitConfig?.[String(bitIndex)]
           return (
             <BitIndicator
               key={bitIndex}
               bitIndex={bitIndex}
               value={value}
-              comment={comment}
+              comment={entry?.comment}
+              color={entry?.color}
+              invert={entry?.invert}
               writable={canWrite}
               onToggle={() => handleToggle(bitIndex, value)}
               onCommentChange={(c) => handleCommentChange(bitIndex, c)}
+              onColorChange={(c) => handleColorChange(bitIndex, c)}
+              onInvertChange={(inv) => handleInvertChange(bitIndex, inv)}
             />
           )
         })}

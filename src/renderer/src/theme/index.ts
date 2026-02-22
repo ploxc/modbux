@@ -33,7 +33,7 @@ export const theme = createTheme({
       main: '#ccc'
     },
     success: {
-      main: '#99c24d'
+      main: '#81bc57'
     }
   },
   components: {

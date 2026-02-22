@@ -1,5 +1,6 @@
 import z from 'zod'
 import { BaseDataType, DataTypeSchema } from './datatype'
+import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
 
 //
@@ -18,7 +19,8 @@ export const RegisterMapValueSchema = z.object({
   scalingFactor: z.number().optional(),
   comment: z.string().optional(),
   interpolate: RegisterLinearInterpolationSchema.optional(),
-  groupEnd: z.boolean().optional()
+  groupEnd: z.boolean().optional(),
+  bitMap: BitMapConfigSchema.optional()
 })
 export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
 

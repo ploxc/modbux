@@ -49,9 +49,7 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
     await mainPage.waitForTimeout(3000)
 
     // Pagination should show 120 total rows
-    const paginationText = await mainPage
-      .locator('.MuiTablePagination-displayedRows')
-      .textContent()
+    const paginationText = await mainPage.locator('.MuiTablePagination-displayedRows').textContent()
     expect(paginationText).toContain('120')
   })
 

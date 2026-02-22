@@ -78,7 +78,6 @@ export type RootZusand = {
   setAdvancedMode: (advancedMode: boolean) => void
   setShow64BitValues: (show64BitValues: boolean) => void
 
-
   // Transaction
   setLastSuccessfulTransactionMillis: (value: number | null) => void
 

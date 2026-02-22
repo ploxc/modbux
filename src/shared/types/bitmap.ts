@@ -1,15 +1,13 @@
 import { z } from 'zod'
 
-// ─── Merge TODO ──────────────────────────────────────────────────────────────
-// In client.ts → import { BitMapConfigSchema } from './bitmap'
-//                and add:  bitMap: BitMapConfigSchema.optional()
-//                to RegisterMapValueSchema
-// ('bitmap' is already in BaseDataTypeSchema)
-// ─────────────────────────────────────────────────────────────────────────────
+export const BitColorSchema = z.enum(['default', 'warning', 'error'])
+export type BitColor = z.infer<typeof BitColorSchema>
 
 /** One entry per bit (index 0–15). */
 export const BitMapEntrySchema = z.object({
-  comment: z.string().optional()
+  comment: z.string().optional(),
+  color: BitColorSchema.optional(),
+  invert: z.boolean().optional()
 })
 export type BitMapEntry = z.infer<typeof BitMapEntrySchema>
 

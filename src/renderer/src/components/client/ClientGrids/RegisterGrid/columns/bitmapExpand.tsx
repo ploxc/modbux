@@ -22,7 +22,7 @@ export const ExpandCell = ({ address, isBitmap }: ExpandCellProps): JSX.Element 
         display: 'flex',
         alignItems: 'center',
         gap: 0.5,
-        px: 1.5,
+
         height: '100%',
         width: '100%',
         cursor: 'pointer',
