@@ -36,8 +36,7 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
     // Convert old boolean shape to { value: boolean } entries
     const migratedCoils: Record<string, ServerBoolEntry> = {}
     for (const [addr, val] of Object.entries(serverRegisters.coils ?? {})) {
-      migratedCoils[addr] =
-        typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
+      migratedCoils[addr] = typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
     }
     const migratedDiscreteInputs: Record<string, ServerBoolEntry> = {}
     for (const [addr, val] of Object.entries(serverRegisters.discrete_inputs ?? {})) {

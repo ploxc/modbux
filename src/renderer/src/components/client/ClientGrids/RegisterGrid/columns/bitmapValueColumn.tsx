@@ -29,11 +29,17 @@ export const bitmapValueColumn = (
       return baseValueGetter(value, row)
     },
     renderCell: (params): JSX.Element => {
+      if (params.row.error) {
+        return (
+          <span style={{ color: 'var(--mui-palette-error-main)' }} title={params.row.error}>
+            {params.row.error}
+          </span>
+        )
+      }
       const isBitmap = registerMap[params.row.id]?.dataType === BITMAP_DATATYPE
       if (isBitmap) {
         return <ExpandCell address={params.row.id} isBitmap={true} />
       }
-      // For non-bitmap rows: use the already-formatted value from valueFormatter
       return <>{params.formattedValue ?? params.value ?? ''}</>
     }
   }

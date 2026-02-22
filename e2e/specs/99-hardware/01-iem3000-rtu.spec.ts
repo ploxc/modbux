@@ -185,9 +185,9 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     // Re-enable readConfiguration (loadClientConfig resets it to false)
     await enableReadConfiguration(mainPage)
 
-    // Trigger read
+    // Trigger read — wait long enough for the valid group + timeout on the illegal group
     await mainPage.getByTestId('read-btn').click()
-    await mainPage.waitForTimeout(5000)
+    await mainPage.waitForTimeout(10_000)
 
     // Scroll to address 3109 and check error message
     const errorText = await scrollCell(mainPage, 3109, 'value')

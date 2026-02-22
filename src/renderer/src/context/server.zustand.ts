@@ -463,9 +463,7 @@ export const useServerZustand = create<
         // Already v2 — still convert old boolean shape if needed
         const state = persistedState as PersistedServerZustand
         migrateBoolShape(
-          state.serverRegisters as
-            | Record<string, Record<string, unknown> | undefined>
-            | undefined
+          state.serverRegisters as Record<string, Record<string, unknown> | undefined> | undefined
         )
         return state
       },

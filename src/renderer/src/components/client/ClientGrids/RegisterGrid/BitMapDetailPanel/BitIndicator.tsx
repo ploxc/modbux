@@ -169,7 +169,7 @@ const BitIndicator = meme(
             '&:hover': { opacity: 1 },
             transition: 'opacity 0.15s'
           }}
-          onClick={(e) => setSettingsAnchor(e.currentTarget)}
+          onClick={(e) => setSettingsAnchor(e.currentTarget as unknown as HTMLElement)}
         />
 
         <BitSettingsPopover

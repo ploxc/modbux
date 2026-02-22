@@ -113,11 +113,7 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
             onClick={() => setExpanded((prev) => !prev)}
             sx={{ p: 0 }}
           >
-            {expanded ? (
-              <ExpandLess fontSize="small" />
-            ) : (
-              <ExpandMore fontSize="small" />
-            )}
+            {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
           </IconButton>
         )}
         <ServerRegisterValue register={register} />

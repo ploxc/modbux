@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures/electron-app'
 import {
   navigateToClient,
-  navigateToServer,
   cleanServerState,
   addRegister,
   selectRegisterType,

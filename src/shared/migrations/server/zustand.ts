@@ -91,9 +91,7 @@ export function migrateServerRegistersState(
 
   // Convert old boolean shape (boolean -> { value: boolean })
   migrateBoolShape(
-    migrated.serverRegisters as
-      | Record<string, Record<string, unknown> | undefined>
-      | undefined
+    migrated.serverRegisters as Record<string, Record<string, unknown> | undefined> | undefined
   )
 
   return migrated
