@@ -447,6 +447,24 @@ export const enableReadConfiguration = (p: Page): Promise<void> => setReadConfig
 /** Convenience alias for setReadConfiguration(p, false) */
 export const disableReadConfiguration = (p: Page): Promise<void> => setReadConfiguration(p, false)
 
+/** Set RAW toggle button to the desired state */
+export async function setClientRawMode(p: Page, enabled: boolean): Promise<void> {
+  const rawBtn = p.getByTestId('raw-btn')
+  const classes = await rawBtn.getAttribute('class')
+  const isEnabled = classes?.includes('containedWarning')
+
+  if (enabled !== isEnabled) await rawBtn.click()
+
+  if (enabled) await expect(rawBtn).not.toHaveClass(/containedWarning/)
+  else expect(rawBtn).not.toHaveClass(/containedWarning/)
+}
+
+/** Convenience alias for setClientRawMode(p, true) */
+export const enableClientRawMode = (p: Page): Promise<void> => setClientRawMode(p, true)
+
+/** Convenience alias for setClientRawMode(p, false) */
+export const disableClientRawMode = (p: Page): Promise<void> => setClientRawMode(p, false)
+
 // ─── Shared helpers extracted from specs ───────────────────────────
 
 /** Scroll the DataGrid virtual scroller so a specific row is visible */
@@ -543,6 +561,8 @@ export async function setServerPanelCollapsed(
   if (collapsed === isExpanded) {
     await p.getByTestId(`section-${type}`).click()
   }
+  // Reset hover animation
+  await p.mouse.move(0, 0)
 }
 
 /** Expand all server panels (useful for cleanup after collapsing) */
@@ -555,6 +575,8 @@ export async function expandAllServerPanels(p: Page): Promise<void> {
   ] as const) {
     await setServerPanelCollapsed(p, type, false)
   }
+  // Reset hover animation
+  await p.mouse.move(0, 0)
 }
 
 /** Clear all registers of a given type on the server */

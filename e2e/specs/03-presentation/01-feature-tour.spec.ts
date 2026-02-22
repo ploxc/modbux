@@ -30,7 +30,8 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   writeRegister,
-  cell
+  cell,
+  disableClientRawMode
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
@@ -50,8 +51,13 @@ const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-presentation.json')
 const beat = (page: Page, ms = 600): Promise<void> => page.waitForTimeout(ms)
 
 /** Take a named screenshot */
-const snap = (page: Page, name: string): Promise<Buffer> =>
-  page.screenshot({ path: resolve(SHOTS, `${name}.png`) })
+const snap = async (page: Page, name: string): Promise<Buffer> => {
+  await page.mouse.move(0, 0)
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.waitForTimeout(100)
+
+  return await page.screenshot({ path: resolve(SHOTS, `${name}.png`) })
+}
 
 /** Locate the nearest MUI Paper ancestor of a test-id element */
 const paperOf = (page: Page, testId: string): Locator =>
@@ -100,11 +106,15 @@ test.describe.serial('Act II — Building the Simulator', () => {
     await snap(mainPage, 'server-overview')
   })
 
-  test('scene 3b — server booleans and inputs', async ({ mainPage }) => {
-    await setServerPanelCollapsed(mainPage, 'holding_registers', true)
+  test('scene 3b — server holding registers only', async ({ mainPage }) => {
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
+    await setServerPanelCollapsed(mainPage, 'input_registers', true)
     await beat(mainPage, 300)
-    await snap(mainPage, 'server-booleans-and-inputs')
-    await setServerPanelCollapsed(mainPage, 'holding_registers', false)
+    await snap(mainPage, 'server-holding-registers-only')
+    await setServerPanelCollapsed(mainPage, 'coils', false)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', false)
+    await setServerPanelCollapsed(mainPage, 'input_registers', false)
     await beat(mainPage, 300)
   })
 
@@ -517,12 +527,15 @@ test.describe.serial('Act III — Going Live', () => {
     await beat(mainPage, 300)
     await writeRegister(mainPage, 12, '21', 'fc6', 'UINT16')
     await beat(mainPage, 300)
+
     await mainPage.getByTestId('read-btn').click()
     await beat(mainPage, 500)
+
+    // Restore RAW button state to false (because write register sets it to true)
+    await disableClientRawMode(mainPage)
   })
 
   test('scene 22 — input registers', async ({ mainPage }) => {
-    // Already in read config mode from scene 20/21
     await selectRegisterType(mainPage, 'Input Registers')
     await mainPage.getByTestId('read-btn').click()
     await expect(async () => {
@@ -650,6 +663,9 @@ test.describe.serial('Act IV — Interaction', () => {
     await readRegisters(mainPage, '0', '2')
     await beat(mainPage)
     expect(await cell(mainPage, 0, 'hex')).toBe('0190')
+
+    // Restore RAW button state to false (because write register sets it to true)
+    await disableClientRawMode(mainPage)
   })
 
   test('scene 27 — live polling', async ({ mainPage }) => {
