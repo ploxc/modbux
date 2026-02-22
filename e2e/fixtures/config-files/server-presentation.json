@@ -99,7 +99,17 @@
             "registerType": "holding_registers",
             "dataType": "bitmap",
             "comment": "System Status",
-            "value": 21
+            "value": 21,
+            "bitMap": {
+              "0": { "comment": "Running" },
+              "1": { "comment": "Alarm", "color": "error" },
+              "2": { "comment": "Grid Sync" },
+              "3": { "comment": "Overtemp", "color": "warning" },
+              "4": { "comment": "MPPT Active" },
+              "5": { "comment": "Fan", "color": "warning" },
+              "7": { "comment": "Comm OK" },
+              "15": { "comment": "Watchdog", "color": "error", "invert": true }
+            }
           }
         },
         "13": {
@@ -230,6 +240,30 @@
           }
         }
       }
+    },
+    "2": {
+      "coils": {},
+      "discrete_inputs": {},
+      "holding_registers": {},
+      "input_registers": {}
+    },
+    "3": {
+      "coils": {},
+      "discrete_inputs": {},
+      "holding_registers": {},
+      "input_registers": {}
+    },
+    "4": {
+      "coils": {},
+      "discrete_inputs": {},
+      "holding_registers": {},
+      "input_registers": {}
+    },
+    "10": {
+      "coils": {},
+      "discrete_inputs": {},
+      "holding_registers": {},
+      "input_registers": {}
     }
   }
 }

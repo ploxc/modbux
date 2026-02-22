@@ -19,20 +19,22 @@ import {
   loadServerConfig,
   loadClientConfig,
   expandAllServerPanels,
+  setServerPanelCollapsed,
   connectClient,
   disconnectClient,
   readRegisters,
   clearData,
   selectRegisterType,
   selectUnitId,
+  selectDataType,
   enableReadConfiguration,
   disableReadConfiguration,
   writeRegister,
-  writeCoil,
   cell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
-import { type Page } from '@playwright/test'
+import { readFileSync } from 'fs'
+import { Locator, type Page } from '@playwright/test'
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
 
@@ -51,20 +53,27 @@ const beat = (page: Page, ms = 600): Promise<void> => page.waitForTimeout(ms)
 const snap = (page: Page, name: string): Promise<Buffer> =>
   page.screenshot({ path: resolve(SHOTS, `${name}.png`) })
 
+/** Locate the nearest MUI Paper ancestor of a test-id element */
+const paperOf = (page: Page, testId: string): Locator =>
+  page.getByTestId(testId).locator('xpath=ancestor::div[contains(@class,"MuiPaper-root")]').first()
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  ACT I — THE STAGE
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Act I — The Stage', () => {
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 1 · Home Screen                          │
-  // │  The app opens — three doors: Server, Split,    │
-  // │  Client. Version badge, Ploxc branding.         │
-  // └─────────────────────────────────────────────────┘
-
   test('scene 1 — home screen', async ({ mainPage }) => {
     await navigateToHome(mainPage)
-    await beat(mainPage, 800) // let fade-in animation complete
+    // Read real app version from package.json (app.getVersion() returns Electron version in test mode)
+    const appVersion = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../package.json'), 'utf-8')
+    ).version
+    const versionText = mainPage.getByTestId('home-version-link').locator('p').first()
+    await versionText.evaluate((el, v) => {
+      el.textContent = v
+    }, appVersion)
+    await expect(versionText).toHaveText(appVersion)
+    await beat(mainPage, 800)
     await snap(mainPage, 'home')
   })
 })
@@ -74,31 +83,16 @@ test.describe.serial('Act I — The Stage', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Act II — Building the Simulator', () => {
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 2 · Loading a Server Config              │
-  // │  We load "Solar Edge 10K" — a realistic solar   │
-  // │  inverter with holding & input registers,       │
-  // │  coils, discrete inputs, generators, bitmap,    │
-  // │  UTF-8, timestamps.                             │
-  // └─────────────────────────────────────────────────┘
-
   test('scene 2 — load server config', async ({ mainPage }) => {
     await navigateToServer(mainPage)
     await loadServerConfig(mainPage, SERVER_CONFIG)
-    await beat(mainPage, 3500) // let snackbar auto-dismiss (3s)
+    await beat(mainPage, 3500)
 
-    // Verify loaded
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(11)')
     await expect(mainPage.getByTestId('section-input_registers')).toContainText('(3)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')
     await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
   })
-
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 3 · Server Overview                      │
-  // │  All four panels expanded — the full picture.   │
-  // │  Registers, booleans, data types, generators.   │
-  // └─────────────────────────────────────────────────┘
 
   test('scene 3 — server overview', async ({ mainPage }) => {
     await expandAllServerPanels(mainPage)
@@ -106,40 +100,39 @@ test.describe.serial('Act II — Building the Simulator', () => {
     await snap(mainPage, 'server-overview')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 4 · Server Booleans                      │
-  // │  Coils with toggle circles and meaningful       │
-  // │  comments: Inverter ON, MPPT Active, Fan, etc.  │
-  // │  Green glowing circles show active states.      │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 4 — server booleans (coils)', async ({ mainPage }) => {
-    const coilsSection = mainPage.getByTestId('section-coils')
-    await coilsSection.screenshot({ path: resolve(SHOTS, 'server-booleans.png') })
+  test('scene 3b — server booleans and inputs', async ({ mainPage }) => {
+    await setServerPanelCollapsed(mainPage, 'holding_registers', true)
+    await beat(mainPage, 300)
+    await snap(mainPage, 'server-booleans-and-inputs')
+    await setServerPanelCollapsed(mainPage, 'holding_registers', false)
+    await beat(mainPage, 300)
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 5 · Discrete Inputs                      │
-  // │  Read-only boolean inputs: DC Present, Grid     │
-  // │  Connected, Emergency Stop, Door Closed...      │
-  // └─────────────────────────────────────────────────┘
+  test('scene 4 — server coils', async ({ mainPage }) => {
+    const coilsPaper = paperOf(mainPage, 'section-coils')
+    await coilsPaper.screenshot({ path: resolve(SHOTS, 'server-coils.png') })
+  })
 
   test('scene 5 — server discrete inputs', async ({ mainPage }) => {
-    const diSection = mainPage.getByTestId('section-discrete_inputs')
-    await diSection.screenshot({ path: resolve(SHOTS, 'server-discrete-inputs.png') })
+    const diPaper = paperOf(mainPage, 'section-discrete_inputs')
+    await diPaper.screenshot({ path: resolve(SHOTS, 'server-discrete-inputs.png') })
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 6 · Server Bitmap                        │
-  // │  Expand the "System Status" bitmap at addr 12.  │
-  // │  16 individual bits with toggle circles.        │
-  // │  value=21 → bits 0, 2, 4 ON (Running, Grid     │
-  // │  Sync, MPPT Active).                            │
-  // └─────────────────────────────────────────────────┘
+  test('scene 5b — server holding registers', async ({ mainPage }) => {
+    const hrPaper = paperOf(mainPage, 'section-holding_registers')
+    await hrPaper.screenshot({ path: resolve(SHOTS, 'server-holding-registers.png') })
+  })
+
+  test('scene 5c — server input registers', async ({ mainPage }) => {
+    const irPaper = paperOf(mainPage, 'section-input_registers')
+    await irPaper.screenshot({ path: resolve(SHOTS, 'server-input-registers.png') })
+  })
 
   test('scene 6 — server bitmap detail', async ({ mainPage }) => {
-    const holdingSection = mainPage.getByTestId('section-holding_registers')
-    await holdingSection.scrollIntoViewIfNeeded()
+    // Collapse non-holding panels so bitmap gets space
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+    await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
+    await setServerPanelCollapsed(mainPage, 'input_registers', true)
     await beat(mainPage, 300)
 
     // Expand bitmap at address 12
@@ -148,53 +141,194 @@ test.describe.serial('Act II — Building the Simulator', () => {
     await bitmapExpand.click()
     await beat(mainPage, 500)
 
-    await snap(mainPage, 'server-bitmap')
+    // Screenshot bitmap detail panel (comments from fixture)
+    const bitmapDetail = mainPage.getByTestId('server-bitmap-detail-12')
+    await bitmapDetail.screenshot({ path: resolve(SHOTS, 'server-bitmap.png') })
 
-    // Leave expanded for video — will collapse later
-  })
-
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 7 · Add Register Modal                   │
-  // │  Show the modal with data type dropdown,        │
-  // │  fixed/generator toggle, address, value,        │
-  // │  comment fields.                                │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 7 — add register modal', async ({ mainPage }) => {
-    // Collapse bitmap first for a cleaner view
-    const bitmapExpand = mainPage.getByTestId('server-bitmap-expand-12')
+    // Collapse bitmap
     await bitmapExpand.click()
     await beat(mainPage, 300)
+  })
 
-    await mainPage.getByTestId('add-holding_registers-btn').click()
-    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
-    await beat(mainPage)
-    await snap(mainPage, 'add-register')
-
-    // Close modal
+  test('scene 6b — unit ID dropdown', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-unitid-select').click()
+    await beat(mainPage, 300)
+    const listbox = mainPage.getByRole('listbox')
+    await listbox.screenshot({ path: resolve(SHOTS, 'server-unitid-dropdown.png') })
     await mainPage.keyboard.press('Escape')
     await beat(mainPage, 300)
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 8 · Multi-Unit Configuration             │
-  // │  Switch to Unit ID 1 — a second inverter in     │
-  // │  night mode (no DC, 0V/0A). Shows multi-unit    │
-  // │  simulation on a single port.                   │
-  // └─────────────────────────────────────────────────┘
+  test('scene 7 — multi-unit (extra servers)', async ({ mainPage }) => {
+    await expandAllServerPanels(mainPage)
+    await beat(mainPage, 300)
 
-  test('scene 8 — multi-unit (unit 1)', async ({ mainPage }) => {
+    // Switch to Unit 1 — night-mode inverter
     await selectUnitId(mainPage, '1')
     await beat(mainPage)
+    await mainPage.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+    await beat(mainPage, 200)
 
-    // Verify different data — Unit 1 is in night mode
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
     await expect(mainPage.getByTestId('section-coils')).toContainText('(8)')
 
     await snap(mainPage, 'server-unit1')
 
-    // Switch back to unit 0
+    // Return to unit 0
     await selectUnitId(mainPage, '0')
+    await beat(mainPage, 300)
+  })
+
+  // ┌─────────────────────────────────────────────────┐
+  // │  Add Register Modal — 6 data-type variants      │
+  // └─────────────────────────────────────────────────┘
+
+  test('scene 8 — add register: UINT16 fixed', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'UINT16')
+    // Default mode is fixed — no toggle needed
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('100')
+    const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')
+    await expect(valueInput).toBeVisible()
+    await valueInput.fill('387')
+    const commentInput8 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput8.fill('DC Voltage (V)')
+    await commentInput8.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-uint16-fixed.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 9 — add register: FLOAT generator', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'FLOAT')
+    await mainPage.getByTestId('add-reg-generator-btn').click()
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('102')
+    const minInput = mainPage.getByTestId('add-reg-min-input').locator('input')
+    await expect(minInput).toBeVisible()
+    await minInput.fill('1.8')
+    await mainPage.getByTestId('add-reg-max-input').locator('input').fill('9.7')
+    await mainPage.getByTestId('add-reg-interval-input').locator('input').fill('1')
+    const commentInput9 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput9.fill('AC Power (kW)')
+    await commentInput9.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-float-generator.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 10 — add register: BITMAP fixed', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'BITMAP')
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('104')
+    const valueInput = mainPage.getByTestId('add-reg-value-input').locator('input')
+    await expect(valueInput).toBeVisible()
+    await valueInput.fill('21')
+    const commentInput10 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput10.fill('System Status')
+    await commentInput10.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-bitmap-fixed.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 11 — add register: UTF8 fixed', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'UTF-8')
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('106')
+    await mainPage.getByTestId('add-reg-length-input').locator('input').fill('6')
+    await mainPage.getByTestId('add-reg-string-input').locator('input').fill('SE-10K')
+    const commentInput11 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput11.fill('Model Name')
+    await commentInput11.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-utf8-fixed.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 12 — add register: UNIX generator', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'UNIX')
+    await mainPage.getByTestId('add-reg-generator-btn').click()
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('110')
+    const intervalInput = mainPage.getByTestId('add-reg-interval-input').locator('input')
+    await expect(intervalInput).toBeVisible()
+    await intervalInput.fill('5')
+    const commentInput12 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput12.fill('Last Update')
+    await commentInput12.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-unix-generator.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 13 — add register: DATETIME generator', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'DATETIME')
+    await mainPage.getByTestId('add-reg-generator-btn').click()
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('114')
+    const intervalInput = mainPage.getByTestId('add-reg-interval-input').locator('input')
+    await expect(intervalInput).toBeVisible()
+    await intervalInput.fill('5')
+    const commentInput13 = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput13.fill('System Clock')
+    await commentInput13.evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-datetime-generator.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 14 — add register datatype dropdown', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    // Open datatype dropdown
+    await mainPage.getByTestId('add-reg-type-select').click()
+    await beat(mainPage, 300)
+
+    const listbox = mainPage.getByRole('listbox')
+    await listbox.screenshot({ path: resolve(SHOTS, 'add-register-dropdown.png') })
+
+    // Close dropdown + modal
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 200)
+    await mainPage.keyboard.press('Escape')
     await beat(mainPage, 300)
   })
 })
@@ -204,32 +338,39 @@ test.describe.serial('Act II — Building the Simulator', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Act III — Going Live', () => {
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 9 · Connecting to the Server             │
-  // │  Navigate to client, connect to 127.0.0.1:502.  │
-  // │  Read holding registers — raw hex and word      │
-  // │  columns fill up with live solar data.          │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 9 — client connects & reads raw data', async ({ mainPage }) => {
+  test('scene 15 — client connects & reads raw data', async ({ mainPage }) => {
     await navigateToClient(mainPage)
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await selectRegisterType(mainPage, 'Holding Registers')
     await readRegisters(mainPage, '0', '23')
-    await beat(mainPage, 3500) // let "Connected to server" snackbar auto-dismiss
+    await beat(mainPage, 3500)
     await snap(mainPage, 'client-raw-data')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 10 · Advanced Mode                       │
-  // │  Enable advanced mode to show all data type     │
-  // │  interpretation columns simultaneously —        │
-  // │  int16, uint16, int32, uint32, float.           │
-  // │  The full decoder ring.                         │
-  // └─────────────────────────────────────────────────┘
+  test('scene 16 — register type dropdown', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-type-select').click()
+    await beat(mainPage, 300)
 
-  test('scene 10 — advanced mode columns', async ({ mainPage }) => {
-    // Toggle advanced mode + 64-bit columns
+    const listbox = mainPage.getByRole('listbox')
+    await listbox.screenshot({ path: resolve(SHOTS, 'register-type-dropdown.png') })
+
+    // Close dropdown (re-select Holding Registers)
+    await mainPage.getByRole('option', { name: 'Holding Registers' }).click()
+    await beat(mainPage, 200)
+  })
+
+  test('scene 17 — cog menu', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await beat(mainPage, 300)
+
+    const popover = mainPage.locator('.MuiPopover-paper')
+    await popover.screenshot({ path: resolve(SHOTS, 'cog-menu.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 18 — advanced mode', async ({ mainPage }) => {
     await mainPage.getByTestId('menu-btn').click()
     const advCheckbox = mainPage.getByTestId('advanced-mode-checkbox')
     await advCheckbox.waitFor({ state: 'visible', timeout: 5000 })
@@ -244,20 +385,17 @@ test.describe.serial('Act III — Going Live', () => {
       await bit64Checkbox.click()
       await mainPage.waitForTimeout(200)
     }
+
+    // Close menu and blur cog button
     await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 200)
+    await mainPage.getByTestId('menu-btn').evaluate((el) => (el as HTMLElement).blur())
     await beat(mainPage)
     await snap(mainPage, 'client-advanced-mode')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 11 · Loading Client Configuration        │
-  // │  Load "Solar Edge 10K" client config — data     │
-  // │  types assigned, scaling factors applied,       │
-  // │  comments mapped. Re-read to decode values.     │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 11 — client config with decoded values', async ({ mainPage }) => {
-    // Disable advanced mode (64-bit auto-disables when advanced is off)
+  test('scene 19 — client config with decoded values', async ({ mainPage }) => {
+    // Disable advanced mode
     await mainPage.getByTestId('menu-btn').click()
     const advCheckbox = mainPage.getByTestId('advanced-mode-checkbox')
     const advInput = advCheckbox.locator('input[type="checkbox"]')
@@ -268,110 +406,155 @@ test.describe.serial('Act III — Going Live', () => {
     await mainPage.keyboard.press('Escape')
     await mainPage.waitForTimeout(200)
 
-    // Load client config with data type mappings and scaling
+    // Load client config
     await loadClientConfig(mainPage, CLIENT_CONFIG)
     await mainPage.waitForTimeout(500)
 
-    // Re-read to populate value column with decoded data
+    // Re-read to populate decoded values
     await readRegisters(mainPage, '0', '23')
-    await beat(mainPage, 3500) // let "Configuration opened" snackbar dismiss
+    await beat(mainPage, 3500)
 
-    // Verify decoded values
-    expect(await cell(mainPage, 0, 'value')).toBe('387') // DC Voltage
+    expect(await cell(mainPage, 0, 'value')).toBe('387')
     const freq = await cell(mainPage, 4, 'value')
-    expect(freq).toContain('50.01') // Grid Frequency
+    expect(freq).toContain('50.01')
 
     await snap(mainPage, 'client-decoded-values')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 12 · Read Configuration Mode             │
-  // │  Enable Read Configuration — the grid filters   │
-  // │  to only configured registers, grouped reads    │
-  // │  with group index column and decoded values.    │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 12 — read configuration mode', async ({ mainPage }) => {
+  test('scene 20 — read configuration mode', async ({ mainPage }) => {
     await enableReadConfiguration(mainPage)
-    // Read config creates zero-value placeholders — trigger actual read
     await mainPage.getByTestId('read-btn').click()
     await expect(async () => {
       const val = await cell(mainPage, 0, 'value')
       expect(val).not.toBe('0')
     }).toPass({ timeout: 5000 })
     await beat(mainPage)
+
+    // Blur read button before screenshot
+    await mainPage.getByTestId('read-btn').evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage, 200)
     await snap(mainPage, 'client-read-config')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 13 · Client Bitmap — Alarm Dashboard     │
-  // │  Expand the "System Status" bitmap. Colored     │
-  // │  indicators: green (Running, Grid Sync),        │
-  // │  red (Alarm), orange (Overtemp, Fan).           │
-  // │  Invert on Watchdog. The alarm dashboard.       │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 13 — client bitmap alarm dashboard', async ({ mainPage }) => {
+  test('scene 21 — client bitmap alarm dashboard', async ({ mainPage }) => {
     const expandBtn = mainPage.getByTestId('bitmap-expand-12')
     await expect(expandBtn).toBeVisible()
     await expandBtn.click()
     await beat(mainPage, 500)
-    await snap(mainPage, 'client-bitmap')
+
+    // Deselect any selected row
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+
+    await snap(mainPage, 'client-bitmap') // <---- RAW OFF
+
+    // ── Bit indicator screenshots (value 21 = bits 0,2,4 ON) ──
+
+    // success active: bit 0 (Running) — green, ON
+    await mainPage.getByTestId('bit-indicator-0').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-success-active.png')
+    })
+    // success inactive: bit 7 (Comm OK) — green, OFF
+    await mainPage.getByTestId('bit-indicator-7').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-success-inactive.png')
+    })
+    // warning inactive: bit 3 (Overtemp) — orange, OFF
+    await mainPage.getByTestId('bit-indicator-3').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-warning-inactive.png')
+    })
+    // error inactive: bit 1 (Alarm) — red, OFF
+    await mainPage.getByTestId('bit-indicator-1').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-error-inactive.png')
+    })
+    // inverted active: bit 15 (Watchdog) — error color, invert=true, raw OFF → display ON
+    await mainPage.getByTestId('bit-indicator-15').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-inverted-active.png')
+    })
+
+    // ── Active variants: write value 42 (bits 1,3,5 ON) ──
+
+    // Collapse bitmap to access write action button
+    await expandBtn.click()
+    await beat(mainPage, 300)
+
+    await writeRegister(mainPage, 12, '42', 'fc6', 'UINT16')
+    await beat(mainPage, 300)
+
+    // Re-read to get updated value
+    await mainPage.getByTestId('read-btn').click()
+    await beat(mainPage, 1000)
+
+    // Re-expand bitmap
+    await expandBtn.click()
+    await beat(mainPage, 500)
+
+    // error active: bit 1 (Alarm) — red, ON
+    await mainPage.getByTestId('bit-indicator-1').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-error-active.png')
+    })
+    // warning active: bit 3 (Overtemp) — orange, ON
+    await mainPage.getByTestId('bit-indicator-3').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-warning-active.png')
+    })
+
+    // ── Inverted inactive variant: write 32810 (32768 + 42 = bit 15 ON + bits 1,3,5 ON) ──
+    await expandBtn.click()
+    await beat(mainPage, 300)
+    await writeRegister(mainPage, 12, '32810', 'fc6', 'UINT16')
+    await beat(mainPage, 300)
+    await mainPage.getByTestId('read-btn').click()
+    await beat(mainPage, 1000)
+    await expandBtn.click()
+    await beat(mainPage, 500)
+
+    // inverted inactive: bit 15 (Watchdog) — error color, invert=true, raw ON → display OFF
+    await mainPage.getByTestId('bit-indicator-15').screenshot({
+      path: resolve(SHOTS, 'client-bitmap-bit-inverted-inactive.png')
+    })
+
+    // Restore original value
+    await expandBtn.click()
+    await beat(mainPage, 300)
+    await writeRegister(mainPage, 12, '21', 'fc6', 'UINT16')
+    await beat(mainPage, 300)
+    await mainPage.getByTestId('read-btn').click()
+    await beat(mainPage, 500)
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 14 · Reading Input Registers             │
-  // │  Switch to input registers — firmware version,  │
-  // │  grid voltage (generator!), power factor.       │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 14 — input registers', async ({ mainPage }) => {
-    await disableReadConfiguration(mainPage)
+  test('scene 22 — input registers', async ({ mainPage }) => {
+    // Already in read config mode from scene 20/21
     await selectRegisterType(mainPage, 'Input Registers')
-    await enableReadConfiguration(mainPage)
-    // Trigger actual read through config groups
     await mainPage.getByTestId('read-btn').click()
     await expect(async () => {
       const val = await cell(mainPage, 0, 'value')
       expect(val).not.toBe('0')
     }).toPass({ timeout: 5000 })
     await beat(mainPage)
-    await snap(mainPage, 'client-input-registers')
+    await mainPage.getByTestId('read-btn').evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage, 200)
+    await snap(mainPage, 'client-input-registers') /// <----- RAW ON
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 15 · Reading Coils                       │
-  // │  Switch to coils — see the boolean states       │
-  // │  from the server. Inverter ON, MPPT Active...   │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 15 — reading coils', async ({ mainPage }) => {
+  test('scene 23 — reading coils', async ({ mainPage }) => {
     await disableReadConfiguration(mainPage)
     await selectRegisterType(mainPage, 'Coils')
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    // Verify expected states
-    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE') // Inverter ON
-    expect(await cell(mainPage, 3, 'bit')).toBe('FALSE') // Night Mode off
+    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
+    expect(await cell(mainPage, 3, 'bit')).toBe('FALSE')
 
     await snap(mainPage, 'client-coils')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 16 · Reading Discrete Inputs             │
-  // │  Read-only boolean sensors: DC present, Grid    │
-  // │  connected, door closed, firmware OK...         │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 16 — reading discrete inputs', async ({ mainPage }) => {
+  test('scene 24 — reading discrete inputs', async ({ mainPage }) => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Discrete Inputs')
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE') // DC Input Present
-    expect(await cell(mainPage, 2, 'bit')).toBe('FALSE') // Emergency Stop
+    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
+    expect(await cell(mainPage, 2, 'bit')).toBe('FALSE')
 
     await snap(mainPage, 'client-discrete-inputs')
   })
@@ -382,100 +565,162 @@ test.describe.serial('Act III — Going Live', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe.serial('Act IV — Interaction', () => {
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 17 · Writing a Coil                      │
-  // │  Toggle the "Night Mode" coil (addr 3) to ON    │
-  // │  using FC5. Verify the server received it.      │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 17 — write coil', async ({ mainPage }) => {
+  test('scene 25 — write coil', async ({ mainPage }) => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Coils')
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage, 300)
 
-    // Night Mode was FALSE — write TRUE
-    await writeCoil(mainPage, 3, true)
+    // Open write modal for Night Mode (addr 3)
+    await mainPage.getByTestId('write-action-3').click()
+    await expect(mainPage.getByTestId('write-coil-3-select-btn')).toBeVisible()
+
+    // Toggle coil ON
+    await mainPage.getByTestId('write-coil-3-select-btn').click()
     await beat(mainPage, 300)
 
-    // Re-read to confirm write
+    // Screenshot the OPEN write modal
+    const writeModal = paperOf(mainPage, 'write-coil-3-select-btn')
+    await writeModal.screenshot({ path: resolve(SHOTS, 'client-write-coil.png') })
+
+    // Submit write and close
+    await mainPage.getByTestId('write-fc5-btn').click()
+    await mainPage.getByTestId('write-submit-btn').click()
+    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.getByTestId('write-coil-3-select-btn')).not.toBeVisible()
+    await beat(mainPage, 300)
+
+    // Re-read to confirm
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
-
     expect(await cell(mainPage, 3, 'bit')).toBe('TRUE')
-    await snap(mainPage, 'client-write-coil')
+
+    // ── FC15 multi-coil write ──
+    await mainPage.getByTestId('write-action-3').click()
+    await expect(mainPage.getByTestId('write-coil-3-select-btn')).toBeVisible()
+    await mainPage.getByTestId('write-fc15-btn').click()
+    await beat(mainPage, 300)
+
+    // Toggle some coils in the grid for visual effect
+    await mainPage.getByTestId('write-coil-3-select-btn').click()
+    await mainPage.getByTestId('write-coil-5-select-btn').click()
+    await mainPage.getByTestId('write-coil-7-select-btn').click()
+    await beat(mainPage, 300)
+
+    const writeModalFc15 = paperOf(mainPage, 'write-coil-3-select-btn')
+    await writeModalFc15.screenshot({ path: resolve(SHOTS, 'client-write-coil-fc15.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 18 · Writing a Holding Register          │
-  // │  Change the DC Voltage (addr 0) from 387 to     │
-  // │  400 using FC6. Show the write dialog.          │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 18 — write holding register', async ({ mainPage }) => {
+  test('scene 26 — write holding register', async ({ mainPage }) => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Holding Registers')
     await readRegisters(mainPage, '0', '2')
     await beat(mainPage, 300)
 
-    await writeRegister(mainPage, 0, '400', 'fc6', 'UINT16')
+    // Open write modal for DC Voltage (addr 0)
+    await mainPage.getByTestId('write-action-0').click()
+    await expect(mainPage.getByTestId('write-value-input')).toBeVisible()
+
+    // Fill value
+    const valueInput = mainPage.getByTestId('write-value-input').locator('input')
+    await valueInput.fill('400')
+    await beat(mainPage, 300)
+
+    // Screenshot the OPEN write modal (use page clip with padding to avoid label clipping)
+    const writeModal = paperOf(mainPage, 'write-value-input')
+    const box = await writeModal.boundingBox()
+    if (box) {
+      const pad = 12
+      await mainPage.screenshot({
+        path: resolve(SHOTS, 'client-write-register.png'),
+        clip: { x: box.x, y: Math.max(0, box.y - pad), width: box.width, height: box.height + pad }
+      })
+    }
+
+    // Submit FC6 and close
+    await mainPage.getByTestId('write-fc6-btn').click()
+    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.getByTestId('write-value-input')).not.toBeVisible({ timeout: 5000 })
     await beat(mainPage, 300)
 
     // Re-read to verify
     await readRegisters(mainPage, '0', '2')
     await beat(mainPage)
-
-    expect(await cell(mainPage, 0, 'hex')).toBe('0190') // 400 decimal = 0x0190
-    await snap(mainPage, 'client-write-register')
+    expect(await cell(mainPage, 0, 'hex')).toBe('0190')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 19 · Live Polling                        │
-  // │  Start continuous polling — watch the           │
-  // │  generator values change in real time.          │
-  // │  DC Current, AC Power, Energy Today all         │
-  // │  fluctuating as the "inverter produces power".  │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 19 — live polling', async ({ mainPage }) => {
+  test('scene 27 — live polling', async ({ mainPage }) => {
     await clearData(mainPage)
     await loadClientConfig(mainPage, CLIENT_CONFIG)
     await enableReadConfiguration(mainPage)
     await beat(mainPage, 500)
 
-    // Capture initial value of a generator register
     const initialPower = await cell(mainPage, 2, 'value')
 
     // Start polling
     await mainPage.getByTestId('poll-btn').click()
-    await beat(mainPage, 3000) // let several poll cycles happen
+    await beat(mainPage, 3000)
 
-    // Generator value should have changed
     await expect(async () => {
       const newPower = await cell(mainPage, 2, 'value')
       expect(newPower).not.toBe(initialPower)
     }).toPass({ timeout: 8000 })
 
-    await snap(mainPage, 'client-polling')
-
     // Stop polling
     await mainPage.getByTestId('poll-btn').click()
     await beat(mainPage, 500)
+
+    // Blur poll button before screenshot
+    await mainPage.getByTestId('poll-btn').evaluate((el) => (el as HTMLElement).blur())
+    await beat(mainPage, 200)
+    await snap(mainPage, 'client-polling')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 20 · Transaction Log                     │
-  // │  Show the raw Modbus communication log —        │
-  // │  timestamps, function codes, request/response.  │
-  // └─────────────────────────────────────────────────┘
+  test('scene 28 — transaction log', async ({ mainPage }) => {
+    // Switch to raw data view (not read configuration)
+    await disableReadConfiguration(mainPage)
+    await readRegisters(mainPage, '0', '23')
+    await beat(mainPage, 500)
 
-  test('scene 20 — transaction log', async ({ mainPage }) => {
     await mainPage.getByTestId('show-log-btn').click()
     await beat(mainPage)
     await snap(mainPage, 'client-transaction-log')
 
-    // Hide log again
+    // Hide log
     await mainPage.getByTestId('show-log-btn').click()
+    await beat(mainPage, 300)
+  })
+
+  test('scene 29 — scanning', async ({ mainPage }) => {
+    // Open cog menu → Scan Registers
+    await mainPage.getByTestId('menu-btn').click()
+    await beat(mainPage, 300)
+
+    await mainPage.getByTestId('scan-registers-btn').click()
+    await beat(mainPage, 500)
+
+    // Use large scan range to keep progress bar visible
+    const scanLengthInput = mainPage.getByTestId('scan-length-input').locator('input')
+    await scanLengthInput.fill('50000')
+    await beat(mainPage, 200)
+
+    // Start scan
+    await mainPage.getByTestId('scan-start-stop-btn').click()
+    await beat(mainPage, 1500)
+
+    // Screenshot dialog with progress bar
+    const scanDialog = paperOf(mainPage, 'scan-start-stop-btn')
+    await scanDialog.screenshot({ path: resolve(SHOTS, 'client-scanning.png') })
+
+    // Stop scan
+    await mainPage.getByTestId('scan-start-stop-btn').click()
+    await beat(mainPage, 500)
+
+    // Close scan dialog
+    await mainPage.keyboard.press('Escape')
     await beat(mainPage, 300)
   })
 })
@@ -487,61 +732,37 @@ test.describe.serial('Act IV — Interaction', () => {
 let serverPage: Page
 
 test.describe.serial('Act V — Side by Side', () => {
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 21 · Split View                          │
-  // │  Open split view: server in a separate window,  │
-  // │  client stays in the main window. Both visible  │
-  // │  simultaneously for local testing.              │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 21 — split view', async ({ electronApp, mainPage }) => {
-    // Disconnect and return home
+  test('scene 30 — split view', async ({ electronApp, mainPage }) => {
     await disconnectClient(mainPage)
     await navigateToHome(mainPage)
-    await beat(mainPage, 3500) // let "Disconnected" snackbar dismiss
+    await beat(mainPage, 3500)
 
     // Open split view
     await mainPage.getByTestId('home-split-btn').click()
     serverPage = await electronApp.waitForEvent('window', { timeout: 10000 })
     await serverPage.waitForLoadState('domcontentloaded')
-    await beat(serverPage, 1500) // let server window fully render
+    await beat(serverPage, 1500)
 
-    // Screenshot the client window (main)
     await snap(mainPage, 'split-view-client')
-
-    // Screenshot the server window
     await snap(serverPage, 'split-view-server')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 22 · Split View — Connected              │
-  // │  Connect the client to the local server.        │
-  // │  Read data while server is visible in the       │
-  // │  other window. The full development workflow.   │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 22 — split view connected', async ({ mainPage }) => {
+  test('scene 31 — split view connected', async ({ mainPage }) => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await selectRegisterType(mainPage, 'Holding Registers')
     await loadClientConfig(mainPage, CLIENT_CONFIG)
     await enableReadConfiguration(mainPage)
-    // Trigger actual read so values populate
     await mainPage.getByTestId('read-btn').click()
     await expect(async () => {
       const val = await cell(mainPage, 0, 'value')
       expect(val).not.toBe('0')
     }).toPass({ timeout: 5000 })
-    await beat(mainPage, 3500) // let snackbars dismiss
+    await beat(mainPage, 3500)
 
     await snap(mainPage, 'split-view-connected')
   })
 
-  // ┌─────────────────────────────────────────────────┐
-  // │  Scene 23 · Cleanup                             │
-  // │  Close the server window. Back to normal.       │
-  // └─────────────────────────────────────────────────┘
-
-  test('scene 23 — cleanup', async ({ electronApp, mainPage }) => {
+  test('scene 32 — cleanup', async ({ electronApp, mainPage }) => {
     await disconnectClient(mainPage)
 
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -551,7 +772,6 @@ test.describe.serial('Act V — Side by Side', () => {
     })
     await beat(mainPage, 500)
 
-    // Main window should show home button again
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()
   })
 })

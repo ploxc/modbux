@@ -6,10 +6,5 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   maxFailures: 1,
-  use: {
-    video: 'on',
-    screenshot: 'on',
-    trace: 'on-first-retry'
-  },
   outputDir: './e2e/presentation-output/test-results'
 })
