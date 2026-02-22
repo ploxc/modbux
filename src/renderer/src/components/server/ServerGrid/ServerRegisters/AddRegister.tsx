@@ -111,8 +111,8 @@ const FixedOrGenerator = meme(() => {
   const setFixed = useAddRegisterZustand((z) => z.setFixed)
   const dataType = useAddRegisterZustand((z) => z.dataType)
 
-  // UTF-8 is always fixed — hide toggle
-  if (dataType === 'utf8') return null
+  // UTF-8 and BITMAP are always fixed — hide toggle
+  if (dataType === 'utf8' || dataType === 'bitmap') return null
 
   return (
     <ToggleButtonGroup

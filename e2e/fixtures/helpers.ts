@@ -80,7 +80,8 @@ export async function addRegister(
       await expect(intervalInput).toBeVisible()
       await intervalInput.fill(reg.interval)
     } else if (reg.mode === 'fixed') {
-      await p.getByTestId('add-reg-fixed-btn').click()
+      const fixedBtn = p.getByTestId('add-reg-fixed-btn')
+      if (await fixedBtn.isVisible()) await fixedBtn.click()
       const valueInput = p.getByTestId('add-reg-value-input').locator('input')
       await expect(valueInput).toBeVisible()
       await valueInput.fill(reg.value)

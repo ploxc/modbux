@@ -193,7 +193,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       set((state) => {
         state.dataType = dataType
 
-        if (dataType === 'utf8') state.fixed = true
+        if (dataType === 'utf8' || dataType === 'bitmap') state.fixed = true
         if (['unix', 'datetime'].includes(dataType)) {
           state.value = String(Date.now())
           state.valid.value = true

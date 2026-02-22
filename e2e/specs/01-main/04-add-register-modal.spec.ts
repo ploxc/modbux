@@ -279,6 +279,20 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
+  test('BITMAP: value input visible, generator toggle hidden', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    await selectDataType(mainPage, 'BITMAP')
+
+    await expect(mainPage.getByTestId('add-reg-value-input')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-generator-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-fixed-btn')).not.toBeVisible()
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
   // ─── Validation tests ─────────────────────────────────────────────────
 
   test('address duplicate detection: add at 50, try duplicate', async ({ mainPage }) => {
