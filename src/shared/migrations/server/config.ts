@@ -77,7 +77,7 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 
   const v2Config: ServerConfig & { wasMixedEndianness?: boolean } = {
     version: 2,
-    modbuxVersion: '1.5.0',
+    modbuxVersion: '2.0.0',
     name: config.name ?? '',
     littleEndian: endianness,
     serverRegistersPerUnit: migratedRegisters

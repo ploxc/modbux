@@ -22,7 +22,7 @@ function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
   const config = v1Config as V1ClientConfig
   return {
     version: 2,
-    modbuxVersion: '1.5.0',
+    modbuxVersion: '2.0.0',
     name: config.name,
     littleEndian: false,
     registerMapping: config.registerMapping ?? (v1Config as RegisterMapping)
