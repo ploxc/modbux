@@ -6,32 +6,32 @@
   "serverRegistersPerUnit": {
     "0": {
       "coils": {
-        "0": false,
-        "1": false,
-        "2": false,
-        "3": false,
-        "4": false,
-        "5": true,
-        "6": false,
-        "7": false,
-        "8": false,
-        "9": false,
-        "10": false,
-        "11": false,
-        "12": false,
-        "13": false,
-        "14": false,
-        "15": false
+        "0": { "value": false },
+        "1": { "value": false },
+        "2": { "value": false },
+        "3": { "value": false },
+        "4": { "value": false },
+        "5": { "value": true },
+        "6": { "value": false },
+        "7": { "value": false },
+        "8": { "value": false },
+        "9": { "value": false },
+        "10": { "value": false },
+        "11": { "value": false },
+        "12": { "value": false },
+        "13": { "value": false },
+        "14": { "value": false },
+        "15": { "value": false }
       },
       "discrete_inputs": {
-        "0": false,
-        "1": false,
-        "2": false,
-        "3": true,
-        "4": false,
-        "5": false,
-        "6": false,
-        "7": false
+        "0": { "value": false },
+        "1": { "value": false },
+        "2": { "value": false },
+        "3": { "value": true },
+        "4": { "value": false },
+        "5": { "value": false },
+        "6": { "value": false },
+        "7": { "value": false }
       },
       "holding_registers": {
         "0": {
@@ -140,14 +140,14 @@
     },
     "1": {
       "coils": {
-        "0": false,
-        "1": false,
-        "2": true,
-        "3": false,
-        "4": false,
-        "5": false,
-        "6": false,
-        "7": false
+        "0": { "value": false },
+        "1": { "value": false },
+        "2": { "value": true },
+        "3": { "value": false },
+        "4": { "value": false },
+        "5": { "value": false },
+        "6": { "value": false },
+        "7": { "value": false }
       },
       "discrete_inputs": {},
       "holding_registers": {

@@ -112,36 +112,35 @@ export async function addRegister(
   })
 }
 
-/** Add coils starting at the given address (adds a group of 8) */
-export async function addCoils(p: Page, address: number, fast = false): Promise<void> {
-  await test.step(`add coils @ ${address}`, async () => {
-    await p.getByTestId('add-coils-btn').click()
-    const modal = p.getByTestId('add-bool-address-input')
-    await expect(modal).toBeVisible()
-
-    await modal.locator('input').fill(String(address))
-    await p.getByTestId('add-bool-add-btn').click()
-    await p.waitForTimeout(t(200, fast))
-
-    await p.keyboard.press('Escape')
-    await expect(modal).not.toBeVisible()
+/** Add a single bool (coil or discrete input) at the given address via the inline add bar */
+export async function addBool(
+  p: Page,
+  type: 'coils' | 'discrete_inputs',
+  address: number,
+  fast = false
+): Promise<void> {
+  await test.step(`add ${type} @ ${address}`, async () => {
+    const addressInput = p.getByTestId(`add-bool-address-input-${type}`).locator('input')
+    await addressInput.fill(String(address))
+    await p.getByTestId(`add-bool-btn-${type}`).click()
+    await p.waitForTimeout(t(100, fast))
   })
 }
 
-/** Add discrete inputs starting at the given address (adds a group of 8) */
+/** Add coils starting at the given address (adds a group of 8 for backward compat) */
+export async function addCoils(p: Page, address: number, fast = false): Promise<void> {
+  const baseAddress = address - (address % 8)
+  for (let i = baseAddress; i < baseAddress + 8; i++) {
+    await addBool(p, 'coils', i, fast)
+  }
+}
+
+/** Add discrete inputs starting at the given address (adds a group of 8 for backward compat) */
 export async function addDiscreteInputs(p: Page, address: number, fast = false): Promise<void> {
-  await test.step(`add discrete inputs @ ${address}`, async () => {
-    await p.getByTestId('add-discrete_inputs-btn').click()
-    const modal = p.getByTestId('add-bool-address-input')
-    await expect(modal).toBeVisible()
-
-    await modal.locator('input').fill(String(address))
-    await p.getByTestId('add-bool-add-btn').click()
-    await p.waitForTimeout(t(200, fast))
-
-    await p.keyboard.press('Escape')
-    await expect(modal).not.toBeVisible()
-  })
+  const baseAddress = address - (address % 8)
+  for (let i = baseAddress; i < baseAddress + 8; i++) {
+    await addBool(p, 'discrete_inputs', i, fast)
+  }
 }
 
 /** Set client address and length, then read */
@@ -210,34 +209,38 @@ export async function setupServerConfig(
     }
   }
 
-  const coilGroups = new Set<number>()
-  const diGroups = new Set<number>()
-  for (const bool of config.bools) {
-    const groupStart = Math.floor(bool.address / 8) * 8
-    if (bool.registerType === 'coils') {
-      coilGroups.add(groupStart)
-    } else {
-      diGroups.add(groupStart)
-    }
-  }
-
-  for (const start of coilGroups) {
-    await addCoils(p, start, fast)
-  }
-  for (const start of diGroups) {
-    await addDiscreteInputs(p, start, fast)
-  }
-
   if (config.bools.length > 0) {
+    await test.step(`add ${config.bools.length} bools`, async () => {
+      for (const bool of config.bools) {
+        await addBool(p, bool.registerType, bool.address, fast)
+      }
+    })
+
     await test.step(`toggle ${config.bools.filter((b) => b.state).length} bools`, async () => {
       for (const bool of config.bools) {
         if (bool.state) {
-          const btn = p.getByTestId(`server-bool-${bool.registerType}-${bool.address}`)
-          await btn.click()
+          const circle = p.getByTestId(`server-bool-${bool.registerType}-circle-${bool.address}`)
+          await circle.click()
           await p.waitForTimeout(t(100, fast))
         }
       }
     })
+
+    const boolsWithComment = config.bools.filter((b) => b.comment)
+    if (boolsWithComment.length > 0) {
+      await test.step(`set ${boolsWithComment.length} bool comments`, async () => {
+        for (const bool of boolsWithComment) {
+          const row = p.getByTestId(`server-bool-${bool.registerType}-${bool.address}`)
+          // Click the comment area to start editing
+          await row.locator('p').click()
+          const input = row.locator('input')
+          await expect(input).toBeVisible()
+          await input.fill(bool.comment!)
+          await input.press('Enter')
+          await p.waitForTimeout(t(100, fast))
+        }
+      })
+    }
   }
 }
 
@@ -530,7 +533,12 @@ export async function setServerPanelCollapsed(
   type: 'holding_registers' | 'input_registers' | 'coils' | 'discrete_inputs',
   collapsed: boolean
 ): Promise<void> {
-  const isExpanded = await p.getByTestId(`add-${type}-btn`).isVisible()
+  // For registers, check add button; for bools, check delete button (always present when expanded)
+  const expandIndicator =
+    type === 'coils' || type === 'discrete_inputs'
+      ? p.getByTestId(`delete-${type}-btn`)
+      : p.getByTestId(`add-${type}-btn`)
+  const isExpanded = await expandIndicator.isVisible()
   if (collapsed === isExpanded) {
     await p.getByTestId(`section-${type}`).click()
   }

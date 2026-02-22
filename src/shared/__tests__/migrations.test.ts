@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { migrateServerConfig } from '../migrations/server/config'
 import { migrateClientConfig } from '../migrations/client/config'
-import { migrateServerRegistersState } from '../migrations/server/zustand'
+import { migrateServerRegistersState, migrateBoolShape } from '../migrations/server/zustand'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -376,6 +376,122 @@ describe('configMigration', () => {
 
       expect(migrated.name).toEqual({ 'uuid-1': 'Test' })
       expect(migrated.port).toEqual({ 'uuid-1': '502' })
+    })
+
+    it('converts old boolean coils/discrete_inputs to { value: boolean } shape', () => {
+      const oldState = {
+        serverRegisters: {
+          'uuid-1': {
+            '0': {
+              coils: { '0': true, '1': false },
+              discrete_inputs: { '3': true },
+              input_registers: {},
+              holding_registers: {}
+            }
+          }
+        }
+      }
+
+      const migrated = migrateServerRegistersState(oldState)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const regs = (migrated.serverRegisters as any)['uuid-1']['0']
+
+      expect(regs.coils['0']).toEqual({ value: true })
+      expect(regs.coils['1']).toEqual({ value: false })
+      expect(regs.discrete_inputs['3']).toEqual({ value: true })
+    })
+  })
+
+  describe('migrateBoolShape', () => {
+    it('converts boolean entries to { value: boolean } shape', () => {
+      const serverRegisters: Record<string, Record<string, unknown> | undefined> = {
+        'uuid-1': {
+          '0': {
+            coils: { '0': true, '5': false },
+            discrete_inputs: { '0': false, '3': true },
+            input_registers: {},
+            holding_registers: {}
+          }
+        }
+      }
+
+      migrateBoolShape(serverRegisters)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const regs = serverRegisters['uuid-1']!['0'] as any
+      expect(regs.coils['0']).toEqual({ value: true })
+      expect(regs.coils['5']).toEqual({ value: false })
+      expect(regs.discrete_inputs['0']).toEqual({ value: false })
+      expect(regs.discrete_inputs['3']).toEqual({ value: true })
+    })
+
+    it('skips already-migrated entries (objects with .value)', () => {
+      const serverRegisters: Record<string, Record<string, unknown> | undefined> = {
+        'uuid-1': {
+          '0': {
+            coils: { '0': { value: true }, '5': { value: false, comment: 'test' } },
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
+          }
+        }
+      }
+
+      migrateBoolShape(serverRegisters)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const regs = serverRegisters['uuid-1']!['0'] as any
+      expect(regs.coils['0']).toEqual({ value: true })
+      expect(regs.coils['5']).toEqual({ value: false, comment: 'test' })
+    })
+
+    it('handles undefined serverRegisters gracefully', () => {
+      expect(() => migrateBoolShape(undefined)).not.toThrow()
+    })
+  })
+
+  describe('Server Config Migration - Bool Shape', () => {
+    it('v1 config migration converts bools to { value: boolean } shape', () => {
+      const v1Config = JSON.stringify({
+        name: 'Bool Test',
+        serverRegistersPerUnit: {
+          '1': {
+            coils: { '0': true, '1': false },
+            discrete_inputs: { '3': true },
+            input_registers: {},
+            holding_registers: {}
+          }
+        }
+      })
+
+      const result = migrateServerConfig(v1Config)
+
+      const unit = result.config.serverRegistersPerUnit['1']!
+      expect(unit.coils['0']).toEqual({ value: true })
+      expect(unit.coils['1']).toEqual({ value: false })
+      expect(unit.discrete_inputs['3']).toEqual({ value: true })
+    })
+
+    it('v2 config with old boolean shape is auto-migrated on load', () => {
+      const v2Config = JSON.stringify({
+        version: 2,
+        modbuxVersion: '1.5.0',
+        name: 'Old Bool Shape',
+        littleEndian: false,
+        serverRegistersPerUnit: {
+          '0': {
+            coils: { '0': true, '1': false },
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
+          }
+        }
+      })
+
+      const result = migrateServerConfig(v2Config)
+      const unit = result.config.serverRegistersPerUnit['0']!
+      expect(unit.coils['0']).toEqual({ value: true })
+      expect(unit.coils['1']).toEqual({ value: false })
     })
   })
 })

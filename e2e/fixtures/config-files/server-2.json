@@ -6,14 +6,14 @@
   "serverRegistersPerUnit": {
     "0": {
       "coils": {
-        "0": true,
-        "1": false,
-        "2": false,
-        "3": false,
-        "4": false,
-        "5": false,
-        "6": false,
-        "7": false
+        "0": { "value": true },
+        "1": { "value": false },
+        "2": { "value": false },
+        "3": { "value": false },
+        "4": { "value": false },
+        "5": { "value": false },
+        "6": { "value": false },
+        "7": { "value": false }
       },
       "discrete_inputs": {},
       "holding_registers": {

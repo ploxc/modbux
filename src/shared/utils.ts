@@ -181,9 +181,9 @@ export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
 
 export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
   const coils = reg?.coils ?? {}
-  const hasCoils = Object.values(coils).some((v) => v)
+  const hasCoils = Object.values(coils).some((v) => v.value)
   const discrete = reg?.discrete_inputs ?? {}
-  const hasDiscrete = Object.values(discrete).some((v) => v)
+  const hasDiscrete = Object.values(discrete).some((v) => v.value)
   const hasInput = Object.values(reg?.input_registers ?? []).length > 0
   const hasHolding = Object.values(reg?.holding_registers ?? []).length > 0
   return hasCoils || hasDiscrete || hasInput || hasHolding

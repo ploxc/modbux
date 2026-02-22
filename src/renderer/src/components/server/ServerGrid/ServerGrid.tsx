@@ -1,5 +1,4 @@
 import ServerBooleans from './ServerBooleans/ServerBooleans'
-import AddBooleans from './ServerBooleans/AddBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
 import AddRegister from './ServerRegisters/AddRegister'
 import Box from '@mui/material/Box'
@@ -11,7 +10,6 @@ const ServerGrid = (): JSX.Element => {
       <ServerBooleans name="Discrete Inputs" type={'discrete_inputs'} />
       <ServerRegisters name="Input Registers" type={'input_registers'} />
       <ServerRegisters name="Holding Registers" type={'holding_registers'} />
-      <AddBooleans />
       <AddRegister />
     </Box>
   )

@@ -36,9 +36,9 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
     await setServerPanelCollapsed(mainPage, 'input_registers', true)
 
-    // Add buttons should be hidden for collapsed panels
-    await expect(mainPage.getByTestId('add-coils-btn')).not.toBeVisible()
-    await expect(mainPage.getByTestId('add-discrete_inputs-btn')).not.toBeVisible()
+    // Delete buttons should be hidden for collapsed panels
+    await expect(mainPage.getByTestId('delete-coils-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('delete-discrete_inputs-btn')).not.toBeVisible()
     await expect(mainPage.getByTestId('add-input_registers-btn')).not.toBeVisible()
 
     // Holding registers panel should still be expanded

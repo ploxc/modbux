@@ -15,8 +15,8 @@ interface JsonConfig {
   serverRegistersPerUnit: Record<
     string,
     {
-      coils: Record<string, boolean>
-      discrete_inputs: Record<string, boolean>
+      coils: Record<string, { value: boolean; comment?: string }>
+      discrete_inputs: Record<string, { value: boolean; comment?: string }>
       holding_registers: Record<string, { value: number; params: any }>
       input_registers: Record<string, { value: number; params: any }>
     }
@@ -92,8 +92,13 @@ export function parseServerConfig(config: JsonConfig, unitId: string, port?: num
 
   const bools: BoolDef[] = []
   for (const boolType of ['coils', 'discrete_inputs'] as const) {
-    for (const [addr, state] of Object.entries(unitData[boolType])) {
-      bools.push({ registerType: boolType, address: Number(addr), state })
+    for (const [addr, entry] of Object.entries(unitData[boolType])) {
+      bools.push({
+        registerType: boolType,
+        address: Number(addr),
+        state: entry.value,
+        comment: entry.comment
+      })
     }
   }
 

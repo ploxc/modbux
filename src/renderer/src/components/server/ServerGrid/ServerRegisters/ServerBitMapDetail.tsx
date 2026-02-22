@@ -1,144 +1,15 @@
-import { Box, TextField, Typography, alpha } from '@mui/material'
+import { Box } from '@mui/material'
 import { ServerRegisterEntry, BitMapConfig, getBit } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import ServerBit from '../shared/ServerBit'
 
 interface ServerBitMapDetailProps {
   register: ServerRegisterEntry
 }
 
 const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ServerBitProps {
-  bitIndex: number
-  active: boolean
-  comment: string | undefined
-  onToggle: () => void
-  onCommentChange: (comment: string | undefined) => void
-}
-
-const ServerBit = meme(
-  ({ bitIndex, active, comment, onToggle, onCommentChange }: ServerBitProps): JSX.Element => {
-    const [editing, setEditing] = useState(false)
-    const [draft, setDraft] = useState(comment ?? '')
-    const hasMapped = !!comment?.length
-
-    useEffect(() => {
-      if (!editing) setDraft(comment ?? '')
-    }, [comment, editing])
-
-    const commit = useCallback(
-      (text: string) => {
-        setEditing(false)
-        onCommentChange(text.trim() || undefined)
-      },
-      [onCommentChange]
-    )
-
-    return (
-      <Box
-        data-testid={`server-bit-${bitIndex}`}
-        sx={(theme) => ({
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.75,
-          px: 0.75,
-          height: 24,
-          borderRadius: 1,
-          opacity: hasMapped ? 1 : 0.35,
-          transition: 'opacity 0.15s',
-          '&:hover': { opacity: 1, backgroundColor: alpha(theme.palette.primary.dark, 0.1) }
-        })}
-      >
-        {/* Toggle circle */}
-        <Box
-          data-testid={`server-bit-circle-${bitIndex}`}
-          onClick={onToggle}
-          sx={(theme) => ({
-            width: 12,
-            height: 12,
-            borderRadius: '50%',
-            flexShrink: 0,
-            cursor: 'pointer',
-            background: active ? theme.palette.success.main : theme.palette.action.disabled,
-            boxShadow: active ? `0 0 5px ${theme.palette.success.main}` : 'none',
-            transition: 'background 0.15s, box-shadow 0.15s',
-            '&:hover': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 1 }
-          })}
-        />
-
-        {/* Bit index */}
-        <Typography
-          variant="caption"
-          sx={{
-            fontFamily: 'monospace',
-            fontWeight: 700,
-            color: 'text.secondary',
-            lineHeight: 1,
-            flexShrink: 0,
-            minWidth: 16
-          }}
-        >
-          {String(bitIndex).padStart(2, '0')}
-        </Typography>
-
-        {/* Comment — inline editable */}
-        {editing ? (
-          <TextField
-            variant="standard"
-            size="small"
-            autoFocus
-            value={draft}
-            color="info"
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => commit(draft)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commit(draft)
-              if (e.key === 'Escape') {
-                setDraft(comment ?? '')
-                setEditing(false)
-              }
-            }}
-            sx={{
-              flexGrow: 1,
-              minWidth: 0,
-              '& input': { fontSize: '0.72rem', py: 0, height: 18 },
-              '& .MuiInput-root': { mt: 0 },
-              '& .MuiInput-root::before': { borderBottom: 'none' }
-            }}
-          />
-        ) : (
-          <Typography
-            variant="caption"
-            noWrap
-            title={comment}
-            onClick={() => {
-              setDraft(comment ?? '')
-              setEditing(true)
-            }}
-            sx={{
-              flexGrow: 1,
-              minWidth: 0,
-              lineHeight: 1.2,
-              height: 18,
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'text',
-              '&:hover': { textDecoration: 'underline dotted' }
-            }}
-          >
-            {hasMapped ? comment : '...'}
-          </Typography>
-        )}
-      </Box>
-    )
-  }
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Element => {
   const { params } = register

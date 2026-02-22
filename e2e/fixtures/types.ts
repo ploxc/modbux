@@ -15,6 +15,7 @@ export type BoolDef = {
   registerType: 'coils' | 'discrete_inputs'
   address: number
   state: boolean
+  comment?: string
 }
 
 export type ServerConfig = {

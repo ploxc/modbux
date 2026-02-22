@@ -19,6 +19,7 @@ import {
   UnitIdString,
   UnitIdStringSchema,
   migrateServerRegistersState,
+  migrateBoolShape,
   CURRENT_SERVER_ZUSTAND_VERSION,
   getRegisterLength
 } from '@shared'
@@ -206,38 +207,26 @@ export const useServerZustand = create<
           state.name[uuid] = name
         })
       },
-      addBools: (registerType, address) => {
+      addBool: (registerType, address) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
-        const baseAddress = address - (address % 8)
         set((state) => {
-          for (let i = baseAddress; i < baseAddress + 8; i++) {
-            // Don't define when already defined
-            if (state.serverRegisters[uuid]?.[unitId]?.[registerType][i]) continue
-            if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
-            if (!state.serverRegisters[uuid][unitId]) {
-              state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
-            }
-            state.serverRegisters[uuid][unitId][registerType][i] = false
-            window.api.setBool({ uuid, unitId, registerType, address: i, state: false })
+          if (state.serverRegisters[uuid]?.[unitId]?.[registerType][address]) return
+          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
+          if (!state.serverRegisters[uuid][unitId]) {
+            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
           }
+          state.serverRegisters[uuid][unitId][registerType][address] = { value: false }
+          window.api.setBool({ uuid, unitId, registerType, address, state: false })
         })
       },
       removeBool: (registerType, address) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
-        const baseAddress = address - (address % 8)
         set((state) => {
-          if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
-          if (!state.serverRegisters[uuid][unitId]) {
-            state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
-          }
-          for (let i = baseAddress; i < baseAddress + 8; i++) {
-            // Don't remove when not existing
-            if (state.serverRegisters[uuid][unitId][registerType][i] === undefined) continue
-            delete state.serverRegisters[uuid][unitId][registerType][i]
-            window.api.setBool({ uuid, unitId, registerType, address: i, state: false })
-          }
+          if (state.serverRegisters[uuid]?.[unitId]?.[registerType][address] === undefined) return
+          delete state.serverRegisters[uuid][unitId][registerType][address]
+          window.api.setBool({ uuid, unitId, registerType, address, state: false })
         })
       },
       setBool: (params) => {
@@ -252,9 +241,23 @@ export const useServerZustand = create<
             if (!state.serverRegisters[uuid][unitId]) {
               state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
-            state.serverRegisters[uuid][unitId][registerType][address] = boolState
+            const entry = state.serverRegisters[uuid][unitId][registerType][address]
+            if (entry) {
+              entry.value = boolState
+            } else {
+              state.serverRegisters[uuid][unitId][registerType][address] = { value: boolState }
+            }
             window.api.setBool({ uuid, unitId, registerType, address, state: boolState })
           }
+        })
+      },
+      setBoolComment: (registerType, address, comment) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        set((state) => {
+          const entry = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
+          if (!entry) return
+          entry.comment = comment || undefined
         })
       },
       resetBools: (registerType) => {
@@ -263,11 +266,15 @@ export const useServerZustand = create<
         const currentState = get()
         const currentCoils = new Array(65536).fill(false)
         const currentDiscreteInputs = new Array(65536).fill(false)
-        Object.entries(currentState.serverRegisters.coils ?? {}).forEach(([k, v]) => {
-          currentCoils[Number(k)] = v
-        })
-        Object.entries(currentState.serverRegisters['discrete_inputs'] ?? {}).forEach(([k, v]) => {
-          currentDiscreteInputs[Number(k)] = v
+        Object.entries(currentState.serverRegisters[uuid]?.[unitId]?.coils ?? {}).forEach(
+          ([k, v]) => {
+            currentCoils[Number(k)] = v.value
+          }
+        )
+        Object.entries(
+          currentState.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] ?? {}
+        ).forEach(([k, v]) => {
+          currentDiscreteInputs[Number(k)] = v.value
         })
         set((state) => {
           if (!state.serverRegisters[uuid]) state.serverRegisters[uuid] = {}
@@ -453,8 +460,14 @@ export const useServerZustand = create<
             persistedState as Record<string, unknown>
           ) as PersistedServerZustand
         }
-        // Already v2, no migration needed
-        return persistedState as PersistedServerZustand
+        // Already v2 — still convert old boolean shape if needed
+        const state = persistedState as PersistedServerZustand
+        migrateBoolShape(
+          state.serverRegisters as
+            | Record<string, Record<string, unknown> | undefined>
+            | undefined
+        )
+        return state
       },
       partialize: (state) => ({
         name: state.name,
@@ -698,11 +711,11 @@ const delayedSetBool = () => {
 
 onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
   const state = useServerZustand.getState()
-  if (state.serverRegisters[uuid]?.[unitId]?.[registerType][address] === undefined) return
+  const entry = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
+  if (entry === undefined) return
 
   const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`
-  const currentBool =
-    pendingBooleanValues.get(cacheKey) ?? state.serverRegisters[uuid][unitId][registerType][address]
+  const currentBool = pendingBooleanValues.get(cacheKey) ?? entry.value
 
   if (currentBool !== value) {
     pendingBooleanValues.set(cacheKey, value)

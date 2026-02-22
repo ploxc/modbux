@@ -23,11 +23,11 @@ export const syncBoolsWithBackend = async (
   const coils: boolean[] = Array(65536).fill(false)
   const discreteInputs: boolean[] = Array(65536).fill(false)
 
-  Object.values(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
-    (value, address) => (coils[address] = value)
+  Object.entries(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
+    ([addr, entry]) => (coils[Number(addr)] = entry.value)
   )
-  Object.values(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
-    (value, address) => (discreteInputs[address] = value)
+  Object.entries(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
+    ([addr, entry]) => (discreteInputs[Number(addr)] = entry.value)
   )
 
   await window.api.syncBools({

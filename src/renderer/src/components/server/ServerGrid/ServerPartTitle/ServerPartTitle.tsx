@@ -1,52 +1,37 @@
-import { DeleteFilled, EditFilled, PlusCircleFilled } from '@ant-design/icons'
+import { DeleteFilled, PlusCircleFilled } from '@ant-design/icons'
 import { alpha, Box, IconButton } from '@mui/material'
 import { RegisterType } from '@shared'
-import { useRef, useCallback, MutableRefObject } from 'react'
+import { useCallback } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { useAddBooleansZustand } from '../ServerBooleans/AddBooleans'
 import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
 import useServerGridZustand from '../serverGrid.zustand'
 
-const AddButton = meme(
-  ({
-    type,
-    titleRef
-  }: {
-    type: RegisterType
-    titleRef: MutableRefObject<HTMLDivElement | null>
-  }) => {
-    const handleClick = useCallback(() => {
-      if (type === 'coils' || type === 'discrete_inputs') {
-        const setAddBooleansOpen = useAddBooleansZustand.getState().setAnchorEl
-        setAddBooleansOpen(titleRef.current, type)
-      }
-      if (type === 'input_registers' || type === 'holding_registers') {
-        const setRegisterType = useAddRegisterZustand.getState().setRegisterType
-        setRegisterType(type)
-      }
-    }, [titleRef, type])
+const AddButton = meme(({ type }: { type: RegisterType }) => {
+  const handleClick = useCallback(() => {
+    if (type === 'input_registers' || type === 'holding_registers') {
+      const setRegisterType = useAddRegisterZustand.getState().setRegisterType
+      setRegisterType(type)
+    }
+    // For bools, the inline add bar in ServerBooleans handles adding
+  }, [type])
 
-    const icon =
-      type === 'coils' || type === 'discrete_inputs' ? (
-        <EditFilled size={10} />
-      ) : (
-        <PlusCircleFilled size={10} />
-      )
-    return (
-      <IconButton
-        data-testid={`add-${type}-btn`}
-        aria-label={`Add ${type.replace(/_/g, ' ')}`}
-        title={`Add ${type.replace(/_/g, ' ')}`}
-        onClick={handleClick}
-        size="small"
-        color="primary"
-      >
-        {icon}
-      </IconButton>
-    )
-  }
-)
+  // No add button for bool types — they have inline add
+  if (type === 'coils' || type === 'discrete_inputs') return null
+
+  return (
+    <IconButton
+      data-testid={`add-${type}-btn`}
+      aria-label={`Add ${type.replace(/_/g, ' ')}`}
+      title={`Add ${type.replace(/_/g, ' ')}`}
+      onClick={handleClick}
+      size="small"
+      color="primary"
+    >
+      <PlusCircleFilled size={10} />
+    </IconButton>
+  )
+})
 
 const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => {
   const handleClick = useCallback(() => {
@@ -115,12 +100,11 @@ const ServerPartTitleName = meme(
 
 const ServerPartTitle = meme(
   ({ name, registerType }: { name: string; registerType: RegisterType }) => {
-    const titleRef = useRef<HTMLDivElement>(null)
     const collapse = useServerGridZustand((z) => z.collapse[registerType])
+    const isBool = registerType === 'coils' || registerType === 'discrete_inputs'
 
     return (
       <Box
-        ref={titleRef}
         sx={(theme) => ({
           position: 'sticky',
           top: 0,
@@ -140,13 +124,13 @@ const ServerPartTitle = meme(
           </Box>
         )}
         <ServerPartTitleName name={name} registerType={registerType} />
-        {!collapse && (
-          <>
-            <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-              <AddButton type={registerType} titleRef={titleRef} />
-            </Box>
-          </>
+        {!collapse && !isBool && (
+          <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+            <AddButton type={registerType} />
+          </Box>
         )}
+        {/* Bool types use inline add bar, so just a spacer for alignment */}
+        {!collapse && isBool && <Box sx={{ width: 32 }} />}
       </Box>
     )
   }

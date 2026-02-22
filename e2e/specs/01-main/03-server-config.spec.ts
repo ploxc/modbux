@@ -5,7 +5,8 @@ import {
   setupServerConfig,
   selectUnitId,
   setServerPanelCollapsed,
-  expandAllServerPanels
+  expandAllServerPanels,
+  addBool
 } from '../../fixtures/helpers'
 import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
 
@@ -184,25 +185,32 @@ test.describe.serial('Server configuration', () => {
 
   // ─── Panel collapse/expand ─────────────────────────────────────────
 
-  test('collapse all four panels hides content and action buttons', async ({ mainPage }) => {
+  test('collapse all four panels hides action buttons but bools remain visible', async ({
+    mainPage
+  }) => {
     await setServerPanelCollapsed(mainPage, 'coils', true)
     await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
     await setServerPanelCollapsed(mainPage, 'holding_registers', true)
     await setServerPanelCollapsed(mainPage, 'input_registers', true)
 
-    // Boolean content hidden
-    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
-    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).not.toBeVisible()
+    // Boolean rows still visible when collapsed (read-only)
+    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).toBeVisible()
+
+    // But inline add bar and remove buttons are hidden
+    await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-bool-inline-discrete_inputs')).not.toBeVisible()
+    await expect(mainPage.getByTestId('remove-bool-coils-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('remove-bool-discrete_inputs-0')).not.toBeVisible()
 
     // Register content hidden
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).not.toBeVisible()
     await expect(mainPage.getByTestId('server-edit-reg-input_registers-0')).not.toBeVisible()
 
-    // Add/delete buttons hidden for all types
-    await expect(mainPage.getByTestId('add-coils-btn')).not.toBeVisible()
+    // Delete buttons hidden for all types
     await expect(mainPage.getByTestId('delete-coils-btn')).not.toBeVisible()
-    await expect(mainPage.getByTestId('add-holding_registers-btn')).not.toBeVisible()
     await expect(mainPage.getByTestId('delete-holding_registers-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-holding_registers-btn')).not.toBeVisible()
   })
 
   test('section headers still show register counts when collapsed', async ({ mainPage }) => {
@@ -219,30 +227,38 @@ test.describe.serial('Server configuration', () => {
     await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
     await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).toBeVisible()
 
+    // Inline add bar and remove buttons visible when expanded
+    await expect(mainPage.getByTestId('add-bool-inline-coils')).toBeVisible()
+    await expect(mainPage.getByTestId('add-bool-inline-discrete_inputs')).toBeVisible()
+    await expect(mainPage.getByTestId('remove-bool-coils-0')).toBeAttached()
+
     // Register content visible
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).toBeVisible()
     await expect(mainPage.getByTestId('server-edit-reg-input_registers-0')).toBeVisible()
 
-    // Add/delete buttons visible
-    await expect(mainPage.getByTestId('add-coils-btn')).toBeVisible()
+    // Delete buttons visible
     await expect(mainPage.getByTestId('delete-coils-btn')).toBeVisible()
-    await expect(mainPage.getByTestId('add-holding_registers-btn')).toBeVisible()
     await expect(mainPage.getByTestId('delete-holding_registers-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('add-holding_registers-btn')).toBeVisible()
   })
 
   test('collapse state persists across navigation', async ({ mainPage }) => {
     // Collapse coils and discrete inputs
     await setServerPanelCollapsed(mainPage, 'coils', true)
     await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
-    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+
+    // Bools still visible when collapsed, but add bar is hidden
+    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
 
     // Navigate to client and back to server
     await navigateToClient(mainPage)
     await navigateToServer(mainPage)
 
-    // Collapsed panels should still be collapsed
-    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
-    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).not.toBeVisible()
+    // Collapsed panels: bools visible but add bar hidden
+    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
+    await expect(mainPage.getByTestId('add-bool-inline-discrete_inputs')).not.toBeVisible()
 
     // Non-collapsed panels should still be expanded
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).toBeVisible()
@@ -250,6 +266,138 @@ test.describe.serial('Server configuration', () => {
 
     // Re-expand for clean state
     await expandAllServerPanels(mainPage)
+  })
+
+  // ─── Inline add bar / remove / delete-all for booleans ─────────────
+
+  test('inline add bar: initial address is next free address', async ({ mainPage }) => {
+    // Coils currently have addresses 0-15 (16 bools), so next free should be 16
+    const addressInput = mainPage.getByTestId('add-bool-address-input-coils').locator('input')
+    await expect(addressInput).toHaveValue('16')
+  })
+
+  test('inline add bar: add a bool auto-increments to next free address', async ({ mainPage }) => {
+    // Add coil at address 16 (current value in input)
+    await mainPage.getByTestId('add-bool-btn-coils').click()
+    await mainPage.waitForTimeout(100)
+
+    // Verify it was added
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(17)')
+    await expect(mainPage.getByTestId('server-bool-coils-16')).toBeVisible()
+
+    // Input should auto-increment to 17
+    const addressInput = mainPage.getByTestId('add-bool-address-input-coils').locator('input')
+    await expect(addressInput).toHaveValue('17')
+  })
+
+  test('inline add bar: typed address that is taken snaps to next free', async ({ mainPage }) => {
+    // Type an address that is already taken (e.g. 5)
+    const addressInput = mainPage.getByTestId('add-bool-address-input-coils').locator('input')
+    await addressInput.fill('5')
+    await mainPage.getByTestId('add-bool-btn-coils').click()
+    await mainPage.waitForTimeout(100)
+
+    // Address 5 is taken, so it snaps to next free which is 17 (since 0-16 exist now)
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(18)')
+    await expect(mainPage.getByTestId('server-bool-coils-17')).toBeVisible()
+  })
+
+  test('inline add bar: add bool via Enter key', async ({ mainPage }) => {
+    const addressInput = mainPage.getByTestId('add-bool-address-input-coils').locator('input')
+    // Input should show next free address (18)
+    await expect(addressInput).toHaveValue('18')
+    await addressInput.press('Enter')
+    await mainPage.waitForTimeout(100)
+
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(19)')
+    await expect(mainPage.getByTestId('server-bool-coils-18')).toBeVisible()
+  })
+
+  test('remove individual bool via remove button', async ({ mainPage }) => {
+    // Remove coil at address 18 (just added)
+    await mainPage.getByTestId('remove-bool-coils-18').click()
+    await mainPage.waitForTimeout(100)
+
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(18)')
+    await expect(mainPage.getByTestId('server-bool-row-coils-18')).not.toBeVisible()
+  })
+
+  test('remove individual bool: also remove 17 and 16 to restore original count', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('remove-bool-coils-17').click()
+    await mainPage.waitForTimeout(100)
+    await mainPage.getByTestId('remove-bool-coils-16').click()
+    await mainPage.waitForTimeout(100)
+
+    // Back to original 16 coils
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(16)')
+  })
+
+  test('toggle bool via circle element', async ({ mainPage }) => {
+    // Toggle coil 0 on
+    const circle = mainPage.getByTestId('server-bool-coils-circle-0')
+    await circle.click()
+    await mainPage.waitForTimeout(100)
+
+    // Toggle coil 0 off
+    await circle.click()
+    await mainPage.waitForTimeout(100)
+
+    // No error — toggle is functional
+  })
+
+  test('delete all bools resets inline add address to 0', async ({ mainPage }) => {
+    // Use discrete_inputs to test delete-all without affecting coils
+    // First verify DI has 8 bools
+    await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
+
+    // Check current input value (should be 8 since addresses 0-7 are taken)
+    const addressInput = mainPage
+      .getByTestId('add-bool-address-input-discrete_inputs')
+      .locator('input')
+    await expect(addressInput).toHaveValue('8')
+
+    // Delete all discrete inputs
+    await mainPage.getByTestId('delete-discrete_inputs-btn').click()
+    await mainPage.waitForTimeout(200)
+
+    await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(0)')
+
+    // Address input should reset to 0
+    await expect(addressInput).toHaveValue('0')
+  })
+
+  test('re-add discrete inputs after delete-all', async ({ mainPage }) => {
+    // Re-add discrete inputs 0-7 to restore test state
+    for (let i = 0; i < 8; i++) {
+      await addBool(mainPage, 'discrete_inputs', i, true)
+    }
+    await expect(mainPage.getByTestId('section-discrete_inputs')).toContainText('(8)')
+
+    // Toggle DI 3 on to match original config
+    const circle = mainPage.getByTestId('server-bool-discrete_inputs-circle-3')
+    await circle.click()
+    await mainPage.waitForTimeout(100)
+  })
+
+  test('collapsed bool panel: bools visible but no add bar or remove buttons', async ({
+    mainPage
+  }) => {
+    await setServerPanelCollapsed(mainPage, 'coils', true)
+
+    // Bool rows still visible
+    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-coils-5')).toBeVisible()
+
+    // Inline add bar is hidden
+    await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
+
+    // Remove button is hidden
+    await expect(mainPage.getByTestId('remove-bool-coils-0')).not.toBeVisible()
+
+    // Re-expand
+    await setServerPanelCollapsed(mainPage, 'coils', false)
   })
 
   // ─── Multi-server configuration ───────────────────────────────────

@@ -52,8 +52,15 @@ export const RegisterParamsSchema = RegisterParamsBasePartSchema.and(
 )
 export type RegisterParams = z.infer<typeof RegisterParamsSchema>
 
+// Schema for a single boolean entry with optional comment
+export const ServerBoolEntrySchema = z.object({
+  value: z.boolean(),
+  comment: z.string().optional()
+})
+export type ServerBoolEntry = z.infer<typeof ServerBoolEntrySchema>
+
 // Schema for a boolean dictionary keyed by numeric strings
-export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), z.boolean())
+export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), ServerBoolEntrySchema)
 export type ServerBool = z.infer<typeof ServerBoolSchema>
 
 // Schema for a single register entry

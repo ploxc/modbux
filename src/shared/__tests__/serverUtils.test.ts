@@ -152,15 +152,17 @@ describe('checkHasConfig', () => {
   })
 
   it('returns true when coils have truthy values', () => {
-    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': true } })).toBe(true)
+    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': { value: true } } })).toBe(true)
   })
 
   it('returns false when coils only have falsy values', () => {
-    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': false } })).toBe(false)
+    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': { value: false } } })).toBe(false)
   })
 
   it('returns true when discrete_inputs have truthy values', () => {
-    expect(checkHasConfig({ ...emptyRegisters, discrete_inputs: { '0': true } })).toBe(true)
+    expect(checkHasConfig({ ...emptyRegisters, discrete_inputs: { '0': { value: true } } })).toBe(
+      true
+    )
   })
 
   it('returns true when input_registers has entries', () => {

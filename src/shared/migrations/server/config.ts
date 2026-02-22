@@ -1,6 +1,7 @@
 import {
   ServerConfigSchema,
   ServerConfig,
+  ServerBoolEntry,
   RegisterParams,
   ServerRegistersPerUnit,
   ServerRegisters
@@ -32,9 +33,21 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   for (const [unitId, serverRegisters] of Object.entries(v1Registers)) {
     if (!serverRegisters) continue
 
+    // Convert old boolean shape to { value: boolean } entries
+    const migratedCoils: Record<string, ServerBoolEntry> = {}
+    for (const [addr, val] of Object.entries(serverRegisters.coils ?? {})) {
+      migratedCoils[addr] =
+        typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
+    }
+    const migratedDiscreteInputs: Record<string, ServerBoolEntry> = {}
+    for (const [addr, val] of Object.entries(serverRegisters.discrete_inputs ?? {})) {
+      migratedDiscreteInputs[addr] =
+        typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
+    }
+
     const migratedServerRegisters: ServerRegisters = {
-      coils: serverRegisters.coils ?? {},
-      discrete_inputs: serverRegisters.discrete_inputs ?? {},
+      coils: migratedCoils,
+      discrete_inputs: migratedDiscreteInputs,
       input_registers: {},
       holding_registers: {}
     }
@@ -79,6 +92,32 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 }
 
 /**
+ * Convert old `boolean` bool entries to `{ value: boolean }` in a parsed config object.
+ * Mutates in place. Safe to call on already-migrated data.
+ */
+function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
+  const spu = config.serverRegistersPerUnit as
+    | Record<string, Record<string, unknown> | undefined>
+    | undefined
+  if (!spu) return
+
+  for (const unitRegisters of Object.values(spu)) {
+    if (!unitRegisters || typeof unitRegisters !== 'object') continue
+
+    for (const boolType of ['coils', 'discrete_inputs'] as const) {
+      const boolRecord = unitRegisters[boolType]
+      if (!boolRecord || typeof boolRecord !== 'object') continue
+
+      for (const [addr, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
+        if (typeof entry === 'boolean') {
+          ;(boolRecord as Record<string, unknown>)[addr] = { value: entry }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Migrate server config to current version
  */
 export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> {
@@ -87,8 +126,9 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
   const parsed = JSON.parse(cleanedContent)
   const detectedVersion = parsed.version ?? 1
 
-  // Current version - no migration needed
+  // Current version - migrate bool shape if needed, then validate
   if (detectedVersion === CURRENT_SERVER_CONFIG_VERSION) {
+    migrateBoolShapeInConfig(parsed)
     const result = ServerConfigSchema.safeParse(parsed)
     if (!result.success) {
       throw new Error(
