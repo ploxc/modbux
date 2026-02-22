@@ -302,6 +302,12 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Coils & Discrete Inputs — toolbar differences ─────────────────
 
   for (const regType of ['Coils', 'Discrete Inputs']) {
+    test(`[${regType}] no raw button visible`, async ({ mainPage }) => {
+      await selectRegisterType(mainPage, regType)
+
+      await expect(mainPage.getByTestId('raw-btn')).not.toBeVisible()
+    })
+
     test(`[${regType}] no endian toggle visible`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
 
