@@ -9,37 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Three new SERVER register data types:**
-  - **UTF-8 strings:** Store text values across multiple registers (1-124 registers)
-    - String input field with real-time byte counter to prevent overflow
-    - Register length selector to specify how many registers to use
+- **Bitmap data type** for both client and server registers
+  - Client: expandable detail panel showing all 16 bits with toggle indicators, inline comments, per-bit color (default/warning/error), and invert option
+  - Server: per-bit toggle circles that update the underlying uint16 register value
+  - Bitmap configuration persists in config files via `registerMapping`
+
+- **Redesigned server booleans** (coils & discrete inputs)
+  - Individual address rows with toggle circles and inline editable comments
+  - Inline add bar with auto-increment to the next free address
+  - Per-boolean delete with hover-to-reveal trash icon and red row highlight
+  - Collapsed view: read-only bit list without editing controls
+
+- **Three new server register data types:**
+  - **UTF-8 strings:** Store text values across multiple registers (1-124 registers) with real-time byte counter
   - **Unix timestamps:** Store and display timestamps as seconds since epoch
   - **Datetime (IEC 870-5):** Industry-standard datetime format for SCADA systems
 
-- **Time-based value generators for Unix and Datetime types:**
+- **Time-based value generators** for Unix and Datetime types
   - Registers automatically update to current system time at configured intervals
+
+- **Read errors displayed inline in data grid** — Modbus exceptions and timeouts shown as styled error rows instead of snackbar notifications
+
+- **Group index column** ("G") in the client data grid — shows which read group each register belongs to with alternating background tints
+
+- **Endianness included in client config export/import** — `littleEndian` now persists in client config JSON files
+
+- **Address/register-length validation** in server Add Register form with helper text showing byte usage for UTF-8 strings
 
 ### Changed
 
 - **Endianness is now a global server setting** instead of per-register configuration
-  - More intuitive: byte order is a device property, not a register property
   - Endian toggle moved from "Add Register" modal to server toolbar
 
-- **Config files now include version metadata** for better backward compatibility
-  - Server configs now include `version`, `modbuxVersion`, and `littleEndian` fields
-  - Client configs now include `version` and `modbuxVersion` fields
-  - Old configurations are **automatically migrated** when loaded (no user action required)
+- **Config files now include version metadata** for backward compatibility
+  - Server configs: `version`, `modbuxVersion`, `littleEndian` fields
+  - Client configs: `version`, `modbuxVersion` fields
+  - Old configurations are **automatically migrated** when loaded
 
-- **Improved backward compatibility handling**
+- **readConfiguration replaces ViewConfigButton** — the separate "View Configuration" button is removed; its functionality is merged into the readConfiguration toggle
+
+- **readConfiguration is now session-only state** — resets to `false` on app restart instead of persisting across sessions
+
+- **Scan dialogs use address + length** instead of min/max range inputs, with a shared address base toggle component
+
+- **Address base simplified** — the conventional address column (40001/30001 style) is removed; the 0/1 toggle now simply shifts displayed addresses by +1
+
+- **Backward compatibility handling**
   - Automatic migration of v1 configs to v2 format
   - Detection and handling of mixed endianness scenarios (shows warning)
-  - Forward compatibility: configs from newer Modbux versions show warning but attempt to load
+  - Forward compatibility: configs from newer versions show warning but attempt to load
   - localStorage state is automatically migrated on app startup
 
 ### Fixed
 
-- **Client polling now resumes on reconnect** — when the connection drops and auto-reconnects, polling continues automatically instead of silently stopping
-- **Client register config state preserved** — `readConfiguration` is no longer reset on navigation or client load.
+- **Off-by-one in server register arrays** — address 65535 now works correctly (arrays are 65536 elements instead of 65535)
+- **Register not removed from mapping when set to "none"** — readConfiguration toggle now correctly disables when no registers are configured
+- **Grid cleared when switching address base** — toggling between 0/1 no longer causes data loss
+- **UTF-8 value column offset** — string values after non-ASCII registers now display correctly
+- **Client polling resumes on reconnect** — polling continues automatically after connection drops
+- **Windows e2e compatibility** — splash window now has a distinct title for reliable main window detection
 
 ### Migration Notes
 
