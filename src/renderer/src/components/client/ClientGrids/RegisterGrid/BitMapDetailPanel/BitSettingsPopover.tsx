@@ -52,6 +52,7 @@ const BitSettingsPopover = ({
         {/* Invert toggle */}
         <ToggleButtonGroup size="small" value={invert} color="primary" fullWidth>
           <ToggleButton
+            data-testid="bit-invert-toggle"
             value={true}
             onChange={() => onInvertChange(!invert)}
             sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}
@@ -67,6 +68,7 @@ const BitSettingsPopover = ({
             return (
               <Box
                 key={value}
+                data-testid={`bit-color-${value}`}
                 onClick={() => onColorChange(value === 'default' ? undefined : value)}
                 sx={(theme) => ({
                   width: 16,

@@ -16,6 +16,7 @@ export const ExpandCell = ({ address, isBitmap }: ExpandCellProps): JSX.Element 
 
   return (
     <Box
+      data-testid={`bitmap-expand-${address}`}
       onClick={() => toggleExpanded(address)}
       title={isExpanded ? 'Hide bitmap detail' : 'Show bitmap detail'}
       sx={(theme) => ({

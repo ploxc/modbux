@@ -60,6 +60,7 @@ const BitIndicator = meme(
 
     return (
       <Paper
+        data-testid={`bit-indicator-${bitIndex}`}
         variant="outlined"
         sx={(theme) => {
           const activeColor = resolveColor(color, theme)
@@ -83,11 +84,10 @@ const BitIndicator = meme(
       >
         {/* Circle toggle — shows RAW value; uses primary when inverted so it's independent of signal color */}
         <Box
+          data-testid={`bit-circle-${bitIndex}`}
           onClick={writable ? onToggle : undefined}
           sx={(theme) => {
-            const circleColor = invert
-              ? theme.palette.primary.main
-              : resolveColor(color, theme)
+            const circleColor = invert ? theme.palette.primary.main : resolveColor(color, theme)
             return {
               width: 12,
               height: 12,
@@ -160,6 +160,7 @@ const BitIndicator = meme(
 
         {/* Settings cog */}
         <SettingsOutlined
+          data-testid={`bit-settings-${bitIndex}`}
           sx={{
             fontSize: 14,
             cursor: 'pointer',
