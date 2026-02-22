@@ -15,6 +15,7 @@ import { DataGrid } from '@mui/x-data-grid/DataGrid/DataGrid'
 import { DataType, RegisterData } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
+import BitMapRow from './BitMapRow/BitMapRow'
 //
 //
 //
@@ -129,12 +130,16 @@ const RegisterGridContent = (): JSX.Element => {
         },
         '& .group-column-odd': {
           backgroundColor: alpha(theme.palette.primary.main, 0.22)
+        },
+        '& .MuiDataGrid-filler > div': {
+          borderTop: 'none',
+          borderBottom: 'none'
         }
       })}
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
-      slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
       getCellClassName={({ field, row }) =>
         field === 'groupIndex' && row.groupIndex !== undefined
           ? row.groupIndex % 2 === 0

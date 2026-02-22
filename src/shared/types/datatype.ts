@@ -12,7 +12,8 @@ export const BaseDataTypeSchema = z.enum([
   'double',
   'unix',
   'datetime',
-  'utf8'
+  'utf8',
+  'bitmap'
 ])
 export type BaseDataType = z.infer<typeof BaseDataTypeSchema>
 

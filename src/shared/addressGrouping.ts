@@ -18,6 +18,7 @@ export const getRegisterLength = (
 
     case 'int16':
     case 'uint16':
+    case 'bitmap':
       return 1
 
     case 'float':
