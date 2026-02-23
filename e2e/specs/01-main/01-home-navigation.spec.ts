@@ -29,9 +29,9 @@ test.describe.serial('Home screen and navigation', () => {
     expect(text).toMatch(/\d+\.\d+\.\d+/)
   })
 
-  test('ploxc link points to ploxc github', async ({ mainPage }) => {
+  test('ploxc link points to ploxc website', async ({ mainPage }) => {
     const ploxcLink = mainPage.getByTestId('home-ploxc-link')
-    await expect(ploxcLink).toHaveAttribute('href', 'https://github.com/ploxc')
+    await expect(ploxcLink).toHaveAttribute('href', 'https://ploxc.com')
     await expect(ploxcLink).toHaveAttribute('target', '_blank')
   })
 

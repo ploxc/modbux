@@ -2379,6 +2379,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/pngjs@npm:^6.0.5":
+  version: 6.0.5
+  resolution: "@types/pngjs@npm:6.0.5"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/11979d0690e774046d3a1e8cfc613a6b53a613909d81c93831cf253800e93ba1a2d47950979b523aebd4fc023351b644d7f4aa2dfcc027c70816a2968420e7da
+  languageName: node
+  linkType: hard
+
 "@types/prop-types@npm:*, @types/prop-types@npm:^15.7.12, @types/prop-types@npm:^15.7.14, @types/prop-types@npm:^15.7.15":
   version: 15.7.15
   resolution: "@types/prop-types@npm:15.7.15"
@@ -4926,6 +4935,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"gif-encoder-2@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "gif-encoder-2@npm:1.0.5"
+  checksum: 10c0/aa40660199243ebde2904b97baf800743d9ed5582a61ab47419c1d04ce53e6389355f4d4a4ae59de5f3ac8cd4a1b4e1ba70ee033da56e1c296516e416c4ee05d
+  languageName: node
+  linkType: hard
+
 "glob-parent@npm:^5.1.2":
   version: 5.1.2
   resolution: "glob-parent@npm:5.1.2"
@@ -6228,6 +6244,7 @@ __metadata:
     "@types/lodash": "npm:^4.17.23"
     "@types/luxon": "npm:^3.7.1"
     "@types/node": "npm:^20.19.33"
+    "@types/pngjs": "npm:^6.0.5"
     "@types/react": "npm:^18.3.28"
     "@types/react-dom": "npm:^18.3.7"
     "@types/uuid": "npm:^10.0.0"
@@ -6241,12 +6258,14 @@ __metadata:
     eslint-plugin-react: "npm:^7.37.5"
     eslint-plugin-react-hooks: "npm:^5.2.0"
     fast-equals: "npm:^5.4.0"
+    gif-encoder-2: "npm:^1.0.5"
     happy-dom: "npm:^20.6.1"
     lodash: "npm:^4.17.23"
     luxon: "npm:^3.7.2"
     modbus-serial: "npm:^8.0.23"
     mutative: "npm:^1.3.0"
     notistack: "npm:^3.0.2"
+    pngjs: "npm:^7.0.0"
     prettier: "npm:^3.8.1"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
@@ -6727,6 +6746,13 @@ __metadata:
     base64-js: "npm:^1.5.1"
     xmlbuilder: "npm:^15.1.1"
   checksum: 10c0/db19ba50faafc4103df8e79bcd6b08004a56db2a9dd30b3e5c8b0ef30398ef44344a674e594d012c8fc39e539a2b72cb58c60a76b4b4401cbbc7c8f6b028d93d
+  languageName: node
+  linkType: hard
+
+"pngjs@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "pngjs@npm:7.0.0"
+  checksum: 10c0/0d4c7a0fd476a9c33df7d0a2a73e1d56537628a668841f6995c2bca070cf30819f9254a64363266bc14ef2fee47659dd3b4f2b18eec7ab65143015139f497b38
   languageName: node
   linkType: hard
 

@@ -54,14 +54,14 @@ const useOpen: UseOpenHook = () => {
         state.setLittleEndian(config.littleEndian)
 
         // Load all unit configs
-        UnitIdStringSchema.options.forEach(async (unitId) => {
+        for (const unitId of UnitIdStringSchema.options) {
           const serverRegisters = config.serverRegistersPerUnit[unitId]
-          if (!serverRegisters) return
+          if (!serverRegisters) continue
           const hasConfig = checkHasConfig(serverRegisters)
-          if (!hasConfig) return
+          if (!hasConfig) continue
           state.replaceServerRegisters(unitId, serverRegisters)
           await new Promise((r) => setTimeout(r, 1))
-        })
+        }
 
         // Show success notification
         if (migrated) {

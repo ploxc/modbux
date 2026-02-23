@@ -25,7 +25,7 @@ const ExportButton = (): JSX.Element => {
       variant="outlined"
       onClick={() =>
         api.current.exportDataAsCsv({
-          fileName: `transaction_log_${DateTime.now().toFormat('yyyymmdd_HHmmss')}`
+          fileName: `transaction_log_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}`
         })
       }
     >

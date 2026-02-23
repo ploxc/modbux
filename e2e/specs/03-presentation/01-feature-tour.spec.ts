@@ -34,8 +34,10 @@ import {
   disableClientRawMode
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
-import { readFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import { Locator, type Page } from '@playwright/test'
+import GIFEncoder from 'gif-encoder-2'
+import { PNG } from 'pngjs'
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,18 @@ const snap = async (page: Page, name: string): Promise<Buffer> => {
   await page.waitForTimeout(100)
 
   return await page.screenshot({ path: resolve(SHOTS, `${name}.png`) })
+}
+
+/** Stitch PNG frame buffers into an animated GIF */
+const framesToGif = (frames: Buffer[], delay: number, outPath: string): void => {
+  const first = PNG.sync.read(frames[0])
+  const encoder = new GIFEncoder(first.width, first.height)
+  encoder.setDelay(delay)
+  encoder.setRepeat(0)
+  encoder.start()
+  for (const frame of frames) encoder.addFrame(PNG.sync.read(frame).data)
+  encoder.finish()
+  writeFileSync(outPath, encoder.out.getData())
 }
 
 /** Locate the nearest MUI Paper ancestor of a test-id element */
@@ -324,6 +338,31 @@ test.describe.serial('Act II — Building the Simulator', () => {
     await beat(mainPage, 300)
   })
 
+  test('scene 13b — add register: UNIX fixed (DateTimePicker + UTC)', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
+
+    await selectDataType(mainPage, 'UNIX')
+    // Default mode is fixed — DateTimePicker + UTC toggle visible
+    await mainPage.getByTestId('add-reg-address-input').locator('input').fill('112')
+    const commentInput13b = mainPage.getByTestId('add-reg-comment-input').locator('input')
+    await commentInput13b.fill('Last Update')
+    await commentInput13b.evaluate((el) => (el as HTMLElement).blur())
+
+    // Activate the UTC toggle
+    const utcBtn = mainPage.getByTestId('add-reg-datetime-show-utc')
+    await expect(utcBtn).toBeVisible()
+    await utcBtn.click()
+    await expect(utcBtn).toHaveClass(/Mui-selected/)
+    await beat(mainPage)
+
+    const modal = paperOf(mainPage, 'add-reg-address-input')
+    await modal.screenshot({ path: resolve(SHOTS, 'add-register-unix-fixed.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
   test('scene 14 — add register datatype dropdown', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await expect(mainPage.getByTestId('add-reg-address-input')).toBeVisible()
@@ -444,6 +483,23 @@ test.describe.serial('Act III — Going Live', () => {
     await mainPage.getByTestId('read-btn').evaluate((el) => (el as HTMLElement).blur())
     await beat(mainPage, 200)
     await snap(mainPage, 'client-read-config')
+  })
+
+  test('scene 20b — live read configuration (values changing)', async ({ mainPage }) => {
+    // Start polling so values update continuously
+    await mainPage.getByTestId('poll-btn').click()
+    await beat(mainPage, 1500)
+
+    const frames: Buffer[] = []
+    for (let i = 0; i < 5; i++) {
+      await beat(mainPage, 1500)
+      frames.push(await snap(mainPage, `client-read-config-frame-${i + 1}`))
+    }
+    framesToGif(frames, 1500, resolve(SHOTS, 'client-read-config-live.gif'))
+
+    // Stop polling
+    await mainPage.getByTestId('poll-btn').click()
+    await beat(mainPage, 300)
   })
 
   test('scene 21 — client bitmap alarm dashboard', async ({ mainPage }) => {

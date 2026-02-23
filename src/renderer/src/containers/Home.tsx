@@ -125,9 +125,9 @@ const PloxcLogo = (): JSX.Element => {
   return (
     <Box
       data-testid="home-ploxc-link"
-      aria-label="Ploxc GitHub"
+      aria-label="Ploxc"
       component={'a'}
-      href="https://github.com/ploxc"
+      href="https://ploxc.com"
       target="_blank"
       rel="noreferrer"
       sx={{ left: 16, ...bottomElementsCommonSx }}

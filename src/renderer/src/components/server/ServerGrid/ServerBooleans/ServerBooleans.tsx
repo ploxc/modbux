@@ -238,8 +238,12 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
             p: 0.5
           }}
         >
-          <ServerBoolList type={type} />
-          {!collapse && <AddBoolInline type={type} />}
+          {!collapse && (
+            <>
+              <ServerBoolList type={type} />
+              <AddBoolInline type={type} />
+            </>
+          )}
         </Box>
       </Paper>
     </Box>

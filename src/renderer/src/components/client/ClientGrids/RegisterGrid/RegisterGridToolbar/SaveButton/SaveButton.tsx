@@ -9,8 +9,9 @@ import { useCallback } from 'react'
 const SaveButton = meme(() => {
   const saveRegisterConfig = useCallback(async () => {
     const z = useRootZustand.getState()
-    const { registerMapping, name } = z
+    const { name } = z
 
+    const registerMapping = structuredClone(z.registerMapping)
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
       Object.keys(registerMapping[key]).forEach((register) => {

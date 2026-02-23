@@ -185,23 +185,19 @@ test.describe.serial('Server configuration', () => {
 
   // ─── Panel collapse/expand ─────────────────────────────────────────
 
-  test('collapse all four panels hides action buttons but bools remain visible', async ({
-    mainPage
-  }) => {
+  test('collapse all four panels hides content', async ({ mainPage }) => {
     await setServerPanelCollapsed(mainPage, 'coils', true)
     await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
     await setServerPanelCollapsed(mainPage, 'holding_registers', true)
     await setServerPanelCollapsed(mainPage, 'input_registers', true)
 
-    // Boolean rows still visible when collapsed (read-only)
-    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
-    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).toBeVisible()
+    // Boolean rows hidden when collapsed
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-discrete_inputs-0')).not.toBeVisible()
 
-    // But inline add bar and remove buttons are hidden
+    // Inline add bar and remove buttons also hidden
     await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
     await expect(mainPage.getByTestId('add-bool-inline-discrete_inputs')).not.toBeVisible()
-    await expect(mainPage.getByTestId('remove-bool-coils-0')).not.toBeVisible()
-    await expect(mainPage.getByTestId('remove-bool-discrete_inputs-0')).not.toBeVisible()
 
     // Register content hidden
     await expect(mainPage.getByTestId('server-edit-reg-holding_registers-0')).not.toBeVisible()
@@ -247,16 +243,16 @@ test.describe.serial('Server configuration', () => {
     await setServerPanelCollapsed(mainPage, 'coils', true)
     await setServerPanelCollapsed(mainPage, 'discrete_inputs', true)
 
-    // Bools still visible when collapsed, but add bar is hidden
-    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    // Bools hidden when collapsed
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
     await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
 
     // Navigate to client and back to server
     await navigateToClient(mainPage)
     await navigateToServer(mainPage)
 
-    // Collapsed panels: bools visible but add bar hidden
-    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
+    // Collapsed panels: bools still hidden after navigation
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
     await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
     await expect(mainPage.getByTestId('add-bool-inline-discrete_inputs')).not.toBeVisible()
 
@@ -381,20 +377,15 @@ test.describe.serial('Server configuration', () => {
     await mainPage.waitForTimeout(100)
   })
 
-  test('collapsed bool panel: bools visible but no add bar or remove buttons', async ({
-    mainPage
-  }) => {
+  test('collapsed bool panel: content fully hidden', async ({ mainPage }) => {
     await setServerPanelCollapsed(mainPage, 'coils', true)
 
-    // Bool rows still visible
-    await expect(mainPage.getByTestId('server-bool-coils-0')).toBeVisible()
-    await expect(mainPage.getByTestId('server-bool-coils-5')).toBeVisible()
+    // Bool rows hidden when collapsed
+    await expect(mainPage.getByTestId('server-bool-coils-0')).not.toBeVisible()
+    await expect(mainPage.getByTestId('server-bool-coils-5')).not.toBeVisible()
 
     // Inline add bar is hidden
     await expect(mainPage.getByTestId('add-bool-inline-coils')).not.toBeVisible()
-
-    // Remove button is hidden
-    await expect(mainPage.getByTestId('remove-bool-coils-0')).not.toBeVisible()
 
     // Re-expand
     await setServerPanelCollapsed(mainPage, 'coils', false)

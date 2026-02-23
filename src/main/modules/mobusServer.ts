@@ -233,6 +233,10 @@ export class ModbusServer {
     })
     this._servers.delete(uuid)
     this._port.delete(uuid)
+    const unitIdGenerators = this._generatorMap.get(uuid)
+    if (unitIdGenerators) {
+      this._disposeAllGenerators(unitIdGenerators)
+    }
     this._generatorMap.delete(uuid)
   }
 
