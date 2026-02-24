@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Individual address rows with toggle circles and inline editable comments
   - Inline add bar with auto-increment to the next free address
   - Per-boolean delete with hover-to-reveal trash icon and red row highlight
-  - Collapsed view: read-only bit list without editing controls
 
 - **Three new server register data types:**
   - **UTF-8 strings:** Store text values across multiple registers (1-124 registers) with real-time byte counter
@@ -28,13 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Time-based value generators** for Unix and Datetime types
   - Registers automatically update to current system time at configured intervals
 
-- **Read errors displayed inline in data grid** — Modbus exceptions and timeouts shown as styled error rows instead of snackbar notifications
+- **DateTimePicker with UTC toggle** for setting Unix/datetime values in fixed mode
+  - UTC toggle only changes the display — the register value is always encoded in UTC
 
-- **Group index column** ("G") in the client data grid — shows which read group each register belongs to with alternating background tints
+- **`Read configuration` improvements**
+  - Group index column ("G") showing which read group each register belongs to with alternating background tints
+  - Read errors displayed inline as styled error rows instead of snackbar notifications
 
 - **Endianness included in client config export/import** — `littleEndian` now persists in client config JSON files
-
-- **Address/register-length validation** in server Add Register form with helper text showing byte usage for UTF-8 strings
 
 ### Changed
 
@@ -46,13 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Client configs: `version`, `modbuxVersion` fields
   - Old configurations are **automatically migrated** when loaded
 
-- **readConfiguration replaces ViewConfigButton** — the separate "View Configuration" button is removed; its functionality is merged into the readConfiguration toggle
-
-- **readConfiguration is now session-only state** — resets to `false` on app restart instead of persisting across sessions
+- **`Read configuration` replaces `View Configuration` button** — the separate `View Configuration` button is removed; its functionality is merged into the `Read configuration` toggle
 
 - **Scan dialogs use address + length** instead of min/max range inputs, with a shared address base toggle component
 
-- **Address base simplified** — the conventional address column (40001/30001 style) is removed; the 0/1 toggle now simply shifts displayed addresses by +1
+- **Address base simplified** — the conventional address column (40001/30001 style) is removed; the 0/1 toggle now shifts displayed addresses by +1 while the underlying register address stays the same
 
 - **Backward compatibility handling**
   - Automatic migration of v1 configs to v2 format
@@ -63,8 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Off-by-one in server register arrays** — address 65535 now works correctly (arrays are 65536 elements instead of 65535)
-- **Register not removed from mapping when set to "none"** — readConfiguration toggle now correctly disables when no registers are configured
-- **Grid cleared when switching address base** — toggling between 0/1 no longer causes data loss
+- **Register not removed from mapping when set to "none"** — `Read configuration` toggle now correctly disables when no registers are configured
 - **UTF-8 value column offset** — string values after non-ASCII registers now display correctly
 - **Client polling resumes on reconnect** — polling continues automatically after connection drops
 - **Windows e2e compatibility** — splash window now has a distinct title for reliable main window detection
@@ -76,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backward incompatibility:** Configs saved in v2.0.0+ cannot be opened in older Modbux versions
   - This is intentional to enable the improved architecture
   - Keep backups of configs if you need to downgrade
+- **`datetime` register length corrected** from 2 to 4 registers (IEC 870-5 standard)
 
 ---
 

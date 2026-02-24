@@ -10,19 +10,20 @@
 
 ## Download
 
-**[Download the latest release](https://github.com/ploxc/modbux/releases/latest)**
+**[Download the latest release](https://www.ploxc.com/modbux)**
 
 Available for Windows and macOS
 
-**[Read the documentation](https://github.com/ploxc/modbux/wiki)**
+**[Read the documentation](https://www.ploxc.com/modbux/docs/v2/getting-started)**
 
 ## Features
 
 **Client Mode:**
 
-- Read/write with 11 data types (int16/32/64, uint16/32/64, float, double, timestamps, UTF-8 strings)
+- Read/write with 12 data types (int16/32/64, uint16/32/64, float, double, bitmap, timestamps, UTF-8 strings)
+- Bitmap detail panel: expandable 16-bit view with per-bit toggles, color coding, invert, and inline comments
 - Advanced mode: see all numeric data type interpretations simultaneously
-- Read Configuration mode: efficiently read only configured registers with automatic grouping
+- `Read configuration` mode: efficiently read only configured registers with automatic grouping, group index column, and inline error rows
 - Scan Unit IDs and register ranges
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
@@ -33,13 +34,20 @@ Available for Windows and macOS
 
 - Simulate up to 10 Modbus devices
 - 256 Unit IDs per server (0-255)
+- 12 data types: numeric registers, bitmap, UTF-8 strings, Unix timestamps, and IEC 870-5 datetime
 - Static or random value generation with configurable intervals
-- Instant auto-start for testing
+- Time-based generators for Unix/datetime that output the current system time
+- DateTimePicker with UTC toggle for setting exact timestamps
+- Redesigned booleans: individual address rows with toggle circles, inline comments, and hover-to-delete
+- Configuration save/load (JSON)
+- Instant auto-start
 
 **Split Mode:**
 
-- Run client and server side-by-side in separate windows
-- Test against your own simulations locally
+- Run client and server simultaneously in separate windows
+- Server opens in a second window, main window becomes the client
+- Connect to your own server via `127.0.0.1` for local testing
+- Great for learning Modbus hands-on or developing both sides of a communication simultaneously
 
 **State Persistence:**
 
@@ -85,7 +93,7 @@ It's a typo I always made, _modbux_ instead of _modbus_. But it fits: it's your 
 
 ## Pro Tip: Let AI Do the Boring Stuff
 
-Saved configs are JSON. Show Claude or ChatGPT a few example registers, paste your device documentation, ask it to complete the mapping. Load it back into Modbux, done. Welcome to 2025.
+Saved configs are JSON. Show Claude or ChatGPT a few example registers, paste your device documentation, ask it to complete the mapping. Load it back into Modbux, done. Welcome to 2026.
 
 ## Installation
 
@@ -160,7 +168,7 @@ yarn build:win
 # For macOS
 yarn build:mac
 
-# For Linux
+# For Linux (not tested — let me know if it works!)
 yarn build:linux
 ```
 
@@ -168,7 +176,7 @@ yarn build:linux
 
 Found a bug? Have a feature request? **Please open an issue!** Modbux was born from real-world frustrations, and your feedback helps make it better for everyone in the industry.
 
-Feel free to contribute—whether it's reporting issues, suggesting features, or submitting pull requests. Let's build the Modbus tool we all wish we'd had from day one.
+Feel free to contribute—whether it's reporting issues, suggesting features, or submitting pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Let's build the Modbus tool we all wish we'd had from day one.
 
 ## License
 
