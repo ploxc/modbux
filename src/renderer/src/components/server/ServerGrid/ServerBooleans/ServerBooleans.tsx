@@ -146,15 +146,15 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   }, [empty])
 
   const handleAdd = useCallback(() => {
-    let addr = Number(address)
-    if (isNaN(addr) || addr < 0 || addr > 65535) return
+    let nextAddress = Number(address)
+    if (isNaN(nextAddress) || nextAddress < 0 || nextAddress > 65535) return
     // If typed address is already taken, snap to next free
     const regs = getRegs(type)
-    if (addr in regs) addr = nextFree(addr, regs)
-    if (addr > 65535) return
-    useServerZustand.getState().addBool(type, addr)
+    if (nextAddress in regs) nextAddress = nextFree(nextAddress, regs)
+    if (nextAddress > 65535) return
+    useServerZustand.getState().addBool(type, nextAddress)
     // Auto-increment to next free address
-    const next = nextFree(addr + 1, getRegs(type))
+    const next = nextFree(nextAddress + 1, getRegs(type))
     if (next <= 65535) setAddress(String(next))
   }, [type, address])
 

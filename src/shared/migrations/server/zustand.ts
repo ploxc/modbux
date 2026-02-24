@@ -27,9 +27,9 @@ export function migrateBoolShape(
         const boolRecord = regs[boolType]
         if (!boolRecord || typeof boolRecord !== 'object') continue
 
-        for (const [addr, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
+        for (const [address, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
           if (typeof entry === 'boolean') {
-            ;(boolRecord as Record<string, unknown>)[addr] = { value: entry }
+            ;(boolRecord as Record<string, unknown>)[address] = { value: entry }
           }
         }
       }

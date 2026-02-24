@@ -51,13 +51,13 @@ export const buildAddrInfos = (
   items: [string, RegisterMapValue][]
 ): Array<{ address: number; registerCount: number; groupEnd: boolean }> => {
   return items
-    .map((item, idx, arr) => {
+    .map((item, index, arr) => {
       const dataType = item[1].dataType
       if (!dataType || dataType === 'none') return undefined
 
       const address = Number(item[0])
 
-      const next = arr[idx + 1]
+      const next = arr[index + 1]
       const nextAddress = next?.[0] ? Number(next[0]) : undefined
       const registerCount = getRegisterLength(dataType, address, nextAddress)
 

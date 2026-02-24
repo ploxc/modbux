@@ -60,7 +60,9 @@ export const convertedValueColumn = (
       const groups = useDataZustand.getState().addressGroups
 
       // Find the current group that contains the address
-      const currentGroup = groups.find(([addr, len]) => address >= addr && address < addr + len)
+      const currentGroup = groups.find(
+        ([groupAddress, length]) => address >= groupAddress && address < groupAddress + length
+      )
       if (!currentGroup) return undefined
 
       const startAddress = currentGroup[0]

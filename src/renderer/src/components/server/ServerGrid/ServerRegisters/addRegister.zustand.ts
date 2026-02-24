@@ -291,10 +291,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
           dataType === 'utf8' ? Number(registerLength) || 10 : undefined
         )
 
-        for (let addr = startFrom ?? 0; addr <= 65535 - (size - 1); addr++) {
-          const needed = Array.from({ length: size }, (_, i) => addr + i)
+        for (let address = startFrom ?? 0; address <= 65535 - (size - 1); address++) {
+          const needed = Array.from({ length: size }, (_, i) => address + i)
           if (needed.every((a) => !usedAddresses.includes(a))) {
-            state.address = String(addr)
+            state.address = String(address)
             state.addressInUse = false
             state.addressFitError = false
             state.valid.address = true

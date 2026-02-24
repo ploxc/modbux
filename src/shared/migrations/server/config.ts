@@ -35,13 +35,14 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 
     // Convert old boolean shape to { value: boolean } entries
     const migratedCoils: Record<string, ServerBoolEntry> = {}
-    for (const [addr, val] of Object.entries(serverRegisters.coils ?? {})) {
-      migratedCoils[addr] = typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
+    for (const [address, value] of Object.entries(serverRegisters.coils ?? {})) {
+      migratedCoils[address] =
+        typeof value === 'boolean' ? { value } : (value as ServerBoolEntry)
     }
     const migratedDiscreteInputs: Record<string, ServerBoolEntry> = {}
-    for (const [addr, val] of Object.entries(serverRegisters.discrete_inputs ?? {})) {
-      migratedDiscreteInputs[addr] =
-        typeof val === 'boolean' ? { value: val } : (val as ServerBoolEntry)
+    for (const [address, value] of Object.entries(serverRegisters.discrete_inputs ?? {})) {
+      migratedDiscreteInputs[address] =
+        typeof value === 'boolean' ? { value } : (value as ServerBoolEntry)
     }
 
     const migratedServerRegisters: ServerRegisters = {
@@ -107,9 +108,9 @@ function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
       const boolRecord = unitRegisters[boolType]
       if (!boolRecord || typeof boolRecord !== 'object') continue
 
-      for (const [addr, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
+      for (const [address, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
         if (typeof entry === 'boolean') {
-          ;(boolRecord as Record<string, unknown>)[addr] = { value: entry }
+          ;(boolRecord as Record<string, unknown>)[address] = { value: entry }
         }
       }
     }

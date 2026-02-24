@@ -362,11 +362,16 @@ export class ModbusClient {
           // Generate error placeholder rows for configured addresses in this failed group
           const mapping = this._appState.registerMapping?.[type]
           if (mapping) {
-            for (const [addrStr, mapValue] of Object.entries(mapping)) {
-              const addr = Number(addrStr)
-              if (addr >= a && addr < a + l && mapValue?.dataType && mapValue.dataType !== 'none') {
+            for (const [addressKey, mapValue] of Object.entries(mapping)) {
+              const address = Number(addressKey)
+              if (
+                address >= a &&
+                address < a + l &&
+                mapValue?.dataType &&
+                mapValue.dataType !== 'none'
+              ) {
                 data.push({
-                  id: addr,
+                  id: address,
                   buffer: new Uint8Array(2),
                   hex: '0000',
                   words: undefined,

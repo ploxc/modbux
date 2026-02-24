@@ -760,14 +760,14 @@ const DeleteButton = meme(() => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
 
-    const addr = Number(address)
-    const entry = z.serverRegisters[uuid]?.[unitId]?.[registerType]?.[addr]
+    const numericAddress = Number(address)
+    const entry = z.serverRegisters[uuid]?.[unitId]?.[registerType]?.[numericAddress]
     const dataType = entry?.params?.dataType ?? 'uint16'
 
     z.removeRegister({
       uuid,
       unitId,
-      address: addr,
+      address: numericAddress,
       registerType,
       dataType
     })
