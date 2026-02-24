@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Solar Edge 10K",
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {
+      "0": { "comment": "Inverter ON" },
+      "1": { "comment": "Grid Relay" },
+      "2": { "comment": "MPPT Active" },
+      "3": { "comment": "Night Mode" },
+      "4": { "comment": "Fan Running" },
+      "5": { "comment": "Overtemp Alert" },
+      "6": { "comment": "Ground Fault" },
+      "7": { "comment": "Communication OK" }
+    },
+    "discrete_inputs": {
+      "0": { "comment": "DC Input Present" },
+      "1": { "comment": "Grid Connected" },
+      "2": { "comment": "Emergency Stop" },
+      "3": { "comment": "Door Closed" },
+      "4": { "comment": "Surge Detected" },
+      "5": { "comment": "Firmware OK" },
+      "6": { "comment": "Config Changed" },
+      "7": { "comment": "Watchdog OK" }
+    },
+    "holding_registers": {
+      "0": { "dataType": "uint16", "comment": "DC Voltage (V)" },
+      "1": { "dataType": "uint16", "scalingFactor": 0.1, "comment": "DC Current (A)" },
+      "2": { "dataType": "float", "comment": "AC Power (kW)" },
+      "4": { "dataType": "float", "comment": "Grid Frequency (Hz)" },
+      "6": { "dataType": "int32", "comment": "Energy Today (Wh)" },
+      "8": { "dataType": "double", "comment": "Lifetime Energy (kWh)" },
+      "12": {
+        "dataType": "bitmap",
+        "comment": "System Status",
+        "bitMap": {
+          "0": { "comment": "Running" },
+          "1": { "comment": "Alarm", "color": "error" },
+          "2": { "comment": "Grid Sync" },
+          "3": { "comment": "Overtemp", "color": "warning" },
+          "4": { "comment": "MPPT Active" },
+          "5": { "comment": "Fan", "color": "warning" },
+          "7": { "comment": "Comm OK" },
+          "15": { "comment": "Watchdog", "color": "error", "invert": true }
+        }
+      },
+      "13": { "dataType": "uint16", "scalingFactor": 0.1, "comment": "Temperature (°C)" },
+      "14": { "dataType": "utf8", "comment": "Model Name" },
+      "17": { "dataType": "unix", "comment": "Last Update" },
+      "19": { "dataType": "datetime", "comment": "System Clock" }
+    },
+    "input_registers": {
+      "0": { "dataType": "uint16", "comment": "Firmware Version" },
+      "1": { "dataType": "float", "comment": "Grid Voltage (V)" },
+      "3": { "dataType": "uint16", "scalingFactor": 0.001, "comment": "Power Factor" }
+    }
+  }
+}

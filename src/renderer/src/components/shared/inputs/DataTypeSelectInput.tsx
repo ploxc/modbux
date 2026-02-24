@@ -30,6 +30,11 @@ const DataTypeSelectInput = meme(({ disabled, dataType, setDataType }: Props) =>
         <MenuItem value={'int64'}>INT64</MenuItem>
         <MenuItem value={'uint64'}>UINT64</MenuItem>
         <MenuItem value={'double'}>DOUBLE</MenuItem>
+
+        <MenuItem value={'unix'}>UNIX</MenuItem>
+        <MenuItem value={'datetime'}>DATETIME</MenuItem>
+        <MenuItem value={'utf8'}>UTF-8</MenuItem>
+        <MenuItem value={'bitmap'}>BITMAP</MenuItem>
       </Select>
     </FormControl>
   )

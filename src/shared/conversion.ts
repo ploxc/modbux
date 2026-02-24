@@ -51,9 +51,9 @@ export const parseIEC870DateTime = (buf: Buffer): string => {
     return ''
   }
 
-  return DateTime.utc(year, month, day, hour, minute, second, millisecond).toFormat(
-    'yyyy/MM/dd HH:mm:ss'
-  )
+  const datetime = DateTime.utc(year, month, day, hour, minute, second, millisecond)
+
+  return datetime.toFormat('yyyy/MM/dd HH:mm:ss')
 }
 
 export const convertRegisterData = (
@@ -107,7 +107,9 @@ export const convertRegisterData = (
         uint32: buf32 ? buf32.readUInt32BE(0) : 0,
         float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
         unix: buf32
-          ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000).toFormat('yyyy/MM/dd HH:mm:ss')
+          ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000)
+              .toUTC()
+              .toFormat('yyyy/MM/dd HH:mm:ss')
           : '',
 
         // 64 bits
@@ -115,8 +117,9 @@ export const convertRegisterData = (
         uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
         double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
         datetime: buf64 ? parseIEC870DateTime(buf64) : '',
-        // Replace null values with spaces
-        utf8: Buffer.from(buffer.map((b) => (b === 0 ? 32 : b))).toString('utf-8')
+        // Replace null values with spaces — start from current register offset
+        // so character indexing aligns with register positions
+        utf8: Buffer.from(buffer.subarray(offset).map((b) => (b === 0 ? 32 : b))).toString('utf-8')
       },
       bit: false,
       isScanned: isScanning

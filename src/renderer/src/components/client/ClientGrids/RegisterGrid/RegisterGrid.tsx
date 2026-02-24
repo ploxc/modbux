@@ -3,7 +3,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { GridFooterContainer } from '@mui/x-data-grid/components/containers/GridFooterContainer'
@@ -12,7 +12,10 @@ import { useGridApiRef } from '@mui/x-data-grid/hooks/utils/useGridApiRef'
 import { GridFilterModel } from '@mui/x-data-grid/models/gridFilterModel'
 import { GridLogicOperator } from '@mui/x-data-grid/models/gridFilterItem'
 import { DataGrid } from '@mui/x-data-grid/DataGrid/DataGrid'
-import { DataType } from '@shared'
+import { DataType, RegisterData } from '@shared'
+import { alpha } from '@mui/material/styles'
+import { showMapping } from '@renderer/context/data.zustand'
+import BitMapRow from './BitMapRow/BitMapRow'
 //
 //
 //
@@ -47,14 +50,24 @@ const RegisterGridContent = (): JSX.Element => {
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
-  const readConfiguration = useRootZustand((z) => z.registerConfig.readConfiguration)
+  const readConfiguration = useRootZustand((z) => z.readConfiguration)
+  const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {
       items: [{ id: 1, field: 'dataType', operator: 'not', value: 'none' }],
       logicOperator: GridLogicOperator.And
     }
-    if (readConfiguration) apiRef.current.setFilterModel(filterModel)
-    else apiRef.current.setFilterModel({ items: [] })
+    if (readConfiguration) {
+      showMapping()
+      apiRef.current.setFilterModel(filterModel)
+    } else {
+      // Only clear data when transitioning from ON to OFF, not on initial mount
+      if (prevReadConfigRef.current) {
+        useDataZustand.getState().setRegisterData([])
+      }
+      apiRef.current.setFilterModel({ items: [] })
+    }
+    prevReadConfigRef.current = readConfiguration
   }, [apiRef, readConfiguration])
 
   return (
@@ -67,6 +80,7 @@ const RegisterGridContent = (): JSX.Element => {
       rowHeight={40}
       columnHeaderHeight={48}
       hideFooterPagination
+      getRowClassName={(params) => ((params.row as RegisterData).error ? 'register-error-row' : '')}
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (field === 'comment') return true
@@ -100,12 +114,39 @@ const RegisterGridContent = (): JSX.Element => {
         },
         '& .MuiDataGrid-toolbarContainer': {
           background: theme.palette.background.default
+        },
+        '& .register-error-row': {
+          backgroundColor: alpha(theme.palette.error.main, 0.08),
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.error.main, 0.12)
+          }
+        },
+        '& .group-column-even, .group-column-odd': {
+          textAlign: 'center',
+          fontSize: '0.7rem'
+        },
+        '& .group-column-even': {
+          backgroundColor: alpha(theme.palette.primary.main, 0.1)
+        },
+        '& .group-column-odd': {
+          backgroundColor: alpha(theme.palette.primary.main, 0.22)
+        },
+        '& .MuiDataGrid-filler > div': {
+          borderTop: 'none',
+          borderBottom: 'none'
         }
       })}
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
-      slots={{ toolbar: RegisterGridToolbar, footer: Footer }}
+      slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
+      getCellClassName={({ field, row }) =>
+        field === 'groupIndex' && row.groupIndex !== undefined
+          ? row.groupIndex % 2 === 0
+            ? 'group-column-even'
+            : 'group-column-odd'
+          : ''
+      }
       //
       //
       // Row update

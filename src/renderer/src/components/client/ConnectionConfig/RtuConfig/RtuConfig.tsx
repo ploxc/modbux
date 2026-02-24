@@ -19,7 +19,10 @@ import { AutocompleteRenderInputParams } from '@mui/material'
 import { useSnackbar } from 'notistack'
 import { useEffect, useMemo } from 'react'
 
-const measureTextWidth = (text: string, font: string = '400 14px Roboto, sans-serif'): number => {
+const measureTextWidth = (
+  text: string,
+  font: string = '400 0.85rem Roboto, sans-serif'
+): number => {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
   if (context) {
@@ -39,10 +42,15 @@ const ComTextField = meme((params: AutocompleteRenderInputParams) => {
       label="COM Port"
       variant="outlined"
       size="small"
+      title={params.inputProps.value as string}
       sx={{
         '& .MuiOutlinedInput-root': {
           borderTopRightRadius: 0,
           borderBottomRightRadius: 0
+        },
+        '& .MuiOutlinedInput-input': {
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
         }
       }}
       error={!comValid}
@@ -72,10 +80,31 @@ const ComOption = meme(
 
     return (
       <li {...props} key={option}>
-        <Box>
-          <Box>{option}</Box>
+        <Box sx={{ width: '100%' }} title={option}>
+          <Box
+            sx={{
+              fontSize: '0.85rem',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              width: '100%'
+            }}
+          >
+            {option}
+          </Box>
           {manufacturer && (
-            <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{manufacturer}</Box>
+            <Box
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                width: '100%'
+              }}
+            >
+              {manufacturer}
+            </Box>
           )}
         </Box>
       </li>
@@ -115,7 +144,7 @@ const ComInput = meme(() => {
       onChange={(_event, newValue) => {
         if (newValue) useRootZustand.getState().setCom(newValue, true)
       }}
-      sx={{ width: inputWidth }}
+      sx={{ width: inputWidth, maxWidth: 220 }}
       renderInput={(params) => <ComTextField {...params} />}
       renderOption={(props, option) => <ComOption {...props} option={option} />}
     />
@@ -165,6 +194,7 @@ const ComActions = meme(() => {
         data-testid="rtu-refresh-btn"
         aria-label="Refresh COM ports"
         title="Refresh COM ports"
+        sx={{ width: 32 }}
       >
         {loading ? <CircularProgress size={16} /> : <Refresh fontSize="small" />}
       </ToggleButton>
@@ -175,6 +205,7 @@ const ComActions = meme(() => {
         data-testid="rtu-validate-btn"
         aria-label="Validate COM port"
         title="Validate COM port"
+        sx={{ width: 32 }}
       >
         {validating ? <CircularProgress size={16} /> : <CheckCircleOutline fontSize="small" />}
       </ToggleButton>
@@ -284,7 +315,7 @@ const DataBitsSelect = meme(() => {
 
   return (
     <FormControl size="small">
-      <InputLabel id={labelId}>Data Bits</InputLabel>
+      <InputLabel id={labelId}>Data</InputLabel>
 
       <Select
         disabled={disabled}
@@ -293,7 +324,7 @@ const DataBitsSelect = meme(() => {
         value={dataBits}
         label="Data Bits"
         onChange={(e) => setDataBits(Number(e.target.value))}
-        sx={{ width: 75 }}
+        sx={{ width: 55 }}
         data-testid="rtu-databits-select"
       >
         {databitsOptions.map((option) => (
@@ -319,7 +350,7 @@ const StopBitsSelect = meme(() => {
 
   return (
     <FormControl size="small">
-      <InputLabel id={labelId}>Stop Bits</InputLabel>
+      <InputLabel id={labelId}>Stop</InputLabel>
       <Select
         disabled={disabled}
         size="small"
@@ -327,7 +358,7 @@ const StopBitsSelect = meme(() => {
         value={stopBits}
         label="Stop Bits"
         onChange={(e) => setStopBits(Number(e.target.value))}
-        sx={{ width: 75 }}
+        sx={{ width: 55 }}
         data-testid="rtu-stopbits-select"
       >
         {StopBitsOptions.map((option) => (

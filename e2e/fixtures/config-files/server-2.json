@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Second Server",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {
+        "0": { "value": true },
+        "1": { "value": false },
+        "2": { "value": false },
+        "3": { "value": false },
+        "4": { "value": false },
+        "5": { "value": false },
+        "6": { "value": false },
+        "7": { "value": false }
+      },
+      "discrete_inputs": {},
+      "holding_registers": {
+        "0": {
+          "value": 42,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "server2 register",
+            "value": 42
+          }
+        },
+        "1": {
+          "value": 0,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "server2 generator",
+            "min": 10,
+            "max": 90,
+            "interval": 3000
+          }
+        }
+      },
+      "input_registers": {}
+    }
+  }
+}

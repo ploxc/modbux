@@ -25,7 +25,7 @@ const ExportButton = (): JSX.Element => {
       variant="outlined"
       onClick={() =>
         api.current.exportDataAsCsv({
-          fileName: `transaction_log_${DateTime.now().toFormat('yyyymmdd_HHmmss')}`
+          fileName: `transaction_log_${DateTime.now().toFormat('yyyyMMdd_HHmmss')}`
         })
       }
     >
@@ -115,7 +115,10 @@ const TransactionGridContent = meme(() => {
 // DataGrid paper
 const TransactionGrid = (): JSX.Element => {
   return (
-    <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
+    <Paper
+      data-testid="transaction-log-panel"
+      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}
+    >
       <TransactionGridContent />
     </Paper>
   )

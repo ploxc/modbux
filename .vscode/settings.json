@@ -19,5 +19,6 @@
   },
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
-  "editor.formatOnType": true
+  "editor.formatOnType": true,
+  "C_Cpp.errorSquiggles": "disabled"
 }

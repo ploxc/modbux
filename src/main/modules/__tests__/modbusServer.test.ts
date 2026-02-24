@@ -68,11 +68,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: 'test register',
           value: 1234,
           min: undefined,
@@ -98,11 +98,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 10,
           registerType: 'holding_registers',
           dataType: 'int32',
-          littleEndian: false,
           comment: '',
           value: 70000,
           min: undefined,
@@ -132,11 +132,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 5,
           registerType: 'input_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: 999,
           min: undefined,
@@ -161,11 +161,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: undefined,
           min: 50,
@@ -189,11 +189,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 10,
@@ -208,11 +209,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: undefined,
           min: 99,
@@ -248,11 +249,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 5,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: 42,
           min: undefined,
@@ -276,11 +277,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: undefined,
           min: 50,
@@ -326,11 +327,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'int32',
-          littleEndian: false,
           comment: '',
           value: 70000, // 0x00011170 → addr 0 = 1, addr 1 = 4464
           min: undefined,
@@ -375,11 +376,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'double',
-          littleEndian: false,
           comment: '',
           value: 3.14,
           min: undefined,
@@ -409,11 +410,11 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
           comment: '',
           value: undefined,
           min: 50,
@@ -563,11 +564,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 1,
@@ -600,11 +602,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: 100,
           min: undefined,
@@ -617,12 +620,13 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId,
+        littleEndian: false,
         registerValues: [
           {
             address: 10,
             registerType: 'holding_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 200,
             min: undefined,
@@ -647,11 +651,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'input_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 5,
@@ -662,11 +667,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 10,
@@ -678,6 +684,7 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId,
+        littleEndian: false,
         registerValues: []
       })
 
@@ -695,12 +702,13 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid: 'fresh-uuid',
         unitId,
+        littleEndian: false,
         registerValues: [
           {
             address: 0,
             registerType: 'holding_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 42,
             min: undefined,
@@ -722,11 +730,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 1,
@@ -739,12 +748,13 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId: '2' as UnitIdString,
+        littleEndian: false,
         registerValues: [
           {
             address: 0,
             registerType: 'holding_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 99,
             min: undefined,
@@ -768,11 +778,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: 111,
           min: undefined,
@@ -784,11 +795,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId: unitId2,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: 222,
           min: undefined,
@@ -907,11 +919,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'input_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 5,
@@ -922,11 +935,12 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
+        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
           dataType: 'uint16',
-          littleEndian: false,
+
           comment: '',
           value: undefined,
           min: 50,
@@ -1044,11 +1058,12 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
+          littleEndian: false,
           params: {
             address: 10,
             registerType: 'input_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 42,
             min: undefined,
@@ -1085,11 +1100,12 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
+          littleEndian: false,
           params: {
             address: 0,
             registerType: 'holding_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 999,
             min: undefined,
@@ -1163,11 +1179,12 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
+          littleEndian: false,
           params: {
             address: 0,
             registerType: 'holding_registers',
             dataType: 'uint16',
-            littleEndian: false,
+
             comment: '',
             value: 0,
             min: undefined,

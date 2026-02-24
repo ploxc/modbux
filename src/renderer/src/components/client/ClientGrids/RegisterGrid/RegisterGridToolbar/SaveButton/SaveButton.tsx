@@ -7,10 +7,11 @@ import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
-  const saveRegisterConfig = useCallback(() => {
+  const saveRegisterConfig = useCallback(async () => {
     const z = useRootZustand.getState()
-    const { registerMapping, name } = z
+    const { name } = z
 
+    const registerMapping = structuredClone(z.registerMapping)
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
       Object.keys(registerMapping[key]).forEach((register) => {
@@ -20,8 +21,14 @@ const SaveButton = meme(() => {
       })
     })
 
+    // Get app version
+    const modbuxVersion = await window.api.getAppVersion()
+
     const registerMapConfig: RegisterMapConfig = {
+      version: 2,
+      modbuxVersion,
       name,
+      littleEndian: z.registerConfig.littleEndian,
       registerMapping
     }
 

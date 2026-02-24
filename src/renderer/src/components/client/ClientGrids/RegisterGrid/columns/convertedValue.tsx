@@ -32,7 +32,18 @@ export const convertedValueColumn = (
   type: 'string',
   headerName: 'Value',
   width: 160,
+  renderCell: (params): JSX.Element | string => {
+    if (params.row.error) {
+      return (
+        <span style={{ color: 'var(--mui-palette-error-main)' }} title={params.row.error}>
+          {params.row.error}
+        </span>
+      )
+    }
+    return params.formattedValue
+  },
   valueGetter: (_, row): number | string | undefined => {
+    if (row.error) return undefined
     const address = row.id
 
     // Get the defined datatype from the register map
@@ -49,7 +60,9 @@ export const convertedValueColumn = (
       const groups = useDataZustand.getState().addressGroups
 
       // Find the current group that contains the address
-      const currentGroup = groups.find(([addr, len]) => address >= addr && address < addr + len)
+      const currentGroup = groups.find(
+        ([groupAddress, length]) => address >= groupAddress && address < groupAddress + length
+      )
       if (!currentGroup) return undefined
 
       const startAddress = currentGroup[0]
@@ -67,11 +80,10 @@ export const convertedValueColumn = (
         register = registerMap[address + count]
       }
 
-      // Slice the string to the right length and return it
-      // In the backend the string is converted from the whole buffer so
-      // we can use a variable length by doing this logic
-      const startIndex = address - startAddress
-      return value.slice(startIndex * 2, (startIndex + count) * 2)
+      // Slice the string to the right length
+      // The utf8 value starts from the current register's offset,
+      // so we slice from 0 (each register = 2 characters for ASCII)
+      return value.slice(0, count * 2)
     }
 
     // Return a string when it's a string :D

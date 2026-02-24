@@ -1,5 +1,6 @@
 import z from 'zod'
 import { BaseDataType, DataTypeSchema } from './datatype'
+import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
 
 //
@@ -18,7 +19,8 @@ export const RegisterMapValueSchema = z.object({
   scalingFactor: z.number().optional(),
   comment: z.string().optional(),
   interpolate: RegisterLinearInterpolationSchema.optional(),
-  groupEnd: z.boolean().optional()
+  groupEnd: z.boolean().optional(),
+  bitMap: BitMapConfigSchema.optional()
 })
 export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
 
@@ -38,8 +40,12 @@ export const RegisterMappingSchema = z.object({
 })
 export type RegisterMapping = z.infer<typeof RegisterMappingSchema>
 
+// Client config schema (v2 with metadata)
 export const RegisterMapConfigSchema = z.object({
+  version: z.number(),
+  modbuxVersion: z.string(),
   name: z.string().optional(),
+  littleEndian: z.boolean(),
   registerMapping: RegisterMappingSchema
 })
 export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>
@@ -175,8 +181,7 @@ export const RegisterConfigSchema = z.object({
   littleEndian: z.boolean(),
   advancedMode: z.boolean(),
   show64BitValues: z.boolean(),
-  addressBase: z.enum(['0', '1']),
-  readConfiguration: z.boolean()
+  addressBase: z.enum(['0', '1'])
 })
 export type RegisterConfig = z.infer<typeof RegisterConfigSchema>
 
@@ -190,6 +195,8 @@ export interface RegisterData {
   words: RegisterDataWords | undefined
   bit: boolean
   isScanned: boolean
+  error?: string
+  groupIndex?: number
 }
 
 export interface RegisterDataWords {

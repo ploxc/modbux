@@ -3,9 +3,24 @@ import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import { PersistedRootZustand, PersistedRootZustandSchema, RootZusand } from './root.zustand.types'
-import { defaultConnectionConfig, defaultRegisterConfig } from '@shared'
+import {
+  defaultConnectionConfig,
+  defaultRegisterConfig,
+  CURRENT_ROOT_ZUSTAND_VERSION,
+  migrateRootState
+} from '@shared'
+import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
 import { onEvent } from '@renderer/events'
+
+// Debounced IPC sync — avoids flooding the main process on rapid cell edits
+let _ipcTimer: ReturnType<typeof setTimeout> | null = null
+function syncRegisterMappingToMain(): void {
+  if (_ipcTimer) clearTimeout(_ipcTimer)
+  _ipcTimer = setTimeout(() => {
+    window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+  }, 150)
+}
 
 export const useRootZustand = create<
   RootZusand,
@@ -16,14 +31,13 @@ export const useRootZustand = create<
       // Config
       init: async () => {
         const { connectionConfig, registerConfig } = get()
-        registerConfig.readConfiguration = false
 
         window.api.updateConnectionConfig(connectionConfig)
         window.api.updateRegisterConfig(registerConfig)
+        window.api.setReadConfiguration(false)
 
         set((state) => {
-          // On init always set the readConfiguration to false
-          state.registerConfig.readConfiguration = registerConfig.readConfiguration
+          state.readConfiguration = false
           state.ready = true
         })
       },
@@ -46,6 +60,12 @@ export const useRootZustand = create<
         const type = get().registerConfig.type
 
         set((state) => {
+          // Remove register from mapping when data type is set to 'none'
+          if (key === 'dataType' && value === 'none') {
+            delete state.registerMapping[type][register]
+            return
+          }
+
           if (!state.registerMapping[type][register]) {
             state.registerMapping[type][register] = { [key]: value }
             return
@@ -59,7 +79,7 @@ export const useRootZustand = create<
           state.registerMapping[type][register][key] = value
         })
 
-        window.api.setRegisterMapping(get().registerMapping)
+        syncRegisterMappingToMain()
       },
       replaceRegisterMapping: (registerMapping) =>
         set((state) => {
@@ -98,6 +118,7 @@ export const useRootZustand = create<
           state.clientState = clientState
         }),
       ready: false,
+      readConfiguration: false,
 
       // Configuration actions
       valid: {
@@ -227,11 +248,14 @@ export const useRootZustand = create<
           if (!currentState.ready) return
 
           const newAddress = Number(address)
+          if (newAddress === currentState.registerConfig.address) return
+
           state.registerConfig.address = newAddress
           window.api.updateRegisterConfig({ address: newAddress })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setLength: (length, valid) =>
         set((state) => {
@@ -240,12 +264,13 @@ export const useRootZustand = create<
 
           state.valid.lenght = !!valid
           const newLength = Number(length)
-          state.registerConfig.length = Number(length)
+          state.registerConfig.length = newLength
           if (!valid) return
           window.api.updateRegisterConfig({ length: newLength })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setType: (type) =>
         set((state) => {
@@ -255,8 +280,9 @@ export const useRootZustand = create<
           state.registerConfig.type = type
           window.api.updateRegisterConfig({ type })
 
-          // Reset registerdata when not polling
-          if (!currentState.clientState.polling) useDataZustand.getState().setRegisterData([])
+          // Reset registerdata when not polling and not in readConfiguration mode
+          if (!currentState.clientState.polling && !currentState.readConfiguration)
+            useDataZustand.getState().setRegisterData([])
         }),
       setLittleEndian: (littleEndian) =>
         set((state) => {
@@ -267,8 +293,8 @@ export const useRootZustand = create<
       setReadConfiguration: (readConfiguration) =>
         set((state) => {
           if (!get().ready) return
-          state.registerConfig.readConfiguration = readConfiguration
-          window.api.updateRegisterConfig({ readConfiguration })
+          state.readConfiguration = readConfiguration
+          window.api.setReadConfiguration(readConfiguration)
         }),
       // Reading
       setPollRate: (pollRate) =>
@@ -308,6 +334,7 @@ export const useRootZustand = create<
       addScanUnitIdResult: (scanUnitIDResult) =>
         set((state) => {
           state.scanUnitIdResults.unshift(scanUnitIDResult)
+          while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
         }),
       clearScanUnitIdResults: () =>
         set((state) => {
@@ -352,6 +379,8 @@ export const useRootZustand = create<
     })),
     {
       name: `root.zustand`,
+      version: CURRENT_ROOT_ZUSTAND_VERSION,
+      migrate: (state, version) => migrateRootState(state, version) as PersistedRootZustand,
       partialize: (state) => ({
         name: state.name,
         connectionConfig: state.connectionConfig,
@@ -368,6 +397,10 @@ const state = useRootZustand.getState()
 const clear = () => {
   useRootZustand.persist.clearStorage()
   useRootZustand.setState(useRootZustand.getInitialState())
+  enqueueSnackbar({
+    variant: 'error',
+    message: 'Client configuration was corrupted and has been reset to defaults.'
+  })
 }
 
 const stateResult = PersistedRootZustandSchema.safeParse(state)

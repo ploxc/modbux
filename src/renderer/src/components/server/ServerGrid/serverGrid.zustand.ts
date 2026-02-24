@@ -11,7 +11,7 @@ interface ServerGridZustand {
 
 const useServerGridZustand = create<
   ServerGridZustand,
-  [['zustand/persist', never], ['zustand/mutative', never]]
+  [['zustand/persist', ServerGridZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, get) => ({
@@ -26,7 +26,9 @@ const useServerGridZustand = create<
           state.collapse[type] = !get().collapse[type]
         })
     })),
-    { name: 'server-grid.zustand' }
+    {
+      name: 'server-grid.zustand'
+    }
   )
 )
 

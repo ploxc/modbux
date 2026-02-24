@@ -23,5 +23,8 @@ temp
 coverage
 test-results
 
+# Presentation output (screenshots & video)
+e2e/presentation-output
+
 # Claude Code
 .claude/settings.local.json

@@ -1,87 +1,204 @@
-import { Button, Box, Paper } from '@mui/material'
+import { DeleteFilled, PlusCircleOutlined } from '@ant-design/icons'
+import { Box, IconButton, InputBaseComponentProps, Paper, TextField, alpha } from '@mui/material'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { BooleanRegisters } from '@shared'
+import { BooleanRegisters, ServerBoolEntry } from '@shared'
 import { deepEqual } from 'fast-equals'
-import { useRef } from 'react'
+import { ElementType, useCallback, useEffect, useRef, useState } from 'react'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import useServerGridZustand from '../serverGrid.zustand'
+import ServerBit from '../shared/ServerBit'
+import UIntInput from '@renderer/components/shared/inputs/UintInput'
+import { maskInputProps } from '@renderer/components/shared/inputs/types'
 
 interface ServerBooleanProps {
   name: string
   type: BooleanRegisters
 }
-interface ServerBooleanButtonProps {
+
+// ─── Single bool row ──────────────────────────────────────────────────────────
+
+interface ServerBoolRowProps {
   address: number
   type: BooleanRegisters
 }
 
-const ServerBooleanButton = meme(({ address, type }: ServerBooleanButtonProps) => {
-  const bool = useServerZustand((z) => {
+const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
+  const collapse = useServerGridZustand((z) => z.collapse[type])
+  const entry = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.serverRegisters[uuid]?.[unitId]?.[type][address]
+    return z.serverRegisters[uuid]?.[unitId]?.[type]?.[address] as ServerBoolEntry | undefined
   })
 
-  const variant = bool ? 'contained' : 'outlined'
+  const handleToggle = useCallback(() => {
+    useServerZustand
+      .getState()
+      .setBool({ registerType: type, address, boolState: !(entry?.value ?? false) })
+  }, [type, address, entry?.value])
 
-  return (
-    <Button
-      data-testid={`server-bool-${type}-${address}`}
-      aria-label={`Toggle ${type} address ${address}`}
-      sx={{ flex: 1, flexBasis: 0 }}
-      size="small"
-      variant={variant}
-      onClick={() =>
-        useServerZustand.getState().setBool({ registerType: type, address, boolState: !bool })
-      }
-    >
-      {address}
-    </Button>
+  const handleCommentChange = useCallback(
+    (comment: string | undefined) => {
+      useServerZustand.getState().setBoolComment(type, address, comment)
+    },
+    [type, address]
   )
-})
 
-interface ServerBooleanRowProps {
-  addresses: number[]
-  type: BooleanRegisters
-}
+  const handleRemove = useCallback(() => {
+    useServerZustand.getState().removeBool(type, address)
+  }, [type, address])
 
-const ServerBooleanRow = meme(({ addresses, type }: ServerBooleanRowProps) => {
+  if (!entry) return null
+
   return (
-    <Box sx={{ display: 'flex', gap: 0.5 }}>
-      {addresses.map((address) => (
-        <ServerBooleanButton key={`address_${type}_${address}`} address={address} type={type} />
-      ))}
+    <Box
+      data-testid={`server-bool-row-${type}-${address}`}
+      sx={(theme) => ({
+        display: 'flex',
+        alignItems: 'center',
+        borderRadius: 1,
+        transition: 'background-color 0.15s',
+        ...(!collapse && {
+          '&:hover .remove-btn': { opacity: 1 },
+          '&:hover': { backgroundColor: alpha(theme.palette.primary.dark, 0.1) },
+          '&:has(.remove-btn:hover)': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
+        })
+      })}
+    >
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <ServerBit
+          bitIndex={address}
+          active={entry.value}
+          comment={entry.comment}
+          onToggle={handleToggle}
+          onCommentChange={handleCommentChange}
+          testIdPrefix={`server-bool-${type}`}
+          padDigits={5}
+          dimUnmapped={false}
+          hoverHighlight={false}
+          readOnly={collapse}
+        />
+      </Box>
+      {!collapse && (
+        <IconButton
+          className="remove-btn"
+          data-testid={`remove-bool-${type}-${address}`}
+          size="small"
+          onClick={handleRemove}
+          sx={(theme) => ({
+            opacity: 0,
+            transition: 'opacity 0.15s',
+            p: 0.25,
+            color: theme.palette.text.secondary,
+            '&:hover': { color: theme.palette.error.main }
+          })}
+        >
+          <DeleteFilled style={{ fontSize: 12 }} />
+        </IconButton>
+      )}
     </Box>
   )
 })
 
-const ServerBooleanGroups = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
-  const groupsMemory = useRef<number[][]>([])
-  const groups = useServerZustand((z) => {
+// ─── Bool list ────────────────────────────────────────────────────────────────
+
+const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
+  const addressesRef = useRef<number[]>([])
+  const addresses = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-
-    // Split into groups of 4 adresses
-    const booleans = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? []).map((key) =>
-      Number(key)
-    )
-
-    const groups: number[][] = []
-    for (let i = 0; i < booleans.length; i += 4) groups.push(booleans.slice(i, i + 4))
-
-    // Reverse is like you would see it in a binary forma, but I think it's confusing
-    // groups = groups.map((g) => g.reverse())
-
-    if (deepEqual(groupsMemory.current, groups)) return groupsMemory.current
-    groupsMemory.current = groups
-    return groups
+    const keys = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? {}).map(Number)
+    keys.sort((a, b) => a - b)
+    if (deepEqual(addressesRef.current, keys)) return addressesRef.current
+    addressesRef.current = keys
+    return keys
   })
 
-  return groups.map((adresses, i) => (
-    <ServerBooleanRow key={`addresses_${type}_${i}`} addresses={adresses} type={type} />
+  return addresses.map((address) => (
+    <ServerBoolRow key={`${type}_${address}`} address={address} type={type} />
   ))
 })
+
+// ─── Inline Add bar ──────────────────────────────────────────────────────────
+
+const getRegs = (type: BooleanRegisters): Record<string, unknown> => {
+  const z = useServerZustand.getState()
+  return z.serverRegisters[z.selectedUuid]?.[z.getUnitId(z.selectedUuid)]?.[type] ?? {}
+}
+
+const nextFree = (from: number, regs: Record<string, unknown>): number => {
+  let a = from
+  while (a <= 65535 && a in regs) a++
+  return a
+}
+
+const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
+  const [address, setAddress] = useState(() => String(nextFree(0, getRegs(type))))
+
+  // Reset to 0 when all bools are cleared
+  const empty = useServerZustand((z) => {
+    const uuid = z.selectedUuid
+    const unitId = z.getUnitId(uuid)
+    return Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? {}).length === 0
+  })
+  useEffect(() => {
+    if (empty) setAddress('0')
+  }, [empty])
+
+  const handleAdd = useCallback(() => {
+    let nextAddress = Number(address)
+    if (isNaN(nextAddress) || nextAddress < 0 || nextAddress > 65535) return
+    // If typed address is already taken, snap to next free
+    const regs = getRegs(type)
+    if (nextAddress in regs) nextAddress = nextFree(nextAddress, regs)
+    if (nextAddress > 65535) return
+    useServerZustand.getState().addBool(type, nextAddress)
+    // Auto-increment to next free address
+    const next = nextFree(nextAddress + 1, getRegs(type))
+    if (next <= 65535) setAddress(String(next))
+  }, [type, address])
+
+  return (
+    <Box
+      data-testid={`add-bool-inline-${type}`}
+      sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 0.75, py: 0.25 }}
+    >
+      <IconButton
+        data-testid={`add-bool-btn-${type}`}
+        size="small"
+        onClick={handleAdd}
+        sx={{ p: 0 }}
+      >
+        <PlusCircleOutlined style={{ fontSize: 12, opacity: 0.5 }} />
+      </IconButton>
+      <TextField
+        data-testid={`add-bool-address-input-${type}`}
+        variant="standard"
+        size="small"
+        placeholder="addr"
+        value={address}
+        slotProps={{
+          input: {
+            inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+            inputProps: maskInputProps({
+              set: (v) => setAddress(String(v))
+            })
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleAdd()
+        }}
+        sx={{
+          width: 34,
+          '& input': { fontSize: '0.75rem', fontFamily: 'monospace', py: 0 },
+          '& .MuiInput-root::before': { borderBottom: 'none' }
+        }}
+      />
+    </Box>
+  )
+})
+
+// ─── Main component ──────────────────────────────────────────────────────────
 
 const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
   const collapse = useServerGridZustand((z) => z.collapse[type])
@@ -116,12 +233,17 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
             flex: 1,
             overflow: 'auto',
             display: 'flex',
-            gap: 0.5,
+            gap: 0,
             flexDirection: 'column',
             p: 0.5
           }}
         >
-          {!collapse && <ServerBooleanGroups type={type} />}
+          {!collapse && (
+            <>
+              <ServerBoolList type={type} />
+              <AddBoolInline type={type} />
+            </>
+          )}
         </Box>
       </Paper>
     </Box>

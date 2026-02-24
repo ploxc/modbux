@@ -27,7 +27,8 @@ export const PersistedServerZustandSchema = z.object({
   port: z.record(z.string(), z.string()),
   unitId: z.record(z.string(), z.union([UnitIdStringSchema, z.undefined()])),
   name: z.record(z.string(), z.string().optional()),
-  portValid: z.record(z.string(), z.boolean())
+  portValid: z.record(z.string(), z.boolean()),
+  littleEndian: z.record(z.string(), z.boolean())
 })
 
 export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema>
@@ -60,16 +61,18 @@ export type ServerZustand = {
   createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
   init: (uuid?: string) => Promise<void>
-  addBools: (type: BooleanRegisters, address: number) => void
+  addBool: (type: BooleanRegisters, address: number) => void
   removeBool: (type: BooleanRegisters, address: number) => void
   setBool: (params: SetBoolParameters | Array<SetBoolParameters>) => void
+  setBoolComment: (type: BooleanRegisters, address: number, comment: string | undefined) => void
   resetBools: (type: BooleanRegisters) => void
-  addRegister: (params: AddRegisterParams) => void
+  addRegister: (params: AddRegisterParams) => Promise<void>
   removeRegister: (params: RemoveRegisterParams) => void
   setRegisterValue: (params: SetRegisterValueParameters | Array<SetRegisterValueParameters>) => void
   resetRegisters: (type: NumberRegisters) => void
   setPort: MaskSetFn
   setUnitId: MaskSetFn<UnitIdString>
+  setLittleEndian: (value: boolean) => Promise<void>
   // Replace
   replaceServerRegisters: (unitId: UnitIdString, registers: ServerRegisters) => void
   setName: (name: string) => void

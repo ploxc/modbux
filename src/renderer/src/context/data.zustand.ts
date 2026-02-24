@@ -5,6 +5,7 @@ import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
 import { useRootZustand } from './root.zustand'
 import { onEvent } from '@renderer/events'
+import { RegisterData, dummyWords } from '@shared'
 
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
@@ -26,6 +27,30 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
       })
   }))
 )
+
+/** Populate grid with configured register placeholders */
+export const showMapping = (): void => {
+  const registerData: RegisterData[] = []
+  const registerMapping = useRootZustand.getState().registerMapping
+  const type = useRootZustand.getState().registerConfig.type
+
+  Object.entries(registerMapping[type]).forEach(([addressString, m]) => {
+    if (!m || m.dataType === 'none' || !m.dataType) return
+    const address = parseInt(addressString, 10)
+
+    const row: RegisterData = {
+      id: address,
+      buffer: new Uint8Array([0, 0]),
+      hex: '0000',
+      words: { ...dummyWords },
+      bit: false,
+      isScanned: false
+    }
+    registerData.push(row)
+  })
+
+  useDataZustand.getState().setRegisterData(registerData)
+}
 
 // Data read from the registers
 onEvent('register_data', (registerData) => {

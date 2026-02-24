@@ -61,6 +61,8 @@ export class ModbusClient {
   private _consecutiveReconnects = 0
   private _maxConsecutiveReconnects = 5
   private _reconnectResetTimeout: NodeJS.Timeout | undefined
+  private _reconnectWasPolling = false
+  private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
   private _deliberateDisconnect = false
 
@@ -78,6 +80,9 @@ export class ModbusClient {
       .on('close', () => {
         // If we were connected, go to 'connecting' and try to reconnect
         if (this._shouldAutoReconnect) {
+          // Remeber polling state before trying to reconnect
+          this._reconnectWasPolling = this._clientState.polling
+
           // Only emit reconnecting message if not already in connecting state
           if (!this._reconnectTimeout) {
             this._emitMessage({
@@ -161,6 +166,8 @@ export class ModbusClient {
         variant: 'error',
         error: null
       })
+      this._reconnectWasPolling = false
+      clearTimeout(this._reconnectResumePollingTimeout)
       this._setDisconnected()
       return
     }
@@ -216,6 +223,12 @@ export class ModbusClient {
           variant: 'success',
           error: null
         })
+        // Resume polling
+        clearTimeout(this._reconnectResumePollingTimeout)
+        this._reconnectResumePollingTimeout = setTimeout(() => {
+          if (this._reconnectWasPolling) this.startPolling()
+          this._reconnectWasPolling = false
+        }, 1000)
       } else {
         this._emitMessage({
           message: 'Connected to server',
@@ -307,12 +320,15 @@ export class ModbusClient {
 
   private _read = async (): Promise<void> => {
     if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
-      this._emitMessage({
-        message: 'Cannot read, not connected',
-        variant: 'warning',
-        error: null
-      })
+      if (!this._clientState.polling) {
+        this._emitMessage({
+          message: 'Cannot read, not connected',
+          variant: 'warning',
+          error: null
+        })
+      }
       this._setDisconnected()
+      return
     }
 
     // Set unit id before reading (in case of TCP)
@@ -325,21 +341,55 @@ export class ModbusClient {
 
     const { type, address, length } = this._appState.registerConfig
 
-    const groups = this._appState.registerConfig.readConfiguration
+    const configGroups = this._appState.readConfiguration
       ? groupAddressInfos(this._appState.registerMapping?.[type])
-      : ([[address, length]] as AddressGroup[])
+      : []
+    const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
-    for (const [a, l] of groups) {
+    for (let gi = 0; gi < groups.length; gi++) {
+      const [a, l] = groups[gi]
       try {
-        data.push(...(await this._tryRead(type, a, l)))
+        const rows = await this._tryRead(type, a, l)
+        rows.forEach((r) => {
+          r.groupIndex = gi
+        })
+        data.push(...rows)
       } catch (error) {
         const readError = error as Error
         errorMessage = readError.message
-        this._emitMessage({
-          message: `${errorMessage} [addr:${a}, len:${l}]`,
-          variant: 'error',
-          error
-        })
+
+        if (this._appState.readConfiguration) {
+          // Generate error placeholder rows for configured addresses in this failed group
+          const mapping = this._appState.registerMapping?.[type]
+          if (mapping) {
+            for (const [addressKey, mapValue] of Object.entries(mapping)) {
+              const address = Number(addressKey)
+              if (
+                address >= a &&
+                address < a + l &&
+                mapValue?.dataType &&
+                mapValue.dataType !== 'none'
+              ) {
+                data.push({
+                  id: address,
+                  buffer: new Uint8Array(2),
+                  hex: '0000',
+                  words: undefined,
+                  bit: false,
+                  isScanned: false,
+                  error: errorMessage,
+                  groupIndex: gi
+                })
+              }
+            }
+          }
+        } else {
+          this._emitMessage({
+            message: `${errorMessage} [addr:${a}, len:${l}, id:${this._appState.connectionConfig.unitId}]`,
+            variant: 'error',
+            error
+          })
+        }
       }
       this._logTransaction(errorMessage)
       if (this._clientState.connectState !== 'connected') break
@@ -749,6 +799,8 @@ export class ModbusClient {
       return
     }
 
+    const { unitId } = this._appState.connectionConfig
+    this._client.setID(unitId)
     this._client.setTimeout(params.timeout)
 
     this._totalScans = Math.ceil(
@@ -773,7 +825,7 @@ export class ModbusClient {
 
   private _scanRegister = async (address: number, length: number): Promise<void> => {
     const type = this._appState.registerConfig.type
-    if (address + length > 65535) length = 65535 - address
+    if (address + length > 65536) length = 65536 - address
 
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined

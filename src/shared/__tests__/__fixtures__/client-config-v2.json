@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Test Client Config V2",
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {},
+    "discrete_inputs": {},
+    "input_registers": {
+      "0": {
+        "dataType": "int16",
+        "comment": "Temperature"
+      }
+    },
+    "holding_registers": {
+      "100": {
+        "dataType": "uint16",
+        "comment": "Setpoint"
+      }
+    }
+  }
+}

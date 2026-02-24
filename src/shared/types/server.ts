@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { BaseDataType, BaseDataTypeSchema } from './datatype'
+import { BitMapConfigSchema } from './bitmap'
 import { RegisterType } from './client'
 import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
@@ -38,8 +39,10 @@ export const RegisterParamsBasePartSchema = z.object({
   address: z.number(),
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
-  littleEndian: z.boolean(),
-  comment: z.string()
+  comment: z.string(),
+  length: z.number().optional(),
+  stringValue: z.string().optional(),
+  bitMap: BitMapConfigSchema.optional()
 })
 export type RegisterParamsBasePart = z.infer<typeof RegisterParamsBasePartSchema>
 
@@ -49,8 +52,15 @@ export const RegisterParamsSchema = RegisterParamsBasePartSchema.and(
 )
 export type RegisterParams = z.infer<typeof RegisterParamsSchema>
 
+// Schema for a single boolean entry with optional comment
+export const ServerBoolEntrySchema = z.object({
+  value: z.boolean(),
+  comment: z.string().optional()
+})
+export type ServerBoolEntry = z.infer<typeof ServerBoolEntrySchema>
+
 // Schema for a boolean dictionary keyed by numeric strings
-export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), z.boolean())
+export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), ServerBoolEntrySchema)
 export type ServerBool = z.infer<typeof ServerBoolSchema>
 
 // Schema for a single register entry
@@ -81,9 +91,12 @@ export const ServerRegistersPerUnitSchema = z.record(
 )
 export type ServerRegistersPerUnit = z.infer<typeof ServerRegistersPerUnitSchema>
 
-// Final server config schema
+// Final server config schema (v2 with metadata)
 export const ServerConfigSchema = z.object({
+  version: z.number(),
+  modbuxVersion: z.string(),
   name: z.string(),
+  littleEndian: z.boolean(),
   serverRegistersPerUnit: ServerRegistersPerUnitSchema
 })
 export type ServerConfig = z.infer<typeof ServerConfigSchema>
@@ -99,6 +112,7 @@ export type AddRegisterParams = {
   uuid: string
   unitId: UnitIdString
   params: RegisterParams
+  littleEndian: boolean
 }
 export interface RemoveRegisterParams {
   uuid: string
@@ -112,6 +126,7 @@ export interface SyncRegisterValueParams {
   uuid: string
   unitId: UnitIdString
   registerValues: RegisterParams[]
+  littleEndian: boolean
 }
 
 export interface ResetRegistersParams {

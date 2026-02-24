@@ -9,7 +9,7 @@ type UseMinMaxIntegerFn = (
 
 export const useMinMaxInteger: UseMinMaxIntegerFn = (dataType, limit, value) => {
   const integer = useMemo(
-    () => ['int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64'].includes(dataType),
+    () => ['int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'bitmap'].includes(dataType),
     [dataType]
   )
   const { min, max } = useMemo(() => getMinMaxValues(dataType), [dataType])

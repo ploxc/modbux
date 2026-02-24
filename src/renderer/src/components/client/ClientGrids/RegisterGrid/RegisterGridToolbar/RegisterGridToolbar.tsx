@@ -4,7 +4,6 @@ import PollButton from './PollButton/PollButton'
 import ReadButton from './ReadButton/ReadButton'
 import ToggleEndianButton from './ToggleEndianButton/ToggleEndianButton'
 import TimeSettings from './TimeSettings/TimeSettings'
-import ViewConfigButton from './ViewConfigButton/ViewConfigButton'
 import LoadButton from './LoadButton/LoadButton'
 import SaveButton from './SaveButton/SaveButton'
 import ClearConfigButton from './ClearConfigButton/ClearConfigButton'
@@ -57,7 +56,6 @@ const RegisterGridToolbar = meme(() => {
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: 1 }}>
         <Box sx={{ flex: '1 1 0' }}></Box>
         <Box sx={{ display: 'flex' }}>
-          <ViewConfigButton />
           <LoadButton />
           <SaveButton />
           <ClearConfigButton />

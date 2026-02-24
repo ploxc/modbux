@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Windows } from '@shared'
@@ -579,9 +580,25 @@ describe('ModbusClient', () => {
       expect(dataCalls.length).toBe(1)
     })
 
+    it('readConfiguration without backend mapping falls back to normal read', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+
+      // readConfiguration is true but registerMapping was never synced to backend.
+      // The backend should fall back to [[address, length]] instead of silently
+      // producing no data.
+      appState.setReadConfiguration(true)
+
+      await client.read()
+
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBe(1)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
+    })
+
     it('uses group-based reads when readConfiguration is true', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setReadConfiguration(true)
       appState.setRegisterMapping({
         coils: {},
         discrete_inputs: {},
@@ -607,7 +624,7 @@ describe('ModbusClient', () => {
 
     it('handles read error and continues to next group', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ readConfiguration: true })
+      appState.setReadConfiguration(true)
       appState.setRegisterMapping({
         coils: {},
         discrete_inputs: {},
@@ -627,9 +644,53 @@ describe('ModbusClient', () => {
 
       await client.read()
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('read timeout'))).toBe(true)
+      // In readConfiguration mode, errors go into data rows, not snackbar messages
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBeGreaterThan(0)
+      const sentData = dataCalls.at(-1)?.[1]
+      const errorRow = sentData.find((d: any) => d.id === 0)
+      expect(errorRow?.error).toContain('read timeout')
+
+      // Error rows get groupIndex 0 (first group failed)
+      expect(errorRow?.groupIndex).toBe(0)
+
+      // Successful rows get groupIndex 1 (second group succeeded)
+      const successRow = sentData.find((d: any) => d.id === 100)
+      expect(successRow?.groupIndex).toBe(1)
+
       // Second group should still be read
+      expect(callCount).toBe(2)
+    })
+
+    it('sets groupIndex on readConfiguration rows', async () => {
+      await connectClient()
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {
+          0: { dataType: 'uint16' },
+          100: { dataType: 'uint16' }
+        }
+      })
+
+      let callCount = 0
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        callCount++
+        return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
+      })
+
+      await client.read()
+
+      const dataCalls = getWindowCalls('register_data')
+      expect(dataCalls.length).toBeGreaterThan(0)
+      const sentData = dataCalls.at(-1)?.[1]
+      // Two groups: [0,1] and [100,1] → groupIndex 0 and 1
+      const row0 = sentData.find((d: any) => d.id === 0)
+      const row100 = sentData.find((d: any) => d.id === 100)
+      expect(row0?.groupIndex).toBe(0)
+      expect(row100?.groupIndex).toBe(1)
       expect(callCount).toBe(2)
     })
 
@@ -930,6 +991,32 @@ describe('ModbusClient', () => {
   })
 
   describe('scan unit ids full flow', () => {
+    it('calls setID for each unit ID in range', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+
+      // Clear mocks after connect
+      mockModbusRTU.setID.mockClear()
+
+      const scanPromise = client.scanUnitIds({
+        range: [5, 7],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(5)
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(6)
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(7)
+      expect(mockModbusRTU.setID).toHaveBeenCalledTimes(3)
+    })
+
     it('scans range and emits results for each unit', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockResolvedValue({
@@ -1251,14 +1338,14 @@ describe('ModbusClient', () => {
         data: [true],
         buffer: Buffer.from([0x01])
       })
-      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
-      })
-      mockModbusRTU.readInputRegisters.mockImplementation(async () => {
-        // Stop scanning right after input_registers completes
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        // Stop scanning right after holding_registers completes
         client.stopScanningUnitIds()
         return { data: [0], buffer: Buffer.alloc(2) }
+      })
+      mockModbusRTU.readInputRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
       })
 
       const scanPromise = client.scanUnitIds({
@@ -1271,13 +1358,52 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
 
-      // Should have stopped after first unit's input_registers
+      // Should have stopped after first unit's holding_registers (before input_registers)
       const results = getWindowCalls('scan_unit_id_result')
-      expect(results.length).toBeLessThanOrEqual(1)
+      expect(results.length).toBe(0)
     })
   })
 
   describe('scan registers full flow', () => {
+    it('sets unit ID before scanning', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      appState.updateConnectionConfig({ unitId: 42 })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 5],
+        length: 5,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(mockModbusRTU.setID).toHaveBeenCalledWith(42)
+    })
+
+    it('calls setID before the first read operation', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      appState.updateConnectionConfig({ unitId: 99 })
+
+      // Clear mocks after connect (which also calls setID)
+      mockModbusRTU.setID.mockClear()
+      mockModbusRTU.readHoldingRegisters.mockClear()
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 5],
+        length: 5,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      // setID must have been called before the first read
+      const setIdOrder = mockModbusRTU.setID.mock.invocationCallOrder[0]
+      const readOrder = mockModbusRTU.readHoldingRegisters.mock.invocationCallOrder[0]
+      expect(setIdOrder).toBeLessThan(readOrder)
+    })
+
     it('scans address range and sends non-zero data', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
@@ -1359,7 +1485,7 @@ describe('ModbusClient', () => {
     })
 
     // ! Coverage-only: exercises address+length clamping in _scanRegister
-    it('clamps length when address + length exceeds 65535', async () => {
+    it('clamps length when address + length exceeds 65536', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
@@ -1371,9 +1497,9 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(1000)
       await scanPromise
 
-      // The first read starts at 65530 with length 10, but 65530+10=65540 > 65535
-      // so length should be clamped to 65535 - 65530 = 5
-      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65530, 5)
+      // The first read starts at 65530 with length 10, but 65530+10=65540 > 65536
+      // so length should be clamped to 65536 - 65530 = 6
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65530, 6)
     })
 
     // ! Coverage-only: exercises d.bit filter branch in _scanRegister
