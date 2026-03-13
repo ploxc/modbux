@@ -531,9 +531,10 @@ export const useServerZustand = create<
         const currentState = get()
         if (currentState.serverMode !== 'rtu') return
         const serialConfig = currentState.serialConfig ?? defaultSerialConfig
-        if (!serialConfig.com.trim()) return
         await window.api.stopRtuServer()
-        await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+        if (serialConfig.com.trim()) {
+          await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+        }
       },
       setServerBaudRate: (baudRate: ModbusBaudRate) => {
         set((state) => {

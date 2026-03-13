@@ -1,132 +1,40 @@
 import {
+  alpha,
   Autocomplete,
   Box,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
   ToggleButton,
   ToggleButtonGroup
 } from '@mui/material'
-import { Refresh } from '@mui/icons-material'
+import { Refresh, Usb, UsbOff } from '@mui/icons-material'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import {
+  BaudRateSelect,
+  ComOption,
+  ComTextField,
+  DataBitsSelect,
+  ParitySelect,
+  StopBitsSelect,
+  useComInputWidth
+} from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
-import { AutocompleteRenderInputParams } from '@mui/material'
-import React, { useEffect, useMemo, useState } from 'react'
+import { ModbusBaudRate } from '@shared'
+import React, { useEffect, useState } from 'react'
 
-const measureTextWidth = (
-  text: string,
-  font: string = '400 0.85rem Roboto, sans-serif'
-): number => {
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
-  if (context) {
-    context.font = font
-    return context.measureText(text).width
-  }
-  return 0
-}
-
-const ComTextField = meme(
-  (params: AutocompleteRenderInputParams & { comLabel: string; comError: boolean }) => {
-    const { comLabel, comError, ...rest } = params
-    const loading = useServerZustand((z) => z.serverSerialPortsLoading)
-
-    return (
-      <TextField
-        {...rest}
-        label={comLabel}
-        variant="outlined"
-        size="small"
-        title={rest.inputProps.value as string}
-        error={comError}
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0
-          },
-          '& .MuiOutlinedInput-input': {
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }
-        }}
-        slotProps={{
-          input: {
-            ...rest.InputProps,
-            endAdornment: (
-              <>
-                {loading ? <CircularProgress size={16} /> : null}
-                {rest.InputProps.endAdornment}
-              </>
-            )
-          }
-        }}
-      />
-    )
-  }
-)
-
-const ComOption = meme(
-  ({ option, ...props }: { option: string } & React.HTMLAttributes<HTMLLIElement>) => {
-    const manufacturer = useServerZustand(
-      (z) => z.serverSerialPorts.find((p) => p.path === option)?.manufacturer
-    )
-
-    return (
-      <li {...props} key={option}>
-        <Box sx={{ width: '100%' }} title={option}>
-          <Box
-            sx={{
-              fontSize: '0.85rem',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              width: '100%'
-            }}
-          >
-            {option}
-          </Box>
-          {manufacturer && (
-            <Box
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                width: '100%'
-              }}
-            >
-              {manufacturer}
-            </Box>
-          )}
-        </Box>
-      </li>
-    )
-  }
-)
-
+//
+//
+// COM Port Input (onBlur pattern)
 const ComInput = meme(() => {
   const comFromStore = useServerZustand((z) => z.serialConfig?.com ?? '')
+  const loading = useServerZustand((z) => z.serverSerialPortsLoading)
   const ports = useServerZustand((z) => z.serverSerialPorts)
   const [localCom, setLocalCom] = useState(comFromStore)
+  const inputWidth = useComInputWidth(ports)
 
   // Sync local with store when store changes externally
   React.useEffect(() => {
     setLocalCom(comFromStore)
   }, [comFromStore])
-
-  const inputWidth = useMemo(() => {
-    let textWidth = 60
-    for (const port of ports) {
-      const newTextWidth = measureTextWidth(port.path || 'COM Port')
-      if (newTextWidth > textWidth) textWidth = newTextWidth
-    }
-    return Math.max(60, textWidth + 60)
-  }, [ports])
 
   const applyOnBlur = (): void => {
     if (localCom !== comFromStore) {
@@ -155,31 +63,50 @@ const ComInput = meme(() => {
       }}
       onBlur={applyOnBlur}
       sx={{ width: inputWidth, maxWidth: 220 }}
-      renderInput={(params) => <ComTextField {...params} comLabel={comLabel} comError={comError} />}
-      renderOption={(props, option) => <ComOption {...props} option={option} />}
+      renderInput={(params) => (
+        <ComTextField {...params} comLabel={comLabel} comError={comError} comLoading={loading} />
+      )}
+      renderOption={(props, option) => {
+        const manufacturer = ports.find((p) => p.path === option)?.manufacturer
+        return <ComOption {...props} option={option} manufacturer={manufacturer} />
+      }}
     />
   )
 })
 
+//
+//
+// RTU Status Dot
 const RtuStatus = meme(() => {
   const active = useServerZustand((z) => z.rtuServerActive)
   return (
     <Box
       data-testid="server-rtu-status"
       title={active ? 'RTU server active' : 'RTU server inactive'}
-      sx={{
-        width: 10,
-        height: 10,
-        borderRadius: '50%',
-        backgroundColor: active ? 'success.main' : 'action.disabled',
+      sx={(theme) => ({
         alignSelf: 'center',
-        ml: 0.5,
-        flexShrink: 0
-      }}
-    />
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ml: 1,
+        mr: -1,
+        flexShrink: 0,
+        width: 24,
+        height: 24,
+        borderRadius: 24,
+        backgroundColor: active
+          ? alpha(theme.palette.success.main, 0.1)
+          : alpha(theme.palette.text.primary, 0.08)
+      })}
+    >
+      {active ? <Usb color="success" fontSize={'small'} /> : <UsbOff fontSize="small" />}
+    </Box>
   )
 })
 
+//
+//
+// COM Port Actions
 const ComActions = meme(() => {
   const loading = useServerZustand((z) => z.serverSerialPortsLoading)
 
@@ -213,13 +140,16 @@ const ComActions = meme(() => {
   )
 })
 
+//
+//
+// COM Port (composite)
 const Com = (): JSX.Element => {
   useEffect(() => {
     useServerZustand.getState().refreshServerSerialPorts()
   }, [])
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex' }}>
       <ComInput />
       <ComActions />
       <RtuStatus />
@@ -227,115 +157,54 @@ const Com = (): JSX.Element => {
   )
 }
 
-const BaudRateSelect = meme(() => {
-  const labelId = 'server-baud-rate-select'
+//
+//
+// Selects (thin wrappers over shared components)
+const ServerBaudRateSelect = meme(() => {
   const baudRate = useServerZustand((z) => z.serialConfig?.options.baudRate ?? '9600')
 
   return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Baud Rate</InputLabel>
-      <Select
-        size="small"
-        labelId={labelId}
-        value={baudRate}
-        label="Baud Rate"
-        onChange={(e) =>
-          useServerZustand.getState().setServerBaudRate(e.target.value as ModbusBaudRate)
-        }
-        sx={{ width: 100 }}
-        data-testid="server-rtu-baudrate-select"
-      >
-        {ModbusBaudRateSchema.options.map((value) => (
-          <MenuItem key={`server_baud_rate_${value}`} value={value}>
-            {value}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <BaudRateSelect
+      value={baudRate as ModbusBaudRate}
+      onChange={(v) => useServerZustand.getState().setServerBaudRate(v)}
+      testId="server-rtu-baudrate-select"
+    />
   )
 })
 
-const parityOptions = ['none', 'even', 'odd', 'mark', 'space'] as const
-
-const ParitySelect = meme(() => {
-  const labelId = 'server-parity-select'
+const ServerParitySelect = meme(() => {
   const parity = useServerZustand((z) => z.serialConfig?.options.parity ?? 'none')
 
   return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Parity</InputLabel>
-      <Select
-        size="small"
-        labelId={labelId}
-        value={parity}
-        label="Parity"
-        onChange={(e) => useServerZustand.getState().setServerParity(e.target.value)}
-        sx={{ width: 85 }}
-        data-testid="server-rtu-parity-select"
-      >
-        {parityOptions.map((option) => (
-          <MenuItem key={`server_parity_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <ParitySelect
+      value={parity}
+      onChange={(v) => useServerZustand.getState().setServerParity(v)}
+      testId="server-rtu-parity-select"
+    />
   )
 })
 
-const databitsOptions = [8, 7, 6, 5] as const
-
-const DataBitsSelect = meme(() => {
-  const labelId = 'server-databits-select'
+const ServerDataBitsSelect = meme(() => {
   const dataBits = useServerZustand((z) => z.serialConfig?.options.dataBits ?? 8)
 
   return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Data</InputLabel>
-      <Select
-        size="small"
-        labelId={labelId}
-        value={dataBits}
-        label="Data Bits"
-        onChange={(e) => useServerZustand.getState().setServerDataBits(Number(e.target.value))}
-        sx={{ width: 55 }}
-        data-testid="server-rtu-databits-select"
-      >
-        {databitsOptions.map((option) => (
-          <MenuItem key={`server_databits_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <DataBitsSelect
+      value={dataBits}
+      onChange={(v) => useServerZustand.getState().setServerDataBits(v)}
+      testId="server-rtu-databits-select"
+    />
   )
 })
 
-const stopBitsOptions = [1, 2] as const
-
-const StopBitsSelect = meme(() => {
-  const labelId = 'server-stopbits-select'
+const ServerStopBitsSelect = meme(() => {
   const stopBits = useServerZustand((z) => z.serialConfig?.options.stopBits ?? 1)
 
   return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Stop</InputLabel>
-      <Select
-        size="small"
-        labelId={labelId}
-        value={stopBits}
-        label="Stop Bits"
-        onChange={(e) => useServerZustand.getState().setServerStopBits(Number(e.target.value))}
-        sx={{ width: 55 }}
-        data-testid="server-rtu-stopbits-select"
-      >
-        {stopBitsOptions.map((option) => (
-          <MenuItem key={`server_stopbits_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <StopBitsSelect
+      value={stopBits}
+      onChange={(v) => useServerZustand.getState().setServerStopBits(v)}
+      testId="server-rtu-stopbits-select"
+    />
   )
 })
 
@@ -344,12 +213,12 @@ const ServerRtuConfig = (): JSX.Element => {
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 2 }}>
         <Com />
-        <BaudRateSelect />
+        <ServerBaudRateSelect />
       </Box>
       <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 2 }}>
-        <ParitySelect />
-        <DataBitsSelect />
-        <StopBitsSelect />
+        <ServerParitySelect />
+        <ServerDataBitsSelect />
+        <ServerStopBitsSelect />
       </Box>
     </Box>
   )

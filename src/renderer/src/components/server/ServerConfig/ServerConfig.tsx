@@ -4,13 +4,7 @@ import {
   Box,
   InputBaseComponentProps,
   ToggleButtonGroup,
-  ToggleButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button
+  ToggleButton
 } from '@mui/material'
 import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -27,66 +21,31 @@ import ServerRtuConfig from './ServerRtuConfig'
 
 const ModeToggle = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
-  const mainPort = useServerZustand((z) => z.port[z.uuids[0]] ?? '502')
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const handleModeChange = async (_: React.MouseEvent, value: ServerMode | null): Promise<void> => {
     if (!value || value === serverMode) return
     if (value === 'rtu') {
-      setConfirmOpen(true)
+      await useServerZustand.getState().switchToRtu()
     } else {
       await useServerZustand.getState().switchToTcp()
     }
   }
 
-  const handleConfirm = async (): Promise<void> => {
-    setConfirmOpen(false)
-    await useServerZustand.getState().switchToRtu()
-  }
-
   return (
-    <>
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        color="primary"
-        value={serverMode}
-        onChange={handleModeChange}
-      >
-        <ToggleButton
-          data-testid="server-mode-tcp-btn"
-          aria-label="TCP Mode"
-          value="tcp"
-          sx={{ whiteSpace: 'nowrap', px: 1.5 }}
-        >
-          TCP
-        </ToggleButton>
-        <ToggleButton
-          data-testid="server-mode-rtu-btn"
-          aria-label="RTU Mode"
-          value="rtu"
-          sx={{ px: 1.5 }}
-        >
-          RTU
-        </ToggleButton>
-      </ToggleButtonGroup>
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Switch to RTU Server Mode</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            The main server (port {mainPort}) will be used as the RTU server. All TCP servers will
-            be stopped. Other server configurations will be preserved and restored when switching
-            back to TCP mode.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={handleConfirm} variant="contained" autoFocus>
-            Switch to RTU
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      color="primary"
+      value={serverMode}
+      onChange={handleModeChange}
+    >
+      <ToggleButton data-testid="server-mode-tcp-btn" value="tcp">
+        TCP
+      </ToggleButton>
+      <ToggleButton data-testid="server-mode-rtu-btn" value="rtu">
+        RTU
+      </ToggleButton>
+    </ToggleButtonGroup>
   )
 })
 
@@ -163,7 +122,7 @@ const UnitId = meme(() => {
   const labelId = 'unit-id-select'
 
   return (
-    <FormControl size="small">
+    <FormControl size="small" sx={{ minWidth: 80 }}>
       <InputLabel id={labelId}>Unit ID</InputLabel>
       <Select
         data-testid="server-unitid-select"
@@ -256,11 +215,11 @@ const ServerConfig = (): JSX.Element => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
+    <Box sx={{ display: 'flex', gap: 2, ml: 'auto', alignItems: 'flex-start' }}>
+      {serverMode === 'tcp' ? <Port /> : <ServerRtuConfig />}
       <ModeToggle />
       <EndianToggle />
       <UnitId />
-      {serverMode === 'tcp' ? <Port /> : <ServerRtuConfig />}
     </Box>
   )
 }
