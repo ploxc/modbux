@@ -19,9 +19,12 @@ import {
   UnitIdString,
   UnitIdStringSchema,
   migrateServerRegistersState,
+  migrateServerModeState,
   migrateBoolShape,
   CURRENT_SERVER_ZUSTAND_VERSION,
-  getRegisterLength
+  getRegisterLength,
+  ServerSerialConfig,
+  ModbusBaudRate
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { enqueueSnackbar } from 'notistack'
@@ -39,10 +42,26 @@ const getDefaultServerRegisters = (): ServerRegisters => ({
   holding_registers: {}
 })
 
+const defaultSerialConfig: ServerSerialConfig = {
+  com: '',
+  options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
+}
+
 const getDefaultUsedAddresses = (): UsedAddresses => ({
   input_registers: [],
   holding_registers: []
 })
+
+/** Restart RTU server only if in RTU mode and COM port is set */
+const restartRtuIfActive = (get: () => ServerZustand): void => {
+  const state = get()
+  if (state.serverMode !== 'rtu') return
+  const serialConfig = state.serialConfig ?? defaultSerialConfig
+  if (!serialConfig.com.trim()) return
+  window.api.stopRtuServer().then(() => {
+    window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+  })
+}
 
 export const useServerZustand = create<
   ServerZustand,
@@ -60,6 +79,11 @@ export const useServerZustand = create<
       usedAddresses: { [MAIN_SERVER_UUID]: undefined },
       name: { [MAIN_SERVER_UUID]: undefined },
       littleEndian: { [MAIN_SERVER_UUID]: false },
+      serverMode: 'tcp' as const,
+      serialConfig: defaultSerialConfig,
+      serverSerialPorts: [],
+      serverSerialPortsLoading: false,
+      rtuServerActive: false,
       clean: (uuid) =>
         set((state) => {
           state.unitId[uuid] = '0'
@@ -127,6 +151,7 @@ export const useServerZustand = create<
           else for (const u of state.uuids) state.ready[u] = false
         })
         const state = get()
+        const mode = state.serverMode ?? 'tcp'
 
         // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
         set((state) => {
@@ -140,18 +165,21 @@ export const useServerZustand = create<
           }
         })
 
-        // Determine which uuid should be initialized when provided
-        const uuidsToSync = uuid ? [uuid] : state.uuids
+        if (mode === 'rtu') {
+          // RTU mode: start RTU server with main server UUID
+          const serialConfig = state.serialConfig ?? defaultSerialConfig
+          const syncUuid = MAIN_SERVER_UUID
 
-        for (const syncUuid of uuidsToSync) {
-          const port = Number(state.port[syncUuid])
-          const actualPort = await window.api.setServerPort({ uuid: syncUuid, port })
+          // Only start if COM port is configured
+          if (serialConfig.com.trim()) {
+            try {
+              await window.api.startRtuServer({ uuid: syncUuid, serialConfig })
+            } catch {
+              // Error is reported via backend_message event
+            }
+          }
 
-          set((state) => {
-            state.port[syncUuid] = String(actualPort)
-          })
-
-          // Check if server registers are present in the state for the uuid (there should be)
+          // Sync registers for main server
           let serverRegisters = state.serverRegisters[syncUuid]
           if (!serverRegisters) {
             serverRegisters = {}
@@ -161,12 +189,8 @@ export const useServerZustand = create<
           }
 
           const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
-
           for (const unitId of unitIdsWithData) {
-            // Synchronize the boolean states with the server from persisted state
             await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
-
-            // Synchronize the value generators/registers with the server from persisted state
             const littleEndian = !!state.littleEndian[syncUuid]
             const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
               await syncRegistersWithBackend(serverRegisters, unitId, syncUuid, littleEndian)
@@ -184,15 +208,59 @@ export const useServerZustand = create<
 
           set((state) => {
             state.ready[syncUuid] = true
+            state.selectedUuid = syncUuid
           })
-        }
+        } else {
+          // TCP mode: existing flow
+          const uuidsToSync = uuid ? [uuid] : state.uuids
 
-        if (state.uuids.length === 0) {
-          // Create the main server if no server exists in persisted state
-          state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
-          set((state) => {
-            state.ready[MAIN_SERVER_UUID] = true
-          })
+          for (const syncUuid of uuidsToSync) {
+            const port = Number(state.port[syncUuid])
+            const actualPort = await window.api.setServerPort({ uuid: syncUuid, port })
+
+            set((state) => {
+              state.port[syncUuid] = String(actualPort)
+            })
+
+            let serverRegisters = state.serverRegisters[syncUuid]
+            if (!serverRegisters) {
+              serverRegisters = {}
+              set((state) => {
+                state.serverRegisters[syncUuid] = {}
+              })
+            }
+
+            const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
+
+            for (const unitId of unitIdsWithData) {
+              await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
+              const littleEndian = !!state.littleEndian[syncUuid]
+              const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
+                await syncRegistersWithBackend(serverRegisters, unitId, syncUuid, littleEndian)
+
+              const inputUsedAddresses = getUsedAddresses(inputRegisterRegisterValues)
+              const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
+
+              set((state) => {
+                if (!state.usedAddresses[syncUuid]) state.usedAddresses[syncUuid] = {}
+                if (!state.usedAddresses[syncUuid][unitId])
+                  state.usedAddresses[syncUuid][unitId] = {}
+                state.usedAddresses[syncUuid][unitId]['input_registers'] = inputUsedAddresses
+                state.usedAddresses[syncUuid][unitId]['holding_registers'] = holdingUsedAddresses
+              })
+            }
+
+            set((state) => {
+              state.ready[syncUuid] = true
+            })
+          }
+
+          if (state.uuids.length === 0) {
+            state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+            set((state) => {
+              state.ready[MAIN_SERVER_UUID] = true
+            })
+          }
         }
 
         get().cleanOrphanedServerState()
@@ -438,6 +506,78 @@ export const useServerZustand = create<
           state.serverRegisters[uuid][unitId] = registers
         })
       },
+      switchToRtu: async () => {
+        await window.api.stopAllTcpServers()
+        set((state) => {
+          state.serverMode = 'rtu'
+        })
+        await get().init()
+      },
+      switchToTcp: async () => {
+        await window.api.stopRtuServer()
+        set((state) => {
+          state.serverMode = 'tcp'
+        })
+        await get().init()
+      },
+      setServerCom: (com) => {
+        set((state) => {
+          if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
+          state.serialConfig.com = com
+        })
+        // State-only — applied on blur via applyServerCom
+      },
+      applyServerCom: async () => {
+        const currentState = get()
+        if (currentState.serverMode !== 'rtu') return
+        const serialConfig = currentState.serialConfig ?? defaultSerialConfig
+        if (!serialConfig.com.trim()) return
+        await window.api.stopRtuServer()
+        await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+      },
+      setServerBaudRate: (baudRate: ModbusBaudRate) => {
+        set((state) => {
+          if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
+          state.serialConfig.options.baudRate = baudRate
+        })
+        restartRtuIfActive(get)
+      },
+      setServerParity: (parity) => {
+        set((state) => {
+          if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
+          state.serialConfig.options.parity = parity as 'none' | 'even' | 'odd' | 'mark' | 'space'
+        })
+        restartRtuIfActive(get)
+      },
+      setServerDataBits: (dataBits) => {
+        set((state) => {
+          if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
+          state.serialConfig.options.dataBits = dataBits
+        })
+        restartRtuIfActive(get)
+      },
+      setServerStopBits: (stopBits) => {
+        set((state) => {
+          if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
+          state.serialConfig.options.stopBits = stopBits
+        })
+        restartRtuIfActive(get)
+      },
+      refreshServerSerialPorts: async () => {
+        set((state) => {
+          state.serverSerialPortsLoading = true
+        })
+        try {
+          const ports = await window.api.listSerialPorts()
+          set((state) => {
+            state.serverSerialPorts = ports
+          })
+        } finally {
+          set((state) => {
+            state.serverSerialPortsLoading = false
+          })
+        }
+      },
       getUnitId: (uuid: string): UnitIdString => {
         const state = get()
         let unitId = state.unitId[uuid]
@@ -454,18 +594,25 @@ export const useServerZustand = create<
       name: `server.zustand`,
       version: CURRENT_SERVER_ZUSTAND_VERSION,
       migrate: (persistedState, version) => {
+        let state = persistedState as Record<string, unknown>
+
         // Version 0/1 (old format with littleEndian per register)
         if (version < 2) {
-          return migrateServerRegistersState(
-            persistedState as Record<string, unknown>
-          ) as PersistedServerZustand
+          state = migrateServerRegistersState(state)
         }
-        // Already v2 — still convert old boolean shape if needed
-        const state = persistedState as PersistedServerZustand
-        migrateBoolShape(
-          state.serverRegisters as Record<string, Record<string, unknown> | undefined> | undefined
-        )
-        return state
+
+        // v2→v3: add serverMode and serialConfig
+        if (version < 3) {
+          state = migrateServerModeState(state)
+          // Also convert old boolean shape if needed
+          migrateBoolShape(
+            (state as Record<string, unknown>).serverRegisters as
+              | Record<string, Record<string, unknown> | undefined>
+              | undefined
+          )
+        }
+
+        return state as PersistedServerZustand
       },
       partialize: (state) => ({
         name: state.name,
@@ -476,7 +623,9 @@ export const useServerZustand = create<
         unitId: state.unitId,
         usedAddresses: state.usedAddresses,
         uuids: state.uuids,
-        littleEndian: state.littleEndian
+        littleEndian: state.littleEndian,
+        serverMode: state.serverMode,
+        serialConfig: state.serialConfig
       })
     }
   )
@@ -727,4 +876,9 @@ onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
     })
     delayedSetBool()
   }
+})
+
+// RTU server status
+onEvent('rtu_server_status', ({ active }) => {
+  useServerZustand.setState({ rtuServerActive: active })
 })

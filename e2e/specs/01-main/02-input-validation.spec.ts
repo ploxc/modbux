@@ -249,20 +249,22 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     await navigateToClient(mainPage)
   })
 
-  test('IP address mask: segments clamped to 255', async ({ mainPage }) => {
+  test('host input accepts hostnames and IP addresses', async ({ mainPage }) => {
     const hostInput = mainPage.getByTestId('tcp-host-input').locator('input')
-    await hostInput.fill('999.999.999.999')
+
+    // Test hostname
+    await hostInput.fill('plc.example.com')
     await mainPage.waitForTimeout(300)
+    expect(await hostInput.inputValue()).toBe('plc.example.com')
 
-    // !changed: a seperator is automatically added when an segment is larger than 255
-    const val = await hostInput.inputValue()
-    expect(val).toBe('99.9.99.99')
+    // Test IP address
+    await hostInput.fill('192.168.1.100')
+    await mainPage.waitForTimeout(300)
+    expect(await hostInput.inputValue()).toBe('192.168.1.100')
 
-    // // Each segment should be clamped to 255
-    // const segments = val.split('.')
-    // for (const seg of segments) {
-    //   expect(Number(seg)).toBe(255)
-    // }
+    // Empty input should be invalid (restore a valid value)
+    await hostInput.fill('127.0.0.1')
+    await mainPage.waitForTimeout(300)
   })
 
   test('port input: clamped to 65535', async ({ mainPage }) => {

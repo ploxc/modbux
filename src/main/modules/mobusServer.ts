@@ -14,9 +14,10 @@ import {
   UnitIdString,
   UnitIdStringSchema,
   BooleanRegisters,
-  NumberRegisters
+  NumberRegisters,
+  StartRtuServerParams
 } from '@shared'
-import { ServerTCP } from 'modbus-serial'
+import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal } from 'modbus-serial'
@@ -69,6 +70,9 @@ export interface ServerParams {
 export class ModbusServer {
   private _port: Map<string, number> = new Map()
   private _servers: Map<string, ServerTCP> = new Map()
+  private _rtuServer: ServerSerial | null = null
+  private _rtuUuid: string | null = null
+  private _rtuActive: boolean = false
   private _windows: Windows
 
   // Map to store server data for each unit ID of a server UUID
@@ -219,6 +223,11 @@ export class ModbusServer {
    * Deletes a Modbus TCP server for the given UUID, cleaning up all resources.
    */
   public deleteServer = async (uuid: string): Promise<void> => {
+    // Clean up RTU server if this UUID is the RTU server
+    if (this._rtuUuid === uuid) {
+      await this.stopRtuServer()
+    }
+
     const server = this._servers.get(uuid)
     if (!server) {
       this._emitMessage({ message: `No server found for UUID ${uuid}`, variant: 'error' })
@@ -459,6 +468,101 @@ export class ModbusServer {
       serverData['discrete_inputs'][index] = value
     })
     this._setServerData(uuid, unitId, serverData)
+  }
+
+  /**
+   * Starts an RTU server on a serial port for the given UUID.
+   * Closes any existing RTU server first.
+   */
+  public startRtuServer = async ({ uuid, serialConfig }: StartRtuServerParams): Promise<void> => {
+    if (!serialConfig.com.trim()) return
+    await this.stopRtuServer()
+
+    try {
+      this._rtuServer = new ServerSerial(this._getVector(uuid), {
+        path: serialConfig.com,
+        baudRate: Number(serialConfig.options.baudRate),
+        dataBits: serialConfig.options.dataBits as 8 | 7 | 6 | 5,
+        stopBits: serialConfig.options.stopBits as 1 | 2,
+        parity: serialConfig.options.parity ?? 'none'
+      })
+      this._rtuUuid = uuid
+
+      this._rtuServer.on('initialized', () => {
+        this._rtuActive = true
+        this._emitMessage({
+          message: `RTU server started on ${serialConfig.com}`,
+          variant: 'success'
+        })
+        this._windows.send('rtu_server_status', { active: true })
+      })
+
+      this._rtuServer.on('error', (err) => {
+        this._rtuActive = false
+        this._emitMessage({
+          message: `RTU server error: ${err?.message ?? err}`,
+          variant: 'error'
+        })
+        this._windows.send('rtu_server_status', { active: false })
+      })
+    } catch (err) {
+      this._emitMessage({
+        message: `Failed to start RTU server: ${(err as Error)?.message ?? err}`,
+        variant: 'error'
+      })
+    }
+  }
+
+  /**
+   * Stops the active RTU server if one is running.
+   */
+  public stopRtuServer = async (): Promise<void> => {
+    if (!this._rtuServer) return
+    const server = this._rtuServer
+    const wasActive = this._rtuActive
+    this._rtuServer = null
+    this._rtuUuid = null
+    this._rtuActive = false
+    this._windows.send('rtu_server_status', { active: false })
+    if (wasActive) {
+      this._emitMessage({ message: 'RTU server stopped', variant: 'warning' })
+    }
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.close((err) => {
+          if (err) reject(err)
+          else resolve()
+        })
+      })
+    } catch (err) {
+      const error = err as Error
+      // "Port is not open" is expected when the serial port never connected — ignore silently
+      if (error?.message?.includes('Port is not open')) return
+      console.error('Error closing RTU server:', error?.message, error?.stack)
+      this._emitMessage({
+        message: `Error closing RTU server: ${error?.message ?? err}`,
+        variant: 'error',
+        error
+      })
+    }
+  }
+
+  /**
+   * Stops all running TCP servers. Does NOT clear server data or generators
+   * so registers are preserved for restore when switching back to TCP.
+   */
+  public stopAllTcpServers = async (): Promise<void> => {
+    for (const [, server] of this._servers) {
+      await new Promise<void>((resolve) => {
+        server.close((err) => {
+          if (err)
+            this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
+          resolve()
+        })
+      })
+    }
+    this._servers.clear()
+    this._port.clear()
   }
 
   /**

@@ -23,7 +23,8 @@ import type {
   WindowsOpen,
   AddressGroup,
   SerialPortInfo,
-  SerialPortValidationResult
+  SerialPortValidationResult,
+  StartRtuServerParams
 } from '@shared'
 import { SharedProps } from 'notistack'
 
@@ -69,7 +70,10 @@ export const IPC_CHANNELS = [
   'reset_server',
   'list_serial_ports',
   'validate_serial_port',
-  'set_read_configuration'
+  'set_read_configuration',
+  'start_rtu_server',
+  'stop_rtu_server',
+  'stop_all_tcp_servers'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -263,6 +267,24 @@ export interface IpcHandlerSpec {
     args: [boolean]
     return: void
   }
+
+  /** Start RTU server on a UUID with serial config */
+  ['start_rtu_server']: {
+    args: [StartRtuServerParams]
+    return: void
+  }
+
+  /** Stop the active RTU server */
+  ['stop_rtu_server']: {
+    args: []
+    return: void
+  }
+
+  /** Stop all running TCP servers (cleanup before RTU switch) */
+  ['stop_all_tcp_servers']: {
+    args: []
+    return: void
+  }
 }
 
 export type IpcHandlerMap = {
@@ -283,7 +305,8 @@ export const IPC_EVENTS = [
   'boolean_value',
   'window_update',
   'open_server_window',
-  'address_groups'
+  'address_groups',
+  'rtu_server_status'
 ] as const
 
 export type IpcEvent = (typeof IPC_EVENTS)[number]
@@ -300,6 +323,7 @@ export interface IpcEventPayloadMap {
   ['window_update']: [WindowsOpen]
   ['open_server_window']: []
   ['address_groups']: [AddressGroup[]]
+  ['rtu_server_status']: [{ active: boolean }]
 }
 
 export interface BackendMessage {

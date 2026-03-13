@@ -16,10 +16,10 @@ const Host = meme(() => {
   return (
     <TextField
       disabled={disabled}
-      label="IP Address"
+      label="Host"
       variant="outlined"
       size="small"
-      sx={{ width: 130 }}
+      sx={{ width: 180 }}
       error={!hostValid}
       value={host}
       data-testid="tcp-host-input"
@@ -28,11 +28,6 @@ const Host = meme(() => {
           inputComponent: HostInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
           inputProps: maskInputProps({ set: setHost })
         }
-      }}
-      onBlur={async () => {
-        // On blur, make sure the host is synced with the server
-        const connectionConfig = await window.api.getConnectionConfig()
-        setHost(connectionConfig.tcp.host, true)
       }}
     />
   )

@@ -1,9 +1,25 @@
 import { z } from 'zod'
 import { BaseDataType, BaseDataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
-import { RegisterType } from './client'
+import { RegisterType, SerialPortOptionsSchema } from './client'
 import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
+
+// Server mode (global: TCP or RTU)
+export const ServerModeSchema = z.enum(['tcp', 'rtu'])
+export type ServerMode = z.infer<typeof ServerModeSchema>
+
+// Server serial config for RTU mode
+export const ServerSerialConfigSchema = z.object({
+  com: z.string(),
+  options: SerialPortOptionsSchema
+})
+export type ServerSerialConfig = z.infer<typeof ServerSerialConfigSchema>
+
+export interface StartRtuServerParams {
+  uuid: string
+  serialConfig: ServerSerialConfig
+}
 
 // Zod schema for boolean register types
 export const BooleanRegistersSchema = z.enum(['coils', 'discrete_inputs'])

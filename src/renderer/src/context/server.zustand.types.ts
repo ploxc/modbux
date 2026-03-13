@@ -8,7 +8,11 @@ import {
   AddRegisterParams,
   UnitIdStringSchema,
   UnitIdString,
-  ServerRegistersPerUnitSchema
+  ServerRegistersPerUnitSchema,
+  ServerModeSchema,
+  ServerSerialConfigSchema,
+  SerialPortInfo,
+  ModbusBaudRate
 } from '@shared'
 import { MaskSetFn } from './root.zustand.types'
 import { z } from 'zod'
@@ -28,7 +32,9 @@ export const PersistedServerZustandSchema = z.object({
   unitId: z.record(z.string(), z.union([UnitIdStringSchema, z.undefined()])),
   name: z.record(z.string(), z.string().optional()),
   portValid: z.record(z.string(), z.boolean()),
-  littleEndian: z.record(z.string(), z.boolean())
+  littleEndian: z.record(z.string(), z.boolean()),
+  serverMode: ServerModeSchema.optional(),
+  serialConfig: ServerSerialConfigSchema.optional()
 })
 
 export type PersistedServerZustand = z.infer<typeof PersistedServerZustandSchema>
@@ -77,4 +83,17 @@ export type ServerZustand = {
   replaceServerRegisters: (unitId: UnitIdString, registers: ServerRegisters) => void
   setName: (name: string) => void
   getUnitId: (uuid: string) => UnitIdString
+  // RTU server mode
+  switchToRtu: () => Promise<void>
+  switchToTcp: () => Promise<void>
+  setServerCom: (com: string) => void
+  applyServerCom: () => Promise<void>
+  setServerBaudRate: (baudRate: ModbusBaudRate) => void
+  setServerParity: (parity: string) => void
+  setServerDataBits: (dataBits: number) => void
+  setServerStopBits: (stopBits: number) => void
+  serverSerialPorts: SerialPortInfo[]
+  serverSerialPortsLoading: boolean
+  refreshServerSerialPorts: () => Promise<void>
+  rtuServerActive: boolean
 } & PersistedServerZustand
