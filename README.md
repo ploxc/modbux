@@ -27,12 +27,13 @@ Available for Windows and macOS
 - Scan Unit IDs and register ranges
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
-- Modbus TCP and RTU support with automatic COM port discovery
+- Modbus TCP (with hostname/IP) and RTU support with automatic COM port discovery
 - Configuration save/load (JSON)
 
 **Server Mode:**
 
-- Simulate up to 10 Modbus devices
+- Modbus TCP and RTU server modes (serial port, USB converters, socat virtual pairs)
+- Simulate up to 10 Modbus devices (TCP mode)
 - 256 Unit IDs per server (0-255)
 - 12 data types: numeric registers, bitmap, UTF-8 strings, Unix timestamps, and IEC 870-5 datetime
 - Static or random value generation with configurable intervals
