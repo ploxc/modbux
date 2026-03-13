@@ -79,10 +79,19 @@ const ComInput = meme(() => {
 // RTU Status Dot
 const RtuStatus = meme(() => {
   const active = useServerZustand((z) => z.rtuServerActive)
+  const [hovered, setHovered] = useState(false)
+
+  const handleClick = (): void => {
+    useServerZustand.getState().applyServerCom()
+  }
+
   return (
     <Box
       data-testid="server-rtu-status"
       title={active ? 'RTU server active' : 'RTU server inactive'}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={handleClick}
       sx={(theme) => ({
         alignSelf: 'center',
         display: 'flex',
@@ -91,15 +100,22 @@ const RtuStatus = meme(() => {
         ml: 1,
         mr: -1,
         flexShrink: 0,
-        width: 24,
-        height: 24,
-        borderRadius: 24,
+        width: 28,
+        height: 28,
+        borderRadius: 28,
+        cursor: 'pointer',
         backgroundColor: active
           ? alpha(theme.palette.success.main, 0.1)
           : alpha(theme.palette.text.primary, 0.08)
       })}
     >
-      {active ? <Usb color="success" fontSize={'small'} /> : <UsbOff fontSize="small" />}
+      {hovered ? (
+        <Refresh fontSize="small" color={active ? 'success' : 'inherit'} />
+      ) : active ? (
+        <Usb color="success" fontSize="small" />
+      ) : (
+        <UsbOff fontSize="small" />
+      )}
     </Box>
   )
 })

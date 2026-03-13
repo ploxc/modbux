@@ -34,7 +34,8 @@
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
     "presentation": "npx playwright test --config playwright.presentation.config.ts",
-    "checkup": "yarn lint && yarn typecheck && yarn test && yarn test:e2e"
+    "checkup": "yarn lint && yarn typecheck && yarn test && yarn test:e2e",
+    "socat": "socat -d -d pty,raw,echo=0,link=/tmp/ttyV0 pty,raw,echo=0,link=/tmp/ttyV1"
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",

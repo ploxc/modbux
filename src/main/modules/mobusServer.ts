@@ -488,6 +488,20 @@ export class ModbusServer {
       })
       this._rtuUuid = uuid
 
+      // Catch open errors on _serverPath (SerialPort) — prevents unhandled promise rejection
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serverPath = (this._rtuServer as any)._serverPath
+      if (serverPath && typeof serverPath.on === 'function') {
+        serverPath.on('error', (err: Error) => {
+          this._rtuActive = false
+          this._emitMessage({
+            message: `RTU server error: ${err?.message ?? err}`,
+            variant: 'error'
+          })
+          this._windows.send('rtu_server_status', { active: false })
+        })
+      }
+
       this._rtuServer.on('initialized', () => {
         this._rtuActive = true
         this._emitMessage({
