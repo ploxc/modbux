@@ -11,6 +11,16 @@ vi.mock('modbus-serial', () => ({
   // Must use `function` (not arrow) so it can be called with `new`
   ServerTCP: vi.fn().mockImplementation(function () {
     return { close: vi.fn((cb: (err: Error | null) => void) => cb(null)) }
+  }),
+  ServerSerial: vi.fn().mockImplementation(function () {
+    const handlers: Record<string, (...args: unknown[]) => void> = {}
+    return {
+      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        handlers[event] = handler
+      }),
+      close: vi.fn((cb: (err: Error | null) => void) => cb(null)),
+      _handlers: handlers
+    }
   })
 }))
 
@@ -38,7 +48,7 @@ vi.mock('net', () => ({
 }))
 
 import { ModbusServer, SERVER_DEVICE_FAILURE, ILLEGAL_DATA_ADDRESS } from '../mobusServer'
-import { ServerTCP } from 'modbus-serial'
+import { ServerTCP, ServerSerial } from 'modbus-serial'
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
@@ -52,6 +62,7 @@ describe('ModbusServer', () => {
     vi.useFakeTimers()
     portAvailableResults = []
     vi.mocked(ServerTCP).mockClear()
+    vi.mocked(ServerSerial).mockClear()
     windows = createMockWindows()
     server = new ModbusServer({ windows })
   })
@@ -981,6 +992,235 @@ describe('ModbusServer', () => {
       const port = await server.setPort({ uuid, port: 5020 })
       expect(port).toBe(5020)
       expect(ServerTCP).toHaveBeenCalled()
+    })
+  })
+
+  describe('startRtuServer', () => {
+    const serialConfig = {
+      com: '/dev/ttyUSB0',
+      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+    }
+
+    it('creates a ServerSerial with correct config', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+
+      expect(ServerSerial).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          path: '/dev/ttyUSB0',
+          baudRate: 9600,
+          dataBits: 8,
+          stopBits: 1,
+          parity: 'none'
+        })
+      )
+    })
+
+    it('emits success message and status on initialized event', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+
+      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      instance._handlers['initialized']()
+
+      const statusCalls = getWindowCalls('rtu_server_status')
+      expect(statusCalls.some((c) => c[1].active === true)).toBe(true)
+
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.some((c) => c[1].message.includes('/dev/ttyUSB0'))).toBe(true)
+    })
+
+    it('emits error status on error event', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+
+      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      instance._handlers['error'](new Error('port gone'))
+
+      const statusCalls = getWindowCalls('rtu_server_status')
+      expect(statusCalls.some((c) => c[1].active === false)).toBe(true)
+
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.some((c) => c[1].message.includes('port gone'))).toBe(true)
+    })
+
+    it('skips start when COM port is empty', async () => {
+      await server.startRtuServer({
+        uuid,
+        serialConfig: { ...serialConfig, com: '  ' }
+      })
+
+      expect(ServerSerial).not.toHaveBeenCalled()
+    })
+
+    it('stops existing RTU server before starting new one', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const firstInstance = vi.mocked(ServerSerial).mock.results[0].value
+
+      await server.startRtuServer({ uuid, serialConfig })
+      expect(firstInstance.close).toHaveBeenCalled()
+      expect(vi.mocked(ServerSerial).mock.calls.length).toBe(2)
+    })
+
+    it('shares register data with TCP server via same vector', async () => {
+      // Add data, then start RTU — vector references same _serverData
+      server.addRegister({
+        uuid,
+        unitId,
+        littleEndian: false,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 42,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      await server.startRtuServer({ uuid, serialConfig })
+
+      // The vector passed to ServerSerial should read the same data
+      const vector = vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+      const cb = vi.fn()
+      await vector.getHoldingRegister!(0, 1, cb)
+      expect(cb).toHaveBeenCalledWith(null, 42)
+    })
+  })
+
+  describe('stopRtuServer', () => {
+    const serialConfig = {
+      com: '/dev/ttyUSB0',
+      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+    }
+
+    it('does nothing when no RTU server is running', async () => {
+      await server.stopRtuServer()
+      // No error, no events
+      expect(getWindowCalls('rtu_server_status').length).toBe(0)
+    })
+
+    it('closes the RTU server and emits inactive status', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+
+      await server.stopRtuServer()
+      expect(instance.close).toHaveBeenCalled()
+
+      const statusCalls = getWindowCalls('rtu_server_status')
+      expect(statusCalls.at(-1)![1].active).toBe(false)
+    })
+
+    it('emits warning message only when server was active', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+
+      // Simulate initialized → wasActive = true
+      instance._handlers['initialized']()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      await server.stopRtuServer()
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.some((c) => c[1].message === 'RTU server stopped')).toBe(true)
+    })
+
+    it('does not emit warning when server never became active', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      // Don't trigger initialized event
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      await server.stopRtuServer()
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.some((c) => c[1].message === 'RTU server stopped')).toBe(false)
+    })
+
+    it('silently ignores "Port is not open" errors', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      instance.close.mockImplementation((cb: (err: Error | null) => void) =>
+        cb(new Error('Port is not open'))
+      )
+
+      await server.stopRtuServer()
+      // No error message emitted
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.some((c) => c[1].variant === 'error')).toBe(false)
+    })
+  })
+
+  describe('stopAllTcpServers', () => {
+    it('closes all TCP servers and clears port map', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      await server.createServer({ uuid: 'uuid-2', port: 5021 })
+
+      await server.stopAllTcpServers()
+
+      // Both servers closed
+      const instances = vi.mocked(ServerTCP).mock.results
+      expect(instances[0].value.close).toHaveBeenCalled()
+      // Recreating should work without close call on old server
+      vi.mocked(ServerTCP).mockClear()
+      await server.createServer({ uuid, port: 5020 })
+      expect(vi.mocked(ServerTCP).mock.results[0].value.close).not.toHaveBeenCalled()
+    })
+
+    it('preserves server data after stopping all TCP servers', async () => {
+      await server.createServer({ uuid, port: 5020 })
+
+      server.addRegister({
+        uuid,
+        unitId,
+        littleEndian: false,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 42,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      await server.stopAllTcpServers()
+
+      // Start RTU on same UUID — data should still be accessible
+      await server.startRtuServer({
+        uuid,
+        serialConfig: {
+          com: '/dev/ttyUSB0',
+          options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
+        }
+      })
+
+      const vector = vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+      const cb = vi.fn()
+      await vector.getHoldingRegister!(0, 1, cb)
+      expect(cb).toHaveBeenCalledWith(null, 42)
+    })
+
+    it('handles empty server list', async () => {
+      await server.stopAllTcpServers()
+      // No error
+    })
+  })
+
+  describe('deleteServer with RTU', () => {
+    it('stops RTU server when deleting the RTU UUID', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      await server.startRtuServer({
+        uuid,
+        serialConfig: {
+          com: '/dev/ttyUSB0',
+          options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
+        }
+      })
+
+      const rtuInstance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+
+      await server.deleteServer(uuid)
+      expect(rtuInstance.close).toHaveBeenCalled()
     })
   })
 

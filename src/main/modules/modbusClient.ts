@@ -75,7 +75,11 @@ export class ModbusClient {
       .on('error', (error) => {
         this._clientState.connectState = 'disconnected'
         this._sendClientState()
-        this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+        this._emitMessage({
+          message: (error as Error).message || 'Connection error',
+          variant: 'error',
+          error: error
+        })
       })
       .on('close', () => {
         // If we were connected, go to 'connecting' and try to reconnect
