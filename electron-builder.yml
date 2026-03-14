@@ -42,6 +42,7 @@ linux:
     - AppImage
     - snap
     - deb
+  icon: build/icons/png
   maintainer: deketelaerejens@gmail.com
   category: Utility
 appImage:
