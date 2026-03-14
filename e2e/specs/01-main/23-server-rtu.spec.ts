@@ -24,7 +24,8 @@ const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-huawei-smartlogger.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
 
-const SOCAT_PATH = '/usr/local/bin/socat'
+const SOCAT_PATHS = ['/usr/local/bin/socat', '/usr/bin/socat']
+const SOCAT_PATH = SOCAT_PATHS.find((p) => existsSync(p)) ?? SOCAT_PATHS[0]
 const PTY_0 = '/tmp/ttyV0'
 const PTY_1 = '/tmp/ttyV1'
 const hasSocat = existsSync(SOCAT_PATH)
