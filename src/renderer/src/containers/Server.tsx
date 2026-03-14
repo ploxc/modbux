@@ -15,7 +15,7 @@ const ServerName = meme(() => {
   return (
     <TextField
       data-testid="server-name-input"
-      sx={{ flex: 1, minWidth: 200 }}
+      sx={{ flex: 1, minWidth: 160 }}
       size="small"
       // variant="filled"
       color="primary"

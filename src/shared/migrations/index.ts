@@ -2,6 +2,7 @@ export type { MigrationResult } from './types'
 export { migrateServerConfig, CURRENT_SERVER_CONFIG_VERSION } from './server/config'
 export {
   migrateServerRegistersState,
+  migrateServerModeState,
   migrateBoolShape,
   CURRENT_SERVER_ZUSTAND_VERSION
 } from './server/zustand'

@@ -1,6 +1,6 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
 
-export const CURRENT_SERVER_ZUSTAND_VERSION = 2
+export const CURRENT_SERVER_ZUSTAND_VERSION = 3
 
 interface V1ZustandServerState {
   serverRegisters?: Record<string, V1ServerRegistersPerUnit | undefined>
@@ -35,6 +35,28 @@ export function migrateBoolShape(
       }
     }
   }
+}
+
+/**
+ * Migrate server Zustand state from v1 (littleEndian per register) to v2 (global littleEndian).
+ * Also converts old boolean shape to { value: boolean } entries.
+ * Used by Zustand persist middleware.
+ */
+/**
+ * Migrate server Zustand state from v2 to v3: add serverMode and serialConfig defaults.
+ */
+export function migrateServerModeState(state: Record<string, unknown>): Record<string, unknown> {
+  const migrated = { ...state }
+  if (!migrated.serverMode) {
+    migrated.serverMode = 'tcp'
+  }
+  if (!migrated.serialConfig) {
+    migrated.serialConfig = {
+      com: '',
+      options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
+    }
+  }
+  return migrated
 }
 
 /**

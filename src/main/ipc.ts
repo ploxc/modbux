@@ -88,6 +88,11 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   ipcHandle('create_server', (_, params) => server.createServer(params))
   ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid))
 
+  // RTU Server
+  ipcHandle('start_rtu_server', (_, params) => server.startRtuServer(params))
+  ipcHandle('stop_rtu_server', () => server.stopRtuServer())
+  ipcHandle('stop_all_tcp_servers', () => server.stopAllTcpServers())
+
   // App Version
   ipcHandle('get_app_version', () => app.getVersion())
 

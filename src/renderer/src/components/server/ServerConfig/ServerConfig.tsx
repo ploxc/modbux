@@ -1,6 +1,3 @@
-//
-//
-
 import FormControl from '@mui/material/FormControl'
 import {
   TextField,
@@ -13,13 +10,44 @@ import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { checkHasConfig } from '@shared'
+import { checkHasConfig, ServerMode } from '@shared'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import Select from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
 import React, { useState } from 'react'
+import ServerRtuConfig from './ServerRtuConfig'
+
+const ModeToggle = meme(() => {
+  const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
+
+  const handleModeChange = async (_: React.MouseEvent, value: ServerMode | null): Promise<void> => {
+    if (!value || value === serverMode) return
+    if (value === 'rtu') {
+      await useServerZustand.getState().switchToRtu()
+    } else {
+      await useServerZustand.getState().switchToTcp()
+    }
+  }
+
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      color="primary"
+      value={serverMode}
+      onChange={handleModeChange}
+    >
+      <ToggleButton data-testid="server-mode-tcp-btn" value="tcp">
+        TCP
+      </ToggleButton>
+      <ToggleButton data-testid="server-mode-rtu-btn" value="rtu">
+        RTU
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+})
 
 const EndianToggle = meme(() => {
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
@@ -94,7 +122,7 @@ const UnitId = meme(() => {
   const labelId = 'unit-id-select'
 
   return (
-    <FormControl size="small">
+    <FormControl size="small" sx={{ minWidth: 80 }}>
       <InputLabel id={labelId}>Unit ID</InputLabel>
       <Select
         data-testid="server-unitid-select"
@@ -106,7 +134,6 @@ const UnitId = meme(() => {
           const result = UnitIdStringSchema.safeParse(e.target.value)
           if (result.success) useServerZustand.getState().setUnitId(result.data)
         }}
-        // sx={{ width: 80 }}
         slotProps={{ input: { sx: { pr: 0, pl: 1 } } }}
       >
         {UnitIdStringSchema.options.map((unitId) => (
@@ -142,9 +169,10 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
         setLocalPort(value)
       }}
       onBlur={() => {
-        // Only call set if the value is different from the store
         if (localPort !== portFromStore) {
-          set(localPort, localPort.length > 0)
+          set(localPort)
+          // Reset to store value — the store will update if backend succeeds
+          setLocalPort(portFromStore)
         }
       }}
     />
@@ -158,12 +186,10 @@ PortInput.displayName = 'PortInput'
 // Port
 const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
-  const portValid = useServerZustand((z) => z.portValid[z.selectedUuid])
 
   return (
     <TextField
       data-testid="server-port-input"
-      error={!portValid}
       label={`Port ${port}`}
       variant="outlined"
       size="small"
@@ -185,11 +211,14 @@ const Port = meme(() => {
 //
 // Server Config
 const ServerConfig = (): JSX.Element => {
+  const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
+
   return (
-    <Box sx={{ display: 'flex', gap: 2, ml: 'auto' }}>
+    <Box sx={{ display: 'flex', gap: 2, ml: 'auto', alignItems: 'flex-start' }}>
+      {serverMode === 'tcp' ? <Port /> : <ServerRtuConfig />}
+      <ModeToggle />
       <EndianToggle />
       <UnitId />
-      <Port />
     </Box>
   )
 }

@@ -20,6 +20,7 @@ const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
 })
 
 const SelectServer = meme(() => {
+  const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
   const serverUuids = useServerZustand((z) => z.uuids)
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
   const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 10)
@@ -35,6 +36,8 @@ const SelectServer = meme(() => {
     const z = useServerZustand.getState()
     z.deleteServer(z.selectedUuid)
   }, [])
+
+  if (serverMode === 'rtu') return null
 
   return (
     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>

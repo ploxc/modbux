@@ -157,11 +157,11 @@ export const notEmpty = (value: number | string): boolean =>
 
 export const humanizeSerialError = (error: Error, port?: string): string => {
   const prefix = port ? `${port}: ` : ''
-  const msg = error.message.toLowerCase()
+  const msg = (error.message || '').toLowerCase()
   if (msg.includes('file not found')) return `${prefix}Port not found or not available`
   if (msg.includes('access denied') || msg.includes('permission denied'))
     return `${prefix}Port access denied (already in use?)`
-  return error.message
+  return error.message || `Connection failed${error['code'] ? ` (${error['code']})` : ''}`
 }
 
 export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
@@ -203,7 +203,7 @@ export function getAddressFitError(
 
 export const findAvailablePort = (usedPorts: number[]): number | undefined => {
   const MIN_PORT = 502
-  const MAX_PORT = 1000
+  const MAX_PORT = 10502
 
   const usedSet = new Set(usedPorts)
 

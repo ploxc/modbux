@@ -1,116 +1,19 @@
-import {
-  Autocomplete,
-  Box,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup
-} from '@mui/material'
+import { Autocomplete, Box, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { CheckCircleOutline, Refresh } from '@mui/icons-material'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import {
+  BaudRateSelect,
+  ComOption,
+  ComTextField,
+  DataBitsSelect,
+  ParitySelect,
+  StopBitsSelect,
+  useComInputWidth
+} from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
-import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
-import { AutocompleteRenderInputParams } from '@mui/material'
+import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
-import { useEffect, useMemo } from 'react'
-
-const measureTextWidth = (
-  text: string,
-  font: string = '400 0.85rem Roboto, sans-serif'
-): number => {
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
-  if (context) {
-    context.font = font
-    return context.measureText(text).width
-  }
-  return 0
-}
-
-const ComTextField = meme((params: AutocompleteRenderInputParams) => {
-  const comValid = useRootZustand((z) => z.valid.com)
-  const loading = useRootZustand((z) => z.serialPortsLoading)
-
-  return (
-    <TextField
-      {...params}
-      label="COM Port"
-      variant="outlined"
-      size="small"
-      title={params.inputProps.value as string}
-      sx={{
-        '& .MuiOutlinedInput-root': {
-          borderTopRightRadius: 0,
-          borderBottomRightRadius: 0
-        },
-        '& .MuiOutlinedInput-input': {
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }
-      }}
-      error={!comValid}
-      slotProps={{
-        input: {
-          ...params.InputProps,
-          endAdornment: (
-            <>
-              {loading ? <CircularProgress size={16} /> : null}
-              {params.InputProps.endAdornment}
-            </>
-          )
-        }
-      }}
-    />
-  )
-})
-
-//
-//
-// COM Port Option
-const ComOption = meme(
-  ({ option, ...props }: { option: string } & React.HTMLAttributes<HTMLLIElement>) => {
-    const manufacturer = useRootZustand(
-      (z) => z.serialPorts.find((p) => p.path === option)?.manufacturer
-    )
-
-    return (
-      <li {...props} key={option}>
-        <Box sx={{ width: '100%' }} title={option}>
-          <Box
-            sx={{
-              fontSize: '0.85rem',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              width: '100%'
-            }}
-          >
-            {option}
-          </Box>
-          {manufacturer && (
-            <Box
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                width: '100%'
-              }}
-            >
-              {manufacturer}
-            </Box>
-          )}
-        </Box>
-      </li>
-    )
-  }
-)
+import { useEffect } from 'react'
 
 //
 //
@@ -118,18 +21,10 @@ const ComOption = meme(
 const ComInput = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const com = useRootZustand((z) => z.connectionConfig.rtu.com)
+  const comValid = useRootZustand((z) => z.valid.com)
+  const loading = useRootZustand((z) => z.serialPortsLoading)
   const ports = useRootZustand((z) => z.serialPorts)
-
-  const inputWidth = useMemo(() => {
-    let textWidth = 60
-
-    for (const port of ports) {
-      const newTextWidth = measureTextWidth(port.path || 'COM Port')
-      if (newTextWidth > textWidth) textWidth = newTextWidth
-    }
-
-    return Math.max(60, textWidth + 60)
-  }, [ports])
+  const inputWidth = useComInputWidth(ports)
 
   return (
     <Autocomplete
@@ -145,8 +40,13 @@ const ComInput = meme(() => {
         if (newValue) useRootZustand.getState().setCom(newValue, true)
       }}
       sx={{ width: inputWidth, maxWidth: 220 }}
-      renderInput={(params) => <ComTextField {...params} />}
-      renderOption={(props, option) => <ComOption {...props} option={option} />}
+      renderInput={(params) => (
+        <ComTextField {...params} comLabel="COM Port" comError={!comValid} comLoading={loading} />
+      )}
+      renderOption={(props, option) => {
+        const manufacturer = ports.find((p) => p.path === option)?.manufacturer
+        return <ComOption {...props} option={option} manufacturer={manufacturer} />
+      }}
     />
   )
 })
@@ -233,155 +133,56 @@ const Com = (): JSX.Element => {
 
 //
 //
-// Baud Rate
-const BaudRateSelect = meme(() => {
+// Selects (thin wrappers over shared components)
+const ClientBaudRateSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-
-  const labelId = 'baud-rate-select'
   const baudRate = useRootZustand((z) => z.connectionConfig.rtu.options.baudRate)
   const setBaudRate = useRootZustand((z) => z.setBaudRate)
 
-  return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Baud Rate</InputLabel>
-
-      <Select
-        disabled={disabled}
-        size="small"
-        labelId={labelId}
-        value={baudRate}
-        label="Baud Rate"
-        onChange={(e) => setBaudRate(e.target.value as ModbusBaudRate)}
-        sx={{ width: 100 }}
-        data-testid="rtu-baudrate-select"
-      >
-        {ModbusBaudRateSchema.options.map((value) => (
-          <MenuItem key={`baud_rate_${value}`} value={value}>
-            {value}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  )
+  return <BaudRateSelect value={baudRate} onChange={setBaudRate} disabled={disabled} />
 })
 
-//
-//
-// Parity
-const parityOptions: SerialPortOptions['parity'][] = ['none', 'even', 'odd', 'mark', 'space']
-
-const ParitySelect = meme(() => {
+const ClientParitySelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-
-  const labelId = 'parity-select'
-  const parity = useRootZustand((z) => z.connectionConfig.rtu.options.parity)
+  const parity = useRootZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
   const setParity = useRootZustand((z) => z.setParity)
 
   return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Parity</InputLabel>
-
-      <Select
-        disabled={disabled}
-        size="small"
-        labelId={labelId}
-        value={parity}
-        label="Parity"
-        onChange={(e) => setParity(e.target.value as SerialPortOptions['parity'])}
-        sx={{ width: 85 }}
-        data-testid="rtu-parity-select"
-      >
-        {parityOptions.map((option) => (
-          <MenuItem key={`parity_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <ParitySelect
+      value={parity}
+      onChange={(v) => setParity(v as SerialPortOptions['parity'])}
+      disabled={disabled}
+    />
   )
 })
 
-//
-//
-// Data Bits
-const databitsOptions: SerialPortOptions['dataBits'][] = [8, 7, 6, 5]
-
-const DataBitsSelect = meme(() => {
+const ClientDataBitsSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-
-  const labelId = 'databits-select'
   const dataBits = useRootZustand((z) => z.connectionConfig.rtu.options.dataBits)
   const setDataBits = useRootZustand((z) => z.setDataBits)
 
-  return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Data</InputLabel>
-
-      <Select
-        disabled={disabled}
-        size="small"
-        labelId={labelId}
-        value={dataBits}
-        label="Data Bits"
-        onChange={(e) => setDataBits(Number(e.target.value))}
-        sx={{ width: 55 }}
-        data-testid="rtu-databits-select"
-      >
-        {databitsOptions.map((option) => (
-          <MenuItem key={`databits_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  )
+  return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
 })
 
-//
-//
-// Stop Bits
-const StopBitsOptions: SerialPortOptions['stopBits'][] = [1, 2]
-const StopBitsSelect = meme(() => {
+const ClientStopBitsSelect = meme(() => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-
-  const labelId = 'stopbits-select'
   const stopBits = useRootZustand((z) => z.connectionConfig.rtu.options.stopBits)
   const setStopBits = useRootZustand((z) => z.setStopBits)
 
-  return (
-    <FormControl size="small">
-      <InputLabel id={labelId}>Stop</InputLabel>
-      <Select
-        disabled={disabled}
-        size="small"
-        labelId={labelId}
-        value={stopBits}
-        label="Stop Bits"
-        onChange={(e) => setStopBits(Number(e.target.value))}
-        sx={{ width: 55 }}
-        data-testid="rtu-stopbits-select"
-      >
-        {StopBitsOptions.map((option) => (
-          <MenuItem key={`stopbits_${option}`} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  )
+  return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
 })
 
 const RtuConfig = (): JSX.Element => {
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 2 }}>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
         <Com />
-        <BaudRateSelect />
+        <ClientBaudRateSelect />
       </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 2 }}>
-        <ParitySelect />
-        <DataBitsSelect />
-        <StopBitsSelect />
+      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
+        <ClientParitySelect />
+        <ClientDataBitsSelect />
+        <ClientStopBitsSelect />
       </Box>
     </Box>
   )

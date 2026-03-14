@@ -185,7 +185,7 @@ const OpenSaveClear = meme(() => {
   }, [])
 
   return (
-    <Box sx={{ display: 'flex', gap: 1 }}>
+    <Box sx={{ display: 'flex', gap: 0 }}>
       <div>
         {!opening && (
           <input
@@ -206,7 +206,7 @@ const OpenSaveClear = meme(() => {
             component="span"
             title="Open configuration"
           >
-            <FileOpen />
+            <FileOpen fontSize="small" />
           </IconButton>
         </label>
       </div>
@@ -218,7 +218,7 @@ const OpenSaveClear = meme(() => {
         disabled={opening}
         onClick={save}
       >
-        <Save />
+        <Save fontSize="small" />
       </IconButton>
       <IconButton
         data-testid="server-clear-btn"
@@ -228,7 +228,7 @@ const OpenSaveClear = meme(() => {
         disabled={opening}
         onClick={clear}
       >
-        <Delete />
+        <Delete fontSize="small" />
       </IconButton>
     </Box>
   )

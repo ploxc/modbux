@@ -27,12 +27,13 @@ Available for Windows and macOS
 - Scan Unit IDs and register ranges
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
-- Modbus TCP and RTU support with automatic COM port discovery
+- Modbus TCP (with hostname/IP) and RTU support with automatic COM port discovery
 - Configuration save/load (JSON)
 
 **Server Mode:**
 
-- Simulate up to 10 Modbus devices
+- Modbus TCP and RTU server modes (serial port, USB converters, socat virtual pairs)
+- Simulate up to 10 Modbus devices (TCP mode)
 - 256 Unit IDs per server (0-255)
 - 12 data types: numeric registers, bitmap, UTF-8 strings, Unix timestamps, and IEC 870-5 datetime
 - Static or random value generation with configurable intervals
@@ -168,9 +169,32 @@ yarn build:win
 # For macOS
 yarn build:mac
 
-# For Linux (not tested — let me know if it works!)
+# For Linux
 yarn build:linux
 ```
+
+> **Linux notes:**
+>
+> The default Modbus port (502) requires elevated access. To allow binding without sudo:
+>
+> ```bash
+> sudo sysctl net.ipv4.ip_unprivileged_port_start=502
+> ```
+>
+> To persist across reboots:
+>
+> ```bash
+> echo 'net.ipv4.ip_unprivileged_port_start=502' | sudo tee /etc/sysctl.d/50-unprivileged-ports.conf
+> sudo sysctl --system
+> ```
+>
+> For serial port access (RTU mode), add your user to the `dialout` group:
+>
+> ```bash
+> sudo usermod -aG dialout $USER
+> ```
+>
+> Log out and back in for it to take effect.
 
 ## Contributing
 
