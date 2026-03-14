@@ -169,9 +169,32 @@ yarn build:win
 # For macOS
 yarn build:mac
 
-# For Linux (not tested — let me know if it works!)
+# For Linux
 yarn build:linux
 ```
+
+> **Linux notes:**
+>
+> The default Modbus port (502) requires elevated access. To allow binding without sudo:
+>
+> ```bash
+> sudo sysctl net.ipv4.ip_unprivileged_port_start=502
+> ```
+>
+> To persist across reboots:
+>
+> ```bash
+> echo 'net.ipv4.ip_unprivileged_port_start=502' | sudo tee /etc/sysctl.d/50-unprivileged-ports.conf
+> sudo sysctl --system
+> ```
+>
+> For serial port access (RTU mode), add your user to the `dialout` group:
+>
+> ```bash
+> sudo usermod -aG dialout $USER
+> ```
+>
+> Log out and back in for it to take effect.
 
 ## Contributing
 
