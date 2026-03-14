@@ -151,15 +151,18 @@ export class ModbusServer {
 
   /**
    * Checks if a TCP port is available for binding.
+   * Returns an object with availability and optional error code (e.g. EACCES, EADDRINUSE).
    */
-  private async _isPortAvailable(port: number): Promise<boolean> {
+  private async _isPortAvailable(
+    port: number
+  ): Promise<{ available: boolean; errorCode?: string }> {
     return new Promise((resolve) => {
       const tester = net.createServer()
-      tester.once('error', () => {
-        resolve(false)
+      tester.once('error', (err: NodeJS.ErrnoException) => {
+        resolve({ available: false, errorCode: err.code })
       })
       tester.once('listening', () => {
-        tester.close(() => resolve(true))
+        tester.close(() => resolve({ available: true }))
       })
       tester.listen(port, '0.0.0.0')
     })
@@ -173,7 +176,7 @@ export class ModbusServer {
    */
   public createServer = async ({ uuid, port }: CreateServerParams): Promise<number> => {
     let actualPort = port ?? DEFAULT_MOBUS_PORT
-    const maxAttempts = 100
+    const maxAttempts = 10000
     let server: ServerTCP | undefined
 
     const existingServer = this._servers.get(uuid)
@@ -190,8 +193,8 @@ export class ModbusServer {
     }
 
     for (let i = 0; i < maxAttempts; i++) {
-      const isAvailable = await this._isPortAvailable(actualPort)
-      if (isAvailable) {
+      const result = await this._isPortAvailable(actualPort)
+      if (result.available) {
         server = new ServerTCP(this._getVector(uuid), {
           host: '0.0.0.0',
           port: actualPort
@@ -216,7 +219,7 @@ export class ModbusServer {
       variant: 'error',
       error: undefined
     })
-    throw new Error('No available port found')
+    return actualPort
   }
 
   /**
@@ -580,11 +583,43 @@ export class ModbusServer {
   }
 
   /**
-   * Sets the port for a given server UUID by recreating the server on the new port.
-   * Returns the actual port used (may differ from requested if taken).
+   * Sets the port for a given server UUID. Strict: only tries the exact port,
+   * no auto-increment. Emits error message on failure and returns the current port.
    */
   public setPort = async ({ uuid, port }: CreateServerParams): Promise<number> => {
-    return this.createServer({ uuid, port })
+    const requestedPort = port ?? DEFAULT_MOBUS_PORT
+    const currentPort = this._port.get(uuid) ?? requestedPort
+    const result = await this._isPortAvailable(requestedPort)
+    if (!result.available) {
+      const message =
+        result.errorCode === 'EACCES'
+          ? `Port ${requestedPort} requires elevated privileges`
+          : `Port ${requestedPort} is already in use`
+      this._emitMessage({ message, variant: 'error' })
+      return currentPort
+    }
+
+    // Port is confirmed available — now close the existing server
+    const existingServer = this._servers.get(uuid)
+    if (existingServer) {
+      await new Promise<void>((resolve) => {
+        existingServer.close((err) => {
+          if (err)
+            this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
+          resolve()
+        })
+      })
+      this._servers.delete(uuid)
+      this._port.delete(uuid)
+    }
+
+    const server = new ServerTCP(this._getVector(uuid), {
+      host: '0.0.0.0',
+      port: requestedPort
+    })
+    this._servers.set(uuid, server)
+    this._port.set(uuid, requestedPort)
+    return requestedPort
   }
 
   // -------------------------------------------------------------------------

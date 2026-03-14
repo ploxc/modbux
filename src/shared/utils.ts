@@ -203,7 +203,7 @@ export function getAddressFitError(
 
 export const findAvailablePort = (usedPorts: number[]): number | undefined => {
   const MIN_PORT = 502
-  const MAX_PORT = 1000
+  const MAX_PORT = 10502
 
   const usedSet = new Set(usedPorts)
 

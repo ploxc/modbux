@@ -73,7 +73,6 @@ export const useServerZustand = create<
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [MAIN_SERVER_UUID],
       port: { [MAIN_SERVER_UUID]: '502' },
-      portValid: { [MAIN_SERVER_UUID]: true },
       unitId: { [MAIN_SERVER_UUID]: undefined },
       serverRegisters: { [MAIN_SERVER_UUID]: undefined },
       usedAddresses: { [MAIN_SERVER_UUID]: undefined },
@@ -104,7 +103,6 @@ export const useServerZustand = create<
           Object.keys(state.port).forEach((uuid) => {
             if (!uuids.includes(uuid)) {
               delete state.port[uuid]
-              delete state.portValid[uuid]
               delete state.unitId[uuid]
               delete state.serverRegisters[uuid]
               delete state.usedAddresses[uuid]
@@ -123,7 +121,6 @@ export const useServerZustand = create<
 
         set((state) => {
           state.port[uuid] = String(actualPort)
-          state.portValid[uuid] = true
           state.ready[uuid] = true
           get().clean(uuid)
           state.uuids.push(uuid)
@@ -137,7 +134,6 @@ export const useServerZustand = create<
           state.uuids = state.uuids.filter((u) => u !== uuid)
           if (state.selectedUuid === uuid) state.selectedUuid = state.uuids[0]
           delete state.port[uuid]
-          delete state.portValid[uuid]
           delete state.unitId[uuid]
           delete state.serverRegisters[uuid]
           delete state.usedAddresses[uuid]
@@ -216,7 +212,7 @@ export const useServerZustand = create<
 
           for (const syncUuid of uuidsToSync) {
             const port = Number(state.port[syncUuid])
-            const actualPort = await window.api.setServerPort({ uuid: syncUuid, port })
+            const actualPort = await window.api.createServer({ uuid: syncUuid, port })
 
             set((state) => {
               state.port[syncUuid] = String(actualPort)
@@ -444,28 +440,20 @@ export const useServerZustand = create<
           state.usedAddresses[uuid][unitId][registerType] = []
         })
       },
-      setPort: async (port, valid) => {
+      setPort: async (port) => {
         const currentState = get()
         const uuid = currentState.selectedUuid
         if (!currentState.ready[uuid]) return
 
-        const { port: currentPorts, selectedUuid } = get() // removed unused uuids
+        const { port: currentPorts, selectedUuid } = get()
 
         get().cleanOrphanedServerState()
 
-        // Port cannot be already used for a server
+        // Port cannot be already used for another server
         const portAlreadyExists = Object.values(currentPorts).includes(port)
         const portIsMyPort = port === currentPorts[selectedUuid]
-
-        console.log({ portAlreadyExists, portIsMyPort, port, selectedUuid, currentPorts })
-
-        if (portIsMyPort) valid = true // If this is my port, it is always valid
-        if (portAlreadyExists && !portIsMyPort) valid = false
-
-        set((state) => {
-          state.portValid[uuid] = !!valid
-        })
-        if (!valid) return
+        if (portAlreadyExists && !portIsMyPort) return
+        if (portIsMyPort) return
 
         // Only update port from backend response
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
@@ -618,7 +606,6 @@ export const useServerZustand = create<
       partialize: (state) => ({
         name: state.name,
         port: state.port,
-        portValid: state.portValid,
         selectedUuid: state.selectedUuid,
         serverRegisters: state.serverRegisters,
         unitId: state.unitId,

@@ -31,7 +31,6 @@ export const PersistedServerZustandSchema = z.object({
   port: z.record(z.string(), z.string()),
   unitId: z.record(z.string(), z.union([UnitIdStringSchema, z.undefined()])),
   name: z.record(z.string(), z.string().optional()),
-  portValid: z.record(z.string(), z.boolean()),
   littleEndian: z.record(z.string(), z.boolean()),
   serverMode: ServerModeSchema.optional(),
   serialConfig: ServerSerialConfigSchema.optional()

@@ -60,11 +60,11 @@ describe('findAvailablePort', () => {
   })
 
   it('wraps around when high ports are taken but low ports are free', () => {
-    expect(findAvailablePort([999, 1000])).toBe(502)
+    expect(findAvailablePort([10501, 10502])).toBe(502)
   })
 
-  it('returns undefined when all ports 502-1000 are taken', () => {
-    const allPorts = Array.from({ length: 499 }, (_, i) => 502 + i)
+  it('returns undefined when all ports 502-10502 are taken', () => {
+    const allPorts = Array.from({ length: 10502 - 502 + 1 }, (_, i) => 502 + i)
     expect(findAvailablePort(allPorts)).toBeUndefined()
   })
 
@@ -73,7 +73,7 @@ describe('findAvailablePort', () => {
   })
 
   it('clamps start to MAX_PORT when used ports exceed range', () => {
-    expect(findAvailablePort([2000, 3000])).toBe(1000)
+    expect(findAvailablePort([20000, 30000])).toBe(10502)
   })
 })
 

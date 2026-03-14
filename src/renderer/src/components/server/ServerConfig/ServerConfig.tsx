@@ -169,9 +169,10 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
         setLocalPort(value)
       }}
       onBlur={() => {
-        // Only call set if the value is different from the store
         if (localPort !== portFromStore) {
-          set(localPort, localPort.length > 0)
+          set(localPort)
+          // Reset to store value — the store will update if backend succeeds
+          setLocalPort(portFromStore)
         }
       }}
     />
@@ -185,12 +186,10 @@ PortInput.displayName = 'PortInput'
 // Port
 const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
-  const portValid = useServerZustand((z) => z.portValid[z.selectedUuid])
 
   return (
     <TextField
       data-testid="server-port-input"
-      error={!portValid}
       label={`Port ${port}`}
       variant="outlined"
       size="small"

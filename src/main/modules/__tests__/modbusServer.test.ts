@@ -4,7 +4,8 @@ import type { UnitIdString, Windows } from '@shared'
 import type { IServiceVector } from 'modbus-serial/ServerTCP'
 
 // Configurable port availability for net mock
-let portAvailableResults: boolean[] = []
+// Each entry is either a boolean (true=available) or a string error code (e.g. 'EACCES', 'EADDRINUSE')
+let portAvailableResults: (boolean | string)[] = []
 
 // Mock modbus-serial before importing ModbusServer
 vi.mock('modbus-serial', () => ({
@@ -34,11 +35,13 @@ vi.mock('net', () => ({
           handlers[event] = handler
         }),
         listen: vi.fn(() => {
-          const available = portAvailableResults.length > 0 ? portAvailableResults.shift()! : true
-          if (available && handlers['listening']) {
+          const entry = portAvailableResults.length > 0 ? portAvailableResults.shift()! : true
+          if (entry === true && handlers['listening']) {
             handlers['listening']()
           } else if (handlers['error']) {
-            handlers['error']()
+            const errorCode = typeof entry === 'string' ? entry : 'EADDRINUSE'
+            const err = Object.assign(new Error(`listen ${errorCode}`), { code: errorCode })
+            handlers['error'](err)
           }
         }),
         close: vi.fn((cb: () => void) => cb())
@@ -884,11 +887,10 @@ describe('ModbusServer', () => {
       expect(messages.some((m) => m[1].message === 'Error closing server')).toBe(true)
     })
 
-    it('throws when no port available after 100 attempts', async () => {
-      portAvailableResults = new Array(100).fill(false)
-      await expect(server.createServer({ uuid, port: 5020 })).rejects.toThrow(
-        'No available port found'
-      )
+    it('emits error and returns port when no port available after max attempts', async () => {
+      portAvailableResults = new Array(10000).fill(false)
+      const port = await server.createServer({ uuid, port: 5020 })
+      expect(port).toBe(15020) // 5020 + 10000
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
     })
@@ -988,10 +990,56 @@ describe('ModbusServer', () => {
   })
 
   describe('setPort', () => {
-    it('delegates to createServer', async () => {
+    it('sets the exact port when available', async () => {
       const port = await server.setPort({ uuid, port: 5020 })
       expect(port).toBe(5020)
-      expect(ServerTCP).toHaveBeenCalled()
+      expect(ServerTCP).toHaveBeenCalledWith(expect.any(Object), {
+        host: '0.0.0.0',
+        port: 5020
+      })
+    })
+
+    it('emits EACCES error and returns current port for privileged port', async () => {
+      // First create a server on a working port
+      await server.createServer({ uuid, port: 5020 })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      portAvailableResults = ['EACCES']
+      const port = await server.setPort({ uuid, port: 502 })
+      expect(port).toBe(5020) // Returns current port, not requested
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Port 502 requires elevated privileges')).toBe(
+        true
+      )
+    })
+
+    it('emits EADDRINUSE error and returns current port when port is taken', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      portAvailableResults = ['EADDRINUSE']
+      const port = await server.setPort({ uuid, port: 5021 })
+      expect(port).toBe(5020) // Returns current port
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Port 5021 is already in use')).toBe(true)
+    })
+
+    it('does not auto-increment on unavailable port', async () => {
+      portAvailableResults = [false]
+      const port = await server.setPort({ uuid, port: 5020 })
+      expect(port).toBe(5020) // Returns requested port (no current server)
+      // ServerTCP should never have been called
+      expect(ServerTCP).not.toHaveBeenCalled()
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Port 5020 is already in use')).toBe(true)
+    })
+
+    it('closes existing server before binding new port', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+
+      await server.setPort({ uuid, port: 5021 })
+      expect(firstInstance.close).toHaveBeenCalled()
     })
   })
 
