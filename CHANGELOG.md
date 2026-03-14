@@ -5,7 +5,7 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-03-13
+## [2.1.0] - 2026-03-14
 
 ### Added
 
@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All register types, value generators, and booleans work the same as TCP
 
 - **Hostname/IP support for TCP client** — connection config now accepts any hostname or IP address instead of only `localhost`
+
+- **Linux support** — verified builds and packaging for Linux (`.deb`, `.AppImage`)
+  - Privileged port errors (EACCES on port 502) handled gracefully with clear error messages
+  - Linux icon path configured for correct app icons
+  - README updated with Linux-specific setup notes (unprivileged ports, serial `dialout` group)
 
 ---
 
