@@ -17,7 +17,7 @@ const createMockModbusRTU = () => ({
   setID: vi.fn(),
   connectTCP: vi.fn().mockResolvedValue(undefined),
   connectRTUBuffered: vi.fn().mockResolvedValue(undefined),
-  connectTcpRTUBuffered: vi.fn().mockResolvedValue(undefined),
+  connectTelnet: vi.fn().mockResolvedValue(undefined),
   close: vi.fn((cb: () => void) => cb()),
   destroy: vi.fn((cb: () => void) => cb()),
   readCoils: vi.fn().mockResolvedValue(undefined),
@@ -155,14 +155,17 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.connectTCP).not.toHaveBeenCalled()
     })
 
-    it('uses encapsulated RTU over TCP when protocol is ModbusRtuOverTcp', async () => {
+    it('uses encapsulated RTU over TCP (raw RTU frames via connectTelnet) when protocol is ModbusRtuOverTcp', async () => {
       appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp' })
-      mockModbusRTU.connectTcpRTUBuffered.mockResolvedValue(undefined)
+      mockModbusRTU.connectTelnet.mockResolvedValue(undefined)
 
       await client.connect()
 
-      expect(mockModbusRTU.connectTcpRTUBuffered).toHaveBeenCalledWith('192.168.1.10', {
-        port: 502
+      // connectTelnet sends the RTU frame (with CRC) unchanged over TCP.
+      // connectTCP / connectTcpRTUBuffered would speak MBAP (plain Modbus TCP).
+      expect(mockModbusRTU.connectTelnet).toHaveBeenCalledWith('192.168.1.10', {
+        port: 502,
+        timeout: 5000
       })
       expect(mockModbusRTU.connectTCP).not.toHaveBeenCalled()
       expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()

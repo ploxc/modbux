@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RTU over TCP client mode** — new "RTU over TCP" option for serial-to-Ethernet gateways
-  (encapsulated RTU: a full RTU frame with CRC sent over a TCP socket)
+- **RTU over TCP client mode** — connect to serial-to-Ethernet gateways that carry
+  encapsulated RTU (a full RTU frame with CRC sent over a TCP socket)
   - Enabled via a checkbox in the ⚙ options menu, shown only when TCP is selected
   - Reuses the TCP host/port inputs and the unit ID field
-  - Connects via `connectTcpRTUBuffered`, which serialises polling more reliably than Telnet
 
 ## [2.1.0] - 2026-03-14
 

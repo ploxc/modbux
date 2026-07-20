@@ -216,11 +216,15 @@ export class ModbusClient {
       if (protocol === 'ModbusTcp') {
         await this._client.connectTCP(host, tcpOptions)
       } else if (protocol === 'ModbusRtuOverTcp') {
-        // Encapsulated RTU: a full RTU frame (with CRC) over a TCP socket,
-        // used with serial-to-Ethernet gateways in transparent mode.
-        // Prefer connectTcpRTUBuffered over connectTelnet, which throws
-        // TransactionTimedOutError under repeated/multi-register polling.
-        await this._client.connectTcpRTUBuffered(host, { port: tcpOptions.port })
+        // Encapsulated RTU: a full RTU frame (with CRC) sent raw over a TCP
+        // socket, for serial-to-Ethernet gateways in transparent mode.
+        // connectTelnet writes the RTU frame unchanged; connectTcpRTUBuffered
+        // would instead rewrap it as MBAP (i.e. plain Modbus TCP), which is
+        // not RTU over TCP.
+        await this._client.connectTelnet(host, {
+          port: tcpOptions.port,
+          timeout: tcpOptions.timeout
+        })
       } else {
         await this._client.connectRTUBuffered(com, {
           baudRate: Number(rtuOptions.baudRate),
