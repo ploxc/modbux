@@ -14,8 +14,8 @@ import Popover from '@mui/material/Popover'
 const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (
     <FormGroup>
-      <MenuConnectionOptions />
       <MenuRegisterOptions />
+      <MenuConnectionOptions />
       <ScanUnitIds />
       <ScanRegistersButton setAnchor={setAnchor} />
       <LoadDummyDataButton setAnchor={setAnchor} />

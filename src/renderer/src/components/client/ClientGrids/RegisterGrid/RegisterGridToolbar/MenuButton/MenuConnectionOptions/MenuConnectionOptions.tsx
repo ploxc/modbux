@@ -1,7 +1,6 @@
-import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
+import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import Typography from '@mui/material/Typography'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
 // RTU over TCP (encapsulated RTU) is a niche, TCP-family transport, so it lives
@@ -16,7 +15,7 @@ const MenuConnectionOptions = (): JSX.Element | null => {
   const rtuOverTcp = protocol === 'ModbusRtuOverTcp'
 
   return (
-    <Box>
+    <>
       <FormControlLabel
         disabled={disabled}
         control={
@@ -33,14 +32,8 @@ const MenuConnectionOptions = (): JSX.Element | null => {
         }
         label="RTU over TCP"
       />
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: 'block', mt: -0.75, ml: 4, mb: 0.5 }}
-      >
-        For serial-to-Ethernet gateways / encapsulated RTU
-      </Typography>
-    </Box>
+      <Divider sx={{ my: 1 }} />
+    </>
   )
 }
 

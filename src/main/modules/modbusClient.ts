@@ -220,7 +220,7 @@ export class ModbusClient {
         // used with serial-to-Ethernet gateways in transparent mode.
         // Prefer connectTcpRTUBuffered over connectTelnet, which throws
         // TransactionTimedOutError under repeated/multi-register polling.
-        await this._client.connectTcpRTUBuffered(host, { port: tcp.options.port })
+        await this._client.connectTcpRTUBuffered(host, { port: tcpOptions.port })
       } else {
         await this._client.connectRTUBuffered(com, {
           baudRate: Number(rtuOptions.baudRate),
