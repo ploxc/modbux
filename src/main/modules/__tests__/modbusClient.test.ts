@@ -17,6 +17,7 @@ const createMockModbusRTU = () => ({
   setID: vi.fn(),
   connectTCP: vi.fn().mockResolvedValue(undefined),
   connectRTUBuffered: vi.fn().mockResolvedValue(undefined),
+  connectTcpRTUBuffered: vi.fn().mockResolvedValue(undefined),
   close: vi.fn((cb: () => void) => cb()),
   destroy: vi.fn((cb: () => void) => cb()),
   readCoils: vi.fn().mockResolvedValue(undefined),
@@ -152,6 +153,19 @@ describe('ModbusClient', () => {
 
       expect(mockModbusRTU.connectRTUBuffered).toHaveBeenCalled()
       expect(mockModbusRTU.connectTCP).not.toHaveBeenCalled()
+    })
+
+    it('uses encapsulated RTU over TCP when protocol is ModbusRtuOverTcp', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp' })
+      mockModbusRTU.connectTcpRTUBuffered.mockResolvedValue(undefined)
+
+      await client.connect()
+
+      expect(mockModbusRTU.connectTcpRTUBuffered).toHaveBeenCalledWith('192.168.1.10', {
+        port: 502
+      })
+      expect(mockModbusRTU.connectTCP).not.toHaveBeenCalled()
+      expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()
     })
 
     it('emits "Already connected" warning if client is open', async () => {

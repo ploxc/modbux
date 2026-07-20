@@ -2,6 +2,7 @@ import { useScanRegistersZustand } from '@renderer/components/client/ClientGrids
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRef, useState } from 'react'
 import LoadDummyDataButton from './LoadDummyDataButton/LoadDummyDataButton'
+import MenuConnectionOptions from './MenuConnectionOptions/MenuConnectionOptions'
 import MenuRegisterOptions from './MenuRegisterOptions/MenuRegisterOptions'
 import ScanRegistersButton, { SetAnchorProps } from './ScanRegistersButton/ScanRegistersButton'
 import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
@@ -13,6 +14,7 @@ import Popover from '@mui/material/Popover'
 const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (
     <FormGroup>
+      <MenuConnectionOptions />
       <MenuRegisterOptions />
       <ScanUnitIds />
       <ScanRegistersButton setAnchor={setAnchor} />

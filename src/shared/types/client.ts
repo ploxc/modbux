@@ -71,7 +71,7 @@ export type Transaction = z.infer<typeof TransactionSchema>
 //
 //
 // Connection config
-export const ProtocolSchema = z.enum(['ModbusTcp', 'ModbusRtu'])
+export const ProtocolSchema = z.enum(['ModbusTcp', 'ModbusRtu', 'ModbusRtuOverTcp'])
 export type Protocol = z.infer<typeof ProtocolSchema>
 
 export const ModbusBaudRateSchema = z.enum([

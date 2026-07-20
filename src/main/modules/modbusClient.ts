@@ -213,14 +213,22 @@ export class ModbusClient {
     rtuOptions['autoOpen'] = true
 
     try {
-      protocol === 'ModbusTcp'
-        ? await this._client.connectTCP(host, tcpOptions)
-        : await this._client.connectRTUBuffered(com, {
-            baudRate: Number(rtuOptions.baudRate),
-            dataBits: rtuOptions.dataBits,
-            stopBits: rtuOptions.stopBits,
-            parity: rtuOptions.parity
-          })
+      if (protocol === 'ModbusTcp') {
+        await this._client.connectTCP(host, tcpOptions)
+      } else if (protocol === 'ModbusRtuOverTcp') {
+        // Encapsulated RTU: a full RTU frame (with CRC) over a TCP socket,
+        // used with serial-to-Ethernet gateways in transparent mode.
+        // Prefer connectTcpRTUBuffered over connectTelnet, which throws
+        // TransactionTimedOutError under repeated/multi-register polling.
+        await this._client.connectTcpRTUBuffered(host, { port: tcp.options.port })
+      } else {
+        await this._client.connectRTUBuffered(com, {
+          baudRate: Number(rtuOptions.baudRate),
+          dataBits: rtuOptions.dataBits,
+          stopBits: rtuOptions.stopBits,
+          parity: rtuOptions.parity
+        })
+      }
       if (this._reconnectTriggered) {
         this._emitMessage({
           message: `Reconnected to server`,

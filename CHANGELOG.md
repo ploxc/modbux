@@ -5,6 +5,16 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **RTU over TCP client mode** — new "RTU over TCP" option for serial-to-Ethernet gateways
+  (encapsulated RTU: a full RTU frame with CRC sent over a TCP socket)
+  - Enabled via a checkbox in the ⚙ options menu, shown only when TCP is selected
+  - Reuses the TCP host/port inputs and the unit ID field
+  - Connects via `connectTcpRTUBuffered`, which serialises polling more reliably than Telnet
+
 ## [2.1.0] - 2026-03-14
 
 ### Added

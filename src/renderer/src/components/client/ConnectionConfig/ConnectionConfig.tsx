@@ -23,13 +23,17 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
   const setProtocol = useRootZustand((z) => z.setProtocol)
 
+  // RTU over TCP is a TCP-family transport (toggled from the options menu),
+  // so the TCP button stays highlighted for it.
+  const toggleValue: Protocol = protocol === 'ModbusRtu' ? 'ModbusRtu' : 'ModbusTcp'
+
   return (
     <ToggleButtonGroup
       disabled={disabled}
       size="small"
       exclusive
       color="primary"
-      value={protocol}
+      value={toggleValue}
       onChange={(_, v) => v !== null && setProtocol(v)}
     >
       <ToggleButton value={'ModbusTcp'} data-testid="protocol-tcp-btn">
@@ -123,7 +127,8 @@ const ConnectionConfig = meme(() => {
   const protocol = useRootZustand((z) => z.connectionConfig.protocol)
   return (
     <>
-      {protocol === 'ModbusTcp' ? <TcpConfig /> : <RtuConfig />}
+      {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}
+      {protocol === 'ModbusRtu' ? <RtuConfig /> : <TcpConfig />}
       <Box sx={{ display: 'flex', gap: 2 }}>
         <ProtocolSelect protocol={protocol} />
         <UnitId />
