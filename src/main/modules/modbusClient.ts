@@ -213,14 +213,26 @@ export class ModbusClient {
     rtuOptions['autoOpen'] = true
 
     try {
-      protocol === 'ModbusTcp'
-        ? await this._client.connectTCP(host, tcpOptions)
-        : await this._client.connectRTUBuffered(com, {
-            baudRate: Number(rtuOptions.baudRate),
-            dataBits: rtuOptions.dataBits,
-            stopBits: rtuOptions.stopBits,
-            parity: rtuOptions.parity
-          })
+      if (protocol === 'ModbusTcp') {
+        await this._client.connectTCP(host, tcpOptions)
+      } else if (protocol === 'ModbusRtuOverTcp') {
+        // Encapsulated RTU: a full RTU frame (with CRC) sent raw over a TCP
+        // socket, for serial-to-Ethernet gateways in transparent mode.
+        // connectTelnet writes the RTU frame unchanged; connectTcpRTUBuffered
+        // would instead rewrap it as MBAP (i.e. plain Modbus TCP), which is
+        // not RTU over TCP.
+        await this._client.connectTelnet(host, {
+          port: tcpOptions.port,
+          timeout: tcpOptions.timeout
+        })
+      } else {
+        await this._client.connectRTUBuffered(com, {
+          baudRate: Number(rtuOptions.baudRate),
+          dataBits: rtuOptions.dataBits,
+          stopBits: rtuOptions.stopBits,
+          parity: rtuOptions.parity
+        })
+      }
       if (this._reconnectTriggered) {
         this._emitMessage({
           message: `Reconnected to server`,

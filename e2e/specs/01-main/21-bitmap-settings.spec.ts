@@ -28,6 +28,16 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
     await expect(row).toBeVisible()
   })
 
+  // With readConfiguration on, the register list comes from the loaded config,
+  // so the manual address/length inputs are disabled. Asserted explicitly
+  // because it also bites across specs: the app fixture is worker-scoped, so a
+  // spec that leaves readConfiguration enabled silently breaks any later spec
+  // that fills these fields (see the cleanup test at the end).
+  test('readConfiguration disables the manual address and length inputs', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('reg-address-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('reg-length-input').locator('input')).toBeDisabled()
+  })
+
   test('load dummy data so bits have values', async ({ mainPage }) => {
     await disableReadConfiguration(mainPage)
     await loadDummyData(mainPage, '0', '1')
@@ -246,5 +256,18 @@ test.describe.serial('Server bitmap — expand, bit toggle & comment', () => {
 
     // Detail panel should no longer be visible
     await expect(mainPage.getByTestId('server-bitmap-detail-100')).not.toBeVisible()
+  })
+
+  // ─── Cleanup ────────────────────────────────────────────────────
+
+  // Turning readConfiguration back off restores the manual inputs — and keeps
+  // the state clean for the rest of the run. Without this, later specs that
+  // fill the address field (e.g. 23-server-rtu) fail on a disabled input.
+  test('cleanup: disabling readConfiguration re-enables the inputs', async ({ mainPage }) => {
+    await navigateToClient(mainPage)
+    await disableReadConfiguration(mainPage)
+
+    await expect(mainPage.getByTestId('reg-address-input').locator('input')).toBeEnabled()
+    await expect(mainPage.getByTestId('reg-length-input').locator('input')).toBeEnabled()
   })
 })

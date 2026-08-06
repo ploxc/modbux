@@ -1,4 +1,5 @@
 import Checkbox from '@mui/material/Checkbox'
+import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
@@ -36,6 +37,7 @@ const MenuRegisterOptions = (): JSX.Element | null => {
         }
         label="Show 64 bit values"
       />
+      <Divider sx={{ my: 1 }} />
     </>
   )
 }
