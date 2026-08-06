@@ -25,6 +25,12 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 
   // RTU over TCP is a TCP-family transport (toggled from the options menu),
   // so the TCP button stays highlighted for it.
+  //
+  // Switching to serial RTU and back lands on plain TCP by design: the mode
+  // lives in the single `protocol` value, and silently restoring the
+  // encapsulated variant would make "TCP doesn't work" hard to diagnose —
+  // the cause would sit hidden in a menu the user never opens. Anyone who
+  // wants it ticks the box again.
   const toggleValue: Protocol = protocol === 'ModbusRtu' ? 'ModbusRtu' : 'ModbusTcp'
 
   return (
