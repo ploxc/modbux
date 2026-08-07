@@ -218,7 +218,6 @@ const Action = ({ type, address }: ActionProps): JSX.Element => {
 export const interpolationColumn = (type: RegisterType): GridColDef<RegisterData> => ({
   field: 'interpolation',
   type: 'actions',
-  sortable: false,
   headerName: '',
   minWidth: 40,
   maxWidth: 40,

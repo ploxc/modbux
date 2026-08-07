@@ -4,7 +4,6 @@ import { RegisterData } from '@shared'
 
 export const hexColumn: GridColDef<RegisterData, string> = {
   field: 'hex',
-  sortable: false,
   headerName: 'HEX',
   width: 50,
   renderCell: ({ value }) => (

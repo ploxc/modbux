@@ -27,7 +27,6 @@ export const convertedValueColumn = (
   showRaw: boolean
 ): GridColDef<RegisterData> => ({
   field: 'value',
-  sortable: false,
   hideable: false,
   type: 'string',
   headerName: 'Value',

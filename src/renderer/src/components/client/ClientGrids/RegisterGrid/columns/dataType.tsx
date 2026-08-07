@@ -3,7 +3,6 @@ import { DataType, DataTypeSchema, RegisterData, RegisterMapObject } from '@shar
 
 export const dataTypeColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'dataType',
-  sortable: false,
   headerName: 'Data Type',
   width: 80,
   type: 'singleSelect',

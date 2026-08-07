@@ -8,7 +8,6 @@ export const scalingFactorColumn = (
   type: RegisterType
 ): GridColDef<RegisterData> => ({
   field: 'scalingFactor',
-  sortable: false,
   headerName: 'Scale',
   width: 60,
   type: 'number',

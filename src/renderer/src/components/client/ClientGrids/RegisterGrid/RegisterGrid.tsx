@@ -112,9 +112,6 @@ const RegisterGridContent = (): JSX.Element => {
           height: 36,
           overflow: 'hidden'
         },
-        '& .MuiDataGrid-toolbarContainer': {
-          background: theme.palette.background.default
-        },
         '& .register-error-row': {
           backgroundColor: alpha(theme.palette.error.main, 0.08),
           '&:hover': {
@@ -139,6 +136,11 @@ const RegisterGridContent = (): JSX.Element => {
       localeText={{
         noRowsLabel: 'Connect and read to see registers'
       }}
+      // Registers are read in address order and that order carries meaning, so
+      // nothing here is sortable. Set on the grid rather than per column: the
+      // value columns come out of a factory that never carried the flag, so
+      // eight of them were sortable by accident.
+      disableColumnSorting
       slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
       getCellClassName={({ field, row }) =>
         field === 'groupIndex' && row.groupIndex !== undefined

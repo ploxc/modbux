@@ -4,7 +4,6 @@ import { RegisterData } from '@shared'
 
 export const addressColumn = (addressBase: string): GridColDef<RegisterData, number> => ({
   field: 'id',
-  sortable: false,
   hideable: false,
   headerName: 'Addr.',
   width: 60,

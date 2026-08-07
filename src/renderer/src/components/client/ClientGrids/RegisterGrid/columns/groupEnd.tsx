@@ -6,7 +6,6 @@ export const groupEndColumn = (
   registerMap: RegisterMapObject
 ): GridColDef<RegisterData, boolean> => ({
   field: 'groupEnd',
-  sortable: false,
   headerName: 'End',
   minWidth: 38,
   maxWidth: 38,

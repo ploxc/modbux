@@ -62,7 +62,6 @@ const Action = ({ address, type }: ActionProps): JSX.Element => {
 export const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> => ({
   field: 'actions',
   type: 'actions',
-  sortable: false,
   headerName: '',
   minWidth: 40,
   maxWidth: 40,

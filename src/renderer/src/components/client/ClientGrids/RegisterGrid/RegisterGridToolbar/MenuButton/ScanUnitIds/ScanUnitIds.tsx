@@ -236,7 +236,12 @@ const ScanResultGrid = meme(() => {
       rowHeight={40}
       columnHeaderHeight={48}
       getRowHeight={() => 'auto'}
-      sx={(theme) => ({
+      // Results are listed per unit ID and that is the order you look them up
+      // in. The type columns keep their column menu on purpose -- filtering to
+      // "only units that answered for holding registers" is useful; reordering
+      // them is not.
+      disableColumnSorting
+      sx={{
         '& .MuiDataGrid-virtualScrollerContent': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
@@ -245,11 +250,8 @@ const ScanResultGrid = meme(() => {
           minHeight: 36,
           height: 36,
           overflow: 'hidden'
-        },
-        '& .MuiDataGrid-toolbarContainer': {
-          background: theme.palette.background.default
         }
-      })}
+      }}
       localeText={{
         noRowsLabel: 'No scan results yet'
       }}
