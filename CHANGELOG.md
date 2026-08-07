@@ -7,21 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] - 2026-08-07
 
-### Changed
-
-- **The download is less than half the size** — 170 MB → 82 MB on Windows,
-  225 MB → 108 MB on macOS. The installer was carrying the entire build
-  toolchain plus a second, unused copy of Electron.
-
 ### Fixed
 
 - **You can see which transport you are connected over.** RTU over TCP reuses
   the TCP host and port and keeps the TCP button selected, so nothing told the
   two apart. Now the connect message names it, and the TCP button and the
-  checkbox in the ⚙ menu both turn orange while it is on.
+  checkbox in the cog menu both turn orange while it is on.
 - **The register grid no longer sorts.** A 32-bit value keeps its second half
   in the next register, so reordering the rows pulled the halves apart and every
   value on screen became wrong. Filtering is unaffected.
+
+### Changed
+
+- **The download is less than half the size** — 170 MB → 82 MB on Windows,
+  225 MB → 108 MB on macOS. The installer was carrying the entire build
+  toolchain plus a second, unused copy of Electron.
 
 ## [2.2.0] - 2026-08-06
 
