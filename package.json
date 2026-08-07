@@ -35,6 +35,7 @@
     "test:watch": "vitest",
     "test:e2e": "electron-vite build && playwright test",
     "test:e2e:packaged": "electron-vite build && electron-builder --dir && playwright test --config playwright.packaged.config.ts",
+    "test:e2e:hardware": "electron-vite build && playwright test --config playwright.hardware.config.ts",
     "presentation": "npx playwright test --config playwright.presentation.config.ts",
     "checkup": "yarn lint && yarn typecheck && yarn test && yarn test:e2e",
     "socat": "socat -d -d pty,raw,echo=0,link=/tmp/ttyV0 pty,raw,echo=0,link=/tmp/ttyV1"

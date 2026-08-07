@@ -87,6 +87,7 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 | `yarn test:watch` | Unit tests in watch mode |
 | `yarn test:e2e` | Build + full e2e suite (Playwright) |
 | `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
+| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino and someone at the keyboard. |
 | `yarn presentation` | Screenshot & demo generation |
 | `yarn checkup` | **Everything.** Lint + typecheck + unit + e2e. Run this before pushing. |
 
@@ -98,6 +99,13 @@ ships. `electron-vite` externalizes whatever sits in `dependencies` and
 that drifts into `devDependencies` passes every normal test and breaks only once
 installed. Packaged runs use a throwaway user-data directory and never touch an
 installed Modbux's config.
+
+`playwright.config.ts` ignores `99-hardware`, so neither `test:e2e` nor
+`test:e2e:packaged` picks those specs up. They are conditional: they need an
+Arduino running `tools/arduino/iem3000.ino` on a serial port, and they stop at a
+`page.pause()` for someone to choose the COM port. In a pipeline — or in any run
+you walked away from — that is not a failure, it is a run that never ends. Use
+`yarn test:e2e:hardware` when the hardware is actually on your desk.
 
 ### Test expectations
 
