@@ -85,11 +85,21 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 |---------|-------------|
 | `yarn test` | Unit tests (Vitest) |
 | `yarn test:watch` | Unit tests in watch mode |
-| `yarn test:e2e` | Build + full e2e suite (Playwright) |
+| `yarn test:e2e` | Build + the e2e suite (Playwright) |
 | `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
 | `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino and someone at the keyboard. |
-| `yarn presentation` | Screenshot & demo generation |
+| `yarn presentation` | Build + regenerate the documentation screenshots |
 | `yarn checkup` | **Everything.** Lint + typecheck + unit + e2e. Run this before pushing. |
+
+`test:e2e` covers `01-main` and `02-standalone`. Two suites sit outside it and
+are invoked on purpose:
+
+- `99-hardware` waits for an Arduino and for someone to pick the COM port, so an
+  unattended run never finishes.
+- `03-presentation` is a documentation utility, not a check. It clicks through
+  the app and captures what it sees without asserting much, so it costs two
+  minutes to tell you little that `01-main` does not already cover. Run it when
+  the UI changed and the manual needs new screenshots.
 
 `checkup` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
 step and runs far longer, which is too much for every push. Run it before
@@ -124,7 +134,7 @@ you walked away from — that is not a failure, it is a run that never ends. Use
   freshly loaded mapping is on its way, and a snapshot gets no second chance.
 - Use `data-testid` attributes for selectors. Never select by CSS class or DOM structure.
 - Spec files are numbered and ordered. New specs go at the end of their directory.
-- Presentation tests (`03-presentation/`) generate screenshots for the documentation site. If you change UI, update the relevant scenes.
+- Presentation scenes (`03-presentation/`) generate the documentation screenshots and are excluded from the default run. If you change UI, update the relevant scenes and run `yarn presentation`.
 
 ## Pull requests
 
