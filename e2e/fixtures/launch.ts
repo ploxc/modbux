@@ -22,23 +22,36 @@ const ROOT = resolve(__dirname, '../..')
  */
 const isPackaged = process.env.E2E_TARGET === 'packaged'
 
-/** Candidate binaries per platform, as produced by `electron-builder --dir`. */
-const PACKAGED_BINARIES: Record<string, string[]> = {
-  win32: ['dist/win-unpacked/Modbux.exe'],
-  darwin: [
-    'dist/mac-arm64/Modbux.app/Contents/MacOS/Modbux',
-    'dist/mac/Modbux.app/Contents/MacOS/Modbux'
-  ],
-  linux: ['dist/linux-unpacked/modbux', 'dist/linux-unpacked/Modbux']
+const MAC_ARM64 = 'dist/mac-arm64/Modbux.app/Contents/MacOS/Modbux'
+const MAC_X64 = 'dist/mac/Modbux.app/Contents/MacOS/Modbux'
+
+/**
+ * Candidate binaries per platform, as produced by `electron-builder --dir`.
+ *
+ * macOS needs the host architecture taken into account. `--mac` builds both
+ * arches, so both directories can sit in dist/ at once, and an arm64 binary
+ * cannot run on an Intel Mac at all — spawn fails with EBADARCH (errno -86),
+ * which surfaces as an unexplained "Unknown system error -86". Rosetta makes
+ * the reverse work, so arm64 keeps the x64 build as a fallback while Intel
+ * does not list arm64 at all.
+ */
+function packagedCandidates(): string[] {
+  if (process.platform === 'win32') return ['dist/win-unpacked/Modbux.exe']
+  if (process.platform === 'linux')
+    return ['dist/linux-unpacked/modbux', 'dist/linux-unpacked/Modbux']
+  if (process.platform === 'darwin') {
+    return process.arch === 'arm64' ? [MAC_ARM64, MAC_X64] : [MAC_X64]
+  }
+  return []
 }
 
 function packagedBinary(): string {
-  const candidates = PACKAGED_BINARIES[process.platform] ?? []
+  const candidates = packagedCandidates()
   const found = candidates.map((c) => join(ROOT, c)).find(existsSync)
 
   if (!found) {
     throw new Error(
-      `No packaged app found for platform "${process.platform}". Looked for:\n` +
+      `No packaged app found for ${process.platform}/${process.arch}. Looked for:\n` +
         candidates.map((c) => `  ${c}`).join('\n') +
         '\n\nBuild one first with: yarn build:unpack'
     )
