@@ -86,8 +86,18 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 | `yarn test` | Unit tests (Vitest) |
 | `yarn test:watch` | Unit tests in watch mode |
 | `yarn test:e2e` | Build + full e2e suite (Playwright) |
+| `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
 | `yarn presentation` | Screenshot & demo generation |
 | `yarn checkup` | **Everything.** Lint + typecheck + unit + e2e. Run this before pushing. |
+
+`checkup` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
+step and runs far longer, which is too much for every push. Run it before
+cutting a release instead: it is the only check that exercises what actually
+ships. `electron-vite` externalizes whatever sits in `dependencies` and
+`electron-builder` packs only those into `app.asar`, so a runtime dependency
+that drifts into `devDependencies` passes every normal test and breaks only once
+installed. Packaged runs use a throwaway user-data directory and never touch an
+installed Modbux's config.
 
 ### Test expectations
 
@@ -99,6 +109,11 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 ### Writing e2e tests
 
 - Use the helpers from `e2e/fixtures/helpers.ts`. Don't reinvent them.
+- Assert grid contents with `expectCell()` / `expectCellContains()`, which retry
+  until the value arrives. Reach for the raw `cell()` only when the test wants a
+  deliberate point-in-time sample, such as comparing two consecutive polls of a
+  generator. A cell can still hold the previous read while a new read or a
+  freshly loaded mapping is on its way, and a snapshot gets no second chance.
 - Use `data-testid` attributes for selectors. Never select by CSS class or DOM structure.
 - Spec files are numbered and ordered. New specs go at the end of their directory.
 - Presentation tests (`03-presentation/`) generate screenshots for the documentation site. If you change UI, update the relevant scenes.

@@ -158,6 +158,25 @@ yarn test:watch
 yarn test:e2e
 ```
 
+**Run E2E tests against a packaged build:**
+
+```bash
+yarn test:e2e:packaged
+```
+
+This builds, packages with `electron-builder --dir`, and runs the same specs
+against the binary in `dist/` instead of the `out/` bundle. It is the only way
+to catch problems that exist solely in the packaged app — most importantly a
+runtime dependency that sits in `devDependencies`, since only `dependencies` are
+packed into `app.asar` while a normal run resolves everything from the repo's
+`node_modules`.
+
+Packaged runs use a throwaway user-data directory, so they never touch the
+config of an installed Modbux.
+
+On macOS and Linux the two socat specs run as well; on Windows they are skipped
+because socat is unavailable, which is why a Windows run reports 36 skipped.
+
 ### Build
 
 **Create a distributable package for your platform:**
