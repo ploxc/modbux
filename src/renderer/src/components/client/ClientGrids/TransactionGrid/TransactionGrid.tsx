@@ -86,8 +86,11 @@ const TransactionGridContent = meme(() => {
       columnHeaderHeight={48}
       initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}
       getRowHeight={() => 'auto'}
-      sx={{
-        '& .MuiDataGrid-virtualScrollerContent': {
+      sx={(theme) => ({
+        // x-data-grid v8 moved the column headers inside the virtual scroller
+        // for column virtualisation, so scoping monospace to the scroller now
+        // catches the headers too. Target the data rows instead.
+        '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
         },
@@ -95,8 +98,11 @@ const TransactionGridContent = meme(() => {
           minHeight: 36,
           height: 36,
           overflow: 'hidden'
+        },
+        '& .MuiDataGrid-toolbarContainer': {
+          background: theme.palette.background.default
         }
-      }}
+      })}
       localeText={{
         noRowsLabel: 'No transactions logged yet'
       }}
