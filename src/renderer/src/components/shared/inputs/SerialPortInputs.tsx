@@ -51,7 +51,7 @@ export const ComTextField = meme(
         label={comLabel}
         variant="outlined"
         size="small"
-        title={rest.inputProps.value as string}
+        title={rest.slotProps.htmlInput.value as string}
         error={comError}
         sx={{
           '& .MuiOutlinedInput-root': {
@@ -64,12 +64,13 @@ export const ComTextField = meme(
           }
         }}
         slotProps={{
+          ...rest.slotProps,
           input: {
-            ...rest.InputProps,
+            ...rest.slotProps.input,
             endAdornment: (
               <>
                 {comLoading ? <CircularProgress size={16} /> : null}
-                {rest.InputProps.endAdornment}
+                {rest.slotProps.input.endAdornment}
               </>
             )
           }

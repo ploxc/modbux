@@ -244,7 +244,10 @@ describe('UpdateBanner', () => {
 
     await waitFor(() => {
       const alert = screen.getByTestId('update-banner')
-      expect(alert).toHaveClass('MuiAlert-standardWarning')
+      // MUI v9 dropped composite class names: standardWarning is now the
+      // variant and the colour as two separate classes.
+      expect(alert).toHaveClass('MuiAlert-standard')
+      expect(alert).toHaveClass('MuiAlert-colorWarning')
     })
   })
 

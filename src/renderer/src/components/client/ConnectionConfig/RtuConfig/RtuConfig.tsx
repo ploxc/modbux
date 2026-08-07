@@ -1,5 +1,5 @@
 import { Autocomplete, Box, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import { CheckCircleOutline, Refresh } from '@mui/icons-material'
+import { CheckCircleOutlined, Refresh } from '@mui/icons-material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import {
   BaudRateSelect,
@@ -107,7 +107,7 @@ const ComActions = meme(() => {
         title="Validate COM port"
         sx={{ width: 32 }}
       >
-        {validating ? <CircularProgress size={16} /> : <CheckCircleOutline fontSize="small" />}
+        {validating ? <CircularProgress size={16} /> : <CheckCircleOutlined fontSize="small" />}
       </ToggleButton>
     </ToggleButtonGroup>
   )

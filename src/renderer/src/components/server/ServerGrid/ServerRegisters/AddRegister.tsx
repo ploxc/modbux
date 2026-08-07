@@ -390,7 +390,9 @@ const DateTimeField = meme(() => {
           textField: {
             size: 'small',
             sx: { minWidth: 220 },
-            inputProps: { 'data-testid': 'add-reg-datetime-input' }
+            // v9 renders a PickersTextField here, not a Material TextField, so
+            // the html input is reached through its own nested slotProps.
+            slotProps: { htmlInput: { 'data-testid': 'add-reg-datetime-input' } }
           }
         }}
       />
