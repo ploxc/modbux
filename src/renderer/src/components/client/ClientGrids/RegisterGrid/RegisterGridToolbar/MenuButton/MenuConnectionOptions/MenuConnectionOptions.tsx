@@ -21,6 +21,10 @@ const MenuConnectionOptions = (): JSX.Element | null => {
         control={
           <Checkbox
             size="small"
+            // Warning colour here and on the TCP button, so ticking the box
+            // shows you straight away which control out on the toolbar is
+            // going to change.
+            color="warning"
             checked={rtuOverTcp}
             onChange={(e) =>
               useRootZustand

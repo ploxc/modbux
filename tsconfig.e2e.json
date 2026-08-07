@@ -7,7 +7,8 @@
     "src/preload/*.d.ts",
     "playwright.config.ts",
     "playwright.packaged.config.ts",
-    "playwright.presentation.config.ts"
+    "playwright.presentation.config.ts",
+    "playwright.hardware.config.ts"
   ],
   "compilerOptions": {
     "strict": true,

@@ -2,6 +2,17 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e/specs',
+  // Two suites stay out of the always-on pipeline.
+  //
+  // The hardware specs need an Arduino on a serial port and a human to pick the
+  // COM port at a page.pause(), so an unattended run sits there forever. Run
+  // them with `yarn test:e2e:hardware`.
+  //
+  // The presentation tour produces the manual's screenshots. It clicks through
+  // the app and captures what it sees; it barely asserts anything, so it costs
+  // two minutes to tell you little that 01-main does not already check. Run it
+  // when you want fresh screenshots, with `yarn presentation`.
+  testIgnore: ['**/99-hardware/**', '**/03-presentation/**'],
   timeout: 60000,
   retries: 0,
   workers: 1,

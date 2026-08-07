@@ -177,6 +177,17 @@ config of an installed Modbux.
 On macOS and Linux the two socat specs run as well; on Windows they are skipped
 because socat is unavailable, which is why a Windows run reports 36 skipped.
 
+**Run the hardware E2E tests:**
+
+```bash
+yarn test:e2e:hardware
+```
+
+These are left out of the normal runs. They talk to an Arduino running
+`tools/arduino/iem3000.ino` over a serial port and pause partway through so you
+can pick the COM port, so they only make sense with the hardware in front of
+you.
+
 ### Build
 
 **Create a distributable package for your platform:**

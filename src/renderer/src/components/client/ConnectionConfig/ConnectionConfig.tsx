@@ -6,7 +6,8 @@ import {
   InputBaseComponentProps,
   TextField,
   ToggleButton,
-  ToggleButtonGroup
+  ToggleButtonGroup,
+  Tooltip
 } from '@mui/material'
 import RtuConfig from './RtuConfig/RtuConfig'
 import TcpConfig from './TcpConfig/TcpConfig'
@@ -24,14 +25,26 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   const setProtocol = useRootZustand((z) => z.setProtocol)
 
   // RTU over TCP is a TCP-family transport (toggled from the options menu),
-  // so the TCP button stays highlighted for it.
+  // so the TCP button stays highlighted for it -- but in warning colour, since
+  // it reuses the same host and port and would otherwise be indistinguishable
+  // from plain TCP.
   //
   // Switching to serial RTU and back lands on plain TCP by design: the mode
   // lives in the single `protocol` value, and silently restoring the
-  // encapsulated variant would make "TCP doesn't work" hard to diagnose —
-  // the cause would sit hidden in a menu the user never opens. Anyone who
-  // wants it ticks the box again.
+  // encapsulated variant would make "TCP doesn't work" hard to diagnose.
+  // Anyone who wants it ticks the box again.
+  const rtuOverTcp = protocol === 'ModbusRtuOverTcp'
   const toggleValue: Protocol = protocol === 'ModbusRtu' ? 'ModbusRtu' : 'ModbusTcp'
+
+  const tcpButton = (
+    <ToggleButton
+      value={'ModbusTcp'}
+      data-testid="protocol-tcp-btn"
+      color={rtuOverTcp ? 'warning' : 'primary'}
+    >
+      TCP
+    </ToggleButton>
+  )
 
   return (
     <ToggleButtonGroup
@@ -42,9 +55,13 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
       value={toggleValue}
       onChange={(_, v) => v !== null && setProtocol(v)}
     >
-      <ToggleButton value={'ModbusTcp'} data-testid="protocol-tcp-btn">
-        TCP
-      </ToggleButton>
+      {rtuOverTcp ? (
+        <Tooltip title="RTU over TCP is on: raw RTU frames over the socket, not Modbus TCP. Turn it off in the cog menu.">
+          {tcpButton}
+        </Tooltip>
+      ) : (
+        tcpButton
+      )}
       <ToggleButton value={'ModbusRtu'} data-testid="protocol-rtu-btn">
         RTU
       </ToggleButton>

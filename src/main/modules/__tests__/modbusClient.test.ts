@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Windows } from '@shared'
+import type { Protocol, Windows } from '@shared'
 import { AppState } from '../../state'
 
 // Track event handlers registered on the mock ModbusRTU client
@@ -200,7 +200,7 @@ describe('ModbusClient', () => {
       expect(messages.some((m) => m[1].message.includes('not found or not available'))).toBe(true)
     })
 
-    it('emits "Reconnected" message on successful reconnect', async () => {
+    it('emits "Reconnected" message naming the transport', async () => {
       await connectClient()
       // Simulate connection loss — isOpen goes false
       mockModbusRTU.isOpen = false
@@ -211,7 +211,20 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(3500)
 
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Reconnected to server')).toBe(true)
+      expect(messages.some((m) => m[1].message === 'Reconnected over Modbus TCP')).toBe(true)
+    })
+
+    it.each([
+      ['ModbusTcp', 'Connected over Modbus TCP'],
+      ['ModbusRtuOverTcp', 'Connected over RTU over TCP'],
+      ['ModbusRtu', 'Connected over Modbus RTU']
+    ])('names the transport in the connect message for %s', async (protocol, expected) => {
+      appState.updateConnectionConfig({ protocol: protocol as Protocol })
+
+      await client.connect()
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === expected)).toBe(true)
     })
 
     it('resets consecutive reconnects after 10s stability', async () => {
