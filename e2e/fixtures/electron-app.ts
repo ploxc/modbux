@@ -4,7 +4,7 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { resolve } from 'path'
+import { launchOptions } from './launch'
 
 export type ElectronFixtures = {
   electronApp: ElectronApplication
@@ -16,9 +16,7 @@ export const test = base.extend<{}, ElectronFixtures>({
   electronApp: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, use): Promise<void> => {
-      const app = await electron.launch({
-        args: [resolve(__dirname, '../../out/main/index.js')]
-      })
+      const app = await electron.launch(launchOptions())
 
       await app.evaluate((ctx) =>
         ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })

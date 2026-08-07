@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 import { resolve } from 'path'
 import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
+import { launchOptions } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
@@ -16,9 +17,7 @@ let app: ElectronApplication
 let page: Page
 
 async function launchApp(clearStorage = true): Promise<void> {
-  app = await electron.launch({
-    args: [resolve(__dirname, '../../../out/main/index.js')]
-  })
+  app = await electron.launch(launchOptions())
   if (clearStorage) {
     await app.evaluate((ctx) =>
       ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })

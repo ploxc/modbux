@@ -25,15 +25,15 @@ import {
   loadClientConfig,
   scrollCell
 } from '../../fixtures/helpers'
+import { launchOptions } from '../../fixtures/launch'
 
-const MAIN_JS = resolve(__dirname, '../../../out/main/index.js')
 const CLIENT_CONFIG = resolve(__dirname, '../../fixtures/config-files/client-iem3000.json')
 
 let app: ElectronApplication
 let page: Page
 
 async function launchApp(clearStorage = true): Promise<void> {
-  app = await electron.launch({ args: [MAIN_JS] })
+  app = await electron.launch(launchOptions())
   if (clearStorage) {
     await app.evaluate((ctx) =>
       ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
