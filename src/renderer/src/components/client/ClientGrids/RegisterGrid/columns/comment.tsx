@@ -3,7 +3,6 @@ import { RegisterData, RegisterMapObject } from '@shared'
 
 export const commentColumn = (registerMap: RegisterMapObject): GridColDef => ({
   field: 'comment',
-  sortable: false,
   headerName: 'Comment',
   minWidth: 120,
   flex: 1,

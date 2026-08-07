@@ -3,7 +3,6 @@ import { RegisterData } from '@shared'
 
 export const groupIndexColumn: GridColDef<RegisterData> = {
   field: 'groupIndex',
-  sortable: false,
   hideable: false,
   disableColumnMenu: true,
   headerName: 'G',
