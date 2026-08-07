@@ -1,4 +1,4 @@
-import { GridRow, GridRowProps } from '@mui/x-data-grid/components/GridRow'
+import { GridRow, GridRowProps } from '@mui/x-data-grid'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { BITMAP_DATATYPE } from '@shared'
