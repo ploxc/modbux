@@ -5,6 +5,14 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The download is less than half the size** — 225 MB → 108 MB on macOS. The
+  installer was carrying the entire build toolchain plus a second, unused copy
+  of Electron. Nothing about the app itself changes.
+
 ## [2.2.0] - 2026-08-06
 
 ### Added

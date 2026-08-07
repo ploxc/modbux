@@ -1,0 +1,22 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "include": [
+    "e2e/**/*",
+    // specs reach into window.api via page.evaluate — same reason
+    // tsconfig.web.json pulls this in
+    "src/preload/*.d.ts",
+    "playwright.config.ts",
+    "playwright.packaged.config.ts",
+    "playwright.presentation.config.ts"
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "moduleResolution": "bundler",
+    // "node" for the fixtures' fs/os/path use, "electron-vite/node" for the
+    // import.meta.env that reaches in via src/preload
+    "types": ["node", "electron-vite/node"],
+    "paths": {
+      "@shared": ["./src/shared"]
+    }
+  }
+}

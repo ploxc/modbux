@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 import type { RegisterDef, ServerConfig } from './types'
 
 /** Scale a timeout for fast mode: 300→75ms, 200→50ms, ≤100→0ms, 500→100ms */
@@ -34,10 +34,43 @@ export async function selectRegisterType(p: Page, name: string): Promise<void> {
   await p.waitForTimeout(200)
 }
 
-/** Read a specific cell value from the MUI DataGrid (client side) */
+/** Locate a specific cell in the MUI DataGrid (client side) */
+export function cellLocator(p: Page, rowId: number, field: string): Locator {
+  return p.locator(`.MuiDataGrid-row[data-id="${rowId}"] [data-field="${field}"]`)
+}
+
+/**
+ * Read a cell's current text — a single snapshot, no retry.
+ *
+ * Only use this when the test genuinely wants a point-in-time sample, e.g.
+ * comparing two consecutive polls of a generator. To assert an expected value,
+ * use expectCell/expectCellContains instead: a cell can still hold the previous
+ * read's data while a new read or a freshly loaded mapping is on its way, and a
+ * snapshot has no second chance.
+ */
 export async function cell(p: Page, rowId: number, field: string): Promise<string> {
-  const loc = p.locator(`.MuiDataGrid-row[data-id="${rowId}"] [data-field="${field}"]`)
-  return ((await loc.textContent()) ?? '').trim()
+  return ((await cellLocator(p, rowId, field).textContent()) ?? '').trim()
+}
+
+/** Assert a cell's text, retrying until it matches or the timeout expires. */
+export async function expectCell(
+  p: Page,
+  rowId: number,
+  field: string,
+  expected: string | RegExp
+): Promise<void> {
+  await expect(cellLocator(p, rowId, field)).toHaveText(expected)
+}
+
+/** Assert a cell contains a substring, retrying until it does or the timeout expires. */
+export async function expectCellContains(
+  p: Page,
+  rowId: number,
+  field: string,
+  expected: string,
+  options?: { ignoreCase?: boolean }
+): Promise<void> {
+  await expect(cellLocator(p, rowId, field)).toContainText(expected, options)
 }
 
 /**

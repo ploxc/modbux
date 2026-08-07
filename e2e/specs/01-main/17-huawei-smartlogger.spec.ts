@@ -16,7 +16,9 @@ import {
   setupServerConfig,
   setServerPanelCollapsed,
   expandAllServerPanels,
-  navigateToServer
+  navigateToServer,
+  expectCellContains,
+  expectCell
 } from '../../fixtures/helpers'
 import { HUAWEI_UNIT_0 } from '../../fixtures/test-data'
 import { resolve } from 'path'
@@ -87,24 +89,20 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     expect(hex0.length).toBeGreaterThan(0)
 
     // Year (U16 at 40011) should be 2025
-    const year = await cell(mainPage, 40011, 'word_uint16')
-    expect(year).toBe('2025')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
 
     // Month (U16 at 40012) should be 6
-    const month = await cell(mainPage, 40012, 'word_uint16')
-    expect(month).toBe('6')
+    await expectCell(mainPage, 40012, 'word_uint16', '6')
   })
 
   test('read power adjustment registers (40420-40429)', async ({ mainPage }) => {
     await readRegisters(mainPage, '40420', '10')
 
     // Active adjustment % (U16 at 40428) = 990
-    const pct = await cell(mainPage, 40428, 'word_uint16')
-    expect(pct).toBe('990')
+    await expectCell(mainPage, 40428, 'word_uint16', '990')
 
     // Power Factor (I16 at 40429) = 30000
-    const pf = await cell(mainPage, 40429, 'word_int16')
-    expect(pf).toBe('30000')
+    await expectCell(mainPage, 40429, 'word_int16', '30000')
   })
 
   test('read generator registers — values in expected range', async ({ mainPage }) => {
@@ -125,8 +123,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     expect(hex.length).toBeGreaterThan(0)
 
     // Plant status Xinjiang (U16 at 40566) = 1
-    const status = await cell(mainPage, 40566, 'word_uint16')
-    expect(status).toBe('1')
+    await expectCell(mainPage, 40566, 'word_uint16', '1')
   })
 
   test('read voltage/current generators (40572-40577)', async ({ mainPage }) => {
@@ -149,36 +146,30 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await readRegisters(mainPage, '40700', '1')
 
     // DI status = 37 (0b00100101: DI1, DI3, DI6 closed)
-    const diStatus = await cell(mainPage, 40700, 'word_uint16')
-    expect(diStatus).toBe('37')
+    await expectCell(mainPage, 40700, 'word_uint16', '37')
   })
 
   test('read alarm bitmap registers (50000-50002)', async ({ mainPage }) => {
     await readRegisters(mainPage, '50000', '3')
 
     // Alarm Info 1 = 2048 (bit 11 set: Abnormal Reactive Schedule)
-    const alarm1 = await cell(mainPage, 50000, 'word_uint16')
-    expect(alarm1).toBe('2048')
+    await expectCell(mainPage, 50000, 'word_uint16', '2048')
 
     // Alarm Info 2 = 8 (bit 3 set: Device Address Conflict)
-    const alarm2 = await cell(mainPage, 50001, 'word_uint16')
-    expect(alarm2).toBe('8')
+    await expectCell(mainPage, 50001, 'word_uint16', '8')
 
     // Alarm Info 3 = 0 (no alarms)
-    const alarm3 = await cell(mainPage, 50002, 'word_uint16')
-    expect(alarm3).toBe('0')
+    await expectCell(mainPage, 50002, 'word_uint16', '0')
   })
 
   test('read public registers (65521-65534)', async ({ mainPage }) => {
     await readRegisters(mainPage, '65521', '14')
 
     // Device list change number = 5
-    const changeNum = await cell(mainPage, 65521, 'word_uint16')
-    expect(changeNum).toBe('5')
+    await expectCell(mainPage, 65521, 'word_uint16', '5')
 
     // Device connection status = 45057 (0xB001 = Online)
-    const connStatus = await cell(mainPage, 65534, 'word_uint16')
-    expect(connStatus).toBe('45057')
+    await expectCell(mainPage, 65534, 'word_uint16', '45057')
   })
 
   // ─── Load client config ────────────────────────────────────────────
@@ -236,17 +227,14 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await mainPage.waitForTimeout(300)
 
     // Active Adjustment at 40420 has scalingFactor 0.1
-    const sf = await cell(mainPage, 40420, 'scalingFactor')
-    expect(sf).toBe('0.1')
+    await expectCell(mainPage, 40420, 'scalingFactor', '0.1')
 
     // Input Power at 40521 has scalingFactor 0.001
-    const sf2 = await cell(mainPage, 40521, 'scalingFactor')
-    expect(sf2).toBe('0.001')
+    await expectCell(mainPage, 40521, 'scalingFactor', '0.001')
   })
 
   test('verify comments in grid', async ({ mainPage }) => {
-    const comment = await cell(mainPage, 40429, 'comment')
-    expect(comment).toContain('Power Factor')
+    await expectCellContains(mainPage, 40429, 'comment', 'Power Factor')
   })
 
   test('disable readConfiguration after config view', async ({ mainPage }) => {
@@ -283,12 +271,10 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
 
   test('read config shows correct values for fixed registers', async ({ mainPage }) => {
     // Year at 40011 = 2025
-    const year = await cell(mainPage, 40011, 'word_uint16')
-    expect(year).toBe('2025')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
 
     // Active adjustment % at 40428 = 990
-    const pct = await cell(mainPage, 40428, 'word_uint16')
-    expect(pct).toBe('990')
+    await expectCell(mainPage, 40428, 'word_uint16', '990')
   })
 
   test('read config shows correct values for generator registers', async ({ mainPage }) => {

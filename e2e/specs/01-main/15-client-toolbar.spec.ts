@@ -5,13 +5,13 @@ import {
   connectClient,
   disconnectClient,
   readRegisters,
-  cell,
   selectRegisterType,
   enableAdvancedMode,
   enableReadConfiguration,
   disableReadConfiguration,
   cleanServerState,
-  loadServerConfig
+  loadServerConfig,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -133,8 +133,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(base0Btn).toHaveClass(/Mui-selected/)
 
     // First row address should show "0"
-    const addr = await cell(mainPage, 0, 'id')
-    expect(addr).toBe('0')
+    await expectCell(mainPage, 0, 'id', '0')
   })
 
   test('address base 1 shifts grid addresses and input by 1', async ({ mainPage }) => {
@@ -149,8 +148,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(base1Btn).toHaveClass(/Mui-selected/)
 
     // Grid address should now show "1"
-    const addr = await cell(mainPage, 0, 'id')
-    expect(addr).toBe('1')
+    await expectCell(mainPage, 0, 'id', '1')
 
     // Address input should also shift by +1
     const inputBase1 = await addressInput.inputValue()
@@ -160,8 +158,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByTestId('reg-base-0-btn').click()
     await mainPage.waitForTimeout(300)
 
-    const addrReset = await cell(mainPage, 0, 'id')
-    expect(addrReset).toBe('0')
+    await expectCell(mainPage, 0, 'id', '0')
 
     const inputReset = await addressInput.inputValue()
     expect(inputReset).toBe(inputBase0)

@@ -11,7 +11,7 @@ import {
   loadClientConfig,
   selectRegisterType,
   scrollCell,
-  cell
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -56,7 +56,7 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
   // ─── Page 1: addresses 0–99, group 1 ───────────────────────────
 
   test('verify page 1 data (addresses 0–99)', async ({ mainPage }) => {
-    expect(await cell(mainPage, 0, 'word_uint16')).toBe('1')
+    await expectCell(mainPage, 0, 'word_uint16', '1')
     expect(await scrollCell(mainPage, 50, 'word_uint16')).toBe('51')
     expect(await scrollCell(mainPage, 99, 'word_uint16')).toBe('100')
   })
@@ -77,17 +77,17 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
   })
 
   test('verify page 2 data (addresses 100–119)', async ({ mainPage }) => {
-    expect(await cell(mainPage, 100, 'word_uint16')).toBe('101')
+    await expectCell(mainPage, 100, 'word_uint16', '101')
     expect(await scrollCell(mainPage, 119, 'word_uint16')).toBe('120')
   })
 
   test('page 2 groupIndex is 2 (addresses 100–119)', async ({ mainPage }) => {
-    expect(await cell(mainPage, 100, 'groupIndex')).toBe('2')
+    await expectCell(mainPage, 100, 'groupIndex', '2')
     expect(await scrollCell(mainPage, 119, 'groupIndex')).toBe('2')
   })
 
   test('page 2 comments survived readConfiguration', async ({ mainPage }) => {
-    expect(await cell(mainPage, 100, 'comment')).toBe('reg-100')
+    await expectCell(mainPage, 100, 'comment', 'reg-100')
     expect(await scrollCell(mainPage, 119, 'comment')).toBe('reg-119')
   })
 
@@ -99,7 +99,7 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
   })
 
   test('page 2 data intact during polling', async ({ mainPage }) => {
-    expect(await cell(mainPage, 100, 'word_uint16')).toBe('101')
+    await expectCell(mainPage, 100, 'word_uint16', '101')
     expect(await scrollCell(mainPage, 119, 'word_uint16')).toBe('120')
   })
 
@@ -107,7 +107,7 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
     await mainPage.getByRole('button', { name: 'Go to previous page' }).click()
     await mainPage.waitForTimeout(1000)
 
-    expect(await cell(mainPage, 0, 'word_uint16')).toBe('1')
+    await expectCell(mainPage, 0, 'word_uint16', '1')
     expect(await scrollCell(mainPage, 99, 'word_uint16')).toBe('100')
   })
 
@@ -115,7 +115,7 @@ test.describe.serial('Large Config (>100 registers) with readConfiguration', () 
     await mainPage.getByRole('button', { name: 'Go to next page' }).click()
     await mainPage.waitForTimeout(1000)
 
-    expect(await cell(mainPage, 100, 'word_uint16')).toBe('101')
+    await expectCell(mainPage, 100, 'word_uint16', '101')
     expect(await scrollCell(mainPage, 119, 'word_uint16')).toBe('120')
   })
 

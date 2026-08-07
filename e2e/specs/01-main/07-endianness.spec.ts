@@ -12,7 +12,9 @@ import {
   enableAdvancedMode,
   cleanServerState,
   setServerEndianness,
-  setClientEndianness
+  setClientEndianness,
+  expectCell,
+  expectCellContains
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -54,36 +56,35 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
   // ─── 16-bit values: LE has no effect ───────────────────────────────
 
   test('INT16 at address 0 = -100 (LE no effect on 16-bit)', async ({ mainPage }) => {
-    expect(await cell(mainPage, 0, 'hex')).toBe('FF9C')
-    expect(await cell(mainPage, 0, 'word_int16')).toBe('-100')
+    await expectCell(mainPage, 0, 'hex', 'FF9C')
+    await expectCell(mainPage, 0, 'word_int16', '-100')
   })
 
   test('UINT16 at address 1 = 500 (LE no effect on 16-bit)', async ({ mainPage }) => {
-    expect(await cell(mainPage, 1, 'hex')).toBe('01F4')
-    expect(await cell(mainPage, 1, 'word_uint16')).toBe('500')
+    await expectCell(mainPage, 1, 'hex', '01F4')
+    await expectCell(mainPage, 1, 'word_uint16', '500')
   })
 
   // ─── 32-bit values: LE word order swapped ──────────────────────────
 
   test('INT32 at address 2 = -70000 (LE word order swapped)', async ({ mainPage }) => {
     // BE: [0xFFFE, 0xEE90] -> LE: [0xEE90, 0xFFFE]
-    expect(await cell(mainPage, 2, 'hex')).toBe('EE90')
-    expect(await cell(mainPage, 3, 'hex')).toBe('FFFE')
-    expect(await cell(mainPage, 2, 'word_int32')).toBe('-70000')
+    await expectCell(mainPage, 2, 'hex', 'EE90')
+    await expectCell(mainPage, 3, 'hex', 'FFFE')
+    await expectCell(mainPage, 2, 'word_int32', '-70000')
   })
 
   test('UINT32 at address 4 = 100000 (LE word order swapped)', async ({ mainPage }) => {
     // BE: [0x0001, 0x86A0] -> LE: [0x86A0, 0x0001]
-    expect(await cell(mainPage, 4, 'hex')).toBe('86A0')
-    expect(await cell(mainPage, 5, 'hex')).toBe('0001')
-    expect(await cell(mainPage, 4, 'word_uint32')).toBe('100000')
+    await expectCell(mainPage, 4, 'hex', '86A0')
+    await expectCell(mainPage, 5, 'hex', '0001')
+    await expectCell(mainPage, 4, 'word_uint32', '100000')
   })
 
   test('FLOAT at address 6 ≈ 3.14 (LE word order swapped)', async ({ mainPage }) => {
     // BE: [0x4048, 0xF5C3] -> LE: [0xF5C3, 0x4048]
-    expect(await cell(mainPage, 6, 'hex')).toBe('F5C3')
-    const val = await cell(mainPage, 6, 'word_float')
-    expect(val).toContain('3.14')
+    await expectCell(mainPage, 6, 'hex', 'F5C3')
+    await expectCellContains(mainPage, 6, 'word_float', '3.14')
   })
 
   // ─── 64-bit values ─────────────────────────────────────────────────
@@ -92,20 +93,19 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
     // Verify hex words are present (LE word order)
     const hex8 = await cell(mainPage, 8, 'hex')
     expect(hex8).toMatch(/^[0-9A-Fa-f]{4}$/)
-    expect(await cell(mainPage, 8, 'word_int64')).toBe('-1000000')
+    await expectCell(mainPage, 8, 'word_int64', '-1000000')
   })
 
   test('UINT64 at address 12 = 2000000 (LE) — hex verification', async ({ mainPage }) => {
     const hex12 = await cell(mainPage, 12, 'hex')
     expect(hex12).toMatch(/^[0-9A-Fa-f]{4}$/)
-    expect(await cell(mainPage, 12, 'word_uint64')).toBe('2000000')
+    await expectCell(mainPage, 12, 'word_uint64', '2000000')
   })
 
   test('DOUBLE at address 16 ≈ 2.718 (LE) — hex verification', async ({ mainPage }) => {
     const hex16 = await cell(mainPage, 16, 'hex')
     expect(hex16).toMatch(/^[0-9A-Fa-f]{4}$/)
-    const val = await cell(mainPage, 16, 'word_double')
-    expect(val).toContain('2.718')
+    await expectCellContains(mainPage, 16, 'word_double', '2.718')
   })
 
   // ─── UTF-8 in LE: string still decodes correctly ──────────────────
@@ -121,8 +121,8 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
 
   test('UNIX 1700000000 at address 26 — LE word order swapped', async ({ mainPage }) => {
     // BE: [0x6553, 0xF100] -> LE: [0xF100, 0x6553]
-    expect(await cell(mainPage, 26, 'hex')).toBe('F100')
-    expect(await cell(mainPage, 27, 'hex')).toBe('6553')
+    await expectCell(mainPage, 26, 'hex', 'F100')
+    await expectCell(mainPage, 27, 'hex', '6553')
   })
 
   // ─── Cleanup: restore Big Endian ───────────────────────────────────

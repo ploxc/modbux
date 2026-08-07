@@ -7,8 +7,8 @@ import {
   loadServerConfig,
   disconnectClient,
   readRegisters,
-  cell,
-  selectRegisterType
+  selectRegisterType,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -137,12 +137,12 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
     await readRegisters(mainPage, '0', '2')
 
     // setpoint (int16 @ 0) = 100
-    expect(await cell(mainPage, 0, 'hex')).toBe('0064')
-    expect(await cell(mainPage, 0, 'word_int16')).toBe('100')
+    await expectCell(mainPage, 0, 'hex', '0064')
+    await expectCell(mainPage, 0, 'word_int16', '100')
 
     // counter (uint16 @ 1) = 500
-    expect(await cell(mainPage, 1, 'hex')).toBe('01F4')
-    expect(await cell(mainPage, 1, 'word_uint16')).toBe('500')
+    await expectCell(mainPage, 1, 'hex', '01F4')
+    await expectCell(mainPage, 1, 'word_uint16', '500')
   })
 
   test('read input register 0', async ({ mainPage }) => {
@@ -151,8 +151,8 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
     await readRegisters(mainPage, '0', '1')
 
     // temperature (int16 @ 0) = 200
-    expect(await cell(mainPage, 0, 'hex')).toBe('00C8')
-    expect(await cell(mainPage, 0, 'word_int16')).toBe('200')
+    await expectCell(mainPage, 0, 'hex', '00C8')
+    await expectCell(mainPage, 0, 'word_int16', '200')
   })
 
   // ─── Cleanup ───────────────────────────────────────────────────────
