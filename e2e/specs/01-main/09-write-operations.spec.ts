@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures/electron-app'
 import {
   selectRegisterType,
-  cell,
   addRegister,
   addCoils,
   readRegisters,
@@ -12,7 +11,9 @@ import {
   enableAdvancedMode,
   cleanServerState,
   writeRegister,
-  writeCoil
+  writeCoil,
+  expectCell,
+  expectCellContains
 } from '../../fixtures/helpers'
 
 test.describe.serial('Write Operations', () => {
@@ -107,7 +108,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify INT16 written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '1')
-      expect(await cell(mainPage, 0, 'word_int16')).toBe('555')
+      await expectCell(mainPage, 0, 'word_int16', '555')
       await clearData(mainPage)
     })
 
@@ -118,7 +119,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify UINT16 written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '1', '1')
-      expect(await cell(mainPage, 1, 'word_uint16')).toBe('999')
+      await expectCell(mainPage, 1, 'word_uint16', '999')
       await clearData(mainPage)
     })
 
@@ -129,7 +130,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify INT32 written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '2', '2')
-      expect(await cell(mainPage, 2, 'word_int32')).toBe('50000')
+      await expectCell(mainPage, 2, 'word_int32', '50000')
       await clearData(mainPage)
     })
 
@@ -140,8 +141,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify FLOAT written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '4', '2')
-      const val = await cell(mainPage, 4, 'word_float')
-      expect(val).toContain('3.14')
+      await expectCellContains(mainPage, 4, 'word_float', '3.14')
       await clearData(mainPage)
     })
 
@@ -152,7 +152,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify negative INT16 written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '1')
-      expect(await cell(mainPage, 0, 'word_int16')).toBe('-100')
+      await expectCell(mainPage, 0, 'word_int16', '-100')
       await clearData(mainPage)
     })
   })
@@ -171,7 +171,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify coil written TRUE', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
+      await expectCell(mainPage, 0, 'bit', 'TRUE')
       await clearData(mainPage)
     })
 
@@ -182,7 +182,7 @@ test.describe.serial('Write Operations', () => {
 
     test('verify coil written FALSE', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      expect(await cell(mainPage, 0, 'bit')).toBe('FALSE')
+      await expectCell(mainPage, 0, 'bit', 'FALSE')
       await clearData(mainPage)
     })
   })

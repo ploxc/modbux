@@ -31,7 +31,9 @@ import {
   disableReadConfiguration,
   writeRegister,
   cell,
-  disableClientRawMode
+  disableClientRawMode,
+  expectCell,
+  expectCellContains
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
@@ -463,9 +465,8 @@ test.describe.serial('Act III — Going Live', () => {
     await readRegisters(mainPage, '0', '23')
     await beat(mainPage, 3500)
 
-    expect(await cell(mainPage, 0, 'value')).toBe('387')
-    const freq = await cell(mainPage, 4, 'value')
-    expect(freq).toContain('50.01')
+    await expectCell(mainPage, 0, 'value', '387')
+    await expectCellContains(mainPage, 4, 'value', '50.01')
 
     await snap(mainPage, 'client-decoded-values')
   })
@@ -610,8 +611,8 @@ test.describe.serial('Act III — Going Live', () => {
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
-    expect(await cell(mainPage, 3, 'bit')).toBe('FALSE')
+    await expectCell(mainPage, 0, 'bit', 'TRUE')
+    await expectCell(mainPage, 3, 'bit', 'FALSE')
 
     await snap(mainPage, 'client-coils')
   })
@@ -622,8 +623,8 @@ test.describe.serial('Act III — Going Live', () => {
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    expect(await cell(mainPage, 0, 'bit')).toBe('TRUE')
-    expect(await cell(mainPage, 2, 'bit')).toBe('FALSE')
+    await expectCell(mainPage, 0, 'bit', 'TRUE')
+    await expectCell(mainPage, 2, 'bit', 'FALSE')
 
     await snap(mainPage, 'client-discrete-inputs')
   })
@@ -662,7 +663,7 @@ test.describe.serial('Act IV — Interaction', () => {
     // Re-read to confirm
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
-    expect(await cell(mainPage, 3, 'bit')).toBe('TRUE')
+    await expectCell(mainPage, 3, 'bit', 'TRUE')
 
     // ── FC15 multi-coil write ──
     await mainPage.getByTestId('write-action-3').click()
@@ -718,7 +719,7 @@ test.describe.serial('Act IV — Interaction', () => {
     // Re-read to verify
     await readRegisters(mainPage, '0', '2')
     await beat(mainPage)
-    expect(await cell(mainPage, 0, 'hex')).toBe('0190')
+    await expectCell(mainPage, 0, 'hex', '0190')
 
     // Restore RAW button state to false (because write register sets it to true)
     await disableClientRawMode(mainPage)

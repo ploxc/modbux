@@ -14,7 +14,8 @@ import {
   readRegisters,
   cell,
   expandAllServerPanels,
-  selectRegisterType
+  selectRegisterType,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -307,12 +308,10 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await readRegisters(mainPage, '40000', '17')
 
     // Year (U16 at 40011) = 2025
-    const year = await cell(mainPage, 40011, 'word_uint16')
-    expect(year).toBe('2025')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
 
     // Month (U16 at 40012) = 6
-    const month = await cell(mainPage, 40012, 'word_uint16')
-    expect(month).toBe('6')
+    await expectCell(mainPage, 40012, 'word_uint16', '6')
   })
 
   test('read power registers (40420-40429)', async ({ mainPage }) => {
@@ -320,12 +319,10 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await readRegisters(mainPage, '40420', '10')
 
     // Active adjustment % (U16 at 40428) = 990
-    const pct = await cell(mainPage, 40428, 'word_uint16')
-    expect(pct).toBe('990')
+    await expectCell(mainPage, 40428, 'word_uint16', '990')
 
     // Power Factor (I16 at 40429) = 30000
-    const pf = await cell(mainPage, 40429, 'word_int16')
-    expect(pf).toBe('30000')
+    await expectCell(mainPage, 40429, 'word_int16', '30000')
   })
 
   test('read generator (40500)', async ({ mainPage }) => {
@@ -344,8 +341,7 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await readRegisters(mainPage, '40560', '8')
 
     // Plant status Xinjiang (U16 at 40566) = 1
-    const status = await cell(mainPage, 40566, 'word_uint16')
-    expect(status).toBe('1')
+    await expectCell(mainPage, 40566, 'word_uint16', '1')
   })
 
   test('read DI bitmap (40700)', async ({ mainPage }) => {
@@ -353,22 +349,18 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await readRegisters(mainPage, '40700', '1')
 
     // DI status = 37
-    const diStatus = await cell(mainPage, 40700, 'word_uint16')
-    expect(diStatus).toBe('37')
+    await expectCell(mainPage, 40700, 'word_uint16', '37')
   })
 
   test('read alarm bitmaps (50000-50002)', async ({ mainPage }) => {
     test.setTimeout(15_000)
     await readRegisters(mainPage, '50000', '3')
 
-    const alarm1 = await cell(mainPage, 50000, 'word_uint16')
-    expect(alarm1).toBe('2048')
+    await expectCell(mainPage, 50000, 'word_uint16', '2048')
 
-    const alarm2 = await cell(mainPage, 50001, 'word_uint16')
-    expect(alarm2).toBe('8')
+    await expectCell(mainPage, 50001, 'word_uint16', '8')
 
-    const alarm3 = await cell(mainPage, 50002, 'word_uint16')
-    expect(alarm3).toBe('0')
+    await expectCell(mainPage, 50002, 'word_uint16', '0')
   })
 
   test('read public registers (65521-65534)', async ({ mainPage }) => {
@@ -376,12 +368,10 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await readRegisters(mainPage, '65521', '14')
 
     // Device list change number = 5
-    const changeNum = await cell(mainPage, 65521, 'word_uint16')
-    expect(changeNum).toBe('5')
+    await expectCell(mainPage, 65521, 'word_uint16', '5')
 
     // Device connection status = 45057
-    const connStatus = await cell(mainPage, 65534, 'word_uint16')
-    expect(connStatus).toBe('45057')
+    await expectCell(mainPage, 65534, 'word_uint16', '45057')
   })
 
   // ─── ReadConfiguration via client config ───────────────────────────
@@ -401,12 +391,10 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     expect(rowCount).toBeGreaterThan(0)
 
     // Spot-check: year = 2025
-    const year = await cell(mainPage, 40011, 'word_uint16')
-    expect(year).toBe('2025')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
 
     // Spot-check: active adjustment = 990
-    const pct = await cell(mainPage, 40428, 'word_uint16')
-    expect(pct).toBe('990')
+    await expectCell(mainPage, 40428, 'word_uint16', '990')
 
     await disableReadConfiguration(mainPage)
   })

@@ -3,9 +3,10 @@ import { test, expect } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   selectRegisterType,
-  cell,
   enableReadConfiguration,
-  disableReadConfiguration
+  disableReadConfiguration,
+  expectCellContains,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -49,23 +50,18 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(row1).toBeVisible()
 
     // Check data types in the grid
-    const dt0 = await cell(mainPage, 0, 'dataType')
-    expect(dt0.toLowerCase()).toContain('int16')
-    const dt1 = await cell(mainPage, 1, 'dataType')
-    expect(dt1.toLowerCase()).toContain('uint16')
+    await expectCellContains(mainPage, 0, 'dataType', 'int16', { ignoreCase: true })
+    await expectCellContains(mainPage, 1, 'dataType', 'uint16', { ignoreCase: true })
   })
 
   test('verify scaling factor visible in grid', async ({ mainPage }) => {
     // Address 1 has scalingFactor 0.1
-    const sf = await cell(mainPage, 1, 'scalingFactor')
-    expect(sf).toContain('0.1')
+    await expectCellContains(mainPage, 1, 'scalingFactor', '0.1')
   })
 
   test('verify comments visible in grid', async ({ mainPage }) => {
-    const comment0 = await cell(mainPage, 0, 'comment')
-    expect(comment0).toBe('setpoint')
-    const comment1 = await cell(mainPage, 1, 'comment')
-    expect(comment1).toBe('temperature scaled')
+    await expectCell(mainPage, 0, 'comment', 'setpoint')
+    await expectCell(mainPage, 1, 'comment', 'temperature scaled')
   })
 
   test('switch to input registers — grid repopulates with config', async ({ mainPage }) => {
@@ -74,10 +70,8 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
     await expect(row0).toBeVisible()
 
-    const dt = await cell(mainPage, 0, 'dataType')
-    expect(dt.toLowerCase()).toContain('int16')
-    const comment = await cell(mainPage, 0, 'comment')
-    expect(comment).toBe('sensor value')
+    await expectCellContains(mainPage, 0, 'dataType', 'int16', { ignoreCase: true })
+    await expectCell(mainPage, 0, 'comment', 'sensor value')
 
     // Switch back to holding registers and disable readConfiguration
     await selectRegisterType(mainPage, 'Holding Registers')

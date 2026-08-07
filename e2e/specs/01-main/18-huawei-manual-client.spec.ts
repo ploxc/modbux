@@ -15,7 +15,8 @@ import {
   cleanServerState,
   loadServerConfig,
   clearData,
-  loadDummyData
+  loadDummyData,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
@@ -264,15 +265,15 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('read time range and verify values', async ({ mainPage }) => {
     await readRegisters(mainPage, '40000', '17')
 
-    expect(await cell(mainPage, 40011, 'word_uint16')).toBe('2025')
-    expect(await cell(mainPage, 40012, 'word_uint16')).toBe('6')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
+    await expectCell(mainPage, 40012, 'word_uint16', '6')
   })
 
   test('read power range and verify values', async ({ mainPage }) => {
     await readRegisters(mainPage, '40420', '10')
 
-    expect(await cell(mainPage, 40428, 'word_uint16')).toBe('990')
-    expect(await cell(mainPage, 40429, 'word_int16')).toBe('30000')
+    await expectCell(mainPage, 40428, 'word_uint16', '990')
+    await expectCell(mainPage, 40429, 'word_int16', '30000')
   })
 
   test('read generator and verify value', async ({ mainPage }) => {
@@ -286,7 +287,7 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('read energy and verify values', async ({ mainPage }) => {
     await readRegisters(mainPage, '40560', '8')
 
-    expect(await cell(mainPage, 40566, 'word_uint16')).toBe('1')
+    await expectCell(mainPage, 40566, 'word_uint16', '1')
   })
 
   test('read voltage/current generators and verify', async ({ mainPage }) => {
@@ -304,22 +305,22 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('read DI bitmap and verify', async ({ mainPage }) => {
     await readRegisters(mainPage, '40700', '1')
 
-    expect(await cell(mainPage, 40700, 'word_uint16')).toBe('37')
+    await expectCell(mainPage, 40700, 'word_uint16', '37')
   })
 
   test('read alarm bitmaps and verify', async ({ mainPage }) => {
     await readRegisters(mainPage, '50000', '3')
 
-    expect(await cell(mainPage, 50000, 'word_uint16')).toBe('2048')
-    expect(await cell(mainPage, 50001, 'word_uint16')).toBe('8')
-    expect(await cell(mainPage, 50002, 'word_uint16')).toBe('0')
+    await expectCell(mainPage, 50000, 'word_uint16', '2048')
+    await expectCell(mainPage, 50001, 'word_uint16', '8')
+    await expectCell(mainPage, 50002, 'word_uint16', '0')
   })
 
   test('read public registers and verify', async ({ mainPage }) => {
     await readRegisters(mainPage, '65521', '14')
 
-    expect(await cell(mainPage, 65521, 'word_uint16')).toBe('5')
-    expect(await cell(mainPage, 65534, 'word_uint16')).toBe('45057')
+    await expectCell(mainPage, 65521, 'word_uint16', '5')
+    await expectCell(mainPage, 65534, 'word_uint16', '45057')
   })
 
   // ─── Save manually created config ──────────────────────────────
