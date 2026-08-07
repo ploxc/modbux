@@ -805,8 +805,36 @@ test.describe.serial('Act IV — Interaction', () => {
 let serverPage: Page
 
 test.describe.serial('Act V — Side by Side', () => {
-  test('scene 30 — split view', async ({ electronApp, mainPage }) => {
+  test('scene 29b — RTU over TCP in the cog menu', async ({ mainPage }) => {
+    // Only reachable while disconnected: the transport cannot change mid-session.
+    // The warning colour is the whole point -- it is what turns the TCP button
+    // warning too, and that is the only thing telling the two TCP transports
+    // apart, since RTU over TCP reuses the same host and port.
     await disconnectClient(mainPage)
+    await mainPage.getByTestId('menu-btn').click()
+    await beat(mainPage, 300)
+
+    const popover = mainPage.locator('.MuiPopover-paper')
+    const rtuOverTcp = mainPage.getByTestId('rtu-over-tcp-checkbox')
+    await rtuOverTcp.click()
+    // Park the pointer and the focus away from the checkbox: the hover ripple
+    // it leaves behind otherwise dominates the shot. The popover closes on
+    // click, not on mouse-out, so moving away is safe.
+    await mainPage.mouse.move(5, 5)
+    await mainPage.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await beat(mainPage, 400)
+    await popover.screenshot({ path: resolve(SHOTS, 'cog-menu-rtu-over-tcp.png') })
+
+    await rtuOverTcp.click()
+    await beat(mainPage, 200)
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+
+    // The TCP button back on primary, ready for the split view scenes.
+    await snap(mainPage, 'client-rtu-over-tcp-off')
+  })
+
+  test('scene 30 — split view', async ({ mainPage, electronApp }) => {
     await navigateToHome(mainPage)
     await beat(mainPage, 3500)
 

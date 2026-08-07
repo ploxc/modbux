@@ -74,6 +74,17 @@ export type Transaction = z.infer<typeof TransactionSchema>
 export const ProtocolSchema = z.enum(['ModbusTcp', 'ModbusRtu', 'ModbusRtuOverTcp'])
 export type Protocol = z.infer<typeof ProtocolSchema>
 
+/**
+ * How each transport is named to the user. RTU over TCP is the one worth
+ * spelling out: it reuses the TCP host and port and keeps the TCP button
+ * selected, so nothing on screen distinguishes it from plain TCP.
+ */
+export const PROTOCOL_LABELS: Record<Protocol, string> = {
+  ModbusTcp: 'Modbus TCP',
+  ModbusRtu: 'Modbus RTU',
+  ModbusRtuOverTcp: 'RTU over TCP'
+}
+
 export const ModbusBaudRateSchema = z.enum([
   '1200',
   '2400',

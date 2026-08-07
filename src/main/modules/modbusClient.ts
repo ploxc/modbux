@@ -10,6 +10,7 @@ import {
   createRegisters,
   groupAddressInfos,
   humanizeSerialError,
+  PROTOCOL_LABELS,
   RawTransaction,
   RegisterData,
   RegisterType,
@@ -235,7 +236,7 @@ export class ModbusClient {
       }
       if (this._reconnectTriggered) {
         this._emitMessage({
-          message: `Reconnected to server`,
+          message: `Reconnected over ${PROTOCOL_LABELS[protocol]}`,
           variant: 'success',
           error: null
         })
@@ -247,7 +248,7 @@ export class ModbusClient {
         }, 1000)
       } else {
         this._emitMessage({
-          message: 'Connected to server',
+          message: `Connected over ${PROTOCOL_LABELS[protocol]}`,
           variant: 'success',
           error: null
         })
