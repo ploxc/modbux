@@ -219,21 +219,24 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   test('raw button toggles raw display mode', async ({ mainPage }) => {
     const rawBtn = mainPage.getByTestId('raw-btn')
 
-    // Ensure raw mode is off before testing toggle
+    // Ensure raw mode is off before testing toggle. MUI v9 split composite
+    // class names, so the on-state is `contained` plus `colorWarning` as two
+    // separate classes instead of a single `containedWarning`.
     const classes = await rawBtn.getAttribute('class')
-    if (classes?.includes('containedWarning')) {
+    if (classes?.includes('MuiButton-colorWarning')) {
       await rawBtn.click()
     }
 
-    await expect(rawBtn).not.toHaveClass(/containedWarning/)
+    await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
 
     // Toggle raw mode on
     await rawBtn.click()
-    await expect(rawBtn).toHaveClass(/containedWarning/)
+    await expect(rawBtn).toHaveClass(/MuiButton-contained/)
+    await expect(rawBtn).toHaveClass(/MuiButton-colorWarning/)
 
     // Toggle raw mode off
     await rawBtn.click()
-    await expect(rawBtn).not.toHaveClass(/containedWarning/)
+    await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
   })
 
   // ─── Transaction log ────────────────────────────────────────────────

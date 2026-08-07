@@ -484,12 +484,14 @@ export const disableReadConfiguration = (p: Page): Promise<void> => setReadConfi
 export async function setClientRawMode(p: Page, enabled: boolean): Promise<void> {
   const rawBtn = p.getByTestId('raw-btn')
   const classes = await rawBtn.getAttribute('class')
-  const isEnabled = classes?.includes('containedWarning')
+  // MUI v9 split composite class names: the on-state is `contained` plus
+  // `colorWarning` as two classes rather than a single `containedWarning`.
+  const isEnabled = classes?.includes('MuiButton-colorWarning') ?? false
 
   if (enabled !== isEnabled) await rawBtn.click()
 
-  if (enabled) await expect(rawBtn).not.toHaveClass(/containedWarning/)
-  else expect(rawBtn).not.toHaveClass(/containedWarning/)
+  if (enabled) await expect(rawBtn).toHaveClass(/MuiButton-colorWarning/)
+  else await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
 }
 
 /** Convenience alias for setClientRawMode(p, true) */
