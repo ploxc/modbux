@@ -4,15 +4,15 @@
 
 <img src="./resources/icon.png" alt="Logo" width="60" />
 
-## A Modbus Client & Server Simulation Tool
+## An Open Source Modbus Client & Server Simulation Tool for Windows, macOS and Linux
 
-**Modbux is the tool I desperately needed four years ago.** It handles both Modbus TCP and RTU, lets you assign datatypes to registers, scan for addresses and data, simulate servers for testing, and actually _understand_ what you're reading, all in one app.
+**Modbux is the tool I desperately needed four years ago.** It handles Modbus TCP, RTU and RTU over TCP, lets you assign datatypes to registers, scan for addresses and data, simulate servers for testing, and actually _understand_ what you're reading, all in one app.
 
 ## Download
 
 **[Download the latest release](https://www.ploxc.com/modbux)**
 
-Available for Windows and macOS
+Installers for Windows and macOS. Linux is supported and [builds from source](#build-it-yourself).
 
 **[Read the documentation](https://www.ploxc.com/modbux/docs/v2/getting-started)**
 
@@ -28,6 +28,7 @@ Available for Windows and macOS
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
 - Modbus TCP (with hostname/IP) and RTU support with automatic COM port discovery
+- RTU over TCP for serial-to-Ethernet gateways that carry encapsulated RTU frames
 - Configuration save/load (JSON)
 
 **Server Mode:**
@@ -110,6 +111,10 @@ Download the `.dmg` file from releases.
 
 ⚠️ **First time opening**: Right-click the app and select "Open"
 (or go to System Preferences → Security & Privacy → "Open Anyway")
+
+### Linux
+
+No prebuilt package yet, but Linux is supported: `yarn build:linux` produces a `.deb` and an `.AppImage`. See [Build It Yourself](#build-it-yourself) for the steps, and the Linux notes there for unprivileged ports and serial port access.
 
 ## Build It Yourself
 
