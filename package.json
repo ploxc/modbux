@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "deepmerge": "^4.3.1",
-    "lodash": "^4.17.23",
+    "lodash": "^4.18.1",
     "luxon": "^3.7.2",
     "modbus-serial": "^8.0.23",
     "uuid": "^10.0.0",
