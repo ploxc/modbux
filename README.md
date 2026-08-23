@@ -10,17 +10,17 @@
 
 ## Download
 
-**[Download the latest release](https://www.ploxc.com/modbux)**
+**[Download the latest release](https://ploxc.com/modbux)**
 
 Installers for Windows and macOS. Linux is supported and [builds from source](#build-it-yourself).
 
-**[Read the documentation](https://www.ploxc.com/modbux/docs/v2/getting-started)**
+**[Read the documentation](https://ploxc.com/modbux/docs/latest/getting-started)**
 
 ## Features
 
 **Client Mode:**
 
-- Read/write with 12 data types (int16/32/64, uint16/32/64, float, double, bitmap, timestamps, UTF-8 strings)
+- Read/write every common data type: int16/32/64, uint16/32/64, float, double, bitmap, timestamps and UTF-8 strings
 - Bitmap detail panel: expandable 16-bit view with per-bit toggles, color coding, invert, and inline comments
 - Advanced mode: see all numeric data type interpretations simultaneously
 - `Read configuration` mode: efficiently read only configured registers with automatic grouping, group index column, and inline error rows
@@ -34,9 +34,9 @@ Installers for Windows and macOS. Linux is supported and [builds from source](#b
 **Server Mode:**
 
 - Modbus TCP and RTU server modes (serial port, USB converters, socat virtual pairs)
-- Simulate up to 10 Modbus devices (TCP mode)
-- 256 Unit IDs per server (0-255)
-- 12 data types: numeric registers, bitmap, UTF-8 strings, Unix timestamps, and IEC 870-5 datetime
+- Simulate several Modbus devices at once (TCP mode)
+- The full Unit ID range the protocol allows, 0-255, on every server
+- The same data types as the client: numeric registers, bitmap, UTF-8 strings, Unix timestamps and IEC 870-5 datetime
 - Static or random value generation with configurable intervals
 - Time-based generators for Unix/datetime that output the current system time
 - DateTimePicker with UTC toggle for setting exact timestamps
@@ -54,6 +54,22 @@ Installers for Windows and macOS. Linux is supported and [builds from source](#b
 **State Persistence:**
 
 - Everything saves automatically between sessions
+
+## How It Compares
+
+There are plenty of Modbus tools around and several of them are good at what they do. The
+catch is that they each do one piece of it, and the good ones are paid and Windows-only:
+a client here, a server there, a scanner separately. I used those for years, switching
+between windows.
+
+Modbux is free and open source, runs on Windows, macOS and Linux, and puts the client and
+the server in one app, so you can point one at the other over `127.0.0.1` and test without
+any hardware in front of you. The part I actually built it for is the interpretation:
+every data type applied to the same registers at once, endianness you can flip, scaling,
+and a scan that tells you where the data is instead of only which unit answered.
+
+If you want it laid out tool by tool, there is a
+[comparison page](https://ploxc.com/modbux/alternatives) on the site.
 
 ## UI
 
