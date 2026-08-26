@@ -75,6 +75,9 @@ const RegisterGridContent = (): JSX.Element => {
       apiRef={apiRef}
       rows={registerData}
       columns={columns}
+      // Off under e2e only, so a spec asserts on the column it named rather
+      // than on whether that column happened to be in the rendered band.
+      disableVirtualization={window.api.isE2e}
       autoHeight={false}
       density="compact"
       rowHeight={40}
