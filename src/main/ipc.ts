@@ -11,6 +11,7 @@ import {
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
+import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
 
 export const ipcHandle = <C extends keyof IpcHandlerMap>(
@@ -98,6 +99,10 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
 
   // Read configuration (session-only toggle)
   ipcHandle('set_read_configuration', (_, value) => state.setReadConfiguration(value))
+
+  // Linux privileged ports (port 502 needs the unprivileged-port floor lowered)
+  ipcHandle('get_privileged_port_status', (_, port) => getPrivilegedPortStatus(port))
+  ipcHandle('apply_privileged_port_fix', (_, mode) => applyPrivilegedPortFix(mode))
 
   // Serial port discovery
   ipcHandle('list_serial_ports', () => client.listSerialPorts())
