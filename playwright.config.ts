@@ -18,6 +18,10 @@ export default defineConfig({
   // two minutes to tell you little that 01-main does not already check. Run it
   // when you want fresh screenshots, with `yarn presentation`.
   testIgnore: ['**/98-privileged-port/**', '**/99-hardware/**', '**/03-presentation/**'],
+  // Checked once before anything launches: on Linux a raised port floor makes
+  // the server fall back off 502 and the specs fail in a way that points at the
+  // UI instead of at the machine.
+  globalSetup: './e2e/fixtures/require-bindable-502.ts',
   timeout: 60000,
   retries: 0,
   workers: 1,

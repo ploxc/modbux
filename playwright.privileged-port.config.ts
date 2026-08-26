@@ -9,6 +9,9 @@ export default defineConfig({
   ...base,
   testDir: './e2e/specs/98-privileged-port',
   testIgnore: [],
+  // This suite exists precisely to run with 502 blocked, so the guard that every
+  // other config inherits would refuse to start it.
+  globalSetup: undefined,
   // Every step here can be waiting on a person — a sudo command in another
   // terminal, a PolicyKit password prompt. A clock would just kill the run
   // while they are typing.
