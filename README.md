@@ -4,6 +4,12 @@
 
 <img src="./resources/icon.png" alt="Logo" width="60" />
 
+[![Release](https://img.shields.io/github/v/release/ploxc/modbux?color=5b9279)](https://github.com/ploxc/modbux/releases)
+[![Downloads](https://img.shields.io/github/downloads/ploxc/modbux/total?color=5b9279&label=downloads)](https://github.com/ploxc/modbux/releases)
+[![License](https://img.shields.io/github/license/ploxc/modbux?color=5b9279)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-5b9279)
+[![Buy me a coffee on Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-5b9279?logo=kofi&logoColor=white)](https://ko-fi.com/ploxc)
+
 ## An Open Source Modbus Client & Server Simulation Tool for Windows, macOS and Linux
 
 **Modbux is the tool I desperately needed four years ago.** It handles Modbus TCP, RTU and RTU over TCP, lets you assign datatypes to registers, scan for addresses and data, simulate servers for testing, and actually _understand_ what you're reading, all in one app.
@@ -104,6 +110,12 @@ I use it every single day now. The idea of writing Modbus code and just _hoping_
 **If you've ever fought with Modbus, you'll understand why this needed to exist.**
 
 Built with Electron, React, and Material-UI. Open source because this industry needs better tools.
+
+### Free, and Staying Free
+
+No account, no trial, no paid tier. If Modbux saved you an afternoon on site, you can buy
+me a [coffee](https://ko-fi.com/ploxc). The current goal is an Apple Developer certificate,
+so macOS stops warning that the app is damaged on first launch.
 
 ## Why "Modbux"?
 
