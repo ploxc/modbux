@@ -5,6 +5,20 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Disconnecting from an RTU device no longer reports an error.** Clicking
+  Disconnect raised "Connection closed unexpectedly" next to "Disconnected from
+  server". A serial port emits its close event while `close()` is still running
+  and before the callback that resolves the disconnect, so the handler read the
+  flag marking the close as deliberate before it had been set, and took a
+  deliberate disconnect for a dropped line. The same stale flag then suppressed
+  the _next_ genuinely unexpected close; both are fixed. This affected macOS and
+  Windows too — the ordering lives in `@serialport/stream`, which is the same
+  JavaScript on every platform. TCP disconnects were never affected.
+
 ## [2.2.1] - 2026-08-07
 
 ### Fixed
