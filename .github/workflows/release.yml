@@ -50,13 +50,13 @@ jobs:
               dist/*.deb
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # No `cache: yarn` here. setup-node resolves the cache folder by running
       # yarn, which corepack has not installed yet at this point in the job.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
 
       # Yarn 4 ships through corepack; the version is pinned in package.json.
       - name: Enable corepack
@@ -74,7 +74,7 @@ jobs:
       - name: Build
         run: yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.artifacts }}
@@ -87,7 +87,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/download-artifact@v4
+      # v7 and not v8: v8 stops unzipping by default and decides per
+      # Content-Type, and this step downloads every artifact at once to hand
+      # them to the draft.
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
 

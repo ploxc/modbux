@@ -33,13 +33,13 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # No `cache: yarn` here. setup-node resolves the cache folder by running
       # yarn, which corepack has not installed yet at this point in the job.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Enable corepack
         run: corepack enable
@@ -84,7 +84,7 @@ jobs:
           xvfb-run -a yarn playwright test \
             --config playwright.packaged.config.ts --trace retain-on-failure
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-${{ inputs.mode }}-${{ inputs.runner }}
