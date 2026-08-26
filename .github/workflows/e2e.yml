@@ -1,0 +1,94 @@
+name: E2E
+
+# Manual only. The suite takes about seven minutes per mode, which is too slow
+# to sit on every pull request, and nothing here gates a merge.
+#
+# The runner input is the point of this workflow: the same button gives you
+# x64 or arm64. Modbux has never shipped a Linux build, so arm64 has no
+# machine anywhere else to be tried on.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner
+        type: choice
+        default: ubuntu-22.04
+        options:
+          - ubuntu-22.04
+          - ubuntu-22.04-arm
+      mode:
+        description: Which build to drive
+        type: choice
+        default: both
+        options:
+          - both
+          - dev
+          - packaged
+
+jobs:
+  e2e:
+    name: ${{ inputs.mode }} on ${{ inputs.runner }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `cache: yarn` here. setup-node resolves the cache folder by running
+      # yarn, which corepack has not installed yet at this point in the job.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable corepack
+        run: corepack enable
+
+      # xvfb gives Electron a display; the specs spawn socat for a virtual
+      # serial pair and skip themselves when it is missing.
+      - name: System dependencies
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install -y xvfb socat \
+            libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+            libatspi2.0-0 libuuid1 libsecret-1-0 libasound2 libgbm1
+          command -v socat
+
+      # Required before the suite starts. The globalSetup in playwright.config.ts
+      # refuses to run without it and says why.
+      - name: Lower the unprivileged port floor
+        run: |
+          sudo sysctl -w net.ipv4.ip_unprivileged_port_start=502
+          cat /proc/sys/net/ipv4/ip_unprivileged_port_start
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build
+        run: yarn electron-vite build
+
+      # --trace retain-on-failure, because the repository config sets
+      # on-first-retry against retries: 0 and so records nothing. A failure here
+      # cannot be reproduced on the machine you are reading this from.
+      - name: E2E against out/
+        if: inputs.mode != 'packaged'
+        run: xvfb-run -a yarn playwright test --trace retain-on-failure
+
+      - name: Package
+        if: inputs.mode != 'dev'
+        run: yarn electron-builder --dir --linux --publish never
+
+      - name: E2E against dist/
+        if: inputs.mode != 'dev'
+        run: |
+          xvfb-run -a yarn playwright test \
+            --config playwright.packaged.config.ts --trace retain-on-failure
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-${{ inputs.mode }}-${{ inputs.runner }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
