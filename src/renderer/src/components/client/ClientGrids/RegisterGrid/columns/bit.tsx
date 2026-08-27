@@ -4,6 +4,7 @@ import { RegisterData } from '@shared'
 
 export const bitColumn: GridColDef<RegisterData, boolean, boolean> = {
   field: 'bit',
+  filterable: false,
   type: 'boolean',
   headerName: 'Bit',
   width: 80,

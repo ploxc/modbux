@@ -80,6 +80,12 @@ const RegisterGridContent = (): JSX.Element => {
       // Off under e2e only, so a spec asserts on the column it named rather
       // than on whether that column happened to be in the rendered band.
       disableVirtualization={window.api.isE2e}
+      // Read configuration owns the filter model while it is on. Leaving the
+      // column menus open would let a filter of the user's fight it, and the
+      // data type filter below could be edited or deleted from the menu, which
+      // fills the list with the empty rows it exists to hide. Only the menu
+      // entries go: a model set here still filters.
+      disableColumnFilter={readConfiguration}
       autoHeight={false}
       density="compact"
       rowHeight={40}

@@ -656,3 +656,20 @@ export async function getServer2Port(p: Page): Promise<string> {
   await navigateToClient(p)
   return port
 }
+
+/** Open the column menu of one grid column. The trigger only renders on hover. */
+export async function openColumnMenu(p: Page, field: string): Promise<void> {
+  await test.step(`open column menu of ${field}`, async () => {
+    // A menu closed a moment ago is still mounted while it fades, so wait it
+    // out before opening the next one -- two menu lists at once make every
+    // locator below ambiguous.
+    const menu = p.locator('.MuiDataGrid-menuList')
+    await expect(menu).toHaveCount(0)
+
+    const header = p.locator(`.MuiDataGrid-columnHeader[data-field="${field}"]`)
+    await header.hover()
+    await header.locator('.MuiDataGrid-menuIconButton').click()
+    // Not getByRole('menu'): the action cells carry that role too.
+    await expect(menu).toBeVisible()
+  })
+}
