@@ -5,6 +5,16 @@ import { IPC_CHANNELS, IpcHandlerMap, snakeToCamel } from '@shared'
 const passedArgs = process.argv.slice(2)
 const isServerWindow = passedArgs.includes('is-server-window')
 
+/**
+ * Set by the e2e fixture, never in a shipped build.
+ *
+ * The DataGrid virtualises both axes, so a column far enough right or a row
+ * far enough down is not in the DOM and a spec's locator matches nothing. How
+ * much fits depends on the screen the window landed on, which made the suite
+ * pass on one machine and fail on another for the same commit.
+ */
+const isE2e = process.env.MODBUX_E2E === '1'
+
 export const ipcInvoke = <C extends keyof IpcHandlerMap>(
   channel: C,
   ...args: IpcHandlerMap[C]['args']
@@ -69,6 +79,7 @@ type Handlers = typeof handlers
  */
 export type Api = {
   isServerWindow: boolean
+  isE2e: boolean
 } & Handlers
 
 /**
@@ -78,6 +89,7 @@ export type Api = {
  */
 const api = {
   isServerWindow,
+  isE2e,
   ...handlers
 } as Api
 

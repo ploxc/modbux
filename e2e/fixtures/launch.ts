@@ -26,6 +26,15 @@ const MAC_ARM64 = 'dist/mac-arm64/Modbux.app/Contents/MacOS/Modbux'
 const MAC_X64 = 'dist/mac/Modbux.app/Contents/MacOS/Modbux'
 
 /**
+ * Linux output directory for the host architecture. electron-builder names the
+ * default arch `linux-unpacked` and every other one after itself, so an arm64
+ * build lands in `linux-arm64-unpacked`. Only x64 and arm64 have been seen.
+ */
+function linuxUnpackedDir(): string {
+  return process.arch === 'x64' ? 'dist/linux-unpacked' : `dist/linux-${process.arch}-unpacked`
+}
+
+/**
  * Candidate binaries per platform, as produced by `electron-builder --dir`.
  *
  * macOS needs the host architecture taken into account. `--mac` builds both
@@ -34,11 +43,16 @@ const MAC_X64 = 'dist/mac/Modbux.app/Contents/MacOS/Modbux'
  * which surfaces as an unexplained "Unknown system error -86". Rosetta makes
  * the reverse work, so arm64 keeps the x64 build as a fallback while Intel
  * does not list arm64 at all.
+ *
+ * Linux takes it into account too, but has no fallback: nothing translates
+ * between the two there.
  */
 function packagedCandidates(): string[] {
   if (process.platform === 'win32') return ['dist/win-unpacked/Modbux.exe']
-  if (process.platform === 'linux')
-    return ['dist/linux-unpacked/modbux', 'dist/linux-unpacked/Modbux']
+  if (process.platform === 'linux') {
+    const dir = linuxUnpackedDir()
+    return [`${dir}/modbux`, `${dir}/Modbux`]
+  }
   if (process.platform === 'darwin') {
     return process.arch === 'arm64' ? [MAC_ARM64, MAC_X64] : [MAC_X64]
   }
@@ -89,7 +103,11 @@ export function launchOptions(): LaunchOptions {
   const isolate = isPackaged || process.env.E2E_ISOLATED_PROFILE === '1'
   const args = isolate ? [`--user-data-dir=${isolatedUserDataDir()}`] : []
 
-  if (!isPackaged) return { args: [join(ROOT, 'out/main/index.js'), ...args] }
+  // Turns off DataGrid virtualisation, so a locator finds the column or row it
+  // names instead of only the ones the current window happens to render.
+  const env = { ...process.env, MODBUX_E2E: '1' }
 
-  return { executablePath: packagedBinary(), args }
+  if (!isPackaged) return { args: [join(ROOT, 'out/main/index.js'), ...args], env }
+
+  return { executablePath: packagedBinary(), args, env }
 }

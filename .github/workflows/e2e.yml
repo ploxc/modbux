@@ -1,0 +1,176 @@
+name: E2E
+
+# The run list shows this instead of the workflow name, so a row says what it
+# was rather than repeating "E2E" down the page.
+run-name: >-
+  E2E ${{ inputs.mode }} ·
+  ${{ inputs.ubuntu_x64 && 'linux-x64 ' || '' }}${{ inputs.ubuntu_arm64 && 'linux-arm64 ' || '' }}${{ inputs.macos_arm64 && 'macos-arm64 ' || '' }}${{ inputs.macos_intel && 'macos-intel ' || '' }}${{ inputs.windows_x64 && 'windows-x64' || '' }}
+
+# Manual only. The suite takes about seven minutes per mode, which is too slow
+# to sit on every pull request, and nothing here gates a merge.
+#
+# Tick the platforms you want and they run side by side. fail-fast is off, so
+# one platform going red still tells you about the others.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ubuntu_x64:
+        description: Linux x64
+        type: boolean
+        default: true
+      ubuntu_arm64:
+        description: Linux arm64
+        type: boolean
+        default: false
+      macos_arm64:
+        description: macOS arm64
+        type: boolean
+        default: false
+      macos_intel:
+        description: macOS Intel
+        type: boolean
+        default: false
+      windows_x64:
+        description: Windows x64 (no socat, so the serial specs skip)
+        type: boolean
+        default: false
+      mode:
+        description: Which build to drive
+        type: choice
+        default: both
+        options:
+          - both
+          - dev
+          - packaged
+
+jobs:
+  # A matrix cannot be built from inputs directly, so the ticked boxes become a
+  # JSON array here and the job below fans out over it.
+  runners:
+    name: Collect runners
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        run: |
+          picked=()
+          if [ "${{ inputs.ubuntu_x64 }}"   = "true" ]; then picked+=("ubuntu-22.04"); fi
+          if [ "${{ inputs.ubuntu_arm64 }}" = "true" ]; then picked+=("ubuntu-22.04-arm"); fi
+          if [ "${{ inputs.macos_arm64 }}"  = "true" ]; then picked+=("macos-26"); fi
+          if [ "${{ inputs.macos_intel }}"  = "true" ]; then picked+=("macos-26-intel"); fi
+          if [ "${{ inputs.windows_x64 }}"  = "true" ]; then picked+=("windows-2025"); fi
+
+          if [ ${#picked[@]} -eq 0 ]; then
+            echo "Tick at least one platform." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "${picked[@]}"
+          matrix=$(printf '%s\n' "${picked[@]}" | jq -R . | jq -sc .)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: ${{ inputs.mode }} on ${{ matrix.runner }}
+    needs: runners
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(needs.runners.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `cache: yarn` here. setup-node resolves the cache folder by running
+      # yarn, which corepack has not installed yet at this point in the job.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Enable corepack
+        run: corepack enable
+
+      # xvfb gives Electron a display. macOS and Windows runners have a session
+      # of their own and need none of this.
+      - name: System dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install -y xvfb socat \
+            libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+            libatspi2.0-0 libuuid1 libsecret-1-0 libasound2 libgbm1
+
+      - name: System dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install socat
+
+      # Required before the suite starts on Linux. The globalSetup in
+      # playwright.config.ts refuses to run without it and says why.
+      - name: Lower the unprivileged port floor
+        if: runner.os == 'Linux'
+        run: |
+          sudo sysctl -w net.ipv4.ip_unprivileged_port_start=502
+          cat /proc/sys/net/ipv4/ip_unprivileged_port_start
+
+      # The serial specs call test.skip() when socat is missing, so a green run
+      # on a machine without it has tested no serial code at all. Say so in the
+      # summary rather than leave the tick to be misread.
+      #
+      # e2e/fixtures/socat.ts searches PATH as well as the known Homebrew and
+      # system directories, so this answers the same question the specs ask.
+      # An earlier version did not, and reported socat present on two runners
+      # whose serial specs had skipped.
+      - name: Serial coverage
+        shell: bash
+        run: |
+          if command -v socat >/dev/null; then
+            echo "socat at $(command -v socat): the serial specs run." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "socat MISSING: the serial specs skip themselves." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Retried once. The steps that reach the network can fail for reasons
+      # that have nothing to do with the code -- the Electron binary comes from
+      # GitHub, and a runner that cannot resolve it fails the build. The test
+      # steps below are deliberately not retried: a flaky spec has to stay
+      # visible.
+      - name: Install dependencies
+        shell: bash
+        run: |
+          yarn install --immutable ||
+            { sleep 15; yarn install --immutable; }
+
+      - name: Build
+        run: yarn electron-vite build
+
+      # --trace retain-on-failure, because the repository config sets
+      # on-first-retry against retries: 0 and so records nothing. A failure here
+      # cannot be reproduced on the machine you are reading this from.
+      - name: E2E against out/
+        if: inputs.mode != 'packaged'
+        shell: bash
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --trace retain-on-failure
+
+      - name: Package
+        if: inputs.mode != 'dev'
+        shell: bash
+        run: |
+          yarn electron-builder --dir --publish never ||
+            { sleep 15; yarn electron-builder --dir --publish never; }
+
+      - name: E2E against dist/
+        if: inputs.mode != 'dev'
+        shell: bash
+        run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --config playwright.packaged.config.ts --trace retain-on-failure
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-${{ inputs.mode }}-${{ matrix.runner }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
