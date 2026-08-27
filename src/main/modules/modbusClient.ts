@@ -187,6 +187,7 @@ export class ModbusClient {
   // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
     this._shouldAutoReconnect = true
+    this._deliberateDisconnect = false
     if (!this._reconnectTriggered) this._consecutiveReconnects = 0
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = undefined
@@ -278,6 +279,10 @@ export class ModbusClient {
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
+    // Set before closing: a serial port emits 'close' during close(), which is
+    // sooner than the callback below, and the handler reads this flag to decide
+    // whether the close was ours.
+    this._deliberateDisconnect = true
     this._consecutiveReconnects = 0
     if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
@@ -316,7 +321,6 @@ export class ModbusClient {
         variant: 'default',
         error: null
       })
-      this._deliberateDisconnect = true
       this._setDisconnected()
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
