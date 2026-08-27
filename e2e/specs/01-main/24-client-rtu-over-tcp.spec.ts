@@ -18,7 +18,6 @@ import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-basic.json')
 
-
 // A serial-to-Ethernet gateway in transparent mode passes raw RTU frames (with
 // CRC) between a TCP socket and a serial line. A single socat instance emulates
 // exactly that: one side is a PTY the Modbux RTU server listens on, the other
