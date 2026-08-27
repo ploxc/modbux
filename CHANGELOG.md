@@ -5,6 +5,17 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Disconnecting no longer reports an error.** Clicking Disconnect raised
+  "Connection closed unexpectedly" next to "Disconnected from server". The close
+  event comes back while the disconnect is still finishing, and the flag marking
+  it as deliberate was set too late to be read. That same stale flag then
+  suppressed the next close that really was unexpected. Both are fixed, over
+  serial and over TCP.
+
 ## [2.2.1] - 2026-08-07
 
 ### Fixed
