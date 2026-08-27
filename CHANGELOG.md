@@ -10,18 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Disconnecting no longer reports an error.** Clicking Disconnect raised
-  "Connection closed unexpectedly" next to "Disconnected from server". A serial
-  port emits its close event while `close()` is still running and before the
-  callback that resolves the disconnect, so the handler read the flag marking
-  the close as deliberate before it had been set, and took a deliberate
-  disconnect for a dropped line. The same stale flag then suppressed the _next_
-  genuinely unexpected close; both are fixed. This affected macOS and Windows
-  too, since the ordering lives in `@serialport/stream`, which is the same
-  JavaScript on every platform. A TCP socket used to come back the other way
-  round, its close arriving after that callback, which is why the message never
-  showed there. On the Electron this release moves to it arrives a tick earlier,
-  so a plain TCP disconnect raised it as well. The fix does not care which
-  transport it is and covers both.
+  "Connection closed unexpectedly" next to "Disconnected from server". The close
+  event comes back while the disconnect is still finishing, and the flag marking
+  it as deliberate was set too late to be read. That same stale flag then
+  suppressed the next close that really was unexpected. Both are fixed, over
+  serial and over TCP.
 
 ## [2.2.1] - 2026-08-07
 
