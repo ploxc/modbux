@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   You see the command before it runs, and the elevation goes through PolicyKit,
   so you approve it yourself and Modbux never sees your password. Inside
   Flatpak or Snap it hands you the command instead.
+- **A button that clears the filters you set.** It sits next to RAW in the
+  client toolbar and shows up only while a filter is on, so a filter left behind
+  no longer reads as missing data.
+
+### Changed
+
+- **Only the columns worth filtering still offer a filter.** Addr., Bit and BIN
+  lost theirs: a filter over an address or a row of LEDs answers nothing anyone
+  asks. HEX and the value columns keep theirs, because a status word or a fault
+  code from the manual is often exactly what you are hunting for.
+- **Reading a configuration turns filtering off.** That mode already hides the
+  rows without a data type, and a filter of your own could fight it or take it
+  away from the column menu, leaving the list full of empty rows.
 
 ### Fixed
 

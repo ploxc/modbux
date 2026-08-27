@@ -11,7 +11,8 @@ import {
   disableReadConfiguration,
   cleanServerState,
   loadServerConfig,
-  expectCell
+  expectCell,
+  openColumnMenu
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -405,6 +406,91 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     // Verify grid has data
     const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
     expect(rowCount).toBeGreaterThan(0)
+  })
+
+  // ─── Column filters ─────────────────────────────────────────────────
+
+  test('clear filters button is hidden while nothing is filtered', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('clear-filters-btn')).not.toBeVisible()
+  })
+
+  test('filtering on hex reveals the clear filters button', async ({ mainPage }) => {
+    const rowsBefore = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(rowsBefore).toBeGreaterThan(1)
+
+    await openColumnMenu(mainPage, 'hex')
+    await mainPage
+      .locator('.MuiDataGrid-menuList')
+      .getByRole('menuitem', { name: 'Filter' })
+      .click()
+
+    const valueInput = mainPage.locator('.MuiDataGrid-filterFormValueInput input')
+    await expect(valueInput).toBeVisible()
+
+    // An empty filter form is not a filter yet.
+    await expect(mainPage.getByTestId('clear-filters-btn')).not.toBeVisible()
+
+    // Dummy data reads 0000 across the board, so this matches nothing and the
+    // grid empties -- proof the filter reached the rows, not only the toolbar.
+    await valueInput.fill('ffff')
+    await expect(mainPage.getByTestId('clear-filters-btn')).toBeVisible()
+
+    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.locator('.MuiDataGrid-row')).toHaveCount(0)
+  })
+
+  test('clearing filters restores every row', async ({ mainPage }) => {
+    await mainPage.getByTestId('clear-filters-btn').click()
+
+    await expect(mainPage.getByTestId('clear-filters-btn')).not.toBeVisible()
+    expect(await mainPage.locator('.MuiDataGrid-row').count()).toBeGreaterThan(1)
+  })
+
+  test('address and binary columns offer no filter', async ({ mainPage }) => {
+    await openColumnMenu(mainPage, 'id')
+    await expect(
+      mainPage.locator('.MuiDataGrid-menuList').getByRole('menuitem', { name: 'Filter' })
+    ).toHaveCount(0)
+    await mainPage.keyboard.press('Escape')
+
+    // BIN has no column menu at all.
+    const binHeader = mainPage.locator('.MuiDataGrid-columnHeader[data-field="bin"]')
+    await binHeader.hover()
+    await expect(binHeader.locator('.MuiDataGrid-menuIconButton')).toHaveCount(0)
+  })
+
+  test('read configuration takes filtering away entirely', async ({ mainPage }) => {
+    // Read configuration hides rows without a data type, so give one row a type
+    // and keep the count as the yardstick.
+    const firstRow = mainPage.locator('.MuiDataGrid-row').first()
+    await firstRow.locator('[data-field="dataType"]').dblclick()
+    await mainPage.waitForTimeout(300)
+    await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
+    await mainPage.keyboard.press('Enter')
+
+    const rowsBefore = await mainPage.locator('.MuiDataGrid-row').count()
+    await enableReadConfiguration(mainPage)
+
+    const configuredRows = await mainPage.locator('.MuiDataGrid-row').count()
+    expect(configuredRows).toBeGreaterThan(0)
+    expect(configuredRows).toBeLessThan(rowsBefore)
+
+    // No column offers a filter, the data type column least of all: its filter
+    // is what hides the rows above, and editing it from the menu would bring
+    // them back.
+    for (const field of ['hex', 'dataType']) {
+      await openColumnMenu(mainPage, field)
+      await expect(
+        mainPage.locator('.MuiDataGrid-menuList').getByRole('menuitem', { name: 'Filter' })
+      ).toHaveCount(0)
+      await mainPage.keyboard.press('Escape')
+    }
+
+    // And with no filter of the user's to clear, no button either.
+    await expect(mainPage.getByTestId('clear-filters-btn')).not.toBeVisible()
+    await expect(mainPage.locator('.MuiDataGrid-row')).toHaveCount(configuredRows)
+
+    await disableReadConfiguration(mainPage)
   })
 
   // ─── Time settings ──────────────────────────────────────────────────

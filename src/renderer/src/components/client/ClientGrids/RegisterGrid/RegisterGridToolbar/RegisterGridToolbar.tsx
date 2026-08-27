@@ -11,6 +11,7 @@ import ClearButton from './ClearButton/ClearButton'
 import ShowLogButton from './ShowLogButton/ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import RawButton from './RawButton/RawButton'
+import ClearFiltersButton from './ClearFiltersButton/ClearFiltersButton'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import TextField from '@mui/material/TextField'
 
@@ -58,6 +59,7 @@ const RegisterGridToolbar = meme(() => {
         <ToggleEndianButton />
         <TimeSettings />
         <RawButton />
+        <ClearFiltersButton />
       </Box>
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: 1 }}>
         <Box sx={{ flex: '1 1 0' }}></Box>

@@ -56,6 +56,8 @@ const WordLedDisplay = meme(({ value = 0 }: Props): JSX.Element => {
 
 export const binaryColumn: GridColDef<RegisterData, string> = {
   field: 'bin',
+  // A filter over a bit string answers nothing anyone asks.
+  disableColumnMenu: true,
   headerName: 'BIN',
   width: 80,
   renderCell: ({ row }) => <WordLedDisplay value={row.words?.['uint16']} />
