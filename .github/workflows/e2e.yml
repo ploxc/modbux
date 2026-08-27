@@ -132,8 +132,16 @@ jobs:
             echo "socat MISSING: the serial specs skip themselves." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Retried once. The steps that reach the network can fail for reasons
+      # that have nothing to do with the code -- the Electron binary comes from
+      # GitHub, and a runner that cannot resolve it fails the build. The test
+      # steps below are deliberately not retried: a flaky spec has to stay
+      # visible.
       - name: Install dependencies
-        run: yarn install --immutable
+        shell: bash
+        run: |
+          yarn install --immutable ||
+            { sleep 15; yarn install --immutable; }
 
       - name: Build
         run: yarn electron-vite build
@@ -148,7 +156,10 @@ jobs:
 
       - name: Package
         if: inputs.mode != 'dev'
-        run: yarn electron-builder --dir --publish never
+        shell: bash
+        run: |
+          yarn electron-builder --dir --publish never ||
+            { sleep 15; yarn electron-builder --dir --publish never; }
 
       - name: E2E against dist/
         if: inputs.mode != 'dev'
