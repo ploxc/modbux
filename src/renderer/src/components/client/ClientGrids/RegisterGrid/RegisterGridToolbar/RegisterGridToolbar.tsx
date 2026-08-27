@@ -39,6 +39,12 @@ const RegisterGridToolbar = meme(() => {
         pt: 1,
         px: 1,
         pb: 0.5,
+        // The Data Grid renders the toolbar slot bare -- no wrapper, no
+        // background -- so it would otherwise show the grid's own base colour.
+        // The theme points DataGrid.headerBg at this same value, so the toolbar
+        // and the column headers stay one strip. (headerBg cannot be read back
+        // here: the augmentation extends PaletteOptions and CssVarsPalette, not
+        // Palette.)
         background: theme.palette.background.default,
         display: 'flex',
         //justifyContent: 'space-between',

@@ -242,7 +242,10 @@ const ScanResultGrid = meme(() => {
       // them is not.
       disableColumnSorting
       sx={{
-        '& .MuiDataGrid-virtualScrollerContent': {
+        // x-data-grid v8 moved the column headers inside the virtual scroller
+        // for column virtualisation, so scoping monospace to the scroller now
+        // catches the headers too. Target the data rows instead.
+        '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
         },

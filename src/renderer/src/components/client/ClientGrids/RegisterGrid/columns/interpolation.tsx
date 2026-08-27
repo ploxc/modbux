@@ -3,10 +3,8 @@ import { FormLabel, IconButton, InputBaseComponentProps } from '@mui/material'
 import Box from '@mui/material/Box'
 import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
-import TextField from '@mui/material/TextField/TextField'
-import { GridActionsCellItem } from '@mui/x-data-grid/components/cell/GridActionsCellItem'
-import { useGridApiContext } from '@mui/x-data-grid/hooks/utils/useGridApiContext'
-import { GridColDef } from '@mui/x-data-grid/models'
+import TextField from '@mui/material/TextField'
+import { GridActionsCellItem, GridColDef, useGridApiContext } from '@mui/x-data-grid'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
@@ -201,7 +199,9 @@ const Action = ({ type, address }: ActionProps): JSX.Element => {
           setOpen(true)
         }}
         color={isDefault ? undefined : 'primary'}
-        sx={{ opacity: !enabled ? 0 : isDefault ? 0.2 : 1 }}
+        // x-data-grid v8 types its slots against a design-system-agnostic
+        // interface, so baseIconButton takes style/className but not sx.
+        style={{ opacity: !enabled ? 0 : isDefault ? 0.2 : 1 }}
       />
 
       <InterpolationModal

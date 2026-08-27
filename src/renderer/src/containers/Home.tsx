@@ -150,7 +150,7 @@ const Version = (): JSX.Element => {
       target="_blank"
       sx={{ right: 16, ...bottomElementsCommonSx }}
     >
-      <Typography color="primary" fontSize={14} fontWeight={800}>
+      <Typography color="primary" sx={{ fontSize: 14, fontWeight: 800 }}>
         {version}
       </Typography>
       <GithubCat sx={{ width: 16 }} />

@@ -6,12 +6,14 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
-import { GridFooterContainer } from '@mui/x-data-grid/components/containers/GridFooterContainer'
-import { GridPagination } from '@mui/x-data-grid/components/GridPagination'
-import { useGridApiRef } from '@mui/x-data-grid/hooks/utils/useGridApiRef'
-import { GridFilterModel } from '@mui/x-data-grid/models/gridFilterModel'
-import { GridLogicOperator } from '@mui/x-data-grid/models/gridFilterItem'
-import { DataGrid } from '@mui/x-data-grid/DataGrid/DataGrid'
+import {
+  DataGrid,
+  GridFilterModel,
+  GridFooterContainer,
+  GridLogicOperator,
+  GridPagination,
+  useGridApiRef
+} from '@mui/x-data-grid'
 import { DataType, RegisterData } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
@@ -59,13 +61,13 @@ const RegisterGridContent = (): JSX.Element => {
     }
     if (readConfiguration) {
       showMapping()
-      apiRef.current.setFilterModel(filterModel)
+      apiRef.current?.setFilterModel(filterModel)
     } else {
       // Only clear data when transitioning from ON to OFF, not on initial mount
       if (prevReadConfigRef.current) {
         useDataZustand.getState().setRegisterData([])
       }
-      apiRef.current.setFilterModel({ items: [] })
+      apiRef.current?.setFilterModel({ items: [] })
     }
     prevReadConfigRef.current = readConfiguration
   }, [apiRef, readConfiguration])
@@ -106,7 +108,10 @@ const RegisterGridContent = (): JSX.Element => {
         return dataType !== 'none' || field === 'dataType'
       }}
       sx={(theme) => ({
-        '& .MuiDataGrid-virtualScrollerContent': {
+        // x-data-grid v8 moved the column headers inside the virtual scroller
+        // for column virtualisation, so scoping monospace to the scroller now
+        // catches the headers too. Target the data rows instead.
+        '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
         },
@@ -144,6 +149,9 @@ const RegisterGridContent = (): JSX.Element => {
       // value columns come out of a factory that never carried the flag, so
       // eight of them were sortable by accident.
       disableColumnSorting
+      // x-data-grid v8 no longer renders the toolbar slot implicitly; without
+      // showToolbar the whole RegisterGridToolbar silently disappears.
+      showToolbar
       slots={{ toolbar: RegisterGridToolbar, footer: Footer, row: BitMapRow }}
       getCellClassName={({ field, row }) =>
         field === 'groupIndex' && row.groupIndex !== undefined

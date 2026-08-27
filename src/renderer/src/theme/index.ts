@@ -1,6 +1,8 @@
+// Brings the palette.DataGrid tokens into the type system.
+import '@mui/x-data-grid/themeAugmentation'
 import { createTheme } from '@mui/material'
 
-export const theme = createTheme({
+const base = createTheme({
   breakpoints: {
     values: {
       xs: 0,
@@ -39,6 +41,18 @@ export const theme = createTheme({
   components: {
     MuiButton: {
       defaultProps: { variant: 'contained' }
+    }
+  }
+})
+
+// The Data Grid paints its own surfaces from palette.DataGrid. Left alone it
+// lightens the whole grid in dark mode (color-mix of paper with white); pinning
+// headerBg puts just the column headers back on the app background, leaving the
+// rows and footer on the grid's own base.
+export const theme = createTheme(base, {
+  palette: {
+    DataGrid: {
+      headerBg: base.palette.background.default
     }
   }
 })
