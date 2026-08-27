@@ -1,0 +1,121 @@
+name: Release
+
+# Builds the installers on GitHub's runners instead of a laptop, so every
+# artifact is traceable to a commit here.
+#
+# Push a tag to trigger it:
+#   git tag v2.2.2 && git push origin v2.2.2
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Keep building the other platform if one fails, so a Windows-only
+      # problem still leaves you with a usable macOS build to inspect.
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            script: build:win
+            artifacts: dist/*.exe
+          - name: macOS
+            os: macos-latest
+            script: build:mac
+            artifacts: dist/*.dmg
+          # Targets are overridden here rather than in electron-builder.yml,
+          # which keeps snap available for local builds.
+          #
+          # The build machine's glibc is the floor for every user, so the
+          # runner is pinned instead of tracking ubuntu-latest.
+          #
+          # Electron and @serialport/bindings-cpp both ship per-arch prebuilds,
+          # so arm64 cross-builds without a compiler.
+          - name: Linux
+            os: ubuntu-22.04
+            script: build:linux
+            targets: AppImage deb --x64 --arm64
+            artifacts: |
+              dist/*.AppImage
+              dist/*.deb
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `cache: yarn` here. setup-node resolves the cache folder by running
+      # yarn, which corepack has not installed yet at this point in the job.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Yarn 4 ships through corepack; the version is pinned in package.json.
+      - name: Enable corepack
+        run: corepack enable
+
+      # Retried once. Both this and the build reach the network -- dependencies
+      # from the registry, the Electron binary from GitHub -- and a runner that
+      # cannot resolve them fails a release for no reason of the code's.
+      - name: Install dependencies
+        shell: bash
+        run: |
+          yarn install --immutable ||
+            { sleep 15; yarn install --immutable; }
+
+      # Anything in matrix.targets is appended to the yarn script, which ends
+      # in the electron-builder call, so it lands as a target override.
+      #
+      # electron-builder publishes as soon as it sees CI=true, and GH_TOKEN is
+      # only on the draft-release job. It also writes the latest*.yml update
+      # feed, which Modbux does not use.
+      - name: Build
+        shell: bash
+        run: |
+          yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never ||
+            { sleep 15; yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never; }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+
+  draft-release:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      # v7 and not v8: v8 stops unzipping by default and decides per
+      # Content-Type, and this step downloads every artifact at once to hand
+      # them to the draft.
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: List what was built
+        run: find artifacts -type f -printf '%s\t%p\n' | sort -rn
+
+      # gh is preinstalled on the runner, so this needs no third-party action.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # An array, so a filename with a space stays one argument.
+          mapfile -t files < <(find artifacts -type f | sort)
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --draft \
+            --generate-notes \
+            "${files[@]}"

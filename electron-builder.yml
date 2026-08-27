@@ -9,6 +9,10 @@ files:
   - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
   - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
   - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+  # node-gyp-build prefers a compiled build/Release over the prebuilds, and does
+  # not fall back. A cross-built package would carry the build host's
+  # architecture. Excluded, so the per-arch prebuild is used instead.
+  - "!**/node_modules/@serialport/bindings-cpp/build/**"
 asarUnpack:
   - resources/**
 win:
@@ -47,4 +51,19 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}-${arch}.${ext}
+deb:
+  # The default list omits libasound2, and the app then fails to start on
+  # "libasound.so.2: cannot open shared object file". Setting depends replaces
+  # the default list, so it is restated in full.
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2
 npmRebuild: false
