@@ -28,8 +28,14 @@ jobs:
       - name: Enable corepack
         run: corepack enable
 
+      # Retried once: reaching the registry can fail for reasons that have
+      # nothing to do with the code. Lint, typecheck and the tests below are
+      # deliberately not retried.
       - name: Install dependencies
-        run: yarn install --immutable
+        shell: bash
+        run: |
+          yarn install --immutable ||
+            { sleep 15; yarn install --immutable; }
 
       # The lint script carries --fix, which would silently rewrite files here.
       # Same rules, without the rewriting.

@@ -62,8 +62,14 @@ jobs:
       - name: Enable corepack
         run: corepack enable
 
+      # Retried once. Both this and the build reach the network -- dependencies
+      # from the registry, the Electron binary from GitHub -- and a runner that
+      # cannot resolve them fails a release for no reason of the code's.
       - name: Install dependencies
-        run: yarn install --immutable
+        shell: bash
+        run: |
+          yarn install --immutable ||
+            { sleep 15; yarn install --immutable; }
 
       # Anything in matrix.targets is appended to the yarn script, which ends
       # in the electron-builder call, so it lands as a target override.
@@ -72,7 +78,10 @@ jobs:
       # only on the draft-release job. It also writes the latest*.yml update
       # feed, which Modbux does not use.
       - name: Build
-        run: yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never
+        shell: bash
+        run: |
+          yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never ||
+            { sleep 15; yarn ${{ matrix.script }} ${{ matrix.targets }} --publish never; }
 
       - uses: actions/upload-artifact@v7
         with:

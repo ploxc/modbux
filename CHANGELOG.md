@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so you approve it yourself and Modbux never sees your password. Inside
   Flatpak or Snap it hands you the command instead.
 
+### Fixed
+
+- **Disconnecting no longer reports an error.** Clicking Disconnect raised
+  "Connection closed unexpectedly" next to "Disconnected from server". The close
+  event comes back while the disconnect is still finishing, and the flag marking
+  it as deliberate was set too late to be read. That same stale flag then
+  suppressed the next close that really was unexpected. Both are fixed, over
+  serial and over TCP.
+- **The coils and discrete inputs lists scroll inside their own panel.** A long
+  list used to grow past the server view, and the whole view scrolled
+  underneath it instead.
+
 ## [2.2.1] - 2026-08-07
 
 ### Fixed
