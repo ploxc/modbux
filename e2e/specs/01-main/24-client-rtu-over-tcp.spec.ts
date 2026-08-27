@@ -13,13 +13,10 @@ import {
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
+import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-basic.json')
-
-const SOCAT_PATHS = ['/usr/local/bin/socat', '/usr/bin/socat']
-const SOCAT_PATH = SOCAT_PATHS.find((p) => existsSync(p)) ?? SOCAT_PATHS[0]
-const hasSocat = existsSync(SOCAT_PATH)
 
 // A serial-to-Ethernet gateway in transparent mode passes raw RTU frames (with
 // CRC) between a TCP socket and a serial line. A single socat instance emulates

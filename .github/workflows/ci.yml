@@ -1,0 +1,43 @@
+name: CI
+
+# Only the checks that need no display, no serial port and no human: lint,
+# typecheck and the unit tests. The Playwright suites drive a real Electron
+# window, so they stay out.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Lint, typecheck and unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `cache: yarn` here. setup-node resolves the cache folder by running
+      # yarn, which corepack has not installed yet at this point in the job.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # The lint script carries --fix, which would silently rewrite files here.
+      # Same rules, without the rewriting.
+      - name: Lint
+        run: yarn eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Unit tests
+        run: yarn test

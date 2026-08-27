@@ -20,16 +20,14 @@ import {
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
+import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-huawei-smartlogger.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
 
-const SOCAT_PATHS = ['/usr/local/bin/socat', '/usr/bin/socat']
-const SOCAT_PATH = SOCAT_PATHS.find((p) => existsSync(p)) ?? SOCAT_PATHS[0]
 const PTY_0 = '/tmp/ttyV0'
 const PTY_1 = '/tmp/ttyV1'
-const hasSocat = existsSync(SOCAT_PATH)
 
 // ─── Block 1: Server RTU UI Elements ─────────────────────────────────────────
 
