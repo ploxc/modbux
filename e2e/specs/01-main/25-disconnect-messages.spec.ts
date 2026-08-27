@@ -5,8 +5,10 @@
  * looked at these snackbars before, which is how "Connection closed
  * unexpectedly" managed to appear on every disconnect without a test noticing.
  *
- * Both transports are covered: the close event races the disconnect callback on
- * each of them, just via different code paths inside modbus-serial.
+ * Both transports are covered. A serial port has always lost that race. A TCP
+ * socket only started losing it on the Electron this release moves to, where
+ * the close event comes back a tick earlier, so the TCP case here reads as a
+ * guard rather than as the bug it was written for.
  */
 import { test, expect } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
