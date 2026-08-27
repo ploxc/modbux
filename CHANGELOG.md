@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Linux: Modbux offers to unblock port 502 for you.** Linux keeps the low
+  ports for root. The Modbus default sits in that range, so the server started
+  somewhere else and clients looking for 502 found nothing. Modbux now reads
+  the kernel setting when the server view opens and says what is in the way. It
+  offers to run the one sysctl that lowers the floor, until reboot or for good.
+  You see the command before it runs, and the elevation goes through PolicyKit,
+  so you approve it yourself and Modbux never sees your password. Inside
+  Flatpak or Snap it hands you the command instead.
+
 ### Fixed
 
 - **Disconnecting no longer reports an error.** Clicking Disconnect raised
