@@ -238,7 +238,9 @@ yarn build:linux
 
 > **Linux notes:**
 >
-> The default Modbus port (502) requires elevated access. To allow binding without sudo:
+> The default Modbus port (502) requires elevated access. Modbux notices this on startup and
+> offers to fix it for you — it shows the exact command and asks for your password through
+> PolicyKit. To do it by hand instead:
 >
 > ```bash
 > sudo sysctl net.ipv4.ip_unprivileged_port_start=502

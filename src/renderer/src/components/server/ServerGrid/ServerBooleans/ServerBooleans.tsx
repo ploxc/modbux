@@ -219,18 +219,30 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
       <Paper
         variant="outlined"
         sx={{
+          flex: 1,
           width: '100%',
           height: '100%',
           backgroundColor: '#2A2A2A',
           fontSize: '0.95em',
-          display: 'flex',
-          flexDirection: 'column'
+          position: 'relative'
         }}
       >
         <ServerPartTitle name={name} registerType={type} />
+        {/*
+          Positioned rather than flexed, the way ServerRegisters does it. A
+          flex child takes its share of a parent that has a height, and this
+          one does not: the Paper asks for 100% of a box that only carries a
+          minHeight. So the list grew instead, and the overflow landed on the
+          view rather than here. Anchored top to bottom, the height comes from
+          the Paper and the scrollbar appears where it belongs.
+        */}
         <Box
           sx={{
-            flex: 1,
+            position: 'absolute',
+            top: 38,
+            left: 0,
+            right: 0,
+            bottom: 0,
             overflow: 'auto',
             display: 'flex',
             gap: 0,

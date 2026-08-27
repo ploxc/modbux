@@ -24,7 +24,10 @@ import type {
   AddressGroup,
   SerialPortInfo,
   SerialPortValidationResult,
-  StartRtuServerParams
+  StartRtuServerParams,
+  PrivilegedPortStatus,
+  PrivilegedPortFixMode,
+  PrivilegedPortFixResult
 } from '@shared'
 import { SharedProps } from 'notistack'
 
@@ -73,7 +76,9 @@ export const IPC_CHANNELS = [
   'set_read_configuration',
   'start_rtu_server',
   'stop_rtu_server',
-  'stop_all_tcp_servers'
+  'stop_all_tcp_servers',
+  'get_privileged_port_status',
+  'apply_privileged_port_fix'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -284,6 +289,18 @@ export interface IpcHandlerSpec {
   ['stop_all_tcp_servers']: {
     args: []
     return: void
+  }
+
+  /** Report whether a port is blocked by the Linux unprivileged-port floor */
+  ['get_privileged_port_status']: {
+    args: [number]
+    return: PrivilegedPortStatus
+  }
+
+  /** Lower the Linux unprivileged-port floor via pkexec */
+  ['apply_privileged_port_fix']: {
+    args: [PrivilegedPortFixMode]
+    return: PrivilegedPortFixResult
   }
 }
 

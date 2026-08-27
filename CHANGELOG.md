@@ -5,6 +5,31 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Linux: Modbux offers to unblock port 502 for you.** Linux keeps the low
+  ports for root. The Modbus default sits in that range, so the server started
+  somewhere else and clients looking for 502 found nothing. Modbux now reads
+  the kernel setting when the server view opens and says what is in the way. It
+  offers to run the one sysctl that lowers the floor, until reboot or for good.
+  You see the command before it runs, and the elevation goes through PolicyKit,
+  so you approve it yourself and Modbux never sees your password. Inside
+  Flatpak or Snap it hands you the command instead.
+
+### Fixed
+
+- **Disconnecting no longer reports an error.** Clicking Disconnect raised
+  "Connection closed unexpectedly" next to "Disconnected from server". The close
+  event comes back while the disconnect is still finishing, and the flag marking
+  it as deliberate was set too late to be read. That same stale flag then
+  suppressed the next close that really was unexpected. Both are fixed, over
+  serial and over TCP.
+- **The coils and discrete inputs lists scroll inside their own panel.** A long
+  list used to grow past the server view, and the whole view scrolled
+  underneath it instead.
+
 ## [2.2.1] - 2026-08-07
 
 ### Fixed

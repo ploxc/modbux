@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField'
 import Fade from '@mui/material/Fade'
 import Box from '@mui/material/Box'
 import ServerGrid from '@renderer/components/server/ServerGrid/ServerGrid'
+import PrivilegedPortModal from '@renderer/components/server/PrivilegedPortModal/PrivilegedPortModal'
 
 const ServerName = meme(() => {
   const name = useServerZustand((z) => z.name[z.selectedUuid] ?? '')
@@ -42,6 +43,7 @@ const Server = meme(() => {
         }}
       >
         <MessageReceiver />
+        <PrivilegedPortModal />
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Box
             sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}
