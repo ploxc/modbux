@@ -29,9 +29,12 @@ test.describe.serial('Server layout — panels stay inside the view', () => {
     [820, 800]
   ] as [number, number][]) {
     test(`no overflow at ${width}x${height}`, async ({ mainPage, electronApp }) => {
-      await electronApp.evaluate(({ BrowserWindow }, size) => {
-        BrowserWindow.getAllWindows()[0].setSize(size[0], size[1])
-      }, [width, height])
+      await electronApp.evaluate(
+        ({ BrowserWindow }, size) => {
+          BrowserWindow.getAllWindows()[0].setSize(size[0], size[1])
+        },
+        [width, height]
+      )
       await mainPage.waitForTimeout(500)
 
       const overflow = await mainPage
