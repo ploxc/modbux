@@ -118,13 +118,18 @@ jobs:
       # The serial specs call test.skip() when socat is missing, so a green run
       # on a machine without it has tested no serial code at all. Say so in the
       # summary rather than leave the tick to be misread.
+      #
+      # e2e/fixtures/socat.ts searches PATH as well as the known Homebrew and
+      # system directories, so this answers the same question the specs ask.
+      # An earlier version did not, and reported socat present on two runners
+      # whose serial specs had skipped.
       - name: Serial coverage
         shell: bash
         run: |
           if command -v socat >/dev/null; then
-            echo "socat present: the serial specs ran." >> "$GITHUB_STEP_SUMMARY"
+            echo "socat at $(command -v socat): the serial specs run." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "socat MISSING: the serial specs skipped themselves." >> "$GITHUB_STEP_SUMMARY"
+            echo "socat MISSING: the serial specs skip themselves." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Install dependencies
