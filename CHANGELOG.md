@@ -9,16 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Linux: Modbux offers to unblock port 502 for you.** Linux reserves ports
-  below 1024 for root, so the Modbus default of 502 could not be bound and the
-  server quietly started on 1024 instead — a fix that was documented in the
-  README and nowhere the user would look. Modbux now reads the kernel setting
-  when the server view opens, explains what is happening, and offers to run the
-  one `sysctl` that fixes it, either until reboot or permanently. The command is
-  shown verbatim before it runs and elevation goes through PolicyKit, so you see
-  exactly what is being changed and approve it yourself. Inside Flatpak or Snap,
-  where the app cannot change host settings, the command is shown to copy
-  instead.
+- **Linux: Modbux offers to unblock port 502 for you.** Linux keeps the low
+  ports for root. The Modbus default sits in that range, so the server started
+  somewhere else and clients looking for 502 found nothing. Modbux now reads
+  the kernel setting when the server view opens and says what is in the way. It
+  offers to run the one sysctl that lowers the floor, until reboot or for good.
+  You see the command before it runs, and the elevation goes through PolicyKit,
+  so you approve it yourself and Modbux never sees your password. Inside
+  Flatpak or Snap it hands you the command instead.
 
 ## [2.2.1] - 2026-08-07
 
