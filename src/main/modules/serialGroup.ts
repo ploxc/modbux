@@ -55,9 +55,17 @@ const LOGOUT_COMMANDS: Array<[string, string[]]> = [
   ['xfce4-session-logout', ['--logout']]
 ]
 
-/** Where the kernel puts serial devices, and the prefixes they carry. */
+/**
+ * Where the kernel puts serial devices, and the two prefixes worth looking at.
+ *
+ * ttyUSB and ttyACM are what appears when someone plugs an adapter in, which
+ * is the moment this feature is for. ttyS is deliberately absent: nearly every
+ * Linux machine carries ttyS0 through ttyS31 whether or not any hardware sits
+ * behind them, they are rarely openable, and warning about them means warning
+ * everyone. A CI runner is the proof, and it warned there first.
+ */
 const DEV_DIR = '/dev'
-const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM', 'ttyS', 'ttyAMA']
+const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM']
 
 /**
  * Serial devices that exist but cannot be opened.

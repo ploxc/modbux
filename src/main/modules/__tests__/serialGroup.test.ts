@@ -121,6 +121,21 @@ describe('findUnreadablePorts', () => {
     unreadable = ['null', 'sda', 'random']
     expect(await findUnreadablePorts()).toEqual([])
   })
+
+  // Every Linux machine has these, hardware or not, and hardly any of them
+  // open. Counting them means warning everyone, which is how the suite found
+  // this the first time.
+  it('ignores the legacy UARTs that exist everywhere', async () => {
+    devEntries = ['ttyS0', 'ttyS1', 'ttyS31']
+    unreadable = ['ttyS0', 'ttyS1', 'ttyS31']
+    expect(await findUnreadablePorts()).toEqual([])
+  })
+
+  it('still reports an adapter beside them', async () => {
+    devEntries = ['ttyS0', 'ttyACM0']
+    unreadable = ['ttyS0', 'ttyACM0']
+    expect(await findUnreadablePorts()).toEqual(['ttyACM0'])
+  })
 })
 
 describe('getSerialGroupStatus', () => {
