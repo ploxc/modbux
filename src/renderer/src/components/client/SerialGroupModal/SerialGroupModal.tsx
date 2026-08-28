@@ -58,7 +58,8 @@ const CommandBlock = ({ command }: { command: string }): JSX.Element => {
         p: 1,
         borderRadius: 1,
         border: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.background.default
+        // A shade up from the dialog surface, as the scan modals nest theirs.
+        background: theme.palette.background.paper
       })}
     >
       <Typography
@@ -168,7 +169,17 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
 
       <DialogContent>
         {done ? (
-          <Alert severity="success" data-testid="serial-group-pending-login">
+          <Alert
+            severity="success"
+            data-testid="serial-group-pending-login"
+            // MUI tints both text and background from success.light in dark mode,
+            // which reads as washed green on green. Keep the tick, drop the tint.
+            sx={(theme) => ({
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              background: theme.palette.background.paper
+            })}
+          >
             You are in {status.group} now. A session keeps the groups it was given at login, so log
             out and back in before the ports appear.
           </Alert>

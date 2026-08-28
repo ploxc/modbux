@@ -41,6 +41,14 @@ const base = createTheme({
   components: {
     MuiButton: {
       defaultProps: { variant: 'contained' }
+    },
+    // Dialog gives its Paper elevation 24, which in dark mode Paper renders as a
+    // 16.5% white overlay -- a pale slab on a near-black app. The `background`
+    // shorthand resets background-image; the elevation shadow survives it.
+    MuiDialog: {
+      styleOverrides: {
+        paper: ({ theme }) => ({ background: theme.palette.background.default })
+      }
     }
   }
 })
