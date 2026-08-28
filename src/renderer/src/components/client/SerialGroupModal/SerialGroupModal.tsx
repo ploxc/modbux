@@ -8,6 +8,7 @@ import {
   Typography
 } from '@mui/material'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
+import { useRootZustand } from '@renderer/context/root.zustand'
 import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
@@ -17,8 +18,9 @@ import { useSerialGroupZustand } from './_zustand'
  * Linux serial group modal
  *
  * A serial port belongs to a group, and a user outside it opens nothing. The
- * port list is then empty, which reads as no adapter rather than no
- * permission, and the answer is a command documented where nobody looks.
+ * port is still listed -- udev enumerates it without touching the device -- so
+ * nothing looks wrong until the connect fails, and the answer is a command
+ * documented where nobody looks.
  *
  * Two things it does differently from the privileged port modal. Nothing is
  * written down: a server can move to another port, so "don't ask again" earns
@@ -85,7 +87,7 @@ const PendingLogin = (): JSX.Element => {
       })}
     >
       You are in {group} now. A session keeps the groups it was given at login, so log out and back
-      in before the ports appear.
+      in before Modbux can open a port.
     </Alert>
   )
 }
@@ -102,8 +104,8 @@ const Explanation = (): JSX.Element => {
   return (
     <>
       <Typography variant="body2" sx={{ mb: 2 }}>
-        On Linux a serial port belongs to the {group} group, and {username} is not in it. Until that
-        changes, Modbux lists no ports at all, whatever is plugged in.
+        On Linux a serial port belongs to the {group} group, and {username} is not in it. The port
+        is still listed, but opening it is refused, so connecting fails until that changes.
       </Typography>
 
       {blocked ? (
@@ -239,32 +241,27 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
   const open = useSerialGroupZustand((z) => z.open)
   const hasStatus = useSerialGroupZustand((z) => z.status !== null)
 
+  // Which ports exist, as one string so it compares by value. Selecting RTU is
+  // not the only moment this matters: plugging an adapter in afterwards is the
+  // other one, and the list only changes when something is refreshed.
+  const ports = useRootZustand((z) => z.serialPorts.map((p) => p.path).join(','))
+
   useEffect(() => {
     if (!active) return
     let cancelled = false
 
-    const check = async (): Promise<void> => {
-      const { declined, setStatus, setDone, setOpen } = useSerialGroupZustand.getState()
-      if (declined) return
-      try {
-        const result = await window.api.getSerialGroupStatus()
-        if (cancelled) return
-        // Close rather than return: the store outlives a remount, so a stale
-        // open would otherwise keep an answered question on screen.
-        if (!result.needsMembership && !result.pendingLogin) return setOpen(false)
-        setStatus(result)
-        setDone(result.pendingLogin)
-        setOpen(true)
-      } catch {
-        // Detection is a convenience. Never let it break the client view.
-      }
+    const ask = async (): Promise<void> => {
+      const opened = await useSerialGroupZustand.getState().check()
+      // Switching back to TCP while the answer was in flight should not land
+      // a serial question on the TCP tab.
+      if (opened && cancelled) useSerialGroupZustand.getState().setOpen(false)
     }
-    check()
+    ask()
 
     return (): void => {
       cancelled = true
     }
-  }, [active])
+  }, [active, ports])
 
   if (!hasStatus) return null
 

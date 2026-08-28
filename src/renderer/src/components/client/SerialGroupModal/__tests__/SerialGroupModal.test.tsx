@@ -5,6 +5,19 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { SerialGroupStatus, SerialGroupFixResult } from '@shared'
 
+// ─── Store stub ──────────────────────────────────────────────────────
+// The real root store registers ipcRenderer listeners on import, which is far
+// more machinery than this component needs. Only the port list matters here.
+
+const rootState = { serialPorts: [] as { path: string }[] }
+
+vi.mock('@renderer/context/root.zustand', () => ({
+  useRootZustand: Object.assign(
+    (selector: (state: typeof rootState) => unknown) => selector(rootState),
+    { getState: () => rootState }
+  )
+}))
+
 const mockEnqueueSnackbar = vi.fn()
 vi.mock('notistack', () => ({
   useSnackbar: (): { enqueueSnackbar: typeof mockEnqueueSnackbar } => ({
@@ -62,6 +75,7 @@ describe('SerialGroupModal', () => {
       done: false,
       declined: false
     })
+    rootState.serialPorts = []
     mockGetStatus.mockResolvedValue(needsMembership)
     mockApplyFix.mockResolvedValue(okResult)
     mockRequestLogout.mockResolvedValue(true)
@@ -189,6 +203,21 @@ describe('SerialGroupModal', () => {
     expect(screen.getByTestId('serial-group-allow-btn')).toBeEnabled()
   })
 
+  it('checks again when an adapter is plugged in while RTU is already selected', async () => {
+    // Nothing plugged in: every port opens, so there is nothing to say.
+    mockGetStatus.mockResolvedValue({ ...needsMembership, needsMembership: false })
+    const { rerender } = render(<SerialGroupModal active />)
+    await waitFor(() => expect(mockGetStatus).toHaveBeenCalledTimes(1))
+    expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument()
+
+    // Refreshing the list is how a newly plugged adapter shows up.
+    mockGetStatus.mockResolvedValue(needsMembership)
+    rootState.serialPorts = [{ path: '/dev/ttyACM0' }]
+    rerender(<SerialGroupModal active />)
+
+    expect(await screen.findByTestId('serial-group-modal')).toBeInTheDocument()
+  })
+
   // ─── Saying no ─────────────────────────────────────────────────────
 
   it('closes on Not now and does not ask again while the app is open', async () => {
@@ -205,6 +234,31 @@ describe('SerialGroupModal', () => {
     rerender(<SerialGroupModal active />)
 
     await waitFor(() => expect(mockGetStatus).toHaveBeenCalledTimes(1))
+    expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument()
+  })
+
+  it('answers a Connect press even after a no, because that press cannot succeed', async () => {
+    const user = userEvent.setup()
+    render(<SerialGroupModal active />)
+    await screen.findByTestId('serial-group-modal')
+    await user.click(screen.getByTestId('serial-group-close-btn'))
+    await waitFor(() => expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument())
+
+    // What the Connect button does before it tries the port.
+    const opened = await useSerialGroupZustand.getState().check(true)
+
+    expect(opened).toBe(true)
+    expect(await screen.findByTestId('serial-group-modal')).toBeInTheDocument()
+  })
+
+  it('leaves an unforced check silent after a no', async () => {
+    const user = userEvent.setup()
+    render(<SerialGroupModal active />)
+    await screen.findByTestId('serial-group-modal')
+    await user.click(screen.getByTestId('serial-group-close-btn'))
+    await waitFor(() => expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument())
+
+    expect(await useSerialGroupZustand.getState().check()).toBe(false)
     expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument()
   })
 

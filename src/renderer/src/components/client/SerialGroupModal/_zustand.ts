@@ -20,10 +20,17 @@ interface SerialGroupZustand {
    */
   declined: boolean
   setDeclined: (declined: boolean) => void
+  /**
+   * Asks whether the group is in the way and opens the modal when it is.
+   * Resolves true when it opened, so Connect can hold off rather than fail on
+   * a permission error. `force` is for that press: a no said to an unprompted
+   * question should not silence the answer to something you just asked for.
+   */
+  check: (force?: boolean) => Promise<boolean>
 }
 
 export const useSerialGroupZustand = create<SerialGroupZustand, [['zustand/mutative', never]]>(
-  mutative((set) => ({
+  mutative((set, get) => ({
     open: false,
     setOpen: (open) =>
       set((state) => {
@@ -48,6 +55,26 @@ export const useSerialGroupZustand = create<SerialGroupZustand, [['zustand/mutat
     setDeclined: (declined) =>
       set((state) => {
         state.declined = declined
-      })
+      }),
+    check: async (force = false) => {
+      const { declined, setStatus, setDone, setOpen } = get()
+      if (declined && !force) return false
+      try {
+        const result = await window.api.getSerialGroupStatus()
+        if (!result.needsMembership && !result.pendingLogin) {
+          // Close rather than return: the store outlives a remount, so a stale
+          // open would otherwise keep an answered question on screen.
+          setOpen(false)
+          return false
+        }
+        setStatus(result)
+        setDone(result.pendingLogin)
+        setOpen(true)
+        return true
+      } catch {
+        // Detection is a convenience. Never let it break the client view.
+        return false
+      }
+    }
   }))
 )
