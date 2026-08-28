@@ -69,6 +69,35 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Start Scanning')
   })
 
+  // ─── Timeout field ─────────────────────────────────────────────────
+
+  test('an emptied timeout field keeps the digits typed into it', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
+    await input.press('ControlOrMeta+a')
+    await input.press('Backspace')
+    await input.pressSequentially('500')
+
+    await expect(input).toHaveValue('500')
+  })
+
+  test('a timeout under the minimum is flagged and holds the scan back', async ({ mainPage }) => {
+    const field = mainPage.getByTestId('scan-unitid-timeout-input')
+    const input = field.locator('input')
+    await input.press('ControlOrMeta+a')
+    await input.press('Backspace')
+    await input.pressSequentially('50')
+
+    const helperText = field.locator('.MuiFormHelperText-root')
+
+    await expect(input).toHaveValue('50')
+    await expect(helperText).toHaveClass(/Mui-error/)
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeDisabled()
+
+    await input.fill('500')
+    await expect(helperText).not.toHaveClass(/Mui-error/)
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeEnabled()
+  })
+
   // ─── Register type toggle buttons ──────────────────────────────────
 
   test('Holding Registers is selected by default', async ({ mainPage }) => {

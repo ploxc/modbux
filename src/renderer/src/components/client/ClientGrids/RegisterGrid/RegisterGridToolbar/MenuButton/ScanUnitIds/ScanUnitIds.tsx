@@ -16,7 +16,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
-import { ScanProgress, TimeoutInput } from '../ScanProgress/ScanProgress'
+import { ScanProgress, ScanTimeoutField, scanTimeoutOutOfRange } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
@@ -124,24 +124,15 @@ const LengthField = (): JSX.Element => {
 // Timeout field
 const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const timeout = useScanUnitIdZustand((z) => String(z.timeout))
+  const timeout = useScanUnitIdZustand((z) => z.timeout)
   const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
 
   return (
-    <TextField
+    <ScanTimeoutField
       disabled={scanning}
-      label="Timeout (ms)"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={timeout}
-      data-testid="scan-unitid-timeout-input"
-      slotProps={{
-        input: {
-          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setTimeout })
-        }
-      }}
+      timeout={timeout}
+      setTimeout={setTimeout}
+      testId="scan-unitid-timeout-input"
     />
   )
 }
@@ -177,7 +168,9 @@ const SelectRegisterTypes = (): JSX.Element => {
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const polling = useRootZustand((z) => z.clientState.polling)
-  const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
+  const disabled = useScanUnitIdZustand(
+    (z) => z.registerTypes.length === 0 || scanTimeoutOutOfRange(z.timeout)
+  )
 
   const scan = useCallback(() => {
     if (scanning) {

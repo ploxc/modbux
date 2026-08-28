@@ -10,7 +10,11 @@ import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { ScanProgress, TimeoutInput } from '../../ScanProgress/ScanProgress'
+import {
+  ScanProgress,
+  ScanTimeoutField,
+  scanTimeoutOutOfRange
+} from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ScanRegistersZustand {
@@ -163,24 +167,15 @@ const ChunkSizeField = (): JSX.Element => {
 // Timeout field
 const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
-  const timeout = useScanRegistersZustand((z) => String(z.timeout))
+  const timeout = useScanRegistersZustand((z) => z.timeout)
   const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
 
   return (
-    <TextField
+    <ScanTimeoutField
       disabled={scanning}
-      label="Timeout (ms)"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={timeout}
-      data-testid="scan-timeout-input"
-      slotProps={{
-        input: {
-          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setTimeout })
-        }
-      }}
+      timeout={timeout}
+      setTimeout={setTimeout}
+      testId="scan-timeout-input"
     />
   )
 }
@@ -190,6 +185,7 @@ const TimeoutField = (): JSX.Element => {
 // Scan button
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const timeoutOutOfRange = useScanRegistersZustand((z) => scanTimeoutOutOfRange(z.timeout))
 
   const scan = useCallback(async () => {
     if (scanning) {
@@ -222,7 +218,13 @@ const ScanButton = (): JSX.Element => {
   const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
 
   return (
-    <Button variant="contained" color={color} onClick={scan} data-testid="scan-start-stop-btn">
+    <Button
+      disabled={!scanning && timeoutOutOfRange}
+      variant="contained"
+      color={color}
+      onClick={scan}
+      data-testid="scan-start-stop-btn"
+    >
       {text}
     </Button>
   )
