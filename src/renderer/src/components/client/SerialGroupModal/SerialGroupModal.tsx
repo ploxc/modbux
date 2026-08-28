@@ -23,11 +23,14 @@ import { useCallback, useEffect, useState } from 'react'
  * permission, and the answer is a command documented where nobody looks.
  *
  * Two things it does differently from the privileged port modal. Nothing is
- * remembered: a server can move to another port, so "don't ask again" makes
- * sense there, while RTU cannot work without the group and the question comes
- * back with it. Closing is still allowed, because otherwise there is no way
- * back to TCP either. And the command is not the end: group membership arrives
- * at the next login, so the modal offers to log out once it has run.
+ * written down: a server can move to another port, so "don't ask again" earns
+ * its place there, while RTU cannot work without the group and the question
+ * belongs with it. Closing is allowed, or there is no way back to TCP either,
+ * and a no is kept for as long as the app is open. Switching transports back
+ * and forth should not ask again; starting Modbux tomorrow should.
+ *
+ * And the command is not the end: group membership arrives at the next login,
+ * so the modal offers to log out once it has run.
  *
  * Most people never see this. Mint and Ubuntu put the first user in the group
  * at install time.
@@ -74,6 +77,12 @@ const CommandBlock = ({ command }: { command: string }): JSX.Element => {
   )
 }
 
+/**
+ * A no, for this run of the app only. Module scope rather than storage, so it
+ * lives exactly as long as the window does.
+ */
+let declinedThisSession = false
+
 interface Props {
   /** True while RTU is the selected transport. The check runs then, and only then. */
   active: boolean
@@ -91,6 +100,7 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
     let cancelled = false
 
     const check = async (): Promise<void> => {
+      if (declinedThisSession) return
       try {
         const result = await window.api.getSerialGroupStatus()
         if (cancelled) return
@@ -122,6 +132,11 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
     }
   }, [enqueueSnackbar])
 
+  const decline = useCallback((): void => {
+    declinedThisSession = true
+    setOpen(false)
+  }, [])
+
   const handleLogout = useCallback(async (): Promise<void> => {
     const asked = await window.api.requestLogout()
     if (!asked) {
@@ -144,7 +159,7 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
   return (
     <Dialog
       open={open}
-      onClose={() => !busy && setOpen(false)}
+      onClose={() => !busy && decline()}
       maxWidth="sm"
       fullWidth
       data-testid="serial-group-modal"
@@ -200,11 +215,7 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
           </>
         ) : (
           <>
-            <Button
-              onClick={() => setOpen(false)}
-              disabled={busy}
-              data-testid="serial-group-close-btn"
-            >
+            <Button onClick={decline} disabled={busy} data-testid="serial-group-close-btn">
               Not now
             </Button>
             {!blockedReason && (
