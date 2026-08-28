@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it as deliberate was set too late to be read. That same stale flag then
   suppressed the next close that really was unexpected. Both are fixed, over
   serial and over TCP.
+- **A reply that arrives in two pieces is no longer read as an error.** A Modbus
+  TCP response does not always land in one packet, and the half that had come in
+  was parsed as if it were the whole. Gateways on a slow or busy link are where
+  this shows.
 - **The coils and discrete inputs lists scroll inside their own panel.** A long
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
