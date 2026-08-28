@@ -11,9 +11,10 @@ import {
   Typography
 } from '@mui/material'
 import { ContentCopy, Check } from '@mui/icons-material'
-import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
+import { serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect, useState } from 'react'
+import { useSerialGroupZustand } from './_zustand'
 
 /**
  * Linux serial group modal
@@ -78,22 +79,17 @@ const CommandBlock = ({ command }: { command: string }): JSX.Element => {
   )
 }
 
-/**
- * A no, for this run of the app only. Module scope rather than storage, so it
- * lives exactly as long as the window does.
- */
-let declinedThisSession = false
-
 interface Props {
   /** True while RTU is the selected transport. The check runs then, and only then. */
   active: boolean
 }
 
 const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
-  const [status, setStatus] = useState<SerialGroupStatus | null>(null)
-  const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
+  const status = useSerialGroupZustand((z) => z.status)
+  const open = useSerialGroupZustand((z) => z.open)
+  const busy = useSerialGroupZustand((z) => z.busy)
+  const done = useSerialGroupZustand((z) => z.done)
+  const setOpen = useSerialGroupZustand((z) => z.setOpen)
   const { enqueueSnackbar } = useSnackbar()
 
   useEffect(() => {
@@ -101,11 +97,14 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
     let cancelled = false
 
     const check = async (): Promise<void> => {
-      if (declinedThisSession) return
+      const { declined, setStatus, setDone } = useSerialGroupZustand.getState()
+      if (declined) return
       try {
         const result = await window.api.getSerialGroupStatus()
         if (cancelled) return
-        if (!result.needsMembership && !result.pendingLogin) return
+        // Close rather than return: the store outlives a remount, so a stale
+        // open would otherwise keep an answered question on screen.
+        if (!result.needsMembership && !result.pendingLogin) return setOpen(false)
         setStatus(result)
         setDone(result.pendingLogin)
         setOpen(true)
@@ -118,9 +117,10 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
     return (): void => {
       cancelled = true
     }
-  }, [active])
+  }, [active, setOpen])
 
   const handleApply = useCallback(async (): Promise<void> => {
+    const { setBusy, setDone } = useSerialGroupZustand.getState()
     setBusy(true)
     try {
       const result = await window.api.applySerialGroupFix()
@@ -134,9 +134,9 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
   }, [enqueueSnackbar])
 
   const decline = useCallback((): void => {
-    declinedThisSession = true
+    useSerialGroupZustand.getState().setDeclined(true)
     setOpen(false)
-  }, [])
+  }, [setOpen])
 
   const handleLogout = useCallback(async (): Promise<void> => {
     const asked = await window.api.requestLogout()
@@ -147,7 +147,7 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
       })
     }
     setOpen(false)
-  }, [enqueueSnackbar])
+  }, [enqueueSnackbar, setOpen])
 
   if (!status) return null
 

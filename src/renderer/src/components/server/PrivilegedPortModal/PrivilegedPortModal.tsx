@@ -18,12 +18,12 @@ import { ContentCopy, Check } from '@mui/icons-material'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   PrivilegedPortFixMode,
-  PrivilegedPortStatus,
   privilegedPortCommandDisplay,
   UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect, useState } from 'react'
+import { usePrivilegedPortZustand } from './_zustand'
 
 /**
  * Linux privileged port modal
@@ -93,13 +93,14 @@ const CommandBlock = ({ command }: { command: string }): JSX.Element => {
 
 const PrivilegedPortModal = (): JSX.Element | null => {
   const { enqueueSnackbar } = useSnackbar()
-  const [status, setStatus] = useState<PrivilegedPortStatus | null>(null)
-  const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [dontAsk, setDontAsk] = useState(false)
-  // Drives both the command on screen and the command that runs, so the two
-  // can never drift apart.
-  const [mode, setMode] = useState<PrivilegedPortFixMode>('persist')
+  const status = usePrivilegedPortZustand((z) => z.status)
+  const open = usePrivilegedPortZustand((z) => z.open)
+  const busy = usePrivilegedPortZustand((z) => z.busy)
+  const dontAsk = usePrivilegedPortZustand((z) => z.dontAsk)
+  const mode = usePrivilegedPortZustand((z) => z.mode)
+  const setOpen = usePrivilegedPortZustand((z) => z.setOpen)
+  const setDontAsk = usePrivilegedPortZustand((z) => z.setDontAsk)
+  const setMode = usePrivilegedPortZustand((z) => z.setMode)
 
   // Where the server actually landed. When 502 is blocked the backend has
   // already walked up to the first bindable port, so this is the fallback the
@@ -120,8 +121,11 @@ const PrivilegedPortModal = (): JSX.Element | null => {
         // view renders, an unbindable 502 has already become 1024, and asking
         // about 1024 would report no problem at all.
         const result = await window.api.getPrivilegedPortStatus(UNPRIVILEGED_PORT_START_TARGET)
-        if (cancelled || !result.needsElevation) return
-        setStatus(result)
+        if (cancelled) return
+        // Close rather than return: the store outlives a remount, so a stale
+        // open would otherwise keep an answered question on screen.
+        if (!result.needsElevation) return setOpen(false)
+        usePrivilegedPortZustand.getState().setStatus(result)
         setOpen(true)
       } catch {
         // Detection is a convenience — never let it break the server view.
@@ -132,14 +136,15 @@ const PrivilegedPortModal = (): JSX.Element | null => {
     return (): void => {
       cancelled = true
     }
-  }, [ready])
+  }, [ready, setOpen])
 
   const close = useCallback((): void => {
     if (dontAsk) localStorage.setItem(DISMISS_KEY, 'true')
     setOpen(false)
-  }, [dontAsk])
+  }, [dontAsk, setOpen])
 
   const handleApply = useCallback(async (): Promise<void> => {
+    const { setBusy } = usePrivilegedPortZustand.getState()
     setBusy(true)
     try {
       const result = await window.api.applyPrivilegedPortFix(mode)
@@ -155,7 +160,7 @@ const PrivilegedPortModal = (): JSX.Element | null => {
     } finally {
       setBusy(false)
     }
-  }, [enqueueSnackbar, mode])
+  }, [enqueueSnackbar, mode, setOpen])
 
   if (!status) return null
 
