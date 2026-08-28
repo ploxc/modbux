@@ -19,7 +19,7 @@ import { join } from 'path'
  * The workflow uploads test-results/ when a run fails, so the file travels with
  * the trace it belongs to.
  */
-function keepOutput(app: ElectronApplication): void {
+export function keepOutput(app: ElectronApplication): void {
   const dir = join(process.cwd(), 'test-results')
   mkdirSync(dir, { recursive: true })
 
@@ -27,11 +27,14 @@ function keepOutput(app: ElectronApplication): void {
   const log = createWriteStream(join(dir, `electron-main-${worker}.log`), { flags: 'a' })
   const stamp = (): string => new Date().toISOString()
 
+  // The persistence spec launches its own app beside the worker's, and both
+  // write here, so every line says which process it came from.
   const proc = app.process()
-  proc.stdout?.on('data', (c: Buffer) => log.write(`[${stamp()}] out ${c.toString()}`))
-  proc.stderr?.on('data', (c: Buffer) => log.write(`[${stamp()}] err ${c.toString()}`))
+  const pid = proc.pid
+  proc.stdout?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} out ${c.toString()}`))
+  proc.stderr?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} err ${c.toString()}`))
   proc.on('exit', (code, signal) => {
-    log.write(`[${stamp()}] exit code=${code} signal=${signal}\n`)
+    log.write(`[${stamp()}] ${pid} exit code=${code} signal=${signal}\n`)
   })
 }
 
