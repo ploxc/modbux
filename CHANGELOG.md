@@ -47,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
 
+### Security
+
+- **The Linux AppImage is built by a version that fixes GHSA-7g7r-gx96-252g.**
+  The advisory is about search path elements inside the AppImage that
+  electron-builder produces, so it travels in the artefact rather than staying
+  on the build machine.
+
 ## [2.2.1] - 2026-08-07
 
 ### Fixed
