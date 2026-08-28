@@ -1,28 +1,26 @@
 import {
   Alert,
-  Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControlLabel,
-  Checkbox,
-  IconButton,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Typography
 } from '@mui/material'
-import { ContentCopy, Check } from '@mui/icons-material'
+import CommandBlock from '@renderer/components/shared/CommandBlock'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   PrivilegedPortFixMode,
+  PrivilegedPortStatus,
   privilegedPortCommandDisplay,
   UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
 import { useSnackbar } from 'notistack'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { usePrivilegedPortZustand } from './_zustand'
 
 /**
@@ -42,109 +40,173 @@ import { usePrivilegedPortZustand } from './_zustand'
 /** Remembered across restarts — a user who says no once should not be nagged. */
 const DISMISS_KEY = 'privilegedPortPromptDismissed'
 
-const CommandBlock = ({ command }: { command: string }): JSX.Element => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = useCallback(async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(command)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard can be unavailable; the command stays selectable on screen.
-    }
-  }, [command])
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        p: 1,
-        pl: 1.5,
-        borderRadius: 1,
-        bgcolor: 'action.hover',
-        border: 1,
-        borderColor: 'divider'
-      }}
-    >
-      <Typography
-        component="code"
-        data-testid="privileged-port-command"
-        sx={{
-          flex: 1,
-          fontFamily: 'monospace',
-          fontSize: '0.8rem',
-          userSelect: 'all',
-          wordBreak: 'break-all'
-        }}
-      >
-        {command}
-      </Typography>
-      <Tooltip title={copied ? 'Copied' : 'Copy'}>
-        <IconButton size="small" onClick={handleCopy} data-testid="privileged-port-copy-btn">
-          {copied ? <Check fontSize="small" color="success" /> : <ContentCopy fontSize="small" />}
-        </IconButton>
-      </Tooltip>
-    </Box>
-  )
+/** Why Modbux cannot run the command itself, or null when it can. */
+const blockedReason = (status: PrivilegedPortStatus | null): string | null => {
+  if (!status) return null
+  if (status.sandbox) {
+    const name = status.sandbox === 'flatpak' ? 'Flatpak' : 'Snap'
+    return `Modbux is running inside ${name}, so it cannot change system settings itself.`
+  }
+  if (!status.canElevate) {
+    return 'pkexec is not installed, so Modbux cannot ask for permission itself.'
+  }
+  return null
 }
 
-const PrivilegedPortModal = (): JSX.Element | null => {
-  const { enqueueSnackbar } = useSnackbar()
-  const status = usePrivilegedPortZustand((z) => z.status)
-  const open = usePrivilegedPortZustand((z) => z.open)
-  const busy = usePrivilegedPortZustand((z) => z.busy)
-  const dontAsk = usePrivilegedPortZustand((z) => z.dontAsk)
-  const mode = usePrivilegedPortZustand((z) => z.mode)
-  const setOpen = usePrivilegedPortZustand((z) => z.setOpen)
-  const setDontAsk = usePrivilegedPortZustand((z) => z.setDontAsk)
-  const setMode = usePrivilegedPortZustand((z) => z.setMode)
+/** Closes, remembering the answer when asked to. Not a hook: nothing subscribes. */
+const close = (): void => {
+  const { dontAsk, setOpen } = usePrivilegedPortZustand.getState()
+  if (dontAsk) localStorage.setItem(DISMISS_KEY, 'true')
+  setOpen(false)
+}
+
+//
+//
+// Title
+const Title = (): JSX.Element => {
+  const port = usePrivilegedPortZustand((z) => z.status?.port)
+  return <DialogTitle>Port {port} needs a system setting</DialogTitle>
+}
+
+//
+//
+// What is in the way
+const Explanation = (): JSX.Element => {
+  const port = usePrivilegedPortZustand((z) => z.status?.port)
+  const floor = usePrivilegedPortZustand((z) => z.status?.unprivilegedPortStart)
 
   // Where the server actually landed. When 502 is blocked the backend has
   // already walked up to the first bindable port, so this is the fallback the
   // user is looking at — not the port they asked for.
   const actualPort = useServerZustand((z) => Number(z.port[z.selectedUuid] ?? 0))
-  const ready = useServerZustand((z) => !!z.ready[z.selectedUuid])
 
-  useEffect(() => {
-    // The popped-out server window would otherwise show a second copy.
-    if (window.api.isServerWindow) return
-    if (localStorage.getItem(DISMISS_KEY) === 'true') return
-    if (!ready) return
+  return (
+    <Typography variant="body2" sx={{ mb: 2 }}>
+      Linux reserves ports below {floor} for root, and Modbus uses {port} by default.{' '}
+      {actualPort && actualPort !== port
+        ? `That is why this server is on ${actualPort} instead — a client looking for ${port} will not find it.`
+        : `Until that floor is lowered, Modbux cannot use it and clients looking for ${port} will not find it.`}
+    </Typography>
+  )
+}
 
-    let cancelled = false
-    const check = async (): Promise<void> => {
-      try {
-        // Always ask about 502 rather than the port in use. By the time the
-        // view renders, an unbindable 502 has already become 1024, and asking
-        // about 1024 would report no problem at all.
-        const result = await window.api.getPrivilegedPortStatus(UNPRIVILEGED_PORT_START_TARGET)
-        if (cancelled) return
-        // Close rather than return: the store outlives a remount, so a stale
-        // open would otherwise keep an answered question on screen.
-        if (!result.needsElevation) return setOpen(false)
-        usePrivilegedPortZustand.getState().setStatus(result)
-        setOpen(true)
-      } catch {
-        // Detection is a convenience — never let it break the server view.
+//
+//
+// Permanently or until reboot, driving both the command shown and the one run
+const ModeToggle = (): JSX.Element => {
+  const mode = usePrivilegedPortZustand((z) => z.mode)
+  const setMode = usePrivilegedPortZustand((z) => z.setMode)
+
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      color="primary"
+      value={mode}
+      onChange={(_, value: PrivilegedPortFixMode | null) => value && setMode(value)}
+      sx={{ mb: 1.5 }}
+    >
+      <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
+        Permanently
+      </ToggleButton>
+      <ToggleButton value="session" data-testid="privileged-port-mode-session">
+        Until reboot
+      </ToggleButton>
+    </ToggleButtonGroup>
+  )
+}
+
+//
+//
+// The command, which follows the toggle so the two cannot drift apart
+const Command = (): JSX.Element => {
+  const mode = usePrivilegedPortZustand((z) => z.mode)
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
+
+  // With no button to press, the terminal instructions are the lasting fix.
+  return (
+    <CommandBlock
+      command={privilegedPortCommandDisplay(blocked ? 'persist' : mode)}
+      testId="privileged-port-command"
+    />
+  )
+}
+
+//
+//
+// Don't ask again
+const DontAskCheckbox = (): JSX.Element => {
+  const dontAsk = usePrivilegedPortZustand((z) => z.dontAsk)
+  const setDontAsk = usePrivilegedPortZustand((z) => z.setDontAsk)
+
+  return (
+    <FormControlLabel
+      sx={{ mt: 2 }}
+      control={
+        <Checkbox
+          size="small"
+          checked={dontAsk}
+          onChange={(e) => setDontAsk(e.target.checked)}
+          data-testid="privileged-port-dont-ask"
+        />
       }
-    }
-    check()
+      label={<Typography variant="body2">Don&apos;t ask again</Typography>}
+    />
+  )
+}
 
-    return (): void => {
-      cancelled = true
-    }
-  }, [ready, setOpen])
+//
+//
+// Body
+const Body = (): JSX.Element => {
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
 
-  const close = useCallback((): void => {
-    if (dontAsk) localStorage.setItem(DISMISS_KEY, 'true')
-    setOpen(false)
-  }, [dontAsk, setOpen])
+  return (
+    <>
+      <Explanation />
 
-  const handleApply = useCallback(async (): Promise<void> => {
-    const { setBusy } = usePrivilegedPortZustand.getState()
+      {blocked ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {blocked} Run this in a terminal instead:
+        </Alert>
+      ) : (
+        <>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            Modbux can lower it for you. This makes every port from {UNPRIVILEGED_PORT_START_TARGET}{' '}
+            up bindable without root, system-wide — you will be asked for your password.
+          </Typography>
+          <ModeToggle />
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            This is what will run:
+          </Typography>
+        </>
+      )}
+
+      <Command />
+      <DontAskCheckbox />
+    </>
+  )
+}
+
+//
+//
+// Buttons
+const CancelButton = (): JSX.Element => {
+  const busy = usePrivilegedPortZustand((z) => z.busy)
+  return (
+    <Button onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
+      Not now
+    </Button>
+  )
+}
+
+const RunCommandButton = (): JSX.Element | null => {
+  const busy = usePrivilegedPortZustand((z) => z.busy)
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
+  const { enqueueSnackbar } = useSnackbar()
+
+  const apply = useCallback(async (): Promise<void> => {
+    const { setBusy, setOpen, mode } = usePrivilegedPortZustand.getState()
     setBusy(true)
     try {
       const result = await window.api.applyPrivilegedPortFix(mode)
@@ -160,95 +222,67 @@ const PrivilegedPortModal = (): JSX.Element | null => {
     } finally {
       setBusy(false)
     }
-  }, [enqueueSnackbar, mode, setOpen])
+  }, [enqueueSnackbar])
 
-  if (!status) return null
+  if (blocked) return null
 
-  const blockedReason = status.sandbox
-    ? `Modbux is running inside ${status.sandbox === 'flatpak' ? 'Flatpak' : 'Snap'}, so it cannot change system settings itself.`
-    : !status.canElevate
-      ? 'pkexec is not installed, so Modbux cannot ask for permission itself.'
-      : null
+  return (
+    <Button onClick={apply} disabled={busy} data-testid="privileged-port-allow-btn">
+      {busy ? 'Waiting for authorization…' : 'Run command'}
+    </Button>
+  )
+}
+
+//
+//
+// MAIN
+const PrivilegedPortModal = (): JSX.Element | null => {
+  const open = usePrivilegedPortZustand((z) => z.open)
+  const hasStatus = usePrivilegedPortZustand((z) => z.status !== null)
+  const ready = useServerZustand((z) => !!z.ready[z.selectedUuid])
+
+  useEffect(() => {
+    // The popped-out server window would otherwise show a second copy.
+    if (window.api.isServerWindow) return
+    if (localStorage.getItem(DISMISS_KEY) === 'true') return
+    if (!ready) return
+
+    let cancelled = false
+    const check = async (): Promise<void> => {
+      const { setStatus, setOpen } = usePrivilegedPortZustand.getState()
+      try {
+        // Always ask about 502 rather than the port in use. By the time the
+        // view renders, an unbindable 502 has already become 1024, and asking
+        // about 1024 would report no problem at all.
+        const result = await window.api.getPrivilegedPortStatus(UNPRIVILEGED_PORT_START_TARGET)
+        if (cancelled) return
+        // Close rather than return: the store outlives a remount, so a stale
+        // open would otherwise keep an answered question on screen.
+        if (!result.needsElevation) return setOpen(false)
+        setStatus(result)
+        setOpen(true)
+      } catch {
+        // Detection is a convenience — never let it break the server view.
+      }
+    }
+    check()
+
+    return (): void => {
+      cancelled = true
+    }
+  }, [ready])
+
+  if (!hasStatus) return null
 
   return (
     <Dialog open={open} onClose={close} maxWidth="sm" fullWidth data-testid="privileged-port-modal">
-      <DialogTitle>Port {status.port} needs a system setting</DialogTitle>
-
+      <Title />
       <DialogContent>
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          Linux reserves ports below {status.unprivilegedPortStart} for root, and Modbus uses{' '}
-          {status.port} by default.{' '}
-          {actualPort && actualPort !== status.port
-            ? `That is why this server is on ${actualPort} instead — a client looking for ${status.port} will not find it.`
-            : `Until that floor is lowered, Modbux cannot use it and clients looking for ${status.port} will not find it.`}
-        </Typography>
-
-        {blockedReason ? (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              {blockedReason} Run this in a terminal instead:
-            </Alert>
-            <CommandBlock command={privilegedPortCommandDisplay('persist')} />
-          </>
-        ) : (
-          <>
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              Modbux can lower it for you. This makes every port from{' '}
-              {UNPRIVILEGED_PORT_START_TARGET} up bindable without root, system-wide — you will be
-              asked for your password.
-            </Typography>
-
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              color="primary"
-              value={mode}
-              onChange={(_, value: PrivilegedPortFixMode | null) => value && setMode(value)}
-              sx={{ mb: 1.5 }}
-            >
-              <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
-                Permanently
-              </ToggleButton>
-              <ToggleButton value="session" data-testid="privileged-port-mode-session">
-                Until reboot
-              </ToggleButton>
-            </ToggleButtonGroup>
-
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              This is what will run:
-            </Typography>
-            <CommandBlock command={privilegedPortCommandDisplay(mode)} />
-          </>
-        )}
-
-        <FormControlLabel
-          sx={{ mt: 2 }}
-          control={
-            <Checkbox
-              size="small"
-              checked={dontAsk}
-              onChange={(e) => setDontAsk(e.target.checked)}
-              data-testid="privileged-port-dont-ask"
-            />
-          }
-          label={<Typography variant="body2">Don&apos;t ask again</Typography>}
-        />
+        <Body />
       </DialogContent>
-
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
-          Not now
-        </Button>
-        {!blockedReason && (
-          <Button
-            variant="contained"
-            onClick={handleApply}
-            disabled={busy}
-            data-testid="privileged-port-allow-btn"
-          >
-            {busy ? 'Waiting for authorization…' : 'Run command'}
-          </Button>
-        )}
+        <CancelButton />
+        <RunCommandButton />
       </DialogActions>
     </Dialog>
   )
