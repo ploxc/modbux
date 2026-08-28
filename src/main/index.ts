@@ -178,6 +178,18 @@ app.whenReady().then(() => {
     const id = window.id
     lifecycle(`window ${id} created`)
     window.on('closed', () => lifecycle(`window ${id} closed`))
+
+    // A window that goes away on its own takes its reason with it. These three
+    // are the ways that happens without anyone calling close(): the renderer
+    // dies, the page never loads, or it stops answering.
+    window.webContents.on('render-process-gone', (_e, details) =>
+      lifecycle(`window ${id} renderer gone: reason=${details.reason} exit=${details.exitCode}`)
+    )
+    window.webContents.on('did-fail-load', (_e, code, description, url) =>
+      lifecycle(`window ${id} failed to load ${url}: ${code} ${description}`)
+    )
+    window.on('unresponsive', () => lifecycle(`window ${id} unresponsive`))
+
     optimizer.watchWindowShortcuts(window)
   })
 
