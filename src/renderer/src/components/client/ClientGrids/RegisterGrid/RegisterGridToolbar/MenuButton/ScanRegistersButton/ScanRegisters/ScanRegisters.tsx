@@ -11,6 +11,7 @@ import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import {
+  ScanFoundChip,
   ScanProgress,
   ScanTimeoutField,
   scanTimeoutOutOfRange
@@ -182,6 +183,23 @@ const TimeoutField = (): JSX.Element => {
 
 //
 //
+// Found count
+//
+// The rows the main process sends back are the ones worth keeping: it drops
+// every register that reads as zero. So the length of the grid data is the
+// count of what the scan turned up, and it only means that while a scan is
+// running, since the same list holds polled data the rest of the time.
+const FoundCount = (): JSX.Element | null => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const count = useDataZustand((z) => z.registerData.length)
+
+  if (!scanning) return null
+
+  return <ScanFoundChip count={count} testId="scan-found-chip" />
+}
+
+//
+//
 // Scan button
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
@@ -277,7 +295,8 @@ const ScanRegisters = meme(() => {
             <ChunkSizeField />
             <TimeoutField />
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <FoundCount />
             <ScanButton />
           </Box>
         </Box>

@@ -16,7 +16,12 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
-import { ScanProgress, ScanTimeoutField, scanTimeoutOutOfRange } from '../ScanProgress/ScanProgress'
+import {
+  ScanFoundChip,
+  ScanProgress,
+  ScanTimeoutField,
+  scanTimeoutOutOfRange
+} from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
@@ -163,6 +168,23 @@ const SelectRegisterTypes = (): JSX.Element => {
 }
 
 //
+//
+// Found count
+//
+// Every scanned unit ID lands in the results, answering or not, so the count
+// is the ones that answered on at least one register type.
+const FoundCount = (): JSX.Element | null => {
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const scanned = useRootZustand((z) => z.scanUnitIdResults.length)
+  const count = useRootZustand(
+    (z) => z.scanUnitIdResults.filter((result) => result.registerTypes.length > 0).length
+  )
+
+  if (!scanning && scanned === 0) return null
+
+  return <ScanFoundChip count={count} testId="scan-unitid-found-chip" />
+}
+
 //
 // Scan button
 const ScanButton = (): JSX.Element => {
@@ -319,7 +341,8 @@ const ScanUnitIds = meme(() => {
               <TimeoutField />
               <SelectRegisterTypes />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <FoundCount />
               <ScanButton />
             </Box>
           </Box>

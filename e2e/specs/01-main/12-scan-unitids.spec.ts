@@ -239,6 +239,15 @@ test.describe.serial('Scan Unit IDs', () => {
     )
   })
 
+  test('the bar counts the unit IDs that answered', async ({ mainPage }) => {
+    const chip = mainPage.getByTestId('scan-unitid-found-chip')
+
+    // Two of the four scanned unit IDs answer on this server.
+    await expect(chip).toContainText('Found: 2')
+    await expect(chip).toHaveClass(/MuiChip-filled/)
+    await expect(chip).toHaveClass(/MuiChip-colorSuccess/)
+  })
+
   test('multi-type scan results show columns for each type', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
 

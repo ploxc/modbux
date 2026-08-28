@@ -1,4 +1,4 @@
-import { InputBaseComponentProps, LinearProgress, TextField } from '@mui/material'
+import { Chip, InputBaseComponentProps, LinearProgress, TextField } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
@@ -83,6 +83,24 @@ export const ScanTimeoutField = meme(
           inputProps: maskInputProps({ set: setTimeout })
         }
       }}
+    />
+  )
+)
+
+interface ScanFoundChipProps {
+  count: number
+  testId: string
+}
+
+/** A scan that turns up nothing looks exactly like a scan still warming up. */
+export const ScanFoundChip = meme(
+  ({ count, testId }: ScanFoundChipProps): JSX.Element => (
+    <Chip
+      size="small"
+      label={`Found: ${count}`}
+      color={count > 0 ? 'success' : 'warning'}
+      variant={count > 0 ? 'filled' : 'outlined'}
+      data-testid={testId}
     />
   )
 )
