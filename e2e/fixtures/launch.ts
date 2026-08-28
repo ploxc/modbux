@@ -103,9 +103,11 @@ export function launchOptions(): LaunchOptions {
   const isolate = isPackaged || process.env.E2E_ISOLATED_PROFILE === '1'
   const args = isolate ? [`--user-data-dir=${isolatedUserDataDir()}`] : []
 
-  // Turns off DataGrid virtualisation, so a locator finds the column or row it
-  // names instead of only the ones the current window happens to render.
-  const env = { ...process.env, MODBUX_E2E: '1' }
+  // MODBUX_E2E turns off DataGrid virtualisation, so a locator finds the column
+  // or row it names instead of only the ones the current window happens to
+  // render. ELECTRON_ENABLE_LOGGING sends Chromium's own logging to stderr,
+  // which the fixture keeps: without it the app says nothing on its way out.
+  const env = { ...process.env, MODBUX_E2E: '1', ELECTRON_ENABLE_LOGGING: '1' }
 
   if (!isPackaged) return { args: [join(ROOT, 'out/main/index.js'), ...args], env }
 
