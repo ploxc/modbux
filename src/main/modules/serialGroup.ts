@@ -1,6 +1,6 @@
 import { execFile, ExecFileException } from 'child_process'
 import { constants } from 'fs'
-import { access, readdir, readFile } from 'fs/promises'
+import { access, readdir, readFile, stat } from 'fs/promises'
 import { userInfo } from 'os'
 import { join } from 'path'
 import {
@@ -23,6 +23,10 @@ import { detectSandbox, findPkexec } from './privilegedPort'
  * opens needs nothing said about it, whatever the group file holds, and the
  * suite makes the point: socat hands out ptys the user owns, so RTU works
  * there with nobody in dialout at all.
+ *
+ * Which group is not assumed either. It is read off the device that refuses,
+ * so a distribution that names it something other than dialout still gets a
+ * useful answer instead of silence.
  *
  * The group is what the message is about, not what the check is. /etc/group is
  * world-readable and is compared with the groups this process actually has.
@@ -119,6 +123,43 @@ export const readGroupEntry = async (group: string): Promise<GroupEntry | undefi
   return undefined
 }
 
+/** Reads one group out of /etc/group by gid. Undefined when it is not there. */
+export const readGroupByGid = async (
+  gid: number
+): Promise<(GroupEntry & { name: string }) | undefined> => {
+  try {
+    const file = await readFile(GROUP_FILE_PATH, 'utf8')
+    for (const line of file.split('\n')) {
+      const [name, , id, members] = line.split(':')
+      if (Number.parseInt(id, 10) !== gid) continue
+      return { name, gid, members: (members ?? '').split(',').filter(Boolean) }
+    }
+  } catch {
+    // Unreadable or not Linux. The caller treats that as nothing to report.
+  }
+  return undefined
+}
+
+/**
+ * The group behind the first device that refuses to open.
+ *
+ * Asking the device rather than assuming `dialout` is the point: the name is a
+ * distribution's choice, and guessing wrong means saying nothing on exactly the
+ * machines where it matters. Undefined when nothing refuses, or when the gid
+ * that owns it has no name -- neither leaves anything useful to say.
+ */
+export const blockedPortGroup = async (): Promise<(GroupEntry & { name: string }) | undefined> => {
+  for (const port of await findUnreadablePorts()) {
+    try {
+      const group = await readGroupByGid((await stat(join(DEV_DIR, port))).gid)
+      if (group) return group
+    } catch {
+      // Gone between the scan and the stat. Try the next one.
+    }
+  }
+  return undefined
+}
+
 /**
  * Reports whether this user can open a serial port, and whether Modbux is in a
  * position to do anything about it.
@@ -135,12 +176,12 @@ export const getSerialGroupStatus = async (): Promise<SerialGroupStatus> => {
   }
 
   const username = userInfo().username
-  const entry = await readGroupEntry(SERIAL_GROUP)
   const sandbox = detectSandbox()
 
-  // No such group: a distribution that names it something else, or a system
-  // with no serial devices at all. Either way there is nothing to advise.
-  if (!entry) {
+  // Say nothing until a device actually refuses to open. Ports the user owns,
+  // a pty from socat among them, make the group irrelevant.
+  const group = await blockedPortGroup()
+  if (!group) {
     return {
       group: SERIAL_GROUP,
       supported: true,
@@ -151,19 +192,17 @@ export const getSerialGroupStatus = async (): Promise<SerialGroupStatus> => {
     }
   }
 
-  const heldNow = process.getgroups?.().includes(entry.gid) ?? false
-  const listed = entry.members.includes(username)
-
-  // Say nothing until a device actually refuses to open. Ports the user owns,
-  // a pty from socat among them, make the group irrelevant.
-  const blocked = heldNow ? [] : await findUnreadablePorts()
+  // Holding the group and still being refused means something else is wrong --
+  // a device mode of 0600, say -- and the group is not the thing to talk about.
+  const heldNow = process.getgroups?.().includes(group.gid) ?? false
+  const listed = group.members.includes(username)
 
   return {
-    group: SERIAL_GROUP,
+    group: group.name,
     supported: true,
     username,
-    needsMembership: blocked.length > 0 && !listed,
-    pendingLogin: blocked.length > 0 && listed,
+    needsMembership: !heldNow && !listed,
+    pendingLogin: !heldNow && listed,
     canElevate: !sandbox && findPkexec() !== undefined,
     ...(sandbox ? { sandbox } : {})
   }
@@ -206,7 +245,13 @@ export const applySerialGroupFix = async (): Promise<SerialGroupFixResult> => {
     }
   }
 
-  const exitCode = await run(pkexec, serialGroupCommandArgs(userInfo().username))
+  // Ask the device again rather than trust a name from earlier. The hardware
+  // can have changed since the modal opened, and re-reading is the more
+  // correct of the two answers.
+  const username = userInfo().username
+  const group = (await blockedPortGroup())?.name ?? SERIAL_GROUP
+
+  const exitCode = await run(pkexec, serialGroupCommandArgs(username, group))
 
   if (exitCode === PKEXEC_DISMISSED || exitCode === PKEXEC_NOT_AUTHORIZED) {
     return {
@@ -225,18 +270,18 @@ export const applySerialGroupFix = async (): Promise<SerialGroupFixResult> => {
   }
 
   // Trust the file over the exit code: read back what it now says.
-  const entry = await readGroupEntry(SERIAL_GROUP)
-  if (!entry?.members.includes(userInfo().username)) {
+  const entry = await readGroupEntry(group)
+  if (!entry?.members.includes(username)) {
     return {
       ok: false,
       reason: 'failed',
-      message: `${SERIAL_GROUP} still does not list you. Run the command in a terminal to see why.`
+      message: `${group} still does not list you. Run the command in a terminal to see why.`
     }
   }
 
   return {
     ok: true,
-    message: `You are in ${SERIAL_GROUP} now. Log out and back in for it to take effect.`
+    message: `You are in ${group} now. Log out and back in for it to take effect.`
   }
 }
 

@@ -18,6 +18,9 @@ let sessionGroups: number[] = []
 let devEntries: string[] = ['ttyUSB0']
 let unreadable: string[] = ['ttyUSB0']
 
+// The gid that owns each device node, which is where the group name comes from.
+let deviceGid = 20
+
 vi.mock('fs/promises', () => ({
   readFile: vi.fn(async () => {
     if (groupFile instanceof Error) throw groupFile
@@ -26,7 +29,8 @@ vi.mock('fs/promises', () => ({
   readdir: vi.fn(async () => devEntries),
   access: vi.fn(async (path: string) => {
     if (unreadable.some((name) => path.endsWith(name))) throw new Error('EACCES')
-  })
+  }),
+  stat: vi.fn(async () => ({ gid: deviceGid }))
 }))
 
 vi.mock('fs', () => ({
@@ -74,6 +78,7 @@ beforeEach(() => {
   sessionGroups = []
   devEntries = ['ttyUSB0']
   unreadable = ['ttyUSB0']
+  deviceGid = 20
   setPlatform('linux')
   process.getgroups = () => sessionGroups
   delete process.env.FLATPAK_ID
@@ -184,6 +189,38 @@ describe('getSerialGroupStatus', () => {
     expect(status.needsMembership).toBe(false)
   })
 
+  it('names the group the device belongs to, not an assumed dialout', async () => {
+    // A distribution that calls it uucp, with no dialout anywhere in sight.
+    groupFile = 'root:x:0:\nuucp:x:14:someone\n'
+    deviceGid = 14
+
+    const status = await getSerialGroupStatus()
+
+    expect(status.group).toBe('uucp')
+    expect(status.needsMembership).toBe(true)
+  })
+
+  it('says nothing when the session holds the group the device belongs to', async () => {
+    groupFile = 'root:x:0:\nuucp:x:14:jens\n'
+    deviceGid = 14
+    sessionGroups = [14]
+
+    const status = await getSerialGroupStatus()
+
+    expect(status.needsMembership).toBe(false)
+    expect(status.pendingLogin).toBe(false)
+  })
+
+  it('advises nothing when the gid that owns the device has no name', async () => {
+    groupFile = 'root:x:0:\ndialout:x:20:someone\n'
+    deviceGid = 999
+
+    const status = await getSerialGroupStatus()
+
+    expect(status.needsMembership).toBe(false)
+    expect(status.pendingLogin).toBe(false)
+  })
+
   it('advises nothing when the group does not exist', async () => {
     groupFile = 'root:x:0:\n'
     const status = await getSerialGroupStatus()
@@ -214,6 +251,17 @@ describe('applySerialGroupFix', () => {
       file: '/usr/bin/pkexec',
       args: ['usermod', '-aG', 'dialout', 'jens']
     })
+  })
+
+  it('adds the user to the group the device belongs to', async () => {
+    groupFile = 'root:x:0:\nuucp:x:14:jens\n'
+    deviceGid = 14
+
+    const result = await applySerialGroupFix()
+
+    expect(execFileCalls[0].args).toEqual(['usermod', '-aG', 'uucp', 'jens'])
+    expect(result.ok).toBe(true)
+    expect(result.message).toContain('uucp')
   })
 
   it('says to log out rather than claiming it is done', async () => {

@@ -61,9 +61,11 @@ const decline = (): void => {
 // The command, built from whoever is logged in
 const Command = (): JSX.Element => {
   const username = useSerialGroupZustand((z) => z.status?.username)
+  // The group the refusing device actually belongs to, not an assumed dialout.
+  const group = useSerialGroupZustand((z) => z.status?.group)
   return (
     <CommandBlock
-      command={serialGroupCommandDisplay(username ?? '$USER')}
+      command={serialGroupCommandDisplay(username ?? '$USER', group)}
       testId="serial-group-command"
     />
   )
