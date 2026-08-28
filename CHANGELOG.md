@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   You see the command before it runs, and the elevation goes through PolicyKit,
   so you approve it yourself and Modbux never sees your password. Inside
   Flatpak or Snap it hands you the command instead.
+- **Linux: Modbux says why the serial port list is empty.** A serial port
+  belongs to the `dialout` group, and a user outside it sees no ports at all,
+  which reads as a missing adapter rather than a missing permission. Selecting
+  RTU now checks, says so, and offers to add you, with the command shown before
+  it runs. Membership arrives at the next login, so it offers to log you out as
+  well. Mint and Ubuntu put the first user in that group at install time, so
+  most people never meet this.
 - **A button that clears the filters you set.** It sits next to RAW in the
   client toolbar and shows up only while a filter is on, so a filter left behind
   no longer reads as missing data.

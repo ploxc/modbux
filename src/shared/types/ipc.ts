@@ -27,7 +27,9 @@ import type {
   StartRtuServerParams,
   PrivilegedPortStatus,
   PrivilegedPortFixMode,
-  PrivilegedPortFixResult
+  PrivilegedPortFixResult,
+  SerialGroupStatus,
+  SerialGroupFixResult
 } from '@shared'
 import { SharedProps } from 'notistack'
 
@@ -78,7 +80,10 @@ export const IPC_CHANNELS = [
   'stop_rtu_server',
   'stop_all_tcp_servers',
   'get_privileged_port_status',
-  'apply_privileged_port_fix'
+  'apply_privileged_port_fix',
+  'get_serial_group_status',
+  'apply_serial_group_fix',
+  'request_logout'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -301,6 +306,24 @@ export interface IpcHandlerSpec {
   ['apply_privileged_port_fix']: {
     args: [PrivilegedPortFixMode]
     return: PrivilegedPortFixResult
+  }
+
+  /** Report whether this user may open a serial port on Linux */
+  ['get_serial_group_status']: {
+    args: []
+    return: SerialGroupStatus
+  }
+
+  /** Add this user to the serial group via pkexec */
+  ['apply_serial_group_fix']: {
+    args: []
+    return: SerialGroupFixResult
+  }
+
+  /** Ask the desktop session to log the user out, so a new group takes effect */
+  ['request_logout']: {
+    args: []
+    return: boolean
   }
 }
 

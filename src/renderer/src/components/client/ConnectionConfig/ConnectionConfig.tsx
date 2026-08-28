@@ -10,6 +10,7 @@ import {
   Tooltip
 } from '@mui/material'
 import RtuConfig from './RtuConfig/RtuConfig'
+import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
 import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { Protocol } from '@shared'
@@ -152,6 +153,8 @@ const ConnectionConfig = meme(() => {
     <>
       {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}
       {protocol === 'ModbusRtu' ? <RtuConfig /> : <TcpConfig />}
+      {/* Serial RTU is the only mode that needs a group membership to work. */}
+      <SerialGroupModal active={protocol === 'ModbusRtu'} />
       <Box sx={{ display: 'flex', gap: 2 }}>
         <ProtocolSelect protocol={protocol} />
         <UnitId />
