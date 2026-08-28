@@ -14,7 +14,7 @@ import {
   SerialPortInfo,
   ModbusBaudRate
 } from '@shared'
-import { MaskSetFn } from './root.zustand.types'
+import { AsyncMaskSetFn, MaskSetFn } from './root.zustand.types'
 import { z } from 'zod'
 
 export const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
@@ -75,7 +75,9 @@ export type ServerZustand = {
   removeRegister: (params: RemoveRegisterParams) => void
   setRegisterValue: (params: SetRegisterValueParameters | Array<SetRegisterValueParameters>) => void
   resetRegisters: (type: NumberRegisters) => void
-  setPort: MaskSetFn
+  // Asks the backend and settles on the port it actually got, so callers
+  // that need the result -- the privileged port modal -- can await it.
+  setPort: AsyncMaskSetFn
   setUnitId: MaskSetFn<UnitIdString>
   setLittleEndian: (value: boolean) => Promise<void>
   // Replace

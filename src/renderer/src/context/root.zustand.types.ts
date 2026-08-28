@@ -102,3 +102,6 @@ export type RootZusand = {
 } & PersistedRootZustand
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void
+
+/** A masked setter that waits on the backend before the value settles. */
+export type AsyncMaskSetFn<V extends string = string> = (value: V, valid?: boolean) => Promise<void>
