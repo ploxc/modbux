@@ -21,7 +21,7 @@ export default defineConfig({
   // Checked once before anything launches: on Linux a raised port floor makes
   // the server fall back off 502 and the specs fail in a way that points at the
   // UI instead of at the machine.
-  globalSetup: './e2e/fixtures/require-bindable-502.ts',
+  globalSetup: './e2e/fixtures/global-setup.ts',
   timeout: 60000,
   retries: 0,
   workers: 1,
