@@ -14,15 +14,24 @@ const execFileCalls: { file: string; args: readonly string[] }[] = []
 // The groups this "session" holds, as gids.
 let sessionGroups: number[] = []
 
+// What /dev holds, and which of those entries refuse to open.
+let devEntries: string[] = ['ttyUSB0']
+let unreadable: string[] = ['ttyUSB0']
+
 vi.mock('fs/promises', () => ({
   readFile: vi.fn(async () => {
     if (groupFile instanceof Error) throw groupFile
     return groupFile
+  }),
+  readdir: vi.fn(async () => devEntries),
+  access: vi.fn(async (path: string) => {
+    if (unreadable.some((name) => path.endsWith(name))) throw new Error('EACCES')
   })
 }))
 
 vi.mock('fs', () => ({
-  existsSync: vi.fn((path: string) => existingPaths.includes(path))
+  existsSync: vi.fn((path: string) => existingPaths.includes(path)),
+  constants: { R_OK: 4, W_OK: 2 }
 }))
 
 vi.mock('os', () => ({
@@ -46,7 +55,12 @@ vi.mock('child_process', () => ({
   )
 }))
 
-import { applySerialGroupFix, getSerialGroupStatus, readGroupEntry } from '../serialGroup'
+import {
+  applySerialGroupFix,
+  findUnreadablePorts,
+  getSerialGroupStatus,
+  readGroupEntry
+} from '../serialGroup'
 
 const originalPlatform = process.platform
 const setPlatform = (platform: string) =>
@@ -58,6 +72,8 @@ beforeEach(() => {
   execExitCode = 0
   execFileCalls.length = 0
   sessionGroups = []
+  devEntries = ['ttyUSB0']
+  unreadable = ['ttyUSB0']
   setPlatform('linux')
   process.getgroups = () => sessionGroups
   delete process.env.FLATPAK_ID
@@ -90,6 +106,23 @@ describe('readGroupEntry', () => {
   })
 })
 
+describe('findUnreadablePorts', () => {
+  it('reports a device that exists and will not open', async () => {
+    expect(await findUnreadablePorts()).toEqual(['ttyUSB0'])
+  })
+
+  it('reports nothing when the device opens', async () => {
+    unreadable = []
+    expect(await findUnreadablePorts()).toEqual([])
+  })
+
+  it('ignores everything that is not a serial device', async () => {
+    devEntries = ['null', 'sda', 'random']
+    unreadable = ['null', 'sda', 'random']
+    expect(await findUnreadablePorts()).toEqual([])
+  })
+})
+
 describe('getSerialGroupStatus', () => {
   it('reports nothing to do off Linux', async () => {
     setPlatform('darwin')
@@ -110,6 +143,21 @@ describe('getSerialGroupStatus', () => {
     const status = await getSerialGroupStatus()
     expect(status.needsMembership).toBe(false)
     expect(status.pendingLogin).toBe(false)
+  })
+
+  // What the e2e suite runs into: socat hands out ptys the user owns, so the
+  // group has nothing to do with whether RTU works there.
+  it('says nothing when every port opens, group or no group', async () => {
+    unreadable = []
+    const status = await getSerialGroupStatus()
+    expect(status.needsMembership).toBe(false)
+    expect(status.pendingLogin).toBe(false)
+  })
+
+  it('says nothing when there is no serial device at all', async () => {
+    devEntries = []
+    unreadable = []
+    expect((await getSerialGroupStatus()).needsMembership).toBe(false)
   })
 
   // The case that separates "run the command" from "log out": usermod writes

@@ -1,6 +1,8 @@
 import { execFile, ExecFileException } from 'child_process'
-import { readFile } from 'fs/promises'
+import { constants } from 'fs'
+import { access, readdir, readFile } from 'fs/promises'
 import { userInfo } from 'os'
+import { join } from 'path'
 import {
   GROUP_FILE_PATH,
   SERIAL_GROUP,
@@ -17,11 +19,16 @@ import { detectSandbox, findPkexec } from './privilegedPort'
  * The app then lists no ports, which looks like missing hardware rather than
  * missing permission.
  *
- * Detection reads /etc/group, which is world-readable, and compares it with
- * the groups this process actually has. Those two disagree in a way worth
- * telling apart: `usermod` writes the file immediately, while a session keeps
- * the groups it was given at login. Listed but not held means the fix has run
- * and the answer is to log out, not to run it again.
+ * Detection asks about the devices rather than about the group. A port that
+ * opens needs nothing said about it, whatever the group file holds, and the
+ * suite makes the point: socat hands out ptys the user owns, so RTU works
+ * there with nobody in dialout at all.
+ *
+ * The group is what the message is about, not what the check is. /etc/group is
+ * world-readable and is compared with the groups this process actually has.
+ * Those two disagree in a way worth telling apart: `usermod` writes the file
+ * immediately, while a session keeps the groups it was given at login. Listed
+ * but not held means the fix has run and the answer is to log out.
  *
  * Elevation goes through pkexec for the same reason as the port floor: sudo
  * needs a TTY that an Electron app does not have.
@@ -47,6 +54,39 @@ const LOGOUT_COMMANDS: Array<[string, string[]]> = [
   ['mate-session-save', ['--logout-dialog']],
   ['xfce4-session-logout', ['--logout']]
 ]
+
+/** Where the kernel puts serial devices, and the prefixes they carry. */
+const DEV_DIR = '/dev'
+const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM', 'ttyS', 'ttyAMA']
+
+/**
+ * Serial devices that exist but cannot be opened.
+ *
+ * A device node outside your groups is still visible: 0660 root:dialout lists
+ * fine and opens not at all. That difference is the whole signal. No devices
+ * means nothing to advise about, and one that opens means the group is beside
+ * the point.
+ */
+export const findUnreadablePorts = async (): Promise<string[]> => {
+  let entries: string[]
+  try {
+    entries = await readdir(DEV_DIR)
+  } catch {
+    return []
+  }
+
+  const ports = entries.filter((name) => SERIAL_PREFIXES.some((prefix) => name.startsWith(prefix)))
+  const unreadable: string[] = []
+
+  for (const port of ports) {
+    try {
+      await access(join(DEV_DIR, port), constants.R_OK | constants.W_OK)
+    } catch {
+      unreadable.push(port)
+    }
+  }
+  return unreadable
+}
 
 interface GroupEntry {
   gid: number
@@ -106,12 +146,16 @@ export const getSerialGroupStatus = async (): Promise<SerialGroupStatus> => {
   const heldNow = process.getgroups?.().includes(entry.gid) ?? false
   const listed = entry.members.includes(username)
 
+  // Say nothing until a device actually refuses to open. Ports the user owns,
+  // a pty from socat among them, make the group irrelevant.
+  const blocked = heldNow ? [] : await findUnreadablePorts()
+
   return {
     group: SERIAL_GROUP,
     supported: true,
     username,
-    needsMembership: !heldNow && !listed,
-    pendingLogin: !heldNow && listed,
+    needsMembership: blocked.length > 0 && !listed,
+    pendingLogin: blocked.length > 0 && listed,
     canElevate: !sandbox && findPkexec() !== undefined,
     ...(sandbox ? { sandbox } : {})
   }

@@ -22,9 +22,11 @@ import { useCallback, useEffect, useState } from 'react'
  * port list is then empty, which reads as no adapter rather than no
  * permission, and the answer is a command documented where nobody looks.
  *
- * Two things it does differently from the privileged port modal. There is no
- * dismissing it, because a server can run on another port while RTU cannot run
- * without the group. And the command is not the end: group membership arrives
+ * Two things it does differently from the privileged port modal. Nothing is
+ * remembered: a server can move to another port, so "don't ask again" makes
+ * sense there, while RTU cannot work without the group and the question comes
+ * back with it. Closing is still allowed, because otherwise there is no way
+ * back to TCP either. And the command is not the end: group membership arrives
  * at the next login, so the modal offers to log out once it has run.
  *
  * Most people never see this. Mint and Ubuntu put the first user in the group
@@ -140,7 +142,13 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
       : null
 
   return (
-    <Dialog open={open} maxWidth="sm" fullWidth data-testid="serial-group-modal">
+    <Dialog
+      open={open}
+      onClose={() => !busy && setOpen(false)}
+      maxWidth="sm"
+      fullWidth
+      data-testid="serial-group-modal"
+    >
       <DialogTitle>Serial ports need the {status.group} group</DialogTitle>
 
       <DialogContent>
@@ -191,21 +199,25 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
             </Button>
           </>
         ) : (
-          !blockedReason && (
+          <>
             <Button
-              variant="contained"
-              onClick={handleApply}
+              onClick={() => setOpen(false)}
               disabled={busy}
-              data-testid="serial-group-allow-btn"
+              data-testid="serial-group-close-btn"
             >
-              {busy ? 'Waiting for authorization…' : 'Run command'}
+              Not now
             </Button>
-          )
-        )}
-        {!done && blockedReason && (
-          <Button onClick={() => setOpen(false)} data-testid="serial-group-close-btn">
-            Close
-          </Button>
+            {!blockedReason && (
+              <Button
+                variant="contained"
+                onClick={handleApply}
+                disabled={busy}
+                data-testid="serial-group-allow-btn"
+              >
+                {busy ? 'Waiting for authorization…' : 'Run command'}
+              </Button>
+            )}
+          </>
         )}
       </DialogActions>
     </Dialog>
