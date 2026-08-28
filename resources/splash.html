@@ -8,14 +8,18 @@
     <meta name="msapplication-TileColor" content="#181818" />
     <style>
         html,
-        .body {
+        body {
             margin: 0;
             background: #181818;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 400px;
-            height: 300px;
+            /* Not the window size in pixels: on Windows the content area comes
+               out smaller than the size the BrowserWindow was asked for, and a
+               page fixed at that size no longer fits inside it. */
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             font-size: 14px;
         }
 
