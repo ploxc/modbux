@@ -10,12 +10,7 @@ import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import {
-  ScanFoundChip,
-  ScanProgress,
-  ScanTimeoutField,
-  scanTimeoutOutOfRange
-} from '../../ScanProgress/ScanProgress'
+import { ScanFoundChip, ScanProgress, ScanTimeoutField } from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ScanRegistersZustand {
@@ -203,7 +198,6 @@ const FoundCount = (): JSX.Element | null => {
 // Scan button
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
-  const timeoutOutOfRange = useScanRegistersZustand((z) => scanTimeoutOutOfRange(z.timeout))
 
   const scan = useCallback(async () => {
     if (scanning) {
@@ -236,13 +230,7 @@ const ScanButton = (): JSX.Element => {
   const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
 
   return (
-    <Button
-      disabled={!scanning && timeoutOutOfRange}
-      variant="contained"
-      color={color}
-      onClick={scan}
-      data-testid="scan-start-stop-btn"
-    >
+    <Button variant="contained" color={color} onClick={scan} data-testid="scan-start-stop-btn">
       {text}
     </Button>
   )

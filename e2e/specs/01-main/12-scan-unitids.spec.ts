@@ -80,22 +80,19 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(input).toHaveValue('500')
   })
 
-  test('a timeout under the minimum is flagged and holds the scan back', async ({ mainPage }) => {
-    const field = mainPage.getByTestId('scan-unitid-timeout-input')
-    const input = field.locator('input')
+  test('a timeout under the minimum is pulled up when the field is left', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
     await input.press('ControlOrMeta+a')
     await input.press('Backspace')
     await input.pressSequentially('50')
-
-    const helperText = field.locator('.MuiFormHelperText-root')
-
     await expect(input).toHaveValue('50')
-    await expect(helperText).toHaveClass(/Mui-error/)
-    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeDisabled()
+
+    await input.blur()
+    await expect(input).toHaveValue('100')
 
     await input.fill('500')
-    await expect(helperText).not.toHaveClass(/Mui-error/)
-    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toBeEnabled()
+    await input.blur()
+    await expect(input).toHaveValue('500')
   })
 
   // ─── Register type toggle buttons ──────────────────────────────────

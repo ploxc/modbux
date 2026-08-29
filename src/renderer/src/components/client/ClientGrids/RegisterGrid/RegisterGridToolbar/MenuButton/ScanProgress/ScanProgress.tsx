@@ -33,13 +33,14 @@ export const ScanProgress = meme(() => {
  *
  * The bounds stay off the mask, which rewrites what you type: clearing the
  * field stores 0, the mask commits that up to its floor, and the digits land
- * behind it. Typing 500 into an empty field gave 10000.
+ * behind it. Typing 500 into an empty field gave 10000. Leaving the field is
+ * late enough to correct it.
  */
 export const SCAN_TIMEOUT_MIN = 100
 export const SCAN_TIMEOUT_MAX = 10000
 
-export const scanTimeoutOutOfRange = (timeout: number): boolean =>
-  timeout < SCAN_TIMEOUT_MIN || timeout > SCAN_TIMEOUT_MAX
+export const clampScanTimeout = (timeout: number): number =>
+  Math.min(SCAN_TIMEOUT_MAX, Math.max(SCAN_TIMEOUT_MIN, timeout))
 
 const TimeoutInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -74,8 +75,7 @@ export const ScanTimeoutField = meme(
       size="small"
       sx={{ width: 90 }}
       value={String(timeout)}
-      error={scanTimeoutOutOfRange(timeout)}
-      helperText={`${SCAN_TIMEOUT_MIN} - ${SCAN_TIMEOUT_MAX}`}
+      onBlur={() => setTimeout(String(clampScanTimeout(timeout)))}
       data-testid={testId}
       slotProps={{
         input: {

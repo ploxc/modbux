@@ -16,12 +16,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
-import {
-  ScanFoundChip,
-  ScanProgress,
-  ScanTimeoutField,
-  scanTimeoutOutOfRange
-} from '../ScanProgress/ScanProgress'
+import { ScanFoundChip, ScanProgress, ScanTimeoutField } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
@@ -190,9 +185,7 @@ const FoundCount = (): JSX.Element | null => {
 const ScanButton = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const polling = useRootZustand((z) => z.clientState.polling)
-  const disabled = useScanUnitIdZustand(
-    (z) => z.registerTypes.length === 0 || scanTimeoutOutOfRange(z.timeout)
-  )
+  const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
     if (scanning) {
