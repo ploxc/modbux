@@ -16,7 +16,12 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
-import { ScanProgress, TimeoutInput } from '../ScanProgress/ScanProgress'
+import {
+  ScanCloseButton,
+  ScanFoundChip,
+  ScanProgress,
+  ScanTimeoutField
+} from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
@@ -124,24 +129,15 @@ const LengthField = (): JSX.Element => {
 // Timeout field
 const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const timeout = useScanUnitIdZustand((z) => String(z.timeout))
+  const timeout = useScanUnitIdZustand((z) => z.timeout)
   const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
 
   return (
-    <TextField
+    <ScanTimeoutField
       disabled={scanning}
-      label="Timeout (ms)"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={timeout}
-      data-testid="scan-unitid-timeout-input"
-      slotProps={{
-        input: {
-          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setTimeout })
-        }
-      }}
+      timeout={timeout}
+      setTimeout={setTimeout}
+      testId="scan-unitid-timeout-input"
     />
   )
 }
@@ -172,6 +168,23 @@ const SelectRegisterTypes = (): JSX.Element => {
 }
 
 //
+//
+// Found count
+//
+// Every scanned unit ID lands in the results, answering or not, so the count
+// is the ones that answered on at least one register type.
+const FoundCount = (): JSX.Element | null => {
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const scanned = useRootZustand((z) => z.scanUnitIdResults.length)
+  const count = useRootZustand(
+    (z) => z.scanUnitIdResults.filter((result) => result.registerTypes.length > 0).length
+  )
+
+  if (!scanning && scanned === 0) return null
+
+  return <ScanFoundChip count={count} testId="scan-unitid-found-chip" />
+}
+
 //
 // Scan button
 const ScanButton = (): JSX.Element => {
@@ -290,6 +303,8 @@ const ScanUnitIds = meme(() => {
   const setOpen = useScanUnitIdZustand((z) => z.setOpen)
 
   // Don't close while scanning
+  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+
   const handleClose = useCallback(() => {
     const currentRootState = useRootZustand.getState()
     if (currentRootState.clientState.scanningUniId) return
@@ -301,7 +316,10 @@ const ScanUnitIds = meme(() => {
       <ScanUnitIdsButton />
       <Modal
         open={open}
-        onClose={handleClose}
+        // Escape still closes. A click on the backdrop does not: the dialog fills
+        // the window, and reaching for anything behind it closed the scan you
+        // were setting up, results and all.
+        onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
         sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
         <Paper
@@ -326,8 +344,14 @@ const ScanUnitIds = meme(() => {
               <TimeoutField />
               <SelectRegisterTypes />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <FoundCount />
               <ScanButton />
+              <ScanCloseButton
+                disabled={scanning}
+                close={handleClose}
+                testId="scan-unitid-close-btn"
+              />
             </Box>
           </Box>
           <ScanProgress />

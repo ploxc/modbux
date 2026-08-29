@@ -13,10 +13,13 @@ export type LayoutZustand = {
   hideHomeButton: boolean
   homeShiftKeyDown: boolean
   showClientRawValues: boolean
+  /** Whether the register grid keeps filling while a scan runs. */
+  showGridWhileScanning: boolean
   toggleShowClientRawValues: () => void
   setHomeShiftKeyDown: (down: boolean) => void
   setHideHomeButton: (hide: boolean) => void
   toggleShowLog: () => void
+  toggleShowGridWhileScanning: () => void
   setShowLog: (show: boolean) => void
   setAppType: (appType: AppType | undefined) => void
 } & PersistedLayoutZustand

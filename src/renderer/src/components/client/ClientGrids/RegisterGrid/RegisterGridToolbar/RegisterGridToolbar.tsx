@@ -34,9 +34,17 @@ const ClientConfigName = meme(() => {
 })
 
 const RegisterGridToolbar = meme(() => {
+  // Read, Poll, Clear and the config buttons would each undo a scan that is
+  // still running, so the strip goes quiet with the rows underneath it.
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+
   return (
     <Box
       sx={(theme) => ({
+        ...(scanning && {
+          pointerEvents: 'none',
+          opacity: theme.palette.action.disabledOpacity
+        }),
         pt: 1,
         px: 1,
         pb: 0.5,

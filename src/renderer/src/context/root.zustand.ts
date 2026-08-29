@@ -286,9 +286,20 @@ export const useRootZustand = create<
         }),
       setLittleEndian: (littleEndian) =>
         set((state) => {
-          if (!get().ready) return
+          const currentState = get()
+          if (!currentState.ready) return
           state.registerConfig.littleEndian = littleEndian
           window.api.updateRegisterConfig({ littleEndian })
+
+          // The rows on screen were read in the other word order, and the
+          // conversion happens where the reading does, so they stay that way
+          // until the next read. Ask for one, unless something else is about
+          // to: polling reads on its own, and a scan is filling the list.
+          const { connectState, polling, scanningRegisters } = currentState.clientState
+          const hasRows = useDataZustand.getState().registerData.length > 0
+          if (connectState === 'connected' && !polling && !scanningRegisters && hasRows) {
+            window.api.read()
+          }
         }),
       setReadConfiguration: (readConfiguration) =>
         set((state) => {

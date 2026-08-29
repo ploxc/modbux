@@ -17,7 +17,16 @@ export default defineConfig({
   // the app and captures what it sees; it barely asserts anything, so it costs
   // two minutes to tell you little that 01-main does not already check. Run it
   // when you want fresh screenshots, with `yarn presentation`.
-  testIgnore: ['**/98-privileged-port/**', '**/99-hardware/**', '**/03-presentation/**'],
+  //
+  // The scan grid measurement answers one question, how much a mounted grid
+  // costs during a scan, and answering it takes a scan of 2000 addresses one
+  // at a time. Run it with `yarn test:e2e:scan-perf`.
+  testIgnore: [
+    '**/97-scan-perf/**',
+    '**/98-privileged-port/**',
+    '**/99-hardware/**',
+    '**/03-presentation/**'
+  ],
   // Checked once before anything launches: on Linux a raised port floor makes
   // the server fall back off 502 and the specs fail in a way that points at the
   // UI instead of at the machine.

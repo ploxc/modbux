@@ -31,6 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A button that clears the filters you set.** It sits next to RAW in the
   client toolbar and shows up only while a filter is on, so a filter left behind
   no longer reads as missing data.
+- **The grid fills while a register scan runs.** It used to disappear for the
+  length of the scan, leaving a progress bar and no sign of what was coming in.
+  It stays up now and the rows arrive as the scan walks the range. They are
+  written in batches, so the grid costs nothing: the same scan took eight times
+  longer with the grid up before this, and the window stopped answering while
+  it ran. You can scroll and page through it while it fills, but not edit it:
+  the rows are still arriving, and the toolbar and the transaction log step
+  aside for the same reason. Starting a scan turns advanced mode on, since a
+  scan walks raw addresses, and the dialog stays open when the scan ends rather
+  than closing to reveal what you were already watching. The eye beside the
+  scan button puts it all back the old way.
+- **A scan says how many it found.** The grid shows the first rows, not the
+  total, so the count sits beside the scan button. The unit ID scan counts the
+  units that answered, since its results list every unit it asked.
 
 ### Changed
 
@@ -41,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reading a configuration turns filtering off.** That mode already hides the
   rows without a data type, and a filter of your own could fight it or take it
   away from the column menu, leaving the list full of empty rows.
+- **Switching between BE and LE reads again.** The rows on screen were read in
+  the other word order and stayed that way until you read yourself, so a 32-bit
+  value kept showing the number it had before the switch. Modbux reads again
+  when there is something to reinterpret, unless polling or a scan is about to
+  anyway.
+- **A scan dialog no longer closes when you click beside it.** Reaching for
+  anything behind it threw away the scan you were setting up. It has a close
+  button now, off while a scan runs, and Escape still works.
 
 ### Fixed
 
@@ -57,6 +79,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The coils and discrete inputs lists scroll inside their own panel.** A long
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
+- **A scan no longer stops on the log it writes.** Scanning over a serial port
+  could end partway with nothing on screen to say why. Modbux keeps a copy of
+  every request and reply for the transaction log, and a request that had no
+  copy took the scan down with it. That case now logs an empty frame.
+- **The scan timeout keeps what you type.** Clearing the field and typing 500
+  left 10000 behind. A value outside 100 to 10000 is corrected when you leave
+  the field instead of while you are still typing.
+- **The server port can no longer be set to 0.** Typing 0 left the view saying
+  "Port 0" while the server was answering on 502. Zero is not a port, it is a
+  request for whichever one is free. A port is between 1 and 65535, and asking
+  for anything else leaves the server where it is.
 
 ### Security
 
