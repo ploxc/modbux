@@ -26,7 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written in batches, so the grid costs nothing: the same scan took eight times
   longer with the grid up before this, and the window stopped answering while
   it ran. You can scroll and page through it while it fills, but not edit it:
-  the rows are still arriving. The eye beside the scan button puts it back the
+  the rows are still arriving, and the toolbar and the transaction log step
+  aside for the same reason. Starting a scan turns advanced mode on, since a
+  scan walks raw addresses. The eye beside the scan button puts it all back the
   old way.
 - **A scan says how many it found.** The grid shows the first rows, not the
   total, so the count sits beside the scan button. The unit ID scan counts the

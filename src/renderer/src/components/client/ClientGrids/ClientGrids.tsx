@@ -31,7 +31,9 @@ const ClientGrids = (): JSX.Element | null => {
       }}
     >
       <RegisterGrid />
-      {showLog && <TransactionGrid />}
+      {/* The log takes a row per chunk, so during a scan it is a second grid
+          rendering thousands of times over rows nobody is reading. */}
+      {showLog && !scanning && <TransactionGrid />}
     </Box>
   )
 }

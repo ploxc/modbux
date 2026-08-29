@@ -229,6 +229,9 @@ const ScanButton = (): JSX.Element => {
     const rootState = useRootZustand.getState()
     const dataState = useDataZustand.getState()
     rootState.setReadConfiguration(false)
+    // A scan walks raw addresses, which is what the extra columns are for, and
+    // the rows land in a grid you are now watching fill.
+    if (!rootState.registerConfig.advancedMode) rootState.setAdvancedMode(true)
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
     dropPendingScanRows()
