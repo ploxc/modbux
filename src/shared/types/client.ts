@@ -232,8 +232,10 @@ export interface RawTransaction {
   // next: [Function: cb],
   _timeoutFired: boolean
   //_timeoutHandle: undefined,
-  request: Buffer
-  responses: Buffer[]
+  // Both are stashed only while modbus-serial is in debug mode, and only by
+  // the write that reaches the port. A transaction can carry neither.
+  request?: Buffer
+  responses?: Buffer[]
 }
 
 export interface RegisterValue {

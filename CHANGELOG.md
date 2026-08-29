@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The coils and discrete inputs lists scroll inside their own panel.** A long
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
+- **A scan no longer stops on the log it writes.** Scanning over a serial port
+  could end partway with nothing on screen to say why. Modbux keeps a copy of
+  every request and reply for the transaction log, and a request that had no
+  copy took the scan down with it. That case now logs an empty frame.
 - **The scan timeout keeps what you type.** Clearing the field and typing 500
   left 10000 behind. A value outside 100 to 10000 is corrected when you leave
   the field instead of while you are still typing.
