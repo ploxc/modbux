@@ -75,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The scan timeout keeps what you type.** Clearing the field and typing 500
   left 10000 behind. A value outside 100 to 10000 is corrected when you leave
   the field instead of while you are still typing.
+- **The server port can no longer be set to 0.** Typing 0 left the view saying
+  "Port 0" while the server was answering on 502. Zero is not a port, it is a
+  request for whichever one is free. A port is between 1 and 65535, and asking
+  for anything else leaves the server where it is.
 
 ### Security
 
