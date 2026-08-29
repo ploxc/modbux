@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/electron-app'
 import {
   selectUnitId,
   cell,
+  cellLocator,
   readRegisters,
   clearData,
   loadServerConfig,
@@ -123,6 +124,23 @@ test.describe.serial('Endianness — Little Endian round-trip', () => {
     // BE: [0x6553, 0xF100] -> LE: [0xF100, 0x6553]
     await expectCell(mainPage, 26, 'hex', 'F100')
     await expectCell(mainPage, 27, 'hex', '6553')
+  })
+
+  // ─── Toggling reads again ──────────────────────────────────────────
+
+  test('toggling endianness reads again instead of leaving the rows stale', async ({
+    mainPage
+  }) => {
+    await expectCell(mainPage, 2, 'word_int32', '-70000')
+
+    // The server stays little endian, so reading the same registers as big
+    // endian gives a different number. It can only show up without pressing
+    // Read if the toggle asked for one.
+    await setClientEndianness(mainPage, 'be')
+    await expect(cellLocator(mainPage, 2, 'word_int32')).not.toHaveText('-70000')
+
+    await setClientEndianness(mainPage, 'le')
+    await expectCell(mainPage, 2, 'word_int32', '-70000')
   })
 
   // ─── Cleanup: restore Big Endian ───────────────────────────────────
