@@ -20,10 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A button that clears the filters you set.** It sits next to RAW in the
   client toolbar and shows up only while a filter is on, so a filter left behind
   no longer reads as missing data.
-- **A scan says how many registers it found.** A scan over thousands of
-  addresses showed a progress bar and nothing else, so a run that turned up
-  nothing looked like a run still warming up. The count sits beside the scan
-  button. The unit ID scan counts the units that answered, not the rows.
+- **The grid fills while a register scan runs.** It used to disappear for the
+  length of the scan, leaving a progress bar and no sign of what was coming in.
+  It stays up now and the rows arrive as the scan walks the range. They are
+  written in batches, so the grid costs nothing: the same scan took eight times
+  longer with the grid up before this, and the window stopped answering while
+  it ran. You can scroll and page through it while it fills, but not edit it:
+  the rows are still arriving. The eye beside the scan button puts it back the
+  old way.
+- **A scan says how many it found.** The grid shows the first rows, not the
+  total, so the count sits beside the scan button. The unit ID scan counts the
+  units that answered, since its results list every unit it asked.
 
 ### Changed
 
@@ -34,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reading a configuration turns filtering off.** That mode already hides the
   rows without a data type, and a filter of your own could fight it or take it
   away from the column menu, leaving the list full of empty rows.
+- **A scan dialog no longer closes when you click beside it.** Reaching for
+  anything behind it threw away the scan you were setting up. It has a close
+  button now, off while a scan runs, and Escape still works.
 
 ### Fixed
 

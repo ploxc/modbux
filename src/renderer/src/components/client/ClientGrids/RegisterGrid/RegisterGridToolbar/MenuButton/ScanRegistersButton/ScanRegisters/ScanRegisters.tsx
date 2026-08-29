@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import { create } from 'zustand'
@@ -9,8 +10,14 @@ import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
-import { useDataZustand } from '@renderer/context/data.zustand'
-import { ScanFoundChip, ScanProgress, ScanTimeoutField } from '../../ScanProgress/ScanProgress'
+import { dropPendingScanRows, useDataZustand } from '@renderer/context/data.zustand'
+import {
+  ScanCloseButton,
+  ScanFoundChip,
+  ScanGridToggle,
+  ScanProgress,
+  ScanTimeoutField
+} from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ScanRegistersZustand {
@@ -180,10 +187,11 @@ const TimeoutField = (): JSX.Element => {
 //
 // Found count
 //
-// The rows the main process sends back are the ones worth keeping: it drops
-// every register that reads as zero. So the length of the grid data is the
-// count of what the scan turned up, and it only means that while a scan is
-// running, since the same list holds polled data the rest of the time.
+// The grid shows the first rows, not how many there are, and the main process
+// only sends back what is worth keeping: it drops every register that reads as
+// zero. So the length of the grid data is the count of what the scan turned
+// up, and it means that while a scan is running, since the same list holds
+// polled data the rest of the time.
 const FoundCount = (): JSX.Element | null => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const count = useDataZustand((z) => z.registerData.length)
@@ -191,6 +199,16 @@ const FoundCount = (): JSX.Element | null => {
   if (!scanning) return null
 
   return <ScanFoundChip count={count} testId="scan-found-chip" />
+}
+
+//
+//
+// Show the grid while scanning
+const GridToggle = (): JSX.Element => {
+  const shown = useLayoutZustand((z) => z.showGridWhileScanning)
+  const toggle = useLayoutZustand((z) => z.toggleShowGridWhileScanning)
+
+  return <ScanGridToggle shown={shown} toggle={toggle} />
 }
 
 //
@@ -213,6 +231,7 @@ const ScanButton = (): JSX.Element => {
     rootState.setReadConfiguration(false)
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
+    dropPendingScanRows()
     dataState.setRegisterData([])
 
     const { address, scanLength, chunkSize, timeout } = state
@@ -242,6 +261,8 @@ const ScanButton = (): JSX.Element => {
 const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+
   const handleClose = useCallback(() => {
     const rootState = useRootZustand.getState()
     if (rootState.clientState.scanningRegisters) return
@@ -251,9 +272,22 @@ const ScanRegisters = meme(() => {
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      sx={{ display: 'flex', justifyContent: 'center', pt: 2, px: 2 }}
-      slotProps={{ backdrop: { sx: { background: 'rgba(0,0,0,0.25)' } } }}
+      // Escape still closes. A click beside it does not: the dialog sits over
+      // the grid it fills, and reaching for anything behind it closed the scan
+      // you were setting up.
+      onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
+      // No shade over the grid, and nothing swallowing what happens there: the
+      // rows arriving underneath are the point. The grid itself takes away
+      // everything but scrolling and paging while the scan runs.
+      hideBackdrop
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        pt: 2,
+        px: 2,
+        pointerEvents: 'none',
+        '& > *': { pointerEvents: 'auto' }
+      }}
     >
       <Paper
         elevation={5}
@@ -285,7 +319,13 @@ const ScanRegisters = meme(() => {
           </Box>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <FoundCount />
+            <GridToggle />
             <ScanButton />
+            <ScanCloseButton
+              disabled={scanning}
+              close={handleClose}
+              testId="scan-registers-close-btn"
+            />
           </Box>
         </Box>
         <ScanProgress />
