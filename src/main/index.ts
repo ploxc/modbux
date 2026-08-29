@@ -28,10 +28,21 @@ const server = new ModbusServer({ windows })
 // IPC
 initIpc(app, appState, client, server)
 
+/**
+ * Say which path took the app down.
+ *
+ * A process that quits leaves nothing behind that names the reason, and the
+ * two callers of app.quit() below look identical from the outside: an exit
+ * with code 0. On CI these lines land in the log the e2e fixture keeps beside
+ * the traces, and in dev they land in the terminal.
+ */
+const lifecycle = (message: string): void => console.error(`[lifecycle] ${message}`)
+
 // Single instance
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
+  lifecycle('another instance holds the single instance lock, quitting')
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -164,6 +175,21 @@ app.whenReady().then(() => {
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
+    const id = window.id
+    lifecycle(`window ${id} created`)
+    window.on('closed', () => lifecycle(`window ${id} closed`))
+
+    // A window that goes away on its own takes its reason with it. These three
+    // are the ways that happens without anyone calling close(): the renderer
+    // dies, the page never loads, or it stops answering.
+    window.webContents.on('render-process-gone', (_e, details) =>
+      lifecycle(`window ${id} renderer gone: reason=${details.reason} exit=${details.exitCode}`)
+    )
+    window.webContents.on('did-fail-load', (_e, code, description, url) =>
+      lifecycle(`window ${id} failed to load ${url}: ${code} ${description}`)
+    )
+    window.on('unresponsive', () => lifecycle(`window ${id} unresponsive`))
+
     optimizer.watchWindowShortcuts(window)
   })
 
@@ -185,8 +211,10 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  lifecycle('every window is closed')
   windows.server = null
   if (process.platform !== 'darwin') {
+    lifecycle('quitting because no window is left')
     app.quit()
   }
 })
