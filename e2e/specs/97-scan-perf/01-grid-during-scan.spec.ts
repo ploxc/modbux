@@ -74,9 +74,9 @@ test.describe.serial('Scan grid cost', () => {
     // Whether the grid is on screen while the scan runs is the thing under test.
     const gridMounted = await mainPage.locator('.MuiDataGrid-root').isVisible()
 
-    // The dialog closes itself when the scan finishes, so the button going away
-    // is the end of the run. Waiting for its text to change waits forever.
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0, { timeout: 540000 })
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
+      timeout: 540000
+    })
     const elapsed = Date.now() - start
 
     const worst = await mainPage.evaluate((): number => {

@@ -244,8 +244,6 @@ const ScanButton = (): JSX.Element => {
       length: chunkSize,
       timeout
     })
-
-    useScanRegistersZustand.getState().setOpen(false)
   }, [scanning])
 
   const text = useMemo(() => (scanning ? 'Stop Scanning' : 'Start Scanning'), [scanning])
