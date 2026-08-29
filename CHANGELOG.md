@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A button that clears the filters you set.** It sits next to RAW in the
   client toolbar and shows up only while a filter is on, so a filter left behind
   no longer reads as missing data.
+- **A scan says how many registers it found.** A scan over thousands of
+  addresses showed a progress bar and nothing else, so a run that turned up
+  nothing looked like a run still warming up. The count sits beside the scan
+  button. The unit ID scan counts the units that answered, not the rows.
 
 ### Changed
 
@@ -46,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The coils and discrete inputs lists scroll inside their own panel.** A long
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
+- **The scan timeout keeps what you type.** Clearing the field and typing 500
+  left 10000 behind. A value outside 100 to 10000 is corrected when you leave
+  the field instead of while you are still typing.
 
 ### Security
 
