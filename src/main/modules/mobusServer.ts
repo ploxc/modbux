@@ -53,6 +53,10 @@ export const GATEWAY_PATH_UNAVAILABLE = 10
 export const GATEWAY_TARGET_FAILED = 11
 export const DEFAULT_MOBUS_PORT = 502
 
+/** 0 is a port number the way "any" is a name: the kernel picks, and it listens. */
+export const isPort = (port: number): boolean =>
+  Number.isInteger(port) && port >= 1 && port <= 65535
+
 type ServerDataUnitMap = Map<UnitIdString, ServerData>
 type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
 
@@ -175,7 +179,9 @@ export class ModbusServer {
    * Returns the actual port used (may differ from requested if taken).
    */
   public createServer = async ({ uuid, port }: CreateServerParams): Promise<number> => {
-    let actualPort = port ?? DEFAULT_MOBUS_PORT
+    // A stored 0 from before this was refused would send the server to a port
+    // nobody can name, so it starts where it would have started without one.
+    let actualPort = port !== undefined && isPort(port) ? port : DEFAULT_MOBUS_PORT
     const maxAttempts = 10000
     let server: ServerTCP | undefined
 
@@ -589,6 +595,15 @@ export class ModbusServer {
   public setPort = async ({ uuid, port }: CreateServerParams): Promise<number> => {
     const requestedPort = port ?? DEFAULT_MOBUS_PORT
     const currentPort = this._port.get(uuid) ?? requestedPort
+
+    // Port 0 is not a port, it is a request for whichever one is free, and
+    // listening on it succeeds. The server would move somewhere nobody can
+    // name, and the number sent back to the view would be the 0 it asked for.
+    if (!isPort(requestedPort)) {
+      this._emitMessage({ message: 'A server needs a port between 1 and 65535', variant: 'error' })
+      return this._port.get(uuid) ?? DEFAULT_MOBUS_PORT
+    }
+
     const result = await this._isPortAvailable(requestedPort)
     if (!result.available) {
       const message =

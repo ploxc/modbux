@@ -896,6 +896,17 @@ describe('ModbusServer', () => {
     })
   })
 
+  describe('createServer with a stored port that is not a port', () => {
+    it('starts on the default instead', async () => {
+      const port = await server.createServer({ uuid, port: 0 })
+      expect(port).toBe(502)
+      expect(ServerTCP).toHaveBeenCalledWith(expect.any(Object), {
+        host: '0.0.0.0',
+        port: 502
+      })
+    })
+  })
+
   describe('deleteServer', () => {
     it('deletes an existing server', async () => {
       await server.createServer({ uuid, port: 5020 })
@@ -1032,6 +1043,29 @@ describe('ModbusServer', () => {
       expect(ServerTCP).not.toHaveBeenCalled()
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5020 is already in use')).toBe(true)
+    })
+
+    it('refuses port 0 and keeps the server where it is', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      const callsBefore = vi.mocked(ServerTCP).mock.calls.length
+
+      // Listening on 0 succeeds: the kernel hands out a free port, the server
+      // moves somewhere nobody can name, and the view is told it is on 0.
+      const port = await server.setPort({ uuid, port: 0 })
+
+      expect(port).toBe(5020)
+      expect(vi.mocked(ServerTCP).mock.calls.length).toBe(callsBefore)
+      const messages = getWindowCalls('backend_message')
+      expect(
+        messages.some((m) => m[1].message === 'A server needs a port between 1 and 65535')
+      ).toBe(true)
+    })
+
+    it('refuses port 0 with no server yet and answers with the default', async () => {
+      const port = await server.setPort({ uuid, port: 0 })
+      expect(port).toBe(502)
+      expect(ServerTCP).not.toHaveBeenCalled()
     })
 
     it('closes existing server before binding new port', async () => {
