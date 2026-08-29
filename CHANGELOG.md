@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The coils and discrete inputs lists scroll inside their own panel.** A long
   list used to grow past the server view, and the whole view scrolled
   underneath it instead.
+- **The server port can no longer be set to 0.** Typing 0 left the view saying
+  "Port 0" while the server was answering on 502. Zero is not a port, it is a
+  request for whichever one is free. A port is between 1 and 65535, and asking
+  for anything else leaves the server where it is.
 
 ### Security
 
