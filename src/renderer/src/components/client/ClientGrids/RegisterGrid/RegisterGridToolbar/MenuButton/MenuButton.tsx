@@ -5,7 +5,7 @@ import LoadDummyDataButton from './LoadDummyDataButton/LoadDummyDataButton'
 import MenuConnectionOptions from './MenuConnectionOptions/MenuConnectionOptions'
 import MenuRegisterOptions from './MenuRegisterOptions/MenuRegisterOptions'
 import ScanRegistersButton, { SetAnchorProps } from './ScanRegistersButton/ScanRegistersButton'
-import ScanUnitIds from './ScanUnitIds/ScanUnitIds'
+import { ScanUnitIdsButton } from './ScanUnitIds/ScanUnitIds'
 import FormGroup from '@mui/material/FormGroup'
 import Button from '@mui/material/Button'
 import { Settings } from '@mui/icons-material'
@@ -16,7 +16,7 @@ const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
     <FormGroup>
       <MenuRegisterOptions />
       <MenuConnectionOptions />
-      <ScanUnitIds />
+      <ScanUnitIdsButton setAnchor={setAnchor} />
       <ScanRegistersButton setAnchor={setAnchor} />
       <LoadDummyDataButton setAnchor={setAnchor} />
     </FormGroup>

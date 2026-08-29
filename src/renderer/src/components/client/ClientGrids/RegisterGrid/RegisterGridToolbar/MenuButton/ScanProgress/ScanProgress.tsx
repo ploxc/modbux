@@ -1,13 +1,13 @@
 import {
   Button,
-  Chip,
   IconButton,
   InputBaseComponentProps,
   LinearProgress,
   TextField,
-  Tooltip
+  Tooltip,
+  Typography
 } from '@mui/material'
-import { Close, Visibility, VisibilityOff } from '@mui/icons-material'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
@@ -96,21 +96,34 @@ export const ScanTimeoutField = meme(
   )
 )
 
-interface ScanFoundChipProps {
+interface ScanFoundCountProps {
   count: number
   testId: string
 }
 
-/** A scan that turns up nothing looks exactly like a scan still warming up. */
-export const ScanFoundChip = meme(
-  ({ count, testId }: ScanFoundChipProps): JSX.Element => (
-    <Chip
-      size="small"
-      label={`Found: ${count}`}
-      color={count > 0 ? 'success' : 'warning'}
-      variant={count > 0 ? 'filled' : 'outlined'}
+/**
+ * A scan that turns up nothing looks exactly like a scan still warming up, and
+ * the grid behind shows the first rows rather than how many there are.
+ *
+ * Plain text rather than a chip. A chip is a badge on something, and this is a
+ * reading: it belongs beside the buttons the way a number belongs on a gauge.
+ * The colour carries the same thing the text does, so `data-found` says it
+ * once for anything reading the page.
+ */
+export const ScanFoundCount = meme(
+  ({ count, testId }: ScanFoundCountProps): JSX.Element => (
+    <Typography
+      variant="body2"
+      sx={(theme) => ({
+        fontFamily: 'monospace',
+        whiteSpace: 'nowrap',
+        color: count > 0 ? theme.palette.success.main : theme.palette.warning.main
+      })}
       data-testid={testId}
-    />
+      data-found={count > 0}
+    >
+      Found: {count}
+    </Typography>
   )
 )
 
@@ -124,19 +137,13 @@ interface ScanCloseButtonProps {
  * The way out of a scan dialog.
  *
  * Clicking beside it used to be it, which threw away the scan you were setting
- * up on the way to anything else on screen. A button rather than a bare cross,
- * so it carries the same weight as the one beside it, and off while a scan
- * runs for the same reason the backdrop click was ignored then.
+ * up on the way to anything else on screen. A button rather than a cross, so
+ * it carries the same weight as the one beside it, and off while a scan runs
+ * for the same reason the backdrop click was ignored then.
  */
 export const ScanCloseButton = meme(
   ({ disabled, close, testId }: ScanCloseButtonProps): JSX.Element => (
-    <Button
-      color="primary"
-      startIcon={<Close />}
-      disabled={disabled}
-      onClick={close}
-      data-testid={testId}
-    >
+    <Button color="primary" disabled={disabled} onClick={close} data-testid={testId}>
       Close
     </Button>
   )

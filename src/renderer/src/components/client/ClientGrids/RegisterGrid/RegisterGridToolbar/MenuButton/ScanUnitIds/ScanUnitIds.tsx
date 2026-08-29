@@ -1,4 +1,5 @@
 import {
+  alpha,
   Box,
   Button,
   InputBaseComponentProps,
@@ -16,13 +17,9 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './_zustand'
-import {
-  ScanCloseButton,
-  ScanFoundChip,
-  ScanProgress,
-  ScanTimeoutField
-} from '../ScanProgress/ScanProgress'
+import { ScanCloseButton, ScanProgress, ScanTimeoutField } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 
 //
 //
@@ -157,32 +154,37 @@ const SelectRegisterTypes = (): JSX.Element => {
       size="small"
       value={registerTypes}
       onChange={(_, rt) => setRegisterTypes(rt)}
-      aria-label="text formatting"
+      aria-label="Register types to scan"
     >
-      <ToggleButton value={'coils'}>Coils</ToggleButton>
-      <ToggleButton value={'discrete_inputs'}>Discrete Inputs</ToggleButton>
-      <ToggleButton value={'input_registers'}>Input Registers</ToggleButton>
-      <ToggleButton value={'holding_registers'}>Holding Registers</ToggleButton>
+      {/* The same short names the result columns carry, so the button you
+          press and the column it produces read the same. The full name is on
+          each one for anything reading the page out. */}
+      <ToggleButton value={'coils'} aria-label="Coils" data-testid="scan-unitid-type-coils">
+        Coils
+      </ToggleButton>
+      <ToggleButton
+        value={'discrete_inputs'}
+        aria-label="Discrete inputs"
+        data-testid="scan-unitid-type-discrete-inputs"
+      >
+        Inputs
+      </ToggleButton>
+      <ToggleButton
+        value={'input_registers'}
+        aria-label="Input registers"
+        data-testid="scan-unitid-type-input-registers"
+      >
+        Input Reg.
+      </ToggleButton>
+      <ToggleButton
+        value={'holding_registers'}
+        aria-label="Holding registers"
+        data-testid="scan-unitid-type-holding-registers"
+      >
+        Holding
+      </ToggleButton>
     </ToggleButtonGroup>
   )
-}
-
-//
-//
-// Found count
-//
-// Every scanned unit ID lands in the results, answering or not, so the count
-// is the ones that answered on at least one register type.
-const FoundCount = (): JSX.Element | null => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const scanned = useRootZustand((z) => z.scanUnitIdResults.length)
-  const count = useRootZustand(
-    (z) => z.scanUnitIdResults.filter((result) => result.registerTypes.length > 0).length
-  )
-
-  if (!scanning && scanned === 0) return null
-
-  return <ScanFoundChip count={count} testId="scan-unitid-found-chip" />
 }
 
 //
@@ -237,11 +239,17 @@ const ScanButton = (): JSX.Element => {
 // Scan result grid
 const ScanResultGrid = meme(() => {
   const scanResults = useRootZustand((z) => z.scanUnitIdResults)
+  const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   const columns = useScanUnitIdColumns()
 
   return (
     <DataGrid
+      // Turning a register type on or off changes which columns exist, and the
+      // grid carries width state across that: the error column is the only one
+      // on flex, and it came back at zero often enough to look like it had
+      // disappeared. A new column set is a new grid.
+      key={registerTypes.join('|')}
       rows={scanResults}
       columns={columns}
       autoHeight={false}
@@ -254,7 +262,13 @@ const ScanResultGrid = meme(() => {
       // "only units that answered for holding registers" is useful; reordering
       // them is not.
       disableColumnSorting
-      sx={{
+      sx={(theme) => ({
+        // The answer is the cell, not a badge inside it: green for a reply
+        // with data, amber for a unit that answered by refusing, red for one
+        // that said nothing at all.
+        '& .scan-answered': { backgroundColor: alpha(theme.palette.success.main, 0.22) },
+        '& .scan-refused': { backgroundColor: alpha(theme.palette.warning.main, 0.22) },
+        '& .scan-silent': { backgroundColor: alpha(theme.palette.error.main, 0.22) },
         // x-data-grid v8 moved the column headers inside the virtual scroller
         // for column virtualisation, so scoping monospace to the scroller now
         // catches the headers too. Target the data rows instead.
@@ -267,7 +281,7 @@ const ScanResultGrid = meme(() => {
           height: 36,
           overflow: 'hidden'
         }
-      }}
+      })}
       localeText={{
         noRowsLabel: 'No scan results yet'
       }}
@@ -278,16 +292,23 @@ const ScanResultGrid = meme(() => {
 //
 //
 // Scan unit ids button
-const ScanUnitIdsButton = (): JSX.Element => {
+export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
-  const setScanUnitIdsOpen = useScanUnitIdZustand((z) => z.setOpen)
+
+  // Close the menu behind it, the way scanning registers does. Otherwise it is
+  // still hanging there when you close the dialog again.
+  const handleOpen = useCallback(() => {
+    useScanUnitIdZustand.getState().setOpen(true)
+    setAnchor(null)
+  }, [setAnchor])
+
   return (
     <Button
       disabled={disabled}
       sx={{ my: 1 }}
       size="small"
       variant="outlined"
-      onClick={() => setScanUnitIdsOpen(true)}
+      onClick={handleOpen}
       data-testid="scan-unitids-btn"
     >
       Scan Unit ID{`'`}s
@@ -298,6 +319,11 @@ const ScanUnitIdsButton = (): JSX.Element => {
 //
 //
 // MAIN
+/**
+ * The dialog only. It is mounted beside the client view rather than inside the
+ * menu that opens it: a Popover unmounts its children when it closes, so a
+ * dialog rendered in there goes with the menu the moment the menu does.
+ */
 const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
   const setOpen = useScanUnitIdZustand((z) => z.setOpen)
@@ -308,59 +334,58 @@ const ScanUnitIds = meme(() => {
   const handleClose = useCallback(() => {
     const currentRootState = useRootZustand.getState()
     if (currentRootState.clientState.scanningUniId) return
+    // The results belong to the dialog. Leaving them behind means the next
+    // scan opens on the last one and fills in around it.
+    currentRootState.clearScanUnitIdResults()
     setOpen(false)
   }, [setOpen])
 
   return (
-    <>
-      <ScanUnitIdsButton />
-      <Modal
-        open={open}
-        // Escape still closes. A click on the backdrop does not: the dialog fills
-        // the window, and reaching for anything behind it closed the scan you
-        // were setting up, results and all.
-        onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
-        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+    <Modal
+      open={open}
+      // Escape still closes. A click on the backdrop does not: the dialog fills
+      // the window, and reaching for anything behind it closed the scan you
+      // were setting up, results and all.
+      onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
+      sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+    >
+      <Paper
+        elevation={5}
+        sx={(theme) => ({
+          background: theme.palette.background.default,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          p: 3,
+          height: '90dvh',
+          width: '90dvw',
+          minHeight: 0
+        })}
       >
-        <Paper
-          elevation={5}
-          sx={(theme) => ({
-            background: theme.palette.background.default,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            p: 3,
-            height: '90dvh',
-            width: '90dvw',
-            minHeight: 0
-          })}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <StartUnitIdField />
-              <CountField />
-              <AddressField />
-              <LengthField />
-              <TimeoutField />
-              <SelectRegisterTypes />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <FoundCount />
-              <ScanButton />
-              <ScanCloseButton
-                disabled={scanning}
-                close={handleClose}
-                testId="scan-unitid-close-btn"
-              />
-            </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <StartUnitIdField />
+            <CountField />
+            <AddressField />
+            <LengthField />
+            <TimeoutField />
+            <SelectRegisterTypes />
           </Box>
-          <ScanProgress />
-          <Paper sx={{ flex: 1, height: '100%', minHeight: 0 }}>
-            <ScanResultGrid />
-          </Paper>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <ScanButton />
+            <ScanCloseButton
+              disabled={scanning}
+              close={handleClose}
+              testId="scan-unitid-close-btn"
+            />
+          </Box>
+        </Box>
+        <ScanProgress />
+        <Paper sx={{ flex: 1, height: '100%', minHeight: 0 }}>
+          <ScanResultGrid />
         </Paper>
-      </Modal>
-    </>
+      </Paper>
+    </Modal>
   )
 })
 export default ScanUnitIds

@@ -7,6 +7,7 @@ import RegisterConfig from '../components/client/RegisterConfig/RegisterConfig'
 import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
 import ScanRegisters from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
+import ScanUnitIds from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanUnitIds/ScanUnitIds'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
 const Client = meme(() => {
@@ -33,6 +34,7 @@ const Client = meme(() => {
         </Box>
         <ClientGrids />
         <ScanRegisters />
+        <ScanUnitIds />
       </Box>
     </Fade>
   )
