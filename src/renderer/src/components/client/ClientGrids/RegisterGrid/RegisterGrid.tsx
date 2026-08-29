@@ -53,6 +53,11 @@ const RegisterGridContent = (): JSX.Element => {
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
   const readConfiguration = useRootZustand((z) => z.readConfiguration)
+
+  // While a scan fills the grid, the rows are there to watch, not to work on:
+  // a cell put into edit mode or a column menu opened over data that is still
+  // arriving is a fight nobody wins. Scrolling and paging stay.
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {
@@ -94,6 +99,7 @@ const RegisterGridContent = (): JSX.Element => {
       getRowClassName={(params) => ((params.row as RegisterData).error ? 'register-error-row' : '')}
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
+        if (scanning) return false
         if (field === 'comment') return true
         const scalingEnabledDataTypes: DataType[] = [
           'double',
@@ -114,6 +120,9 @@ const RegisterGridContent = (): JSX.Element => {
         return dataType !== 'none' || field === 'dataType'
       }}
       sx={(theme) => ({
+        ...(scanning && {
+          '& .MuiDataGrid-cell, & .MuiDataGrid-columnHeader': { pointerEvents: 'none' }
+        }),
         // x-data-grid v8 moved the column headers inside the virtual scroller
         // for column virtualisation, so scoping monospace to the scroller now
         // catches the headers too. Target the data rows instead.

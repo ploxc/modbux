@@ -8,6 +8,7 @@ import {
 import { resolve } from 'path'
 import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
 import { launchOptions } from '../../fixtures/launch'
+import { keepOutput } from '../../fixtures/electron-app'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
@@ -18,6 +19,10 @@ let page: Page
 
 async function launchApp(clearStorage = true): Promise<void> {
   app = await electron.launch(launchOptions())
+  // This spec launches its own app, so it needs the same output kept as the
+  // shared fixture keeps. Its launches race the worker's app for the single
+  // instance lock, which is where the log has to be able to speak.
+  keepOutput(app)
   if (clearStorage) {
     await app.evaluate((ctx) =>
       ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })

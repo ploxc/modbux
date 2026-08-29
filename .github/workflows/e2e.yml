@@ -154,15 +154,18 @@ jobs:
         shell: bash
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --trace retain-on-failure
 
+      # not cancelled(), rather than success(): a failure in the dev run says
+      # nothing about the packaged app, and the packaged app is what ships. The
+      # job still ends red, and now it ends red with both answers in it.
       - name: Package
-        if: inputs.mode != 'dev'
+        if: '!cancelled() && inputs.mode != ''dev'''
         shell: bash
         run: |
           yarn electron-builder --dir --publish never ||
             { sleep 15; yarn electron-builder --dir --publish never; }
 
       - name: E2E against dist/
-        if: inputs.mode != 'dev'
+        if: '!cancelled() && inputs.mode != ''dev'''
         shell: bash
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --config playwright.packaged.config.ts --trace retain-on-failure
 

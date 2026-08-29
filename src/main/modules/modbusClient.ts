@@ -35,6 +35,14 @@ type ScanUnitIdFn = ({
   registerTypes
 }: Omit<ScanUnitIDParameters, 'range' | 'timeout'> & { id: number }) => Promise<void>
 
+/** Modbus frames read the way a protocol analyser prints them. */
+const toHexString = (bytes: Uint8Array | undefined): string =>
+  bytes === undefined
+    ? ''
+    : Array.from(bytes)
+        .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
+        .join(' ')
+
 export interface ClientParams {
   appState: AppState
   windows: Windows
@@ -428,8 +436,23 @@ export class ModbusClient {
   //
   //
   // Log Transaction
+  //
+  // Everything here is read out of modbus-serial's internals, so it is worth
+  // writing down what those actually guarantee.
+  //
+  // A transaction is created by the writeFCx methods and never removed again:
+  // the library only ever assigns _transactions in its constructor. Clearing
+  // it is ours to do, or a session grows one entry per request.
+  //
+  // request and responses are stashed only while debug mode is on, and only
+  // by the write that reaches the port, so a transaction can carry neither.
+  // The library checks for them before using them; this used to not, and a
+  // scan that met one crashed the handler it ran in.
+  //
+  // The key is a transaction id on TCP and UDP, and nothing at all on a
+  // serial port: RTU has no transaction ids, so every serial transaction is
+  // filed under the string "undefined". It is a map key, not a number.
   private _logTransaction = (errorMessage: string | undefined): void => {
-    // Handle transactions, get the latest transaction from the transactions array
     const rawTransactions = Object.entries(this._client['_transactions']) as [
       string,
       RawTransaction
@@ -443,25 +466,16 @@ export class ModbusClient {
 
     const [transactionIdKey, rawTransaction] = lastTransaction
 
-    // Check if transaction has already been processed
-    const transactionId = Number(transactionIdKey)
-
     const transaction: Transaction = {
-      id: `${transactionId}__${v4()}`,
+      id: `${transactionIdKey}__${v4()}`,
       timestamp: DateTime.now().toMillis(),
       unitId: rawTransaction.nextAddress,
       address: rawTransaction.nextDataAddress,
       code: rawTransaction.nextCode,
       responseLength: rawTransaction.nextLength,
       timeout: rawTransaction._timeoutFired,
-      request: Array.from(rawTransaction.request)
-        .map((b) => Number(b).toString(16).toUpperCase().padStart(2, '0'))
-        .join(' '),
-      responses: Array.from(rawTransaction.responses).map((response) =>
-        Array.from(response as Buffer)
-          .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
-          .join(' ')
-      ),
+      request: toHexString(rawTransaction.request),
+      responses: (rawTransaction.responses ?? []).map(toHexString),
       errorMessage
     }
 

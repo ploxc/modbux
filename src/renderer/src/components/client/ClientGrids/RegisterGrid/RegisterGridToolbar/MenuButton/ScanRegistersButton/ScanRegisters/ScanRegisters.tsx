@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import { create } from 'zustand'
@@ -9,8 +10,14 @@ import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
-import { useDataZustand } from '@renderer/context/data.zustand'
-import { ScanProgress, TimeoutInput } from '../../ScanProgress/ScanProgress'
+import { dropPendingScanRows, useDataZustand } from '@renderer/context/data.zustand'
+import {
+  ScanCloseButton,
+  ScanFoundChip,
+  ScanGridToggle,
+  ScanProgress,
+  ScanTimeoutField
+} from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface ScanRegistersZustand {
@@ -163,26 +170,45 @@ const ChunkSizeField = (): JSX.Element => {
 // Timeout field
 const TimeoutField = (): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
-  const timeout = useScanRegistersZustand((z) => String(z.timeout))
+  const timeout = useScanRegistersZustand((z) => z.timeout)
   const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
 
   return (
-    <TextField
+    <ScanTimeoutField
       disabled={scanning}
-      label="Timeout (ms)"
-      variant="outlined"
-      size="small"
-      sx={{ width: 90 }}
-      value={timeout}
-      data-testid="scan-timeout-input"
-      slotProps={{
-        input: {
-          inputComponent: TimeoutInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setTimeout })
-        }
-      }}
+      timeout={timeout}
+      setTimeout={setTimeout}
+      testId="scan-timeout-input"
     />
   )
+}
+
+//
+//
+// Found count
+//
+// The grid shows the first rows, not how many there are, and the main process
+// only sends back what is worth keeping: it drops every register that reads as
+// zero. So the length of the grid data is the count of what the scan turned
+// up, and it means that while a scan is running, since the same list holds
+// polled data the rest of the time.
+const FoundCount = (): JSX.Element | null => {
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const count = useDataZustand((z) => z.registerData.length)
+
+  if (!scanning) return null
+
+  return <ScanFoundChip count={count} testId="scan-found-chip" />
+}
+
+//
+//
+// Show the grid while scanning
+const GridToggle = (): JSX.Element => {
+  const shown = useLayoutZustand((z) => z.showGridWhileScanning)
+  const toggle = useLayoutZustand((z) => z.toggleShowGridWhileScanning)
+
+  return <ScanGridToggle shown={shown} toggle={toggle} />
 }
 
 //
@@ -203,8 +229,12 @@ const ScanButton = (): JSX.Element => {
     const rootState = useRootZustand.getState()
     const dataState = useDataZustand.getState()
     rootState.setReadConfiguration(false)
+    // A scan walks raw addresses, which is what the extra columns are for, and
+    // the rows land in a grid you are now watching fill.
+    if (!rootState.registerConfig.advancedMode) rootState.setAdvancedMode(true)
     rootState.clearScanUnitIdResults()
     rootState.setScanProgress(0)
+    dropPendingScanRows()
     dataState.setRegisterData([])
 
     const { address, scanLength, chunkSize, timeout } = state
@@ -214,8 +244,6 @@ const ScanButton = (): JSX.Element => {
       length: chunkSize,
       timeout
     })
-
-    useScanRegistersZustand.getState().setOpen(false)
   }, [scanning])
 
   const text = useMemo(() => (scanning ? 'Stop Scanning' : 'Start Scanning'), [scanning])
@@ -234,6 +262,8 @@ const ScanButton = (): JSX.Element => {
 const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
+  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+
   const handleClose = useCallback(() => {
     const rootState = useRootZustand.getState()
     if (rootState.clientState.scanningRegisters) return
@@ -243,12 +273,27 @@ const ScanRegisters = meme(() => {
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      sx={{ display: 'flex', justifyContent: 'center', pt: 2, px: 2 }}
-      slotProps={{ backdrop: { sx: { background: 'rgba(0,0,0,0.25)' } } }}
+      // Escape still closes. A click beside it does not: the dialog sits over
+      // the grid it fills, and reaching for anything behind it closed the scan
+      // you were setting up.
+      onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
+      // No shade over the grid, and nothing swallowing what happens there: the
+      // rows arriving underneath are the point. The grid itself takes away
+      // everything but scrolling and paging while the scan runs.
+      hideBackdrop
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        pt: 2,
+        px: 2,
+        pointerEvents: 'none',
+        '& > *': { pointerEvents: 'auto' }
+      }}
     >
       <Paper
-        elevation={5}
+        // No shadow: it fell across the grid it is covering, and a strip that
+        // sits on the toolbar does not need to float above it.
+        elevation={0}
         sx={(theme) => ({
           background: theme.palette.background.default,
           display: 'flex',
@@ -256,13 +301,17 @@ const ScanRegisters = meme(() => {
           width: '100%',
           gap: 2,
           p: 2,
-          height: 'fit-content'
+          // A fixed strip rather than a box that grows with its contents, so it
+          // reads as an overlay laid over the grid toolbar it covers.
+          height: 102,
+          justifyContent: 'flex-start'
         })}
       >
         <Box
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'flex-start',
             gap: 2,
             flexWrap: 'wrap',
             width: '100%'
@@ -275,8 +324,15 @@ const ScanRegisters = meme(() => {
             <ChunkSizeField />
             <TimeoutField />
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <FoundCount />
+            <GridToggle />
             <ScanButton />
+            <ScanCloseButton
+              disabled={scanning}
+              close={handleClose}
+              testId="scan-registers-close-btn"
+            />
           </Box>
         </Box>
         <ScanProgress />
