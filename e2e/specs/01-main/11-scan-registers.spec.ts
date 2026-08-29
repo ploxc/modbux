@@ -173,15 +173,17 @@ test.describe.serial('Scan Registers', () => {
   })
 
   test('start scan and wait for completion', async ({ mainPage }) => {
-    // Start scanning — modal auto-closes when scan completes
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
       timeout: 30000
     })
+    // The dialog stays open now that the grid fills behind it, and it covers
+    // the toolbar the next steps reach for.
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
   })
 
   test('scan found registers in the expected range', async ({ mainPage }) => {
-    // Results are in the main DataGrid (modal auto-closed)
     const rows = mainPage.locator('.MuiDataGrid-row')
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
 
@@ -218,9 +220,13 @@ test.describe.serial('Scan Registers', () => {
 
   test('scan with chunkSize=10 completes and shows results', async ({ mainPage }) => {
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
       timeout: 30000
     })
+    // The dialog stays open now that the grid fills behind it, and it covers
+    // the toolbar the next steps reach for.
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
 
     // Should have multiple rows (10-register chunks covering 0-30)
     const rows = mainPage.locator('.MuiDataGrid-row')
@@ -250,9 +256,13 @@ test.describe.serial('Scan Registers', () => {
     await timeout.fill('500')
 
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
       timeout: 30000
     })
+    // The dialog stays open now that the grid fills behind it, and it covers
+    // the toolbar the next steps reach for.
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
 
     // Server config has coil 5 = true, so scan should find at least that
     const rows = mainPage.locator('.MuiDataGrid-row')
@@ -282,9 +292,13 @@ test.describe.serial('Scan Registers', () => {
     await timeout.fill('500')
 
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
       timeout: 30000
     })
+    // The dialog stays open now that the grid fills behind it, and it covers
+    // the toolbar the next steps reach for.
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
 
     // Server has input registers at 0, 1, 3
     const rows = mainPage.locator('.MuiDataGrid-row')
@@ -323,9 +337,13 @@ test.describe.serial('Scan Registers', () => {
     await expect(mainPage.getByTestId('scan-chunk-size-input').locator('input')).toBeDisabled()
     await expect(mainPage.getByTestId('scan-timeout-input').locator('input')).toBeDisabled()
 
-    // Stop scan — dialog auto-closes when the scan promise resolves after stop
+    // Stop scan
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-start-stop-btn')).not.toBeVisible({ timeout: 10000 })
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toContainText('Start Scanning', {
+      timeout: 10000
+    })
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
 
     // The scan was stopped early — results are in the main DataGrid.
     // Address 0 should have been reached, but the last holding register

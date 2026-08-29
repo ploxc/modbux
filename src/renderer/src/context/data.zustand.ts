@@ -52,13 +52,51 @@ export const showMapping = (): void => {
   useDataZustand.getState().setRegisterData(registerData)
 }
 
+/**
+ * Rows found by a scan, held back and written in batches.
+ *
+ * A scan sends one message per chunk, and the grid renders the whole list
+ * again on each one, so the work per chunk grows with what has been found
+ * already. With the grid on screen a scan of 2000 addresses in chunks of one
+ * took 208 seconds instead of 26, and the window stopped answering for most of
+ * it. Collecting the rows and writing them on a timer puts the number of
+ * renders on the clock instead of on the chunk count. The server view solves
+ * the same problem the same way.
+ */
+const SCAN_FLUSH_MS = 100
+
+let pendingScanRows: RegisterData[] = []
+let scanFlushTimeout: NodeJS.Timeout | undefined
+
+const flushScanRows = (): void => {
+  clearTimeout(scanFlushTimeout)
+  scanFlushTimeout = undefined
+  if (pendingScanRows.length === 0) return
+  useDataZustand.getState().appendRegisterData(pendingScanRows)
+  pendingScanRows = []
+}
+
+/** Nothing may survive into the next scan, which starts from an empty grid. */
+export const dropPendingScanRows = (): void => {
+  clearTimeout(scanFlushTimeout)
+  scanFlushTimeout = undefined
+  pendingScanRows = []
+}
+
 // Data read from the registers
 onEvent('register_data', (registerData) => {
   const state = useDataZustand.getState()
   const rootState = useRootZustand.getState()
-  rootState.clientState.scanningRegisters
-    ? state.appendRegisterData(registerData)
-    : state.setRegisterData(registerData)
+
+  if (rootState.clientState.scanningRegisters) {
+    pendingScanRows.push(...registerData)
+    if (!scanFlushTimeout) scanFlushTimeout = setTimeout(flushScanRows, SCAN_FLUSH_MS)
+  } else {
+    // A poll replaces the grid, so anything a scan left waiting is stale.
+    dropPendingScanRows()
+    state.setRegisterData(registerData)
+  }
+
   rootState.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
