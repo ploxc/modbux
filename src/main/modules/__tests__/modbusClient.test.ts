@@ -830,6 +830,47 @@ describe('ModbusClient', () => {
       expect(txCalls[0][1].errorMessage).toBe('Timed out')
     })
 
+    it('logs a transaction that carries no request or responses', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        // What modbus-serial leaves behind when the write never stashed a
+        // copy: the bookkeeping fields, and nothing else.
+        mockModbusRTU._transactions = {
+          undefined: {
+            nextAddress: 1,
+            nextDataAddress: 0,
+            nextCode: 3,
+            nextLength: 10,
+            _timeoutFired: false
+          }
+        }
+        return { data: [0], buffer: Buffer.alloc(2) }
+      })
+
+      await client.read()
+
+      const txCalls = getWindowCalls('transaction')
+      expect(txCalls.length).toBe(1)
+      expect(txCalls[0][1].request).toBe('')
+      expect(txCalls[0][1].responses).toEqual([])
+    })
+
+    it('keeps the serial transaction key, which is not a number', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        // RTU has no transaction ids, so modbus-serial files every serial
+        // transaction under this one key.
+        mockModbusRTU._transactions = { undefined: createMockTransaction() }
+        return { data: [0], buffer: Buffer.alloc(2) }
+      })
+
+      await client.read()
+
+      const txCalls = getWindowCalls('transaction')
+      expect(txCalls[0][1].id).toContain('undefined__')
+      expect(txCalls[0][1].id).not.toContain('NaN')
+    })
+
     it('records timeout flag from transaction', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {

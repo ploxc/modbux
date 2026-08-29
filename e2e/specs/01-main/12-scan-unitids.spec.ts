@@ -69,6 +69,32 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Start Scanning')
   })
 
+  // ─── Timeout field ─────────────────────────────────────────────────
+
+  test('an emptied timeout field keeps the digits typed into it', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
+    await input.press('ControlOrMeta+a')
+    await input.press('Backspace')
+    await input.pressSequentially('500')
+
+    await expect(input).toHaveValue('500')
+  })
+
+  test('a timeout under the minimum is pulled up when the field is left', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
+    await input.press('ControlOrMeta+a')
+    await input.press('Backspace')
+    await input.pressSequentially('50')
+    await expect(input).toHaveValue('50')
+
+    await input.blur()
+    await expect(input).toHaveValue('100')
+
+    await input.fill('500')
+    await input.blur()
+    await expect(input).toHaveValue('500')
+  })
+
   // ─── Register type toggle buttons ──────────────────────────────────
 
   test('Holding Registers is selected by default', async ({ mainPage }) => {
@@ -208,6 +234,15 @@ test.describe.serial('Scan Unit IDs', () => {
       'Start Scanning',
       { timeout: 60000 }
     )
+  })
+
+  test('the bar counts the unit IDs that answered', async ({ mainPage }) => {
+    const chip = mainPage.getByTestId('scan-unitid-found-chip')
+
+    // Two of the four scanned unit IDs answer on this server.
+    await expect(chip).toContainText('Found: 2')
+    await expect(chip).toHaveClass(/MuiChip-filled/)
+    await expect(chip).toHaveClass(/MuiChip-colorSuccess/)
   })
 
   test('multi-type scan results show columns for each type', async ({ mainPage }) => {

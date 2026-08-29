@@ -12,6 +12,11 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
     homeShiftKeyDown: false,
     hideHomeButton: isServerWindow,
     showClientRawValues: false,
+    showGridWhileScanning: true,
+    toggleShowGridWhileScanning: () =>
+      set((state) => {
+        state.showGridWhileScanning = !get().showGridWhileScanning
+      }),
     toggleShowClientRawValues: () =>
       set((state) => {
         state.showClientRawValues = !get().showClientRawValues

@@ -1,99 +1,94 @@
-import { Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper } from '@mui/material'
+import { Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
+import { tableCellClasses } from '@mui/material/TableCell'
 
-const EndianTable = (): JSX.Element => {
-  return (
-    <Paper sx={{ px: 3, py: 2, maxHeight: '66dvh', overflow: 'auto', minWidth: '80dvw' }}>
-      <Typography variant="h6">Big-Endian vs Little-Endian Word Order</Typography>
-      <Typography variant="body1" sx={{ mb: 2 }}>
-        The following table shows an example of a 32-bit integer value (<strong>305419896</strong>,
-        hexadecimal <strong>0x12345678</strong>) and how it is split into 16-bit words in both
-        Big-Endian and Little-Endian formats. We also show how these words are assigned to Modbus
-        registers, along with SCL (Structured Control Language) assignments.
-      </Typography>
+/**
+ * What BE and LE do to one value, shown rather than described.
+ *
+ * This hangs off the BE/LE toggle as a tooltip, so it competes with the app
+ * behind it and has to stay readable at a glance. The question a user has is
+ * which half of a 32-bit value lands in the first register, and two rows
+ * answer it.
+ *
+ * The hex carries the same monospace and colour as the HEX column in the
+ * register grid, so a value looks the same wherever it appears.
+ */
 
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>
-              <strong>Order Type</strong>
-            </TableCell>
-            <TableCell>
-              <strong>Register 0</strong>
-            </TableCell>
-            <TableCell>
-              <strong>Register 1</strong>
-            </TableCell>
-            <TableCell>
-              <strong>SCL Register Assignments</strong>
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          <TableRow>
-            <TableCell>Big-Endian</TableCell>
-            <TableCell>
-              <strong>0x1234</strong> (W1)
-            </TableCell>
-            <TableCell>
-              <strong>0x5678</strong> (W0)
-            </TableCell>
-            <TableCell>registers[0] := W1; registers[1] := W0;</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell>Little-Endian</TableCell>
-            <TableCell>
-              <strong>0x5678</strong> (W0)
-            </TableCell>
-            <TableCell>
-              <strong>0x1234</strong> (W1)
-            </TableCell>
-            <TableCell>registers[0] := W0; registers[1] := W1;</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+const Hex = ({ children }: { children: string }): JSX.Element => (
+  <Typography
+    component="span"
+    sx={(theme) => ({
+      fontFamily: 'monospace',
+      color: theme.palette.primary.light,
+      fontSize: '0.9em'
+    })}
+  >
+    {children}
+  </Typography>
+)
 
-      <Typography variant="body1" sx={{ mt: 2 }}>
-        <strong>Big-Endian (BE):</strong> In Big-Endian format, the most significant byte (MSB) is
-        stored first, followed by the least significant byte (LSB). In Modbus, this is the standard
-        for most systems, including PLCs like Siemens S7. In the example, the 32-bit integer{' '}
-        <strong>0x12345678</strong> is stored as:
-      </Typography>
+const EndianTable = (): JSX.Element => (
+  <Paper elevation={4} sx={{ px: 2, py: 1.5, width: 'fit-content' }}>
+    <Typography sx={{ fontSize: 13 }}>
+      32 bit value: <Hex>0x12345678</Hex>
+    </Typography>
 
-      <Typography variant="body2" sx={{ ml: 2, mt: 1 }}>
-        - Word order: <strong>W1 = 0x1234</strong>, <strong>W0 = 0x5678</strong>
-        <br />- SCL assignment: `registers[0] := W1`, `registers[1] := W0`
-      </Typography>
+    {/*
+      Set once here rather than per cell. The size comes down from the table,
+      and Hex sizes itself against it in em rather than in pixels, so one
+      number governs the lot. Padding does not come down: a cell brings its
+      own, so the outer two are cleared with pseudo classes, which is the only
+      way to reach first and last.
+    */}
+    <Table
+      size="small"
+      sx={{
+        fontSize: 11,
+        [`& .${tableCellClasses.root}`]: { whiteSpace: 'nowrap' },
+        '& td:first-of-type, & th:first-of-type': { pl: 0 },
+        '& td:last-of-type, & th:last-of-type': { pr: 0 }
+      }}
+    >
+      <TableHead>
+        <TableRow>
+          <TableCell />
+          <TableCell>Register 0</TableCell>
+          <TableCell>Register 1</TableCell>
+          <TableCell align="right">ST</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        <TableRow>
+          <TableCell>Big-Endian</TableCell>
+          <TableCell>
+            <Hex>0x1234</Hex> high
+          </TableCell>
+          <TableCell>
+            <Hex>0x5678</Hex> low
+          </TableCell>
+          <TableCell align="right">
+            <Hex>reg[0] := dWord.W1; reg[1] := dWord.W0;</Hex>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell>Little-Endian</TableCell>
+          <TableCell>
+            <Hex>0x5678</Hex> low
+          </TableCell>
+          <TableCell>
+            <Hex>0x1234</Hex> high
+          </TableCell>
+          <TableCell align="right">
+            <Hex>reg[0] := dWord.W0; reg[1] := dWord.W1;</Hex>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
 
-      <Typography variant="body1" sx={{ mt: 2 }}>
-        <strong>Little-Endian (LE):</strong> In Little-Endian format, the least significant byte
-        (LSB) is stored first, followed by the most significant byte (MSB). This format is less
-        common in Modbus communication. In the same example, the 32-bit integer{' '}
-        <strong>0x12345678</strong> is stored as:
-      </Typography>
-
-      <Typography variant="body2" sx={{ ml: 2, mt: 1 }}>
-        - Word order: <strong>W1 = 0x5678</strong>, <strong>W0 = 0x1234</strong>
-        <br />- SCL assignment: `registers[0] := W0`, `registers[1] := W1`
-      </Typography>
-
-      <Typography component={'div'} variant="body1" sx={{ mt: 2 }}>
-        <strong>Explanation:</strong>
-        <ul>
-          <li>
-            In <strong>Big-Endian</strong>, the high-order word (<strong>W1</strong>) is assigned to
-            the first register, while the low-order word (<strong>W0</strong>) is assigned to the
-            second register.
-          </li>
-          <li>
-            In <strong>Little-Endian</strong>, the low-order word (<strong>W0</strong>) is stored
-            first, and the high-order word (<strong>W1</strong>) is stored second.
-          </li>
-        </ul>
-        When communicating with Modbus devices, it{`'`}s essential to know which endianness the
-        device uses to ensure correct data interpretation.
-      </Typography>
-    </Paper>
-  )
-}
+    <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7 }}>
+      Big-Endian puts the high word first and is what most devices use. Pick the one your device
+      uses, or every 32-bit value reads as nonsense.
+    </Typography>
+  </Paper>
+)
 
 export default EndianTable
