@@ -13,7 +13,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { dropPendingScanRows, useDataZustand } from '@renderer/context/data.zustand'
 import {
   ScanCloseButton,
-  ScanFoundChip,
+  ScanFoundCount,
   ScanGridToggle,
   ScanProgress,
   ScanTimeoutField
@@ -198,7 +198,7 @@ const FoundCount = (): JSX.Element | null => {
 
   if (!scanning) return null
 
-  return <ScanFoundChip count={count} testId="scan-found-chip" />
+  return <ScanFoundCount count={count} testId="scan-found-count" />
 }
 
 //
