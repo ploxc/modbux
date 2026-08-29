@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reading a configuration turns filtering off.** That mode already hides the
   rows without a data type, and a filter of your own could fight it or take it
   away from the column menu, leaving the list full of empty rows.
+- **Switching between BE and LE reads again.** The rows on screen were read in
+  the other word order and stayed that way until you read yourself, so a 32-bit
+  value kept showing the number it had before the switch. Modbux reads again
+  when there is something to reinterpret, unless polling or a scan is about to
+  anyway.
 - **A scan dialog no longer closes when you click beside it.** Reaching for
   anything behind it threw away the scan you were setting up. It has a close
   button now, off while a scan runs, and Escape still works.
