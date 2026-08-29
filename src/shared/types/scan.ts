@@ -28,7 +28,14 @@ const ScanUnitIdErrorMessageSchema = z.object({
 
 export const ScanUnitIDResultSchema = z.object({
   id: z.number(),
+  /** Answered with data. */
   registerTypes: z.array(RegisterTypeSchema),
+  /**
+   * Answered with a Modbus exception. A refusal is still an answer: the unit
+   * is there and talking, which is the opposite of the silence a unit ID that
+   * is not on the bus gives back.
+   */
+  refusedRegisterTypes: z.array(RegisterTypeSchema).default([]),
   requestedRegisterTypes: z.array(RegisterTypeSchema),
   errorMessage: ScanUnitIdErrorMessageSchema
 })

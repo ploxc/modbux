@@ -35,6 +35,18 @@ type ScanUnitIdFn = ({
   registerTypes
 }: Omit<ScanUnitIDParameters, 'range' | 'timeout'> & { id: number }) => Promise<void>
 
+/**
+ * An exception reply rather than silence.
+ *
+ * modbus-serial hangs `modbusCode` on the error it builds from an exception
+ * frame, and nothing else it throws carries one: a timeout is a
+ * TransactionTimedOutError, a closed port is a PortNotOpenError. So the code
+ * is the whole test, and it separates a unit that refused a request from a
+ * unit that was never there.
+ */
+const isModbusException = (error: unknown): boolean =>
+  typeof (error as { modbusCode?: unknown })?.modbusCode === 'number'
+
 /** Modbus frames read the way a protocol analyser prints them. */
 const toHexString = (bytes: Uint8Array | undefined): string =>
   bytes === undefined
@@ -738,6 +750,7 @@ export class ModbusClient {
     const result: ScanUnitIDResult = {
       id,
       registerTypes: [],
+      refusedRegisterTypes: [],
       requestedRegisterTypes: registerTypes,
       errorMessage: {
         coils: '',
@@ -759,6 +772,7 @@ export class ModbusClient {
         result.registerTypes.push('coils')
       } catch (error) {
         result.errorMessage['coils'] = (error as Error).message
+        if (isModbusException(error)) result.refusedRegisterTypes.push('coils')
       }
       await this._sendScanProgress()
     }
@@ -775,6 +789,7 @@ export class ModbusClient {
         result.registerTypes.push('discrete_inputs')
       } catch (error) {
         result.errorMessage['discrete_inputs'] = (error as Error).message
+        if (isModbusException(error)) result.refusedRegisterTypes.push('discrete_inputs')
       }
       await this._sendScanProgress()
     }
@@ -790,6 +805,7 @@ export class ModbusClient {
         result.registerTypes.push('holding_registers')
       } catch (error) {
         result.errorMessage['holding_registers'] = (error as Error).message
+        if (isModbusException(error)) result.refusedRegisterTypes.push('holding_registers')
       }
       await this._sendScanProgress()
     }
@@ -806,6 +822,7 @@ export class ModbusClient {
         result.registerTypes.push('input_registers')
       } catch (error) {
         result.errorMessage['input_registers'] = (error as Error).message
+        if (isModbusException(error)) result.refusedRegisterTypes.push('input_registers')
       }
       await this._sendScanProgress()
     }
