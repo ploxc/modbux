@@ -12,6 +12,7 @@ import {
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
+import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modules/serialGroup'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
 
 export const ipcHandle = <C extends keyof IpcHandlerMap>(
@@ -103,6 +104,9 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   // Linux privileged ports (port 502 needs the unprivileged-port floor lowered)
   ipcHandle('get_privileged_port_status', (_, port) => getPrivilegedPortStatus(port))
   ipcHandle('apply_privileged_port_fix', (_, mode) => applyPrivilegedPortFix(mode))
+  ipcHandle('get_serial_group_status', () => getSerialGroupStatus())
+  ipcHandle('apply_serial_group_fix', () => applySerialGroupFix())
+  ipcHandle('request_logout', () => requestLogout())
 
   // Serial port discovery
   ipcHandle('list_serial_ports', () => client.listSerialPorts())

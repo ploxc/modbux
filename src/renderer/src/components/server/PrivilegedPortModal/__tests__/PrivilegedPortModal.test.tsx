@@ -32,6 +32,7 @@ vi.mock('notistack', () => ({
 }))
 
 import PrivilegedPortModal from '../PrivilegedPortModal'
+import { usePrivilegedPortZustand } from '../_zustand'
 
 // ─── window.api stub ─────────────────────────────────────────────────
 
@@ -66,6 +67,15 @@ describe('PrivilegedPortModal', () => {
     window.api.isServerWindow = false
     storeState.port = { main: '1024' }
     storeState.ready = { main: true }
+    // The modal's own store is module scope, so it outlives a render the way it
+    // outlives a remount in the app. Each test starts from a closed modal.
+    usePrivilegedPortZustand.setState({
+      open: false,
+      status: null,
+      busy: false,
+      dontAsk: false,
+      mode: 'persist'
+    })
     mockGetStatus.mockResolvedValue(blockedStatus)
     mockApplyFix.mockResolvedValue(okResult)
   })

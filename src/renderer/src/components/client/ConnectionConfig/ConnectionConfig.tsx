@@ -10,6 +10,8 @@ import {
   Tooltip
 } from '@mui/material'
 import RtuConfig from './RtuConfig/RtuConfig'
+import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
+import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/_zustand'
 import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { Protocol } from '@shared'
@@ -73,7 +75,7 @@ const ConnectButton = meme(() => {
   const connectState = useRootZustand((z) => z.clientState.connectState)
   const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
-  const action = useCallback(() => {
+  const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = useRootZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
@@ -84,6 +86,12 @@ const ConnectButton = meme(() => {
     }
 
     if (currentConnectedState === 'disconnected') {
+      // On RTU the port can be there and still refuse to open. Ask first and
+      // say why, rather than let the connect fail on a permission error.
+      if (useRootZustand.getState().connectionConfig.protocol === 'ModbusRtu') {
+        const blocked = await useSerialGroupZustand.getState().check(true)
+        if (blocked) return
+      }
       window.api.connect()
     }
   }, [setRegisterData])
@@ -152,6 +160,8 @@ const ConnectionConfig = meme(() => {
     <>
       {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}
       {protocol === 'ModbusRtu' ? <RtuConfig /> : <TcpConfig />}
+      {/* Serial RTU is the only mode that needs a group membership to work. */}
+      <SerialGroupModal active={protocol === 'ModbusRtu'} />
       <Box sx={{ display: 'flex', gap: 2 }}>
         <ProtocolSelect protocol={protocol} />
         <UnitId />
