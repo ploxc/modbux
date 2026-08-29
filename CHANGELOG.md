@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A unit that refuses is no longer painted as a unit that is not there.** In
+  the unit ID scan, a Modbus exception is a reply: the unit exists and it
+  answered the question with no. It used to get the same red as a unit that
+  stayed silent. The result cells now say OK, EXCEPTION or NO REPLY, in green,
+  amber and red, and the message beside them carries the same colour. Filtering
+  a column offers those three answers rather than a text box.
 - **Only the columns worth filtering still offer a filter.** Addr., Bit and BIN
   lost theirs: a filter over an address or a row of LEDs answers nothing anyone
   asks. HEX and the value columns keep theirs, because a status word or a fault
