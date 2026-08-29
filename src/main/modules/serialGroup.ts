@@ -16,8 +16,8 @@ import { detectSandbox, findPkexec } from './privilegedPort'
  * Linux serial group helper
  *
  * A serial device belongs to a group, and a user outside it cannot open one.
- * The app then lists no ports, which looks like missing hardware rather than
- * missing permission.
+ * The port is still listed, since udev enumerates it without touching the
+ * device, so nothing looks wrong until the connect is refused.
  *
  * Detection asks about the devices rather than about the group. A port that
  * opens needs nothing said about it, whatever the group file holds, and the
