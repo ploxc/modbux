@@ -293,7 +293,9 @@ const ScanRegisters = meme(() => {
       }}
     >
       <Paper
-        elevation={5}
+        // No shadow: it fell across the grid it is covering, and a strip that
+        // sits on the toolbar does not need to float above it.
+        elevation={0}
         sx={(theme) => ({
           background: theme.palette.background.default,
           display: 'flex',
@@ -301,13 +303,17 @@ const ScanRegisters = meme(() => {
           width: '100%',
           gap: 2,
           p: 2,
-          height: 'fit-content'
+          // A fixed strip rather than a box that grows with its contents, so it
+          // reads as an overlay laid over the grid toolbar it covers.
+          height: 102,
+          justifyContent: 'flex-start'
         })}
       >
         <Box
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'flex-start',
             gap: 2,
             flexWrap: 'wrap',
             width: '100%'
