@@ -99,9 +99,7 @@ test.describe.serial('Scan Unit IDs', () => {
 
   test('Holding Registers is selected by default', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
-      hasText: 'Holding Registers'
-    })
+    const holdingBtn = modal.getByTestId('scan-unitid-type-holding-registers')
     await expect(holdingBtn).toHaveClass(/Mui-selected/)
   })
 
@@ -109,9 +107,9 @@ test.describe.serial('Scan Unit IDs', () => {
     mainPage
   }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const coilsBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Coils' })
-    const diBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Discrete Inputs' })
-    const irBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Input Registers' })
+    const coilsBtn = modal.getByTestId('scan-unitid-type-coils')
+    const diBtn = modal.getByTestId('scan-unitid-type-discrete-inputs')
+    const irBtn = modal.getByTestId('scan-unitid-type-input-registers')
 
     await expect(coilsBtn).not.toHaveClass(/Mui-selected/)
     await expect(diBtn).not.toHaveClass(/Mui-selected/)
@@ -120,15 +118,13 @@ test.describe.serial('Scan Unit IDs', () => {
 
   test('can select multiple register types', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const coilsBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Coils' })
+    const coilsBtn = modal.getByTestId('scan-unitid-type-coils')
 
     await coilsBtn.click()
     await expect(coilsBtn).toHaveClass(/Mui-selected/)
 
     // Holding should still be selected (multi-select)
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
-      hasText: 'Holding Registers'
-    })
+    const holdingBtn = modal.getByTestId('scan-unitid-type-holding-registers')
     await expect(holdingBtn).toHaveClass(/Mui-selected/)
 
     // Deselect coils again for clean state
@@ -138,9 +134,7 @@ test.describe.serial('Scan Unit IDs', () => {
 
   test('start button is disabled when no register types selected', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    const holdingBtn = modal.locator('button.MuiToggleButton-root', {
-      hasText: 'Holding Registers'
-    })
+    const holdingBtn = modal.getByTestId('scan-unitid-type-holding-registers')
 
     // Deselect the only selected type
     await holdingBtn.click()
@@ -197,11 +191,26 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(modal.locator('.MuiDataGrid-row[data-id="1"]')).toBeVisible()
   })
 
-  test('results show OK chip for responding unit IDs', async ({ mainPage }) => {
+  test('a unit that answered is green and says so', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
-    // Unit 0 has holding registers — should show OK chip
+    // Unit 0 has holding registers, so it answered with data.
     const row0 = modal.locator('.MuiDataGrid-row[data-id="0"]')
-    await expect(row0.locator('.MuiChip-colorSuccess')).toBeVisible()
+    await expect(row0.locator('.scan-answered').first()).toBeVisible()
+    await expect(row0.locator('.scan-answered').first()).toContainText('OK')
+  })
+
+  test('a unit that refused is amber, not the red of one that said nothing', async ({
+    mainPage
+  }) => {
+    const modal = mainPage.locator('.MuiModal-root')
+
+    // Modbux answers for every unit ID it is asked about, and refuses the ones
+    // it holds no data for, so the rows past the configured units carry a
+    // refusal rather than silence.
+    const refused = modal.locator('.scan-refused')
+    await expect(refused.first()).toBeVisible()
+    await expect(refused.first()).toContainText('EXCEPTION')
+    await expect(modal.locator('.scan-silent')).toHaveCount(0)
   })
 
   // ─── Scan with multiple register types ──────────────────────────────
@@ -210,9 +219,9 @@ test.describe.serial('Scan Unit IDs', () => {
     test.setTimeout(60000)
 
     const modal = mainPage.locator('.MuiModal-root')
-    const coilsBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Coils' })
-    const diBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Discrete Inputs' })
-    const irBtn = modal.locator('button.MuiToggleButton-root', { hasText: 'Input Registers' })
+    const coilsBtn = modal.getByTestId('scan-unitid-type-coils')
+    const diBtn = modal.getByTestId('scan-unitid-type-discrete-inputs')
+    const irBtn = modal.getByTestId('scan-unitid-type-input-registers')
 
     await coilsBtn.click()
     await diBtn.click()
@@ -236,15 +245,6 @@ test.describe.serial('Scan Unit IDs', () => {
     )
   })
 
-  test('the bar counts the unit IDs that answered', async ({ mainPage }) => {
-    const chip = mainPage.getByTestId('scan-unitid-found-chip')
-
-    // Two of the four scanned unit IDs answer on this server.
-    await expect(chip).toContainText('Found: 2')
-    await expect(chip).toHaveClass(/MuiChip-filled/)
-    await expect(chip).toHaveClass(/MuiChip-colorSuccess/)
-  })
-
   test('multi-type scan results show columns for each type', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
 
@@ -259,23 +259,23 @@ test.describe.serial('Scan Unit IDs', () => {
     expect(headerText).toContain('Holding')
   })
 
-  test('unit 0 shows OK for all four types', async ({ mainPage }) => {
+  test('unit 0 answered for all four types', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
     const row0 = modal.locator('.MuiDataGrid-row[data-id="0"]')
 
     // Unit 0 has coils, discrete inputs, holding registers and input registers
-    const okChips = row0.locator('.MuiChip-colorSuccess')
-    const count = await okChips.count()
+    const answered = row0.locator('.scan-answered')
+    const count = await answered.count()
     expect(count).toBe(4)
   })
 
-  test('unit 1 shows OK for holding, input, and coils', async ({ mainPage }) => {
+  test('unit 1 answered for holding, input and coils', async ({ mainPage }) => {
     const modal = mainPage.locator('.MuiModal-root')
     const row1 = modal.locator('.MuiDataGrid-row[data-id="1"]')
 
     // Unit 1 has holding registers, input registers, and coils
-    const okChips = row1.locator('.MuiChip-colorSuccess')
-    const count = await okChips.count()
+    const answered = row1.locator('.scan-answered')
+    const count = await answered.count()
     expect(count).toBeGreaterThanOrEqual(3)
   })
 

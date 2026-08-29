@@ -2,8 +2,36 @@ import { GridColDef } from '@mui/x-data-grid'
 import { RegisterType, ScanUnitIDResult } from '@shared'
 import { useMemo } from 'react'
 import { useScanUnitIdZustand } from './_zustand'
-import { Box, Chip } from '@mui/material'
-import { CheckCircle, ErrorRounded } from '@mui/icons-material'
+import { Box } from '@mui/material'
+
+/**
+ * What a unit ID did with one request.
+ *
+ * A refusal is not a silence. An exception reply means the unit is there and
+ * talking, and it answered this particular question with no; nothing coming
+ * back at all means there is no unit at that address. Both used to be red.
+ */
+export type ScanOutcome = 'answered' | 'refused' | 'silent' | 'unasked'
+
+export const outcomeOf = (row: ScanUnitIDResult, type: RegisterType): ScanOutcome =>
+  row.registerTypes.includes(type)
+    ? 'answered'
+    : row.refusedRegisterTypes.includes(type)
+      ? 'refused'
+      : row.requestedRegisterTypes.includes(type)
+        ? 'silent'
+        : 'unasked'
+
+const OUTCOME_LABEL: Record<ScanOutcome, string> = {
+  answered: 'OK',
+  refused: 'EXCEPTION',
+  silent: 'NO REPLY',
+  unasked: ''
+}
+
+/** The class the grid paints the cell with. Styled where the grid is built. */
+export const outcomeClass = (outcome: ScanOutcome): string =>
+  outcome === 'unasked' ? '' : `scan-${outcome}`
 
 const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
   field: 'id',
@@ -15,21 +43,32 @@ const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {
 
 const typeColumn = (registerType: RegisterType, name: string): GridColDef<ScanUnitIDResult> => ({
   field: registerType,
-  type: 'boolean',
   headerName: name,
   disableColumnMenu: false,
-  width: 90,
-  valueGetter: (_, row) => row.registerTypes.includes(registerType),
-  renderCell: ({ value, row }) => (
-    <Box sx={{ width: '100%', display: 'flex' }}>
-      {value ? (
-        <Chip icon={<CheckCircle />} label="OK" size="small" color="success" />
-      ) : row.requestedRegisterTypes.includes(registerType) ? (
-        <Chip icon={<ErrorRounded />} label="ERROR" size="small" color="error" />
-      ) : null}
-    </Box>
-  )
+  width: 100,
+  // The whole cell carries the answer, so the value is the word in it. A
+  // single select rather than free text: there are three answers a unit can
+  // give, and the filter should offer those three rather than ask you to type
+  // one. Nothing here is editable; the column type is for the filter.
+  type: 'singleSelect',
+  valueOptions: [
+    { value: 'answered', label: OUTCOME_LABEL.answered },
+    { value: 'refused', label: OUTCOME_LABEL.refused },
+    { value: 'silent', label: OUTCOME_LABEL.silent }
+  ],
+  valueGetter: (_, row): ScanOutcome | null => {
+    const outcome = outcomeOf(row, registerType)
+    return outcome === 'unasked' ? null : outcome
+  },
+  cellClassName: ({ row }) => outcomeClass(outcomeOf(row, registerType))
 })
+
+const FUNCTION_CODE: Record<string, string> = {
+  coils: 'FC1',
+  discrete_inputs: 'FC2',
+  holding_registers: 'FC3',
+  input_registers: 'FC4'
+}
 
 const errorColumn: GridColDef<ScanUnitIDResult> = {
   field: 'errorMessage',
@@ -37,26 +76,30 @@ const errorColumn: GridColDef<ScanUnitIDResult> = {
   flex: 1,
   minWidth: 150,
   disableColumnMenu: true,
-  renderCell: ({ value }) =>
+  renderCell: ({ value, row }) =>
     value === null ? null : (
       <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {Object.entries(value).map(([k, v]) => {
-          return String(v).length === 0 ? null : (
-            <Box key={k} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <span>
-                {k === 'coils'
-                  ? 'FC1'
-                  : k === 'discrete_inputs'
-                    ? 'FC2'
-                    : k === 'holding_registers'
-                      ? 'FC3'
-                      : 'FC4'}
-                :
-              </span>
-              <span>{String(v)}</span>
+        {Object.entries(value).map(([type, message]) =>
+          String(message).length === 0 ? null : (
+            <Box
+              key={type}
+              // The same three states as the cells to the left, so a line here
+              // and the cell it belongs to never disagree.
+              sx={(theme) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                color:
+                  outcomeOf(row, type as RegisterType) === 'refused'
+                    ? theme.palette.warning.main
+                    : theme.palette.error.main
+              })}
+            >
+              <span>{FUNCTION_CODE[type]}:</span>
+              <span>{String(message)}</span>
             </Box>
           )
-        })}
+        )}
       </Box>
     )
 }
