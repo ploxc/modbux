@@ -4,13 +4,10 @@
  * Requires a physical Arduino Uno running tools/arduino/iem3000.ino
  * connected via USB serial (9600 baud, 8N1, Slave ID 1).
  *
- * Run headed so you can interact with the Playwright Inspector pause dialog:
- *   npx playwright test e2e/specs/99-hardware/ --headed
+ * The port is found by USB vendor ID, so the run is unattended:
+ *   yarn test:e2e:hardware
  *
- * When page.pause() triggers:
- *   1. Click the refresh button next to COM port to scan available ports
- *   2. Select the Arduino's COM port from the dropdown
- *   3. Click "Resume" in the Playwright Inspector
+ * With no Arduino attached the whole suite skips.
  */
 import { test, expect } from '../../fixtures/electron-app'
 import {
@@ -25,12 +22,23 @@ import {
   clearData
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-iem3000.json')
 const CLIENT_CONFIG_ERROR = resolve(CONFIG_DIR, 'client-iem3000-error.json')
 
 test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
+  let arduinoPort = ''
+
+  // Skip rather than fail: the mac and linux rounds run this suite, and a
+  // machine without the board should not block a release round over it.
+  test.beforeAll(async () => {
+    const choice = await findArduinoPort()
+    if (choice.reason) test.skip(true, choice.reason)
+    arduinoPort = choice.port as string
+  })
+
   // ─── Setup ──────────────────────────────────────────────────────────
 
   test('navigate to client view', async ({ mainPage }) => {
@@ -41,21 +49,8 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     await connectClientRTU(mainPage, '1', '9600', 'none', '8', '1')
   })
 
-  test('pause — select COM port manually, then resume', async ({ mainPage }) => {
-    // eslint-disable-next-line no-console
-    console.log(
-      '\n╔══════════════════════════════════════════════════════════════╗\n' +
-        '║  MANUAL STEP: Select the Arduino COM port                   ║\n' +
-        '║                                                              ║\n' +
-        '║  1. Click the refresh button (↻) next to the COM port       ║\n' +
-        '║  2. Select the Arduino serial port from the dropdown         ║\n' +
-        '║     (e.g. /dev/ttyUSB0, /dev/tty.usbmodem*, COM3)           ║\n' +
-        '║  3. Click "Resume" in the Playwright Inspector               ║\n' +
-        '║                                                              ║\n' +
-        '║  If no Arduino is connected, close the Inspector to skip.    ║\n' +
-        '╚══════════════════════════════════════════════════════════════╝\n'
-    )
-    await mainPage.pause()
+  test('select the Arduino COM port', async ({ mainPage }) => {
+    await selectComPort(mainPage, arduinoPort)
   })
 
   test('load iEM3000 client config', async ({ mainPage }) => {

@@ -87,20 +87,21 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 | `yarn test:watch` | Unit tests in watch mode |
 | `yarn test:e2e` | Build + the e2e suite (Playwright) |
 | `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
-| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino and someone at the keyboard. |
+| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino; skips without one. |
 | `yarn presentation` | Build + regenerate the documentation screenshots |
 | `yarn verify` | Lint + typecheck + unit + e2e. Run this before pushing. |
 | `yarn test:e2e:scan-perf` | What a mounted grid costs during a scan. A measurement, not a check. |
 | `yarn test:e2e:privileged-port` | The port 502 modal. Linux, and someone at the keyboard. |
 | `yarn test:all:mac` | Everything this platform can run, ending with the hardware specs. |
-| `yarn test:all:windows` | Everything this platform can run. No socat, so the serial specs skip. |
-| `yarn test:all:linux` | Everything, including the two that wait for a person. |
+| `yarn test:all:windows` | Everything this platform can run. No socat, so the socat serial specs skip. |
+| `yarn test:all:linux` | Everything, including the one that waits for a person. |
 
 `test:e2e` covers `01-main` and `02-standalone`. Two suites sit outside it and
 are invoked on purpose:
 
-- `99-hardware` waits for an Arduino and for someone to pick the COM port, so an
-  unattended run never finishes.
+- `99-hardware` needs an Arduino on a serial port. It finds the board by USB
+  vendor ID and skips the suite when none is attached, so it runs unattended --
+  but CI has no board, which is why it stays out of `test:e2e`.
 - `03-presentation` is a documentation utility, not a check. It clicks through
   the app and captures what it sees without asserting much, so it costs two
   minutes to tell you little that `01-main` does not already cover. Run it when
@@ -117,11 +118,12 @@ installed. Packaged runs use a throwaway user-data directory and never touch an
 installed Modbux's config.
 
 `playwright.config.ts` ignores `99-hardware`, so neither `test:e2e` nor
-`test:e2e:packaged` picks those specs up. They are conditional: they need an
-Arduino running `tools/arduino/iem3000.ino` on a serial port, and they stop at a
-`page.pause()` for someone to choose the COM port. In a pipeline — or in any run
-you walked away from — that is not a failure, it is a run that never ends. Use
-`yarn test:e2e:hardware` when the hardware is actually on your desk.
+`test:e2e:packaged` picks those specs up. They need an Arduino running
+`tools/arduino/iem3000.ino` on a serial port. The board is found by USB vendor
+ID — `manufacturer` is useless for this, it reads "Microsoft" on Windows where
+the generic driver claims the device — and the suite skips itself when no board
+is attached. So the round is unattended, and every `test:all:*` ends with it.
+Use `yarn test:e2e:hardware` to run it alone.
 
 ### Test expectations
 

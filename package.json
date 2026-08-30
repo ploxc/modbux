@@ -41,7 +41,7 @@
     "test:e2e:scan-perf": "electron-vite build && playwright test --config playwright.scan-perf.config.ts",
     "presentation": "electron-vite build && playwright test --config playwright.presentation.config.ts",
     "test:all:mac": "yarn lint && yarn typecheck && yarn test && yarn test:e2e && yarn test:e2e:packaged && yarn presentation && yarn test:e2e:scan-perf && yarn test:e2e:hardware",
-    "test:all:windows": "yarn lint && yarn typecheck && yarn test && yarn test:e2e && yarn test:e2e:packaged && yarn presentation && yarn test:e2e:scan-perf",
+    "test:all:windows": "yarn lint && yarn typecheck && yarn test && yarn test:e2e && yarn test:e2e:packaged && yarn presentation && yarn test:e2e:scan-perf && yarn test:e2e:hardware",
     "test:all:linux": "yarn lint && yarn typecheck && yarn test && yarn test:e2e && yarn test:e2e:packaged && yarn presentation && yarn test:e2e:scan-perf && yarn test:e2e:privileged-port && yarn test:e2e:hardware",
     "socat": "socat -d -d pty,raw,echo=0,link=/tmp/ttyV0 pty,raw,echo=0,link=/tmp/ttyV1"
   },
