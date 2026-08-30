@@ -19,6 +19,7 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   scrollCell,
+  expectCellContains,
   clearData
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
@@ -27,6 +28,9 @@ import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-iem3000.json')
 const CLIENT_CONFIG_ERROR = resolve(CONFIG_DIR, 'client-iem3000-error.json')
+
+/** Gap between enabling read-configuration and the read it must serve. */
+const READ_SETTLE_MS = 250
 
 test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
   let arduinoPort = ''
@@ -77,14 +81,16 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     test.setTimeout(30_000)
 
     await enableReadConfiguration(mainPage)
+    // The toggle reports Mui-selected before the app can serve a read, and a
+    // read fired inside that window is dropped. Measured: 10ms is too early,
+    // 100ms is enough.
+    await mainPage.waitForTimeout(READ_SETTLE_MS)
 
     // Trigger read
     await mainPage.getByTestId('read-btn').click()
 
-    // Wait for rows to populate (26 float registers = 52 individual register words + extra rows)
-    await mainPage.waitForTimeout(5000)
-    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
-    expect(rowCount).toBeGreaterThan(0)
+    // Wait for the read itself rather than a fixed guess at how long it takes.
+    await expectCellContains(mainPage, 2999, 'word_float', '.')
   })
 
   // ─── Value verification ────────────────────────────────────────────
@@ -160,12 +166,10 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
     // Clear and re-read
     await clearData(mainPage)
     await mainPage.getByTestId('read-btn').click()
-    await mainPage.waitForTimeout(5000)
 
-    const after = await scrollCell(mainPage, 2999, 'word_float')
-
-    // With noise the float values should differ slightly
-    expect(after).not.toBe(before)
+    // With noise the float values should differ slightly. Poll for that rather
+    // than guessing how long a re-read takes.
+    await expect.poll(() => scrollCell(mainPage, 2999, 'word_float')).not.toBe(before)
   })
 
   // ─── Illegal address error ─────────────────────────────────────────
@@ -179,14 +183,11 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
 
     // Re-enable readConfiguration (loadClientConfig resets it to false)
     await enableReadConfiguration(mainPage)
+    await mainPage.waitForTimeout(READ_SETTLE_MS)
 
-    // Trigger read — wait long enough for the valid group + timeout on the illegal group
+    // Trigger read, then wait for the error to land instead of a fixed 10s.
     await mainPage.getByTestId('read-btn').click()
-    await mainPage.waitForTimeout(10_000)
-
-    // Scroll to address 3109 and check error message
-    const errorText = await scrollCell(mainPage, 3109, 'value')
-    expect(errorText).toContain('Illegal data address')
+    await expectCellContains(mainPage, 3109, 'value', 'Illegal data address')
   })
 
   test('valid addresses still show data after error config', async ({ mainPage }) => {

@@ -23,7 +23,8 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   loadClientConfig,
-  scrollCell
+  scrollCell,
+  expectCellContains
 } from '../../fixtures/helpers'
 import { launchOptions } from '../../fixtures/launch'
 
@@ -71,10 +72,10 @@ async function connectAndRead(): Promise<void> {
   await enableReadConfiguration(page)
 
   await page.getByTestId('read-btn').click()
-  await page.waitForTimeout(5000)
 
-  const rowCount = await page.locator('.MuiDataGrid-row').count()
-  expect(rowCount).toBeGreaterThan(0)
+  // Wait for a real value, not for rows: the grid keeps its rows from the
+  // config, so a row count says nothing about whether the read landed.
+  await expectCellContains(page, 2999, 'word_float', '.')
 }
 
 async function verifyPhaseCurrents(): Promise<void> {
