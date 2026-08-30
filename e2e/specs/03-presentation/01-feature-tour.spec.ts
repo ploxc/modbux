@@ -24,6 +24,7 @@ import {
   disconnectClient,
   readRegisters,
   clearData,
+  openColumnMenu,
   selectRegisterType,
   selectUnitId,
   selectDataType,
@@ -390,6 +391,14 @@ test.describe.serial('Act II — Building the Simulator', () => {
 
 test.describe.serial('Act III — Going Live', () => {
   test('scene 15 — client connects & reads raw data', async ({ mainPage }) => {
+    // Act II built registers through the add dialog to show the dialog, and
+    // left the simulator holding them. The client scenes are about reading the
+    // inverter this tour is named after, so put that back first: every value
+    // from here on is the one the documented config describes.
+    await navigateToServer(mainPage)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
+    await beat(mainPage, 1000)
+
     await navigateToClient(mainPage)
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await selectRegisterType(mainPage, 'Holding Registers')
@@ -419,6 +428,31 @@ test.describe.serial('Act III — Going Live', () => {
 
     await mainPage.keyboard.press('Escape')
     await beat(mainPage, 300)
+  })
+
+  test('scene 17b — poll rate and timeout', async ({ mainPage }) => {
+    await mainPage.getByTestId('time-settings-btn').click()
+    await beat(mainPage, 400)
+
+    const popover = mainPage.getByTestId('time-settings-popover').locator('.MuiPaper-root').first()
+    await popover.screenshot({ path: resolve(SHOTS, 'client-time-settings.png') })
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 300)
+  })
+
+  test('scene 17c — the word order table', async ({ mainPage }) => {
+    // The BE/LE tooltip is the app explaining a Modbus problem to you: which
+    // half of a 32-bit value lands in the first register. It belongs in the
+    // manual as it appears on screen.
+    await mainPage.getByTestId('endian-be-btn').hover()
+    await beat(mainPage, 1400)
+
+    const tooltip = mainPage.locator('.MuiTooltip-tooltip .MuiPaper-root').first()
+    await tooltip.screenshot({ path: resolve(SHOTS, 'client-endian-table.png') })
+
+    await mainPage.mouse.move(0, 0)
+    await beat(mainPage, 400)
   })
 
   test('scene 18 — advanced mode', async ({ mainPage }) => {
@@ -469,6 +503,32 @@ test.describe.serial('Act III — Going Live', () => {
     await expectCellContains(mainPage, 4, 'value', '50.01')
 
     await snap(mainPage, 'client-decoded-values')
+  })
+
+  test('scene 19b — filtering a column, and clearing it', async ({ mainPage }) => {
+    // The filter form is part of the grid, but the way back out of it is not:
+    // a filter left behind reads as missing data, so the toolbar grows a
+    // button while one is on.
+    await openColumnMenu(mainPage, 'hex')
+    await mainPage
+      .locator('.MuiDataGrid-menuList')
+      .getByRole('menuitem', { name: 'Filter' })
+      .click()
+    await beat(mainPage, 400)
+
+    const valueInput = mainPage.locator('.MuiDataGrid-filterFormValueInput input')
+    await valueInput.fill('00')
+    await beat(mainPage, 800)
+
+    await snap(mainPage, 'client-column-filter')
+
+    await mainPage.keyboard.press('Escape')
+    await beat(mainPage, 400)
+    await snap(mainPage, 'client-clear-filters')
+
+    await mainPage.getByTestId('clear-filters-btn').click()
+    await expect(mainPage.getByTestId('clear-filters-btn')).not.toBeVisible()
+    await beat(mainPage, 300)
   })
 
   test('scene 20 — read configuration mode', async ({ mainPage }) => {
@@ -782,18 +842,45 @@ test.describe.serial('Act IV — Interaction', () => {
 
     // Start scan
     await mainPage.getByTestId('scan-start-stop-btn').click()
-    await beat(mainPage, 1500)
+    await beat(mainPage, 2500)
 
-    // Screenshot dialog with progress bar
-    const scanDialog = paperOf(mainPage, 'scan-start-stop-btn')
-    await scanDialog.screenshot({ path: resolve(SHOTS, 'client-scanning.png') })
+    // The whole window, not the dialog on its own: what a scan looks like is
+    // the strip over the toolbar, the count beside it, and the grid filling
+    // underneath while it walks the range.
+    await snap(mainPage, 'client-scanning')
 
     // Stop scan
     await mainPage.getByTestId('scan-start-stop-btn').click()
     await beat(mainPage, 500)
 
-    // Close scan dialog
-    await mainPage.keyboard.press('Escape')
+    await mainPage.getByTestId('scan-registers-close-btn').click()
+    await beat(mainPage, 300)
+  })
+
+  test('scene 29b — scanning for unit IDs', async ({ mainPage }) => {
+    await mainPage.getByTestId('menu-btn').click()
+    await beat(mainPage, 300)
+    await mainPage.getByTestId('scan-unitids-btn').click()
+    await beat(mainPage, 500)
+
+    // Five IDs against a server that holds two of them, so the results carry
+    // both answers: the ones that replied with data, and the ones that
+    // answered by refusing.
+    await mainPage.getByTestId('scan-unitid-count-input').locator('input').fill('5')
+    await mainPage.getByTestId('scan-unitid-type-coils').click()
+    await beat(mainPage, 200)
+
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
+      'Start Scanning',
+      { timeout: 60000 }
+    )
+    await beat(mainPage, 600)
+
+    const dialog = paperOf(mainPage, 'scan-unitid-start-stop-btn')
+    await dialog.screenshot({ path: resolve(SHOTS, 'client-scan-unit-ids.png') })
+
+    await mainPage.getByTestId('scan-unitid-close-btn').click()
     await beat(mainPage, 300)
   })
 })
@@ -805,7 +892,7 @@ test.describe.serial('Act IV — Interaction', () => {
 let serverPage: Page
 
 test.describe.serial('Act V — Side by Side', () => {
-  test('scene 29b — RTU over TCP in the cog menu', async ({ mainPage }) => {
+  test('scene 30 — RTU over TCP in the cog menu', async ({ mainPage }) => {
     // Only reachable while disconnected: the transport cannot change mid-session.
     // The warning colour is the whole point -- it is what turns the TCP button
     // warning too, and that is the only thing telling the two TCP transports
@@ -834,7 +921,7 @@ test.describe.serial('Act V — Side by Side', () => {
     await snap(mainPage, 'client-rtu-over-tcp-off')
   })
 
-  test('scene 30 — split view', async ({ mainPage, electronApp }) => {
+  test('scene 31 — split view', async ({ mainPage, electronApp }) => {
     await navigateToHome(mainPage)
     await beat(mainPage, 3500)
 
@@ -848,7 +935,7 @@ test.describe.serial('Act V — Side by Side', () => {
     await snap(serverPage, 'split-view-server')
   })
 
-  test('scene 31 — split view connected', async ({ mainPage }) => {
+  test('scene 32 — split view connected', async ({ mainPage }) => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await selectRegisterType(mainPage, 'Holding Registers')
     await loadClientConfig(mainPage, CLIENT_CONFIG)
@@ -863,7 +950,7 @@ test.describe.serial('Act V — Side by Side', () => {
     await snap(mainPage, 'split-view-connected')
   })
 
-  test('scene 32 — cleanup', async ({ electronApp, mainPage }) => {
+  test('scene 33 — cleanup', async ({ electronApp, mainPage }) => {
     await disconnectClient(mainPage)
 
     await electronApp.evaluate(({ BrowserWindow }) => {
