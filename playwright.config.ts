@@ -4,9 +4,10 @@ export default defineConfig({
   testDir: './e2e/specs',
   // Two suites stay out of the always-on pipeline.
   //
-  // The hardware specs need an Arduino on a serial port and a human to pick the
-  // COM port at a page.pause(), so an unattended run sits there forever. Run
-  // them with `yarn test:e2e:hardware`.
+  // The hardware specs need an Arduino on a serial port. They find it by USB
+  // vendor ID and skip themselves when none is attached, so they no longer need
+  // anyone at the keyboard -- but CI has no board, so there is nothing for them
+  // to do there. Run them with `yarn test:e2e:hardware`.
   //
   // The privileged port modal needs the kernel to actually refuse port 502, and
   // only root can arrange that. The spec pauses for a sudo command in a real

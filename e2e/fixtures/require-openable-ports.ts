@@ -1,5 +1,5 @@
 import { accessSync, constants, readdirSync } from 'fs'
-import { join } from 'path'
+import { join, posix } from 'path'
 
 export const DEV_DIR = '/dev'
 export const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM']
@@ -17,7 +17,9 @@ export const SERIAL_GROUP = 'dialout'
 export function assertOpenable(unreadable: string[]): void {
   if (unreadable.length === 0) return
 
-  const paths = unreadable.map((p) => join(DEV_DIR, p))
+  // posix.join, not join: this path is quoted to the reader as a Linux device,
+  // so it keeps its separators on a Windows machine running the unit tests.
+  const paths = unreadable.map((p) => posix.join(DEV_DIR, p))
   const subject =
     paths.length === 1 ? `${paths[0]} exists but is` : `${paths.join(', ')} exist but are`
 

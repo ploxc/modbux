@@ -296,10 +296,16 @@ export async function connectClient(
   await expect(p.getByTestId('connect-btn')).toContainText('Disconnect', { timeout: 5000 })
 }
 
-/** Disconnect client */
+/**
+ * Disconnect client.
+ *
+ * The wait is long because closing a real serial port is slow: measured at
+ * roughly 4.5s on a Windows COM port, against 5s here before. TCP and socat
+ * ptys close in milliseconds, so only the hardware specs ever lost that race.
+ */
 export async function disconnectClient(p: Page): Promise<void> {
   await p.getByTestId('connect-btn').click()
-  await expect(p.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
+  await expect(p.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 }
 
 /**

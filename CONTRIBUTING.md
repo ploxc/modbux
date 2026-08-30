@@ -8,7 +8,7 @@ Before you start, please read this document carefully. These guidelines exist to
 
 1. **Open an issue first.** Before writing code, open an issue describing the bug or feature. This avoids wasted effort if the change doesn't align with the project direction.
 2. **One PR, one concern.** Don't mix a bug fix with a refactor. Don't sneak in "while I was here" changes. Keep your diff focused.
-3. **Don't break the build.** Run `yarn checkup` before pushing. If it doesn't pass, your PR won't be reviewed.
+3. **Don't break the build.** Run `yarn verify` before pushing. If it doesn't pass, your PR won't be reviewed.
 4. **Match the existing style.** Don't introduce new patterns, conventions, or abstractions without discussing them first.
 
 ## Getting started
@@ -87,35 +87,43 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 | `yarn test:watch` | Unit tests in watch mode |
 | `yarn test:e2e` | Build + the e2e suite (Playwright) |
 | `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
-| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino and someone at the keyboard. |
+| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino; skips without one. |
 | `yarn presentation` | Build + regenerate the documentation screenshots |
-| `yarn checkup` | **Everything.** Lint + typecheck + unit + e2e. Run this before pushing. |
+| `yarn verify` | Lint + typecheck + unit + e2e. Run this before pushing. |
+| `yarn test:e2e:scan-perf` | What a mounted grid costs during a scan. A measurement, not a check. |
+| `yarn test:e2e:privileged-port` | The port 502 modal. Linux, and someone at the keyboard. |
+| `yarn test:all:mac` | Everything this platform can run, ending with the hardware specs. |
+| `yarn test:all:windows` | Everything this platform can run. No socat, so the socat serial specs skip. |
+| `yarn test:all:linux` | Everything, including the one that waits for a person. |
 
 `test:e2e` covers `01-main` and `02-standalone`. Two suites sit outside it and
 are invoked on purpose:
 
-- `99-hardware` waits for an Arduino and for someone to pick the COM port, so an
-  unattended run never finishes.
+- `99-hardware` needs an Arduino on a serial port. It finds the board by USB
+  vendor ID and skips the suite when none is attached, so it runs unattended --
+  but CI has no board, which is why it stays out of `test:e2e`.
 - `03-presentation` is a documentation utility, not a check. It clicks through
   the app and captures what it sees without asserting much, so it costs two
   minutes to tell you little that `01-main` does not already cover. Run it when
   the UI changed and the manual needs new screenshots.
 
-`checkup` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
-step and runs far longer, which is too much for every push. Run it before
-cutting a release instead: it is the only check that exercises what actually
-ships. `electron-vite` externalizes whatever sits in `dependencies` and
-`electron-builder` packs only those into `app.asar`, so a runtime dependency
+`verify` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
+step and runs far longer, which is too much for every push. The `test:all:*`
+rounds do include it, and those are for cutting a release rather than for a PR.
+It is the only check that exercises what actually ships: `electron-vite`
+externalizes whatever sits in `dependencies` and `electron-builder` packs only
+those into `app.asar`, so a runtime dependency
 that drifts into `devDependencies` passes every normal test and breaks only once
 installed. Packaged runs use a throwaway user-data directory and never touch an
 installed Modbux's config.
 
 `playwright.config.ts` ignores `99-hardware`, so neither `test:e2e` nor
-`test:e2e:packaged` picks those specs up. They are conditional: they need an
-Arduino running `tools/arduino/iem3000.ino` on a serial port, and they stop at a
-`page.pause()` for someone to choose the COM port. In a pipeline — or in any run
-you walked away from — that is not a failure, it is a run that never ends. Use
-`yarn test:e2e:hardware` when the hardware is actually on your desk.
+`test:e2e:packaged` picks those specs up. They need an Arduino running
+`tools/arduino/iem3000.ino` on a serial port. The board is found by USB vendor
+ID — `manufacturer` is useless for this, it reads "Microsoft" on Windows where
+the generic driver claims the device — and the suite skips itself when no board
+is attached. So the round is unattended, and every `test:all:*` ends with it.
+Use `yarn test:e2e:hardware` to run it alone.
 
 ### Test expectations
 
@@ -141,13 +149,13 @@ you walked away from — that is not a failure, it is a run that never ends. Use
 1. Branch from `main`. Use `feature/description` or `fix/description`.
 2. Keep commits clean. Squash fixups before requesting review.
 3. Write a clear PR description: what changed, why, and how to test it.
-4. `yarn checkup` must pass. No exceptions.
+4. `yarn verify` must pass. No exceptions.
 5. Screenshots for UI changes. Before and after.
 6. Don't bump the version number. That's done at release time.
 
 ## What will get your PR rejected
 
-- Failing `yarn checkup`
+- Failing `yarn verify`
 - `any` types or disabled lint rules
 - Missing tests for new functionality
 - Unrelated changes mixed into the diff

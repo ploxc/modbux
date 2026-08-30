@@ -7,8 +7,8 @@
  * Requires a physical Arduino Uno running tools/arduino/iem3000.ino
  * connected via USB serial (9600 baud, 8N1, Slave ID 1).
  *
- * Run headed:
- *   npx playwright test e2e/specs/99-hardware/02-iem3000-reconnect.spec.ts --headed
+ * The port is found by USB vendor ID, so the run is unattended:
+ *   yarn test:e2e:hardware
  */
 import {
   test,
@@ -23,14 +23,18 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   loadClientConfig,
-  scrollCell
+  scrollCell,
+  expectCellContains
 } from '../../fixtures/helpers'
 import { launchOptions } from '../../fixtures/launch'
+
+import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
 
 const CLIENT_CONFIG = resolve(__dirname, '../../fixtures/config-files/client-iem3000.json')
 
 let app: ElectronApplication
 let page: Page
+let arduinoPort = ''
 
 async function launchApp(clearStorage = true): Promise<void> {
   app = await electron.launch(launchOptions())
@@ -68,10 +72,10 @@ async function connectAndRead(): Promise<void> {
   await enableReadConfiguration(page)
 
   await page.getByTestId('read-btn').click()
-  await page.waitForTimeout(5000)
 
-  const rowCount = await page.locator('.MuiDataGrid-row').count()
-  expect(rowCount).toBeGreaterThan(0)
+  // Wait for a real value, not for rows: the grid keeps its rows from the
+  // config, so a row count says nothing about whether the read landed.
+  await expectCellContains(page, 2999, 'word_float', '.')
 }
 
 async function verifyPhaseCurrents(): Promise<void> {
@@ -87,13 +91,21 @@ async function closeApp(): Promise<void> {
 
   // Disconnect
   await page.getByTestId('connect-btn').click()
-  await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
+  await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 
   await app.close()
   await new Promise((r) => setTimeout(r, 1000))
 }
 
 test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
+  // Skip rather than fail: the mac and linux rounds run this suite, and a
+  // machine without the board should not block a release round over it.
+  test.beforeAll(async () => {
+    const choice = await findArduinoPort()
+    if (choice.reason) test.skip(true, choice.reason)
+    arduinoPort = choice.port as string
+  })
+
   test.afterAll(async () => {
     if (app) await app.close().catch(() => {})
   })
@@ -120,18 +132,8 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await page.getByRole('option', { name: '9600' }).click()
   })
 
-  test('session 1 — pause for COM port selection', async () => {
-    // eslint-disable-next-line no-console
-    console.log(
-      '\n╔══════════════════════════════════════════════════════════════╗\n' +
-        '║  MANUAL STEP: Select the Arduino COM port                   ║\n' +
-        '║                                                              ║\n' +
-        '║  1. Click the refresh button (↻) next to the COM port       ║\n' +
-        '║  2. Select the Arduino serial port from the dropdown         ║\n' +
-        '║  3. Click "Resume" in the Playwright Inspector               ║\n' +
-        '╚══════════════════════════════════════════════════════════════╝\n'
-    )
-    await page.pause()
+  test('session 1 — select the Arduino COM port', async () => {
+    await selectComPort(page, arduinoPort)
   })
 
   test('session 1 — load config, connect, and read', async () => {
@@ -190,7 +192,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
 
     // Disconnect
     await page.getByTestId('connect-btn').click()
-    await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
+    await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 
     // Switch back to TCP
     await page.getByTestId('protocol-tcp-btn').click()
