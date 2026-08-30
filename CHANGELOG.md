@@ -42,9 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scan walks raw addresses, and the dialog stays open when the scan ends rather
   than closing to reveal what you were already watching. The eye beside the
   scan button puts it all back the old way.
-- **A scan says how many it found.** The grid shows the first rows, not the
-  total, so the count sits beside the scan button. The unit ID scan counts the
-  units that answered, since its results list every unit it asked.
+- **A scan says how many registers it found.** The grid shows the first rows,
+  not the total, so the count sits beside the scan button.
 
 ### Changed
 
