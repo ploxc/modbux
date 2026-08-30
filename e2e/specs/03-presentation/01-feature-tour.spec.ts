@@ -877,7 +877,8 @@ test.describe.serial('Act IV — Interaction', () => {
     )
     await beat(mainPage, 600)
 
-    await snap(mainPage, 'client-scan-unit-ids')
+    const dialog = paperOf(mainPage, 'scan-unitid-start-stop-btn')
+    await dialog.screenshot({ path: resolve(SHOTS, 'client-scan-unit-ids.png') })
 
     await mainPage.getByTestId('scan-unitid-close-btn').click()
     await beat(mainPage, 300)
