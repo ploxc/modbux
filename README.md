@@ -213,6 +213,20 @@ yarn test:watch
 yarn test:e2e
 ```
 
+**Run everything this platform can:**
+
+```bash
+yarn test:all:mac
+yarn test:all:windows
+yarn test:all:linux
+```
+
+Lint, typecheck, unit tests, both e2e modes, the screenshots and the scan
+measurement, plus what only that platform has: the hardware specs on macOS and
+Linux, and the port 502 modal on Linux, which is the one step that waits for a
+person. `yarn verify` is the shorter one to run before pushing: lint, typecheck,
+unit tests and e2e.
+
 **Run E2E tests against a packaged build:**
 
 ```bash
@@ -239,9 +253,9 @@ yarn test:e2e:hardware
 ```
 
 These are left out of the normal runs. They talk to an Arduino running
-`tools/arduino/iem3000.ino` over a serial port and pause partway through so you
-can pick the COM port, so they only make sense with the hardware in front of
-you.
+`tools/arduino/iem3000.ino` over a serial port, and they find the board by its
+USB vendor ID rather than asking, so the run is unattended and skips itself when
+no board is attached.
 
 ### Build
 
