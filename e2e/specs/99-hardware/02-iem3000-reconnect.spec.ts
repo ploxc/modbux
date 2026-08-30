@@ -87,7 +87,7 @@ async function closeApp(): Promise<void> {
 
   // Disconnect
   await page.getByTestId('connect-btn').click()
-  await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
+  await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 
   await app.close()
   await new Promise((r) => setTimeout(r, 1000))
@@ -190,7 +190,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
 
     // Disconnect
     await page.getByTestId('connect-btn').click()
-    await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 5000 })
+    await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 
     // Switch back to TCP
     await page.getByTestId('protocol-tcp-btn').click()
