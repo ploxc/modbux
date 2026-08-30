@@ -1,6 +1,6 @@
 {
   "name": "modbux",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "A Modbus Client/Server tool",
   "main": "./out/main/index.js",
   "author": {
