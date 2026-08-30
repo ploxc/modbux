@@ -345,13 +345,24 @@ test.describe.serial('Scan Registers', () => {
     await mainPage.getByTestId('scan-registers-close-btn').click()
     await expect(mainPage.getByTestId('scan-start-stop-btn')).toHaveCount(0)
 
-    // The scan was stopped early — results are in the main DataGrid.
-    // Address 0 should have been reached, but the last holding register
-    // (address 26, unix timestamp) should NOT have been reached.
+    // The scan reached something, and stopping stopped it.
+    //
+    // This used to assert that address 26, the last holding register on the
+    // server, had not been reached yet. That was a guess about how fast the
+    // machine is: the scan walks one register at a time with a 5ms pause, so
+    // 26 of them take a few hundred milliseconds, which is about what the five
+    // assertions above cost. The fastest runner got there first and the test
+    // failed for being right.
+    //
+    // What stopping means is that no more rows arrive, so that is what this
+    // waits to see.
     const rows = mainPage.locator('.MuiDataGrid-row')
     await expect(rows.first()).toBeVisible({ timeout: 5000 })
     await expect(mainPage.locator('.MuiDataGrid-row[data-id="0"]')).toBeVisible()
-    await expect(mainPage.locator('.MuiDataGrid-row[data-id="26"]')).not.toBeVisible()
+
+    const whenStopped = await rows.count()
+    await mainPage.waitForTimeout(1000)
+    expect(await rows.count()).toBe(whenStopped)
   })
 
   // ─── Cleanup ───────────────────────────────────────────────────────
