@@ -18,7 +18,8 @@
 
 **[Download the latest release](https://ploxc.com/modbux)**
 
-Installers for Windows and macOS. Linux is supported and [builds from source](#build-it-yourself).
+Installers for Windows, and for macOS on both Apple silicon and Intel. Linux gets a `.deb`
+and an `.AppImage`, x64 and arm64.
 
 **[Read the documentation](https://ploxc.com/modbux/docs/latest/getting-started)**
 
@@ -30,7 +31,9 @@ Installers for Windows and macOS. Linux is supported and [builds from source](#b
 - Bitmap detail panel: expandable 16-bit view with per-bit toggles, color coding, invert, and inline comments
 - Advanced mode: see all numeric data type interpretations simultaneously
 - `Read configuration` mode: efficiently read only configured registers with automatic grouping, group index column, and inline error rows
-- Scan Unit IDs and register ranges
+- Scan Unit IDs and register ranges, watching the grid fill as the scan walks
+- A unit that answers with an exception is told apart from one that says nothing: the first
+  is a device that is there and refusing, the second is nothing on the bus at all
 - Big-endian / Little-endian support (swap registers)
 - Scaling factors and linear interpolation
 - Modbus TCP (with hostname/IP) and RTU support with automatic COM port discovery
@@ -135,14 +138,33 @@ Download the `.exe` file from releases.
 
 ### macOS
 
-Download the `.dmg` file from releases.
+Download the `.dmg` file from releases. Pick `arm64` for Apple silicon and `x64` for Intel.
+
+**macOS 12 or newer.** Modbux 2.3 moved to Electron 43, which does not run on Catalina or
+Big Sur. Modbux 2.2.1 still does, and stays on the releases page.
 
 ⚠️ **First time opening**: Right-click the app and select "Open"
 (or go to System Preferences → Security & Privacy → "Open Anyway")
 
 ### Linux
 
-No prebuilt package yet, but Linux is supported: `yarn build:linux` produces a `.deb` and an `.AppImage`. See [Build It Yourself](#build-it-yourself) for the steps, and the Linux notes there for unprivileged ports and serial port access.
+Download the `.deb` or the `.AppImage` from releases, x64 or arm64. Building from source
+works too, see [Build It Yourself](#build-it-yourself).
+
+Two things on Linux need a permission the app cannot give itself, and Modbux asks about
+both rather than failing quietly:
+
+- **Port 502** is reserved for root, so the server would start somewhere else. Opening the
+  server view offers to lower the floor, until reboot or for good.
+- **Serial ports** belong to a group, usually `dialout`, and a user outside it cannot open
+  one. The port is still listed, so nothing looks wrong until the connection is refused.
+  Selecting RTU offers to add you, and offers to log you out afterwards, since a session
+  keeps the groups it was given at login.
+
+Both show the exact command before running it, and ask for your password through PolicyKit,
+so Modbux never sees it. Inside Flatpak or Snap it hands you the command instead. The
+commands are under [Build It Yourself](#build-it-yourself) if you would rather run them
+yourself.
 
 ## Build It Yourself
 
@@ -207,8 +229,8 @@ packed into `app.asar` while a normal run resolves everything from the repo's
 Packaged runs use a throwaway user-data directory, so they never touch the
 config of an installed Modbux.
 
-On macOS and Linux the two socat specs run as well; on Windows they are skipped
-because socat is unavailable, which is why a Windows run reports 36 skipped.
+On macOS and Linux the socat specs run as well; on Windows they are skipped,
+because socat is unavailable there.
 
 **Run the hardware E2E tests:**
 
@@ -253,13 +275,15 @@ yarn build:linux
 > sudo sysctl --system
 > ```
 >
-> For serial port access (RTU mode), add your user to the `dialout` group:
+> Serial ports belong to a group, usually `dialout`. Modbux offers this one too, when you
+> select RTU, and reads the group off the device rather than assuming the name. By hand:
 >
 > ```bash
 > sudo usermod -aG dialout $USER
 > ```
 >
-> Log out and back in for it to take effect.
+> Log out and back in for it to take effect: a session keeps the groups it was given at
+> login, so the file changes immediately and the session does not.
 
 ## Contributing
 
