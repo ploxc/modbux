@@ -17,7 +17,7 @@ import Select from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
 import React, { useState } from 'react'
-import ServerRtuConfig from './ServerRtuConfig'
+import ServerRtuConfig from './ServerRtuConfig/ServerRtuConfig'
 
 const ModeToggle = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
