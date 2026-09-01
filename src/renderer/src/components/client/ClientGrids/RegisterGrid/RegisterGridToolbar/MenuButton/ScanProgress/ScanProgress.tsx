@@ -17,7 +17,7 @@ import { IMaskInput, IMask } from 'react-imask'
 // Scan progress
 export const ScanProgress = meme(() => {
   const scanning = useRootZustand(
-    (z) => z.clientState.scanningUniId || z.clientState.scanningRegisters
+    (z) => z.clientState.scanningUnitIds || z.clientState.scanningRegisters
   )
   const scanProgress = useRootZustand((z) => z.scanProgress)
 

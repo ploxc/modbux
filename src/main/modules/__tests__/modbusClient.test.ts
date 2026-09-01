@@ -114,7 +114,7 @@ describe('ModbusClient', () => {
     it('starts in disconnected state', () => {
       expect(client.state.connectState).toBe('disconnected')
       expect(client.state.polling).toBe(false)
-      expect(client.state.scanningUniId).toBe(false)
+      expect(client.state.scanningUnitIds).toBe(false)
       expect(client.state.scanningRegisters).toBe(false)
     })
   })
@@ -521,7 +521,7 @@ describe('ModbusClient', () => {
   describe('scanning', () => {
     it('stopScanningUnitIds sets flag to false', () => {
       client.stopScanningUnitIds()
-      expect(client.state.scanningUniId).toBe(false)
+      expect(client.state.scanningUnitIds).toBe(false)
     })
 
     it('stopScanningRegisters sets flag to false', () => {
@@ -1266,7 +1266,7 @@ describe('ModbusClient', () => {
       // Should have scanned far fewer than 100 units
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBeLessThan(100)
-      expect(client.state.scanningUniId).toBe(false)
+      expect(client.state.scanningUnitIds).toBe(false)
     })
 
     it('scans all four register types', async () => {

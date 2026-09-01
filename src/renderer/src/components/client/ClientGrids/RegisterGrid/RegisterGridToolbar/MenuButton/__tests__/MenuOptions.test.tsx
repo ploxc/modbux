@@ -34,7 +34,7 @@ beforeEach(() => {
     clientState: {
       connectState: 'disconnected',
       polling: false,
-      scanningUniId: false,
+      scanningUnitIds: false,
       scanningRegisters: false
     }
   } as never)
@@ -120,7 +120,7 @@ describe('MenuConnectionOptions', () => {
       clientState: {
         connectState: 'connected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       }
     } as never)

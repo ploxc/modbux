@@ -68,7 +68,7 @@ export class ModbusClient {
   private _clientState: ClientState = {
     connectState: 'disconnected',
     polling: false,
-    scanningUniId: false,
+    scanningUnitIds: false,
     scanningRegisters: false
   }
 
@@ -724,7 +724,7 @@ export class ModbusClient {
     }
 
     this._client.setTimeout(params.timeout)
-    this._clientState.scanningUniId = true
+    this._clientState.scanningUnitIds = true
     this._sendClientState()
 
     const { range } = params
@@ -734,14 +734,14 @@ export class ModbusClient {
 
     for (let id = range[0]; id <= range[1]; id++) await this._scanUnitIds({ id, ...params })
 
-    this._clientState.scanningUniId = false
+    this._clientState.scanningUnitIds = false
     this._sendClientState()
   }
 
   public stopScanningUnitIds = (): void => {
     // Set scanning unit id to false so the scanning is stopped
     // after the last asynchonous operation has completed.
-    this._clientState.scanningUniId = false
+    this._clientState.scanningUnitIds = false
   }
 
   private _scanUnitIds: ScanUnitIdFn = async ({ address, id, length, registerTypes }) => {
@@ -760,7 +760,7 @@ export class ModbusClient {
       }
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -777,7 +777,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -793,7 +793,7 @@ export class ModbusClient {
       }
       await this._sendScanProgress()
     }
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -810,7 +810,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -827,7 +827,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }

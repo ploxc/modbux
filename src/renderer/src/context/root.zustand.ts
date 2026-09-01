@@ -123,7 +123,7 @@ export const useRootZustand = create<
       clientState: {
         connectState: 'disconnected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       },
       setClientState: (clientState) =>
