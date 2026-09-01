@@ -33,7 +33,7 @@ export const defaultRegisterConfig: RegisterConfig = {
 export const defaultClientState: ClientState = {
   connectState: 'disconnected',
   polling: false,
-  scanningUniId: false,
+  scanningUnitIds: false,
   scanningRegisters: false
 }
 

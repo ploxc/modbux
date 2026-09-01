@@ -32,7 +32,7 @@ describe('Windows', () => {
       windows.send('client_state', {
         connectState: 'connected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       } as never)
 
@@ -51,7 +51,7 @@ describe('Windows', () => {
       windows.send('client_state', {
         connectState: 'disconnected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       } as never)
     })
@@ -66,7 +66,7 @@ describe('Windows', () => {
       windows.send('client_state', {
         connectState: 'disconnected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       } as never)
 
@@ -83,7 +83,7 @@ describe('Windows', () => {
       windows.send('client_state', {
         connectState: 'disconnected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       } as never)
 
@@ -103,7 +103,7 @@ describe('Windows', () => {
         windows.send('client_state', {
           connectState: 'disconnected',
           polling: false,
-          scanningUniId: false,
+          scanningUnitIds: false,
           scanningRegisters: false
         } as never)
       ).not.toThrow()
