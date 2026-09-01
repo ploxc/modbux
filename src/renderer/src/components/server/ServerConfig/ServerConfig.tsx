@@ -210,7 +210,7 @@ const Port = meme(() => {
 //
 //
 // Server Config
-const ServerConfig = (): JSX.Element => {
+const ServerConfig = meme((): JSX.Element => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
 
   return (
@@ -221,6 +221,6 @@ const ServerConfig = (): JSX.Element => {
       <UnitId />
     </Box>
   )
-}
+})
 
 export default ServerConfig

@@ -65,7 +65,7 @@ export const useScanRegistersZustand = create<ScanRegistersZustand, [['zustand/m
 //
 //
 // Unit ID field (syncs with main connection config)
-const UnitIdField = (): JSX.Element => {
+const UnitIdField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
   const setUnitId = useRootZustand((z) => z.setUnitId)
@@ -87,12 +87,12 @@ const UnitIdField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Address field with base toggle
-const AddressField = (): JSX.Element => {
+const AddressField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const address = useScanRegistersZustand((z) => z.address)
   const setAddress = useScanRegistersZustand((z) => z.setAddress)
@@ -106,12 +106,12 @@ const AddressField = (): JSX.Element => {
       baseTestId="scan-base"
     />
   )
-}
+})
 
 //
 //
 // Scan Length field
-const ScanLengthField = (): JSX.Element => {
+const ScanLengthField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const scanLength = useScanRegistersZustand((z) => String(z.scanLength))
   const setScanLength = useScanRegistersZustand((z) => z.setScanLength)
@@ -133,12 +133,12 @@ const ScanLengthField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Chunk Size field
-const ChunkSizeField = (): JSX.Element => {
+const ChunkSizeField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
   const setChunkSize = useScanRegistersZustand((z) => z.setChunkSize)
@@ -163,12 +163,12 @@ const ChunkSizeField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Timeout field
-const TimeoutField = (): JSX.Element => {
+const TimeoutField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => z.timeout)
   const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
@@ -181,7 +181,7 @@ const TimeoutField = (): JSX.Element => {
       testId="scan-timeout-input"
     />
   )
-}
+})
 
 //
 //
@@ -192,29 +192,29 @@ const TimeoutField = (): JSX.Element => {
 // zero. So the length of the grid data is the count of what the scan turned
 // up, and it means that while a scan is running, since the same list holds
 // polled data the rest of the time.
-const FoundCount = (): JSX.Element | null => {
+const FoundCount = meme((): JSX.Element | null => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
   const count = useDataZustand((z) => z.registerData.length)
 
   if (!scanning) return null
 
   return <ScanFoundCount count={count} testId="scan-found-count" />
-}
+})
 
 //
 //
 // Show the grid while scanning
-const GridToggle = (): JSX.Element => {
+const GridToggle = meme((): JSX.Element => {
   const shown = useLayoutZustand((z) => z.showGridWhileScanning)
   const toggle = useLayoutZustand((z) => z.toggleShowGridWhileScanning)
 
   return <ScanGridToggle shown={shown} toggle={toggle} />
-}
+})
 
 //
 //
 // Scan button
-const ScanButton = (): JSX.Element => {
+const ScanButton = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
 
   const scan = useCallback(async () => {
@@ -254,7 +254,7 @@ const ScanButton = (): JSX.Element => {
       {text}
     </Button>
   )
-}
+})
 
 //
 //
