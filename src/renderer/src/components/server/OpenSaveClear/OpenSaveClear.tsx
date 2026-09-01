@@ -1,6 +1,7 @@
 import { FileOpen, Save, Delete } from '@mui/icons-material'
 import { Box, IconButton } from '@mui/material'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useRootZustand } from '@renderer/context/root.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, migrateServerConfig } from '@shared'
 import { ServerConfig, ServerRegistersPerUnit, UnitIdStringSchema } from '@shared'
@@ -136,8 +137,8 @@ const useSave: UseSaveHook = () => {
       serverRegistersPerUnit[unitId] = registers
     })
 
-    // Get app version
-    const modbuxVersion = await window.api.getAppVersion()
+    // The store reads the version once at startup; it cannot change after that
+    const modbuxVersion = useRootZustand.getState().version
 
     const config: ServerConfig = {
       version: 2,

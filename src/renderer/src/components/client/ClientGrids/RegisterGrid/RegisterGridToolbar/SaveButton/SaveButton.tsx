@@ -21,8 +21,8 @@ const SaveButton = meme(() => {
       })
     })
 
-    // Get app version
-    const modbuxVersion = await window.api.getAppVersion()
+    // The store reads the version once at startup; it cannot change after that
+    const modbuxVersion = z.version
 
     const registerMapConfig: RegisterMapConfig = {
       version: 2,

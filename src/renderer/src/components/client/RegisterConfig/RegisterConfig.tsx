@@ -15,7 +15,7 @@ import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { flushRegisterMappingToMain, useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterType } from '@shared'
 import { showMapping } from '@renderer/context/data.zustand'
 import { ElementType, useCallback, useEffect } from 'react'
@@ -109,7 +109,7 @@ const ReadConfiguration = meme(() => {
     // When read configuration is enabled, send the configuration to the backend API
     // and immediately show the configured registers in the grid
     if (toggleState) {
-      window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+      flushRegisterMappingToMain()
       showMapping()
     }
     useRootZustand.getState().setReadConfiguration(toggleState)

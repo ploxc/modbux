@@ -22,6 +22,19 @@ function syncRegisterMappingToMain(): void {
   }, 150)
 }
 
+/**
+ * Sends the mapping now instead of in 150 ms.
+ *
+ * For a caller that needs the backend to hold the mapping before its next
+ * request. Turning on read configuration reads straight afterwards, and the
+ * debounce would let that read go out against the mapping from before.
+ */
+export const flushRegisterMappingToMain = (): void => {
+  if (_ipcTimer) clearTimeout(_ipcTimer)
+  _ipcTimer = null
+  window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+}
+
 export const useRootZustand = create<
   RootZusand,
   [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
