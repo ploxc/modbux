@@ -1,11 +1,9 @@
 import FormControl from '@mui/material/FormControl'
-import {
-  TextField,
-  Box,
-  InputBaseComponentProps,
-  ToggleButtonGroup,
-  ToggleButton
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'

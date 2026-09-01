@@ -1,5 +1,6 @@
-import { Edit } from '@mui/icons-material'
-import { GridActionsColDef, useGridApiContext } from '@mui/x-data-grid'
+import Edit from '@mui/icons-material/Edit'
+import { useGridApiContext } from '@mui/x-data-grid'
+import { GridActionsColDef } from '@mui/x-data-grid/models'
 import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
 import { meme } from '@renderer/components/shared/inputs/meme'

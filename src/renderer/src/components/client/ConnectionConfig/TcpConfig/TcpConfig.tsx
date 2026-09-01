@@ -1,4 +1,6 @@
-import { TextField, Box, InputBaseComponentProps } from '@mui/material'
+import Box from '@mui/material/Box'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
 import HostInput from '@renderer/components/shared/inputs/HostInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'

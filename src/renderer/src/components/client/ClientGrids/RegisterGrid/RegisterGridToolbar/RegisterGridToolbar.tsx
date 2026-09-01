@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import PollButton from './PollButton/PollButton'
 import ReadButton from './ReadButton/ReadButton'

@@ -1,4 +1,5 @@
-import { Add, Delete } from '@mui/icons-material'
+import Add from '@mui/icons-material/Add'
+import Delete from '@mui/icons-material/Delete'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { findAvailablePort, MAIN_SERVER_UUID } from '@shared'

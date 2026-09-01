@@ -1,4 +1,5 @@
-import { Paper, Typography } from '@mui/material'
+import Paper from '@mui/material/Paper'
+import Typography from '@mui/material/Typography'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -6,14 +7,10 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
-import {
-  DataGrid,
-  GridFilterModel,
-  GridFooterContainer,
-  GridLogicOperator,
-  GridPagination,
-  useGridApiRef
-} from '@mui/x-data-grid'
+import { useGridApiRef } from '@mui/x-data-grid'
+import { DataGrid } from '@mui/x-data-grid/DataGrid'
+import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
+import { GridFilterModel, GridLogicOperator } from '@mui/x-data-grid/models'
 import { DataType, RegisterData } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'

@@ -1,4 +1,4 @@
-import { FileOpen } from '@mui/icons-material'
+import FileOpen from '@mui/icons-material/FileOpen'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { useRootZustand } from '@renderer/context/root.zustand'

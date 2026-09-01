@@ -1,11 +1,9 @@
-import { Box, Button, Paper } from '@mui/material'
-import {
-  DataGrid,
-  GridFooterContainer,
-  GridPagination,
-  useGridApiContext,
-  useGridApiRef
-} from '@mui/x-data-grid'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Paper from '@mui/material/Paper'
+import { useGridApiContext, useGridApiRef } from '@mui/x-data-grid'
+import { DataGrid } from '@mui/x-data-grid/DataGrid'
+import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import useTransactionGridColumns from './_columns'
 import { DateTime } from 'luxon'

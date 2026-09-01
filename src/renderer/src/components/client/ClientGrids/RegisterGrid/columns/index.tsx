@@ -1,4 +1,4 @@
-import { GridColDef } from '@mui/x-data-grid'
+import { GridColDef } from '@mui/x-data-grid/models'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterData } from '@shared'
 import { useMemo } from 'react'

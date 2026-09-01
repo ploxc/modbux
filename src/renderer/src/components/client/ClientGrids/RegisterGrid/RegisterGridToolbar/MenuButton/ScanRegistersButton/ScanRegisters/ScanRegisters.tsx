@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import Modal from '@mui/material/Modal'
+import Paper from '@mui/material/Paper'
+import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'

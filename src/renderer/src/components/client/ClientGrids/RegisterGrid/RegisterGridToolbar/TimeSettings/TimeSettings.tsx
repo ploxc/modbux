@@ -1,4 +1,4 @@
-import { Timer } from '@mui/icons-material'
+import Timer from '@mui/icons-material/Timer'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'

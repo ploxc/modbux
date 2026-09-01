@@ -1,4 +1,4 @@
-import { Save } from '@mui/icons-material'
+import Save from '@mui/icons-material/Save'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'

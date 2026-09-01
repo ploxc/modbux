@@ -1,12 +1,12 @@
-import {
-  alpha,
-  Autocomplete,
-  Box,
-  CircularProgress,
-  ToggleButton,
-  ToggleButtonGroup
-} from '@mui/material'
-import { Refresh, Usb, UsbOff } from '@mui/icons-material'
+import Autocomplete from '@mui/material/Autocomplete'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import { alpha } from '@mui/material/styles'
+import Refresh from '@mui/icons-material/Refresh'
+import Usb from '@mui/icons-material/Usb'
+import UsbOff from '@mui/icons-material/UsbOff'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import {
   BaudRateSelect,

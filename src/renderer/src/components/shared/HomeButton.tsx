@@ -1,5 +1,5 @@
 import Button from '@mui/material/Button'
-import { Home } from '@mui/icons-material'
+import Home from '@mui/icons-material/Home'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 

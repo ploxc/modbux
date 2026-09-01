@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'

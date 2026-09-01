@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { RegisterData } from '@shared'
 

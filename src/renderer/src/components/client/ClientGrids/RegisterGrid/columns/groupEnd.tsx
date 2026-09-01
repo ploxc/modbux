@@ -1,4 +1,5 @@
-import { CheckCircle, CircleOutlined } from '@mui/icons-material'
+import CheckCircle from '@mui/icons-material/CheckCircle'
+import CircleOutlined from '@mui/icons-material/CircleOutlined'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { RegisterData, RegisterMapObject } from '@shared'
 

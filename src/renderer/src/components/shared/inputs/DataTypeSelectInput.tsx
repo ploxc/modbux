@@ -1,4 +1,7 @@
-import { FormControl, InputLabel, Select, MenuItem } from '@mui/material'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
 import { BaseDataType } from '@shared'
 import { meme } from './meme'
 
