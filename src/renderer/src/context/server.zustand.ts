@@ -113,11 +113,12 @@ export const useServerZustand = create<
         })
       },
       createServer: async (params) => {
-        // Only update port from backend response, never from input
+        // Only update port from backend response, never from input. A refused
+        // payload answers undefined, and writing that would put the string
+        // "undefined" in the port field.
         const actualPort = await window.api.createServer(params)
-        const { uuid, port } = params
-
-        console.log({ port, uuid, actualPort })
+        if (actualPort === undefined) return
+        const { uuid } = params
 
         set((state) => {
           state.port[uuid] = String(actualPort)
@@ -213,6 +214,7 @@ export const useServerZustand = create<
           for (const syncUuid of uuidsToSync) {
             const port = Number(state.port[syncUuid])
             const actualPort = await window.api.createServer({ uuid: syncUuid, port })
+            if (actualPort === undefined) continue
 
             set((state) => {
               state.port[syncUuid] = String(actualPort)
@@ -457,6 +459,8 @@ export const useServerZustand = create<
 
         // Only update port from backend response
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
+        if (actualPort === undefined) return
+
         set((state) => {
           state.port[uuid] = String(actualPort)
         })

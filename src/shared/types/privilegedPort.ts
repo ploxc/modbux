@@ -1,3 +1,4 @@
+import { z } from 'zod'
 /**
  * Linux privileged port types
  *
@@ -23,7 +24,8 @@ export const UNPRIVILEGED_PORT_CONF_PATH = '/etc/sysctl.d/50-unprivileged-ports.
 /**
  * `session` lasts until reboot, `persist` also writes a sysctl.d drop-in.
  */
-export type PrivilegedPortFixMode = 'session' | 'persist'
+export const PrivilegedPortFixModeSchema = z.enum(['session', 'persist'])
+export type PrivilegedPortFixMode = z.infer<typeof PrivilegedPortFixModeSchema>
 
 /** Sandboxes that cut pkexec off from the host system. */
 export type PrivilegedPortSandbox = 'flatpak' | 'snap'

@@ -1,23 +1,26 @@
-import { RegisterType, RegisterTypeSchema } from './client'
+import { RegisterTypeSchema } from './client'
+import { RegisterAddressSchema, UnitIdSchema } from './ranges'
 import { z } from 'zod'
 
 // Scan Registers
-export interface ScanRegistersParameters {
-  addressRange: [number, number]
-  length: number
-  timeout: number
-}
+export const ScanRegistersParametersSchema = z.object({
+  addressRange: z.tuple([RegisterAddressSchema, RegisterAddressSchema]),
+  length: z.number().int().positive(),
+  timeout: z.number().int().positive()
+})
+export type ScanRegistersParameters = z.infer<typeof ScanRegistersParametersSchema>
 
 //
 //
 // Scan Unit ID parameters
-export interface ScanUnitIDParameters {
-  range: [number, number]
-  address: number
-  length: number
-  registerTypes: RegisterType[]
-  timeout: number
-}
+export const ScanUnitIDParametersSchema = z.object({
+  range: z.tuple([UnitIdSchema, UnitIdSchema]),
+  address: RegisterAddressSchema,
+  length: z.number().int().positive(),
+  registerTypes: z.array(RegisterTypeSchema).min(1),
+  timeout: z.number().int().positive()
+})
+export type ScanUnitIDParameters = z.infer<typeof ScanUnitIDParametersSchema>
 
 const ScanUnitIdErrorMessageSchema = z.object({
   coils: z.string(),

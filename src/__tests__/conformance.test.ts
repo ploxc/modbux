@@ -433,3 +433,50 @@ describe('every configured path alias is used', () => {
     expect(unused).toEqual([])
   })
 })
+
+//
+// ─── Every channel carrying an object declares a schema ──────────────────────
+//
+// TypeScript covers the shape of a bare primitive, and sixteen channels take no
+// argument at all. What is left is an object or a union, and that is where a
+// hand-edited config file or anything reaching the boundary from outside the UI
+// arrives. A channel added without a schema is the one that gets missed.
+
+describe('every channel carrying an object declares a schema', () => {
+  const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
+
+  /** Channel to the argument it takes, for the ones taking more than a primitive. */
+  const carriers = new Map<string, string>()
+  eachNode(spec, (node) => {
+    if (!ts.isInterfaceDeclaration(node) || node.name.text !== 'IpcHandlerSpec') return
+    for (const member of node.members) {
+      if (!ts.isPropertySignature(member) || !member.type || !ts.isTypeLiteralNode(member.type))
+        continue
+      const args = member.type.members.find((m) => m.name?.getText(spec) === 'args')
+      const argument = (args?.type?.getText(spec) ?? '[]').slice(1, -1).trim()
+      if (argument === '' || ['string', 'number', 'boolean'].includes(argument)) continue
+      carriers.set(member.name.getText(spec).replace(/[[\]']/g, ''), argument)
+    }
+  })
+
+  /** Channel to whether its ipcHandle call was given a third argument. */
+  const guarded = new Set<string>()
+  eachNode(parse(join(repoRoot, 'src/main/ipc.ts')), (node) => {
+    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return
+    if (node.expression.text !== 'ipcHandle') return
+    const channel = node.arguments[0]
+    if (channel && ts.isStringLiteral(channel) && node.arguments.length >= 3)
+      guarded.add(channel.text)
+  })
+
+  it('finds channels to check', () => {
+    expect(carriers.size).toBeGreaterThan(10)
+  })
+
+  it('leaves none of them unguarded', () => {
+    const unguarded = [...carriers]
+      .filter(([channel]) => !guarded.has(channel))
+      .map(([channel, argument]) => `${channel}\t${argument}`)
+    expect(unguarded).toEqual([])
+  })
+})
