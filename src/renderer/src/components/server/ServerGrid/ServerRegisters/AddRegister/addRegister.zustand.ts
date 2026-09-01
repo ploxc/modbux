@@ -11,7 +11,7 @@ import {
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { getRegisterSize, isAddressInUse } from './addRegister.zustand.helpers'
+import { getRegisterSize, isAddressInUse, toRegisterParams } from './addRegister.zustand.helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -144,6 +144,12 @@ interface AddRegisterZustand {
   setShowDatePickerUtc: (utc: boolean) => void
   initNextUnusedAddress: (startFrom?: number) => void
   resetToDefaults: () => void
+  /**
+   * Writes what the dialog holds to the server, and answers where it landed.
+   *
+   * Undefined when there is no register type, which means nothing was written.
+   */
+  submit: (isEdit: boolean) => { address: number; dataType: BaseDataType } | undefined
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -303,6 +309,58 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         }
       }),
 
+    /**
+     * The store owns this rather than the buttons, because it is a state
+     * mutation: it reads the whole form and writes through the server store.
+     * The translation itself is pure and lives in the helpers, where its unit
+     * conversions are tested.
+     */
+    submit: (isEdit) => {
+      const form = getState()
+      const { registerType, serverRegisterEdit } = form
+      if (!registerType) return undefined
+
+      const server = useServerZustand.getState()
+      const uuid = server.selectedUuid
+      const unitId = server.getUnitId(uuid)
+
+      const params = toRegisterParams({
+        fixed: form.fixed,
+        address: form.address,
+        value: form.value,
+        dataType: form.dataType,
+        registerType,
+        min: form.min,
+        max: form.max,
+        interval: form.interval,
+        comment: form.comment,
+        stringValue: form.stringValue,
+        registerLength: form.registerLength
+      })
+
+      // Moving an existing register means the old address has to go first
+      if (isEdit && serverRegisterEdit) {
+        const oldAddress = serverRegisterEdit.params.address
+        if (oldAddress !== params.address) {
+          server.removeRegister({
+            uuid,
+            unitId,
+            address: oldAddress,
+            registerType,
+            dataType: serverRegisterEdit.params.dataType
+          })
+        }
+      }
+
+      server.addRegister({
+        uuid,
+        unitId,
+        littleEndian: server.littleEndian[uuid] ?? false,
+        params
+      })
+
+      return { address: params.address, dataType: form.dataType }
+    },
     resetToDefaults: () =>
       set((state) => {
         state.address = '0'

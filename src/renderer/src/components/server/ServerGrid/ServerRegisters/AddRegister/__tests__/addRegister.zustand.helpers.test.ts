@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getRegisterSize, isAddressInUse } from '../addRegister.zustand.helpers'
+import {
+  getRegisterSize,
+  isAddressInUse,
+  toRegisterParams,
+  type RegisterFormValues
+} from '../addRegister.zustand.helpers'
 
 // ─── getRegisterSize ────────────────────────────────────────────────
 
@@ -125,5 +130,76 @@ describe('isAddressInUse', () => {
     const edit = { dataType: 'int16' as const, address: 10 }
     // Changing to INT32 at address 10 needs 10+11, but 11 belongs to another register
     expect(isAddressInUse(used, 'int32', 10, undefined, edit)).toBe(true)
+  })
+})
+
+describe('toRegisterParams', () => {
+  const form: RegisterFormValues = {
+    fixed: true,
+    address: '40',
+    value: '1234',
+    dataType: 'uint16',
+    registerType: 'holding_registers',
+    min: '0',
+    max: '100',
+    interval: '5',
+    comment: 'flow rate',
+    stringValue: '',
+    registerLength: ''
+  }
+
+  it('carries the address, type and comment through unchanged', () => {
+    expect(toRegisterParams(form)).toMatchObject({
+      address: 40,
+      dataType: 'uint16',
+      registerType: 'holding_registers',
+      comment: 'flow rate'
+    })
+  })
+
+  it('a fixed register keeps its value and gets no generator fields', () => {
+    const params = toRegisterParams(form)
+    expect(params).toMatchObject({ value: 1234 })
+    expect(params).not.toHaveProperty('min')
+    expect(params).not.toHaveProperty('interval')
+  })
+
+  it('a generator turns the interval from seconds into milliseconds', () => {
+    expect(toRegisterParams({ ...form, fixed: false })).toMatchObject({
+      min: 0,
+      max: 100,
+      interval: 5000
+    })
+  })
+
+  it('a fixed unix timestamp is stored in seconds', () => {
+    // The picker hands back milliseconds
+    expect(toRegisterParams({ ...form, dataType: 'unix', value: '1756742400000' })).toMatchObject({
+      value: 1756742400
+    })
+  })
+
+  it('a fixed datetime keeps the milliseconds the picker gave it', () => {
+    expect(
+      toRegisterParams({ ...form, dataType: 'datetime', value: '1756742400000' })
+    ).toMatchObject({ value: 1756742400000 })
+  })
+
+  it('a generated timestamp reads the clock, so min and max are pinned to zero', () => {
+    expect(
+      toRegisterParams({ ...form, dataType: 'unix', fixed: false, min: '7', max: '9' })
+    ).toMatchObject({ min: 0, max: 0, interval: 5000 })
+  })
+
+  it('utf8 is always fixed and carries its string', () => {
+    expect(
+      toRegisterParams({ ...form, dataType: 'utf8', stringValue: 'PUMP-01', registerLength: '4' })
+    ).toMatchObject({ value: 0, stringValue: 'PUMP-01', length: 4 })
+  })
+
+  it('utf8 falls back to ten registers when no length was given', () => {
+    expect(toRegisterParams({ ...form, dataType: 'utf8', registerLength: '' })).toMatchObject({
+      length: 10
+    })
   })
 })

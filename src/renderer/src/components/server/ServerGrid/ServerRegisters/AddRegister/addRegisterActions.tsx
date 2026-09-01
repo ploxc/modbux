@@ -3,101 +3,11 @@
  */
 import { Button } from '@mui/material'
 import { useAddRegisterZustand } from './addRegister.zustand'
+import { getRegisterSize } from './addRegister.zustand.helpers'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
-import { AddRegisterParams, BaseDataType, RegisterParamsBasePart } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { Delete } from '@mui/icons-material'
-
-function submitRegister(isEdit: boolean): { address: number; dataType: BaseDataType } | undefined {
-  const {
-    fixed,
-    address,
-    value,
-    dataType,
-    registerType,
-    min,
-    max,
-    interval,
-    comment,
-    stringValue,
-    registerLength,
-    serverRegisterEdit
-  } = useAddRegisterZustand.getState()
-  if (!registerType) return undefined
-
-  const z = useServerZustand.getState()
-  const uuid = z.selectedUuid
-  const unitId = z.getUnitId(uuid)
-
-  const littleEndian = z.littleEndian[uuid] ?? false
-  const commonParams: Omit<AddRegisterParams, 'params'> = { uuid, unitId, littleEndian }
-  const baseRegisterParams: RegisterParamsBasePart = {
-    address: Number(address),
-    dataType,
-    comment,
-    registerType
-  }
-
-  if (isEdit && serverRegisterEdit) {
-    const oldAddress = serverRegisterEdit.params.address
-    if (oldAddress !== Number(address)) {
-      z.removeRegister({
-        uuid,
-        unitId,
-        address: oldAddress,
-        registerType,
-        dataType: serverRegisterEdit.params.dataType
-      })
-    }
-  }
-
-  if (dataType === 'utf8') {
-    // UTF-8: always fixed, pass stringValue and length
-    z.addRegister({
-      ...commonParams,
-      params: {
-        ...baseRegisterParams,
-        value: 0,
-        stringValue,
-        length: Number(registerLength) || 10
-      }
-    })
-  } else if (['unix', 'datetime'].includes(dataType)) {
-    if (fixed) {
-      // Fixed timestamp from date picker (value stored as ms)
-      const timestamp = dataType === 'unix' ? Math.floor(Number(value) / 1000) : Number(value)
-      z.addRegister({ ...commonParams, params: { ...baseRegisterParams, value: timestamp } })
-    } else {
-      // Generator: system time, only interval matters
-      z.addRegister({
-        ...commonParams,
-        params: {
-          ...baseRegisterParams,
-          min: 0,
-          max: 0,
-          interval: Number(interval) * 1000
-        }
-      })
-    }
-  } else if (fixed) {
-    z.addRegister({ ...commonParams, params: { ...baseRegisterParams, value: Number(value) } })
-  } else {
-    z.addRegister({
-      ...commonParams,
-      params: {
-        ...baseRegisterParams,
-        min: Number(min),
-        max: Number(max),
-        interval: Number(interval) * 1000
-      }
-    })
-  }
-
-  return { address: Number(address), dataType }
-}
-
-// Add buttons
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -113,7 +23,7 @@ export const AddButtons = meme(() => {
   })
 
   const handleAddAndClose = useCallback(() => {
-    const result = submitRegister(edit)
+    const result = useAddRegisterZustand.getState().submit(edit)
     if (!result) return
     const state = useAddRegisterZustand.getState()
     state.resetToDefaults()
@@ -121,17 +31,11 @@ export const AddButtons = meme(() => {
   }, [edit])
 
   const handleAddAndNext = useCallback(() => {
-    const result = submitRegister(false)
+    const result = useAddRegisterZustand.getState().submit(false)
     if (!result) return
     const { address, dataType } = result
     const state = useAddRegisterZustand.getState()
-    const size = ['double', 'uint64', 'int64', 'datetime'].includes(dataType)
-      ? 4
-      : ['uint32', 'int32', 'float', 'unix'].includes(dataType)
-        ? 2
-        : dataType === 'utf8'
-          ? Number(state.registerLength) || 10
-          : 1
+    const size = getRegisterSize(dataType, Number(state.registerLength) || 10)
     // Reset value and comment, keep dataType/LE/fixed/min/max/interval
     state.setValue('0', true)
     state.setComment('')
@@ -140,7 +44,7 @@ export const AddButtons = meme(() => {
   }, [])
 
   const handleEditSubmit = useCallback(() => {
-    const result = submitRegister(true)
+    const result = useAddRegisterZustand.getState().submit(true)
     if (!result) return
     const state = useAddRegisterZustand.getState()
     state.setRegisterType(undefined)
