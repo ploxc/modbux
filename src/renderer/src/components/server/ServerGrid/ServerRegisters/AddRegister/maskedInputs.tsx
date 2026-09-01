@@ -131,7 +131,7 @@ export const MaxInput = meme(MaxInputForward)
 
 //
 //
-// Min Max components
+// Interval
 
 const IntervalInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props

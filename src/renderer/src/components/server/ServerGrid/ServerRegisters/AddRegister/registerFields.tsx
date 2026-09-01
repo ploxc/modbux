@@ -58,7 +58,7 @@ export const DataTypeSelect = meme(() => {
 //
 //
 //
-// Fixed Or Generator
+// Comment
 
 export const CommentField = meme(() => {
   const comment = useAddRegisterZustand((z) => z.comment)
@@ -75,15 +75,3 @@ export const CommentField = meme(() => {
     />
   )
 })
-
-//
-//
-//
-//
-// Toggle endianness button removed - now global per server
-
-//
-//
-//
-//
-// Shared submit logic — adds or edits the register, returns the address and dataType used

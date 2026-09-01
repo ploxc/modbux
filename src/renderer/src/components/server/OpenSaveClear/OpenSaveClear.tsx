@@ -122,7 +122,7 @@ type UseSaveHook = () => {
 }
 
 const useSave: UseSaveHook = () => {
-  const save = useCallback(async () => {
+  const save = useCallback(() => {
     const z = useServerZustand.getState()
     const { serverRegisters, selectedUuid, littleEndian } = z
     const name = z.name[selectedUuid] ?? ''
