@@ -1,6 +1,6 @@
 import ServerBooleans from './ServerBooleans/ServerBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
-import AddRegister from './ServerRegisters/AddRegister'
+import AddRegister from './ServerRegisters/AddRegister/AddRegister'
 import Box from '@mui/material/Box'
 
 const ServerGrid = (): JSX.Element => {

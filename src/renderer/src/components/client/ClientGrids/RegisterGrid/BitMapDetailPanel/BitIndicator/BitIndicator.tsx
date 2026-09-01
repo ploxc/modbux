@@ -4,7 +4,7 @@ import { alpha } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useEffect, useState } from 'react'
 import { BitColor } from '@shared'
-import BitSettingsPopover from './BitSettingsPopover'
+import BitSettingsPopover from '../BitSettingsPopover/BitSettingsPopover'
 
 interface BitIndicatorProps {
   bitIndex: number

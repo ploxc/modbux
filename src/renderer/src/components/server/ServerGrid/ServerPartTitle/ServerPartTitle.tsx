@@ -4,7 +4,7 @@ import { RegisterType } from '@shared'
 import { useCallback } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
+import { useAddRegisterZustand } from '../ServerRegisters/AddRegister/addRegister.zustand'
 import useServerGridZustand from '../serverGrid.zustand'
 
 const AddButton = meme(({ type }: { type: RegisterType }) => {

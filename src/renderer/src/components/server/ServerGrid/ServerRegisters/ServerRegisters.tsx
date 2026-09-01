@@ -4,10 +4,10 @@ import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAddRegisterZustand } from './addRegister.zustand'
+import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
-import ServerBitMapDetail from './ServerBitMapDetail'
+import ServerBitMapDetail from './ServerBitMapDetail/ServerBitMapDetail'
 import { DateTime } from 'luxon'
 
 interface RowProps {

@@ -3,7 +3,7 @@ import { ServerRegisterEntry, BitMapConfig, getBit } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
-import ServerBit from '../shared/ServerBit'
+import ServerBit from '../../shared/ServerBit'
 
 interface ServerBitMapDetailProps {
   register: ServerRegisterEntry
