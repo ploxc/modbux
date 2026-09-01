@@ -13,7 +13,7 @@
  * line moves on the next edit above it and the symbol does not.
  */
 import { describe, expect, it } from 'vitest'
-import { readdirSync, readFileSync } from 'fs'
+import { globSync, readdirSync, readFileSync } from 'fs'
 import { join, relative } from 'path'
 import ts from 'typescript'
 
@@ -107,9 +107,16 @@ describe('every component is wrapped in meme', () => {
           : ts.isIdentifier(callee)
             ? callee.text
             : null
-        if (calleeName === 'meme' || calleeName === 'memo') {
+        // Only meme, not React's memo. meme is memo with deepEqual, and a bare
+        // memo gets the shallow comparator that a mutated row defeats.
+        if (calleeName === 'meme') {
           wrapped = true
           if (!node.arguments[0]) return { isComponent: true, wrapped }
+          node = node.arguments[0]
+          continue
+        }
+        if (calleeName === 'memo') {
+          if (!node.arguments[0]) return { isComponent: true, wrapped: false }
           node = node.arguments[0]
           continue
         }
@@ -206,6 +213,7 @@ describe('one store selector per field', () => {
   const selectorCalls: { file: string; text: string }[] = []
   const objectSelectors: string[] = []
   const shallowUses: string[] = []
+  const wholeStore: string[] = []
 
   for (const file of files) {
     const source = parse(file)
@@ -215,7 +223,22 @@ describe('one store selector per field', () => {
       const callee = node.expression
       if (!ts.isIdentifier(callee) || !/^use[A-Z].*Zustand$/.test(callee.text)) return
       const argument = node.arguments[0]
-      if (!argument || !ts.isArrowFunction(argument)) return
+      // No selector at all subscribes to the whole store, and so does one that
+      // hands the state straight back. Neither is an object literal, so the
+      // check below would let both through.
+      if (!argument) {
+        if (!/\.(getState|setState|persist|subscribe)\b/.test(node.parent?.getText(source) ?? '')) {
+          wholeStore.push(`${at(file)}\t${callee.text}()`)
+        }
+        return
+      }
+      if (!ts.isArrowFunction(argument)) return
+      if (ts.isIdentifier(argument.body) && argument.parameters.length === 1) {
+        const parameter = argument.parameters[0].name
+        if (ts.isIdentifier(parameter) && parameter.text === argument.body.text) {
+          wholeStore.push(`${at(file)}\t${callee.text}((z) => z)`)
+        }
+      }
       selectorCalls.push({ file: at(file), text: callee.text })
       const body = argument.body
       // ({ a, b }) is a parenthesized object literal; { return { a, b } } is a
@@ -244,6 +267,10 @@ describe('one store selector per field', () => {
 
   it('has no useShallow anywhere', () => {
     expect(shallowUses).toEqual([])
+  })
+
+  it('has nothing subscribing to a whole store', () => {
+    expect(wholeStore).toEqual([])
   })
 })
 
@@ -478,5 +505,40 @@ describe('every channel carrying an object declares a schema', () => {
       .filter(([channel]) => !guarded.has(channel))
       .map(([channel, argument]) => `${channel}\t${argument}`)
     expect(unguarded).toEqual([])
+  })
+})
+
+//
+// ─── Every configured path is somewhere ──────────────────────────────────────
+//
+// @backend pointed at a directory that had been deleted, and the alias outlived
+// it in three configs. A tsconfig include does the same thing more quietly: it
+// names a glob, finds nothing, and says nothing.
+
+describe('every configured include points at something', () => {
+  const configs = ['tsconfig.node.json', 'tsconfig.web.json', 'tsconfig.e2e.json']
+  const globs: { config: string; glob: string }[] = []
+
+  for (const config of configs) {
+    // A tsconfig is jsonc: comments and trailing commas, which JSON.parse
+    // refuses and the compiler's own reader does not.
+    const { config: parsed } = ts.parseConfigFileTextToJson(
+      config,
+      readFileSync(join(repoRoot, config), 'utf8')
+    )
+    for (const glob of (parsed as { include?: string[] })?.include ?? [])
+      globs.push({ config, glob })
+  }
+
+  it('finds includes to check', () => {
+    expect(globs.length).toBeGreaterThan(5)
+  })
+
+  it('has none of them pointing at nothing', () => {
+    // Expanded rather than approximated. Reading the directory part off the
+    // glob was tried first and got electron.vite.config.* wrong twice, once in
+    // each direction.
+    const empty = globs.filter(({ glob }) => globSync(glob, { cwd: repoRoot }).length === 0)
+    expect(empty.map(({ config, glob }) => `${config}\t${glob}`)).toEqual([])
   })
 })
