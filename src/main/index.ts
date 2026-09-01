@@ -26,7 +26,7 @@ const client = new ModbusClient({ appState, windows })
 const server = new ModbusServer({ windows })
 
 // IPC
-initIpc(app, appState, client, server)
+initIpc(app, appState, client, server, windows)
 
 /**
  * Say which path took the app down.
