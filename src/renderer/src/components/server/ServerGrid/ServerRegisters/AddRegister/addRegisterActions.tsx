@@ -134,9 +134,3 @@ export const DeleteButton = meme(() => {
     </Button>
   )
 })
-
-//
-//
-//
-//
-// MAIN

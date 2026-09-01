@@ -7,7 +7,7 @@ import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
-  const saveRegisterConfig = useCallback(async () => {
+  const saveRegisterConfig = useCallback(() => {
     const z = useRootZustand.getState()
     const { name } = z
 
