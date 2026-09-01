@@ -233,13 +233,13 @@ export interface IpcHandlerSpec {
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
-    return: Promise<number>
+    return: Promise<number | undefined>
   }
 
   /** Create a new server */
   ['create_server']: {
     args: [CreateServerParams]
-    return: Promise<number>
+    return: Promise<number | undefined>
   }
 
   /** Delete an existing server (UUID) */
@@ -305,7 +305,7 @@ export interface IpcHandlerSpec {
   /** Lower the Linux unprivileged-port floor via pkexec */
   ['apply_privileged_port_fix']: {
     args: [PrivilegedPortFixMode]
-    return: PrivilegedPortFixResult
+    return: Promise<PrivilegedPortFixResult | undefined>
   }
 
   /** Report whether this user may open a serial port on Linux */

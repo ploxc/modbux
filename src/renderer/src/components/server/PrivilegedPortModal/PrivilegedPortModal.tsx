@@ -209,6 +209,10 @@ const RunCommandButton = meme((): JSX.Element | null => {
     setBusy(true)
     try {
       const result = await window.api.applyPrivilegedPortFix(mode)
+      // undefined means the payload was refused at the boundary, which already
+      // sent its own message. Saying so twice helps nobody.
+      if (!result) return
+
       enqueueSnackbar({ message: result.message, variant: result.ok ? 'success' : 'warning' })
 
       if (!result.ok) return
