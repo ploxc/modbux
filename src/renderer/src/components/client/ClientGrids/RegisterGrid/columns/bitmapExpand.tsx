@@ -1,5 +1,6 @@
-import { KeyboardArrowDown, KeyboardArrowRight } from '@mui/icons-material'
-import { Box } from '@mui/material'
+import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown'
+import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight'
+import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 

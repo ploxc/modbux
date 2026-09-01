@@ -1,4 +1,4 @@
-import { Delete } from '@mui/icons-material'
+import Delete from '@mui/icons-material/Delete'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 

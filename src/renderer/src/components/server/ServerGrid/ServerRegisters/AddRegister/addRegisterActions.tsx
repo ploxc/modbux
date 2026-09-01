@@ -1,13 +1,13 @@
 /**
  * The dialog's buttons, and the submit they share.
  */
-import { Button } from '@mui/material'
+import Button from '@mui/material/Button'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { getRegisterSize } from './addRegister.zustand.helpers'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { Delete } from '@mui/icons-material'
+import Delete from '@mui/icons-material/Delete'
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)

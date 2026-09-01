@@ -1,5 +1,7 @@
 import { DeleteFilled, PlusCircleFilled } from '@ant-design/icons'
-import { alpha, Box, IconButton } from '@mui/material'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import { alpha } from '@mui/material/styles'
 import { RegisterType } from '@shared'
 import { useCallback } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'

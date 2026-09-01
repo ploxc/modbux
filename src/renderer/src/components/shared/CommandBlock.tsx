@@ -1,5 +1,9 @@
-import { Box, IconButton, Tooltip, Typography } from '@mui/material'
-import { Check, ContentCopy } from '@mui/icons-material'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
+import Typography from '@mui/material/Typography'
+import Check from '@mui/icons-material/Check'
+import ContentCopy from '@mui/icons-material/ContentCopy'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 

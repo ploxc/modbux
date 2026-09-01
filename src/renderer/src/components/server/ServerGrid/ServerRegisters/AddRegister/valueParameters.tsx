@@ -3,12 +3,16 @@
  *
  * The fields swap with the data type, so the nine of them are one subject.
  */
-import { InputBaseComponentProps, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { ElementType, useEffect } from 'react'
-import { DateTimePicker, LocalizationProvider } from '@mui/x-date-pickers'
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon'
 import { DateTime } from 'luxon'
 import { ValueInput, MinInput, MaxInput, IntervalInput, RegisterLengthInput } from './maskedInputs'

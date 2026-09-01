@@ -1,7 +1,10 @@
 /**
  * What the register is: where it lives, how it is read, what it is called.
  */
-import { FormControl, FormHelperText, InputBaseComponentProps, TextField } from '@mui/material'
+import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'

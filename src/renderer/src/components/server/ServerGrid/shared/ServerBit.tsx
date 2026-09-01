@@ -1,4 +1,7 @@
-import { Box, TextField, Typography, alpha } from '@mui/material'
+import Box from '@mui/material/Box'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useEffect, useState } from 'react'
 

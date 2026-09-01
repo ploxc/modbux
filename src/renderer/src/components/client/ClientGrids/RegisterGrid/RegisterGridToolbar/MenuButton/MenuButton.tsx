@@ -8,7 +8,7 @@ import ScanRegistersButton, { SetAnchorProps } from './ScanRegistersButton/ScanR
 import { ScanUnitIdsButton } from './ScanUnitIds/ScanUnitIds'
 import FormGroup from '@mui/material/FormGroup'
 import Button from '@mui/material/Button'
-import { Settings } from '@mui/icons-material'
+import Settings from '@mui/icons-material/Settings'
 import Popover from '@mui/material/Popover'
 
 const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {

@@ -1,11 +1,11 @@
-import { FilterAltOff } from '@mui/icons-material'
+import FilterAltOff from '@mui/icons-material/FilterAltOff'
 import IconButton from '@mui/material/IconButton'
+import { useGridApiContext } from '@mui/x-data-grid'
 import {
   gridFilterActiveItemsSelector,
   gridFilterModelSelector,
-  useGridApiContext,
   useGridSelector
-} from '@mui/x-data-grid'
+} from '@mui/x-data-grid/hooks'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 

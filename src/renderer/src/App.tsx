@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from './context/layout.zustand'
 import Home from './containers/Home'

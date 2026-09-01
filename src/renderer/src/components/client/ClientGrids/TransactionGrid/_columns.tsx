@@ -1,5 +1,5 @@
-import { Box } from '@mui/material'
-import { GridColDef } from '@mui/x-data-grid'
+import Box from '@mui/material/Box'
+import { GridColDef } from '@mui/x-data-grid/models'
 import { Transaction } from '@shared'
 import { DateTime } from 'luxon'
 import { useMemo } from 'react'

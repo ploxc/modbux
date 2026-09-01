@@ -1,4 +1,4 @@
-import { GridRow, GridRowProps } from '@mui/x-data-grid'
+import { GridRow, GridRowProps } from '@mui/x-data-grid/components'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'

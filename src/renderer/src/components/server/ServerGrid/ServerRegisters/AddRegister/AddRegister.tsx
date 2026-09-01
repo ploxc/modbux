@@ -1,4 +1,7 @@
-import { Box, Modal, Paper, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
+import Modal from '@mui/material/Modal'
+import Paper from '@mui/material/Paper'
+import Typography from '@mui/material/Typography'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useEffect } from 'react'

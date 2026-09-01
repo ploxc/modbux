@@ -1,6 +1,6 @@
 // Brings the palette.DataGrid tokens into the type system.
 import '@mui/x-data-grid/themeAugmentation'
-import { createTheme } from '@mui/material'
+import { createTheme } from '@mui/material/styles'
 
 const base = createTheme({
   breakpoints: {

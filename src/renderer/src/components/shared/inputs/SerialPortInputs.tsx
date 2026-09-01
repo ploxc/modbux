@@ -1,13 +1,11 @@
-import {
-  AutocompleteRenderInputParams,
-  Box,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField
-} from '@mui/material'
+import { AutocompleteRenderInputParams } from '@mui/material/Autocomplete'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
+import TextField from '@mui/material/TextField'
 import { meme } from './meme'
 import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
 import React, { useMemo } from 'react'
