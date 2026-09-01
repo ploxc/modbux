@@ -1,6 +1,7 @@
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { StyledSvg, StyledSvgProps } from './util'
 
-const Client = ({ sx }: StyledSvgProps): JSX.Element => {
+const Client = meme(({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg
       sx={sx}
@@ -21,6 +22,6 @@ const Client = ({ sx }: StyledSvgProps): JSX.Element => {
       <path d="M 66.145832,68.984778 70.627665,73.466611 66.145828,97.121903 61.664,73.466609 Z" />
     </StyledSvg>
   )
-}
+})
 
 export default Client

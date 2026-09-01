@@ -1,5 +1,6 @@
 import { KeyboardArrowDown, KeyboardArrowRight } from '@mui/icons-material'
 import { Box } from '@mui/material'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 
 interface ExpandCellProps {
@@ -7,7 +8,7 @@ interface ExpandCellProps {
   isBitmap: boolean
 }
 
-export const ExpandCell = ({ address, isBitmap }: ExpandCellProps): JSX.Element => {
+export const ExpandCell = meme(({ address, isBitmap }: ExpandCellProps): JSX.Element => {
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const toggleExpanded = useBitMapZustand((z) => z.toggleExpanded)
   const isExpanded = expandedAddress === address
@@ -44,4 +45,4 @@ export const ExpandCell = ({ address, isBitmap }: ExpandCellProps): JSX.Element 
       </Box>
     </Box>
   )
-}
+})

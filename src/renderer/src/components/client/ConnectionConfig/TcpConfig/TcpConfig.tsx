@@ -59,7 +59,7 @@ const Port = meme(() => {
   )
 })
 
-const TcpConfig = (): JSX.Element => {
+const TcpConfig = meme((): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'no-wrap' }}>
       <Host />
@@ -67,5 +67,5 @@ const TcpConfig = (): JSX.Element => {
       <Port />
     </Box>
   )
-}
+})
 export default TcpConfig

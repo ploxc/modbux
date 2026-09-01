@@ -1,10 +1,11 @@
 import { Delete } from '@mui/icons-material'
 import IconButton from '@mui/material/IconButton'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { useCallback, useState } from 'react'
 
-const ClearConfigButton = (): JSX.Element => {
+const ClearConfigButton = meme((): JSX.Element => {
   const [warn, setWarn] = useState(false)
 
   const handleClick = useCallback(() => {
@@ -27,6 +28,6 @@ const ClearConfigButton = (): JSX.Element => {
       <Delete fontSize="small" />
     </IconButton>
   )
-}
+})
 
 export default ClearConfigButton

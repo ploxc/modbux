@@ -121,7 +121,7 @@ const bottomElementsCommonSx: SxProps = {
   '&:hover': { opacity: 1 }
 }
 
-const PloxcLogo = (): JSX.Element => {
+const PloxcLogo = meme((): JSX.Element => {
   return (
     <Box
       data-testid="home-ploxc-link"
@@ -136,9 +136,9 @@ const PloxcLogo = (): JSX.Element => {
       <Typography sx={{ fontWeight: 800, color: '#cccccc' }}>Ploxc</Typography>
     </Box>
   )
-}
+})
 
-const Version = (): JSX.Element => {
+const Version = meme((): JSX.Element => {
   const version = useRootZustand((z) => z.version)
 
   return (
@@ -156,7 +156,7 @@ const Version = (): JSX.Element => {
       <GithubCat sx={{ width: 16 }} />
     </Box>
   )
-}
+})
 
 //
 //

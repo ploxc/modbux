@@ -159,7 +159,7 @@ const ComActions = meme(() => {
 //
 //
 // COM Port (composite)
-const Com = (): JSX.Element => {
+const Com = meme((): JSX.Element => {
   useEffect(() => {
     useServerZustand.getState().refreshServerSerialPorts()
   }, [])
@@ -171,7 +171,7 @@ const Com = (): JSX.Element => {
       <RtuStatus />
     </Box>
   )
-}
+})
 
 //
 //
@@ -224,7 +224,7 @@ const ServerStopBitsSelect = meme(() => {
   )
 })
 
-const ServerRtuConfig = (): JSX.Element => {
+const ServerRtuConfig = meme((): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 2 }}>
@@ -238,6 +238,6 @@ const ServerRtuConfig = (): JSX.Element => {
       </Box>
     </Box>
   )
-}
+})
 
 export default ServerRtuConfig

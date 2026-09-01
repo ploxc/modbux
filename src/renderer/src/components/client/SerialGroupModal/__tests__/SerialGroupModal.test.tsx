@@ -1,21 +1,28 @@
 // @vitest-environment happy-dom
 /// <reference types="@testing-library/jest-dom/vitest" />
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { create } from 'zustand'
 import type { SerialGroupStatus, SerialGroupFixResult } from '@shared'
 
 // ─── Store stub ──────────────────────────────────────────────────────
 // The real root store registers ipcRenderer listeners on import, which is far
 // more machinery than this component needs. Only the port list matters here.
 
-const rootState = { serialPorts: [] as { path: string }[] }
+interface RootStub {
+  serialPorts: { path: string }[]
+}
+
+// A real store, not a plain object: a plugged-in adapter reaches the component
+// by the store notifying it, and a stub that is only read during a render can
+// only be driven by re-rendering the parent, which memo refuses.
+const useRootStub = create<RootStub>(() => ({ serialPorts: [] }))
 
 vi.mock('@renderer/context/root.zustand', () => ({
-  useRootZustand: Object.assign(
-    (selector: (state: typeof rootState) => unknown) => selector(rootState),
-    { getState: () => rootState }
-  )
+  useRootZustand: Object.assign((selector: (state: RootStub) => unknown) => useRootStub(selector), {
+    getState: (): RootStub => useRootStub.getState()
+  })
 }))
 
 const mockEnqueueSnackbar = vi.fn()
@@ -75,7 +82,7 @@ describe('SerialGroupModal', () => {
       done: false,
       declined: false
     })
-    rootState.serialPorts = []
+    useRootStub.setState({ serialPorts: [] })
     mockGetStatus.mockResolvedValue(needsMembership)
     mockApplyFix.mockResolvedValue(okResult)
     mockRequestLogout.mockResolvedValue(true)
@@ -206,14 +213,13 @@ describe('SerialGroupModal', () => {
   it('checks again when an adapter is plugged in while RTU is already selected', async () => {
     // Nothing plugged in: every port opens, so there is nothing to say.
     mockGetStatus.mockResolvedValue({ ...needsMembership, needsMembership: false })
-    const { rerender } = render(<SerialGroupModal active />)
+    render(<SerialGroupModal active />)
     await waitFor(() => expect(mockGetStatus).toHaveBeenCalledTimes(1))
     expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument()
 
     // Refreshing the list is how a newly plugged adapter shows up.
     mockGetStatus.mockResolvedValue(needsMembership)
-    rootState.serialPorts = [{ path: '/dev/ttyACM0' }]
-    rerender(<SerialGroupModal active />)
+    act(() => useRootStub.setState({ serialPorts: [{ path: '/dev/ttyACM0' }] }))
 
     expect(await screen.findByTestId('serial-group-modal')).toBeInTheDocument()
   })

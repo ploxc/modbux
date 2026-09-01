@@ -1,10 +1,11 @@
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { onEvent } from '@renderer/events'
 import { BackendMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
 
 // Receives message and shows them in a snackbar
-const MessageReceiver = (): null => {
+const MessageReceiver = meme((): null => {
   const { enqueueSnackbar } = useSnackbar()
 
   const handleMessage = useCallback(
@@ -23,5 +24,5 @@ const MessageReceiver = (): null => {
   }, [handleMessage])
 
   return null
-}
+})
 export default MessageReceiver

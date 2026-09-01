@@ -1,6 +1,7 @@
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { StyledSvg, StyledSvgProps } from './util'
 
-const GithubCat = ({ sx }: StyledSvgProps): JSX.Element => {
+const GithubCat = meme(({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg sx={sx} viewBox="0 0 98 98" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -11,5 +12,5 @@ const GithubCat = ({ sx }: StyledSvgProps): JSX.Element => {
       />
     </StyledSvg>
   )
-}
+})
 export default GithubCat

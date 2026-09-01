@@ -1,4 +1,5 @@
 import { GridRow, GridRowProps } from '@mui/x-data-grid'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { BITMAP_DATATYPE } from '@shared'
@@ -11,7 +12,7 @@ import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 // the virtual-scroller height slot when expanded.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BitMapRow = (props: GridRowProps): JSX.Element => {
+const BitMapRow = meme((props: GridRowProps): JSX.Element => {
   const address = props.rowId as number
 
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
@@ -50,6 +51,6 @@ const BitMapRow = (props: GridRowProps): JSX.Element => {
       )}
     </div>
   )
-}
+})
 
 export default BitMapRow

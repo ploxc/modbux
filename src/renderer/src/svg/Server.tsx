@@ -1,6 +1,7 @@
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { StyledSvg, StyledSvgProps } from './util'
 
-const Server = ({ sx }: StyledSvgProps): JSX.Element => {
+const Server = meme(({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg sx={sx} version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
       <path d="M 148.14423,64.521353 21.497603,191.168 l 38.56728,41.69434 -32.31312,35.9614 208.568837,192.31523 z" />
@@ -12,6 +13,6 @@ const Server = ({ sx }: StyledSvgProps): JSX.Element => {
       <circle cx="250.00003" cy="317.67639" r="13.679432" />
     </StyledSvg>
   )
-}
+})
 
 export default Server

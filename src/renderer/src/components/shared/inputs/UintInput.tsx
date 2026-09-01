@@ -1,8 +1,9 @@
 import { IMaskInput, IMask } from 'react-imask'
 import { forwardRef } from 'react'
+import { meme } from './meme'
 import { MaskInputProps } from './types'
 
-const UIntInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+const UIntInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, max = 65535, ...other } = props
   return (
     <IMaskInput
@@ -17,6 +18,8 @@ const UIntInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
-UIntInput.displayName = 'UIntInput'
+UIntInputForward.displayName = 'UIntInput'
+
+const UIntInput = meme(UIntInputForward)
 
 export default UIntInput

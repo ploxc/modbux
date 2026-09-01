@@ -24,7 +24,7 @@ import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 //
 //
 // Start Unit ID field
-const StartUnitIdField = (): JSX.Element => {
+const StartUnitIdField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
   const setStartUnitId = useScanUnitIdZustand((z) => z.setStartUnitId)
@@ -46,12 +46,12 @@ const StartUnitIdField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Count field
-const CountField = (): JSX.Element => {
+const CountField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const count = useScanUnitIdZustand((z) => String(z.count))
   const setCount = useScanUnitIdZustand((z) => z.setCount)
@@ -73,12 +73,12 @@ const CountField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Address field with base toggle
-const AddressField = (): JSX.Element => {
+const AddressField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const address = useScanUnitIdZustand((z) => z.address)
   const setAddress = useScanUnitIdZustand((z) => z.setAddress)
@@ -92,12 +92,12 @@ const AddressField = (): JSX.Element => {
       baseTestId="scan-unitid-base"
     />
   )
-}
+})
 
 //
 //
 // Length field
-const LengthField = (): JSX.Element => {
+const LengthField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const length = useScanUnitIdZustand((z) => String(z.length))
   const setLength = useScanUnitIdZustand((z) => z.setLength)
@@ -119,12 +119,12 @@ const LengthField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Timeout field
-const TimeoutField = (): JSX.Element => {
+const TimeoutField = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
   const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
@@ -137,12 +137,12 @@ const TimeoutField = (): JSX.Element => {
       testId="scan-unitid-timeout-input"
     />
   )
-}
+})
 
 //
 //
 // Select register types
-const SelectRegisterTypes = (): JSX.Element => {
+const SelectRegisterTypes = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
   const setRegisterTypes = useScanUnitIdZustand((z) => z.setRegisterTypes)
@@ -185,11 +185,11 @@ const SelectRegisterTypes = (): JSX.Element => {
       </ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
 //
 // Scan button
-const ScanButton = (): JSX.Element => {
+const ScanButton = meme((): JSX.Element => {
   const scanning = useRootZustand((z) => z.clientState.scanningUniId)
   const polling = useRootZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
@@ -232,7 +232,7 @@ const ScanButton = (): JSX.Element => {
       {text}
     </Button>
   )
-}
+})
 
 //
 //
@@ -292,7 +292,7 @@ const ScanResultGrid = meme(() => {
 //
 //
 // Scan unit ids button
-export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element => {
+export const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
 
   // Close the menu behind it, the way scanning registers does. Otherwise it is
@@ -314,7 +314,7 @@ export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element =>
       Scan Unit ID{`'`}s
     </Button>
   )
-}
+})
 
 //
 //

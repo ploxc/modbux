@@ -1,8 +1,9 @@
 import Button from '@mui/material/Button'
 import { Home } from '@mui/icons-material'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
-const HomeButton = (): JSX.Element | null => {
+const HomeButton = meme((): JSX.Element | null => {
   const setAppType = useLayoutZustand((z) => z.setAppType)
   const hideHomeButton = useLayoutZustand((z) => z.hideHomeButton)
 
@@ -19,6 +20,6 @@ const HomeButton = (): JSX.Element | null => {
       <Home fontSize="small" />
     </Button>
   )
-}
+})
 
 export default HomeButton

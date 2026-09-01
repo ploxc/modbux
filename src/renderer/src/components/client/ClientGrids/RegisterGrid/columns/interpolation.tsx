@@ -163,7 +163,7 @@ interface ActionProps {
   address: number
 }
 
-const Action = ({ type, address }: ActionProps): JSX.Element => {
+const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   const [open, setOpen] = useState(false)
 
   const actionCellRef = useRef<HTMLButtonElement>(null)
@@ -213,7 +213,7 @@ const Action = ({ type, address }: ActionProps): JSX.Element => {
       />
     </>
   )
-}
+})
 
 export const interpolationColumn = (type: RegisterType): GridColDef<RegisterData> => ({
   field: 'interpolation',

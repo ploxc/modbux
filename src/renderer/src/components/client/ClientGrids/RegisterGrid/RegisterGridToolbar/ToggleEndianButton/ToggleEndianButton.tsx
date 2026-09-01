@@ -2,9 +2,10 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Tooltip from '@mui/material/Tooltip'
 import EndianTable from '@renderer/components/shared/inputs/EndianTable'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
-const ToggleEndianButton = (): JSX.Element | null => {
+const ToggleEndianButton = meme((): JSX.Element | null => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const littleEndian = useRootZustand((z) => z.registerConfig.littleEndian)
   const setLittleEndian = useRootZustand((z) => z.setLittleEndian)
@@ -40,6 +41,6 @@ const ToggleEndianButton = (): JSX.Element | null => {
       </ToggleButtonGroup>
     </Tooltip>
   )
-}
+})
 
 export default ToggleEndianButton

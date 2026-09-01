@@ -1,7 +1,8 @@
 import Button, { ButtonProps } from '@mui/material/Button'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 
-const ShowLogButton = (): JSX.Element => {
+const ShowLogButton = meme((): JSX.Element => {
   const showLog = useLayoutZustand((z) => z.showLog)
   const toggleShowLog = useLayoutZustand((z) => z.toggleShowLog)
 
@@ -13,6 +14,6 @@ const ShowLogButton = (): JSX.Element => {
       {text}
     </Button>
   )
-}
+})
 
 export default ShowLogButton

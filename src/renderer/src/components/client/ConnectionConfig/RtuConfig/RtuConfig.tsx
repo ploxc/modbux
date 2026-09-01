@@ -116,7 +116,7 @@ const ComActions = meme(() => {
 //
 //
 // COM Port (composite)
-const Com = (): JSX.Element => {
+const Com = meme((): JSX.Element => {
   const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
 
   useEffect(() => {
@@ -129,7 +129,7 @@ const Com = (): JSX.Element => {
       <ComActions />
     </Box>
   )
-}
+})
 
 //
 //
@@ -172,7 +172,7 @@ const ClientStopBitsSelect = meme(() => {
   return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
 })
 
-const RtuConfig = (): JSX.Element => {
+const RtuConfig = meme((): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
       <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
@@ -186,5 +186,5 @@ const RtuConfig = (): JSX.Element => {
       </Box>
     </Box>
   )
-}
+})
 export default RtuConfig

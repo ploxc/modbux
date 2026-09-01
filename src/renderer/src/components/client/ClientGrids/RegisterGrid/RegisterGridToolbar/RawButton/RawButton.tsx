@@ -1,9 +1,10 @@
 import Button from '@mui/material/Button'
 import { ButtonProps } from '@mui/material/Button'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
-const RawButton = (): JSX.Element | null => {
+const RawButton = meme((): JSX.Element | null => {
   const type = useRootZustand((z) => z.registerConfig.type)
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
@@ -23,6 +24,6 @@ const RawButton = (): JSX.Element | null => {
       RAW
     </Button>
   )
-}
+})
 
 export default RawButton

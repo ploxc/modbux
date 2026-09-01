@@ -63,7 +63,7 @@ const getDisplayValue = (register: ServerRegister[number]): string | number => {
   return register.value
 }
 
-const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
+const ServerRegisterValue = meme(({ register }: RowProps): JSX.Element => {
   const [displayValue, setDisplayValue] = useState(() => getDisplayValue(register))
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
   }, [register.value, register.params.stringValue, register])
 
   return <Box sx={{ pr: 2 }}>{displayValue}</Box>
-}
+})
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {
   const isBitmap = register.params.dataType === 'bitmap'

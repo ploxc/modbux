@@ -43,7 +43,7 @@ const Footer = meme(() => {
 //
 //
 // DataGrid
-const RegisterGridContent = (): JSX.Element => {
+const RegisterGridContent = meme((): JSX.Element => {
   const registerData = useDataZustand((z) => z.registerData)
   const registerMapping = useRootZustand((z) => z.registerMapping[z.registerConfig.type])
   const columns = useRegisterGridColumns()
@@ -209,19 +209,19 @@ const RegisterGridContent = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 //
 //
 // DataGrid paper
-const RegisterGrid = (): JSX.Element => {
+const RegisterGrid = meme((): JSX.Element => {
   return (
     <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
       <RegisterGridContent />
     </Paper>
   )
-}
+})
 
 export default RegisterGrid

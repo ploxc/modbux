@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box'
 import Slider from '@mui/material/Slider'
 import Typography from '@mui/material/Typography'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
 interface Props {
   label: string
@@ -8,7 +9,7 @@ interface Props {
   setValue: (value: number) => void
 }
 
-const SliderComponent = ({ label, value, setValue }: Props): JSX.Element => {
+const SliderComponent = meme(({ label, value, setValue }: Props): JSX.Element => {
   const labelWidth = 70
   const valueWidth = 25
 
@@ -46,6 +47,6 @@ const SliderComponent = ({ label, value, setValue }: Props): JSX.Element => {
       </Typography>
     </Box>
   )
-}
+})
 
 export default SliderComponent

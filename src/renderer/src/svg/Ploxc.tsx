@@ -1,6 +1,7 @@
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { StyledSvg, StyledSvgProps } from './util'
 
-const Ploxc = ({ sx }: StyledSvgProps): JSX.Element => {
+const Ploxc = meme(({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg
       sx={{ '& #dot': { fill: '#cccccc' }, '& #logo': { fill: '#5b9279' }, ...sx }}
@@ -15,5 +16,5 @@ const Ploxc = ({ sx }: StyledSvgProps): JSX.Element => {
       />
     </StyledSvg>
   )
-}
+})
 export default Ploxc

@@ -9,20 +9,20 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { useCallback, useState } from 'react'
 
 // Polling interval slider
-const PollRate = (): JSX.Element => {
+const PollRate = meme((): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
   const setValue = useRootZustand((z) => z.setPollRate)
 
   return <SliderComponent label="Poll Rate" value={value} setValue={(v) => setValue(v * 1000)} />
-}
+})
 
 // Read Timeout slider
-const Timeout = (): JSX.Element => {
+const Timeout = meme((): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
   const setValue = useRootZustand((z) => z.setTimeout)
 
   return <SliderComponent label="Timeout" value={value} setValue={(v) => setValue(v * 1000)} />
-}
+})
 
 const TimeSettings = meme(() => {
   const polling = useRootZustand((z) => z.clientState.polling)

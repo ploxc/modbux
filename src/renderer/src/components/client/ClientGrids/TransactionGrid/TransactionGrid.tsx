@@ -16,7 +16,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 //
 //
 // Log export button exports the transaction log as a CSV file
-const ExportButton = (): JSX.Element => {
+const ExportButton = meme((): JSX.Element => {
   const api = useGridApiContext()
 
   return (
@@ -32,21 +32,21 @@ const ExportButton = (): JSX.Element => {
       Export
     </Button>
   )
-}
+})
 
 //
 //
 //
 //
 // Clears the transaction log
-const ClearButton = (): JSX.Element => {
+const ClearButton = meme((): JSX.Element => {
   const clear = useRootZustand((z) => z.clearTransactions)
   return (
     <Button size="small" variant="outlined" onClick={clear}>
       Clear
     </Button>
   )
-}
+})
 
 //
 //
@@ -114,7 +114,7 @@ const TransactionGridContent = meme(() => {
 //
 //
 // DataGrid paper
-const TransactionGrid = (): JSX.Element => {
+const TransactionGrid = meme((): JSX.Element => {
   return (
     <Paper
       data-testid="transaction-log-panel"
@@ -123,6 +123,6 @@ const TransactionGrid = (): JSX.Element => {
       <TransactionGridContent />
     </Paper>
   )
-}
+})
 
 export default TransactionGrid

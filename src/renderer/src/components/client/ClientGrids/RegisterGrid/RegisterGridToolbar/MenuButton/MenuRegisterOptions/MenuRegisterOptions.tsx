@@ -1,9 +1,10 @@
 import Checkbox from '@mui/material/Checkbox'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRootZustand } from '@renderer/context/root.zustand'
 
-const MenuRegisterOptions = (): JSX.Element | null => {
+const MenuRegisterOptions = meme((): JSX.Element | null => {
   const type = useRootZustand((z) => z.registerConfig.type)
 
   const advanceMode = useRootZustand((z) => z.registerConfig.advancedMode)
@@ -40,6 +41,6 @@ const MenuRegisterOptions = (): JSX.Element | null => {
       <Divider sx={{ my: 1 }} />
     </>
   )
-}
+})
 
 export default MenuRegisterOptions
