@@ -22,7 +22,7 @@ import {
 } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
-import { usePrivilegedPortZustand } from './_zustand'
+import { usePrivilegedPortZustand } from './privilegedPortModal.zustand'
 
 /**
  * Linux privileged port modal

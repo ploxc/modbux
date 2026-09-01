@@ -1,7 +1,7 @@
 import { GridColDef } from '@mui/x-data-grid'
 import { RegisterType, ScanUnitIDResult } from '@shared'
 import { useMemo } from 'react'
-import { useScanUnitIdZustand } from './_zustand'
+import { useScanUnitIdZustand } from './scanUnitIds.zustand'
 import { Box } from '@mui/material'
 
 /**
