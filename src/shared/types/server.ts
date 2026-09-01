@@ -124,12 +124,13 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>
 //
 
 // Regular types
-export type AddRegisterParams = {
-  uuid: string
-  unitId: UnitIdString
-  params: RegisterParams
-  littleEndian: boolean
-}
+export const AddRegisterParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  params: RegisterParamsSchema,
+  littleEndian: z.boolean()
+})
+export type AddRegisterParams = z.infer<typeof AddRegisterParamsSchema>
 export interface RemoveRegisterParams {
   uuid: string
   unitId: UnitIdString
@@ -151,13 +152,14 @@ export interface ResetRegistersParams {
   registerType: NumberRegisters
 }
 
-export interface SetBooleanParameters {
-  uuid: string
-  unitId: UnitIdString
-  registerType: BooleanRegisters
-  address: number
-  state: boolean
-}
+export const SetBooleanParametersSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerType: BooleanRegistersSchema,
+  address: z.number().int().min(0).max(65535),
+  state: z.boolean()
+})
+export type SetBooleanParameters = z.infer<typeof SetBooleanParametersSchema>
 
 export interface ResetBoolsParams {
   uuid: string

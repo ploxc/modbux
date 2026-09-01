@@ -1,5 +1,5 @@
 import z from 'zod'
-import { BaseDataType, DataTypeSchema } from './datatype'
+import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
 
@@ -140,18 +140,26 @@ export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>
 //
 
 // WriteParameters
-export type WriteParameters = { address: number; single: boolean } & (
-  | {
-      type: 'coils'
-      value: boolean[]
-      dataType?: never
-    }
-  | {
-      type: 'holding_registers'
-      value: number
-      dataType: BaseDataType
-    }
-)
+export const WriteParametersSchema = z
+  .object({
+    address: z.number().int().min(0).max(65535),
+    single: z.boolean()
+  })
+  .and(
+    z.union([
+      z.object({
+        type: z.literal('coils'),
+        value: z.array(z.boolean()),
+        dataType: z.undefined()
+      }),
+      z.object({
+        type: z.literal('holding_registers'),
+        value: z.number(),
+        dataType: BaseDataTypeSchema
+      })
+    ])
+  )
+export type WriteParameters = z.infer<typeof WriteParametersSchema>
 
 //
 //

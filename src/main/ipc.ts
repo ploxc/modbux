@@ -7,32 +7,88 @@ import {
   defaultClientState,
   IpcHandlerMap,
   IpcEvent,
-  IpcEventPayloadMap
+  IpcEventPayloadMap,
+  Windows,
+  formatZodError,
+  WriteParametersSchema,
+  AddRegisterParamsSchema,
+  SetBooleanParametersSchema
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/mobusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
 import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modules/serialGroup'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
+import type { ZodType } from 'zod'
 
-export const ipcHandle = <C extends keyof IpcHandlerMap>(
-  channel: C,
-  listener: (
-    event: IpcMainInvokeEvent,
-    ...args: IpcHandlerMap[C]['args']
-  ) => Promise<IpcHandlerMap[C]['return']> | IpcHandlerMap[C]['return']
-): void => {
-  ipcMain.handle(channel, listener)
-}
+type IpcListener<C extends keyof IpcHandlerMap> = (
+  event: IpcMainInvokeEvent,
+  ...args: IpcHandlerMap[C]['args']
+) => Promise<IpcHandlerMap[C]['return']> | IpcHandlerMap[C]['return']
+
+/**
+ * A schema may only guard a channel that returns nothing.
+ *
+ * A channel that returns a value has no honest answer to give when the payload
+ * is rejected. `create_server` returns the port it actually bound and the
+ * renderer writes that straight into the port field, so a stand-in number would
+ * appear in the UI as a real one. Those validate inside their own handler.
+ */
+type PayloadSchema<C extends keyof IpcHandlerMap> = IpcHandlerMap[C]['return'] extends void
+  ? ZodType<IpcHandlerMap[C]['args'][0]>
+  : never
+
+/**
+ * Builds the `ipcHandle` used below, bound to the windows it reports through.
+ *
+ * A guarded channel hands the handler the *parsed* payload, not the one that
+ * arrived, so anything the schema does not describe is stripped before it can
+ * reach a Modbus socket.
+ *
+ * A rejected payload comes back as a `backend_message`, never as a throw. An
+ * error crossing the IPC boundary surfaces in the renderer as an unhandled
+ * rejection carrying the channel name and nothing else, which is exactly the
+ * failure the Linux helpers avoid by returning results instead of throwing.
+ */
+export const createIpcHandle =
+  (windows: Windows) =>
+  <C extends keyof IpcHandlerMap>(
+    channel: C,
+    listener: IpcListener<C>,
+    schema?: PayloadSchema<C>
+  ): void => {
+    if (!schema) {
+      ipcMain.handle(channel, listener)
+      return
+    }
+
+    ipcMain.handle(channel, (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+      const result = schema.safeParse(args[0])
+
+      if (!result.success) {
+        windows.send('backend_message', {
+          message: 'Invalid request, nothing was changed',
+          variant: 'error',
+          error: `${channel}: ${formatZodError(result.error)}`
+        })
+        return undefined
+      }
+
+      return listener(event, ...([result.data] as IpcHandlerMap[C]['args']))
+    })
+  }
 
 type InitIpcFn = (
   app: Electron.App,
   state: AppState,
   client: ModbusClient,
-  server: ModbusServer
+  server: ModbusServer,
+  windows: Windows
 ) => void
 
-export const initIpc: InitIpcFn = (app, state, client, server) => {
+export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
+  const ipcHandle = createIpcHandle(windows)
+
   // Connnection config
   ipcHandle('get_connection_config', () => {
     // Validate and return the current connection config, or default if invalid
@@ -65,7 +121,7 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   ipcHandle('stop_polling', () => client.stopPolling())
 
   // Write Actions
-  ipcHandle('write', (_, writeParameters) => client.write(writeParameters))
+  ipcHandle('write', (_, writeParameters) => client.write(writeParameters), WriteParametersSchema)
 
   // Scan Unit ID Actions
   ipcHandle('scan_unit_ids', (_, scanUnitIdParameters) => client.scanUnitIds(scanUnitIdParameters))
@@ -78,11 +134,15 @@ export const initIpc: InitIpcFn = (app, state, client, server) => {
   ipcHandle('stop_scanning_registers', () => client.stopScanningRegisters())
 
   // Server
-  ipcHandle('add_replace_server_register', (_, params) => server.addRegister(params))
+  ipcHandle(
+    'add_replace_server_register',
+    (_, params) => server.addRegister(params),
+    AddRegisterParamsSchema
+  )
   ipcHandle('remove_server_register', (_, params) => server.removeRegister(params))
   ipcHandle('sync_server_register', (_, params) => server.syncServerRegisters(params))
   ipcHandle('reset_registers', (_, params) => server.resetRegisters(params))
-  ipcHandle('set_bool', (_, params) => server.setBool(params))
+  ipcHandle('set_bool', (_, params) => server.setBool(params), SetBooleanParametersSchema)
   ipcHandle('reset_bools', (_, params) => server.resetBools(params))
   ipcHandle('sync_bools', (_, params) => server.syncBools(params))
   ipcHandle('reset_server', (_, uuid) => server.resetServer(uuid))
