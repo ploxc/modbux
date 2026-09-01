@@ -5,7 +5,6 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
-    "src/backend/**/*",
   ],
   "compilerOptions": {
     "strict": true,
