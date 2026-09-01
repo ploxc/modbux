@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Publish } from '@mui/icons-material'
 import {
   Box,
@@ -15,64 +14,11 @@ import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSele
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useRootZustand } from '@renderer/context/root.zustand'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
+import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import { create } from 'zustand'
-import { mutative } from 'zustand-mutative'
-
-interface ValueInputZusand {
-  dataType: BaseDataType
-  setDataType: (dataType: BaseDataType) => void
-  value: string
-  valid: boolean
-  setValue: MaskSetFn
-  address: number
-  setAddress: (address: number) => void
-  coilFunction: 5 | 15
-  setCoilFunction: (coilFunction: 5 | 15) => void
-  coils: boolean[]
-  initCoils: (coils: boolean[]) => void
-  setCoils: (coil: boolean, index: number) => void
-}
-
-const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', never]]>(
-  mutative((set) => ({
-    dataType: 'int16',
-    setDataType: (dataType) =>
-      set((state) => {
-        state.dataType = dataType
-      }),
-    value: '0',
-    valid: true,
-    setValue: (value, valid) =>
-      set((state) => {
-        state.value = value
-        state.valid = !!valid
-      }),
-    address: 0,
-    setAddress: (address: number) =>
-      set((state) => {
-        state.address = address
-      }),
-    coilFunction: 5,
-    setCoilFunction: (coilFunction: 5 | 15) =>
-      set((state) => {
-        state.coilFunction = coilFunction
-      }),
-    coils: [],
-    initCoils: (coils) =>
-      set((state) => {
-        state.coils = coils
-      }),
-    setCoils: (coil, index) =>
-      set((state) => {
-        state.coils[index] = coil
-      })
-  }))
-)
+import { useValueInputZustand } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props

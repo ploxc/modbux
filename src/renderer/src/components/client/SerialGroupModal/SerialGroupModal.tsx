@@ -13,7 +13,7 @@ import { useRootZustand } from '@renderer/context/root.zustand'
 import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
-import { useSerialGroupZustand } from './_zustand'
+import { useSerialGroupZustand } from './serialGroupModal.zustand'
 
 /**
  * Linux serial group modal

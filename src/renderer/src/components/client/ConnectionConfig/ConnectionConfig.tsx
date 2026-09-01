@@ -11,7 +11,7 @@ import {
 } from '@mui/material'
 import RtuConfig from './RtuConfig/RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
-import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/_zustand'
+import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig/TcpConfig'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { Protocol } from '@shared'

@@ -33,7 +33,7 @@ vi.mock('notistack', () => ({
 }))
 
 import SerialGroupModal from '../SerialGroupModal'
-import { useSerialGroupZustand } from '../_zustand'
+import { useSerialGroupZustand } from '../serialGroupModal.zustand'
 
 // ─── window.api stub ─────────────────────────────────────────────────
 

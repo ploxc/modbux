@@ -32,7 +32,7 @@ vi.mock('notistack', () => ({
 }))
 
 import PrivilegedPortModal from '../PrivilegedPortModal'
-import { usePrivilegedPortZustand } from '../_zustand'
+import { usePrivilegedPortZustand } from '../privilegedPortModal.zustand'
 
 // ─── window.api stub ─────────────────────────────────────────────────
 
