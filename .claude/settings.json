@@ -2,12 +2,14 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|Bash",
         "hooks": [
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/prose-trigger.mjs"]
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/prose-trigger.mjs"
+            ]
           }
         ]
       }
