@@ -38,7 +38,7 @@ e2e/
   fixtures/             Test data and helpers
 ```
 
-**Path aliases:** `@main`, `@renderer/*`, `@preload`, `@shared`, `@backend`. Use them instead of deep relative imports.
+**Path aliases:** `@renderer/*` and `@shared`. There are no others. Use them instead of deep relative imports.
 
 ## Code style
 
@@ -50,9 +50,63 @@ Beyond what the linter catches:
 - **Zod for validation.** External data (configs, IPC payloads) is validated with Zod schemas. Don't trust unvalidated input.
 - **Zustand + Mutative for state.** Follow the existing store patterns. Don't introduce new state management approaches.
 - **MUI only.** Don't add other UI libraries.
-- **Every interactive element needs a `data-testid`** for e2e tests.
 - **Spell out variable names.** `resetButton`, not `rstBtn`. `registerAddress`, not `regAddr`. Abbreviations make code harder to read. The only exceptions are well-known conventions like `i` in loops, `el` in DOM callbacks, `z` for Zod schemas and Zustand state accessors, and established project abbreviations like `e2e`.
 - **Match existing patterns.** Look at how the codebase does it, do it the same way.
+
+### The conventions this codebase has already settled
+
+`src/__tests__/conformance.test.ts` asserts the seven rules below, so a PR that
+breaks one fails `yarn test` rather than waiting for a reviewer to notice. Each
+rule asserts twice: that the population it reads is not empty, and that the
+population holds no violation.
+
+**One store selector per field.** `useRootZustand((z) => z.a)` and then
+`((z) => z.b)`, never one selector returning an object. An object literal is a
+new reference on every render, so a selector that returns one re-renders its
+component on every flush of any field. The renderer has zero whole-store
+subscriptions and zero `useShallow`, and that is why it draws a two-thousand-row
+grid without either.
+
+**Every component is wrapped in `meme`.** Props or not, one rule with no
+exception to remember. A declaration counts as a component when it is rendered
+as JSX somewhere or exported as its file's default. The comparator inside `meme`
+is `deepEqual` and it stays.
+
+**A component gets a folder, a store gets its component's name.** One component
+per folder, named after the component. A local store beside it is
+`<name>.zustand.ts`, matching the global stores in `context/`, and named after
+the component rather than the folder. `columns/` and `shared/inputs/` stay flat:
+they are leaf collections, not components that lost their folder.
+
+**MUI is imported deep.** `@mui/material/Button`, not `@mui/material`. The same
+for `@mui/icons-material`, `@mui/x-data-grid` and `@mui/x-date-pickers`, because
+the rule is about barrels and those are barrels. Two exceptions are the package's
+doing rather than a choice: `useGridApiContext` and `useGridApiRef` are exported
+by none of the thirteen subpaths `@mui/x-data-grid` declares, so they come from
+the root.
+
+**Nothing in `src/shared` imports from `src/main`.** All three processes import
+shared; it is the one layer that may not reach back.
+
+**Every interactive element carries a `data-testid`.** Buttons, fields, sliders
+and grid action cells. Containers do not: a `ToggleButtonGroup` is reached
+through its buttons, a `Select`'s options through `getByRole('option')`. A
+picker takes the attribute through `slotProps`, which is still carrying it.
+
+**Every configured path alias is imported through.** `@main`, `@preload` and
+`@backend` sat in the configs long after anything used them, and `@backend`
+pointed at a directory that had been deleted.
+
+### One rule no test can see
+
+**The store owns IPC that changes state; a component owns IPC the user asked
+for.** Writing through another store is a mutation, and the store owns those. A
+button press is the component's.
+
+The same channel can be called from both and be right both times, which is why
+this is a reviewer's judgement and not an assertion: `read` is a consequence of
+flipping endianness in the store, and a button in the toolbar. Same channel, two
+concerns.
 
 ## Commits
 
