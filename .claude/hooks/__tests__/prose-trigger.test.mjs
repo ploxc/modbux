@@ -39,19 +39,36 @@ describe('prose-trigger stays quiet on', () => {
   it('a payload with no tool_input', () => expect(fire(null)).toBe(''))
 })
 
-describe('prose-trigger says it once', () => {
-  it('states the rule first and asks a question after', () => {
-    const session = `once-${Math.random()}`
+describe('prose-trigger says the whole rule', () => {
+  it('every time, in the same session', () => {
+    const session = `same-${Math.random()}`
     const first = fire({ file_path: 'a.md', content: 'x' }, session)
     const second = fire({ file_path: 'b.md', content: 'y' }, session)
-    expect(first.length).toBeGreaterThan(second.length)
-    expect(second).toBe('prose: measured? whole block read and cut?')
+    expect(second).toBe(first)
+    expect(first).toContain('claim, an order, or a measurement')
   })
+})
 
-  it('starts over in a new session', () => {
-    const a = fire({ file_path: 'a.md', content: 'x' }, `s-${Math.random()}`)
-    const b = fire({ file_path: 'a.md', content: 'x' }, `s-${Math.random()}`)
-    expect(a).toBe(b)
+describe('prose-trigger reaches a commit message', () => {
+  it('fires on git commit, which is written through Bash and not a Write', () =>
+    expect(fire({ command: 'git commit -F -' })).not.toBe(''))
+  it('fires on git merge for the same reason', () =>
+    expect(fire({ command: 'git merge --no-ff feature' })).not.toBe(''))
+  it('stays quiet on other git commands', () => {
+    expect(fire({ command: 'git status --porcelain' })).toBe('')
+    expect(fire({ command: 'git diff --staged' })).toBe('')
+    expect(fire({ command: 'git log --oneline -5' })).toBe('')
+  })
+  it('fires when a commit follows another command', () =>
+    expect(fire({ command: 'yarn test && git commit -F -' })).not.toBe(''))
+  it('stays quiet on a command that merely mentions the word', () => {
+    expect(fire({ command: "grep -rn 'commit' docs/" })).toBe('')
+    expect(fire({ command: "rg 'git commit' .claude/" })).toBe('')
+  })
+  it('stays quiet on a heredoc that writes about a commit', () => {
+    // This is the false positive that fired while the Bash matcher was added.
+    const heredoc = "python3 - <<'PY'\ns = \"expect(fire({ command: 'git commit -F -' }))\"\nPY"
+    expect(fire({ command: heredoc })).toBe('')
   })
 })
 
