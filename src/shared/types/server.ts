@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { BaseDataType, BaseDataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { RegisterType, SerialPortOptionsSchema } from './client'
-import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
 import { unitIds } from './unitid'
 
 // Server mode (global: TCP or RTU)
@@ -191,7 +190,18 @@ export interface ServerData {
   holding_registers: number[]
 }
 
+/**
+ * What the server needs of a running generator, which is only the teardown.
+ *
+ * shared is imported by all three processes, so it may not reach into main for
+ * a type. ValueGenerator implements this instead, which leaves the dependency
+ * pointing the one way it is allowed to point.
+ */
+export interface RegisterValueGenerator {
+  dispose: () => void
+}
+
 export interface ValueGenerators {
-  input_registers: Map<number, ValueGenerator>
-  holding_registers: Map<number, ValueGenerator>
+  input_registers: Map<number, RegisterValueGenerator>
+  holding_registers: Map<number, RegisterValueGenerator>
 }

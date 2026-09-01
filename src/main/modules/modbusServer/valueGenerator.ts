@@ -7,6 +7,7 @@ import {
   ServerData,
   BaseDataType,
   RegisterParams,
+  RegisterValueGenerator,
   UnitIdString
 } from '@shared'
 import { round } from 'lodash'
@@ -25,7 +26,7 @@ type ValueGeneratorParams = {
  * ValueGenerator generates and updates Modbus register values at a set interval.
  * It supports various data types and updates the server data and notifies the frontend.
  */
-export class ValueGenerator {
+export class ValueGenerator implements RegisterValueGenerator {
   private _uuid: string
   private _unitId: UnitIdString
   private _windows: Windows
