@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
@@ -8,10 +7,7 @@ import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
-import { create } from 'zustand'
-import { mutative } from 'zustand-mutative'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
@@ -24,48 +20,7 @@ import {
   ScanTimeoutField
 } from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
-
-interface ScanRegistersZustand {
-  open: boolean
-  setOpen: (open: boolean) => void
-  address: number
-  setAddress: MaskSetFn
-  scanLength: number
-  setScanLength: MaskSetFn
-  chunkSize: number
-  setChunkSize: MaskSetFn
-  timeout: number
-  setTimeout: MaskSetFn
-}
-export const useScanRegistersZustand = create<ScanRegistersZustand, [['zustand/mutative', never]]>(
-  mutative((set) => ({
-    open: false,
-    setOpen: (open) =>
-      set((state) => {
-        state.open = open
-      }),
-    address: 0,
-    setAddress: (address) =>
-      set((state) => {
-        state.address = Number(address)
-      }),
-    scanLength: 10000,
-    setScanLength: (scanLength) =>
-      set((state) => {
-        state.scanLength = Number(scanLength)
-      }),
-    chunkSize: 100,
-    setChunkSize: (chunkSize) =>
-      set((state) => {
-        state.chunkSize = Number(chunkSize)
-      }),
-    timeout: 500,
-    setTimeout: (timeout) =>
-      set((state) => {
-        state.timeout = Number(timeout)
-      })
-  }))
-)
+import { useScanRegistersZustand } from './scanRegisters.zustand'
 
 //
 //
