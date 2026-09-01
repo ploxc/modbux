@@ -17,6 +17,7 @@ out
 .pnp.*
 
 tmp
+TODO.md
 temp
 
 # Test coverage
