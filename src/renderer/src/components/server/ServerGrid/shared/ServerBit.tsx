@@ -106,6 +106,7 @@ const ServerBit = meme(
         {/* Comment — inline editable */}
         {!readOnly && editing ? (
           <TextField
+            data-testid={`${testIdPrefix}-comment-${bitIndex}`}
             variant="standard"
             size="small"
             autoFocus

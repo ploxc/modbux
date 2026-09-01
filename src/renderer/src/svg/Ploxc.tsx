@@ -1,10 +1,17 @@
+import { CSSObject, Theme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { StyledSvg, StyledSvgProps } from './util'
 
 const Ploxc = meme(({ sx }: StyledSvgProps): JSX.Element => {
   return (
     <StyledSvg
-      sx={{ '& #dot': { fill: '#cccccc' }, '& #logo': { fill: '#5b9279' }, ...sx }}
+      sx={[
+        (theme: Theme): CSSObject => ({
+          '& #dot': { fill: theme.palette.info.main },
+          '& #logo': { fill: theme.palette.primary.main }
+        }),
+        ...(Array.isArray(sx) ? sx : [sx])
+      ]}
       viewBox="0 0 180 180"
       version="1.1"
       xmlns="http://www.w3.org/2000/svg"

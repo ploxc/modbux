@@ -105,7 +105,7 @@ export class ModbusClient {
       .on('close', () => {
         // If we were connected, go to 'connecting' and try to reconnect
         if (this._shouldAutoReconnect) {
-          // Remeber polling state before trying to reconnect
+          // Remember polling state before trying to reconnect
           this._reconnectWasPolling = this._clientState.polling
 
           // Only emit reconnecting message if not already in connecting state
@@ -667,7 +667,7 @@ export class ModbusClient {
 
     if (single && !['int16', 'uint16'].includes(dataType)) {
       this._emitMessage({
-        message: 'Single register only supported fot 16 bit values',
+        message: 'Single register only supported for 16 bit values',
         variant: 'warning',
         error: undefined
       })

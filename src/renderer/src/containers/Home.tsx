@@ -137,7 +137,9 @@ const PloxcLogo = meme((): JSX.Element => {
       sx={{ left: 16, ...bottomElementsCommonSx }}
     >
       <Ploxc sx={{ height: 18 }} />
-      <Typography sx={{ fontWeight: 800, color: '#cccccc' }}>Ploxc</Typography>
+      <Typography sx={(theme) => ({ fontWeight: 800, color: theme.palette.info.main })}>
+        Ploxc
+      </Typography>
     </Box>
   )
 })

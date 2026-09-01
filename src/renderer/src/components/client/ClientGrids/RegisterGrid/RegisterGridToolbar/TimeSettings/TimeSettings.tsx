@@ -13,7 +13,14 @@ const PollRate = meme((): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
   const setValue = useRootZustand((z) => z.setPollRate)
 
-  return <SliderComponent label="Poll Rate" value={value} setValue={(v) => setValue(v * 1000)} />
+  return (
+    <SliderComponent
+      testId="poll-rate-slider"
+      label="Poll Rate"
+      value={value}
+      setValue={(v) => setValue(v * 1000)}
+    />
+  )
 })
 
 // Read Timeout slider
@@ -21,7 +28,14 @@ const Timeout = meme((): JSX.Element => {
   const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
   const setValue = useRootZustand((z) => z.setTimeout)
 
-  return <SliderComponent label="Timeout" value={value} setValue={(v) => setValue(v * 1000)} />
+  return (
+    <SliderComponent
+      testId="timeout-slider"
+      label="Timeout"
+      value={value}
+      setValue={(v) => setValue(v * 1000)}
+    />
+  )
 })
 
 const TimeSettings = meme(() => {

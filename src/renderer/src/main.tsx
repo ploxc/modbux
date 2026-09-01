@@ -60,7 +60,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             default: StyledMaterialDesignContent
           },
           action: (snackbarId) => (
-            <IconButton onClick={() => closeSnackbar(snackbarId)}>
+            <IconButton data-testid="snackbar-close-btn" onClick={() => closeSnackbar(snackbarId)}>
               <Close />
             </IconButton>
           )

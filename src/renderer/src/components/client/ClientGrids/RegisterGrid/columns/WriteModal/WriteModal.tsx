@@ -267,7 +267,7 @@ const Coils = meme(() => {
   )
 })
 
-interface Props {
+interface WriteModalProps {
   address: number
   open: boolean
   onClose: () => void
@@ -275,7 +275,7 @@ interface Props {
   type: RegisterType
 }
 
-const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props) => {
+const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: WriteModalProps) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
   const right = (rect?.right ? window.innerWidth - rect.right : 0) + 38
   const setValue = useValueInputZustand((z) => z.setValue)

@@ -4,7 +4,7 @@ import { BaseDataType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
-interface ValueInputZusand {
+interface ValueInputZustand {
   dataType: BaseDataType
   setDataType: (dataType: BaseDataType) => void
   value: string
@@ -19,7 +19,7 @@ interface ValueInputZusand {
   setCoils: (coil: boolean, index: number) => void
 }
 
-export const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', never]]>(
+export const useValueInputZustand = create<ValueInputZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
     dataType: 'int16',
     setDataType: (dataType) =>

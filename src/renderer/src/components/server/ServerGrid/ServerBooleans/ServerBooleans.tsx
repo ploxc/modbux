@@ -15,6 +15,7 @@ import useServerGridZustand from '../serverGrid.zustand'
 import ServerBit from '../shared/ServerBit'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
+import { gridSurface } from '@renderer/theme'
 
 interface ServerBooleanProps {
   name: string
@@ -227,7 +228,7 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
           flex: 1,
           width: '100%',
           height: '100%',
-          backgroundColor: '#2A2A2A',
+          backgroundColor: gridSurface,
           fontSize: '0.95em',
           position: 'relative'
         }}

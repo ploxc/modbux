@@ -125,6 +125,7 @@ const BitIndicator = meme(
         {/* Comment — inline beside the circle and index */}
         {editing ? (
           <TextField
+            data-testid={`bit-comment-${bitIndex}`}
             variant="standard"
             size="small"
             autoFocus

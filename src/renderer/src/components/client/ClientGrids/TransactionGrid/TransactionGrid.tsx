@@ -19,6 +19,7 @@ const ExportButton = meme((): JSX.Element => {
 
   return (
     <Button
+      data-testid="transaction-export-btn"
       size="small"
       variant="outlined"
       onClick={() =>
@@ -40,7 +41,7 @@ const ExportButton = meme((): JSX.Element => {
 const ClearButton = meme((): JSX.Element => {
   const clear = useRootZustand((z) => z.clearTransactions)
   return (
-    <Button size="small" variant="outlined" onClick={clear}>
+    <Button data-testid="transaction-clear-btn" size="small" variant="outlined" onClick={clear}>
       Clear
     </Button>
   )
