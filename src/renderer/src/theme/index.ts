@@ -53,13 +53,19 @@ const base = createTheme({
   }
 })
 
-// The Data Grid paints its own surfaces from palette.DataGrid. Left alone it
-// lightens the whole grid in dark mode (color-mix of paper with white); pinning
-// headerBg puts just the column headers back on the app background, leaving the
-// rows and footer on the grid's own base.
+// What the Data Grid lifts its rows to in dark mode, left alone:
+// color-mix(in srgb, #1F1F1F 95%, #fff), which lands here. The panels behind the
+// server lists sit on the same slab, and x-data-grid augments PaletteOptions but
+// not Palette, so the value cannot be read back off the theme. It is named here
+// instead, and both sides read the name.
+export const gridSurface = '#2A2A2A'
+
+// headerBg puts just the column headers back on the app background. bg is the
+// value the grid already computed, pinned so the panels can share it.
 export const theme = createTheme(base, {
   palette: {
     DataGrid: {
+      bg: gridSurface,
       headerBg: base.palette.background.default
     }
   }

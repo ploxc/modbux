@@ -8,6 +8,7 @@ import { alpha } from '@mui/material/styles'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { gridSurface } from '@renderer/theme'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
@@ -188,7 +189,7 @@ const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
           flex: 1,
           width: '100%',
           height: '100%',
-          backgroundColor: '#2A2A2A',
+          backgroundColor: gridSurface,
           fontSize: '0.95em',
           position: 'relative'
         }}

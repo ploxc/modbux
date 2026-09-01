@@ -50,7 +50,7 @@ vi.mock('net', () => ({
   }
 }))
 
-import { ModbusServer, SERVER_DEVICE_FAILURE, ILLEGAL_DATA_ADDRESS } from '../mobusServer'
+import { ModbusServer, SERVER_DEVICE_FAILURE, ILLEGAL_DATA_ADDRESS } from '../modbusServer'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows

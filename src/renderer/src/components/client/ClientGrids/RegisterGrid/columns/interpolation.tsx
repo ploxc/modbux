@@ -66,6 +66,7 @@ interface InputFieldProps {
 const InputField = meme(({ interpolateKey, value, set }: InputFieldProps) => {
   return (
     <TextField
+      data-testid={`interpolation-${interpolateKey}-field`}
       sx={{ maxWidth: 120 }}
       label={interpolateKey}
       size="small"
@@ -80,7 +81,7 @@ const InputField = meme(({ interpolateKey, value, set }: InputFieldProps) => {
   )
 })
 
-interface Props {
+interface InterpolationModalProps {
   address: number
   open: boolean
   onClose: () => void
@@ -98,71 +99,74 @@ const useInterpolateValue = (
     return interpolate !== undefined ? interpolate[key] : defaultInterpolation[key]
   })
 
-const InterpolationModal = meme(({ open, onClose, actionCellRef, type, address }: Props) => {
-  const rect = actionCellRef.current?.getBoundingClientRect()
+const InterpolationModal = meme(
+  ({ open, onClose, actionCellRef, type, address }: InterpolationModalProps) => {
+    const rect = actionCellRef.current?.getBoundingClientRect()
 
-  const x1 = useInterpolateValue('x1', type, address)
-  const x2 = useInterpolateValue('x2', type, address)
-  const y1 = useInterpolateValue('y1', type, address)
-  const y2 = useInterpolateValue('y2', type, address)
+    const x1 = useInterpolateValue('x1', type, address)
+    const x2 = useInterpolateValue('x2', type, address)
+    const y1 = useInterpolateValue('y1', type, address)
+    const y2 = useInterpolateValue('y2', type, address)
 
-  const handleChange = useCallback(
-    (key: keyof RegisterLinearInterpolation, value: string) => {
-      const state = useRootZustand.getState()
-      const interpolate: RegisterLinearInterpolation = state.registerMapping[type][address]
-        ?.interpolate || { ...defaultInterpolation }
-      state.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
-    },
-    [type, address]
-  )
-
-  return (
-    open && (
-      <Modal open={open} onClose={onClose} slotProps={{ backdrop: { sx: {} } }}>
-        <Paper
-          elevation={5}
-          sx={{
-            position: 'absolute',
-            left: rect?.left ?? 0,
-            top: rect?.top ?? 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            p: 2
-          }}
-        >
-          <Box
-            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}
-          >
-            <FormLabel color="primary">Linear Interpolation</FormLabel>
-            <IconButton
-              color="primary"
-              size="small"
-              onClick={() => {
-                useRootZustand
-                  .getState()
-                  .setRegisterMapping(address, 'interpolate', { ...defaultInterpolation })
-              }}
-            >
-              <Refresh />
-            </IconButton>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <InputField interpolateKey="x1" value={x1} set={(v) => handleChange('x1', v)} />
-              <InputField interpolateKey="x2" value={x2} set={(v) => handleChange('x2', v)} />
-            </Box>
-            <ArrowRightAlt />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <InputField interpolateKey="y1" value={y1} set={(v) => handleChange('y1', v)} />
-              <InputField interpolateKey="y2" value={y2} set={(v) => handleChange('y2', v)} />
-            </Box>
-          </Box>
-        </Paper>
-      </Modal>
+    const handleChange = useCallback(
+      (key: keyof RegisterLinearInterpolation, value: string) => {
+        const state = useRootZustand.getState()
+        const interpolate: RegisterLinearInterpolation = state.registerMapping[type][address]
+          ?.interpolate || { ...defaultInterpolation }
+        state.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
+      },
+      [type, address]
     )
-  )
-})
+
+    return (
+      open && (
+        <Modal open={open} onClose={onClose} slotProps={{ backdrop: { sx: {} } }}>
+          <Paper
+            elevation={5}
+            sx={{
+              position: 'absolute',
+              left: rect?.left ?? 0,
+              top: rect?.top ?? 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              p: 2
+            }}
+          >
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}
+            >
+              <FormLabel color="primary">Linear Interpolation</FormLabel>
+              <IconButton
+                data-testid="interpolation-reset-btn"
+                color="primary"
+                size="small"
+                onClick={() => {
+                  useRootZustand
+                    .getState()
+                    .setRegisterMapping(address, 'interpolate', { ...defaultInterpolation })
+                }}
+              >
+                <Refresh />
+              </IconButton>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <InputField interpolateKey="x1" value={x1} set={(v) => handleChange('x1', v)} />
+                <InputField interpolateKey="x2" value={x2} set={(v) => handleChange('x2', v)} />
+              </Box>
+              <ArrowRightAlt />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <InputField interpolateKey="y1" value={y1} set={(v) => handleChange('y1', v)} />
+                <InputField interpolateKey="y2" value={y2} set={(v) => handleChange('y2', v)} />
+              </Box>
+            </Box>
+          </Paper>
+        </Modal>
+      )
+    )
+  }
+)
 
 interface ActionProps {
   type: RegisterType
@@ -195,6 +199,7 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   return (
     <>
       <GridActionsCellItem
+        data-testid={`interpolation-action-${address}`}
         ref={actionCellRef}
         disabled={!enabled}
         icon={<Functions fontSize="small" />}

@@ -6,7 +6,7 @@ import { initIpc, onIpcEvent } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
-import { ModbusServer } from './modules/mobusServer'
+import { ModbusServer } from './modules/modbusServer'
 import { Windows } from '@shared'
 
 if (is.dev && os.platform() === 'darwin') {

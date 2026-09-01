@@ -30,7 +30,7 @@ export const PersistedRootZustandSchema = z.object({
 })
 export type PersistedRootZustand = z.infer<typeof PersistedRootZustandSchema>
 
-export type RootZusand = {
+export type RootZustand = {
   transactions: Transaction[]
   version: string
   clientState: ClientState

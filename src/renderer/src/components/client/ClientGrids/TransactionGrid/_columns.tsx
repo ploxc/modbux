@@ -4,7 +4,7 @@ import { Transaction } from '@shared'
 import { DateTime } from 'luxon'
 import { useMemo } from 'react'
 
-const typestampColumn: GridColDef<Transaction, number, string> = {
+const timestampColumn: GridColDef<Transaction, number, string> = {
   field: 'timestamp',
   headerName: 'Timestamp',
   hideable: false,
@@ -97,7 +97,7 @@ const errorMessageColumn: GridColDef<Transaction, string> = {
 const useTransactionGridColumns = (): GridColDef<Transaction>[] => {
   return useMemo(() => {
     return [
-      typestampColumn,
+      timestampColumn,
       unitIdColumn,
       addressColumn,
       // lengthColumn,

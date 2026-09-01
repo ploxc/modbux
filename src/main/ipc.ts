@@ -15,7 +15,7 @@ import {
   SetBooleanParametersSchema
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
-import { ModbusServer } from './modules/mobusServer'
+import { ModbusServer } from './modules/modbusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
 import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modules/serialGroup'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
@@ -89,7 +89,7 @@ type InitIpcFn = (
 export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   const ipcHandle = createIpcHandle(windows)
 
-  // Connnection config
+  // Connection config
   ipcHandle('get_connection_config', () => {
     // Validate and return the current connection config, or default if invalid
     const result = ConnectionConfigSchema.safeParse(state.connectionConfig)

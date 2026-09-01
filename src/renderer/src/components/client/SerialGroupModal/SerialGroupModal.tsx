@@ -233,12 +233,12 @@ const Title = meme((): JSX.Element => {
 //
 //
 // MAIN
-interface Props {
+interface SerialGroupModalProps {
   /** True while RTU is the selected transport. The check runs then, and only then. */
   active: boolean
 }
 
-const SerialGroupModal = meme(({ active }: Props): JSX.Element | null => {
+const SerialGroupModal = meme(({ active }: SerialGroupModalProps): JSX.Element | null => {
   const open = useSerialGroupZustand((z) => z.open)
   const hasStatus = useSerialGroupZustand((z) => z.status !== null)
 

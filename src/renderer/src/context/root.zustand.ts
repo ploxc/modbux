@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { PersistedRootZustand, PersistedRootZustandSchema, RootZusand } from './root.zustand.types'
+import { PersistedRootZustand, PersistedRootZustandSchema, RootZustand } from './root.zustand.types'
 import {
   defaultConnectionConfig,
   defaultRegisterConfig,
@@ -36,7 +36,7 @@ export const flushRegisterMappingToMain = (): void => {
 }
 
 export const useRootZustand = create<
-  RootZusand,
+  RootZustand,
   [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
 >(
   persist(

@@ -7,9 +7,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        '@main': resolve('src/main'),
-        '@shared': resolve('src/shared'),
-        '@backend': resolve('src/backend')
+        '@shared': resolve('src/shared')
       }
     }
   },
@@ -17,9 +15,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        '@preload': resolve('src/preload'),
-        '@shared': resolve('src/shared'),
-        '@backend': resolve('src/backend')
+        '@shared': resolve('src/shared')
       }
     }
   },

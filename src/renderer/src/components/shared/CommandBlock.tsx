@@ -56,7 +56,12 @@ const CommandBlock = meme(
           {command}
         </Typography>
         <Tooltip title={copied ? 'Copied' : 'Copy'}>
-          <IconButton size="small" onClick={handleCopy} aria-label="Copy command">
+          <IconButton
+            data-testid={`${testId}-copy-btn`}
+            size="small"
+            onClick={handleCopy}
+            aria-label="Copy command"
+          >
             {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
           </IconButton>
         </Tooltip>

@@ -3,50 +3,58 @@ import Slider from '@mui/material/Slider'
 import Typography from '@mui/material/Typography'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
-interface Props {
+interface SliderComponentProps {
   label: string
   value: number
   setValue: (value: number) => void
+  testId: string
 }
 
-const SliderComponent = meme(({ label, value, setValue }: Props): JSX.Element => {
-  const labelWidth = 70
-  const valueWidth = 25
+const SliderComponent = meme(
+  ({ label, value, setValue, testId }: SliderComponentProps): JSX.Element => {
+    const labelWidth = 70
+    const valueWidth = 25
 
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 1,
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        px: 1
-      }}
-    >
-      <Typography color="primary" variant="overline" sx={{ width: labelWidth }}>
-        {label}
-      </Typography>
-      <Box sx={{ px: 1, display: 'flex' }}>
-        <Slider
-          aria-label={label}
-          size="small"
-          sx={{ width: 100 }}
-          min={1}
-          max={10}
-          step={1}
-          value={value}
-          onChange={(_, v) => {
-            const value = Array.isArray(v) ? v.at(0) : v
-            if (value === undefined) return
-            setValue(value)
-          }}
-        />
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          px: 1
+        }}
+      >
+        <Typography color="primary" variant="overline" sx={{ width: labelWidth }}>
+          {label}
+        </Typography>
+        <Box sx={{ px: 1, display: 'flex' }}>
+          <Slider
+            data-testid={testId}
+            aria-label={label}
+            size="small"
+            sx={{ width: 100 }}
+            min={1}
+            max={10}
+            step={1}
+            value={value}
+            onChange={(_, v) => {
+              const value = Array.isArray(v) ? v.at(0) : v
+              if (value === undefined) return
+              setValue(value)
+            }}
+          />
+        </Box>
+        <Typography
+          color="primary"
+          variant="overline"
+          sx={{ textAlign: 'right', width: valueWidth }}
+        >
+          {value} s
+        </Typography>
       </Box>
-      <Typography color="primary" variant="overline" sx={{ textAlign: 'right', width: valueWidth }}>
-        {value} s
-      </Typography>
-    </Box>
-  )
-})
+    )
+  }
+)
 
 export default SliderComponent
