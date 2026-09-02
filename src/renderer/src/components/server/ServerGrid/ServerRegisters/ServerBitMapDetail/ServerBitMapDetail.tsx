@@ -18,27 +18,28 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
   const uuid = useServerZustand((z) => z.selectedUuid)
   const unitId = useServerZustand((z) => z.getUnitId(z.selectedUuid))
   const littleEndian = useServerZustand((z) => z.littleEndian[z.selectedUuid] ?? false)
-  const addRegister = useServerZustand((z) => z.addRegister)
 
   const handleToggle = useCallback(
     (bitIndex: number) => {
+      const serverZustand = useServerZustand.getState()
       const currentValue = register.value
       const newValue = getBit(currentValue, bitIndex)
         ? currentValue & ~(1 << bitIndex)
         : currentValue | (1 << bitIndex)
 
-      addRegister({
+      serverZustand.addRegister({
         uuid,
         unitId,
         params: { ...params, value: newValue, min: undefined, max: undefined, interval: undefined },
         littleEndian
       })
     },
-    [register.value, params, uuid, unitId, littleEndian, addRegister]
+    [register.value, params, uuid, unitId, littleEndian]
   )
 
   const handleCommentChange = useCallback(
     (bitIndex: number, comment: string | undefined) => {
+      const serverZustand = useServerZustand.getState()
       const current = bitConfig ?? {}
       const entry = current[String(bitIndex)] ?? {}
       const updated: BitMapConfig = {
@@ -53,7 +54,7 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
       }
       const newBitMap = Object.keys(updated).length > 0 ? updated : undefined
 
-      addRegister({
+      serverZustand.addRegister({
         uuid,
         unitId,
         params: {
@@ -63,7 +64,7 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
         littleEndian
       })
     },
-    [bitConfig, params, uuid, unitId, littleEndian, addRegister]
+    [bitConfig, params, uuid, unitId, littleEndian]
   )
 
   return (

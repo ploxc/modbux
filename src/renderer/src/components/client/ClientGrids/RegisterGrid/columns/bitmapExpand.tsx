@@ -3,6 +3,7 @@ import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight'
 import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
+import { useCallback } from 'react'
 
 interface ExpandCellProps {
   address: number
@@ -11,15 +12,19 @@ interface ExpandCellProps {
 
 export const ExpandCell = meme(({ address, isBitmap }: ExpandCellProps): JSX.Element => {
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
-  const toggleExpanded = useBitMapZustand((z) => z.toggleExpanded)
   const isExpanded = expandedAddress === address
+
+  const handleClick = useCallback((): void => {
+    const bitMapZustand = useBitMapZustand.getState()
+    bitMapZustand.toggleExpanded(address)
+  }, [address])
 
   if (!isBitmap) return <></>
 
   return (
     <Box
       data-testid={`bitmap-expand-${address}`}
-      onClick={() => toggleExpanded(address)}
+      onClick={handleClick}
       title={isExpanded ? 'Hide bitmap detail' : 'Show bitmap detail'}
       sx={(theme) => ({
         display: 'flex',

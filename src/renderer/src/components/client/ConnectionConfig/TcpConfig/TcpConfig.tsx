@@ -6,14 +6,18 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { ElementType } from 'react'
+import { ElementType, useCallback } from 'react'
 
 // Host
 const Host = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const host = useClientZustand((z) => z.connectionConfig.tcp.host)
   const hostValid = useClientZustand((z) => z.valid.host)
-  const setHost = useClientZustand((z) => z.setHost)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setHost(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -28,7 +32,7 @@ const Host = meme(() => {
       slotProps={{
         input: {
           inputComponent: HostInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setHost })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />

@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { FixedOrGenerator, ValueParameters } from './valueParameters'
 import { AddressField, DataTypeSelect, CommentField } from './registerFields'
 import { AddButtons, DeleteButton } from './addRegisterActions'
@@ -12,8 +12,12 @@ import { AddButtons, DeleteButton } from './addRegisterActions'
 const AddRegister = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
   const registerType = useAddRegisterZustand((z) => z.registerType)
-  const setRegisterType = useAddRegisterZustand((z) => z.setRegisterType)
-  const setEditRegister = useAddRegisterZustand((z) => z.setEditRegister)
+
+  const handleClose = useCallback((): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setRegisterType(undefined)
+    addRegisterZustand.setEditRegister(undefined)
+  }, [])
 
   // Reset to defaults when opening in add mode
   useEffect(() => {
@@ -69,10 +73,7 @@ const AddRegister = meme(() => {
   return (
     <Modal
       open={!!registerType || !!edit}
-      onClose={() => {
-        setRegisterType(undefined)
-        setEditRegister(undefined)
-      }}
+      onClose={handleClose}
       sx={{
         display: 'flex',
         justifyContent: 'center',

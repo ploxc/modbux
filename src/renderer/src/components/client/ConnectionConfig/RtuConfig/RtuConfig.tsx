@@ -16,9 +16,10 @@ import {
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import type { ModbusBaudRate } from '@shared'
 import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 //
 //
@@ -142,39 +143,49 @@ const Com = meme((): JSX.Element => {
 const ClientBaudRateSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const baudRate = useClientZustand((z) => z.connectionConfig.rtu.options.baudRate)
-  const setBaudRate = useClientZustand((z) => z.setBaudRate)
 
-  return <BaudRateSelect value={baudRate} onChange={setBaudRate} disabled={disabled} />
+  const handleChange = useCallback((value: ModbusBaudRate): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setBaudRate(value)
+  }, [])
+
+  return <BaudRateSelect value={baudRate} onChange={handleChange} disabled={disabled} />
 })
 
 const ClientParitySelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const parity = useClientZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
-  const setParity = useClientZustand((z) => z.setParity)
 
-  return (
-    <ParitySelect
-      value={parity}
-      onChange={(v) => setParity(v as SerialPortOptions['parity'])}
-      disabled={disabled}
-    />
-  )
+  const handleChange = useCallback((value: string): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setParity(value as SerialPortOptions['parity'])
+  }, [])
+
+  return <ParitySelect value={parity} onChange={handleChange} disabled={disabled} />
 })
 
 const ClientDataBitsSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const dataBits = useClientZustand((z) => z.connectionConfig.rtu.options.dataBits)
-  const setDataBits = useClientZustand((z) => z.setDataBits)
 
-  return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
+  const handleChange = useCallback((value: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setDataBits(value as SerialPortOptions['dataBits'])
+  }, [])
+
+  return <DataBitsSelect value={dataBits} onChange={handleChange} disabled={disabled} />
 })
 
 const ClientStopBitsSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const stopBits = useClientZustand((z) => z.connectionConfig.rtu.options.stopBits)
-  const setStopBits = useClientZustand((z) => z.setStopBits)
 
-  return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
+  const handleChange = useCallback((value: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setStopBits(value as SerialPortOptions['stopBits'])
+  }, [])
+
+  return <StopBitsSelect value={stopBits} onChange={handleChange} disabled={disabled} />
 })
 
 const RtuConfig = meme((): JSX.Element => {

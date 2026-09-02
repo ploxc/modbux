@@ -22,7 +22,12 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 // Protocol
 const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
-  const setProtocol = useClientZustand((z) => z.setProtocol)
+
+  const handleChange = useCallback((_event: unknown, value: Protocol | null): void => {
+    if (value === null) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setProtocol(value)
+  }, [])
 
   // RTU over TCP is a TCP-family transport (toggled from the options menu),
   // so the TCP button stays highlighted for it -- but in warning colour, since
@@ -53,7 +58,7 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
       exclusive
       color="primary"
       value={toggleValue}
-      onChange={(_, v) => v !== null && setProtocol(v)}
+      onChange={handleChange}
     >
       {rtuOverTcp ? (
         <Tooltip title="RTU over TCP is on: raw RTU frames over the socket, not Modbus TCP. Turn it off in the cog menu.">
@@ -71,14 +76,13 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 
 const ConnectButton = meme(() => {
   const connectState = useClientZustand((z) => z.clientState.connectState)
-  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = useClientZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
       if (!useClientZustand.getState().readConfiguration) {
-        setRegisterData([])
+        useDataZustand.getState().setRegisterData([])
       }
       return
     }
@@ -92,7 +96,7 @@ const ConnectButton = meme(() => {
       }
       window.api.connect()
     }
-  }, [setRegisterData])
+  }, [])
 
   const disabled = ['disconnecting'].includes(connectState)
 

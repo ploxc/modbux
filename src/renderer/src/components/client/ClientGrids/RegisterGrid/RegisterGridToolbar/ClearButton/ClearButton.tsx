@@ -8,11 +8,11 @@ const ClearButton = meme((): JSX.Element => {
   const noData = useDataZustand((z) => z.registerData.length === 0)
   const polling = useClientZustand((z) => z.clientState.polling)
   const disabled = noData || polling
-  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
-  const handleClear = useCallback(() => {
-    setRegisterData([])
-  }, [setRegisterData])
+  const handleClear = useCallback((): void => {
+    const dataZustand = useDataZustand.getState()
+    dataZustand.setRegisterData([])
+  }, [])
 
   return (
     <Button

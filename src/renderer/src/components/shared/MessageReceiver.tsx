@@ -11,8 +11,6 @@ const MessageReceiver = meme((): null => {
   const { enqueueSnackbar } = useSnackbar()
   const clientConfigWasReset = useClientZustand((z) => z.configWasReset)
   const serverConfigWasReset = useServerZustand((z) => z.configWasReset)
-  const acknowledgeClientReset = useClientZustand((z) => z.acknowledgeConfigReset)
-  const acknowledgeServerReset = useServerZustand((z) => z.acknowledgeConfigReset)
 
   const handleMessage = useCallback(
     (message: BackendMessage) => {
@@ -38,27 +36,23 @@ const MessageReceiver = meme((): null => {
   // Server rather than at the root: without that, walking Home and back reports
   // the same reset again.
   useEffect(() => {
+    const clientZustand = useClientZustand.getState()
+    const serverZustand = useServerZustand.getState()
     if (clientConfigWasReset) {
       enqueueSnackbar({
         variant: 'error',
         message: 'Client configuration was corrupted and has been reset to defaults.'
       })
-      acknowledgeClientReset()
+      clientZustand.acknowledgeConfigReset()
     }
     if (serverConfigWasReset) {
       enqueueSnackbar({
         variant: 'error',
         message: 'Server configuration was corrupted and has been reset to defaults.'
       })
-      acknowledgeServerReset()
+      serverZustand.acknowledgeConfigReset()
     }
-  }, [
-    clientConfigWasReset,
-    serverConfigWasReset,
-    acknowledgeClientReset,
-    acknowledgeServerReset,
-    enqueueSnackbar
-  ])
+  }, [clientConfigWasReset, serverConfigWasReset, enqueueSnackbar])
 
   return null
 })

@@ -14,7 +14,7 @@ import { IMaskInput, IMask } from 'react-imask'
 import Select from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import ServerRtuConfig from './ServerRtuConfig/ServerRtuConfig'
 
 const ModeToggle = meme(() => {
@@ -50,8 +50,13 @@ const ModeToggle = meme(() => {
 const EndianToggle = meme(() => {
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
   const littleEndian = useServerZustand((z) => z.littleEndian[selectedUuid] ?? false)
-  const setLittleEndian = useServerZustand((z) => z.setLittleEndian)
   const ready = useServerZustand((z) => z.ready[selectedUuid])
+
+  const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
+    if (value === null) return
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setLittleEndian(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -60,7 +65,7 @@ const EndianToggle = meme(() => {
       color="primary"
       value={littleEndian}
       disabled={!ready}
-      onChange={(_, v) => v !== null && setLittleEndian(v)}
+      onChange={handleChange}
     >
       <ToggleButton
         data-testid="server-endian-be-btn"

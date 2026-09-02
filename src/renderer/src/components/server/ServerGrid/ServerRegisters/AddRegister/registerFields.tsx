@@ -8,8 +8,9 @@ import TextField from '@mui/material/TextField'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { ElementType } from 'react'
+import { ChangeEvent, ElementType, useCallback } from 'react'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
+import { BaseDataType } from '@shared'
 import { AddressInput } from './maskedInputs'
 
 export const AddressField = meme(() => {
@@ -17,7 +18,11 @@ export const AddressField = meme(() => {
   const addressInUse = useAddRegisterZustand((z) => z.addressInUse)
   const addressFitError = useAddRegisterZustand((z) => z.addressFitError)
   const valid = useAddRegisterZustand((z) => z.valid.address)
-  const setAddress = useAddRegisterZustand((z) => z.setAddress)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setAddress(value, isValid)
+  }, [])
 
   return (
     <FormControl error={!valid}>
@@ -35,7 +40,7 @@ export const AddressField = meme(() => {
               InputBaseComponentProps,
               'input'
             >,
-            inputProps: maskInputProps({ set: setAddress })
+            inputProps: maskInputProps({ set: handleChange })
           }
         }}
       />
@@ -53,8 +58,13 @@ export const AddressField = meme(() => {
 
 export const DataTypeSelect = meme(() => {
   const dataType = useAddRegisterZustand((z) => z.dataType)
-  const setDataType = useAddRegisterZustand((z) => z.setDataType)
-  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
+
+  const handleChange = useCallback((value: BaseDataType): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setDataType(value)
+  }, [])
+
+  return <DataTypeSelectInput dataType={dataType} setDataType={handleChange} />
 })
 
 //
@@ -65,7 +75,11 @@ export const DataTypeSelect = meme(() => {
 
 export const CommentField = meme(() => {
   const comment = useAddRegisterZustand((z) => z.comment)
-  const setComment = useAddRegisterZustand((z) => z.setComment)
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setComment(event.target.value)
+  }, [])
 
   return (
     <TextField
@@ -74,7 +88,7 @@ export const CommentField = meme(() => {
       variant="outlined"
       size="small"
       value={comment}
-      onChange={(e) => setComment(e.target.value)}
+      onChange={handleChange}
     />
   )
 })

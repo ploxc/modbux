@@ -19,7 +19,7 @@ import {
   UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
 import { useSnackbar } from 'notistack'
-import { useCallback, useEffect } from 'react'
+import { ChangeEvent, useCallback, useEffect } from 'react'
 import { usePrivilegedPortZustand } from './privilegedPortModal.zustand'
 
 /**
@@ -94,7 +94,12 @@ const Explanation = meme((): JSX.Element => {
 // Permanently or until reboot, driving both the command shown and the one run
 const ModeToggle = meme((): JSX.Element => {
   const mode = usePrivilegedPortZustand((z) => z.mode)
-  const setMode = usePrivilegedPortZustand((z) => z.setMode)
+
+  const handleChange = useCallback((_event: unknown, value: PrivilegedPortFixMode | null): void => {
+    if (!value) return
+    const privilegedPortZustand = usePrivilegedPortZustand.getState()
+    privilegedPortZustand.setMode(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -102,7 +107,7 @@ const ModeToggle = meme((): JSX.Element => {
       exclusive
       color="primary"
       value={mode}
-      onChange={(_, value: PrivilegedPortFixMode | null) => value && setMode(value)}
+      onChange={handleChange}
       sx={{ mb: 1.5 }}
     >
       <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
@@ -136,7 +141,11 @@ const Command = meme((): JSX.Element => {
 // Don't ask again
 const DontAskCheckbox = meme((): JSX.Element => {
   const dontAsk = usePrivilegedPortZustand((z) => z.dontAsk)
-  const setDontAsk = usePrivilegedPortZustand((z) => z.setDontAsk)
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const privilegedPortZustand = usePrivilegedPortZustand.getState()
+    privilegedPortZustand.setDontAsk(event.target.checked)
+  }, [])
 
   return (
     <FormControlLabel
@@ -145,7 +154,7 @@ const DontAskCheckbox = meme((): JSX.Element => {
         <Checkbox
           size="small"
           checked={dontAsk}
-          onChange={(e) => setDontAsk(e.target.checked)}
+          onChange={handleChange}
           data-testid="privileged-port-dont-ask"
         />
       }

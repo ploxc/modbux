@@ -4,11 +4,17 @@ import Tooltip from '@mui/material/Tooltip'
 import EndianTable from '@renderer/components/shared/inputs/EndianTable'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useCallback } from 'react'
 
 const ToggleEndianButton = meme((): JSX.Element | null => {
   const type = useClientZustand((z) => z.registerConfig.type)
   const littleEndian = useClientZustand((z) => z.registerConfig.littleEndian)
-  const setLittleEndian = useClientZustand((z) => z.setLittleEndian)
+
+  const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
+    if (value === null) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setLittleEndian(value)
+  }, [])
 
   const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
   if (!registers16Bit) return null
@@ -25,7 +31,7 @@ const ToggleEndianButton = meme((): JSX.Element | null => {
         exclusive
         color="primary"
         value={littleEndian}
-        onChange={(_, v) => v !== null && setLittleEndian(v)}
+        onChange={handleChange}
       >
         <ToggleButton
           data-testid="endian-be-btn"
