@@ -1,13 +1,13 @@
 # Contributing to Modbux
 
-Thanks for your interest in contributing. Modbux was born from real-world frustration with Modbus tooling, and your help makes it better for the entire industry.
-
-Before you start, please read this document carefully. These guidelines exist to keep the codebase consistent and the review process smooth. They are not suggestions.
+Everything below is a rule rather than a suggestion. Ten of them are asserted by
+`src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead of
+waiting for a reviewer.
 
 ## Ground rules
 
-1. **Open an issue first.** Before writing code, open an issue describing the bug or feature. This avoids wasted effort if the change doesn't align with the project direction.
-2. **One PR, one concern.** Don't mix a bug fix with a refactor. Don't sneak in "while I was here" changes. Keep your diff focused.
+1. **Open an issue first.** Describe the bug or the feature before writing code, so a change that does not fit the project's direction is found before you build it.
+2. **One PR, one concern.** Don't mix a bug fix with a refactor, and don't sneak in "while I was here" changes.
 3. **Don't break the build.** Run `yarn verify` before pushing. If it doesn't pass, your PR won't be reviewed.
 4. **Match the existing style.** Don't introduce new patterns, conventions, or abstractions without discussing them first.
 
@@ -69,18 +69,22 @@ and for `(z) => z`, which take the whole store the long way round. The renderer
 has zero of all three and zero `useShallow`, and that is why it draws a
 two-thousand-row grid without either.
 
-**An action is fetched where it runs, not subscribed to.** The handler is a
-`useCallback` whose first line reads the store:
-`const clientZustand = useClientZustand.getState()`.
-A selector that hands back a store function puts
-that function in the dependency list, and a dependency list naming something the
-component does not own is a list no reader can check. What the component holds
-goes in the list; what the store holds is read at the moment it is used. That
-second half also covers a *value* the component wants at a moment rather than on
-every change: read through `getState()` and it causes no render.
+**An action is fetched where it runs, not subscribed to.** A selector that hands
+back a store function puts that function in the dependency list, and a
+dependency list naming something the component does not own is a list no reader
+can check. What the component holds goes in the list; what the store holds is
+read through `getState()`. That also covers a *value* the component wants at a
+moment rather than on every change: read that way, it causes no render.
 
-The handler has a name and the prop takes the name, so a `getState()` written
-into a JSX attribute breaks the same rule from the other side: the call sits
+Two shapes, and which one you write depends on whether the component adds
+anything. A handler that does its own work is a `useCallback` whose first line
+reads the store, `const clientZustand = useClientZustand.getState()`. A prop
+that only forwards takes the action itself,
+`const setHost = useClientZustand.getState().setHost`, because wrapping it in a
+`useCallback` that calls it with the same arguments only gives it a second name.
+
+Either way the thing has a name and the prop takes the name, so a `getState()`
+written into a JSX attribute breaks the rule from the other side: the call sits
 where the reader is looking at layout, and a handler with no name is a handler
 with nothing to read.
 
@@ -118,14 +122,14 @@ schema goes beside the handler in `main/ipc.ts`, and it is only accepted where
 `undefined` is an honest answer: a rejected payload has nothing else to give
 back, so a channel returning a value has to say so in its type.
 
-**Every configured path alias is imported through.** `@main`, `@preload` and
-`@backend` sat in the configs long after anything used them, and `@backend`
-pointed at a directory that had been deleted.
+**Every configured path alias is imported through.** `@renderer/*` and `@shared`
+are the two, in the tsconfigs and in `electron.vite.config.ts` alike. An alias
+nobody imports through resolves whatever it points at, including a directory
+that is gone, so the last import leaving is what retires it.
 
-**Every configured include points at something.** `tsconfig.node.json` went on
-including `src/backend/**/*` after the directory and the alias were both gone. A
-glob that matches nothing costs nothing to keep and says nothing when it stops
-being true, so the test expands it rather than reading its shape.
+**Every configured include points at something.** A glob that matches nothing
+costs nothing to keep and says nothing when it stops being true, so the test
+expands it rather than reading its shape.
 
 ### Two rules no test can see
 
@@ -191,15 +195,15 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 are invoked on purpose:
 
 - `99-hardware` needs an Arduino on a serial port. It finds the board by USB
-  vendor ID and skips the suite when none is attached, so it runs unattended --
-  but CI has no board, which is why it stays out of `test:e2e`.
+  vendor ID and skips the suite when none is attached, so it runs unattended.
+  CI has no board, which is why it stays out of `test:e2e`.
 - `03-presentation` is a documentation utility, not a check. It clicks through
   the app and captures what it sees without asserting much, so it costs two
   minutes to tell you little that `01-main` does not already cover. Run it when
   the UI changed and the manual needs new screenshots.
 
-`verify` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
-step and runs far longer, which is too much for every push. The `test:all:*`
+`verify` deliberately leaves out `test:e2e:packaged`, which adds a full packaging
+step and runs far longer than is worth doing on every push. The `test:all:*`
 rounds do include it, and those are for cutting a release rather than for a PR.
 It is the only check that exercises what actually ships: `electron-vite`
 externalizes whatever sits in `dependencies` and `electron-builder` packs only
@@ -211,10 +215,9 @@ installed Modbux's config.
 `playwright.config.ts` ignores `99-hardware`, so neither `test:e2e` nor
 `test:e2e:packaged` picks those specs up. They need an Arduino running
 `tools/arduino/iem3000.ino` on a serial port. The board is found by USB vendor
-ID — `manufacturer` is useless for this, it reads "Microsoft" on Windows where
-the generic driver claims the device — and the suite skips itself when no board
-is attached. So the round is unattended, and every `test:all:*` ends with it.
-Use `yarn test:e2e:hardware` to run it alone.
+ID rather than by `manufacturer`, which reads "Microsoft" on Windows where the
+generic driver claims the device. Every `test:all:*` ends with this round, and
+`yarn test:e2e:hardware` runs it alone.
 
 ### Test expectations
 
