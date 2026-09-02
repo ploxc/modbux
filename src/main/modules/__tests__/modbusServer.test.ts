@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { UnitIdString, Windows } from '@shared'
+import type { BaseDataType, RegisterParams, UnitIdString, Windows } from '@shared'
 import type { IServiceVector } from 'modbus-serial/ServerTCP'
 
 // Configurable port availability for net mock
@@ -1804,6 +1804,100 @@ describe('ModbusServer', () => {
 
         expect(warnings().length).toBe(0)
       })
+    })
+  })
+  // ─── C1: removing a register erases what it occupied, and no more ─────────
+
+  describe('removeRegister erases what the register occupied', () => {
+    const addRegister = (
+      address: number,
+      dataType: BaseDataType,
+      extra: { value?: number; stringValue?: string; length?: number } = {}
+    ): void => {
+      const params: RegisterParams = {
+        address,
+        registerType: 'holding_registers',
+        dataType,
+        comment: '',
+        value: extra.value ?? 0,
+        stringValue: extra.stringValue,
+        length: extra.length,
+        min: undefined,
+        max: undefined,
+        interval: undefined
+      }
+      server.addRegister({ uuid, unitId, littleEndian: false, params })
+    }
+
+    const readHolding = async (vector: IServiceVector, address: number): Promise<unknown> =>
+      new Promise((resolve) =>
+        vector.getHoldingRegister!(address, 1, (error, value) => resolve(error ? 'ERR' : value))
+      )
+
+    it('leaves the register next to a deleted string alone', async () => {
+      // The width comes from the register, not from the type.
+      addRegister(20, 'double', { value: 1234.5 })
+      addRegister(18, 'utf8', { stringValue: 'HAHA', length: 2 })
+
+      await server.createServer({ uuid, port: 5020 })
+      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+
+      const before = await readHolding(vector, 20)
+      expect(before).not.toBe(0)
+
+      server.removeRegister({
+        uuid,
+        unitId,
+        registerType: 'holding_registers',
+        address: 18,
+        dataType: 'utf8',
+        length: 2
+      })
+
+      expect(await readHolding(vector, 18)).toBe(0)
+      expect(await readHolding(vector, 19)).toBe(0)
+      expect(await readHolding(vector, 20)).toBe(before)
+    })
+
+    it('erases every register a wide type occupied', async () => {
+      addRegister(30, 'double', { value: 1234.5 })
+      addRegister(40, 'uint16', { value: 7 })
+
+      await server.createServer({ uuid, port: 5020 })
+      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+
+      server.removeRegister({
+        uuid,
+        unitId,
+        registerType: 'holding_registers',
+        address: 30,
+        dataType: 'double'
+      })
+
+      for (const address of [30, 31, 32, 33]) {
+        expect(await readHolding(vector, address)).toBe(0)
+      }
+      expect(await readHolding(vector, 40)).toBe(7)
+    })
+
+    it('falls back to ten registers for a string that carries no length', async () => {
+      addRegister(0, 'utf8', { stringValue: 'HAHA' })
+      addRegister(10, 'uint16', { value: 7 })
+
+      await server.createServer({ uuid, port: 5020 })
+      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+
+      server.removeRegister({
+        uuid,
+        unitId,
+        registerType: 'holding_registers',
+        address: 0,
+        dataType: 'utf8'
+      })
+
+      expect(await readHolding(vector, 0)).toBe(0)
+      expect(await readHolding(vector, 9)).toBe(0)
+      expect(await readHolding(vector, 10)).toBe(7)
     })
   })
 })

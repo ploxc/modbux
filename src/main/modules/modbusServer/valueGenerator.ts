@@ -8,6 +8,7 @@ import {
   BaseDataType,
   RegisterParams,
   RegisterValueGenerator,
+  registerWidth,
   UnitIdString
 } from '@shared'
 import { round } from 'lodash'
@@ -89,19 +90,7 @@ export class ValueGenerator implements RegisterValueGenerator {
   public dispose = (): void => {
     clearInterval(this._intervalTimer)
 
-    // Determine how many addresses to reset based on data type size
-    let size: number
-    if (['int16', 'uint16'].includes(this._dataType)) {
-      size = 1
-    } else if (['uint32', 'int32', 'float', 'unix'].includes(this._dataType)) {
-      size = 2
-    } else if (['int64', 'uint64', 'double', 'datetime'].includes(this._dataType)) {
-      size = 4
-    } else if (this._dataType === 'utf8') {
-      size = this._length
-    } else {
-      size = 1
-    }
+    const size = registerWidth(this._dataType, this._length)
 
     for (let i = 0; i < size; i++) {
       this._serverData[this._registerType][this._address + i] = 0

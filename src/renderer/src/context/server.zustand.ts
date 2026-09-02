@@ -22,7 +22,7 @@ import {
   migrateServerModeState,
   migrateBoolShape,
   CURRENT_SERVER_ZUSTAND_VERSION,
-  getRegisterLength,
+  registerWidth,
   ServerSerialConfig,
   ModbusBaudRate
 } from '@shared'
@@ -708,9 +708,10 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 
   // Skip composite merging for types that don't use numeric compositing
   if (dataType === 'utf8') return // Strings: no composite value
+  if (dataType === 'none') return // No data type, nothing to compose
 
   // 2) Calculate how many registers this DataType spans
-  const registersCount = getRegisterLength(dataType, address)
+  const registersCount = registerWidth(dataType)
   if (registersCount < 1 || registersCount > 4) return // Defensive: only support 1-4 registers
 
   // 3) Determine which register‐offset was written

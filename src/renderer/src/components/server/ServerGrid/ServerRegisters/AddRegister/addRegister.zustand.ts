@@ -4,14 +4,16 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   BaseDataType,
   DataType,
+  DEFAULT_UTF8_LENGTH,
   getAddressFitError,
   NumberRegisters,
+  registerWidth,
   ServerRegister,
   UnitIdString
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { getRegisterSize, isAddressInUse, toRegisterParams } from './addRegister.zustand.helpers'
+import { isAddressInUse, toRegisterParams } from './addRegister.zustand.helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -89,7 +91,7 @@ const validateAddress = (
   const uuid = serverZustand.selectedUuid
   const unitId = serverZustand.getUnitId(uuid)
   const addressNum = Number(address)
-  const length = dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+  const length = dataType === 'utf8' ? Number(registerLength) || DEFAULT_UTF8_LENGTH : undefined
 
   const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum, length)
   const addressFitError = getAddressFitError(dataType, addressNum, length)
@@ -256,7 +258,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     stringValue: '',
     setStringValue: (value) => {
       const { registerLength } = getState()
-      const maxBytes = (Number(registerLength) || 10) * 2
+      const maxBytes = (Number(registerLength) || DEFAULT_UTF8_LENGTH) * 2
       const valid = new TextEncoder().encode(value).length <= maxBytes
       set((state) => {
         state.stringValue = value
@@ -292,7 +294,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const uuid = serverZustand.selectedUuid
         const unitId = serverZustand.getUnitId(uuid)
         const usedAddresses = serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
-        const size = getRegisterSize(
+        const size = registerWidth(
           dataType,
           dataType === 'utf8' ? Number(registerLength) || 10 : undefined
         )
@@ -347,7 +349,8 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
             unitId,
             address: oldAddress,
             registerType,
-            dataType: serverRegisterEdit.params.dataType
+            dataType: serverRegisterEdit.params.dataType,
+            length: serverRegisterEdit.params.length
           })
         }
       }

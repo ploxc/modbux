@@ -3,11 +3,11 @@
  */
 import Button from '@mui/material/Button'
 import { useAddRegisterZustand } from './addRegister.zustand'
-import { getRegisterSize } from './addRegister.zustand.helpers'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import Delete from '@mui/icons-material/Delete'
+import { registerWidth } from '@shared'
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -35,7 +35,7 @@ export const AddButtons = meme(() => {
     if (!result) return
     const { address, dataType } = result
     const addRegisterZustand = useAddRegisterZustand.getState()
-    const size = getRegisterSize(dataType, Number(addRegisterZustand.registerLength) || 10)
+    const size = registerWidth(dataType, Number(addRegisterZustand.registerLength) || undefined)
     // Reset value and comment, keep dataType/LE/fixed/min/max/interval
     addRegisterZustand.setValue('0', true)
     addRegisterZustand.setComment('')
@@ -112,7 +112,8 @@ export const DeleteButton = meme(() => {
       unitId,
       address: numericAddress,
       registerType,
-      dataType
+      dataType,
+      length: entry?.params?.length
     })
 
     setRegisterType(undefined)

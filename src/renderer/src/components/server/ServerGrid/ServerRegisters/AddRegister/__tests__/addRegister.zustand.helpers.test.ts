@@ -1,42 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
-  getRegisterSize,
   isAddressInUse,
   toRegisterParams,
   type RegisterFormValues
 } from '../addRegister.zustand.helpers'
-
-// ─── getRegisterSize ────────────────────────────────────────────────
-
-describe('getRegisterSize', () => {
-  it('returns 1 for 16-bit types', () => {
-    expect(getRegisterSize('int16')).toBe(1)
-    expect(getRegisterSize('uint16')).toBe(1)
-  })
-
-  it('returns 2 for 32-bit types', () => {
-    expect(getRegisterSize('int32')).toBe(2)
-    expect(getRegisterSize('uint32')).toBe(2)
-    expect(getRegisterSize('float')).toBe(2)
-    expect(getRegisterSize('unix')).toBe(2)
-  })
-
-  it('returns 4 for 64-bit types', () => {
-    expect(getRegisterSize('int64')).toBe(4)
-    expect(getRegisterSize('uint64')).toBe(4)
-    expect(getRegisterSize('double')).toBe(4)
-    expect(getRegisterSize('datetime')).toBe(4)
-  })
-
-  it('returns provided length for utf8', () => {
-    expect(getRegisterSize('utf8', 5)).toBe(5)
-    expect(getRegisterSize('utf8', 124)).toBe(124)
-  })
-
-  it('defaults to 10 for utf8 without length', () => {
-    expect(getRegisterSize('utf8')).toBe(10)
-  })
-})
 
 // ─── isAddressInUse ─────────────────────────────────────────────────
 

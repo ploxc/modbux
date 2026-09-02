@@ -10,19 +10,16 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { forwardRef } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
-import { notEmpty } from '@shared'
+import { notEmpty, registerWidth } from '@shared'
 import { useMinMaxInteger } from '@renderer/hooks'
 
 const AddressInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
 
   // Set maximum address based on data type
-  const maxAddress = useAddRegisterZustand((z) => {
-    if (['int32', 'uint32', 'float', 'unix'].includes(z.dataType)) return 65534
-    if (['int64', 'uint64', 'double', 'datetime'].includes(z.dataType)) return 65532
-    if (z.dataType === 'utf8') return Math.max(0, 65535 - (Number(z.registerLength) || 10) + 1)
-    return 65535
-  })
+  const maxAddress = useAddRegisterZustand((z) =>
+    Math.max(0, 65535 - registerWidth(z.dataType, Number(z.registerLength) || undefined) + 1)
+  )
 
   return (
     <IMaskInput
