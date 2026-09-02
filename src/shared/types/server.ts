@@ -137,7 +137,10 @@ export const RemoveRegisterParamsSchema = z.object({
   unitId: UnitIdStringSchema,
   registerType: NumberRegistersSchema,
   address: RegisterAddressSchema,
-  dataType: BaseDataTypeSchema
+  dataType: BaseDataTypeSchema,
+  // Only a string has a width the user chose, and without it the server has to
+  // guess how much of the map the register occupied and erases the guess.
+  length: z.number().optional()
 })
 export type RemoveRegisterParams = z.infer<typeof RemoveRegisterParamsSchema>
 

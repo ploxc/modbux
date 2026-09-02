@@ -6,6 +6,7 @@ import {
   bigEndian64,
   littleEndian64,
   createRegisters,
+  registerWidth,
   getMinMaxValues,
   notEmpty,
   humanizeSerialError
@@ -91,6 +92,46 @@ describe('littleEndian64', () => {
 // ---------------------------------------------------------------------------
 // createRegisters
 // ---------------------------------------------------------------------------
+describe('registerWidth', () => {
+  it('is 1 for the 16-bit types', () => {
+    expect(registerWidth('int16')).toBe(1)
+    expect(registerWidth('uint16')).toBe(1)
+    expect(registerWidth('bitmap')).toBe(1)
+  })
+
+  it('is 2 for the 32-bit types', () => {
+    expect(registerWidth('int32')).toBe(2)
+    expect(registerWidth('uint32')).toBe(2)
+    expect(registerWidth('float')).toBe(2)
+    expect(registerWidth('unix')).toBe(2)
+  })
+
+  it('is 4 for the 64-bit types', () => {
+    expect(registerWidth('int64')).toBe(4)
+    expect(registerWidth('uint64')).toBe(4)
+    expect(registerWidth('double')).toBe(4)
+    expect(registerWidth('datetime')).toBe(4)
+  })
+
+  it('is the length the user gave for a string', () => {
+    expect(registerWidth('utf8', 2)).toBe(2)
+    expect(registerWidth('utf8', 124)).toBe(124)
+  })
+
+  it('is 10 for a string with no length, which is what the dialog offers', () => {
+    expect(registerWidth('utf8')).toBe(10)
+  })
+
+  it('ignores a length on a type that does not have one', () => {
+    expect(registerWidth('int16', 7)).toBe(1)
+    expect(registerWidth('double', 7)).toBe(4)
+  })
+
+  it('is 1 for none, which occupies its address without holding a value', () => {
+    expect(registerWidth('none')).toBe(1)
+  })
+})
+
 describe('createRegisters', () => {
   describe('int16', () => {
     it('converts positive value', () => {

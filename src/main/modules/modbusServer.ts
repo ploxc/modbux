@@ -21,7 +21,7 @@ import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal } from 'modbus-serial'
-import { getRegisterLength } from '@shared'
+import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
 import net from 'net'
 
 const getDefaultGenerators = (): ValueGenerators => ({
@@ -381,7 +381,7 @@ export class ModbusServer {
     if (fixedValue) {
       const registers =
         dataType === 'utf8'
-          ? createStringRegisters(stringValue ?? '', length ?? 10)
+          ? createStringRegisters(stringValue ?? '', length ?? DEFAULT_UTF8_LENGTH)
           : createRegisters(dataType, value, littleEndian)
       registers.forEach((register, index) => {
         const registerAddress = address + index
@@ -429,14 +429,15 @@ export class ModbusServer {
     unitId,
     registerType,
     address,
-    dataType
+    dataType,
+    length
   }: RemoveRegisterParams): void => {
     const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
     if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
 
     // Reset all registers occupied by this data type
-    const registerCount = getRegisterLength(dataType, address)
+    const registerCount = registerWidth(dataType, length)
     for (let i = 0; i < registerCount; i++) {
       serverData[registerType][address + i] = 0
     }

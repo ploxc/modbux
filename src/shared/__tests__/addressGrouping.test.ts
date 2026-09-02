@@ -1,47 +1,47 @@
 import { describe, it, expect } from 'vitest'
-import { getRegisterLength, buildAddrInfos, groupAddressInfos } from '../addressGrouping'
+import { getReadSpan, buildAddrInfos, groupAddressInfos } from '../addressGrouping'
 import type { RegisterMapObject } from '../types'
 
-describe('getRegisterLength', () => {
+describe('getReadSpan', () => {
   it('returns 1 for 16-bit types', () => {
-    expect(getRegisterLength('int16', 0)).toBe(1)
-    expect(getRegisterLength('uint16', 0)).toBe(1)
+    expect(getReadSpan('int16', 0)).toBe(1)
+    expect(getReadSpan('uint16', 0)).toBe(1)
   })
 
   it('returns 2 for 32-bit types', () => {
-    expect(getRegisterLength('int32', 0)).toBe(2)
-    expect(getRegisterLength('uint32', 0)).toBe(2)
-    expect(getRegisterLength('float', 0)).toBe(2)
-    expect(getRegisterLength('unix', 0)).toBe(2)
+    expect(getReadSpan('int32', 0)).toBe(2)
+    expect(getReadSpan('uint32', 0)).toBe(2)
+    expect(getReadSpan('float', 0)).toBe(2)
+    expect(getReadSpan('unix', 0)).toBe(2)
   })
 
   it('returns 4 for 64-bit types', () => {
-    expect(getRegisterLength('int64', 0)).toBe(4)
-    expect(getRegisterLength('uint64', 0)).toBe(4)
-    expect(getRegisterLength('double', 0)).toBe(4)
-    expect(getRegisterLength('datetime', 0)).toBe(4)
+    expect(getReadSpan('int64', 0)).toBe(4)
+    expect(getReadSpan('uint64', 0)).toBe(4)
+    expect(getReadSpan('double', 0)).toBe(4)
+    expect(getReadSpan('datetime', 0)).toBe(4)
   })
 
-  it('returns 0 for unknown type', () => {
-    expect(getRegisterLength('none', 0)).toBe(0)
+  it('returns 0 for none, an address with no data type', () => {
+    expect(getReadSpan('none', 0)).toBe(0)
   })
 
   describe('utf8', () => {
     it('returns gap when next address is known and smaller than default', () => {
-      expect(getRegisterLength('utf8', 10, 20)).toBe(10)
+      expect(getReadSpan('utf8', 10, 20)).toBe(10)
     })
 
-    it('caps at DEFAULT_UTF8_REGISTERS when gap is larger', () => {
-      expect(getRegisterLength('utf8', 0, 100)).toBe(24)
+    it('caps at 24 when the gap is larger', () => {
+      expect(getReadSpan('utf8', 0, 100)).toBe(24)
     })
 
     it('returns default when next address is not provided', () => {
-      expect(getRegisterLength('utf8', 0)).toBe(24)
+      expect(getReadSpan('utf8', 0)).toBe(24)
     })
 
     it('returns default when next address is not greater than current', () => {
-      expect(getRegisterLength('utf8', 10, 10)).toBe(24)
-      expect(getRegisterLength('utf8', 10, 5)).toBe(24)
+      expect(getReadSpan('utf8', 10, 10)).toBe(24)
+      expect(getReadSpan('utf8', 10, 5)).toBe(24)
     })
   })
 })

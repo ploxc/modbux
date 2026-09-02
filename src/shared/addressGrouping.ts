@@ -1,47 +1,28 @@
 import type { AddressGroup, DataType, RegisterMapObject, RegisterMapValue } from './types'
+import { registerWidth } from './utils'
+
+/** How far a string is read when nothing in the mapping says where it ends. */
+const MAX_UTF8_READ_REGISTERS = 24
 
 /**
- * Determine how many Modbus registers to read for a given DataType.
- * For Utf8, if `nextAddress` is provided we read up to that gap;
- * otherwise we fall back to a safe default of 24 registers.
+ * How many registers to read for a mapped address.
+ *
+ * This is not `registerWidth`. A client's register mapping carries no length,
+ * so the only thing saying where a string ends is the next mapped address.
+ * `none` is an address with no data type, which is nothing to read at all.
  */
-export const getRegisterLength = (
+export const getReadSpan = (
   dataType: DataType,
   currentAddress: number,
   nextAddress?: number
 ): number => {
-  const DEFAULT_UTF8_REGISTERS = 24
+  if (dataType === 'none') return 0
+  if (dataType !== 'utf8') return registerWidth(dataType)
 
-  switch (dataType) {
-    case 'none':
-      return 0
-
-    case 'int16':
-    case 'uint16':
-    case 'bitmap':
-      return 1
-
-    case 'float':
-    case 'int32':
-    case 'uint32':
-    case 'unix':
-      return 2
-
-    case 'int64':
-    case 'uint64':
-    case 'double':
-    case 'datetime':
-      return 4
-
-    case 'utf8':
-      if (typeof nextAddress === 'number' && nextAddress > currentAddress) {
-        // only use the real gap if it's no larger than DEFAULT_UTF8_REGISTERS
-        const gap = nextAddress - currentAddress
-        return Math.min(gap, DEFAULT_UTF8_REGISTERS)
-      }
-      // fallback for when we don't know the next address or it's not helpful
-      return DEFAULT_UTF8_REGISTERS
+  if (typeof nextAddress === 'number' && nextAddress > currentAddress) {
+    return Math.min(nextAddress - currentAddress, MAX_UTF8_READ_REGISTERS)
   }
+  return MAX_UTF8_READ_REGISTERS
 }
 
 /**
@@ -59,7 +40,7 @@ export const buildAddrInfos = (
 
       const next = arr[index + 1]
       const nextAddress = next?.[0] ? Number(next[0]) : undefined
-      const registerCount = getRegisterLength(dataType, address, nextAddress)
+      const registerCount = getReadSpan(dataType, address, nextAddress)
 
       return {
         address,
