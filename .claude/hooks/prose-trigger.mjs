@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 /**
- * The trigger for `/prose` that does not depend on anyone remembering it.
+ * The trigger for `/prose`, on every write rather than the prose-looking ones.
  *
- * The moment a sentence needs checking is the moment before it is written, and
- * no user words announce it. So the trigger is the *write*: a markdown file, or
- * an edit that adds a comment.
- *
- * It is a reminder, never a block, and it states the whole rule every time. The
- * short form it used to degrade to after the first firing is the form that gets
- * read past, and the sentence being written is the thing at stake.
+ * A heredoc puts the sentence in `command`, so a matcher reading `content` and
+ * `new_string` never sees it. Both halves classify as little as possible, it
+ * reminds and never blocks, and it says the whole rule every time: a short form
+ * gets read past.
  *
  * Reads the hook payload on stdin, writes hook JSON on stdout.
  */
 
+import { IS_COMMIT, WRITES_A_FILE } from './bash-target.mjs'
 import { readPayload } from './payload.mjs'
-
-/** A comment opener at the start of a line, in TypeScript and JavaScript. */
-const ADDS_COMMENT = /(^|\n)\s*(\/\/|\/\*)/
 
 const RULE =
   'This write is prose, not code. Every sentence is a claim, an order, or a measurement — ' +
@@ -28,23 +23,12 @@ const RULE =
   'to end only ever grows. No em dash in anything a person reads.'
 
 const payload = await readPayload()
+const input = payload.tool_input ?? {}
+const command = input.command ?? ''
 
-const path = payload.tool_input?.file_path ?? ''
-const written = payload.tool_input?.content ?? payload.tool_input?.new_string ?? ''
+const namesAFile = typeof input.file_path === 'string' && input.file_path.length > 0
 
-/**
- * A commit message is prose, and it is written through Bash rather than a Write.
- *
- * Anchored to the start of a command rather than matched anywhere in the string:
- * a heredoc writing a test about `git commit`, or a grep for it, is not a commit.
- * That false positive fired on the run that added this line.
- */
-const command = payload.tool_input?.command ?? ''
-const IS_COMMIT = /(?:^|[;&|]\s*|&&\s*|\|\|\s*)git\s+(?:commit|merge)\b/
-
-const isProse =
-  path.endsWith('.md') || ADDS_COMMENT.test(written) || IS_COMMIT.test(command)
-if (!isProse) process.exit(0)
+if (!namesAFile && !IS_COMMIT.test(command) && !WRITES_A_FILE.test(command)) process.exit(0)
 
 console.log(
   JSON.stringify({
