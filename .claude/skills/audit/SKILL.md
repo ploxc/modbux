@@ -166,6 +166,36 @@ Two exceptions, where the burden runs the other way:
 
 Open the file, reproduce, then decide. Being written down is not evidence.
 
+## When more than one area is done
+
+**Group the blocking findings by cause before anyone fixes them.** Six areas
+audited in parallel produced 28 blocking findings that turned out to be thirteen
+causes, and three of those thirteen were invisible from any single document.
+→ [WHY: the same bug from three directions](./references/one-bug-three-reports.md)
+
+Write `tmp/AUDIT-clusters.md`: one section per cause, naming the findings it
+holds, what they share, and what a fix has to settle. Keep the per-finding
+evidence where it is; the cluster document points, it does not copy.
+
+Check every blocking finding reaches the document:
+
+```sh
+for a in <areas>; do
+  grep -E '^#{3,4} .*· blocking' tmp/AUDIT-$a.md | sed 's/^#*  *//;s/ ·.*//' | while read id; do
+    grep -q "$a/$id" tmp/AUDIT-clusters.md || echo "missing: $a/$id"
+  done
+done
+```
+
+**A wrong grouping is a new way to be wrong.** A cluster that is really two
+causes gets fixed as one and half of it survives, so the refutation reviewer is
+asked to break the grouping as well as the claims.
+
+**A cluster's size is not the largest size inside it.** Each finding was sized
+inside one area by someone who could not see the others. Four of the thirteen
+here needed a decision that fits in no single area, which is size L whatever the
+findings said.
+
 ## Finish by reporting
 
 The document path, then one line per finding: severity, symbol, claim. Then
