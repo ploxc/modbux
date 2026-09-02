@@ -46,6 +46,11 @@ const Port = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const port = useClientZustand((z) => String(z.connectionConfig.tcp.options.port))
 
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setPort(value, valid)
+  }, [])
+
   return (
     <TextField
       disabled={disabled}
@@ -58,7 +63,7 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: useClientZustand.getState().setPort })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />

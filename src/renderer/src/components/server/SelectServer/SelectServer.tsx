@@ -38,6 +38,12 @@ const SelectServer = meme(() => {
     serverZustand.deleteServer(serverZustand.selectedUuid)
   }, [])
 
+  const handleSelect = useCallback((_event: unknown, value: string | null): void => {
+    if (!value) return
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setSelectedUuid(value)
+  }, [])
+
   if (serverMode === 'rtu') return null
 
   return (
@@ -68,10 +74,7 @@ const SelectServer = meme(() => {
         color="primary"
         value={selectedUuid}
         exclusive
-        onChange={(_, v) => {
-          if (!v) return
-          useServerZustand.getState().setSelectedUuid(v)
-        }}
+        onChange={handleSelect}
       >
         {serverUuids.map((uuid) => (
           <SelectServerToggle key={uuid} uuid={uuid} />

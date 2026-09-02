@@ -11,9 +11,9 @@ import useServerGridZustand from '../serverGrid.zustand'
 
 const AddButton = meme(({ type }: { type: RegisterType }) => {
   const handleClick = useCallback(() => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
     if (type === 'input_registers' || type === 'holding_registers') {
-      const setRegisterType = useAddRegisterZustand.getState().setRegisterType
-      setRegisterType(type)
+      addRegisterZustand.setRegisterType(type)
     }
     // For bools, the inline add bar in ServerBooleans handles adding
   }, [type])
@@ -74,6 +74,12 @@ const ServerPartTitleName = meme(
       const amount = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
       return amount
     })
+
+    const handleClick = useCallback((): void => {
+      const serverGridZustand = useServerGridZustand.getState()
+      serverGridZustand.toggleCollapse(registerType)
+    }, [registerType])
+
     return (
       <Box
         data-testid={`section-${registerType}`}
@@ -92,7 +98,7 @@ const ServerPartTitleName = meme(
             backgroundColor: alpha(theme.palette.primary.dark, 0.2)
           }
         })}
-        onClick={() => useServerGridZustand.getState().toggleCollapse(registerType)}
+        onClick={handleClick}
       >
         {name} ({amount})
       </Box>

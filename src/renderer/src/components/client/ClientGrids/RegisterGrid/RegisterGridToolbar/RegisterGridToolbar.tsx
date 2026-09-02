@@ -14,9 +14,15 @@ import RawButton from './RawButton/RawButton'
 import ClearFiltersButton from './ClearFiltersButton/ClearFiltersButton'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import TextField from '@mui/material/TextField'
+import { ChangeEvent, useCallback } from 'react'
 
 const ClientConfigName = meme(() => {
   const name = useClientZustand((z) => z.name ?? '')
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setName(event.target.value)
+  }, [])
 
   return (
     <TextField
@@ -28,7 +34,7 @@ const ClientConfigName = meme(() => {
       color="primary"
       placeholder="Client Configuration Name"
       value={name}
-      onChange={(e) => useClientZustand.getState().setName(e.target.value)}
+      onChange={handleChange}
     />
   )
 })

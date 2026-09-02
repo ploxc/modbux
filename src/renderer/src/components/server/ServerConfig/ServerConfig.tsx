@@ -11,7 +11,7 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, ServerMode } from '@shared'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import Select from '@mui/material/Select'
+import Select, { SelectChangeEvent } from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
 import React, { useCallback, useState } from 'react'
@@ -21,11 +21,12 @@ const ModeToggle = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
 
   const handleModeChange = async (_: React.MouseEvent, value: ServerMode | null): Promise<void> => {
+    const serverZustand = useServerZustand.getState()
     if (!value || value === serverMode) return
     if (value === 'rtu') {
-      await useServerZustand.getState().switchToRtu()
+      await serverZustand.switchToRtu()
     } else {
-      await useServerZustand.getState().switchToTcp()
+      await serverZustand.switchToTcp()
     }
   }
 
@@ -124,6 +125,12 @@ const UnitId = meme(() => {
   })
   const labelId = 'unit-id-select'
 
+  const handleChange = useCallback((event: SelectChangeEvent<UnitIdString>): void => {
+    const serverZustand = useServerZustand.getState()
+    const result = UnitIdStringSchema.safeParse(event.target.value)
+    if (result.success) serverZustand.setUnitId(result.data)
+  }, [])
+
   return (
     <FormControl size="small" sx={{ minWidth: 80 }}>
       <InputLabel id={labelId}>Unit ID</InputLabel>
@@ -133,10 +140,7 @@ const UnitId = meme(() => {
         labelId={labelId}
         value={unitId}
         label="Unit ID"
-        onChange={(e) => {
-          const result = UnitIdStringSchema.safeParse(e.target.value)
-          if (result.success) useServerZustand.getState().setUnitId(result.data)
-        }}
+        onChange={handleChange}
         slotProps={{ input: { sx: { pr: 0, pl: 1 } } }}
       >
         {UnitIdStringSchema.options.map((unitId) => (
@@ -190,6 +194,11 @@ PortInput.displayName = 'PortInput'
 const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
 
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setPort(value, valid)
+  }, [])
+
   return (
     <TextField
       data-testid="server-port-input"
@@ -201,9 +210,7 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: PortInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({
-            set: useServerZustand.getState().setPort
-          })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />

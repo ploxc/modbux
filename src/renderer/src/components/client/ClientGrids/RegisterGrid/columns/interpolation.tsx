@@ -119,6 +119,11 @@ const InterpolationModal = meme(
       [type, address]
     )
 
+    const handleReset = useCallback((): void => {
+      const clientZustand = useClientZustand.getState()
+      clientZustand.setRegisterMapping(address, 'interpolate', { ...defaultInterpolation })
+    }, [address])
+
     return (
       open && (
         <Modal open={open} onClose={onClose} slotProps={{ backdrop: { sx: {} } }}>
@@ -142,11 +147,7 @@ const InterpolationModal = meme(
                 data-testid="interpolation-reset-btn"
                 color="primary"
                 size="small"
-                onClick={() => {
-                  useClientZustand
-                    .getState()
-                    .setRegisterMapping(address, 'interpolate', { ...defaultInterpolation })
-                }}
+                onClick={handleReset}
               >
                 <Refresh />
               </IconButton>

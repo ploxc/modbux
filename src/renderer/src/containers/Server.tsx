@@ -10,9 +10,16 @@ import Fade from '@mui/material/Fade'
 import Box from '@mui/material/Box'
 import ServerGrid from '@renderer/components/server/ServerGrid/ServerGrid'
 import PrivilegedPortModal from '@renderer/components/server/PrivilegedPortModal/PrivilegedPortModal'
+import { ChangeEvent, useCallback } from 'react'
 
 const ServerName = meme(() => {
   const name = useServerZustand((z) => z.name[z.selectedUuid] ?? '')
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setName(event.target.value)
+  }, [])
+
   return (
     <TextField
       data-testid="server-name-input"
@@ -22,7 +29,7 @@ const ServerName = meme(() => {
       color="primary"
       placeholder="Server Name"
       value={name}
-      onChange={(e) => useServerZustand.getState().setName(e.target.value)}
+      onChange={handleChange}
     />
   )
 })
