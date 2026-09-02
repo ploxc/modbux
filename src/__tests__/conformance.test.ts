@@ -275,6 +275,93 @@ describe('one store selector per field', () => {
 })
 
 //
+// ─── No selector hands back a store function ─────────────────────────────────
+//
+// An action is fetched where it runs, not subscribed to at the top of a render:
+// `useClientZustand.getState().setAddress(value)` inside a `useCallback` whose
+// dependency list names only what the component itself holds. A selector puts
+// the action in that list, and a list naming something the component does not
+// own is a list that cannot be read.
+
+describe('no selector hands back a store function', () => {
+  const files = sourceFiles(rendererRoot)
+  const parsed = files.map((file) => ({ file, source: parse(file) }))
+
+  // A member is a function when it says so, or when its type alias does:
+  // `setAddress: MaskSetFn` is as much an action as `clear: () => void`.
+  const functionAliases = new Set<string>()
+  for (const { source } of parsed) {
+    eachNode(source, (node) => {
+      if (ts.isTypeAliasDeclaration(node) && ts.isFunctionTypeNode(node.type)) {
+        functionAliases.add(node.name.text)
+      }
+    })
+  }
+  const isFunctionType = (type: ts.TypeNode | undefined): boolean => {
+    if (!type) return false
+    if (ts.isFunctionTypeNode(type)) return true
+    return (
+      ts.isTypeReferenceNode(type) &&
+      ts.isIdentifier(type.typeName) &&
+      functionAliases.has(type.typeName.text)
+    )
+  }
+
+  // <Name>Zustand, so useClientZustand is matched against ClientZustand and not
+  // against every store's members at once.
+  const storeFunctions = new Map<string, Set<string>>()
+  for (const { source } of parsed) {
+    eachNode(source, (node) => {
+      if (!ts.isTypeAliasDeclaration(node) && !ts.isInterfaceDeclaration(node)) return
+      if (!/Zustand$/.test(node.name.text)) return
+      const members: ts.TypeElement[] = []
+      const collect = (type: ts.TypeNode | undefined): void => {
+        if (!type) return
+        if (ts.isTypeLiteralNode(type)) members.push(...type.members)
+        else if (ts.isIntersectionTypeNode(type)) type.types.forEach(collect)
+      }
+      if (ts.isTypeAliasDeclaration(node)) collect(node.type)
+      else members.push(...node.members)
+      const found = storeFunctions.get(node.name.text) ?? new Set<string>()
+      for (const member of members) {
+        if (!member.name || !ts.isIdentifier(member.name)) continue
+        if (ts.isMethodSignature(member)) found.add(member.name.text)
+        if (ts.isPropertySignature(member) && isFunctionType(member.type)) {
+          found.add(member.name.text)
+        }
+      }
+      storeFunctions.set(node.name.text, found)
+    })
+  }
+
+  const functionSelectors: string[] = []
+  for (const { file, source } of parsed) {
+    eachNode(source, (node) => {
+      if (!ts.isCallExpression(node)) return
+      const callee = node.expression
+      if (!ts.isIdentifier(callee)) return
+      const store = /^use([A-Z].*Zustand)$/.exec(callee.text)?.[1]
+      if (!store) return
+      const argument = node.arguments[0]
+      if (!argument || !ts.isArrowFunction(argument) || argument.parameters.length !== 1) return
+      if (!ts.isPropertyAccessExpression(argument.body)) return
+      const field = argument.body.name.text
+      if (!storeFunctions.get(store)?.has(field)) return
+      functionSelectors.push(`${at(file)}\t${callee.text}((z) => z.${field})`)
+    })
+  }
+
+  it('finds stores with functions in them', () => {
+    const withFunctions = [...storeFunctions.values()].filter((found) => found.size > 0)
+    expect(withFunctions.length).toBeGreaterThan(5)
+  })
+
+  it('has no selector returning one of them', () => {
+    expect(functionSelectors).toEqual([])
+  })
+})
+
+//
 // ─── Stores are named after their component ──────────────────────────────────
 
 describe('every store file is named <name>.zustand.ts', () => {
