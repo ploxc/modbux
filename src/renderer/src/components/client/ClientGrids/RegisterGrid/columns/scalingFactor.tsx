@@ -1,5 +1,5 @@
 import { GridColDef } from '@mui/x-data-grid/models'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { DataType, RegisterData, RegisterMapObject, RegisterType } from '@shared'
 import { ReactNode } from 'react'
 
@@ -30,7 +30,7 @@ export const scalingFactorColumn = (
       'uint64'
     ]
 
-    const dataType = useRootZustand.getState().registerMapping[type][row.id]?.dataType
+    const dataType = useClientZustand.getState().registerMapping[type][row.id]?.dataType
     const enabled = dataType && enabledDatatypes.includes(dataType)
 
     return registerMap[row.id]?.dataType && registerMap[row.id]?.dataType !== 'none' && enabled

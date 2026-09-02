@@ -2,10 +2,10 @@ import Button from '@mui/material/Button'
 import { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 
 const RawButton = meme((): JSX.Element | null => {
-  const type = useRootZustand((z) => z.registerConfig.type)
+  const type = useClientZustand((z) => z.registerConfig.type)
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
   if (!['input_registers', 'holding_registers'].includes(type)) return null

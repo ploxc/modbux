@@ -1,14 +1,19 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { useLayoutZustand } from './layout.zustand'
+import { carryFormerStorageKey, CLIENT_ZUSTAND_STORAGE_KEY } from './client.zustand.storage'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
-import { PersistedRootZustand, PersistedRootZustandSchema, RootZustand } from './root.zustand.types'
+import {
+  PersistedClientZustand,
+  PersistedClientZustandSchema,
+  ClientZustand
+} from './client.zustand.types'
 import {
   defaultConnectionConfig,
   defaultRegisterConfig,
-  CURRENT_ROOT_ZUSTAND_VERSION,
-  migrateRootState
+  CURRENT_CLIENT_ZUSTAND_VERSION,
+  migrateClientState
 } from '@shared'
 import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
@@ -19,7 +24,7 @@ let _ipcTimer: ReturnType<typeof setTimeout> | null = null
 function syncRegisterMappingToMain(): void {
   if (_ipcTimer) clearTimeout(_ipcTimer)
   _ipcTimer = setTimeout(() => {
-    window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+    window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
   }, 150)
 }
 
@@ -33,12 +38,14 @@ function syncRegisterMappingToMain(): void {
 export const flushRegisterMappingToMain = (): void => {
   if (_ipcTimer) clearTimeout(_ipcTimer)
   _ipcTimer = null
-  window.api.setRegisterMapping(useRootZustand.getState().registerMapping)
+  window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
 }
 
-export const useRootZustand = create<
-  RootZustand,
-  [['zustand/persist', PersistedRootZustand], ['zustand/mutative', never]]
+carryFormerStorageKey()
+
+export const useClientZustand = create<
+  ClientZustand,
+  [['zustand/persist', PersistedClientZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, get) => ({
@@ -399,9 +406,9 @@ export const useRootZustand = create<
       }
     })),
     {
-      name: `root.zustand`,
-      version: CURRENT_ROOT_ZUSTAND_VERSION,
-      migrate: (state, version) => migrateRootState(state, version) as PersistedRootZustand,
+      name: CLIENT_ZUSTAND_STORAGE_KEY,
+      version: CURRENT_CLIENT_ZUSTAND_VERSION,
+      migrate: (state, version) => migrateClientState(state, version) as PersistedClientZustand,
       partialize: (state) => ({
         name: state.name,
         connectionConfig: state.connectionConfig,
@@ -412,19 +419,19 @@ export const useRootZustand = create<
   )
 )
 
-const state = useRootZustand.getState()
+const state = useClientZustand.getState()
 
 // Clear when state is corrupted
 const clear = () => {
-  useRootZustand.persist.clearStorage()
-  useRootZustand.setState(useRootZustand.getInitialState())
+  useClientZustand.persist.clearStorage()
+  useClientZustand.setState(useClientZustand.getInitialState())
   enqueueSnackbar({
     variant: 'error',
     message: 'Client configuration was corrupted and has been reset to defaults.'
   })
 }
 
-const stateResult = PersistedRootZustandSchema.safeParse(state)
+const stateResult = PersistedClientZustandSchema.safeParse(state)
 if (!stateResult.success) {
   console.warn(stateResult.error)
   clear()
@@ -441,25 +448,25 @@ state.init()
 
 // Client state, like polling, scanning, etc.
 onEvent('client_state', (clientState) => {
-  const state = useRootZustand.getState()
+  const state = useClientZustand.getState()
   state.setClientState(clientState)
 })
 
 // Transactions from the transation log
 onEvent('transaction', (transaction) => {
-  const state = useRootZustand.getState()
+  const state = useClientZustand.getState()
   state.addTransaction(transaction)
 })
 
 // Unit ID scanning results
 onEvent('scan_unit_id_result', (scanUnitIDResult) => {
-  const state = useRootZustand.getState()
+  const state = useClientZustand.getState()
   state.addScanUnitIdResult(scanUnitIDResult)
 })
 
 // Scan progress
 onEvent('scan_progress', (scanProgress) => {
-  const state = useRootZustand.getState()
+  const state = useClientZustand.getState()
   state.setScanProgress(scanProgress)
 })
 

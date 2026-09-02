@@ -22,15 +22,15 @@ interface Valid {
   lenght: boolean
 }
 
-export const PersistedRootZustandSchema = z.object({
+export const PersistedClientZustandSchema = z.object({
   name: z.string(),
   registerMapping: RegisterMappingSchema,
   connectionConfig: ConnectionConfigSchema,
   registerConfig: RegisterConfigSchema
 })
-export type PersistedRootZustand = z.infer<typeof PersistedRootZustandSchema>
+export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema>
 
-export type RootZustand = {
+export type ClientZustand = {
   transactions: Transaction[]
   clientState: ClientState
   ready: boolean
@@ -97,7 +97,7 @@ export type RootZustand = {
   serialPortValidating: boolean
   refreshSerialPorts: () => Promise<void>
   validateSerialPort: (portPath: string) => Promise<SerialPortValidationResult>
-} & PersistedRootZustand
+} & PersistedClientZustand
 
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void
 

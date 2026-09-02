@@ -1,10 +1,10 @@
-export const CURRENT_ROOT_ZUSTAND_VERSION = 2
+export const CURRENT_CLIENT_ZUSTAND_VERSION = 2
 
 /**
  * Migrate root Zustand state to current version.
  * Used by Zustand persist middleware.
  */
-export function migrateRootState(
+export function migrateClientState(
   persistedState: unknown,
   version: number
 ): Record<string, unknown> {

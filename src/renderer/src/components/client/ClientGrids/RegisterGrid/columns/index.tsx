@@ -1,5 +1,5 @@
 import { GridColDef } from '@mui/x-data-grid/models'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterData } from '@shared'
 import { useMemo } from 'react'
 import { addressColumn } from './address'
@@ -21,14 +21,14 @@ import { bitmapValueColumn } from './bitmapValueColumn'
 //
 // COLUMNS
 const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
-  const type = useRootZustand((z) => z.registerConfig.type)
-  const registerMap = useRootZustand((z) => z.registerMapping[type])
+  const type = useClientZustand((z) => z.registerConfig.type)
+  const registerMap = useClientZustand((z) => z.registerMapping[type])
 
-  const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
-  const advanced = useRootZustand((z) => z.registerConfig.advancedMode)
-  const show64Bit = useRootZustand((z) => z.registerConfig.show64BitValues)
+  const addressBase = useClientZustand((z) => z.registerConfig.addressBase)
+  const advanced = useClientZustand((z) => z.registerConfig.advancedMode)
+  const show64Bit = useClientZustand((z) => z.registerConfig.show64BitValues)
 
-  const readConfiguration = useRootZustand((z) => z.readConfiguration)
+  const readConfiguration = useClientZustand((z) => z.readConfiguration)
   const showRaw = useLayoutZustand((z) => z.showClientRawValues)
 
   return useMemo(() => {

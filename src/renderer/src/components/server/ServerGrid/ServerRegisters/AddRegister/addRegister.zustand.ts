@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   BaseDataType,

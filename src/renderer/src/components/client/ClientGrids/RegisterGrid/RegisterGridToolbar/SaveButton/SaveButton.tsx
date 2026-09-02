@@ -2,14 +2,14 @@ import Save from '@mui/icons-material/Save'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterMapConfig, RegisterType } from '@shared'
 import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
   const saveRegisterConfig = useCallback(() => {
-    const z = useRootZustand.getState()
+    const z = useClientZustand.getState()
     const { name } = z
 
     const registerMapping = structuredClone(z.registerMapping)
@@ -43,7 +43,7 @@ const SaveButton = meme(() => {
 
     const {
       connectionConfig: { unitId }
-    } = useRootZustand.getState()
+    } = useClientZustand.getState()
 
     const idText = `_id${unitId}`
 

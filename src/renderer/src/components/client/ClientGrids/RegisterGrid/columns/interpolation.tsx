@@ -13,8 +13,8 @@ import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { useRootZustand } from '@renderer/context/root.zustand'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { DataType, RegisterData, RegisterLinearInterpolation, RegisterType } from '@shared'
 import { deepEqual } from 'fast-equals'
 import {
@@ -94,7 +94,7 @@ const useInterpolateValue = (
   type: RegisterType,
   address: number
 ): string =>
-  useRootZustand((z) => {
+  useClientZustand((z) => {
     const interpolate = z.registerMapping[type][address]?.interpolate
     return interpolate !== undefined ? interpolate[key] : defaultInterpolation[key]
   })
@@ -110,7 +110,7 @@ const InterpolationModal = meme(
 
     const handleChange = useCallback(
       (key: keyof RegisterLinearInterpolation, value: string) => {
-        const state = useRootZustand.getState()
+        const state = useClientZustand.getState()
         const interpolate: RegisterLinearInterpolation = state.registerMapping[type][address]
           ?.interpolate || { ...defaultInterpolation }
         state.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
@@ -142,7 +142,7 @@ const InterpolationModal = meme(
                 color="primary"
                 size="small"
                 onClick={() => {
-                  useRootZustand
+                  useClientZustand
                     .getState()
                     .setRegisterMapping(address, 'interpolate', { ...defaultInterpolation })
                 }}
@@ -190,10 +190,10 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
     'uint64'
   ]
 
-  const dataType = useRootZustand((z) => z.registerMapping[type][address]?.dataType)
+  const dataType = useClientZustand((z) => z.registerMapping[type][address]?.dataType)
   const enabled = dataType && enabledDatatypes.includes(dataType)
   const isDefault = isDefaultInterpolation(
-    useRootZustand.getState().registerMapping[type][address]?.interpolate
+    useClientZustand.getState().registerMapping[type][address]?.interpolate
   )
 
   return (

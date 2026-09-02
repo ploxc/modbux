@@ -125,3 +125,58 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await expect(portInput).toHaveValue('502')
   })
 })
+
+//
+// The client store was called root.zustand until it was named after what it
+// holds. persist reads one key and builds an empty store when it finds nothing,
+// so an upgrade would have come up with no connection config at all.
+//
+// Only this suite can see it. The unit test covers carryFormerStorageKey, but
+// whether it runs before persist reads is a question about module load order,
+// and that is only true in a running app.
+test.describe.serial('Persistence — a config saved under the former key', () => {
+  test.afterAll(async () => {
+    if (app) await app.close()
+  })
+
+  test('write a config, then put it back under the old key', async () => {
+    await launchApp(true)
+    await page.getByTestId('home-client-btn').click()
+    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+
+    await page.getByTestId('tcp-host-input').locator('input').fill('10.9.8.7')
+    await page.getByTestId('client-unitid-input').locator('input').fill('9')
+    await page.waitForTimeout(500) // let zustand persist
+
+    // Moving what the app itself wrote keeps the payload valid, which a
+    // hand-built one would not be: the store validates on load and clears
+    // anything it cannot parse.
+    const moved = await page.evaluate(() => {
+      const saved = localStorage.getItem('client.zustand')
+      if (saved === null) return false
+      localStorage.setItem('root.zustand', saved)
+      localStorage.removeItem('client.zustand')
+      return true
+    })
+    expect(moved).toBe(true)
+  })
+
+  test('close app', async () => {
+    await app.close()
+    await new Promise((r) => setTimeout(r, 1000))
+  })
+
+  test('reopen and find the config carried over', async () => {
+    await launchApp(false)
+    await page.getByTestId('home-client-btn').click()
+    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+
+    await expect(page.getByTestId('tcp-host-input').locator('input')).toHaveValue('10.9.8.7')
+    await expect(page.getByTestId('client-unitid-input').locator('input')).toHaveValue('9')
+  })
+
+  test('the old key is still there for a build that goes back', async () => {
+    const former = await page.evaluate(() => localStorage.getItem('root.zustand'))
+    expect(former).not.toBeNull()
+  })
+})

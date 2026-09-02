@@ -15,7 +15,7 @@ import {
   StopBitsSelect,
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
 import { useEffect } from 'react'
@@ -24,11 +24,11 @@ import { useEffect } from 'react'
 //
 // COM Port Input
 const ComInput = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const com = useRootZustand((z) => z.connectionConfig.rtu.com)
-  const comValid = useRootZustand((z) => z.valid.com)
-  const loading = useRootZustand((z) => z.serialPortsLoading)
-  const ports = useRootZustand((z) => z.serialPorts)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const com = useClientZustand((z) => z.connectionConfig.rtu.com)
+  const comValid = useClientZustand((z) => z.valid.com)
+  const loading = useClientZustand((z) => z.serialPortsLoading)
+  const ports = useClientZustand((z) => z.serialPorts)
   const inputWidth = useComInputWidth(ports)
 
   return (
@@ -39,10 +39,10 @@ const ComInput = meme(() => {
       value={com}
       data-testid="rtu-com-input"
       onInputChange={(_event, newValue) =>
-        useRootZustand.getState().setCom(newValue, newValue.trim().length > 0)
+        useClientZustand.getState().setCom(newValue, newValue.trim().length > 0)
       }
       onChange={(_event, newValue) => {
-        if (newValue) useRootZustand.getState().setCom(newValue, true)
+        if (newValue) useClientZustand.getState().setCom(newValue, true)
       }}
       sx={{ width: inputWidth, maxWidth: 220 }}
       renderInput={(params) => (
@@ -60,20 +60,20 @@ const ComInput = meme(() => {
 //
 // COM Port Actions
 const ComActions = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const com = useRootZustand((z) => z.connectionConfig.rtu.com)
-  const loading = useRootZustand((z) => z.serialPortsLoading)
-  const validating = useRootZustand((z) => z.serialPortValidating)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const com = useClientZustand((z) => z.connectionConfig.rtu.com)
+  const loading = useClientZustand((z) => z.serialPortsLoading)
+  const validating = useClientZustand((z) => z.serialPortValidating)
   const { enqueueSnackbar } = useSnackbar()
 
   const onRefresh = (): void => {
-    useRootZustand.getState().refreshSerialPorts()
+    useClientZustand.getState().refreshSerialPorts()
   }
 
   const onValidate = async (): Promise<void> => {
     if (!com || com.trim() === '') return
-    const result = await useRootZustand.getState().validateSerialPort(com)
-    useRootZustand.getState().setCom(com, result.valid)
+    const result = await useClientZustand.getState().validateSerialPort(com)
+    useClientZustand.getState().setCom(com, result.valid)
     enqueueSnackbar({
       message: result.message,
       variant: result.valid ? 'success' : 'warning'
@@ -122,10 +122,10 @@ const ComActions = meme(() => {
 //
 // COM Port (composite)
 const Com = meme((): JSX.Element => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
 
   useEffect(() => {
-    if (!disabled) useRootZustand.getState().refreshSerialPorts()
+    if (!disabled) useClientZustand.getState().refreshSerialPorts()
   }, [disabled])
 
   return (
@@ -140,17 +140,17 @@ const Com = meme((): JSX.Element => {
 //
 // Selects (thin wrappers over shared components)
 const ClientBaudRateSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const baudRate = useRootZustand((z) => z.connectionConfig.rtu.options.baudRate)
-  const setBaudRate = useRootZustand((z) => z.setBaudRate)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const baudRate = useClientZustand((z) => z.connectionConfig.rtu.options.baudRate)
+  const setBaudRate = useClientZustand((z) => z.setBaudRate)
 
   return <BaudRateSelect value={baudRate} onChange={setBaudRate} disabled={disabled} />
 })
 
 const ClientParitySelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const parity = useRootZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
-  const setParity = useRootZustand((z) => z.setParity)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const parity = useClientZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
+  const setParity = useClientZustand((z) => z.setParity)
 
   return (
     <ParitySelect
@@ -162,17 +162,17 @@ const ClientParitySelect = meme(() => {
 })
 
 const ClientDataBitsSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const dataBits = useRootZustand((z) => z.connectionConfig.rtu.options.dataBits)
-  const setDataBits = useRootZustand((z) => z.setDataBits)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const dataBits = useClientZustand((z) => z.connectionConfig.rtu.options.dataBits)
+  const setDataBits = useClientZustand((z) => z.setDataBits)
 
   return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
 })
 
 const ClientStopBitsSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const stopBits = useRootZustand((z) => z.connectionConfig.rtu.options.stopBits)
-  const setStopBits = useRootZustand((z) => z.setStopBits)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const stopBits = useClientZustand((z) => z.connectionConfig.rtu.options.stopBits)
+  const setStopBits = useClientZustand((z) => z.setStopBits)
 
   return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
 })

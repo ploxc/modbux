@@ -13,7 +13,7 @@ import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { flushRegisterMappingToMain, useRootZustand } from '@renderer/context/root.zustand'
+import { flushRegisterMappingToMain, useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterType } from '@shared'
 import { showMapping } from '@renderer/context/data.zustand'
 import { ElementType, useCallback, useEffect } from 'react'
@@ -21,13 +21,13 @@ import { ElementType, useCallback, useEffect } from 'react'
 // Protocol
 const TypeSelect = meme(() => {
   const labelId = 'register-type-select'
-  const type = useRootZustand((z) => z.registerConfig.type)
+  const type = useClientZustand((z) => z.registerConfig.type)
 
   const handleChange = useCallback((type: RegisterType) => {
-    if (!useRootZustand.getState().readConfiguration) {
+    if (!useClientZustand.getState().readConfiguration) {
       useDataZustand.getState().setRegisterData([])
     }
-    useRootZustand.getState().setType(type)
+    useClientZustand.getState().setType(type)
   }, [])
 
   return (
@@ -54,9 +54,9 @@ const TypeSelect = meme(() => {
 //
 // Address
 const Address = meme(() => {
-  const address = useRootZustand((z) => z.registerConfig.address)
-  const setAddress = useRootZustand((z) => z.setAddress)
-  const readConfiguration = useRootZustand((z) => z.readConfiguration)
+  const address = useClientZustand((z) => z.registerConfig.address)
+  const setAddress = useClientZustand((z) => z.setAddress)
+  const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
   return (
     <AddressBaseInput
@@ -73,11 +73,11 @@ const Address = meme(() => {
 //
 // Length
 const Length = meme(() => {
-  const length = useRootZustand((z) => String(z.registerConfig.length))
-  const lengthValid = useRootZustand((z) => z.valid.lenght)
-  const setLength = useRootZustand((z) => z.setLength)
-  const address = useRootZustand((z) => z.registerConfig.address)
-  const readConfiguration = useRootZustand((z) => z.readConfiguration)
+  const length = useClientZustand((z) => String(z.registerConfig.length))
+  const lengthValid = useClientZustand((z) => z.valid.lenght)
+  const setLength = useClientZustand((z) => z.setLength)
+  const address = useClientZustand((z) => z.registerConfig.address)
+  const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
   return (
     <TextField
@@ -100,7 +100,7 @@ const Length = meme(() => {
 })
 
 const ReadConfiguration = meme(() => {
-  const readConfiguration = useRootZustand((z) => !!z.readConfiguration)
+  const readConfiguration = useClientZustand((z) => !!z.readConfiguration)
   const handleChange = useCallback((_: React.MouseEvent, v: boolean | null) => {
     const toggleState = !!v
 
@@ -110,16 +110,16 @@ const ReadConfiguration = meme(() => {
       flushRegisterMappingToMain()
       showMapping()
     }
-    useRootZustand.getState().setReadConfiguration(toggleState)
+    useClientZustand.getState().setReadConfiguration(toggleState)
   }, [])
 
-  const disabled = useRootZustand(
+  const disabled = useClientZustand(
     (z) => Object.keys(z.registerMapping[z.registerConfig.type]).length === 0
   )
 
   useEffect(() => {
     if (!disabled) return
-    const state = useRootZustand.getState()
+    const state = useClientZustand.getState()
     if (disabled && state.readConfiguration) state.setReadConfiguration(false)
   }, [disabled])
 

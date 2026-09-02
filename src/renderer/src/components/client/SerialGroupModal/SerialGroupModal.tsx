@@ -7,7 +7,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import Typography from '@mui/material/Typography'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
@@ -245,7 +245,7 @@ const SerialGroupModal = meme(({ active }: SerialGroupModalProps): JSX.Element |
   // Which ports exist, as one string so it compares by value. Selecting RTU is
   // not the only moment this matters: plugging an adapter in afterwards is the
   // other one, and the list only changes when something is refreshed.
-  const ports = useRootZustand((z) => z.serialPorts.map((p) => p.path).join(','))
+  const ports = useClientZustand((z) => z.serialPorts.map((p) => p.path).join(','))
 
   useEffect(() => {
     if (!active) return

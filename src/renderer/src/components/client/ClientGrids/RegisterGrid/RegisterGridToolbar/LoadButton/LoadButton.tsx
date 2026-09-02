@@ -1,7 +1,7 @@
 import FileOpen from '@mui/icons-material/FileOpen'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { migrateClientConfig } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
@@ -21,7 +21,7 @@ const LoadButton = meme((): JSX.Element => {
       openingRef.current = true
       setOpening(true)
 
-      const state = useRootZustand.getState()
+      const state = useClientZustand.getState()
 
       const content = await file.text()
 
@@ -67,7 +67,7 @@ const LoadButton = meme((): JSX.Element => {
       openingRef.current = false
       setOpening(false)
       showMapping()
-      useRootZustand.getState().setReadConfiguration(false)
+      useClientZustand.getState().setReadConfiguration(false)
     },
     [enqueueSnackbar]
   )

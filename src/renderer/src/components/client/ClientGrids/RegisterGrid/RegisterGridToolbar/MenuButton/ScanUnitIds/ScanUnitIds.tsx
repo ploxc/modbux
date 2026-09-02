@@ -11,7 +11,7 @@ import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -23,7 +23,7 @@ import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 //
 // Start Unit ID field
 const StartUnitIdField = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
   const setStartUnitId = useScanUnitIdZustand((z) => z.setStartUnitId)
 
@@ -50,7 +50,7 @@ const StartUnitIdField = meme((): JSX.Element => {
 //
 // Count field
 const CountField = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const count = useScanUnitIdZustand((z) => String(z.count))
   const setCount = useScanUnitIdZustand((z) => z.setCount)
 
@@ -77,7 +77,7 @@ const CountField = meme((): JSX.Element => {
 //
 // Address field with base toggle
 const AddressField = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const address = useScanUnitIdZustand((z) => z.address)
   const setAddress = useScanUnitIdZustand((z) => z.setAddress)
 
@@ -96,7 +96,7 @@ const AddressField = meme((): JSX.Element => {
 //
 // Length field
 const LengthField = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => String(z.length))
   const setLength = useScanUnitIdZustand((z) => z.setLength)
 
@@ -123,7 +123,7 @@ const LengthField = meme((): JSX.Element => {
 //
 // Timeout field
 const TimeoutField = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
   const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
 
@@ -141,7 +141,7 @@ const TimeoutField = meme((): JSX.Element => {
 //
 // Select register types
 const SelectRegisterTypes = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
   const setRegisterTypes = useScanUnitIdZustand((z) => z.setRegisterTypes)
 
@@ -188,8 +188,8 @@ const SelectRegisterTypes = meme((): JSX.Element => {
 //
 // Scan button
 const ScanButton = meme((): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
@@ -201,9 +201,9 @@ const ScanButton = meme((): JSX.Element => {
     window.api.stopPolling()
 
     const state = useScanUnitIdZustand.getState()
-    const rootState = useRootZustand.getState()
-    rootState.clearScanUnitIdResults()
-    rootState.setScanProgress(0)
+    const clientZustand = useClientZustand.getState()
+    clientZustand.clearScanUnitIdResults()
+    clientZustand.setScanProgress(0)
 
     const { address, length, startUnitId, count, registerTypes, timeout } = state
 
@@ -236,7 +236,7 @@ const ScanButton = meme((): JSX.Element => {
 //
 // Scan result grid
 const ScanResultGrid = meme(() => {
-  const scanResults = useRootZustand((z) => z.scanUnitIdResults)
+  const scanResults = useClientZustand((z) => z.scanUnitIdResults)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   const columns = useScanUnitIdColumns()
@@ -291,7 +291,7 @@ const ScanResultGrid = meme(() => {
 //
 // Scan unit ids button
 export const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
 
   // Close the menu behind it, the way scanning registers does. Otherwise it is
   // still hanging there when you close the dialog again.
@@ -327,10 +327,10 @@ const ScanUnitIds = meme(() => {
   const setOpen = useScanUnitIdZustand((z) => z.setOpen)
 
   // Don't close while scanning
-  const scanning = useRootZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
 
   const handleClose = useCallback(() => {
-    const currentRootState = useRootZustand.getState()
+    const currentRootState = useClientZustand.getState()
     if (currentRootState.clientState.scanningUnitIds) return
     // The results belong to the dialog. Leaving them behind means the next
     // scan opens on the last one and fills in around it.

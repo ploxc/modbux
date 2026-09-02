@@ -6,8 +6,8 @@ import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 
 // ScanProgress reads the root store, which opens IPC listeners on import.
-vi.mock('@renderer/context/root.zustand', () => ({
-  useRootZustand: (selector: (state: Record<string, unknown>) => unknown): unknown =>
+vi.mock('@renderer/context/client.zustand', () => ({
+  useClientZustand: (selector: (state: Record<string, unknown>) => unknown): unknown =>
     selector({ clientState: {}, scanProgress: 0 })
 }))
 

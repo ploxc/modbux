@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper'
 import { useGridApiContext, useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import useTransactionGridColumns from './_columns'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -39,7 +39,7 @@ const ExportButton = meme((): JSX.Element => {
 //
 // Clears the transaction log
 const ClearButton = meme((): JSX.Element => {
-  const clear = useRootZustand((z) => z.clearTransactions)
+  const clear = useClientZustand((z) => z.clearTransactions)
   return (
     <Button data-testid="transaction-clear-btn" size="small" variant="outlined" onClick={clear}>
       Clear
@@ -71,7 +71,7 @@ const CustomFooter = (): JSX.Element => {
 const TransactionGridContent = meme(() => {
   const api = useGridApiRef()
 
-  const transactions = useRootZustand((z) => z.transactions)
+  const transactions = useClientZustand((z) => z.transactions)
   const columns = useTransactionGridColumns()
 
   return (

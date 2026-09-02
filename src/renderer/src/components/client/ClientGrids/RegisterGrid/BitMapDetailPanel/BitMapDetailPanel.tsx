@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import { BitColor, BitMapConfig } from '@shared'
@@ -21,13 +21,15 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     (z) => z.registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
   )
 
-  const bitConfig = useRootZustand((z) => z.registerMapping[z.registerConfig.type][address]?.bitMap)
-  const setRegisterMapping = useRootZustand((z) => z.setRegisterMapping)
+  const bitConfig = useClientZustand(
+    (z) => z.registerMapping[z.registerConfig.type][address]?.bitMap
+  )
+  const setRegisterMapping = useClientZustand((z) => z.setRegisterMapping)
 
-  const registerType = useRootZustand((z) => z.registerConfig.type)
+  const registerType = useClientZustand((z) => z.registerConfig.type)
   const writable = registerType === 'holding_registers'
-  const connectState = useRootZustand((z) => z.clientState.connectState)
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const connectState = useClientZustand((z) => z.clientState.connectState)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const canWrite = writable && connectState === 'connected' && !polling
 
   const handleToggle = useCallback(
