@@ -63,10 +63,7 @@ const ValueInputComponent = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const valid = useAddRegisterZustand((z) => z.valid.value)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setValue(value, isValid)
-  }, [])
+  const setValue = useAddRegisterZustand.getState().setValue
 
   return (
     <TextField
@@ -80,7 +77,7 @@ const ValueInputComponent = meme(() => {
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setValue })
         }
       }}
     />
@@ -97,10 +94,7 @@ const MinTextField = meme(() => {
   const min = useAddRegisterZustand((z) => String(z.min))
   const valid = useAddRegisterZustand((z) => z.valid.min)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setMin(value, isValid)
-  }, [])
+  const setMin = useAddRegisterZustand.getState().setMin
 
   return (
     <TextField
@@ -114,7 +108,7 @@ const MinTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setMin })
         }
       }}
     />
@@ -125,10 +119,7 @@ const MaxTextField = meme(() => {
   const max = useAddRegisterZustand((z) => String(z.max))
   const valid = useAddRegisterZustand((z) => z.valid.max)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setMax(value, isValid)
-  }, [])
+  const setMax = useAddRegisterZustand.getState().setMax
 
   return (
     <TextField
@@ -142,7 +133,7 @@ const MaxTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setMax })
         }
       }}
     />
@@ -159,10 +150,7 @@ const IntervalTextField = meme(() => {
   const interval = useAddRegisterZustand((z) => String(z.interval))
   const valid = useAddRegisterZustand((z) => z.valid.interval)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setInterval(value, isValid)
-  }, [])
+  const setInterval = useAddRegisterZustand.getState().setInterval
 
   return (
     <TextField
@@ -176,7 +164,7 @@ const IntervalTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: IntervalInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setInterval })
         }
       }}
     />
@@ -287,10 +275,7 @@ const RegisterLengthField = meme(() => {
   const registerLength = useAddRegisterZustand((z) => z.registerLength)
   const valid = useAddRegisterZustand((z) => z.valid.registerLength)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setRegisterLength(value, isValid)
-  }, [])
+  const setRegisterLength = useAddRegisterZustand.getState().setRegisterLength
 
   return (
     <TextField
@@ -307,7 +292,7 @@ const RegisterLengthField = meme(() => {
             InputBaseComponentProps,
             'input'
           >,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setRegisterLength })
         }
       }}
     />

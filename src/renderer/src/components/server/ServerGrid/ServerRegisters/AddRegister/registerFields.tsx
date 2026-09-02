@@ -10,7 +10,6 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { ChangeEvent, ElementType, useCallback } from 'react'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
-import { BaseDataType } from '@shared'
 import { AddressInput } from './maskedInputs'
 
 export const AddressField = meme(() => {
@@ -19,10 +18,7 @@ export const AddressField = meme(() => {
   const addressFitError = useAddRegisterZustand((z) => z.addressFitError)
   const valid = useAddRegisterZustand((z) => z.valid.address)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setAddress(value, isValid)
-  }, [])
+  const setAddress = useAddRegisterZustand.getState().setAddress
 
   return (
     <FormControl error={!valid}>
@@ -40,7 +36,7 @@ export const AddressField = meme(() => {
               InputBaseComponentProps,
               'input'
             >,
-            inputProps: maskInputProps({ set: handleChange })
+            inputProps: maskInputProps({ set: setAddress })
           }
         }}
       />
@@ -59,12 +55,9 @@ export const AddressField = meme(() => {
 export const DataTypeSelect = meme(() => {
   const dataType = useAddRegisterZustand((z) => z.dataType)
 
-  const handleChange = useCallback((value: BaseDataType): void => {
-    const addRegisterZustand = useAddRegisterZustand.getState()
-    addRegisterZustand.setDataType(value)
-  }, [])
+  const setDataType = useAddRegisterZustand.getState().setDataType
 
-  return <DataTypeSelectInput dataType={dataType} setDataType={handleChange} />
+  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
 //

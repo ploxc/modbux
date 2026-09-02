@@ -182,15 +182,12 @@ const Com = meme((): JSX.Element => {
 const ServerBaudRateSelect = meme(() => {
   const baudRate = useServerZustand((z) => z.serialConfig?.options.baudRate ?? '9600')
 
-  const handleChange = useCallback((value: ModbusBaudRate): void => {
-    const serverZustand = useServerZustand.getState()
-    serverZustand.setServerBaudRate(value)
-  }, [])
+  const setServerBaudRate = useServerZustand.getState().setServerBaudRate
 
   return (
     <BaudRateSelect
       value={baudRate as ModbusBaudRate}
-      onChange={handleChange}
+      onChange={setServerBaudRate}
       testId="server-rtu-baudrate-select"
     />
   )
@@ -199,37 +196,38 @@ const ServerBaudRateSelect = meme(() => {
 const ServerParitySelect = meme(() => {
   const parity = useServerZustand((z) => z.serialConfig?.options.parity ?? 'none')
 
-  const handleChange = useCallback((value: string): void => {
-    const serverZustand = useServerZustand.getState()
-    serverZustand.setServerParity(value)
-  }, [])
+  const setServerParity = useServerZustand.getState().setServerParity
 
-  return <ParitySelect value={parity} onChange={handleChange} testId="server-rtu-parity-select" />
+  return (
+    <ParitySelect value={parity} onChange={setServerParity} testId="server-rtu-parity-select" />
+  )
 })
 
 const ServerDataBitsSelect = meme(() => {
   const dataBits = useServerZustand((z) => z.serialConfig?.options.dataBits ?? 8)
 
-  const handleChange = useCallback((value: number): void => {
-    const serverZustand = useServerZustand.getState()
-    serverZustand.setServerDataBits(value)
-  }, [])
+  const setServerDataBits = useServerZustand.getState().setServerDataBits
 
   return (
-    <DataBitsSelect value={dataBits} onChange={handleChange} testId="server-rtu-databits-select" />
+    <DataBitsSelect
+      value={dataBits}
+      onChange={setServerDataBits}
+      testId="server-rtu-databits-select"
+    />
   )
 })
 
 const ServerStopBitsSelect = meme(() => {
   const stopBits = useServerZustand((z) => z.serialConfig?.options.stopBits ?? 1)
 
-  const handleChange = useCallback((value: number): void => {
-    const serverZustand = useServerZustand.getState()
-    serverZustand.setServerStopBits(value)
-  }, [])
+  const setServerStopBits = useServerZustand.getState().setServerStopBits
 
   return (
-    <StopBitsSelect value={stopBits} onChange={handleChange} testId="server-rtu-stopbits-select" />
+    <StopBitsSelect
+      value={stopBits}
+      onChange={setServerStopBits}
+      testId="server-rtu-stopbits-select"
+    />
   )
 })
 

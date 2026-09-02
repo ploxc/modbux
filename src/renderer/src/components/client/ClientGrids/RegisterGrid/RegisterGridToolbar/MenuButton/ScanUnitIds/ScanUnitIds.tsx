@@ -27,10 +27,7 @@ const StartUnitIdField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    scanUnitIdZustand.setStartUnitId(value, valid)
-  }, [])
+  const setStartUnitId = useScanUnitIdZustand.getState().setStartUnitId
 
   return (
     <TextField
@@ -44,7 +41,7 @@ const StartUnitIdField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange, max: 255 })
+          inputProps: maskInputProps({ set: setStartUnitId, max: 255 })
         }
       }}
     />
@@ -58,10 +55,7 @@ const CountField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const count = useScanUnitIdZustand((z) => String(z.count))
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    scanUnitIdZustand.setCount(value, valid)
-  }, [])
+  const setCount = useScanUnitIdZustand.getState().setCount
 
   return (
     <TextField
@@ -75,7 +69,7 @@ const CountField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange, max: 256 })
+          inputProps: maskInputProps({ set: setCount, max: 256 })
         }
       }}
     />
@@ -89,16 +83,13 @@ const AddressField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const address = useScanUnitIdZustand((z) => z.address)
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    scanUnitIdZustand.setAddress(value, valid)
-  }, [])
+  const setAddress = useScanUnitIdZustand.getState().setAddress
 
   return (
     <AddressBaseInput
       disabled={scanning}
       address={address}
-      setAddress={handleChange}
+      setAddress={setAddress}
       testId="scan-unitid-address-input"
       baseTestId="scan-unitid-base"
     />
@@ -112,10 +103,7 @@ const LengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => String(z.length))
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    scanUnitIdZustand.setLength(value, valid)
-  }, [])
+  const setLength = useScanUnitIdZustand.getState().setLength
 
   return (
     <TextField
@@ -129,7 +117,7 @@ const LengthField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setLength })
         }
       }}
     />
@@ -143,16 +131,13 @@ const TimeoutField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    scanUnitIdZustand.setTimeout(value, valid)
-  }, [])
+  const setTimeout = useScanUnitIdZustand.getState().setTimeout
 
   return (
     <ScanTimeoutField
       disabled={scanning}
       timeout={timeout}
-      setTimeout={handleChange}
+      setTimeout={setTimeout}
       testId="scan-unitid-timeout-input"
     />
   )
