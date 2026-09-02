@@ -85,9 +85,9 @@ const validateAddress = (
     }
   }
 
-  const z = useServerZustand.getState()
-  const uuid = z.selectedUuid
-  const unitId = z.getUnitId(uuid)
+  const serverZustand = useServerZustand.getState()
+  const uuid = serverZustand.selectedUuid
+  const unitId = serverZustand.getUnitId(uuid)
   const addressNum = Number(address)
   const length = dataType === 'utf8' ? Number(registerLength) || 10 : undefined
 
@@ -288,10 +288,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const { registerType, dataType, registerLength } = getState()
         if (!registerType) return
 
-        const z = useServerZustand.getState()
-        const uuid = z.selectedUuid
-        const unitId = z.getUnitId(uuid)
-        const usedAddresses = z.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
+        const serverZustand = useServerZustand.getState()
+        const uuid = serverZustand.selectedUuid
+        const unitId = serverZustand.getUnitId(uuid)
+        const usedAddresses = serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
         const size = getRegisterSize(
           dataType,
           dataType === 'utf8' ? Number(registerLength) || 10 : undefined
@@ -320,9 +320,9 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       const { registerType, serverRegisterEdit } = form
       if (!registerType) return undefined
 
-      const server = useServerZustand.getState()
-      const uuid = server.selectedUuid
-      const unitId = server.getUnitId(uuid)
+      const serverZustand = useServerZustand.getState()
+      const uuid = serverZustand.selectedUuid
+      const unitId = serverZustand.getUnitId(uuid)
 
       const params = toRegisterParams({
         fixed: form.fixed,
@@ -342,7 +342,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       if (isEdit && serverRegisterEdit) {
         const oldAddress = serverRegisterEdit.params.address
         if (oldAddress !== params.address) {
-          server.removeRegister({
+          serverZustand.removeRegister({
             uuid,
             unitId,
             address: oldAddress,
@@ -352,10 +352,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         }
       }
 
-      server.addRegister({
+      serverZustand.addRegister({
         uuid,
         unitId,
-        littleEndian: server.littleEndian[uuid] ?? false,
+        littleEndian: serverZustand.littleEndian[uuid] ?? false,
         params
       })
 

@@ -19,16 +19,16 @@ const AddRegister = meme(() => {
   useEffect(() => {
     if (!registerType) return
     if (edit) return
-    const state = useAddRegisterZustand.getState()
-    state.resetToDefaults()
-    state.setRegisterType(registerType)
-    state.initNextUnusedAddress()
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.resetToDefaults()
+    addRegisterZustand.setRegisterType(registerType)
+    addRegisterZustand.initNextUnusedAddress()
   }, [registerType, edit])
 
   // Populate fields when opening in edit mode
   useEffect(() => {
-    const state = useAddRegisterZustand.getState()
-    if (!state.serverRegisterEdit) return
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    if (!addRegisterZustand.serverRegisterEdit) return
 
     const {
       address,
@@ -41,29 +41,29 @@ const AddRegister = meme(() => {
       value,
       stringValue,
       length
-    } = state.serverRegisterEdit.params
+    } = addRegisterZustand.serverRegisterEdit.params
 
-    state.setFixed(value !== undefined)
-    state.setAddress(String(address))
-    state.setRegisterType(registerType)
-    state.setComment(comment)
-    state.setInterval(interval ? String(interval / 1000) : '1')
-    state.setMax(String(max))
-    state.setMin(String(min))
+    addRegisterZustand.setFixed(value !== undefined)
+    addRegisterZustand.setAddress(String(address))
+    addRegisterZustand.setRegisterType(registerType)
+    addRegisterZustand.setComment(comment)
+    addRegisterZustand.setInterval(interval ? String(interval / 1000) : '1')
+    addRegisterZustand.setMax(String(max))
+    addRegisterZustand.setMin(String(min))
 
     if (dataType === 'utf8') {
-      state.setStringValue(stringValue ?? '')
-      state.setRegisterLength(String(length ?? 10), true)
-      state.setValue('0', true)
+      addRegisterZustand.setStringValue(stringValue ?? '')
+      addRegisterZustand.setRegisterLength(String(length ?? 10), true)
+      addRegisterZustand.setValue('0', true)
     } else if (['unix', 'datetime'].includes(dataType) && value !== undefined) {
       // Convert stored value back to ms for the date picker
       const ms = dataType === 'unix' ? Number(value) * 1000 : Number(value)
-      state.setValue(String(ms), true)
+      addRegisterZustand.setValue(String(ms), true)
     } else {
-      state.setValue(String(value))
+      addRegisterZustand.setValue(String(value))
     }
 
-    state.setDataType(dataType)
+    addRegisterZustand.setDataType(dataType)
   }, [edit])
 
   return (

@@ -420,7 +420,7 @@ export const useClientZustand = create<
   )
 )
 
-const state = useClientZustand.getState()
+const clientZustand = useClientZustand.getState()
 
 // Clear when state is corrupted
 const clear = () => {
@@ -432,14 +432,14 @@ const clear = () => {
   })
 }
 
-const stateResult = PersistedClientZustandSchema.safeParse(state)
+const stateResult = PersistedClientZustandSchema.safeParse(clientZustand)
 if (!stateResult.success) {
   console.warn(stateResult.error)
   clear()
 }
 
 // Sync the main process state with the front end
-state.init()
+clientZustand.init()
 
 //
 //
@@ -449,26 +449,26 @@ state.init()
 
 // Client state, like polling, scanning, etc.
 onEvent('client_state', (clientState) => {
-  const state = useClientZustand.getState()
-  state.setClientState(clientState)
+  const clientZustand = useClientZustand.getState()
+  clientZustand.setClientState(clientState)
 })
 
 // Transactions from the transation log
 onEvent('transaction', (transaction) => {
-  const state = useClientZustand.getState()
-  state.addTransaction(transaction)
+  const clientZustand = useClientZustand.getState()
+  clientZustand.addTransaction(transaction)
 })
 
 // Unit ID scanning results
 onEvent('scan_unit_id_result', (scanUnitIDResult) => {
-  const state = useClientZustand.getState()
-  state.addScanUnitIdResult(scanUnitIDResult)
+  const clientZustand = useClientZustand.getState()
+  clientZustand.addScanUnitIdResult(scanUnitIDResult)
 })
 
 // Scan progress
 onEvent('scan_progress', (scanProgress) => {
-  const state = useClientZustand.getState()
-  state.setScanProgress(scanProgress)
+  const clientZustand = useClientZustand.getState()
+  clientZustand.setScanProgress(scanProgress)
 })
 
 //

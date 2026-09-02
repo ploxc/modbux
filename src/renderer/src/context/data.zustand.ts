@@ -85,7 +85,7 @@ export const dropPendingScanRows = (): void => {
 
 // Data read from the registers
 onEvent('register_data', (registerData) => {
-  const state = useDataZustand.getState()
+  const dataZustand = useDataZustand.getState()
   const clientZustand = useClientZustand.getState()
 
   if (clientZustand.clientState.scanningRegisters) {
@@ -94,13 +94,13 @@ onEvent('register_data', (registerData) => {
   } else {
     // A poll replaces the grid, so anything a scan left waiting is stale.
     dropPendingScanRows()
-    state.setRegisterData(registerData)
+    dataZustand.setRegisterData(registerData)
   }
 
   clientZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
 onEvent('address_groups', (addressGroups) => {
-  const state = useDataZustand.getState()
-  state.setAddressGroups(addressGroups)
+  const dataZustand = useDataZustand.getState()
+  dataZustand.setAddressGroups(addressGroups)
 })

@@ -119,8 +119,8 @@ const ReadConfiguration = meme(() => {
 
   useEffect(() => {
     if (!disabled) return
-    const state = useClientZustand.getState()
-    if (disabled && state.readConfiguration) state.setReadConfiguration(false)
+    const clientZustand = useClientZustand.getState()
+    if (disabled && clientZustand.readConfiguration) clientZustand.setReadConfiguration(false)
   }, [disabled])
 
   return (

@@ -633,9 +633,9 @@ const clear = (): void => {
   })
 }
 
-const state = useServerZustand.getState()
+const serverZustand = useServerZustand.getState()
 
-const stateResult = PersistedServerZustandSchema.safeParse(state)
+const stateResult = PersistedServerZustandSchema.safeParse(serverZustand)
 if (!stateResult.success) {
   console.warn(stateResult.error)
   clear()
@@ -656,7 +656,7 @@ const delayedSetRegister = () => {
   clearTimeout(updateRegisterTimeout)
 
   const update = () => {
-    state.setRegisterValue(Array.from(setRegisterParameterMap.values()))
+    serverZustand.setRegisterValue(Array.from(setRegisterParameterMap.values()))
     setRegisterParameterMap.clear()
     pendingCompositeValues.clear()
     updateRegisterCount = 0
@@ -672,7 +672,7 @@ const delayedSetRegister = () => {
 
 // On raw register value result
 onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegisterValue }) => {
-  const state = useServerZustand.getState()
+  const serverZustand = useServerZustand.getState()
 
   // 1) Find the “base entry” in state.serverRegisters[*][*][registerType]
   //    We look back up to 3 registers because the largest DataType (int64/double) uses 4 registers.
@@ -680,7 +680,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   let entryAddress: number | undefined
 
   for (let cand = address; cand >= address - 3; cand--) {
-    const maybe = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
+    const maybe = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
     if (!maybe) continue
     // Found an entry at candidate index—this is our base
     serverRegisterEntry = maybe
@@ -696,7 +696,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   const currentValue = pendingCompositeValues.get(cacheKey) ?? serverRegisterEntry.value
   const { dataType } = serverRegisterEntry.params
   // Get littleEndian from global server state
-  const littleEndian = state.littleEndian[uuid] ?? false
+  const littleEndian = serverZustand.littleEndian[uuid] ?? false
 
   // Skip composite merging for types that don't use numeric compositing
   if (dataType === 'utf8') return // Strings: no composite value
@@ -834,7 +834,7 @@ const delayedSetBool = () => {
   clearTimeout(updateBoolTimeout)
 
   const update = () => {
-    state.setBool(Array.from(setBooleanParameterSet.values()))
+    serverZustand.setBool(Array.from(setBooleanParameterSet.values()))
     setBooleanParameterSet.clear()
     pendingBooleanValues.clear()
     updateBoolCount = 0
@@ -849,8 +849,8 @@ const delayedSetBool = () => {
 }
 
 onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
-  const state = useServerZustand.getState()
-  const entry = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
+  const serverZustand = useServerZustand.getState()
+  const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
   if (entry === undefined) return
 
   const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`

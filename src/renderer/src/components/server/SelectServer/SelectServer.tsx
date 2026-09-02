@@ -27,15 +27,15 @@ const SelectServer = meme(() => {
   const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 10)
 
   const addServer = useCallback(async () => {
-    const z = useServerZustand.getState()
-    const newPort = findAvailablePort(Object.values(z.port).map((v) => Number(v)))
+    const serverZustand = useServerZustand.getState()
+    const newPort = findAvailablePort(Object.values(serverZustand.port).map((v) => Number(v)))
     if (!newPort) throw new Error('No available port')
-    z.createServer({ port: newPort, uuid: v4() })
+    serverZustand.createServer({ port: newPort, uuid: v4() })
   }, [])
 
   const deleteServer = useCallback(() => {
-    const z = useServerZustand.getState()
-    z.deleteServer(z.selectedUuid)
+    const serverZustand = useServerZustand.getState()
+    serverZustand.deleteServer(serverZustand.selectedUuid)
   }, [])
 
   if (serverMode === 'rtu') return null

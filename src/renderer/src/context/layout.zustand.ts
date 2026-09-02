@@ -53,20 +53,20 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
   }))
 )
 
-const state = useLayoutZustand.getState()
+const layoutZustand = useLayoutZustand.getState()
 
 // When opening the window and the windows were split, open the windows again
 // Will only happen with macos
-if (state.hideHomeButton && !isServerWindow) {
+if (layoutZustand.hideHomeButton && !isServerWindow) {
   sendEvent('open_server_window')
 }
 
 // Listen to main process events
 onEvent('window_update', (windows) => {
   if (isServerWindow) return
-  const state = useLayoutZustand.getState()
+  const layoutZustand = useLayoutZustand.getState()
 
   // When we are the main window, set the state accordingly
-  state.setHideHomeButton(windows.server)
-  if (windows.server) state.setAppType('client')
+  layoutZustand.setHideHomeButton(windows.server)
+  if (windows.server) layoutZustand.setAppType('client')
 })
