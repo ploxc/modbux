@@ -19,10 +19,13 @@ interface RootStub {
 // only be driven by re-rendering the parent, which memo refuses.
 const useRootStub = create<RootStub>(() => ({ serialPorts: [] }))
 
-vi.mock('@renderer/context/root.zustand', () => ({
-  useRootZustand: Object.assign((selector: (state: RootStub) => unknown) => useRootStub(selector), {
-    getState: (): RootStub => useRootStub.getState()
-  })
+vi.mock('@renderer/context/client.zustand', () => ({
+  useClientZustand: Object.assign(
+    (selector: (state: RootStub) => unknown) => useRootStub(selector),
+    {
+      getState: (): RootStub => useRootStub.getState()
+    }
+  )
 }))
 
 const mockEnqueueSnackbar = vi.fn()

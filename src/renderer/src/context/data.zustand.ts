@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { DataZustand } from './data.zustand.types'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
-import { useRootZustand } from './root.zustand'
+import { useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
 import { RegisterData, dummyWords } from '@shared'
 
@@ -31,8 +31,8 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
 /** Populate grid with configured register placeholders */
 export const showMapping = (): void => {
   const registerData: RegisterData[] = []
-  const registerMapping = useRootZustand.getState().registerMapping
-  const type = useRootZustand.getState().registerConfig.type
+  const registerMapping = useClientZustand.getState().registerMapping
+  const type = useClientZustand.getState().registerConfig.type
 
   Object.entries(registerMapping[type]).forEach(([addressString, m]) => {
     if (!m || m.dataType === 'none' || !m.dataType) return
@@ -86,9 +86,9 @@ export const dropPendingScanRows = (): void => {
 // Data read from the registers
 onEvent('register_data', (registerData) => {
   const state = useDataZustand.getState()
-  const rootState = useRootZustand.getState()
+  const clientZustand = useClientZustand.getState()
 
-  if (rootState.clientState.scanningRegisters) {
+  if (clientZustand.clientState.scanningRegisters) {
     pendingScanRows.push(...registerData)
     if (!scanFlushTimeout) scanFlushTimeout = setTimeout(flushScanRows, SCAN_FLUSH_MS)
   } else {
@@ -97,7 +97,7 @@ onEvent('register_data', (registerData) => {
     state.setRegisterData(registerData)
   }
 
-  rootState.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
+  clientZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
 onEvent('address_groups', (addressGroups) => {

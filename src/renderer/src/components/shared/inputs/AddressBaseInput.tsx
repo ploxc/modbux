@@ -2,8 +2,8 @@ import { InputBaseComponentProps } from '@mui/material/InputBase'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { useRootZustand } from '@renderer/context/root.zustand'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from './types'
 import UIntInput from './UintInput'
@@ -19,8 +19,8 @@ interface AddressBaseInputProps {
 
 const AddressBaseInput = meme(
   ({ disabled, address, setAddress, testId, baseTestId }: AddressBaseInputProps): JSX.Element => {
-    const addressBase = useRootZustand((z) => z.registerConfig.addressBase)
-    const setAddressBase = useRootZustand((z) => z.setAddressBase)
+    const addressBase = useClientZustand((z) => z.registerConfig.addressBase)
+    const setAddressBase = useClientZustand((z) => z.setAddressBase)
 
     const base = Number(addressBase)
     const displayValue = String(address + base)

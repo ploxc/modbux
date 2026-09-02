@@ -1,12 +1,12 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 
 const PollButton = meme((): JSX.Element => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
 
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const togglePolling = useCallback(() => {
     polling ? window.api.stopPolling() : window.api.startPolling()
   }, [polling])

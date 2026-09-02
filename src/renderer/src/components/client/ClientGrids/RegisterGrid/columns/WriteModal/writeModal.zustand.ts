@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { BaseDataType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'

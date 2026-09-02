@@ -3,12 +3,12 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Tooltip from '@mui/material/Tooltip'
 import EndianTable from '@renderer/components/shared/inputs/EndianTable'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 
 const ToggleEndianButton = meme((): JSX.Element | null => {
-  const type = useRootZustand((z) => z.registerConfig.type)
-  const littleEndian = useRootZustand((z) => z.registerConfig.littleEndian)
-  const setLittleEndian = useRootZustand((z) => z.setLittleEndian)
+  const type = useClientZustand((z) => z.registerConfig.type)
+  const littleEndian = useClientZustand((z) => z.registerConfig.littleEndian)
+  const setLittleEndian = useClientZustand((z) => z.setLittleEndian)
 
   const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
   if (!registers16Bit) return null

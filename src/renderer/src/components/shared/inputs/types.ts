@@ -1,4 +1,4 @@
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 
 export interface MaskInputProps {
   set: MaskSetFn

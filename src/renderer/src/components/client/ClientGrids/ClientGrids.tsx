@@ -2,7 +2,7 @@ import Box from '@mui/material/Box'
 import TransactionGrid from '@renderer/components/client/ClientGrids/TransactionGrid/TransactionGrid'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import RegisterGrid from './RegisterGrid/RegisterGrid'
 
 /**
@@ -16,7 +16,7 @@ import RegisterGrid from './RegisterGrid/RegisterGrid'
 const ClientGrids = meme((): JSX.Element | null => {
   const showLog = useLayoutZustand((z) => z.showLog)
   const showWhileScanning = useLayoutZustand((z) => z.showGridWhileScanning)
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   if (scanning && !showWhileScanning) return null
 

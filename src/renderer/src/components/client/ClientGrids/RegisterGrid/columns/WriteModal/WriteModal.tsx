@@ -11,7 +11,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
@@ -80,7 +80,7 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
     const {
       registerMapping,
       registerConfig: { type }
-    } = useRootZustand.getState()
+    } = useClientZustand.getState()
 
     const dataType = registerMapping[type][address]?.dataType
     if (!dataType) return
@@ -141,7 +141,7 @@ const WriteRegistersButton = meme(() => {
 
 const CoilFunctionSelect = meme(() => {
   const address = useValueInputZustand((z) => z.address)
-  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
   const setCoilFunction = useValueInputZustand((z) => z.setCoilFunction)
@@ -219,8 +219,8 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 })
 
 const Coils = meme(() => {
-  const length = useRootZustand((z) => z.registerConfig.length)
-  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const length = useClientZustand((z) => z.registerConfig.length)
+  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
