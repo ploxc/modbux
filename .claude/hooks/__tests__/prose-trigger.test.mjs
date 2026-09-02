@@ -21,22 +21,59 @@ const fire = (toolInput, sessionId = `test-${Math.random()}`) => {
   return out.trim() ? JSON.parse(out).hookSpecificOutput.additionalContext : ''
 }
 
-describe('prose-trigger fires on', () => {
+describe('prose-trigger fires on every write and edit', () => {
   it('a markdown write', () => expect(fire({ file_path: 'a.md', content: 'x' })).not.toBe(''))
   it('an edit adding a line comment', () =>
     expect(fire({ file_path: 'a.ts', new_string: '  // why\nconst x = 1' })).not.toBe(''))
   it('an edit adding a block comment', () =>
     expect(fire({ file_path: 'a.tsx', new_string: '/* why */\nconst y = 2' })).not.toBe(''))
+
+  // The classification these three used to fail is what let a refactor's worth
+  // of comments through: an edit that reads as code today carries a comment in
+  // the next call, and the hook has no way to know which is which.
+  it('code with no comment in it', () =>
+    expect(fire({ file_path: 'a.ts', new_string: 'const x = 1' })).not.toBe(''))
+  it('a file that is neither markdown nor source', () =>
+    expect(fire({ file_path: 'a.json', content: '{"a":1}' })).not.toBe(''))
+  it('a write that names a file and no content at all', () =>
+    expect(fire({ file_path: 'a.ts' })).not.toBe(''))
 })
 
 describe('prose-trigger stays quiet on', () => {
-  it('code with no comment', () =>
-    expect(fire({ file_path: 'a.ts', new_string: 'const x = 1' })).toBe(''))
-  it('a // that is inside a string', () =>
-    expect(fire({ file_path: 'a.ts', new_string: "const u = 'http://x'" })).toBe(''))
-  it('a file that is neither markdown nor commented code', () =>
-    expect(fire({ file_path: 'a.json', content: '{"a":1}' })).toBe(''))
   it('a payload with no tool_input', () => expect(fire(null)).toBe(''))
+  it('a tool that names no file and runs no command', () =>
+    expect(fire({ pattern: 'foo', path: 'src' })).toBe(''))
+  it('an empty file path', () => expect(fire({ file_path: '' })).toBe(''))
+})
+
+describe('prose-trigger reaches an edit made through Bash', () => {
+  // Every one of these wrote a TypeScript comment during the C1 refactor and
+  // the hook said nothing, because the text sat in the command rather than in
+  // content or new_string.
+  it('fires on a heredoc', () =>
+    expect(fire({ command: "python3 - <<'PYEOF'\nprint(1)\nPYEOF" })).not.toBe(''))
+  it('fires on an unquoted heredoc', () =>
+    expect(fire({ command: 'cat > a.ts <<EOF\nx\nEOF' })).not.toBe(''))
+  it('fires on an in-place sed', () =>
+    expect(fire({ command: "sed -i '' 's/a/b/' src/a.ts" })).not.toBe(''))
+  it('fires on tee', () => expect(fire({ command: 'echo x | tee src/a.ts' })).not.toBe(''))
+  it('fires on a redirect into a file', () =>
+    expect(fire({ command: 'echo x > src/a.ts' })).not.toBe(''))
+
+  it('stays quiet on a command that only reads', () => {
+    expect(fire({ command: 'yarn test' })).toBe('')
+    expect(fire({ command: "grep -rn 'utf8' src/" })).toBe('')
+    expect(fire({ command: 'git status --porcelain' })).toBe('')
+  })
+  it('stays quiet on output thrown away', () =>
+    expect(fire({ command: 'yarn lint > /dev/null 2>&1' })).toBe(''))
+  it('stays quiet on a `>` that is not a redirect', () => {
+    // The anchor before the `>` is what separates these from a write.
+    expect(fire({ command: "awk 'NF>4 { print }' src/a.ts" })).toBe('')
+    expect(fire({ command: "grep -n '\\-\\->' src/a.ts" })).toBe('')
+  })
+  it('stays quiet on a pipe, which writes no file', () =>
+    expect(fire({ command: 'yarn test 2>&1 | tail -5' })).toBe(''))
 })
 
 describe('prose-trigger says the whole rule', () => {
@@ -61,14 +98,12 @@ describe('prose-trigger reaches a commit message', () => {
   })
   it('fires when a commit follows another command', () =>
     expect(fire({ command: 'yarn test && git commit -F -' })).not.toBe(''))
+  // A command that mentions a commit and writes nothing is what keeps this
+  // matcher honest. A heredoc mentioning one used to be here too, and now
+  // fires as the write it is.
   it('stays quiet on a command that merely mentions the word', () => {
     expect(fire({ command: "grep -rn 'commit' docs/" })).toBe('')
     expect(fire({ command: "rg 'git commit' .claude/" })).toBe('')
-  })
-  it('stays quiet on a heredoc that writes about a commit', () => {
-    // This is the false positive that fired while the Bash matcher was added.
-    const heredoc = "python3 - <<'PY'\ns = \"expect(fire({ command: 'git commit -F -' }))\"\nPY"
-    expect(fire({ command: heredoc })).toBe('')
   })
 })
 
