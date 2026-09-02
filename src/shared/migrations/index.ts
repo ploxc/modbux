@@ -8,4 +8,10 @@ export {
   CURRENT_SERVER_ZUSTAND_VERSION
 } from './server/zustand'
 export { migrateClientConfig, CURRENT_CLIENT_CONFIG_VERSION } from './client/config'
-export { migrateClientState, CURRENT_CLIENT_ZUSTAND_VERSION } from './client/zustand'
+export {
+  migrateClientState,
+  carryFormerClientState,
+  CURRENT_CLIENT_ZUSTAND_VERSION,
+  CLIENT_ZUSTAND_STORAGE_KEY,
+  FORMER_CLIENT_ZUSTAND_STORAGE_KEY
+} from './client/zustand'

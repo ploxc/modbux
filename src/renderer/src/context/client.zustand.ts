@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { useLayoutZustand } from './layout.zustand'
-import { carryFormerStorageKey, CLIENT_ZUSTAND_STORAGE_KEY } from './client.zustand.storage'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
@@ -13,7 +12,9 @@ import {
   defaultConnectionConfig,
   defaultRegisterConfig,
   CURRENT_CLIENT_ZUSTAND_VERSION,
-  migrateClientState
+  migrateClientState,
+  carryFormerClientState,
+  CLIENT_ZUSTAND_STORAGE_KEY
 } from '@shared'
 import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
@@ -41,7 +42,7 @@ export const flushRegisterMappingToMain = (): void => {
   window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
 }
 
-carryFormerStorageKey()
+carryFormerClientState(localStorage)
 
 export const useClientZustand = create<
   ClientZustand,
