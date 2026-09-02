@@ -27,7 +27,6 @@ import {
   ModbusBaudRate
 } from '@shared'
 import { onEvent } from '@renderer/events'
-import { enqueueSnackbar } from 'notistack'
 import { round } from 'lodash'
 import {
   extractUnitIdsWithData,
@@ -69,6 +68,11 @@ export const useServerZustand = create<
 >(
   persist(
     mutative((set, get) => ({
+      configWasReset: false,
+      acknowledgeConfigReset: () =>
+        set((state) => {
+          state.configWasReset = false
+        }),
       ready: { [MAIN_SERVER_UUID]: false },
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [MAIN_SERVER_UUID],
@@ -623,13 +627,17 @@ export const useServerZustand = create<
   )
 )
 
-// Clear when state is corrupted
+/**
+ * Clear when state is corrupted, and record that it happened.
+ *
+ * Module scope, so it cannot report through notistack: see the same function in
+ * client.zustand.ts for why. MessageReceiver tells the user once it is mounted.
+ */
 const clear = (): void => {
   useServerZustand.persist.clearStorage()
-  useServerZustand.setState(useServerZustand.getInitialState())
-  enqueueSnackbar({
-    variant: 'error',
-    message: 'Server configuration was corrupted and has been reset to defaults.'
+  useServerZustand.setState({
+    ...useServerZustand.getInitialState(),
+    configWasReset: true
   })
 }
 

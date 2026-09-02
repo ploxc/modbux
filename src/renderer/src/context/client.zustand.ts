@@ -16,7 +16,6 @@ import {
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY
 } from '@shared'
-import { enqueueSnackbar } from 'notistack'
 import { useDataZustand } from './data.zustand'
 import { onEvent } from '@renderer/events'
 
@@ -72,6 +71,11 @@ export const useClientZustand = create<
         set((state) => {
           state.name = name
         }),
+      configWasReset: false,
+      acknowledgeConfigReset: () =>
+        set((state) => {
+          state.configWasReset = false
+        }),
       registerMapping: {
         coils: {},
         discrete_inputs: {},
@@ -116,7 +120,6 @@ export const useClientZustand = create<
             input_registers: {}
           }
         }),
-      // Transaction log
       transactions: [],
       addTransaction: (transaction) =>
         set((state) => {
@@ -422,13 +425,21 @@ export const useClientZustand = create<
 
 const clientZustand = useClientZustand.getState()
 
-// Clear when state is corrupted
-const clear = () => {
+/**
+ * Clear when state is corrupted, and record that it happened.
+ *
+ * This runs while the module graph is still evaluating. notistack assigns its
+ * standalone enqueueSnackbar inside the SnackbarProvider constructor, and that
+ * provider is built by createRoot().render() in main.tsx, so calling it here
+ * throws out of module scope and nothing below this line ever runs: no init, no
+ * event listeners, and no React render either. MessageReceiver reads the flag
+ * once it is mounted, where a provider exists to tell.
+ */
+const clear = (): void => {
   useClientZustand.persist.clearStorage()
-  useClientZustand.setState(useClientZustand.getInitialState())
-  enqueueSnackbar({
-    variant: 'error',
-    message: 'Client configuration was corrupted and has been reset to defaults.'
+  useClientZustand.setState({
+    ...useClientZustand.getInitialState(),
+    configWasReset: true
   })
 }
 

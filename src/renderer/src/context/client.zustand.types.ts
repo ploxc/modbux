@@ -48,6 +48,10 @@ export type ClientZustand = {
   ) => void
   replaceRegisterMapping: (registerMapping: RegisterMapping) => void
   clearRegisterMapping: () => void
+  /** Set when the persisted config failed its schema and was reset. */
+  configWasReset: boolean
+  /** Called once the reset has been reported, so it is reported once. */
+  acknowledgeConfigReset: () => void
   // Transaction log
   addTransaction: (transactions: Transaction) => void
   clearTransactions: () => void

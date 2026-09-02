@@ -55,6 +55,10 @@ export interface SetRegisterValueParameters {
 }
 
 export type ServerZustand = {
+  /** Set when the persisted config failed its schema and was reset. */
+  configWasReset: boolean
+  /** Called once the reset has been reported, so it is reported once. */
+  acknowledgeConfigReset: () => void
   ready: { [uuid: string]: boolean }
   clean: (uuid: string) => void
   /**
