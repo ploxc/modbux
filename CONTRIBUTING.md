@@ -55,19 +55,29 @@ Beyond what the linter catches:
 
 ### The conventions this codebase has already settled
 
-`src/__tests__/conformance.test.ts` asserts the nine rules below, so a PR that
+`src/__tests__/conformance.test.ts` asserts the ten rules below, so a PR that
 breaks one fails `yarn test` rather than waiting for a reviewer to notice. Every
 rule asserts that the population it reads is not empty before it asserts the
 population holds no violation, because a meter that reads no files passes every
 rule it has.
 
-**One store selector per field.** `useRootZustand((z) => z.a)` and then
+**One store selector per field.** `useClientZustand((z) => z.a)` and then
 `((z) => z.b)`, never one selector returning an object. An object literal is a
 new reference on every render, so a selector that returns one re-renders its
 component on every flush of any field. The same goes for a call with no selector
 and for `(z) => z`, which take the whole store the long way round. The renderer
 has zero of all three and zero `useShallow`, and that is why it draws a
 two-thousand-row grid without either.
+
+**An action is fetched where it runs, not subscribed to.** The handler is a
+`useCallback` whose first line reads the store:
+`const clientZustand = useClientZustand.getState()`.
+A selector that hands back a store function puts
+that function in the dependency list, and a dependency list naming something the
+component does not own is a list no reader can check. What the component holds
+goes in the list; what the store holds is read at the moment it is used. That
+second half also covers a *value* the component wants at a moment rather than on
+every change: read through `getState()` and it causes no render.
 
 **Every component is wrapped in `meme`.** Props or not, one rule with no
 exception to remember. A declaration counts as a component when it is rendered

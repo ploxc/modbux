@@ -28,7 +28,7 @@ src/renderer/  the React UI
 
 - **Nothing in `src/shared` may import from `src/main`.** All three processes
   import shared; it is the one layer that may not reach back.
-- **One store selector per field.** `useRootZustand((z) => z.a)` and then
+- **One store selector per field.** `useClientZustand((z) => z.a)` and then
   `((z) => z.b)`, never one selector returning an object. The renderer has zero
   whole-store subscriptions and zero `useShallow`, and that is why it renders a
   two-thousand-row grid without either.
@@ -38,8 +38,8 @@ src/renderer/  the React UI
 - **Every interactive element carries a `data-testid`.** The e2e suite addresses
   the UI through them.
 
-`src/__tests__/conformance.test.ts` asserts nine conventions, three of them
-these, so breaking one fails `yarn test`. What each of the nine means, and the
+`src/__tests__/conformance.test.ts` asserts ten conventions, three of them
+these, so breaking one fails `yarn test`. What each of the ten means, and the
 two no test can see, is in CONTRIBUTING.md under *Code style*.
 
 # The rules
