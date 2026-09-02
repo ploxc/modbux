@@ -32,7 +32,6 @@ export type PersistedRootZustand = z.infer<typeof PersistedRootZustandSchema>
 
 export type RootZustand = {
   transactions: Transaction[]
-  version: string
   clientState: ClientState
   ready: boolean
   readConfiguration: boolean
@@ -91,7 +90,6 @@ export type RootZustand = {
   // Read configuration
   setReadConfiguration: (readConfiguration: boolean) => void
   // Version
-  setVersion: (version: string) => void
 
   // Serial port discovery
   serialPorts: SerialPortInfo[]

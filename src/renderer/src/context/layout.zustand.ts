@@ -9,6 +9,11 @@ const isServerWindow = window.api.isServerWindow
 export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', never]]>(
   mutative((set, get) => ({
     showLog: false,
+    version: '',
+    setVersion: (version) =>
+      set((state) => {
+        state.version = version
+      }),
     homeShiftKeyDown: false,
     hideHomeButton: isServerWindow,
     showClientRawValues: false,

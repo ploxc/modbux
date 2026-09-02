@@ -4,7 +4,7 @@ import Save from '@mui/icons-material/Save'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, migrateServerConfig } from '@shared'
 import { ServerConfig, ServerRegistersPerUnit, UnitIdStringSchema } from '@shared'
@@ -141,7 +141,7 @@ const useSave: UseSaveHook = () => {
     })
 
     // The store reads the version once at startup; it cannot change after that
-    const modbuxVersion = useRootZustand.getState().version
+    const modbuxVersion = useLayoutZustand.getState().version
 
     const config: ServerConfig = {
       version: 2,

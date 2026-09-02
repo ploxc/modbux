@@ -145,7 +145,7 @@ const PloxcLogo = meme((): JSX.Element => {
 })
 
 const Version = meme((): JSX.Element => {
-  const version = useRootZustand((z) => z.version)
+  const version = useLayoutZustand((z) => z.version)
 
   return (
     <Box
