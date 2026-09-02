@@ -12,6 +12,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { RegisterType } from '@shared'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -25,7 +26,11 @@ import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 const StartUnitIdField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
-  const setStartUnitId = useScanUnitIdZustand((z) => z.setStartUnitId)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setStartUnitId(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -39,7 +44,7 @@ const StartUnitIdField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setStartUnitId, max: 255 })
+          inputProps: maskInputProps({ set: handleChange, max: 255 })
         }
       }}
     />
@@ -52,7 +57,11 @@ const StartUnitIdField = meme((): JSX.Element => {
 const CountField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const count = useScanUnitIdZustand((z) => String(z.count))
-  const setCount = useScanUnitIdZustand((z) => z.setCount)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setCount(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -66,7 +75,7 @@ const CountField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setCount, max: 256 })
+          inputProps: maskInputProps({ set: handleChange, max: 256 })
         }
       }}
     />
@@ -79,13 +88,17 @@ const CountField = meme((): JSX.Element => {
 const AddressField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const address = useScanUnitIdZustand((z) => z.address)
-  const setAddress = useScanUnitIdZustand((z) => z.setAddress)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setAddress(value, valid)
+  }, [])
 
   return (
     <AddressBaseInput
       disabled={scanning}
       address={address}
-      setAddress={setAddress}
+      setAddress={handleChange}
       testId="scan-unitid-address-input"
       baseTestId="scan-unitid-base"
     />
@@ -98,7 +111,11 @@ const AddressField = meme((): JSX.Element => {
 const LengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => String(z.length))
-  const setLength = useScanUnitIdZustand((z) => z.setLength)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setLength(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -112,7 +129,7 @@ const LengthField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -125,13 +142,17 @@ const LengthField = meme((): JSX.Element => {
 const TimeoutField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
-  const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setTimeout(value, valid)
+  }, [])
 
   return (
     <ScanTimeoutField
       disabled={scanning}
       timeout={timeout}
-      setTimeout={setTimeout}
+      setTimeout={handleChange}
       testId="scan-unitid-timeout-input"
     />
   )
@@ -143,7 +164,11 @@ const TimeoutField = meme((): JSX.Element => {
 const SelectRegisterTypes = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
-  const setRegisterTypes = useScanUnitIdZustand((z) => z.setRegisterTypes)
+
+  const handleChange = useCallback((_event: unknown, value: RegisterType[]): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setRegisterTypes(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -151,7 +176,7 @@ const SelectRegisterTypes = meme((): JSX.Element => {
       color="primary"
       size="small"
       value={registerTypes}
-      onChange={(_, rt) => setRegisterTypes(rt)}
+      onChange={handleChange}
       aria-label="Register types to scan"
     >
       {/* The same short names the result columns carry, so the button you
@@ -324,19 +349,19 @@ export const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Eleme
  */
 const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
-  const setOpen = useScanUnitIdZustand((z) => z.setOpen)
 
   // Don't close while scanning
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
 
   const handleClose = useCallback(() => {
     const clientZustand = useClientZustand.getState()
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
     if (clientZustand.clientState.scanningUnitIds) return
     // The results belong to the dialog. Leaving them behind means the next
     // scan opens on the last one and fills in around it.
     clientZustand.clearScanUnitIdResults()
-    setOpen(false)
-  }, [setOpen])
+    scanUnitIdZustand.setOpen(false)
+  }, [])
 
   return (
     <Modal

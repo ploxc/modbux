@@ -55,14 +55,18 @@ const TypeSelect = meme(() => {
 // Address
 const Address = meme(() => {
   const address = useClientZustand((z) => z.registerConfig.address)
-  const setAddress = useClientZustand((z) => z.setAddress)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setAddress(value, valid)
+  }, [])
 
   return (
     <AddressBaseInput
       disabled={readConfiguration}
       address={address}
-      setAddress={setAddress}
+      setAddress={handleChange}
       testId="reg-address-input"
       baseTestId="reg-base"
     />
@@ -75,9 +79,13 @@ const Address = meme(() => {
 const Length = meme(() => {
   const length = useClientZustand((z) => String(z.registerConfig.length))
   const lengthValid = useClientZustand((z) => z.valid.lenght)
-  const setLength = useClientZustand((z) => z.setLength)
   const address = useClientZustand((z) => z.registerConfig.address)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setLength(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -92,7 +100,7 @@ const Length = meme(() => {
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength, max: 65536 - address })
+          inputProps: maskInputProps({ set: handleChange, max: 65536 - address })
         }
       }}
     />

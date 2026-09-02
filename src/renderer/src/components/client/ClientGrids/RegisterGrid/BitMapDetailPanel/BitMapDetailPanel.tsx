@@ -24,7 +24,6 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
   const bitConfig = useClientZustand(
     (z) => z.registerMapping[z.registerConfig.type][address]?.bitMap
   )
-  const setRegisterMapping = useClientZustand((z) => z.setRegisterMapping)
 
   const registerType = useClientZustand((z) => z.registerConfig.type)
   const writable = registerType === 'holding_registers'
@@ -53,6 +52,7 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
 
   const updateBitMap = useCallback(
     (bitIndex: number, patch: Record<string, unknown>) => {
+      const clientZustand = useClientZustand.getState()
       const current = bitConfig ?? {}
       const entry = current[String(bitIndex)] ?? {}
       const updated: BitMapConfig = {
@@ -68,9 +68,13 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
         // Remove entry entirely if empty
         if (Object.keys(updatedEntry).length === 0) delete updated[String(bitIndex)]
       }
-      setRegisterMapping(address, 'bitMap', Object.keys(updated).length > 0 ? updated : undefined)
+      clientZustand.setRegisterMapping(
+        address,
+        'bitMap',
+        Object.keys(updated).length > 0 ? updated : undefined
+      )
     },
-    [address, bitConfig, setRegisterMapping]
+    [address, bitConfig]
   )
 
   const handleCommentChange = useCallback(

@@ -13,7 +13,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
+import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { useValueInputZustand } from './writeModal.zustand'
@@ -50,7 +50,11 @@ const ValueInput = meme(ValueInputForward)
 const ValueInputComponent = meme(({ address }: { address: number }) => {
   const value = useValueInputZustand((z) => z.value)
   const valid = useValueInputZustand((z) => z.valid)
-  const setValue = useValueInputZustand((z) => z.setValue)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setValue(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -64,7 +68,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setValue })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -73,10 +77,15 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
 
 const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
-  const setDataType = useValueInputZustand((z) => z.setDataType)
+
+  const handleChange = useCallback((value: BaseDataType): void => {
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setDataType(value)
+  }, [])
 
   // Set the data type based on the address if it's defined in the register mapping
   useEffect(() => {
+    const valueInputZustand = useValueInputZustand.getState()
     const {
       registerMapping,
       registerConfig: { type }
@@ -86,10 +95,10 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
     if (!dataType) return
 
     const result = BaseDataTypeSchema.safeParse(dataType)
-    if (result.success) setDataType(result.data)
-  }, [address, setDataType])
+    if (result.success) valueInputZustand.setDataType(result.data)
+  }, [address])
 
-  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
+  return <DataTypeSelectInput dataType={dataType} setDataType={handleChange} />
 })
 
 const WriteRegistersButton = meme(() => {
@@ -144,7 +153,12 @@ const CoilFunctionSelect = meme(() => {
   const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
-  const setCoilFunction = useValueInputZustand((z) => z.setCoilFunction)
+
+  const handleFunctionChange = useCallback((_event: unknown, value: 5 | 15 | null): void => {
+    if (value === null) return
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setCoilFunction(value)
+  }, [])
 
   const handleWrite = useCallback(() => {
     window.api.write({
@@ -163,7 +177,7 @@ const CoilFunctionSelect = meme(() => {
         exclusive
         color="primary"
         value={coilFunction}
-        onChange={(_, v) => v !== null && setCoilFunction(v)}
+        onChange={handleFunctionChange}
       >
         <ToggleButton
           sx={{ flex: 1, flexBasis: 0 }}
@@ -202,7 +216,11 @@ interface CoilButtonProps {
 
 const CoilButton = meme(({ address, index }: CoilButtonProps) => {
   const state = useValueInputZustand((z) => z.coils[index])
-  const setCoils = useValueInputZustand((z) => z.setCoils)
+
+  const handleClick = useCallback((): void => {
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setCoils(!state, index)
+  }, [state, index])
 
   return (
     <Button
@@ -210,7 +228,7 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
       data-testid={`write-coil-${address}-select-btn`}
       variant={state ? 'contained' : 'outlined'}
       color="primary"
-      onClick={() => setCoils(!state, index)}
+      onClick={handleClick}
       sx={{ flex: 1, flexBasis: 0 }}
     >
       {address}
@@ -224,12 +242,12 @@ const Coils = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
-  const initCoils = useValueInputZustand((z) => z.initCoils)
 
   useEffect(() => {
+    const valueInputZustand = useValueInputZustand.getState()
     const newCoils = Array(length).fill(false)
-    initCoils(newCoils)
-  }, [initCoils, length])
+    valueInputZustand.initCoils(newCoils)
+  }, [length])
 
   const rows = useMemo(() => {
     const amount = Math.ceil(length / 8)
@@ -278,16 +296,16 @@ interface WriteModalProps {
 const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: WriteModalProps) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
   const right = (rect?.right ? window.innerWidth - rect.right : 0) + 38
-  const setValue = useValueInputZustand((z) => z.setValue)
-  const setAddress = useValueInputZustand((z) => z.setAddress)
 
   const handleClose = useCallback(() => {
-    setValue('0')
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setValue('0')
     onClose()
-  }, [setValue, onClose])
+  }, [onClose])
 
   useEffect(() => {
-    setAddress(address)
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setAddress(address)
     // ! deliberate only once when the component mounts
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

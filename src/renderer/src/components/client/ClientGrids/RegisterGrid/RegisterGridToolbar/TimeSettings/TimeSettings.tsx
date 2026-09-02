@@ -11,14 +11,18 @@ import { useCallback, useState } from 'react'
 // Polling interval slider
 const PollRate = meme((): JSX.Element => {
   const value = useClientZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
-  const setValue = useClientZustand((z) => z.setPollRate)
+
+  const handleChange = useCallback((seconds: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setPollRate(seconds * 1000)
+  }, [])
 
   return (
     <SliderComponent
       testId="poll-rate-slider"
       label="Poll Rate"
       value={value}
-      setValue={(v) => setValue(v * 1000)}
+      setValue={handleChange}
     />
   )
 })
@@ -26,14 +30,18 @@ const PollRate = meme((): JSX.Element => {
 // Read Timeout slider
 const Timeout = meme((): JSX.Element => {
   const value = useClientZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
-  const setValue = useClientZustand((z) => z.setTimeout)
+
+  const handleChange = useCallback((seconds: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setTimeout(seconds * 1000)
+  }, [])
 
   return (
     <SliderComponent
       testId="timeout-slider"
       label="Timeout"
       value={value}
-      setValue={(v) => setValue(v * 1000)}
+      setValue={handleChange}
     />
   )
 })

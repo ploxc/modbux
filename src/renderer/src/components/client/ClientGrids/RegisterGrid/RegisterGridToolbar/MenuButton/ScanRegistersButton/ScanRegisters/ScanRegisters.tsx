@@ -28,7 +28,11 @@ import { useScanRegistersZustand } from './scanRegisters.zustand'
 const UnitIdField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
-  const setUnitId = useClientZustand((z) => z.setUnitId)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setUnitId(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -42,7 +46,7 @@ const UnitIdField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setUnitId })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -55,13 +59,17 @@ const UnitIdField = meme((): JSX.Element => {
 const AddressField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const address = useScanRegistersZustand((z) => z.address)
-  const setAddress = useScanRegistersZustand((z) => z.setAddress)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanRegistersZustand = useScanRegistersZustand.getState()
+    scanRegistersZustand.setAddress(value, valid)
+  }, [])
 
   return (
     <AddressBaseInput
       disabled={scanning}
       address={address}
-      setAddress={setAddress}
+      setAddress={handleChange}
       testId="scan-address-input"
       baseTestId="scan-base"
     />
@@ -74,7 +82,11 @@ const AddressField = meme((): JSX.Element => {
 const ScanLengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const scanLength = useScanRegistersZustand((z) => String(z.scanLength))
-  const setScanLength = useScanRegistersZustand((z) => z.setScanLength)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanRegistersZustand = useScanRegistersZustand.getState()
+    scanRegistersZustand.setScanLength(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -88,7 +100,7 @@ const ScanLengthField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setScanLength })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -101,10 +113,14 @@ const ScanLengthField = meme((): JSX.Element => {
 const ChunkSizeField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
-  const setChunkSize = useScanRegistersZustand((z) => z.setChunkSize)
   const type = useClientZustand((z) => z.registerConfig.type)
   const isCoilType = ['coils', 'discrete_inputs'].includes(type)
   const max = isCoilType ? 2000 : 125
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanRegistersZustand = useScanRegistersZustand.getState()
+    scanRegistersZustand.setChunkSize(value, valid)
+  }, [])
 
   return (
     <TextField
@@ -118,7 +134,7 @@ const ChunkSizeField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setChunkSize, max })
+          inputProps: maskInputProps({ set: handleChange, max })
         }
       }}
     />
@@ -131,13 +147,17 @@ const ChunkSizeField = meme((): JSX.Element => {
 const TimeoutField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => z.timeout)
-  const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
+
+  const handleChange = useCallback((value: string, valid?: boolean): void => {
+    const scanRegistersZustand = useScanRegistersZustand.getState()
+    scanRegistersZustand.setTimeout(value, valid)
+  }, [])
 
   return (
     <ScanTimeoutField
       disabled={scanning}
       timeout={timeout}
-      setTimeout={setTimeout}
+      setTimeout={handleChange}
       testId="scan-timeout-input"
     />
   )
@@ -166,9 +186,13 @@ const FoundCount = meme((): JSX.Element | null => {
 // Show the grid while scanning
 const GridToggle = meme((): JSX.Element => {
   const shown = useLayoutZustand((z) => z.showGridWhileScanning)
-  const toggle = useLayoutZustand((z) => z.toggleShowGridWhileScanning)
 
-  return <ScanGridToggle shown={shown} toggle={toggle} />
+  const handleToggle = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.toggleShowGridWhileScanning()
+  }, [])
+
+  return <ScanGridToggle shown={shown} toggle={handleToggle} />
 })
 
 //

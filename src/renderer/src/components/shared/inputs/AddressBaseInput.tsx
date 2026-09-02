@@ -20,7 +20,12 @@ interface AddressBaseInputProps {
 const AddressBaseInput = meme(
   ({ disabled, address, setAddress, testId, baseTestId }: AddressBaseInputProps): JSX.Element => {
     const addressBase = useClientZustand((z) => z.registerConfig.addressBase)
-    const setAddressBase = useClientZustand((z) => z.setAddressBase)
+
+    const handleBaseChange = useCallback((_event: unknown, value: '0' | '1' | null): void => {
+      if (value === null) return
+      const clientZustand = useClientZustand.getState()
+      clientZustand.setAddressBase(value)
+    }, [])
 
     const base = Number(addressBase)
     const displayValue = String(address + base)
@@ -50,7 +55,7 @@ const AddressBaseInput = meme(
                 exclusive
                 color="primary"
                 value={addressBase}
-                onChange={(_, v) => v !== null && setAddressBase(v)}
+                onChange={handleBaseChange}
               >
                 <ToggleButton
                   value={'0'}

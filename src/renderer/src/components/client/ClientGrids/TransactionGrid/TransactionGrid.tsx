@@ -8,6 +8,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import useTransactionGridColumns from './_columns'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useCallback } from 'react'
 
 //
 //
@@ -39,9 +40,18 @@ const ExportButton = meme((): JSX.Element => {
 //
 // Clears the transaction log
 const ClearButton = meme((): JSX.Element => {
-  const clear = useClientZustand((z) => z.clearTransactions)
+  const handleClick = useCallback((): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.clearTransactions()
+  }, [])
+
   return (
-    <Button data-testid="transaction-clear-btn" size="small" variant="outlined" onClick={clear}>
+    <Button
+      data-testid="transaction-clear-btn"
+      size="small"
+      variant="outlined"
+      onClick={handleClick}
+    >
       Clear
     </Button>
   )

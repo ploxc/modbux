@@ -10,7 +10,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { ElementType, useEffect } from 'react'
+import { ChangeEvent, ElementType, useCallback, useEffect } from 'react'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon'
@@ -19,8 +19,13 @@ import { ValueInput, MinInput, MaxInput, IntervalInput, RegisterLengthInput } fr
 
 export const FixedOrGenerator = meme(() => {
   const fixed = useAddRegisterZustand((z) => z.fixed)
-  const setFixed = useAddRegisterZustand((z) => z.setFixed)
   const dataType = useAddRegisterZustand((z) => z.dataType)
+
+  const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
+    if (value === null) return
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setFixed(value)
+  }, [])
 
   // UTF-8 and BITMAP are always fixed — hide toggle
   if (dataType === 'utf8' || dataType === 'bitmap') return null
@@ -31,7 +36,7 @@ export const FixedOrGenerator = meme(() => {
       exclusive
       color="primary"
       value={fixed}
-      onChange={(_, v) => v !== null && setFixed(v)}
+      onChange={handleChange}
       sx={{ flex: 1 }}
     >
       <ToggleButton data-testid="add-reg-fixed-btn" sx={{ flex: 1, flexBasis: 0 }} value={true}>
@@ -57,7 +62,11 @@ export const FixedOrGenerator = meme(() => {
 const ValueInputComponent = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const valid = useAddRegisterZustand((z) => z.valid.value)
-  const setValue = useAddRegisterZustand((z) => z.setValue)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setValue(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -71,7 +80,7 @@ const ValueInputComponent = meme(() => {
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setValue })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -87,7 +96,11 @@ const ValueInputComponent = meme(() => {
 const MinTextField = meme(() => {
   const min = useAddRegisterZustand((z) => String(z.min))
   const valid = useAddRegisterZustand((z) => z.valid.min)
-  const setMin = useAddRegisterZustand((z) => z.setMin)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setMin(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -101,7 +114,7 @@ const MinTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: MinInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMin })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -111,7 +124,11 @@ const MinTextField = meme(() => {
 const MaxTextField = meme(() => {
   const max = useAddRegisterZustand((z) => String(z.max))
   const valid = useAddRegisterZustand((z) => z.valid.max)
-  const setMax = useAddRegisterZustand((z) => z.setMax)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setMax(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -125,7 +142,7 @@ const MaxTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: MaxInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setMax })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -141,7 +158,11 @@ const MaxTextField = meme(() => {
 const IntervalTextField = meme(() => {
   const interval = useAddRegisterZustand((z) => String(z.interval))
   const valid = useAddRegisterZustand((z) => z.valid.interval)
-  const setInterval = useAddRegisterZustand((z) => z.setInterval)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setInterval(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -155,7 +176,7 @@ const IntervalTextField = meme(() => {
       slotProps={{
         input: {
           inputComponent: IntervalInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setInterval })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />
@@ -171,8 +192,16 @@ const IntervalTextField = meme(() => {
 const DateTimeField = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const showDatePickerUtc = useAddRegisterZustand((z) => z.showDatePickerUtc)
-  const setValue = useAddRegisterZustand((z) => z.setValue)
-  const setShowDatePickerUtc = useAddRegisterZustand((z) => z.setShowDatePickerUtc)
+
+  const handleChange = useCallback((dt: DateTime | null): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    if (dt && dt.isValid) addRegisterZustand.setValue(String(dt.toMillis()), true)
+  }, [])
+
+  const handleUtcChange = useCallback((): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setShowDatePickerUtc(!addRegisterZustand.showDatePickerUtc)
+  }, [])
 
   const dateValue = value && value !== '0' ? DateTime.fromMillis(Number(value)) : DateTime.now()
 
@@ -182,11 +211,7 @@ const DateTimeField = meme(() => {
         timezone={showDatePickerUtc ? 'UTC' : undefined}
         label="Date & Time"
         value={dateValue}
-        onChange={(dt) => {
-          if (dt && dt.isValid) {
-            setValue(String(dt.toMillis()), true)
-          }
-        }}
+        onChange={handleChange}
         ampm={false}
         slotProps={{
           textField: {
@@ -204,7 +229,7 @@ const DateTimeField = meme(() => {
           data-testid="add-reg-datetime-show-utc"
           aria-label="Show UTC time for datepicker"
           title="Toggle UTC/local display — register is always encoded in UTC"
-          onChange={() => setShowDatePickerUtc(!showDatePickerUtc)}
+          onChange={handleUtcChange}
         >
           UTC
         </ToggleButton>
@@ -221,14 +246,19 @@ const DateTimeField = meme(() => {
 
 const StringValueField = meme(() => {
   const stringValue = useAddRegisterZustand((z) => z.stringValue)
-  const setStringValue = useAddRegisterZustand((z) => z.setStringValue)
   const maxBytes = useAddRegisterZustand((z) => (Number(z.registerLength) || 10) * 2)
   const valid = useAddRegisterZustand((z) => z.valid.stringValue)
 
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setStringValue(event.target.value)
+  }, [])
+
   useEffect(() => {
     // Reevaluate string length when changing register Length
-    setStringValue(useAddRegisterZustand.getState().stringValue)
-  }, [maxBytes, setStringValue])
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setStringValue(addRegisterZustand.stringValue)
+  }, [maxBytes])
 
   const helperText = `${new TextEncoder().encode(stringValue).length} / ${maxBytes} bytes`
 
@@ -240,7 +270,7 @@ const StringValueField = meme(() => {
       size="small"
       sx={{ minWidth: 200, flex: 1 }}
       value={stringValue}
-      onChange={(e) => setStringValue(e.target.value)}
+      onChange={handleChange}
       helperText={helperText}
       error={!valid}
     />
@@ -256,7 +286,11 @@ const StringValueField = meme(() => {
 const RegisterLengthField = meme(() => {
   const registerLength = useAddRegisterZustand((z) => z.registerLength)
   const valid = useAddRegisterZustand((z) => z.valid.registerLength)
-  const setRegisterLength = useAddRegisterZustand((z) => z.setRegisterLength)
+
+  const handleChange = useCallback((value: string, isValid?: boolean): void => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setRegisterLength(value, isValid)
+  }, [])
 
   return (
     <TextField
@@ -273,7 +307,7 @@ const RegisterLengthField = meme(() => {
             InputBaseComponentProps,
             'input'
           >,
-          inputProps: maskInputProps({ set: setRegisterLength })
+          inputProps: maskInputProps({ set: handleChange })
         }
       }}
     />

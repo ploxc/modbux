@@ -173,19 +173,23 @@ const RunCommandButton = meme((): JSX.Element | null => {
 })
 
 const LaterButton = meme((): JSX.Element => {
-  const setOpen = useSerialGroupZustand((z) => z.setOpen)
+  const handleClick = useCallback((): void => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
+    serialGroupZustand.setOpen(false)
+  }, [])
+
   return (
-    <Button onClick={() => setOpen(false)} data-testid="serial-group-later-btn">
+    <Button onClick={handleClick} data-testid="serial-group-later-btn">
       Later
     </Button>
   )
 })
 
 const LogoutButton = meme((): JSX.Element => {
-  const setOpen = useSerialGroupZustand((z) => z.setOpen)
   const { enqueueSnackbar } = useSnackbar()
 
   const logout = useCallback(async (): Promise<void> => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
     const asked = await window.api.requestLogout()
     if (!asked) {
       enqueueSnackbar({
@@ -193,8 +197,8 @@ const LogoutButton = meme((): JSX.Element => {
         variant: 'info'
       })
     }
-    setOpen(false)
-  }, [enqueueSnackbar, setOpen])
+    serialGroupZustand.setOpen(false)
+  }, [enqueueSnackbar])
 
   return (
     <Button onClick={logout} data-testid="serial-group-logout-btn">
