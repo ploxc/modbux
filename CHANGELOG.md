@@ -5,6 +5,30 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The server no longer answers for units it does not have.** On a shared
+  RS-485 line it replied to every address on the bus, including the ones
+  belonging to the real devices on it, so its frame went out at the same moment
+  theirs did. It now says nothing at all for an address it does not host, which
+  is the only answer that leaves the line alone. Over TCP, where saying nothing
+  is just a timeout, it replies that the unit is not there. A unit is one you
+  gave registers to, and the ID picker still lists all 256.
+- **A write to a unit you never configured no longer creates one.** Any client
+  on the network could turn an unused unit ID into one the server answers for,
+  and nothing in the view said it had happened.
+
+### Changed
+
+- **Unit 0 is the broadcast address on RTU.** A request to 0 goes to every
+  device on the bus at once and none of them replies, so registers you put on
+  unit 0 cannot be read back over serial. A write to 0 still lands, on every
+  unit the server hosts, and nothing goes back on the line. Modbux says so once
+  while the RTU server is running and unit 0 holds registers. Over TCP there is
+  no broadcast and unit 0 stays an ordinary address.
+
 ## [2.3.0] - 2026-08-30
 
 ### Added
