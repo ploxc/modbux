@@ -93,9 +93,22 @@ when you are done.
 
 ## Recording a finding
 
-`area` · `file` and `symbol` · `criterion` (1-8) · `severity` · `claim` (one
-sentence) · `evidence` (the code, or the command and its output) · `proposal` ·
-`size` · `reproduced` (true only if you ran it).
+Every finding is a heading in this exact form, and then the fields under it:
+
+```
+### <ID> · `<file> <symbol>` · criterion <1-8> · <severity> · size <S|M|L> · reproduced
+```
+
+The ID is the area's initial and a number: `F1`, `CU-01`, `B-04`. Drop
+`reproduced` when you did not run it.
+
+**The heading is the form, not a suggestion.** Six agents were given the field
+list and five wrote the same heading; the sixth used numbered titles with the
+fields as bullets, and a grep for severity across the six documents found
+nothing in that one. The document was fine and the count was wrong.
+
+Under the heading: `claim` (one sentence) · `evidence` (the code, or the command
+and its output) · `proposal` · `recipe` if reproduced.
 
 **severity — what the app does to a user decides it, not how much it annoys
 you.**
