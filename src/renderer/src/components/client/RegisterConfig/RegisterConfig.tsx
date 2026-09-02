@@ -57,16 +57,13 @@ const Address = meme(() => {
   const address = useClientZustand((z) => z.registerConfig.address)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setAddress(value, valid)
-  }, [])
+  const setAddress = useClientZustand.getState().setAddress
 
   return (
     <AddressBaseInput
       disabled={readConfiguration}
       address={address}
-      setAddress={handleChange}
+      setAddress={setAddress}
       testId="reg-address-input"
       baseTestId="reg-base"
     />
@@ -82,10 +79,7 @@ const Length = meme(() => {
   const address = useClientZustand((z) => z.registerConfig.address)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setLength(value, valid)
-  }, [])
+  const setLength = useClientZustand.getState().setLength
 
   return (
     <TextField
@@ -100,7 +94,7 @@ const Length = meme(() => {
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange, max: 65536 - address })
+          inputProps: maskInputProps({ set: setLength, max: 65536 - address })
         }
       }}
     />

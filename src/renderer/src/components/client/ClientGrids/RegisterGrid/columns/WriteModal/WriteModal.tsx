@@ -13,7 +13,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
+import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 import { useValueInputZustand } from './writeModal.zustand'
@@ -51,10 +51,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
   const value = useValueInputZustand((z) => z.value)
   const valid = useValueInputZustand((z) => z.valid)
 
-  const handleChange = useCallback((value: string, isValid?: boolean): void => {
-    const valueInputZustand = useValueInputZustand.getState()
-    valueInputZustand.setValue(value, isValid)
-  }, [])
+  const setValue = useValueInputZustand.getState().setValue
 
   return (
     <TextField
@@ -68,7 +65,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setValue })
         }
       }}
     />
@@ -78,10 +75,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
 const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
 
-  const handleChange = useCallback((value: BaseDataType): void => {
-    const valueInputZustand = useValueInputZustand.getState()
-    valueInputZustand.setDataType(value)
-  }, [])
+  const setDataType = useValueInputZustand.getState().setDataType
 
   // Set the data type based on the address if it's defined in the register mapping
   useEffect(() => {
@@ -98,7 +92,7 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
     if (result.success) valueInputZustand.setDataType(result.data)
   }, [address])
 
-  return <DataTypeSelectInput dataType={dataType} setDataType={handleChange} />
+  return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
 const WriteRegistersButton = meme(() => {

@@ -6,7 +6,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { ElementType, useCallback } from 'react'
+import { ElementType } from 'react'
 
 // Host
 const Host = meme(() => {
@@ -14,10 +14,7 @@ const Host = meme(() => {
   const host = useClientZustand((z) => z.connectionConfig.tcp.host)
   const hostValid = useClientZustand((z) => z.valid.host)
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setHost(value, valid)
-  }, [])
+  const setHost = useClientZustand.getState().setHost
 
   return (
     <TextField
@@ -32,7 +29,7 @@ const Host = meme(() => {
       slotProps={{
         input: {
           inputComponent: HostInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setHost })
         }
       }}
     />
@@ -46,10 +43,7 @@ const Port = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const port = useClientZustand((z) => String(z.connectionConfig.tcp.options.port))
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setPort(value, valid)
-  }, [])
+  const setPort = useClientZustand.getState().setPort
 
   return (
     <TextField
@@ -63,7 +57,7 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setPort })
         }
       }}
     />

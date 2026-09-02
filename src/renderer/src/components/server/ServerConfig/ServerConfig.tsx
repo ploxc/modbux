@@ -194,10 +194,7 @@ PortInput.displayName = 'PortInput'
 const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const serverZustand = useServerZustand.getState()
-    serverZustand.setPort(value, valid)
-  }, [])
+  const setPort = useServerZustand.getState().setPort
 
   return (
     <TextField
@@ -210,7 +207,7 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: PortInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setPort })
         }
       }}
     />

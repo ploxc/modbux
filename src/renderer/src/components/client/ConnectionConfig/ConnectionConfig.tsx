@@ -138,10 +138,7 @@ const ConnectButton = meme(() => {
 const UnitId = meme(() => {
   const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
 
-  const handleChange = useCallback((value: string, valid?: boolean): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setUnitId(value, valid)
-  }, [])
+  const setUnitId = useClientZustand.getState().setUnitId
 
   return (
     <TextField
@@ -154,7 +151,7 @@ const UnitId = meme(() => {
       slotProps={{
         input: {
           inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: handleChange })
+          inputProps: maskInputProps({ set: setUnitId })
         }
       }}
     />

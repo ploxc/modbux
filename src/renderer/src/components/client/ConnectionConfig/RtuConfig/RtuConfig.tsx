@@ -16,7 +16,6 @@ import {
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import type { ModbusBaudRate } from '@shared'
 import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
@@ -152,12 +151,9 @@ const ClientBaudRateSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const baudRate = useClientZustand((z) => z.connectionConfig.rtu.options.baudRate)
 
-  const handleChange = useCallback((value: ModbusBaudRate): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setBaudRate(value)
-  }, [])
+  const setBaudRate = useClientZustand.getState().setBaudRate
 
-  return <BaudRateSelect value={baudRate} onChange={handleChange} disabled={disabled} />
+  return <BaudRateSelect value={baudRate} onChange={setBaudRate} disabled={disabled} />
 })
 
 const ClientParitySelect = meme(() => {
