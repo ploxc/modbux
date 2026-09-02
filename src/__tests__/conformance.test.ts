@@ -275,15 +275,17 @@ describe('one store selector per field', () => {
 })
 
 //
-// ─── No selector hands back a store function ─────────────────────────────────
+// ─── An action is fetched where it runs ──────────────────────────────────────
 //
-// An action is fetched where it runs, not subscribed to at the top of a render:
-// `useClientZustand.getState().setAddress(value)` inside a `useCallback` whose
-// dependency list names only what the component itself holds. A selector puts
-// the action in that list, and a list naming something the component does not
-// own is a list that cannot be read.
+// In a named `useCallback` whose dependency list holds only what the component
+// itself owns: `const clientZustand = useClientZustand.getState()`, then
+// `clientZustand.setAddress(value)`. Two ways to break it, and the rule catches
+// both. A selector puts the action in the dependency list, and a list naming
+// something the component does not own is a list that cannot be read. A
+// `getState()` written into the JSX puts the call where the reader is looking
+// at layout, and a handler with no name is a handler with nothing to read.
 
-describe('no selector hands back a store function', () => {
+describe('an action is fetched where it runs', () => {
   const files = sourceFiles(rendererRoot)
   const parsed = files.map((file) => ({ file, source: parse(file) }))
 
@@ -358,6 +360,48 @@ describe('no selector hands back a store function', () => {
 
   it('has no selector returning one of them', () => {
     expect(functionSelectors).toEqual([])
+  })
+
+  // The other half. A prop takes the handler's name, never the call.
+  const storeReads: string[] = []
+  const readsInJsx: string[] = []
+  for (const { file, source } of parsed) {
+    eachNode(source, (node) => {
+      if (!ts.isCallExpression(node)) return
+      const callee = node.expression
+      if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== 'getState') return
+      if (!ts.isIdentifier(callee.expression)) return
+      if (!/^use[A-Z].*Zustand$/.test(callee.expression.text)) return
+      storeReads.push(at(file))
+      // The attribute is what names the offence, so walk out to it and stop at
+      // the element: a getState inside a child element is that child's.
+      let ancestor: ts.Node | undefined = node.parent
+      while (ancestor) {
+        if (ts.isJsxAttribute(ancestor)) {
+          const attribute = ts.isIdentifier(ancestor.name)
+            ? ancestor.name.text
+            : ancestor.name.getText(source)
+          readsInJsx.push(`${at(file)}\t${attribute}={${callee.expression.text}.getState()...}`)
+          return
+        }
+        if (
+          ts.isJsxElement(ancestor) ||
+          ts.isJsxSelfClosingElement(ancestor) ||
+          ts.isJsxFragment(ancestor)
+        ) {
+          return
+        }
+        ancestor = ancestor.parent
+      }
+    })
+  }
+
+  it('finds stores read through getState', () => {
+    expect(storeReads.length).toBeGreaterThan(20)
+  })
+
+  it('has none of those reads inside a JSX attribute', () => {
+    expect(readsInJsx).toEqual([])
   })
 })
 

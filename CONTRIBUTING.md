@@ -79,6 +79,11 @@ goes in the list; what the store holds is read at the moment it is used. That
 second half also covers a *value* the component wants at a moment rather than on
 every change: read through `getState()` and it causes no render.
 
+The handler has a name and the prop takes the name, so a `getState()` written
+into a JSX attribute breaks the same rule from the other side: the call sits
+where the reader is looking at layout, and a handler with no name is a handler
+with nothing to read.
+
 **Every component is wrapped in `meme`.** Props or not, one rule with no
 exception to remember. A declaration counts as a component when it is rendered
 as JSX somewhere or exported as its file's default. React's bare `memo` does not
