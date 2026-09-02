@@ -176,30 +176,30 @@ const RegisterGridContent = meme((): JSX.Element => {
       //
       // Row update
       processRowUpdate={(newRow, oldRow) => {
-        const z = useClientZustand.getState()
+        const clientZustand = useClientZustand.getState()
 
         // Update datatype
         if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
-          z.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
+          clientZustand.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
         }
 
         // Update scaling factor
         // This will ignore zero too, if you don't want to ignore zero compare with undefined
         if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
-          const z = useClientZustand.getState()
-          z.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
+          const clientZustand = useClientZustand.getState()
+          clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
         }
 
         // Update comment
         if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
-          const z = useClientZustand.getState()
-          z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+          const clientZustand = useClientZustand.getState()
+          clientZustand.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
         }
 
         // Update group end
         if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
-          const z = useClientZustand.getState()
-          z.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
+          const clientZustand = useClientZustand.getState()
+          clientZustand.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
         }
 
         return newRow

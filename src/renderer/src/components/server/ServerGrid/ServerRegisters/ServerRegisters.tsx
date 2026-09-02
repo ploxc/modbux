@@ -22,8 +22,8 @@ interface RowProps {
 
 const RowEdit = meme(({ register }: RowProps) => {
   const handleClick = useCallback(() => {
-    const state = useAddRegisterZustand.getState()
-    state.setEditRegister(register)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setEditRegister(register)
   }, [register])
 
   return (

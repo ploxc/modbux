@@ -185,9 +185,9 @@ const ScanButton = meme((): JSX.Element => {
 
     window.api.stopPolling()
 
-    const state = useScanRegistersZustand.getState()
+    const scanRegistersZustand = useScanRegistersZustand.getState()
     const clientZustand = useClientZustand.getState()
-    const dataState = useDataZustand.getState()
+    const dataZustand = useDataZustand.getState()
     clientZustand.setReadConfiguration(false)
     // A scan walks raw addresses, which is what the extra columns are for, and
     // the rows land in a grid you are now watching fill.
@@ -195,9 +195,9 @@ const ScanButton = meme((): JSX.Element => {
     clientZustand.clearScanUnitIdResults()
     clientZustand.setScanProgress(0)
     dropPendingScanRows()
-    dataState.setRegisterData([])
+    dataZustand.setRegisterData([])
 
-    const { address, scanLength, chunkSize, timeout } = state
+    const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
     await window.api.scanRegisters({
       addressRange: [address, address + scanLength - 1],

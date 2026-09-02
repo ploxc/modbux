@@ -25,30 +25,30 @@ export const AddButtons = meme(() => {
   const handleAddAndClose = useCallback(() => {
     const result = useAddRegisterZustand.getState().submit(edit)
     if (!result) return
-    const state = useAddRegisterZustand.getState()
-    state.resetToDefaults()
-    state.setRegisterType(undefined)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.resetToDefaults()
+    addRegisterZustand.setRegisterType(undefined)
   }, [edit])
 
   const handleAddAndNext = useCallback(() => {
     const result = useAddRegisterZustand.getState().submit(false)
     if (!result) return
     const { address, dataType } = result
-    const state = useAddRegisterZustand.getState()
-    const size = getRegisterSize(dataType, Number(state.registerLength) || 10)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    const size = getRegisterSize(dataType, Number(addRegisterZustand.registerLength) || 10)
     // Reset value and comment, keep dataType/LE/fixed/min/max/interval
-    state.setValue('0', true)
-    state.setComment('')
-    if (dataType === 'utf8') state.setStringValue('')
-    state.initNextUnusedAddress(address + size)
+    addRegisterZustand.setValue('0', true)
+    addRegisterZustand.setComment('')
+    if (dataType === 'utf8') addRegisterZustand.setStringValue('')
+    addRegisterZustand.initNextUnusedAddress(address + size)
   }, [])
 
   const handleEditSubmit = useCallback(() => {
     const result = useAddRegisterZustand.getState().submit(true)
     if (!result) return
-    const state = useAddRegisterZustand.getState()
-    state.setRegisterType(undefined)
-    state.setEditRegister(undefined)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setRegisterType(undefined)
+    addRegisterZustand.setEditRegister(undefined)
   }, [])
 
   if (edit) {
@@ -99,15 +99,15 @@ export const DeleteButton = meme(() => {
       useAddRegisterZustand.getState()
     if (!registerType) return
 
-    const z = useServerZustand.getState()
-    const uuid = z.selectedUuid
-    const unitId = z.getUnitId(uuid)
+    const serverZustand = useServerZustand.getState()
+    const uuid = serverZustand.selectedUuid
+    const unitId = serverZustand.getUnitId(uuid)
 
     const numericAddress = Number(address)
-    const entry = z.serverRegisters[uuid]?.[unitId]?.[registerType]?.[numericAddress]
+    const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[numericAddress]
     const dataType = entry?.params?.dataType ?? 'uint16'
 
-    z.removeRegister({
+    serverZustand.removeRegister({
       uuid,
       unitId,
       address: numericAddress,

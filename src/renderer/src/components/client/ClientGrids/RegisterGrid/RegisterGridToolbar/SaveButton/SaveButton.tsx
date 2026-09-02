@@ -9,10 +9,10 @@ import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
   const saveRegisterConfig = useCallback(() => {
-    const z = useClientZustand.getState()
-    const { name } = z
+    const clientZustand = useClientZustand.getState()
+    const { name } = clientZustand
 
-    const registerMapping = structuredClone(z.registerMapping)
+    const registerMapping = structuredClone(clientZustand.registerMapping)
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
       Object.keys(registerMapping[key]).forEach((register) => {
@@ -29,7 +29,7 @@ const SaveButton = meme(() => {
       version: 2,
       modbuxVersion,
       name,
-      littleEndian: z.registerConfig.littleEndian,
+      littleEndian: clientZustand.registerConfig.littleEndian,
       registerMapping
     }
 

@@ -37,12 +37,12 @@ const AddButton = meme(({ type }: { type: RegisterType }) => {
 
 const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => {
   const handleClick = useCallback(() => {
-    const state = useServerZustand.getState()
+    const serverZustand = useServerZustand.getState()
     if (registerType === 'coils' || registerType === 'discrete_inputs') {
-      state.resetBools(registerType)
+      serverZustand.resetBools(registerType)
     }
     if (registerType === 'input_registers' || registerType === 'holding_registers') {
-      state.resetRegisters(registerType)
+      serverZustand.resetRegisters(registerType)
     }
   }, [registerType])
 

@@ -128,8 +128,12 @@ const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
 // ─── Inline Add bar ──────────────────────────────────────────────────────────
 
 const getRegs = (type: BooleanRegisters): Record<string, unknown> => {
-  const z = useServerZustand.getState()
-  return z.serverRegisters[z.selectedUuid]?.[z.getUnitId(z.selectedUuid)]?.[type] ?? {}
+  const serverZustand = useServerZustand.getState()
+  return (
+    serverZustand.serverRegisters[serverZustand.selectedUuid]?.[
+      serverZustand.getUnitId(serverZustand.selectedUuid)
+    ]?.[type] ?? {}
+  )
 }
 
 const nextFree = (from: number, regs: Record<string, unknown>): number => {

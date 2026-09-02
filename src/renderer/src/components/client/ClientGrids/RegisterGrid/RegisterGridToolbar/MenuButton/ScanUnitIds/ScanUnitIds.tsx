@@ -200,12 +200,12 @@ const ScanButton = meme((): JSX.Element => {
 
     window.api.stopPolling()
 
-    const state = useScanUnitIdZustand.getState()
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
     const clientZustand = useClientZustand.getState()
     clientZustand.clearScanUnitIdResults()
     clientZustand.setScanProgress(0)
 
-    const { address, length, startUnitId, count, registerTypes, timeout } = state
+    const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
     window.api.scanUnitIds({
       address,
@@ -330,11 +330,11 @@ const ScanUnitIds = meme(() => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
 
   const handleClose = useCallback(() => {
-    const currentRootState = useClientZustand.getState()
-    if (currentRootState.clientState.scanningUnitIds) return
+    const clientZustand = useClientZustand.getState()
+    if (clientZustand.clientState.scanningUnitIds) return
     // The results belong to the dialog. Leaving them behind means the next
     // scan opens on the last one and fills in around it.
-    currentRootState.clearScanUnitIdResults()
+    clientZustand.clearScanUnitIdResults()
     setOpen(false)
   }, [setOpen])
 

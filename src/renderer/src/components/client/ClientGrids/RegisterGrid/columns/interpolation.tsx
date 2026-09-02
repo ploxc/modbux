@@ -110,10 +110,11 @@ const InterpolationModal = meme(
 
     const handleChange = useCallback(
       (key: keyof RegisterLinearInterpolation, value: string) => {
-        const state = useClientZustand.getState()
-        const interpolate: RegisterLinearInterpolation = state.registerMapping[type][address]
-          ?.interpolate || { ...defaultInterpolation }
-        state.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
+        const clientZustand = useClientZustand.getState()
+        const interpolate: RegisterLinearInterpolation = clientZustand.registerMapping[type][
+          address
+        ]?.interpolate || { ...defaultInterpolation }
+        clientZustand.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
       },
       [type, address]
     )

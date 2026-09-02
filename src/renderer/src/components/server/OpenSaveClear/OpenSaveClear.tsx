@@ -34,17 +34,17 @@ const useOpen: UseOpenHook = () => {
       openingRef.current = true
       setOpening(true)
 
-      const state = useServerZustand.getState()
+      const serverZustand = useServerZustand.getState()
 
       // Reset the server before opening a new configuration
       // This way we can ensure that the server is in a clean state
       // When unitId's are configured which are not present in the file
       // there would be remaining registers in the server because
       // they are now overwritten
-      await window.api.resetServer(state.selectedUuid)
+      await window.api.resetServer(serverZustand.selectedUuid)
       // Also clean the zustand state
       // to ensure that the state is in a clean state
-      state.clean(state.selectedUuid)
+      serverZustand.clean(serverZustand.selectedUuid)
 
       const content = await file.text()
 
@@ -54,8 +54,8 @@ const useOpen: UseOpenHook = () => {
         const { config, migrated, warning, wasMixedEndianness } = migrationResult
 
         // Set name and littleEndian
-        state.setName(config.name)
-        state.setLittleEndian(config.littleEndian)
+        serverZustand.setName(config.name)
+        serverZustand.setLittleEndian(config.littleEndian)
 
         // Load all unit configs
         for (const unitId of UnitIdStringSchema.options) {
@@ -63,7 +63,7 @@ const useOpen: UseOpenHook = () => {
           if (!serverRegisters) continue
           const hasConfig = checkHasConfig(serverRegisters)
           if (!hasConfig) continue
-          state.replaceServerRegisters(unitId, serverRegisters)
+          serverZustand.replaceServerRegisters(unitId, serverRegisters)
           await new Promise((r) => setTimeout(r, 1))
         }
 
@@ -106,7 +106,7 @@ const useOpen: UseOpenHook = () => {
       }
 
       // Synchronize only the selected server after opening the configuration
-      await state.init(state.selectedUuid)
+      await serverZustand.init(serverZustand.selectedUuid)
 
       openingRef.current = false
       setOpening(false)
@@ -126,9 +126,9 @@ type UseSaveHook = () => {
 
 const useSave: UseSaveHook = () => {
   const save = useCallback(() => {
-    const z = useServerZustand.getState()
-    const { serverRegisters, selectedUuid, littleEndian } = z
-    const name = z.name[selectedUuid] ?? ''
+    const serverZustand = useServerZustand.getState()
+    const { serverRegisters, selectedUuid, littleEndian } = serverZustand
+    const name = serverZustand.name[selectedUuid] ?? ''
 
     const serverRegistersPerUnit: ServerRegistersPerUnit = {}
 
@@ -175,17 +175,17 @@ const OpenSaveClear = meme(() => {
   const { save } = useSave()
 
   const clear = useCallback(async () => {
-    const state = useServerZustand.getState()
-    state.setName('')
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setName('')
     // Reset the server before opening a new configuration
     // This way we can ensure that the server is in a clean state
     // When unitId's are configured which are not present in the file
     // there would be remaining registers in the server because
     // they are now overwritten
-    await window.api.resetServer(state.selectedUuid)
+    await window.api.resetServer(serverZustand.selectedUuid)
     // Also clean the zustand state
     // to ensure that the state is in a clean state
-    state.clean(state.selectedUuid)
+    serverZustand.clean(serverZustand.selectedUuid)
   }, [])
 
   return (

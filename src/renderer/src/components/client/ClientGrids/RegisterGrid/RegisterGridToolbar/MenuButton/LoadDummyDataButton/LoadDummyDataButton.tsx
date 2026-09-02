@@ -12,9 +12,9 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
   // Load dummy data for the configured register range so columns can be edited
   // without having to connect to the device or read registers
   const loadDummy = useCallback(() => {
-    const state = useClientZustand.getState()
-    const { address, length } = state.registerConfig
-    const dataState = useDataZustand.getState()
+    const clientZustand = useClientZustand.getState()
+    const { address, length } = clientZustand.registerConfig
+    const dataZustand = useDataZustand.getState()
     const dummyData: RegisterData[] = []
 
     let index = 0
@@ -23,7 +23,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
       index++
     }
 
-    dataState.setRegisterData(dummyData)
+    dataZustand.setRegisterData(dummyData)
     setAnchor(null)
   }, [setAnchor])
 
