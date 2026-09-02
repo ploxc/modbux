@@ -8,6 +8,7 @@ import {
   disconnectClient,
   readRegisters,
   selectRegisterType,
+  selectUnitId,
   expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
@@ -16,7 +17,9 @@ import { existsSync, unlinkSync } from 'fs'
 import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
-const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-basic.json')
+// The gateway carries real RTU frames, so unit 0 is the broadcast address here
+// and the server hosts nothing on it. Same config, moved to unit 1.
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-basic-unit1.json')
 
 // A serial-to-Ethernet gateway in transparent mode passes raw RTU frames (with
 // CRC) between a TCP socket and a serial line. A single socat instance emulates
@@ -71,9 +74,10 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
     await cleanServerState(mainPage)
   })
 
-  test('load basic server config', async ({ mainPage }) => {
+  test('load basic server config on unit 1', async ({ mainPage }) => {
     await loadServerConfig(mainPage, SERVER_CONFIG)
     await mainPage.waitForTimeout(500)
+    await selectUnitId(mainPage, '1')
 
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
     await expect(mainPage.getByTestId('section-input_registers')).toContainText('(1)')
@@ -118,7 +122,7 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
   test('connect to the gateway over TCP', async ({ mainPage }) => {
     await mainPage.getByTestId('tcp-host-input').locator('input').fill('127.0.0.1')
     await mainPage.getByTestId('tcp-port-input').locator('input').fill(TCP_PORT)
-    await mainPage.getByTestId('client-unitid-input').locator('input').fill('0')
+    await mainPage.getByTestId('client-unitid-input').locator('input').fill('1')
 
     await mainPage.getByTestId('connect-btn').click()
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Disconnect', {
