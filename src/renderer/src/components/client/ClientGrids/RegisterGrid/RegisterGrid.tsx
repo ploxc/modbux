@@ -4,7 +4,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { useGridApiRef } from '@mui/x-data-grid'
@@ -73,6 +73,36 @@ const RegisterGridContent = meme((): JSX.Element => {
     }
     prevReadConfigRef.current = readConfiguration
   }, [apiRef, readConfiguration])
+
+  const handleRowUpdate = useCallback(
+    (newRow: RegisterData, oldRow: RegisterData): RegisterData => {
+      const clientZustand = useClientZustand.getState()
+
+      // Update datatype
+      if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
+        clientZustand.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
+      }
+
+      // Update scaling factor
+      // This will ignore zero too, if you don't want to ignore zero compare with undefined
+      if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
+        clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
+      }
+
+      // Update comment
+      if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
+        clientZustand.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+      }
+
+      // Update group end
+      if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
+        clientZustand.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
+      }
+
+      return newRow
+    },
+    []
+  )
 
   return (
     <DataGrid
@@ -175,35 +205,7 @@ const RegisterGridContent = meme((): JSX.Element => {
       //
       //
       // Row update
-      processRowUpdate={(newRow, oldRow) => {
-        const clientZustand = useClientZustand.getState()
-
-        // Update datatype
-        if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
-          clientZustand.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
-        }
-
-        // Update scaling factor
-        // This will ignore zero too, if you don't want to ignore zero compare with undefined
-        if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
-          const clientZustand = useClientZustand.getState()
-          clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
-        }
-
-        // Update comment
-        if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
-          const clientZustand = useClientZustand.getState()
-          clientZustand.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
-        }
-
-        // Update group end
-        if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
-          const clientZustand = useClientZustand.getState()
-          clientZustand.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
-        }
-
-        return newRow
-      }}
+      processRowUpdate={handleRowUpdate}
     />
   )
 })

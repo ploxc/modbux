@@ -268,14 +268,19 @@ const SerialGroupModal = meme(({ active }: SerialGroupModalProps): JSX.Element |
     }
   }, [active, ports])
 
+  // Read busy rather than subscribe to it: the shell has no other reason to
+  // re-render while the command runs.
+  const handleClose = useCallback((): void => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
+    if (!serialGroupZustand.busy) decline()
+  }, [])
+
   if (!hasStatus) return null
 
   return (
     <Dialog
       open={open}
-      // Read busy rather than subscribe to it: the shell has no other reason
-      // to re-render while the command runs.
-      onClose={() => !useSerialGroupZustand.getState().busy && decline()}
+      onClose={handleClose}
       maxWidth="sm"
       fullWidth
       data-testid="serial-group-modal"

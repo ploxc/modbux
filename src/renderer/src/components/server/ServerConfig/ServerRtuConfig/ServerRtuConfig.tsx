@@ -19,7 +19,7 @@ import {
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { ModbusBaudRate } from '@shared'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 //
 //
@@ -37,11 +37,21 @@ const ComInput = meme(() => {
   }, [comFromStore])
 
   const applyOnBlur = (): void => {
+    const serverZustand = useServerZustand.getState()
     if (localCom !== comFromStore) {
-      useServerZustand.getState().setServerCom(localCom)
-      useServerZustand.getState().applyServerCom()
+      serverZustand.setServerCom(localCom)
+      serverZustand.applyServerCom()
     }
   }
+
+  // Picking from the dropdown applies at once; typing waits for the blur.
+  const handleChange = useCallback((_event: unknown, value: string | null): void => {
+    if (!value) return
+    const serverZustand = useServerZustand.getState()
+    setLocalCom(value)
+    serverZustand.setServerCom(value)
+    serverZustand.applyServerCom()
+  }, [])
 
   const comLabel = comFromStore ? `COM ${comFromStore}` : 'COM Port'
   const comError = !comFromStore || comFromStore.trim().length === 0
@@ -53,14 +63,7 @@ const ComInput = meme(() => {
       value={localCom}
       data-testid="server-rtu-com-input"
       onInputChange={(_event, newValue) => setLocalCom(newValue)}
-      onChange={(_event, newValue) => {
-        if (newValue) {
-          setLocalCom(newValue)
-          // Dropdown selection: apply immediately
-          useServerZustand.getState().setServerCom(newValue)
-          useServerZustand.getState().applyServerCom()
-        }
-      }}
+      onChange={handleChange}
       onBlur={applyOnBlur}
       sx={{ width: inputWidth, maxWidth: 220 }}
       renderInput={(params) => (
@@ -179,10 +182,15 @@ const Com = meme((): JSX.Element => {
 const ServerBaudRateSelect = meme(() => {
   const baudRate = useServerZustand((z) => z.serialConfig?.options.baudRate ?? '9600')
 
+  const handleChange = useCallback((value: ModbusBaudRate): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setServerBaudRate(value)
+  }, [])
+
   return (
     <BaudRateSelect
       value={baudRate as ModbusBaudRate}
-      onChange={(v) => useServerZustand.getState().setServerBaudRate(v)}
+      onChange={handleChange}
       testId="server-rtu-baudrate-select"
     />
   )
@@ -191,36 +199,37 @@ const ServerBaudRateSelect = meme(() => {
 const ServerParitySelect = meme(() => {
   const parity = useServerZustand((z) => z.serialConfig?.options.parity ?? 'none')
 
-  return (
-    <ParitySelect
-      value={parity}
-      onChange={(v) => useServerZustand.getState().setServerParity(v)}
-      testId="server-rtu-parity-select"
-    />
-  )
+  const handleChange = useCallback((value: string): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setServerParity(value)
+  }, [])
+
+  return <ParitySelect value={parity} onChange={handleChange} testId="server-rtu-parity-select" />
 })
 
 const ServerDataBitsSelect = meme(() => {
   const dataBits = useServerZustand((z) => z.serialConfig?.options.dataBits ?? 8)
 
+  const handleChange = useCallback((value: number): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setServerDataBits(value)
+  }, [])
+
   return (
-    <DataBitsSelect
-      value={dataBits}
-      onChange={(v) => useServerZustand.getState().setServerDataBits(v)}
-      testId="server-rtu-databits-select"
-    />
+    <DataBitsSelect value={dataBits} onChange={handleChange} testId="server-rtu-databits-select" />
   )
 })
 
 const ServerStopBitsSelect = meme(() => {
   const stopBits = useServerZustand((z) => z.serialConfig?.options.stopBits ?? 1)
 
+  const handleChange = useCallback((value: number): void => {
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setServerStopBits(value)
+  }, [])
+
   return (
-    <StopBitsSelect
-      value={stopBits}
-      onChange={(v) => useServerZustand.getState().setServerStopBits(v)}
-      testId="server-rtu-stopbits-select"
-    />
+    <StopBitsSelect value={stopBits} onChange={handleChange} testId="server-rtu-stopbits-select" />
   )
 })
 

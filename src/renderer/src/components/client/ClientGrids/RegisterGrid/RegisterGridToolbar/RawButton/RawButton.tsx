@@ -3,10 +3,16 @@ import { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useCallback } from 'react'
 
 const RawButton = meme((): JSX.Element | null => {
   const type = useClientZustand((z) => z.registerConfig.type)
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
+
+  const handleClick = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.toggleShowClientRawValues()
+  }, [])
 
   if (!['input_registers', 'holding_registers'].includes(type)) return null
 
@@ -19,7 +25,7 @@ const RawButton = meme((): JSX.Element | null => {
       size="small"
       color={color}
       variant={variant}
-      onClick={useLayoutZustand.getState().toggleShowClientRawValues}
+      onClick={handleClick}
     >
       RAW
     </Button>

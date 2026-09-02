@@ -32,6 +32,18 @@ const ComInput = meme(() => {
   const ports = useClientZustand((z) => z.serialPorts)
   const inputWidth = useComInputWidth(ports)
 
+  // Typing is valid only once it is not blank; picking from the list always is.
+  const handleInputChange = useCallback((_event: unknown, value: string): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setCom(value, value.trim().length > 0)
+  }, [])
+
+  const handleChange = useCallback((_event: unknown, value: string | null): void => {
+    if (!value) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setCom(value, true)
+  }, [])
+
   return (
     <Autocomplete
       freeSolo
@@ -39,12 +51,8 @@ const ComInput = meme(() => {
       options={ports.map((p) => p.path)}
       value={com}
       data-testid="rtu-com-input"
-      onInputChange={(_event, newValue) =>
-        useClientZustand.getState().setCom(newValue, newValue.trim().length > 0)
-      }
-      onChange={(_event, newValue) => {
-        if (newValue) useClientZustand.getState().setCom(newValue, true)
-      }}
+      onInputChange={handleInputChange}
+      onChange={handleChange}
       sx={{ width: inputWidth, maxWidth: 220 }}
       renderInput={(params) => (
         <ComTextField {...params} comLabel="COM Port" comError={!comValid} comLoading={loading} />
