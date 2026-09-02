@@ -10,6 +10,9 @@ export const PersistedLayoutZustandSchema = z.object({
 export type PersistedLayoutZustand = z.infer<typeof PersistedLayoutZustandSchema>
 
 export type LayoutZustand = {
+  /** The running app's own version, read once at startup. Not the client's. */
+  version: string
+  setVersion: (version: string) => void
   hideHomeButton: boolean
   homeShiftKeyDown: boolean
   showClientRawValues: boolean

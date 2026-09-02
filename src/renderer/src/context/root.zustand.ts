@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
+import { useLayoutZustand } from './layout.zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import { PersistedRootZustand, PersistedRootZustandSchema, RootZustand } from './root.zustand.types'
@@ -371,10 +372,6 @@ export const useRootZustand = create<
           state.scanProgress = scanProgress
         }),
       version: '-',
-      setVersion: (version) =>
-        set((state) => {
-          state.version = version
-        }),
 
       // Serial port discovery
       serialPorts: [],
@@ -473,5 +470,5 @@ onEvent('scan_progress', (scanProgress) => {
 window.api.stopScanningUnitIds()
 
 window.api.getAppVersion().then((version) => {
-  state.setVersion(version)
+  useLayoutZustand.getState().setVersion(version)
 })

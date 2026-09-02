@@ -1,6 +1,7 @@
 import Save from '@mui/icons-material/Save'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useRootZustand } from '@renderer/context/root.zustand'
 import { RegisterMapConfig, RegisterType } from '@shared'
 import { snakeCase } from 'lodash'
@@ -22,7 +23,7 @@ const SaveButton = meme(() => {
     })
 
     // The store reads the version once at startup; it cannot change after that
-    const modbuxVersion = z.version
+    const modbuxVersion = useLayoutZustand.getState().version
 
     const registerMapConfig: RegisterMapConfig = {
       version: 2,
