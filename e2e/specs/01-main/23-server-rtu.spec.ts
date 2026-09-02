@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect } from '../../fixtures/electron-app'
+import type { Page } from '@playwright/test'
 import {
   navigateToServer,
   navigateToClient,
@@ -15,6 +16,7 @@ import {
   cell,
   expandAllServerPanels,
   selectRegisterType,
+  selectUnitId,
   expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
@@ -23,7 +25,11 @@ import { existsSync, unlinkSync } from 'fs'
 import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
-const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-huawei-smartlogger.json')
+// Unit 0 is the broadcast address on RTU, so an RTU server hosts nothing there.
+// This is the same SmartLogger config with its registers on unit 1.
+const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-huawei-smartlogger-unit1.json')
+const SERVER_CONFIG_UNIT_0 = resolve(CONFIG_DIR, 'server-huawei-smartlogger.json')
+const SNACKBARS = '.notistack-SnackbarContainer'
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
 
 const PTY_0 = '/tmp/ttyV0'
@@ -165,6 +171,7 @@ test.describe.serial('Server RTU — UI elements', () => {
     // First switch to TCP and load config
     await mainPage.getByTestId('server-mode-tcp-btn').click()
     await loadServerConfig(mainPage, SERVER_CONFIG)
+    await selectUnitId(mainPage, '1')
 
     // Check register count
     const section = mainPage.getByTestId('section-holding_registers')
@@ -241,10 +248,11 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await cleanServerState(mainPage)
   })
 
-  test('load Huawei server config (TCP mode)', async ({ mainPage }) => {
+  test('load Huawei server config on unit 1 (TCP mode)', async ({ mainPage }) => {
     test.setTimeout(15_000)
     await loadServerConfig(mainPage, SERVER_CONFIG)
     await mainPage.waitForTimeout(500)
+    await selectUnitId(mainPage, '1')
 
     // Verify registers loaded
     const section = mainPage.getByTestId('section-holding_registers')
@@ -280,8 +288,8 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await navigateToClient(mainPage)
   })
 
-  test('configure client RTU', async ({ mainPage }) => {
-    await connectClientRTU(mainPage, '0', '9600', 'none', '8', '1')
+  test('configure client RTU on unit 1', async ({ mainPage }) => {
+    await connectClientRTU(mainPage, '1', '9600', 'none', '8', '1')
   })
 
   test('enter client COM /tmp/ttyV1 + connect', async ({ mainPage }) => {
@@ -370,6 +378,67 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
 
     // Device connection status = 45057
     await expectCell(mainPage, 65534, 'word_uint16', '45057')
+  })
+
+  // ─── Which unit ids answer on the bus ──────────────────────────────
+
+  /**
+   * Reads 40011 on one unit id. The failure message names the id, which is what
+   * separates this read's silence from the one before it.
+   */
+  async function readYearOn(mainPage: Page, unitId: string): Promise<void> {
+    await mainPage.getByTestId('reg-address-input').locator('input').fill('40011')
+    await mainPage.getByTestId('reg-length-input').locator('input').fill('1')
+    await mainPage.getByTestId('client-unitid-input').locator('input').fill(unitId)
+    await mainPage.getByTestId('read-btn').click()
+  }
+
+  test('a unit the server does not host says nothing', async ({ mainPage }) => {
+    test.setTimeout(20_000)
+
+    // Silence is the only safe answer on RS-485: an exception frame would
+    // collide with whatever real device carries that address.
+    await readYearOn(mainPage, '7')
+
+    await expect(mainPage.locator(SNACKBARS)).toContainText('Timed out [addr:40011, len:1, id:7]', {
+      timeout: 10_000
+    })
+  })
+
+  test('unit 0 says nothing, because it is the broadcast address', async ({ mainPage }) => {
+    test.setTimeout(20_000)
+
+    await readYearOn(mainPage, '0')
+
+    await expect(mainPage.locator(SNACKBARS)).toContainText('Timed out [addr:40011, len:1, id:0]', {
+      timeout: 10_000
+    })
+  })
+
+  test('back to unit 1, which still answers', async ({ mainPage }) => {
+    test.setTimeout(20_000)
+
+    await readYearOn(mainPage, '1')
+    await expectCell(mainPage, 40011, 'word_uint16', '2025')
+  })
+
+  test('a config on unit 0 is called out as unreadable over RTU', async ({ mainPage }) => {
+    test.setTimeout(30_000)
+
+    await navigateToServer(mainPage)
+    await loadServerConfig(mainPage, SERVER_CONFIG_UNIT_0)
+
+    await expect(mainPage.locator(SNACKBARS)).toContainText(
+      'Unit 0 is the broadcast address on RTU',
+      { timeout: 10_000 }
+    )
+  })
+
+  test('restore the unit 1 config', async ({ mainPage }) => {
+    test.setTimeout(15_000)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
+    await selectUnitId(mainPage, '1')
+    await navigateToClient(mainPage)
   })
 
   // ─── ReadConfiguration via client config ───────────────────────────

@@ -50,7 +50,12 @@ vi.mock('net', () => ({
   }
 }))
 
-import { ModbusServer, SERVER_DEVICE_FAILURE, ILLEGAL_DATA_ADDRESS } from '../modbusServer'
+import {
+  ModbusServer,
+  SERVER_DEVICE_FAILURE,
+  ILLEGAL_DATA_ADDRESS,
+  GATEWAY_TARGET_FAILED
+} from '../modbusServer'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
@@ -1338,11 +1343,11 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('returns error when no data exists for unitId', async () => {
+      it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
         await vector.getCoil!(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
-          expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           false
         )
       })
@@ -1365,11 +1370,11 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('returns error when no data exists', async () => {
+      it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
         await vector.getDiscreteInput!(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
-          expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           false
         )
       })
@@ -1407,11 +1412,11 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('returns error when no data exists', async () => {
+      it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
         await vector.getInputRegister!(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
-          expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
         )
       })
@@ -1449,11 +1454,11 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('returns error when no data exists', async () => {
+      it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
         await vector.getHoldingRegister!(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
-          expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
         )
       })
@@ -1474,15 +1479,21 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('creates default data when unitId has no existing data', async () => {
+      it('refuses a unit id it does not host and leaves it unhosted', async () => {
         const cb = vi.fn()
         await vector.setCoil!(5, true, 1, cb)
-        expect(cb).toHaveBeenCalledWith(null)
+        expect(cb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          0
+        )
 
-        // Verify the coil was set by reading it back
+        // The write must not have created the unit it was refused for.
         const getCb = vi.fn()
         await vector.getCoil!(5, 1, getCb)
-        expect(getCb).toHaveBeenCalledWith(null, true)
+        expect(getCb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          false
+        )
       })
 
       it('returns error for invalid unitId', async () => {
@@ -1531,15 +1542,21 @@ describe('ModbusServer', () => {
         )
       })
 
-      it('creates default data when unitId has no existing data', async () => {
+      it('refuses a unit id it does not host and leaves it unhosted', async () => {
         const cb = vi.fn()
         await vector.setRegister!(0, 500, 1, cb)
-        expect(cb).toHaveBeenCalledWith(null)
+        expect(cb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          0
+        )
 
-        // Verify it was set
+        // The write must not have created the unit it was refused for.
         const getCb = vi.fn()
         await vector.getHoldingRegister!(0, 1, getCb)
-        expect(getCb).toHaveBeenCalledWith(null, 500)
+        expect(getCb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          0
+        )
       })
 
       it('returns error for invalid unitId', async () => {
@@ -1549,6 +1566,243 @@ describe('ModbusServer', () => {
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           0
         )
+      })
+    })
+  })
+  // ─── C5: which unit ids the server answers for ────────────────────────────
+
+  describe('the unit ids a server answers for', () => {
+    const serialConfig = {
+      com: '/dev/ttyUSB0',
+      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+    }
+
+    const hostUnit = (id: UnitIdString, address: number, value: number): void =>
+      server.addRegister({
+        uuid,
+        unitId: id,
+        littleEndian: false,
+        params: {
+          address,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+    const tcpVector = async (): Promise<IServiceVector> => {
+      await server.createServer({ uuid, port: 5020 })
+      return vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+    }
+
+    const rtuVector = async (): Promise<IServiceVector> => {
+      await server.startRtuServer({ uuid, serialConfig })
+      vi.mocked(ServerSerial).mock.results.at(-1)!.value._handlers['initialized']()
+      return vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+    }
+
+    describe('over TCP', () => {
+      it('answers for a unit it hosts', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await tcpVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, 42)
+      })
+
+      it('refuses a unit it does not host, because silence would be a timeout', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await tcpVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 5, cb)
+        expect(cb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          0
+        )
+      })
+
+      it('treats unit 0 as an address like any other', async () => {
+        hostUnit('0', 0, 7)
+        const vector = await tcpVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 0, cb)
+        expect(cb).toHaveBeenCalledWith(null, 7)
+      })
+
+      it('sends a write to unit 0 to unit 0 alone', async () => {
+        hostUnit('0', 0, 7)
+        hostUnit('1', 0, 42)
+        const vector = await tcpVector()
+
+        const setCb = vi.fn()
+        await vector.setRegister!(9, 111, 0, setCb)
+        expect(setCb).toHaveBeenCalledWith(null)
+
+        const zeroCb = vi.fn()
+        await vector.getHoldingRegister!(9, 0, zeroCb)
+        expect(zeroCb).toHaveBeenCalledWith(null, 111)
+
+        const oneCb = vi.fn()
+        await vector.getHoldingRegister!(9, 1, oneCb)
+        expect(oneCb).toHaveBeenCalledWith(null, 0)
+      })
+
+      it('answers an address past the top of the range with an address error', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await tcpVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(70000, 1, cb)
+        expect(cb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
+          0
+        )
+      })
+    })
+
+    describe('over RTU', () => {
+      it('answers for a unit it hosts', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await rtuVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, 42)
+      })
+
+      it('says nothing for a unit it does not host, because the bus is shared', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await rtuVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 5, cb)
+        expect(cb).not.toHaveBeenCalled()
+      })
+
+      it('says nothing for a coil on a unit it does not host', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await rtuVector()
+
+        const cb = vi.fn()
+        await vector.getCoil!(0, 5, cb)
+        expect(cb).not.toHaveBeenCalled()
+      })
+
+      it('never reads unit 0, even when it holds data', async () => {
+        hostUnit('0', 0, 7)
+        const vector = await rtuVector()
+
+        const cb = vi.fn()
+        await vector.getHoldingRegister!(0, 0, cb)
+        expect(cb).not.toHaveBeenCalled()
+      })
+
+      it('sends a write to unit 0 to every unit it hosts', async () => {
+        hostUnit('1', 0, 42)
+        hostUnit('2', 0, 43)
+        const vector = await rtuVector()
+
+        await vector.setRegister!(9, 4242, 0, vi.fn())
+
+        const oneCb = vi.fn()
+        await vector.getHoldingRegister!(9, 1, oneCb)
+        expect(oneCb).toHaveBeenCalledWith(null, 4242)
+
+        const twoCb = vi.fn()
+        await vector.getHoldingRegister!(9, 2, twoCb)
+        expect(twoCb).toHaveBeenCalledWith(null, 4242)
+      })
+
+      it('does not acknowledge a write to unit 0', async () => {
+        hostUnit('1', 0, 42)
+        const vector = await rtuVector()
+
+        const cb = vi.fn()
+        await vector.setRegister!(9, 4242, 0, cb)
+        expect(cb).not.toHaveBeenCalled()
+      })
+
+      it('sends a coil write to unit 0 to every unit it hosts', async () => {
+        hostUnit('1', 0, 42)
+        hostUnit('2', 0, 43)
+        const vector = await rtuVector()
+
+        await vector.setCoil!(3, true, 0, vi.fn())
+
+        const oneCb = vi.fn()
+        await vector.getCoil!(3, 1, oneCb)
+        expect(oneCb).toHaveBeenCalledWith(null, true)
+
+        const twoCb = vi.fn()
+        await vector.getCoil!(3, 2, twoCb)
+        expect(twoCb).toHaveBeenCalledWith(null, true)
+      })
+
+      it('creates nothing from a write to a unit it does not host', async () => {
+        hostUnit('1', 0, 42)
+        const rtu = await rtuVector()
+        const tcp = await tcpVector()
+
+        await rtu.setRegister!(0, 500, 5, vi.fn())
+
+        // The same uuid over TCP is the only way to ask whether unit 5 now exists.
+        const cb = vi.fn()
+        await tcp.getHoldingRegister!(0, 5, cb)
+        expect(cb).toHaveBeenCalledWith(
+          expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+          0
+        )
+      })
+    })
+
+    describe('the unit 0 warning', () => {
+      const warning = 'Unit 0 is the broadcast address on RTU. Its registers cannot be read.'
+
+      const warnings = (): unknown[] =>
+        getWindowCalls('backend_message').filter((c) => c[1].message === warning)
+
+      it('warns when the port comes up on a config that already uses unit 0', async () => {
+        hostUnit('0', 0, 7)
+        await rtuVector()
+
+        expect(warnings().length).toBe(1)
+      })
+
+      it('warns when unit 0 arrives after the port came up', async () => {
+        await rtuVector()
+        hostUnit('0', 0, 7)
+
+        expect(warnings().length).toBe(1)
+      })
+
+      it('says nothing when unit 0 holds no data', async () => {
+        hostUnit('1', 0, 42)
+        await rtuVector()
+
+        expect(warnings().length).toBe(0)
+      })
+
+      it('says it once', async () => {
+        hostUnit('0', 0, 7)
+        await rtuVector()
+        hostUnit('0', 1, 8)
+        hostUnit('0', 2, 9)
+
+        expect(warnings().length).toBe(1)
+      })
+
+      it('says nothing on TCP', async () => {
+        hostUnit('0', 0, 7)
+        await tcpVector()
+
+        expect(warnings().length).toBe(0)
       })
     })
   })
