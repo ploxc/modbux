@@ -109,6 +109,13 @@ describe('readGroupEntry', () => {
     groupFile = new Error('ENOENT')
     expect(await readGroupEntry('dialout')).toBeUndefined()
   })
+
+  it('skips a line with the name but no gid field', async () => {
+    // Without the field the parse would have read `undefined` as the gid and
+    // answered NaN, which the caller cannot tell from a real group.
+    groupFile = 'dialout:x\ndialout:x:20:alice\n'
+    expect(await readGroupEntry('dialout')).toEqual({ gid: 20, members: ['alice'] })
+  })
 })
 
 describe('findUnreadablePorts', () => {
@@ -259,7 +266,7 @@ describe('applySerialGroupFix', () => {
 
     const result = await applySerialGroupFix()
 
-    expect(execFileCalls[0].args).toEqual(['usermod', '-aG', 'uucp', 'jens'])
+    expect(execFileCalls[0]?.args).toEqual(['usermod', '-aG', 'uucp', 'jens'])
     expect(result.ok).toBe(true)
     expect(result.message).toContain('uucp')
   })

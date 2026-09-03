@@ -896,7 +896,7 @@ describe('ModbusServer', () => {
 
     it('closes existing server before recreating', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0]?.value
 
       await server.createServer({ uuid, port: 5021 })
       expect(firstInstance.close).toHaveBeenCalled()
@@ -904,7 +904,7 @@ describe('ModbusServer', () => {
 
     it('emits error when closing existing server fails', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0]?.value
       firstInstance.close.mockImplementation((cb: (err: Error | null) => void) =>
         cb(new Error('close error'))
       )
@@ -916,7 +916,7 @@ describe('ModbusServer', () => {
 
     it('leaves a listener that is already on the requested port alone', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0]?.value
 
       const port = await server.createServer({ uuid, port: 5020 })
 
@@ -942,7 +942,7 @@ describe('ModbusServer', () => {
 
       expect(port).toBe(5021)
       // The refused listener is closed rather than kept as if it were up.
-      expect(vi.mocked(ServerTCP).mock.results[0].value.close).toHaveBeenCalled()
+      expect(vi.mocked(ServerTCP).mock.results[0]?.value.close).toHaveBeenCalled()
     })
 
     it('moves on when the bind answers with neither event', async () => {
@@ -981,7 +981,7 @@ describe('ModbusServer', () => {
       vi.mocked(ServerTCP).mockClear()
       await server.createServer({ uuid, port: 5020 })
       // Only the new ServerTCP was created, no close on old
-      expect(vi.mocked(ServerTCP).mock.results[0].value.close).not.toHaveBeenCalled()
+      expect(vi.mocked(ServerTCP).mock.results[0]?.value.close).not.toHaveBeenCalled()
     })
 
     it('emits error when server not found', async () => {
@@ -992,7 +992,7 @@ describe('ModbusServer', () => {
 
     it('emits error when close fails', async () => {
       await server.createServer({ uuid, port: 5020 })
-      vi.mocked(ServerTCP).mock.results[0].value.close.mockImplementation(
+      vi.mocked(ServerTCP).mock.results[0]?.value.close.mockImplementation(
         (cb: (err: Error | null) => void) => cb(new Error('close error'))
       )
 
@@ -1052,7 +1052,7 @@ describe('ModbusServer', () => {
       // The listener is left alone: a reset clears data the vectors read per
       // request, and rebinding would drop whoever is connected.
       expect(vi.mocked(ServerTCP).mock.calls.length).toBe(1)
-      expect(vi.mocked(ServerTCP).mock.results[0].value.close).not.toHaveBeenCalled()
+      expect(vi.mocked(ServerTCP).mock.results[0]?.value.close).not.toHaveBeenCalled()
     })
 
     it('handles reset when no generators exist', async () => {
@@ -1124,7 +1124,7 @@ describe('ModbusServer', () => {
       const port = await server.setPort({ uuid, port: 5021 })
 
       expect(port).toBe(5020)
-      expect(vi.mocked(ServerTCP).mock.calls[1][1]).toEqual({ host: '0.0.0.0', port: 5020 })
+      expect(vi.mocked(ServerTCP).mock.calls[1]?.[1]).toEqual({ host: '0.0.0.0', port: 5020 })
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5021 is already in use')).toBe(true)
     })
@@ -1168,7 +1168,7 @@ describe('ModbusServer', () => {
 
     it('closes existing server before binding new port', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0]?.value
 
       await server.setPort({ uuid, port: 5021 })
       expect(firstInstance.close).toHaveBeenCalled()
@@ -1233,7 +1233,7 @@ describe('ModbusServer', () => {
 
     it('stops existing RTU server before starting new one', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      const firstInstance = vi.mocked(ServerSerial).mock.results[0].value
+      const firstInstance = vi.mocked(ServerSerial).mock.results[0]?.value
 
       await server.startRtuServer({ uuid, serialConfig })
       expect(firstInstance.close).toHaveBeenCalled()
@@ -1337,11 +1337,11 @@ describe('ModbusServer', () => {
 
       // Both servers closed
       const instances = vi.mocked(ServerTCP).mock.results
-      expect(instances[0].value.close).toHaveBeenCalled()
+      expect(instances[0]?.value.close).toHaveBeenCalled()
       // Recreating should work without close call on old server
       vi.mocked(ServerTCP).mockClear()
       await server.createServer({ uuid, port: 5020 })
-      expect(vi.mocked(ServerTCP).mock.results[0].value.close).not.toHaveBeenCalled()
+      expect(vi.mocked(ServerTCP).mock.results[0]?.value.close).not.toHaveBeenCalled()
     })
 
     it('preserves server data after stopping all TCP servers', async () => {

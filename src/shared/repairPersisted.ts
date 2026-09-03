@@ -83,8 +83,9 @@ const FIELD_LABELS: Record<string, string> = {
 
 const listFields = (fields: string[]): string => {
   const labelled = fields.map((field) => FIELD_LABELS[field] ?? `\`${field}\``)
-  if (labelled.length === 1) return labelled[0]
-  return `${labelled.slice(0, -1).join(', ')} and ${labelled[labelled.length - 1]}`
+  const head = labelled.slice(0, -1)
+  const last = labelled.slice(-1).join('')
+  return head.length === 0 ? last : `${head.join(', ')} and ${last}`
 }
 
 /**

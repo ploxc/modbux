@@ -47,6 +47,7 @@ Formatting and linting are enforced by ESLint, Prettier, and TypeScript strict m
 Beyond what the linter catches:
 
 - **No `any`, no `@ts-ignore`.** If the types are fighting you, your approach is wrong.
+- **No `!` either, and no guard a test cannot reach.** `noUncheckedIndexedAccess` is on, so `record[key]` and `array[i]` are `T | undefined` and every index asks a question. A non-null assertion answers it without leaving the reasoning behind, and `if (!x) break` on an index that is provably in range is a branch no input reaches, no test covers and no mutation can turn red, while telling the reader the case is possible. Take the index away instead: `readUInt16BE`, `for..of`, `.entries()`, `slice`. Where something really can be missing, handle it and test it.
 - **Zod for validation.** External data (configs, IPC payloads) is validated with Zod schemas. Don't trust unvalidated input.
 - **Zustand + Mutative for state.** Follow the existing store patterns. Don't introduce new state management approaches.
 - **MUI only.** Don't add other UI libraries.

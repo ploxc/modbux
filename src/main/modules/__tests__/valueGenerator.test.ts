@@ -195,8 +195,9 @@ describe('ValueGenerator', () => {
     // float 33.33 is written as 2 registers
     // Verify the value by reading it back from the registers
     const buf = Buffer.alloc(4)
-    buf.writeUInt16BE(serverData.holding_registers[0], 0)
-    buf.writeUInt16BE(serverData.holding_registers[1], 2)
+    serverData.holding_registers
+      .slice(0, 2)
+      .forEach((register, i) => buf.writeUInt16BE(register, i * 2))
     const readBack = buf.readFloatBE(0)
     expect(readBack).toBeCloseTo(33.33, 1)
 

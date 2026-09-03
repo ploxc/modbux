@@ -87,8 +87,7 @@ describe('a persisted client config with one field that fails its schema', () =>
     await import('../client.zustand')
 
     const kept = Object.keys(localStorage).filter((k) => k.startsWith('client.zustand.corrupt-'))
-    expect(kept).toHaveLength(1)
-    expect(localStorage.getItem(kept[0])).toBe(stored)
+    expect(kept.map((key) => localStorage.getItem(key))).toEqual([stored])
   })
 
   it('says nothing when the config parses', async () => {

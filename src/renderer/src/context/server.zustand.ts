@@ -148,7 +148,10 @@ export const useServerZustand = create<
         await window.api.deleteServer(uuid)
         set((state) => {
           state.uuids = state.uuids.filter((u) => u !== uuid)
-          if (state.selectedUuid === uuid) state.selectedUuid = state.uuids[0]
+          // The delete button is off for the main server, so the list keeps at
+          // least that one and the selection lands on a server that is there.
+          const [firstRemaining = MAIN_SERVER_UUID] = state.uuids
+          if (state.selectedUuid === uuid) state.selectedUuid = firstRemaining
           delete state.port[uuid]
           delete state.unitId[uuid]
           delete state.serverRegisters[uuid]

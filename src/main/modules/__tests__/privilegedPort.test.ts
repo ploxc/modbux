@@ -229,13 +229,13 @@ describe('applyPrivilegedPortFix', () => {
 
     expect(result.ok).toBe(true)
     expect(result.unprivilegedPortStart).toBe(502)
-    expect(execFileCalls[0].file).toBe('/usr/bin/pkexec')
-    expect(execFileCalls[0].args).toEqual(privilegedPortCommandArgs('session'))
+    expect(execFileCalls[0]?.file).toBe('/usr/bin/pkexec')
+    expect(execFileCalls[0]?.args).toEqual(privilegedPortCommandArgs('session'))
   })
 
   it('runs the persist command when asked to', async () => {
     await applyPrivilegedPortFix('persist')
-    expect(execFileCalls[0].args).toEqual(privilegedPortCommandArgs('persist'))
+    expect(execFileCalls[0]?.args).toEqual(privilegedPortCommandArgs('persist'))
   })
 
   it('says so when the user dismisses the PolicyKit prompt', async () => {

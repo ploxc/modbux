@@ -73,7 +73,7 @@ describe('buildAddrInfos', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const infos = buildAddrInfos(items as any)
     expect(infos).toHaveLength(1)
-    expect(infos[0].address).toBe(5)
+    expect(infos[0]?.address).toBe(5)
   })
 
   it('skips entries with undefined dataType', () => {
@@ -95,8 +95,8 @@ describe('buildAddrInfos', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const infos = buildAddrInfos(items as any)
-    expect(infos[0].groupEnd).toBe(true)
-    expect(infos[1].groupEnd).toBe(false)
+    expect(infos[0]?.groupEnd).toBe(true)
+    expect(infos[1]?.groupEnd).toBe(false)
   })
 
   it('uses next address for utf8 gap calculation', () => {
@@ -107,7 +107,7 @@ describe('buildAddrInfos', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const infos = buildAddrInfos(items as any)
-    expect(infos[0].registerCount).toBe(10) // gap = 10 - 0
+    expect(infos[0]?.registerCount).toBe(10) // gap = 10 - 0
   })
 })
 

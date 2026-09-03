@@ -116,17 +116,17 @@ describe('convertRegisterData', () => {
     const data = convertRegisterData(result, 100, false, false)
 
     expect(data).toHaveLength(1)
-    expect(data[0].id).toBe(100)
-    expect(data[0].words?.uint16).toBe(1234)
-    expect(data[0].words?.int16).toBe(1234)
-    expect(data[0].bit).toBe(false)
-    expect(data[0].isScanned).toBe(false)
+    expect(data[0]?.id).toBe(100)
+    expect(data[0]?.words?.uint16).toBe(1234)
+    expect(data[0]?.words?.int16).toBe(1234)
+    expect(data[0]?.bit).toBe(false)
+    expect(data[0]?.isScanned).toBe(false)
   })
 
   it('sets isScanned flag', () => {
     const result = makeResult([0])
     const data = convertRegisterData(result, 0, false, true)
-    expect(data[0].isScanned).toBe(true)
+    expect(data[0]?.isScanned).toBe(true)
   })
 
   it('converts multiple registers with correct ids', () => {
@@ -134,9 +134,9 @@ describe('convertRegisterData', () => {
     const data = convertRegisterData(result, 5, false, false)
 
     expect(data).toHaveLength(3)
-    expect(data[0].id).toBe(5)
-    expect(data[1].id).toBe(6)
-    expect(data[2].id).toBe(7)
+    expect(data[0]?.id).toBe(5)
+    expect(data[1]?.id).toBe(6)
+    expect(data[2]?.id).toBe(7)
   })
 
   it('reads 32-bit values across two registers (big endian)', () => {
@@ -144,8 +144,8 @@ describe('convertRegisterData', () => {
     const result = makeResult([0x0001, 0x1170])
     const data = convertRegisterData(result, 0, false, false)
 
-    expect(data[0].words?.int32).toBe(70000)
-    expect(data[0].words?.uint32).toBe(70000)
+    expect(data[0]?.words?.int32).toBe(70000)
+    expect(data[0]?.words?.uint32).toBe(70000)
   })
 
   it('reads 32-bit values with little endian word swap', () => {
@@ -154,7 +154,7 @@ describe('convertRegisterData', () => {
     const result = makeResult([0x1170, 0x0001])
     const data = convertRegisterData(result, 0, true, false)
 
-    expect(data[0].words?.int32).toBe(70000)
+    expect(data[0]?.words?.int32).toBe(70000)
   })
 
   it('reads float values', () => {
@@ -167,7 +167,7 @@ describe('convertRegisterData', () => {
     const result = makeResult([hi, lo])
     const data = convertRegisterData(result, 0, false, false)
 
-    expect(data[0].words?.float).toBeCloseTo(3.14, 2)
+    expect(data[0]?.words?.float).toBeCloseTo(3.14, 2)
   })
 
   it('reads 64-bit values with little endian word swap', () => {
@@ -184,7 +184,7 @@ describe('convertRegisterData', () => {
     const result = makeResult([w3, w2, w1, w0])
     const data = convertRegisterData(result, 0, true, false)
 
-    expect(data[0].words?.double).toBe(1.0)
+    expect(data[0]?.words?.double).toBe(1.0)
   })
 
   it('reads 64-bit values across four registers', () => {
@@ -199,7 +199,7 @@ describe('convertRegisterData', () => {
     const result = makeResult([w0, w1, w2, w3])
     const data = convertRegisterData(result, 0, false, false)
 
-    expect(data[0].words?.double).toBe(1.0)
+    expect(data[0]?.words?.double).toBe(1.0)
   })
 
   it('returns 0 for 32-bit fields on the last register', () => {
@@ -207,23 +207,23 @@ describe('convertRegisterData', () => {
     const data = convertRegisterData(result, 0, false, false)
 
     // Only 1 register, so 32-bit values should default to 0
-    expect(data[0].words?.int32).toBe(0)
-    expect(data[0].words?.float).toBe(0)
+    expect(data[0]?.words?.int32).toBe(0)
+    expect(data[0]?.words?.float).toBe(0)
   })
 
   it('returns 0 / BigInt(0) for 64-bit fields with fewer than 4 registers', () => {
     const result = makeResult([1, 2])
     const data = convertRegisterData(result, 0, false, false)
 
-    expect(data[0].words?.int64).toBe(BigInt(0))
-    expect(data[0].words?.uint64).toBe(BigInt(0))
-    expect(data[0].words?.double).toBe(0)
+    expect(data[0]?.words?.int64).toBe(BigInt(0))
+    expect(data[0]?.words?.uint64).toBe(BigInt(0))
+    expect(data[0]?.words?.double).toBe(0)
   })
 
   it('produces correct hex representation', () => {
     const result = makeResult([0x00ff])
     const data = convertRegisterData(result, 0, false, false)
-    expect(data[0].hex).toBe('00ff')
+    expect(data[0]?.hex).toBe('00ff')
   })
 
   it('replaces null bytes with spaces in utf8', () => {
@@ -231,8 +231,8 @@ describe('convertRegisterData', () => {
     const result = makeResult([0x4100]) // 'A' followed by null
     const data = convertRegisterData(result, 0, false, false)
     // The null byte should become a space (0x20)
-    expect(data[0].words?.utf8).toContain('A')
-    expect(data[0].words?.utf8).not.toContain('\0')
+    expect(data[0]?.words?.utf8).toContain('A')
+    expect(data[0]?.words?.utf8).not.toContain('\0')
   })
 
   describe('utf8 per-row offset', () => {
@@ -242,11 +242,11 @@ describe('convertRegisterData', () => {
       const data = convertRegisterData(result, 0, false, false)
 
       // Row 0 sees the full string from offset 0
-      expect(data[0].words?.utf8).toBe('Hello ')
+      expect(data[0]?.words?.utf8).toBe('Hello ')
       // Row 1 starts at byte offset 2 → "llo " + trailing
-      expect(data[1].words?.utf8?.startsWith('llo')).toBe(true)
+      expect(data[1]?.words?.utf8?.startsWith('llo')).toBe(true)
       // Row 2 starts at offset 4 → "o "
-      expect(data[2].words?.utf8).toBe('o ')
+      expect(data[2]?.words?.utf8).toBe('o ')
     })
 
     it('utf8 is correct when preceded by non-ASCII data', () => {
@@ -259,7 +259,7 @@ describe('convertRegisterData', () => {
       const data = convertRegisterData(result, 0, false, false)
 
       // Row 1 should start with "He", unaffected by non-ASCII at row 0
-      expect(data[1].words?.utf8?.startsWith('Hello')).toBe(true)
+      expect(data[1]?.words?.utf8?.startsWith('Hello')).toBe(true)
     })
 
     it('utf8 handles multi-register string at higher address', () => {
@@ -270,21 +270,21 @@ describe('convertRegisterData', () => {
       const data = convertRegisterData(result, 0, false, false)
 
       // Row at index 2 (address 2) should start with "Hello Worl"
-      expect(data[2].words?.utf8?.startsWith('Hello Worl')).toBe(true)
+      expect(data[2]?.words?.utf8?.startsWith('Hello Worl')).toBe(true)
     })
 
     it('utf8 with single character register', () => {
       const result = makeResult([0x4100]) // "A\0" → "A "
       const data = convertRegisterData(result, 10, false, false)
-      expect(data[0].words?.utf8).toBe('A ')
+      expect(data[0]?.words?.utf8).toBe('A ')
     })
 
     it('utf8 with empty (all null) registers', () => {
       const result = makeResult([0x0000, 0x0000])
       const data = convertRegisterData(result, 0, false, false)
       // Nulls become spaces
-      expect(data[0].words?.utf8).toBe('    ')
-      expect(data[1].words?.utf8).toBe('  ')
+      expect(data[0]?.words?.utf8).toBe('    ')
+      expect(data[1]?.words?.utf8).toBe('  ')
     })
   })
 })
@@ -295,18 +295,18 @@ describe('convertBitData', () => {
     const data = convertBitData(result, 10, 3, false)
 
     expect(data).toHaveLength(3)
-    expect(data[0].id).toBe(10)
-    expect(data[0].bit).toBe(true)
-    expect(data[1].id).toBe(11)
-    expect(data[1].bit).toBe(false)
-    expect(data[2].id).toBe(12)
-    expect(data[2].bit).toBe(true)
+    expect(data[0]?.id).toBe(10)
+    expect(data[0]?.bit).toBe(true)
+    expect(data[1]?.id).toBe(11)
+    expect(data[1]?.bit).toBe(false)
+    expect(data[2]?.id).toBe(12)
+    expect(data[2]?.bit).toBe(true)
   })
 
   it('sets isScanned flag', () => {
     const result = { data: [false], buffer: Buffer.alloc(1) }
     const data = convertBitData(result, 0, 1, true)
-    expect(data[0].isScanned).toBe(true)
+    expect(data[0]?.isScanned).toBe(true)
   })
 
   it('defaults missing bits to false', () => {
@@ -314,20 +314,20 @@ describe('convertBitData', () => {
     // length=3 but data only has 1 element
     const data = convertBitData(result, 0, 3, false)
 
-    expect(data[0].bit).toBe(true)
-    expect(data[1].bit).toBe(false)
-    expect(data[2].bit).toBe(false)
+    expect(data[0]?.bit).toBe(true)
+    expect(data[1]?.bit).toBe(false)
+    expect(data[2]?.bit).toBe(false)
   })
 
   it('sets words to undefined for bit data', () => {
     const result = { data: [true], buffer: Buffer.alloc(1) }
     const data = convertBitData(result, 0, 1, false)
-    expect(data[0].words).toBeUndefined()
+    expect(data[0]?.words).toBeUndefined()
   })
 
   it('sets hex to empty string for bit data', () => {
     const result = { data: [true], buffer: Buffer.alloc(1) }
     const data = convertBitData(result, 0, 1, false)
-    expect(data[0].hex).toBe('')
+    expect(data[0]?.hex).toBe('')
   })
 })

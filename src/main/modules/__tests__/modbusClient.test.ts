@@ -7,6 +7,18 @@ import { AppState } from '../../state'
 // Track event handlers registered on the mock ModbusRTU client
 let clientEventHandlers: Record<string, (...args: unknown[]) => void> = {}
 
+/**
+ * Fire what the client registered, or fail naming the handler that is missing.
+ *
+ * Reaching through the record with `?.()` would turn a client that registered
+ * nothing into a test that quietly does nothing and still passes.
+ */
+const fireClientEvent = (event: 'close' | 'error', ...args: unknown[]): void => {
+  const handler = clientEventHandlers[event]
+  if (!handler) throw new Error(`no '${event}' handler registered`)
+  handler(...args)
+}
+
 const createMockModbusRTU = () => ({
   isOpen: false,
   on: vi.fn(function (this: unknown, event: string, handler: (...args: unknown[]) => void) {
@@ -46,6 +58,16 @@ vi.mock('modbus-serial', () => {
 
 import { ModbusClient } from '../modbusClient'
 import ModbusRTU from 'modbus-serial'
+
+/** When a mock was first called, or a failure naming the one that never ran. */
+const firstCallOrder = (
+  mock: { mock: { invocationCallOrder: number[] } },
+  name: string
+): number => {
+  const [order] = mock.mock.invocationCallOrder
+  if (order === undefined) throw new Error(`${name} was never called`)
+  return order
+}
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
@@ -204,7 +226,7 @@ describe('ModbusClient', () => {
       await connectClient()
       // Simulate connection loss — isOpen goes false
       mockModbusRTU.isOpen = false
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
 
       // The reconnect will call connect() which calls connectTCP
       // connectTCP mock still resolves and sets isOpen = true
@@ -233,7 +255,7 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(11000)
 
       // Trigger close events — counter was reset so it starts fresh
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
       expect(getLastClientState().connectState).toBe('connecting')
     })
   })
@@ -299,7 +321,7 @@ describe('ModbusClient', () => {
       // And they still do the work: a close on the replacement reconnects.
       mockModbusRTU.isOpen = false
       await connectClient()
-      clientEventHandlers.close()
+      fireClientEvent('close')
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message.includes('Connection lost, reconnecting'))).toBe(
@@ -333,7 +355,7 @@ describe('ModbusClient', () => {
       await connectClient()
       // Simulate connection loss — triggers reconnect, state becomes 'connecting'
       mockModbusRTU.isOpen = false
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
       expect(getLastClientState().connectState).toBe('connecting')
 
       // Disconnect while in 'connecting' state
@@ -350,7 +372,7 @@ describe('ModbusClient', () => {
     it('schedules reconnect on close event', async () => {
       await connectClient()
 
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
 
       expect(getLastClientState().connectState).toBe('connecting')
 
@@ -366,7 +388,7 @@ describe('ModbusClient', () => {
 
       // Simulate 5 consecutive close events (max)
       for (let i = 0; i < 5; i++) {
-        clientEventHandlers['close']?.()
+        fireClientEvent('close')
         await vi.advanceTimersByTimeAsync(3500)
       }
 
@@ -384,7 +406,7 @@ describe('ModbusClient', () => {
       // Clear call history to only track events after this point
       ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
 
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
 
       // Should stay disconnected
       expect(getLastClientState().connectState).toBe('disconnected')
@@ -400,8 +422,8 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(11000)
 
       // Trigger two close events quickly
-      clientEventHandlers['close']?.()
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
+      fireClientEvent('close')
 
       const messages = getWindowCalls('backend_message')
       const reconnectMessages = messages.filter((m) => m[1].message.includes('reconnecting'))
@@ -417,13 +439,13 @@ describe('ModbusClient', () => {
       // Disable auto-reconnect by exhausting reconnects
       await vi.advanceTimersByTimeAsync(11000)
       for (let i = 0; i < 5; i++) {
-        clientEventHandlers['close']?.()
+        fireClientEvent('close')
         await vi.advanceTimersByTimeAsync(3500)
       }
 
       // Now auto-reconnect is disabled. Trigger another close.
       ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Connection closed unexpectedly')).toBe(true)
@@ -437,7 +459,7 @@ describe('ModbusClient', () => {
       // test does, misses the race entirely.
       mockModbusRTU.close.mockImplementation((cb: () => void) => {
         mockModbusRTU.isOpen = false
-        clientEventHandlers['close']?.()
+        fireClientEvent('close')
         cb()
       })
       ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
@@ -457,12 +479,12 @@ describe('ModbusClient', () => {
       await connectClient()
       await vi.advanceTimersByTimeAsync(11000)
       for (let i = 0; i < 5; i++) {
-        clientEventHandlers['close']?.()
+        fireClientEvent('close')
         await vi.advanceTimersByTimeAsync(3500)
       }
 
       ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
-      clientEventHandlers['close']?.()
+      fireClientEvent('close')
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Connection closed unexpectedly')).toBe(true)
@@ -611,7 +633,7 @@ describe('ModbusClient', () => {
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
-      expect(dataCalls[0][1].length).toBe(2)
+      expect(dataCalls[0]?.[1].length).toBe(2)
     })
 
     it('sends address groups alongside data', async () => {
@@ -814,7 +836,7 @@ describe('ModbusClient', () => {
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
-      const tx = txCalls[0][1]
+      const tx = txCalls[0]?.[1]
       expect(tx.id).toContain('42__')
       expect(tx.unitId).toBe(1)
       expect(tx.address).toBe(0)
@@ -870,7 +892,7 @@ describe('ModbusClient', () => {
 
       expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       expect(getWindowCalls('transaction')).toHaveLength(1)
-      expect(getWindowCalls('transaction')[0][1].id).toContain('2__')
+      expect(getWindowCalls('transaction')[0]?.[1].id).toContain('2__')
     })
 
     it('skips when no transactions exist', async () => {
@@ -897,7 +919,7 @@ describe('ModbusClient', () => {
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
-      expect(txCalls[0][1].errorMessage).toBe('Timed out')
+      expect(txCalls[0]?.[1].errorMessage).toBe('Timed out')
     })
 
     it('logs a transaction that carries no request or responses', async () => {
@@ -921,8 +943,8 @@ describe('ModbusClient', () => {
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
-      expect(txCalls[0][1].request).toBe('')
-      expect(txCalls[0][1].responses).toEqual([])
+      expect(txCalls[0]?.[1].request).toBe('')
+      expect(txCalls[0]?.[1].responses).toEqual([])
     })
 
     it('keeps the serial transaction key, which is not a number', async () => {
@@ -937,8 +959,8 @@ describe('ModbusClient', () => {
       await client.read()
 
       const txCalls = getWindowCalls('transaction')
-      expect(txCalls[0][1].id).toContain('undefined__')
-      expect(txCalls[0][1].id).not.toContain('NaN')
+      expect(txCalls[0]?.[1].id).toContain('undefined__')
+      expect(txCalls[0]?.[1].id).not.toContain('NaN')
     })
 
     // The two below discriminate a per-group error message from one that
@@ -997,7 +1019,7 @@ describe('ModbusClient', () => {
       await client.read()
 
       const txCalls = getWindowCalls('transaction')
-      expect(txCalls[0][1].timeout).toBe(true)
+      expect(txCalls[0]?.[1].timeout).toBe(true)
     })
   })
 
@@ -1012,6 +1034,17 @@ describe('ModbusClient', () => {
         await client.write({ address: 5, type: 'coils', value: [true], single: true })
 
         expect(mockModbusRTU.writeFC5).toHaveBeenCalledWith(1, 5, true, expect.any(Function))
+      })
+
+      it('sends nothing for FC5 when the coil list is empty', async () => {
+        await connectClient()
+
+        // The schema accepts an empty list, and FC5 takes the first coil of it.
+        await client.write({ address: 5, type: 'coils', value: [], single: true })
+
+        expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
+        const messages = getWindowCalls('backend_message')
+        expect(messages.some((m) => m[1].message === 'No coil value to write')).toBe(true)
       })
 
       it('writes multiple coils via FC15', async () => {
@@ -1247,10 +1280,10 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(3)
-      expect(results[0][1].id).toBe(1)
-      expect(results[1][1].id).toBe(2)
-      expect(results[2][1].id).toBe(3)
-      expect(results[0][1].registerTypes).toContain('holding_registers')
+      expect(results[0]?.[1].id).toBe(1)
+      expect(results[1]?.[1].id).toBe(2)
+      expect(results[2]?.[1].id).toBe(3)
+      expect(results[0]?.[1].registerTypes).toContain('holding_registers')
     })
 
     it('records errors for failed register type reads', async () => {
@@ -1273,9 +1306,9 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].errorMessage.coils).toBe('coils failed')
-      expect(results[0][1].registerTypes).toContain('holding_registers')
-      expect(results[0][1].registerTypes).not.toContain('coils')
+      expect(results[0]?.[1].errorMessage.coils).toBe('coils failed')
+      expect(results[0]?.[1].registerTypes).toContain('holding_registers')
+      expect(results[0]?.[1].registerTypes).not.toContain('coils')
     })
 
     // ! Coverage-only: exercises scan-stop check after coils
@@ -1325,8 +1358,8 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].errorMessage.discrete_inputs).toBe('discrete failed')
-      expect(results[0][1].registerTypes).not.toContain('discrete_inputs')
+      expect(results[0]?.[1].errorMessage.discrete_inputs).toBe('discrete failed')
+      expect(results[0]?.[1].registerTypes).not.toContain('discrete_inputs')
     })
 
     // ! Coverage-only: exercises scan-stop check after discrete_inputs
@@ -1408,10 +1441,10 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].registerTypes).toContain('coils')
-      expect(results[0][1].registerTypes).toContain('discrete_inputs')
-      expect(results[0][1].registerTypes).toContain('holding_registers')
-      expect(results[0][1].registerTypes).toContain('input_registers')
+      expect(results[0]?.[1].registerTypes).toContain('coils')
+      expect(results[0]?.[1].registerTypes).toContain('discrete_inputs')
+      expect(results[0]?.[1].registerTypes).toContain('holding_registers')
+      expect(results[0]?.[1].registerTypes).toContain('input_registers')
     })
 
     it('emits scan progress', async () => {
@@ -1455,9 +1488,9 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].registerTypes).toContain('coils')
-      expect(results[0][1].registerTypes).toContain('input_registers')
-      expect(results[0][1].registerTypes).not.toContain('holding_registers')
+      expect(results[0]?.[1].registerTypes).toContain('coils')
+      expect(results[0]?.[1].registerTypes).toContain('input_registers')
+      expect(results[0]?.[1].registerTypes).not.toContain('holding_registers')
       // holding_registers should never have been read
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
     })
@@ -1480,9 +1513,9 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].errorMessage.holding_registers).toBe('holding reg failed')
-      expect(results[0][1].registerTypes).toContain('input_registers')
-      expect(results[0][1].registerTypes).not.toContain('holding_registers')
+      expect(results[0]?.[1].errorMessage.holding_registers).toBe('holding reg failed')
+      expect(results[0]?.[1].registerTypes).toContain('input_registers')
+      expect(results[0]?.[1].registerTypes).not.toContain('holding_registers')
     })
 
     // ! Coverage-only: exercises scan-stop check after holding_registers
@@ -1535,9 +1568,9 @@ describe('ModbusClient', () => {
 
       const results = getWindowCalls('scan_unit_id_result')
       expect(results.length).toBe(1)
-      expect(results[0][1].errorMessage.input_registers).toBe('input reg failed')
-      expect(results[0][1].registerTypes).toContain('holding_registers')
-      expect(results[0][1].registerTypes).not.toContain('input_registers')
+      expect(results[0]?.[1].errorMessage.input_registers).toBe('input reg failed')
+      expect(results[0]?.[1].registerTypes).toContain('holding_registers')
+      expect(results[0]?.[1].registerTypes).not.toContain('input_registers')
     })
 
     // ! Coverage-only: exercises scan-stop check after input_registers
@@ -1610,9 +1643,9 @@ describe('ModbusClient', () => {
       await scanPromise
 
       // setID must have been called before the first read
-      const setIdOrder = mockModbusRTU.setID.mock.invocationCallOrder[0]
-      const readOrder = mockModbusRTU.readHoldingRegisters.mock.invocationCallOrder[0]
-      expect(setIdOrder).toBeLessThan(readOrder)
+      expect(firstCallOrder(mockModbusRTU.setID, 'setID')).toBeLessThan(
+        firstCallOrder(mockModbusRTU.readHoldingRegisters, 'readHoldingRegisters')
+      )
     })
 
     it('scans address range and sends non-zero data', async () => {
@@ -1733,7 +1766,7 @@ describe('ModbusClient', () => {
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBeGreaterThan(0)
       // Only registers with bit=true should pass the filter (addresses 0 and 2)
-      const sentData = dataCalls[0][1]
+      const sentData = dataCalls[0]?.[1]
       expect(sentData.every((d: { bit: boolean }) => d.bit === true)).toBe(true)
     })
 
@@ -1823,7 +1856,7 @@ describe('ModbusClient', () => {
 
   describe('error event handler', () => {
     it('transitions to disconnected on error', () => {
-      clientEventHandlers['error']?.(new Error('Test error'))
+      fireClientEvent('error', new Error('Test error'))
 
       expect(getLastClientState().connectState).toBe('disconnected')
 

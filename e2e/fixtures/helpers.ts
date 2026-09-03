@@ -230,9 +230,9 @@ export async function setupServerConfig(
     }
 
     for (const regs of byType.values()) {
-      for (let i = 0; i < regs.length; i++) {
+      for (const [i, reg] of regs.entries()) {
         const isLast = i === regs.length - 1
-        await addRegister(p, { ...regs[i], next: !isLast }, i > 0, fast)
+        await addRegister(p, { ...reg, next: !isLast }, i > 0, fast)
       }
     }
   } else {

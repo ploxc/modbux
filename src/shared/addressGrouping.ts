@@ -80,46 +80,34 @@ export const groupAddressInfos = (
   const sorted = infos.slice().sort((a, b) => a.address - b.address)
 
   const groups: Array<AddressGroup> = []
-  let i = 0 // index of the first ungrouped item
 
-  // 2) Continue until we have grouped all items
-  while (i < sorted.length) {
-    // This block starts at the current item's address
-    const startAddr = sorted[i].address
-    // Initial endAddr is the last register used by this item
-    let endAddr = startAddr + sorted[i].registerCount - 1
-    // j will scan forward to see how many items we can pack
-    let j = i
+  // The block being filled. `closed` is set by the item that carries groupEnd,
+  // which ends the block after itself rather than before it.
+  let open: { start: number; end: number; closed: boolean } | undefined
 
-    // 3) Try to include as many following entries as still fit under maxLength
-    while (j + 1 < sorted.length) {
-      // Check if current item is marked as group end - if so, stop here
-      if (sorted[j].groupEnd) {
-        break
-      }
+  const close = (): void => {
+    if (open) groups.push([open.start, open.end - open.start + 1])
+  }
 
-      const next = sorted[j + 1]
-      const nextEnd = next.address + next.registerCount - 1
-      const candidateEnd = Math.max(endAddr, nextEnd)
-      const span = candidateEnd - startAddr + 1
+  // 2) One pass: each item either extends the open block or starts the next
+  for (const info of sorted) {
+    const infoEnd = info.address + info.registerCount - 1
 
-      if (span <= maxLength) {
-        endAddr = candidateEnd
-        j++
-      } else {
-        break
+    if (open && !open.closed) {
+      // 3) It fits when the whole block stays under maxLength
+      const candidateEnd = Math.max(open.end, infoEnd)
+      if (candidateEnd - open.start + 1 <= maxLength) {
+        open.end = candidateEnd
+        open.closed = info.groupEnd === true
+        continue
       }
     }
 
-    // 4) Compute final count = total registers from startAddr to endAddr (inclusive)
-    const count = endAddr - startAddr + 1
-
-    // 5) Record this block
-    groups.push([startAddr, count])
-
-    // 6) Advance i past all items we just grouped
-    i = j + 1
+    close()
+    open = { start: info.address, end: infoEnd, closed: info.groupEnd === true }
   }
+
+  close()
 
   return groups
 }

@@ -110,8 +110,9 @@ export const readGroupEntry = async (group: string): Promise<GroupEntry | undefi
   try {
     const file = await readFile(GROUP_FILE_PATH, 'utf8')
     for (const line of file.split('\n')) {
+      // A line with fewer fields than this is not a group entry.
       const [name, , gid, members] = line.split(':')
-      if (name !== group) continue
+      if (name !== group || gid === undefined) continue
       return {
         gid: Number.parseInt(gid, 10),
         members: (members ?? '').split(',').filter(Boolean)
@@ -130,7 +131,9 @@ export const readGroupByGid = async (
   try {
     const file = await readFile(GROUP_FILE_PATH, 'utf8')
     for (const line of file.split('\n')) {
+      // A line with fewer fields than this is not a group entry.
       const [name, , id, members] = line.split(':')
+      if (name === undefined || id === undefined) continue
       if (Number.parseInt(id, 10) !== gid) continue
       return { name, gid, members: (members ?? '').split(',').filter(Boolean) }
     }

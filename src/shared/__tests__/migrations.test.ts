@@ -310,7 +310,7 @@ describe('configMigration', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const serverRegisters = migrated.serverRegisters as Record<string, Record<string, any>>
-      const register = serverRegisters['uuid-1']['1'].input_registers['0']
+      const register = serverRegisters['uuid-1']?.['1'].input_registers['0']
       expect(register.params).not.toHaveProperty('littleEndian')
       expect(register.params.comment).toBe('Test')
     })

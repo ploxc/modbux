@@ -66,7 +66,9 @@ const snap = async (page: Page, name: string): Promise<Buffer> => {
 
 /** Stitch PNG frame buffers into an animated GIF */
 const framesToGif = (frames: Buffer[], delay: number, outPath: string): void => {
-  const first = PNG.sync.read(frames[0])
+  const [firstFrame] = frames
+  if (!firstFrame) throw new Error('no frames to stitch into a gif')
+  const first = PNG.sync.read(firstFrame)
   const encoder = new GIFEncoder(first.width, first.height)
   encoder.setDelay(delay)
   encoder.setRepeat(0)
