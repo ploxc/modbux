@@ -2,9 +2,6 @@ import { AppState } from './state'
 import {
   ScanRegistersParameters,
   ConnectionConfigSchema,
-  defaultConnectionConfig,
-  ClientStateSchema,
-  defaultClientState,
   IpcHandlerMap,
   IpcEvent,
   IpcEventPayloadMap,
@@ -104,13 +101,6 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   const ipcHandle = createIpcHandle(windows)
 
   // Connection config
-  ipcHandle('get_connection_config', () => {
-    // Validate and return the current connection config, or default if invalid
-    const result = ConnectionConfigSchema.safeParse(state.connectionConfig)
-    if (result.success) return result.data
-    state.updateConnectionConfig(defaultConnectionConfig)
-    return defaultConnectionConfig
-  })
   ipcHandle(
     'update_connection_config',
     (_, config) => state.updateConnectionConfig(config),
@@ -124,13 +114,7 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
     RegisterConfigSchema.deepPartial()
   )
 
-  // Client state
-  ipcHandle('get_client_state', () => {
-    // Validate and return the current client state, or default if invalid
-    const result = ClientStateSchema.safeParse(client.state)
-    if (result.success) return result.data
-    return defaultClientState
-  })
+  // Register mapping
   ipcHandle(
     'set_register_mapping',
     (_, mapping) => state.setRegisterMapping(mapping),

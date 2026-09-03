@@ -36,9 +36,9 @@ import { SharedProps } from 'notistack'
 /**
  * IPC Channel Definitions
  *
- * Channel names are defined in snake_case (e.g., 'get_connection_config').
+ * Channel names are defined in snake_case (e.g., 'update_register_config').
  * These are automatically converted to camelCase methods on window.api
- * in the preload script (e.g., window.api.getConnectionConfig()).
+ * in the preload script (e.g., window.api.updateRegisterConfig()).
  *
  * To add a new IPC channel:
  * 1. Add the channel name to IPC_CHANNELS
@@ -46,10 +46,8 @@ import { SharedProps } from 'notistack'
  * 3. The camelCase method will be automatically available on window.api
  */
 export const IPC_CHANNELS = [
-  'get_connection_config',
   'update_connection_config',
   'update_register_config',
-  'get_client_state',
   'set_register_mapping',
   'connect',
   'disconnect',
@@ -98,12 +96,6 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  * ! If you remove one, remove it here. No extras allowed.
  */
 export interface IpcHandlerSpec {
-  /** Retrieve the ConnectionConfig */
-  ['get_connection_config']: {
-    args: []
-    return: ConnectionConfig
-  }
-
   /** Update the ConnectionConfig (DeepPartial) */
   ['update_connection_config']: {
     args: [DeepPartial<ConnectionConfig>]
@@ -114,12 +106,6 @@ export interface IpcHandlerSpec {
   ['update_register_config']: {
     args: [DeepPartial<RegisterConfig>]
     return: void
-  }
-
-  /** Retrieve the current ClientState */
-  ['get_client_state']: {
-    args: []
-    return: ClientState
   }
 
   /** Set the RegisterMapping */

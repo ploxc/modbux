@@ -12,7 +12,7 @@ import type { RegisterParams, ServerRegisters } from '../types'
 
 describe('snakeToCamel', () => {
   it('converts snake_case to camelCase', () => {
-    expect(snakeToCamel('get_connection_config')).toBe('getConnectionConfig')
+    expect(snakeToCamel('update_register_config')).toBe('updateRegisterConfig')
   })
 
   it('returns single word unchanged', () => {
