@@ -168,6 +168,26 @@ test.describe.serial('Privileged port modal (manual, Linux only)', () => {
     await expect(page.getByTestId(MODAL)).toBeHidden()
   })
 
+  /**
+   * Splitting from Home is the path where the main window never shows the
+   * server view at all, so the window that pops out is the only one that can
+   * ask. The check used to return on `isServerWindow`, which left it unasked in
+   * both windows.
+   */
+  test('the split-out server window asks', async () => {
+    await closeApp()
+    await launchApp()
+
+    await page.getByTestId('home-split-btn').click()
+    const serverPage = await app.waitForEvent('window', { timeout: 10_000 })
+    await serverPage.waitForLoadState('domcontentloaded')
+
+    await waitForModal(serverPage)
+    await expect(page.getByTestId(MODAL)).toBeHidden()
+
+    await closeApp()
+  })
+
   // ─── Fix it through the modal itself ───────────────────────────────
 
   test('Allow runs pkexec and unblocks the port', async () => {
