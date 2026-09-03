@@ -254,8 +254,11 @@ const PrivilegedPortModal = meme((): JSX.Element | null => {
   const ready = useServerZustand((z) => !!z.ready[z.selectedUuid])
 
   useEffect(() => {
-    // The popped-out server window would otherwise show a second copy.
-    if (window.api.isServerWindow) return
+    // Whichever window is showing the server view asks, and never both: the
+    // main window is put on the client view for as long as a server window
+    // exists, so this is mounted once. Asking only the main window left the
+    // question unasked in split view, which is the state a user who splits
+    // from Home is in from the start.
     if (localStorage.getItem(DISMISS_KEY) === 'true') return
     if (!ready) return
 

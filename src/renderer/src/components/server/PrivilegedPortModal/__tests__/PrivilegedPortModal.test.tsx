@@ -103,10 +103,10 @@ describe('PrivilegedPortModal', () => {
     expect(screen.queryByTestId('privileged-port-modal')).not.toBeInTheDocument()
   })
 
-  it('stays closed in the popped-out server window', async () => {
+  it('asks in the popped-out server window, which is the only one showing the server', async () => {
     window.api.isServerWindow = true
     render(<PrivilegedPortModal />)
-    await waitFor(() => expect(mockGetStatus).not.toHaveBeenCalled())
+    expect(await screen.findByTestId('privileged-port-modal')).toBeInTheDocument()
   })
 
   it('stays closed once dismissed for good', async () => {
