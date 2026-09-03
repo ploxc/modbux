@@ -13,7 +13,12 @@ import {
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { isAddressInUse, toRegisterParams } from './addRegister.zustand.helpers'
+import {
+  isAddressInUse,
+  RegisterFormSnapshot,
+  toFormSnapshot,
+  toRegisterParams
+} from './addRegister.zustand.helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -111,6 +116,9 @@ interface AddRegisterZustand {
   registerType: NumberRegisters | undefined
   setRegisterType: (registerType: NumberRegisters | undefined) => void
   setEditRegister: (register: ServerRegister[number] | undefined) => void
+  /** What the fields held once the edit dialog had filled them. */
+  pristine: RegisterFormSnapshot | undefined
+  capturePristine: () => void
   valid: {
     address: boolean
     value: boolean
@@ -152,6 +160,11 @@ interface AddRegisterZustand {
    * Undefined when there is no register type, which means nothing was written.
    */
   submit: (isEdit: boolean) => { address: number; dataType: BaseDataType } | undefined
+  /**
+   * Removes the register the dialog was opened on, and nothing outside edit
+   * mode.
+   */
+  remove: () => void
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -169,6 +182,16 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     setEditRegister: (register) =>
       set((state) => {
         state.serverRegisterEdit = register
+        // The fields still hold the previous register, so there is nothing to
+        // compare against until the edit effect has filled them again.
+        state.pristine = undefined
+      }),
+
+    pristine: undefined,
+
+    capturePristine: () =>
+      set((state) => {
+        state.pristine = toFormSnapshot(getState())
       }),
 
     valid: {
@@ -364,6 +387,33 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
 
       return { address: params.address, dataType: form.dataType }
     },
+
+    /**
+     * Beside `submit`, and for the same reason: it reads the dialog and writes
+     * through the server store.
+     *
+     * What it removes is the register the dialog was opened on, which the
+     * address field does not answer. That field is editable, and a changed one
+     * means the user is moving the register rather than naming another.
+     */
+    remove: () => {
+      const { serverRegisterEdit } = getState()
+      if (!serverRegisterEdit) return
+
+      const serverZustand = useServerZustand.getState()
+      const uuid = serverZustand.selectedUuid
+      const { address, registerType, dataType, length } = serverRegisterEdit.params
+
+      serverZustand.removeRegister({
+        uuid,
+        unitId: serverZustand.getUnitId(uuid),
+        address,
+        registerType,
+        dataType,
+        length
+      })
+    },
+
     resetToDefaults: () =>
       set((state) => {
         state.address = '0'
@@ -377,6 +427,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.stringValue = ''
         state.registerLength = '10'
         state.serverRegisterEdit = undefined
+        state.pristine = undefined
         state.addressInUse = false
         state.addressFitError = false
         state.valid = {

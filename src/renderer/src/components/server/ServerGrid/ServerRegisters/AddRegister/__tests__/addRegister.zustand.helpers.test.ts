@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   isAddressInUse,
+  isFormDirty,
+  toFormSnapshot,
   toRegisterParams,
+  type RegisterFormSnapshot,
   type RegisterFormValues
 } from '../addRegister.zustand.helpers'
 
@@ -97,6 +100,86 @@ describe('isAddressInUse', () => {
     const edit = { dataType: 'int16' as const, address: 10 }
     // Changing to INT32 at address 10 needs 10+11, but 11 belongs to another register
     expect(isAddressInUse(used, 'int32', 10, undefined, edit)).toBe(true)
+  })
+})
+
+// ─── isFormDirty ────────────────────────────────────────────────────
+
+describe('isFormDirty', () => {
+  const opened: RegisterFormSnapshot = {
+    fixed: true,
+    address: '100',
+    value: '1234',
+    dataType: 'uint16',
+    min: '0',
+    max: '100',
+    interval: '5',
+    comment: 'flow rate',
+    stringValue: '',
+    registerLength: ''
+  }
+
+  it('is clean while nothing has been typed', () => {
+    expect(isFormDirty({ ...opened }, opened)).toBe(false)
+  })
+
+  it('is dirty on a changed address', () => {
+    expect(isFormDirty({ ...opened, address: '200' }, opened)).toBe(true)
+  })
+
+  // Every field counts, not only the address the buttons were wrong about.
+  it('is dirty on a changed comment', () => {
+    expect(isFormDirty({ ...opened, comment: 'return temperature' }, opened)).toBe(true)
+  })
+
+  it('is dirty on a changed data type', () => {
+    expect(isFormDirty({ ...opened, dataType: 'int32' }, opened)).toBe(true)
+  })
+
+  it('is dirty on the generator toggle', () => {
+    expect(isFormDirty({ ...opened, fixed: false }, opened)).toBe(true)
+  })
+
+  // Typing a value back to what it was leaves nothing to submit, so the
+  // comparison has to be against the opened state rather than a latch.
+  it('is clean again when the change is typed back', () => {
+    const changed = { ...opened, address: '200' }
+    expect(isFormDirty({ ...changed, address: '100' }, opened)).toBe(false)
+  })
+
+  it('is clean in add mode, where nothing was captured', () => {
+    expect(isFormDirty({ ...opened, address: '200' }, undefined)).toBe(false)
+  })
+})
+
+describe('toFormSnapshot', () => {
+  it('keeps the fields a user can change and drops the register type', () => {
+    const form: RegisterFormValues = {
+      fixed: false,
+      address: '7',
+      value: '0',
+      dataType: 'int32',
+      registerType: 'input_registers',
+      min: '1',
+      max: '9',
+      interval: '2',
+      comment: 'pressure',
+      stringValue: 'PUMP',
+      registerLength: '4'
+    }
+
+    expect(toFormSnapshot(form)).toEqual({
+      fixed: false,
+      address: '7',
+      value: '0',
+      dataType: 'int32',
+      min: '1',
+      max: '9',
+      interval: '2',
+      comment: 'pressure',
+      stringValue: 'PUMP',
+      registerLength: '4'
+    })
   })
 })
 

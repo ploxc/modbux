@@ -48,6 +48,46 @@ export interface RegisterFormValues {
 }
 
 /**
+ * The fields a user can change while the dialog is open. `registerType` is not
+ * one of them: it comes from the button that opened the dialog, and no control
+ * inside changes it.
+ */
+export type RegisterFormSnapshot = Omit<RegisterFormValues, 'registerType'>
+
+/** What the dialog holds now, kept so a later state can be compared to it. */
+export const toFormSnapshot = (form: RegisterFormSnapshot): RegisterFormSnapshot => ({
+  fixed: form.fixed,
+  address: form.address,
+  value: form.value,
+  dataType: form.dataType,
+  min: form.min,
+  max: form.max,
+  interval: form.interval,
+  comment: form.comment,
+  stringValue: form.stringValue,
+  registerLength: form.registerLength
+})
+
+/**
+ * Whether anything has been typed since the dialog opened.
+ *
+ * The comparison is against what the edit effect wrote into the fields, not
+ * against the register itself, because that effect converts on the way in: an
+ * interval is divided by a thousand, a unix value is multiplied by it, and a
+ * utf8 length that was never set becomes ten. Compared against the register, a
+ * conversion that does not round-trip would make the dialog dirty the moment it
+ * opened.
+ */
+export const isFormDirty = (
+  form: RegisterFormSnapshot,
+  pristine: RegisterFormSnapshot | undefined
+): boolean => {
+  if (!pristine) return false
+  const fields = Object.keys(pristine) as (keyof RegisterFormSnapshot)[]
+  return fields.some((field) => form[field] !== pristine[field])
+}
+
+/**
  * Turns what the dialog holds into the params the server stores.
  *
  * Everything in the dialog is a string, and the conversions out of it are not
