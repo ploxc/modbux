@@ -39,8 +39,8 @@ src/renderer/  the React UI
   the UI through them.
 
 `src/__tests__/conformance.test.ts` asserts the conventions this codebase has
-settled, three of them these, so breaking one fails `yarn test`. What each means,
-and the two no test can see, is in CONTRIBUTING.md under *Code style*.
+settled, so breaking one fails `yarn test`. What each means, and the ones no test
+can see, is in CONTRIBUTING.md under *Code style*.
 
 # The rules
 
