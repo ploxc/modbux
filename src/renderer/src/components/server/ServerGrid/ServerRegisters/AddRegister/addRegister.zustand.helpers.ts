@@ -48,6 +48,20 @@ export interface RegisterFormValues {
 }
 
 /**
+ * What a field shows when the register has nothing for it.
+ *
+ * The dialog offers both a fixed value and a generator's range, and a register
+ * carries one set or the other. Switching to the set it does not carry has to
+ * land on something a user can submit.
+ */
+export const FIELD_DEFAULTS = {
+  value: '0',
+  min: '0',
+  max: '1',
+  interval: '1'
+}
+
+/**
  * The fields a user can change while the dialog is open. `registerType` is not
  * one of them: it comes from the button that opened the dialog, and no control
  * inside changes it.

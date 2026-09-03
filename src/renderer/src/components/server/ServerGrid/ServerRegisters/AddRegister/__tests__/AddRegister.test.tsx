@@ -44,6 +44,21 @@ const registerAt100: ServerRegister[number] = {
   }
 }
 
+/** The same address as a generator, which carries a range instead of a value. */
+const generatorAt100: ServerRegister[number] = {
+  value: 0,
+  params: {
+    address: 100,
+    registerType: 'holding_registers',
+    dataType: 'uint32',
+    comment: 'flow rate',
+    value: undefined,
+    min: 0,
+    max: 500,
+    interval: 5000
+  }
+}
+
 const submitButton = (): HTMLElement => screen.getByTestId('add-reg-submit-btn')
 const removeButton = (): HTMLElement => screen.getByTestId('add-reg-remove-btn')
 
@@ -56,6 +71,59 @@ const renderEditing = (register: ServerRegister[number]): void => {
   useAddRegisterZustand.getState().setEditRegister(register)
   render(<AddRegister />)
 }
+
+const allFieldsValid = {
+  address: true,
+  value: true,
+  min: true,
+  max: true,
+  interval: true,
+  registerLength: true,
+  stringValue: true
+}
+
+describe('what the edit dialog opens with', () => {
+  beforeEach(() => {
+    useAddRegisterZustand.getState().resetToDefaults()
+  })
+
+  // A field marked wrong paints its label as an error, and the register on
+  // screen was valid when it was added.
+  it('marks nothing wrong when a fixed register opens', () => {
+    renderEditing(registerAt100)
+
+    expect(useAddRegisterZustand.getState().valid).toEqual(allFieldsValid)
+  })
+
+  it('marks nothing wrong when a generator opens', () => {
+    renderEditing(generatorAt100)
+
+    expect(useAddRegisterZustand.getState().valid).toEqual(allFieldsValid)
+  })
+
+  // The dialog offers both sets and the register carries one, so switching has
+  // to land on something submittable.
+  it('has a range ready when a fixed register is switched to Generator', async () => {
+    const user = userEvent.setup()
+    renderEditing(registerAt100)
+
+    await user.click(screen.getByTestId('add-reg-generator-btn'))
+
+    expect(fieldInput('add-reg-min-input')).toHaveValue('0')
+    expect(fieldInput('add-reg-max-input')).toHaveValue('1')
+    expect(submitButton()).toBeEnabled()
+  })
+
+  it('has a value ready when a generator is switched to Fixed', async () => {
+    const user = userEvent.setup()
+    renderEditing(generatorAt100)
+
+    await user.click(screen.getByTestId('add-reg-fixed-btn'))
+
+    expect(fieldInput('add-reg-value-input')).toHaveValue('0')
+    expect(submitButton()).toBeEnabled()
+  })
+})
 
 describe('the edit dialog buttons', () => {
   beforeEach(() => {

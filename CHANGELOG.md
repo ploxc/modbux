@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where it was, deleted whatever sat at the address you had typed, and closed
   the dialog as though it had worked. The two buttons now follow what the
   dialog holds: Remove until you change something, Submit Change once you have.
+- **Switching a register between Fixed and Generator no longer leaves the other
+  side blank.** A fixed register carries no range and a generator carries no
+  value, so the fields you switched to came up empty and marked wrong, and
+  Submit Change stayed off until you typed both of them. They now start where a
+  new register starts. Opening the dialog also no longer flashes the labels red
+  for a moment.
 
 ### Changed
 
