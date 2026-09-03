@@ -21,6 +21,7 @@ import {
   migrateServerRegistersState,
   migrateServerModeState,
   migrateBoolShape,
+  repairPersistedParity,
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
@@ -568,7 +569,7 @@ export const useServerZustand = create<
       setServerParity: (parity) => {
         set((state) => {
           if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
-          state.serialConfig.options.parity = parity as 'none' | 'even' | 'odd' | 'mark' | 'space'
+          state.serialConfig.options.parity = parity
         })
         restartRtuIfActive(get)
       },
@@ -634,6 +635,11 @@ export const useServerZustand = create<
               | Record<string, Record<string, unknown> | undefined>
               | undefined
           )
+        }
+
+        // v3→v4: the RTU parity the serial binding refuses
+        if (version < 4) {
+          repairPersistedParity(state, 'serialConfig', 'options')
         }
 
         return state as PersistedServerZustand

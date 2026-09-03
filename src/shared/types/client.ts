@@ -105,11 +105,22 @@ export const TcpPortOptionsSchema = z.object({
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
 
+/**
+ * What the serial binding accepts on every platform.
+ *
+ * `modbus-serial` also types `mark` and `space`, and `serialport_win.cpp` has a
+ * case for both. `serialport_unix.cpp` has three cases and a default that
+ * returns -1, so on macOS and Linux either one fails the open with
+ * "Invalid parity setting".
+ */
+export const ParitySchema = z.enum(['none', 'even', 'odd'])
+export type Parity = z.infer<typeof ParitySchema>
+
 export const SerialPortOptionsSchema = z.object({
   baudRate: ModbusBaudRateSchema,
   dataBits: z.number(),
   stopBits: z.number(),
-  parity: z.enum(['none', 'even', 'odd', 'mark', 'space']).optional()
+  parity: ParitySchema.optional()
 })
 export type SerialPortOptions = z.infer<typeof SerialPortOptionsSchema>
 

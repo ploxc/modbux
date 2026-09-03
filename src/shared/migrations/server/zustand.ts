@@ -1,6 +1,6 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
 
-export const CURRENT_SERVER_ZUSTAND_VERSION = 3
+export const CURRENT_SERVER_ZUSTAND_VERSION = 4
 
 /** Where the server store keeps its state. */
 export const SERVER_ZUSTAND_STORAGE_KEY = 'server.zustand'

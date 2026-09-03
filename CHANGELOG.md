@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unit the server hosts, and nothing goes back on the line. Modbux says so once
   while the RTU server is running and unit 0 holds registers. Over TCP there is
   no broadcast and unit 0 stays an ordinary address.
+- **The parity list offers none, even and odd.** Mark and space were in it, and
+  on macOS and Linux picking either one failed the connection outright, because
+  the serial layer Modbux uses has no setting for them on those platforms. A
+  saved configuration that carries one now comes back on none, with the com port
+  and baud rate beside it kept.
 
 ## [2.3.0] - 2026-08-30
 

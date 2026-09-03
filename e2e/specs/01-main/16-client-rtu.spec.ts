@@ -63,13 +63,16 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await expect(mainPage.getByTestId('rtu-baudrate-select')).toContainText('115200')
   })
 
-  test('parity select has expected options', async ({ mainPage }) => {
+  // The count is the assertion. A list this select reads from somewhere else
+  // passes every visibility check while offering a fourth the binding refuses.
+  test('parity select offers the three the serial binding accepts', async ({ mainPage }) => {
     await mainPage.getByTestId('rtu-parity-select').click()
 
-    const expectedOptions = ['none', 'even', 'odd', 'mark', 'space']
+    const expectedOptions = ['none', 'even', 'odd']
     for (const option of expectedOptions) {
       await expect(mainPage.getByRole('option', { name: option })).toBeVisible()
     }
+    await expect(mainPage.getByRole('option')).toHaveCount(expectedOptions.length)
 
     await mainPage.keyboard.press('Escape')
   })

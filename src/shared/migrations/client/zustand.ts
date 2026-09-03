@@ -1,4 +1,6 @@
-export const CURRENT_CLIENT_ZUSTAND_VERSION = 2
+import { repairPersistedParity } from '../shared'
+
+export const CURRENT_CLIENT_ZUSTAND_VERSION = 3
 
 /** Where the client store keeps its state. */
 export const CLIENT_ZUSTAND_STORAGE_KEY = 'client.zustand'
@@ -18,6 +20,11 @@ export function migrateClientState(
 
   if (version < 2) {
     // v1→v2: (reserved for future migrations)
+  }
+
+  // v2→v3: the RTU parity the serial binding refuses
+  if (version < 3) {
+    repairPersistedParity(state, 'connectionConfig', 'rtu', 'options')
   }
 
   return state
