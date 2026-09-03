@@ -38,8 +38,8 @@ src/renderer/  the React UI
 - **Every interactive element carries a `data-testid`.** The e2e suite addresses
   the UI through them.
 
-`src/__tests__/conformance.test.ts` asserts ten conventions, three of them
-these, so breaking one fails `yarn test`. What each of the ten means, and the
+`src/__tests__/conformance.test.ts` asserts eleven conventions, three of them
+these, so breaking one fails `yarn test`. What each of the eleven means, and the
 two no test can see, is in CONTRIBUTING.md under *Code style*.
 
 # The rules
