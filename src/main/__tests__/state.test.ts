@@ -1,6 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { AppState } from '../state'
-import { defaultConnectionConfig, defaultRegisterConfig } from '@shared'
+import { AppState, withoutUndefined } from '../state'
+import { ConnectionConfigSchema, defaultConnectionConfig, defaultRegisterConfig } from '@shared'
+
+describe('withoutUndefined', () => {
+  it('drops a key set to undefined and keeps the rest', () => {
+    expect(withoutUndefined({ a: 1, b: undefined })).toEqual({ a: 1 })
+  })
+
+  it('drops one nested two deep', () => {
+    expect(withoutUndefined({ a: { b: { c: undefined, d: 2 } } })).toEqual({ a: { b: { d: 2 } } })
+  })
+
+  it('hands an array back as an array', () => {
+    // Recursing would return the indices as an object, and deepmerge would
+    // never see an array again.
+    expect(withoutUndefined({ a: [1, 2] }).a).toEqual([1, 2])
+    expect(Array.isArray(withoutUndefined({ a: [1, 2] }).a)).toBe(true)
+  })
+
+  it('leaves null alone', () => {
+    expect(withoutUndefined({ a: null })).toEqual({ a: null })
+  })
+})
 
 describe('AppState', () => {
   let state: AppState
@@ -54,6 +75,40 @@ describe('AppState', () => {
       expect(state.connectionConfig.unitId).toBe(5)
       expect(state.connectionConfig.tcp.host).toBe('192.168.0.1')
       expect(state.connectionConfig.protocol).toBe('ModbusTcp')
+    })
+  })
+
+  // What a payload carrying an explicit `undefined` does. Zod's deepPartial
+  // keeps the key, structured clone carries it over IPC, and deepmerge used to
+  // copy it over the stored value. The last one separates dropping the key from
+  // dropping the whole update.
+  describe('updateConnectionConfig with an undefined field', () => {
+    it('keeps the stored host', () => {
+      state.updateConnectionConfig({ tcp: { host: '10.0.0.1' } })
+      state.updateConnectionConfig({ tcp: { host: undefined } })
+
+      expect(state.connectionConfig.tcp.host).toBe('10.0.0.1')
+    })
+
+    it('leaves a config the schema still accepts', () => {
+      state.updateConnectionConfig({ tcp: { host: undefined } })
+
+      expect(ConnectionConfigSchema.safeParse(state.connectionConfig).success).toBe(true)
+    })
+
+    it('keeps a nested option the payload leaves undefined', () => {
+      state.updateConnectionConfig({ rtu: { options: { parity: undefined } } })
+
+      expect(state.connectionConfig.rtu.options.parity).toBe(
+        defaultConnectionConfig.rtu.options.parity
+      )
+    })
+
+    it('still writes the fields that carry a value', () => {
+      state.updateConnectionConfig({ unitId: undefined, tcp: { host: '10.0.0.2' } })
+
+      expect(state.connectionConfig.tcp.host).toBe('10.0.0.2')
+      expect(state.connectionConfig.unitId).toBe(defaultConnectionConfig.unitId)
     })
   })
 
