@@ -68,6 +68,10 @@ const AddRegister = meme(() => {
     }
 
     addRegisterZustand.setDataType(dataType)
+
+    // The fields are set, so this records what the dialog opened with. The
+    // buttons compare against it to know whether anything has been typed.
+    addRegisterZustand.capturePristine()
   }, [edit])
 
   return (

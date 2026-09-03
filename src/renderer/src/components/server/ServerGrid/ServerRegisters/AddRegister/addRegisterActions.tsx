@@ -5,12 +5,13 @@ import Button from '@mui/material/Button'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
-import { useServerZustand } from '@renderer/context/server.zustand'
 import Delete from '@mui/icons-material/Delete'
 import { registerWidth } from '@shared'
+import { isFormDirty } from './addRegister.zustand.helpers'
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
+  const dirty = useAddRegisterZustand((z) => isFormDirty(z, z.pristine))
   const valid = useAddRegisterZustand((z) => {
     if (z.dataType === 'utf8') {
       return z.valid.address && z.valid.stringValue && z.valid.registerLength
@@ -56,7 +57,7 @@ export const AddButtons = meme(() => {
       <Button
         data-testid="add-reg-submit-btn"
         sx={{ flex: 1, flexBasis: 0 }}
-        disabled={!valid}
+        disabled={!valid || !dirty}
         variant="contained"
         color="primary"
         onClick={handleEditSubmit}
@@ -92,38 +93,31 @@ export const AddButtons = meme(() => {
   )
 })
 
+/**
+ * Removes the register being edited.
+ *
+ * It goes disabled the moment a field is touched, so the two buttons never
+ * offer to do different things with what the dialog holds. A user who has
+ * typed a new address is moving the register, and Remove there answered for
+ * the typed address instead: the register stayed, whatever sat at the typed
+ * address went, and the dialog closed as though it had worked.
+ */
 export const DeleteButton = meme(() => {
   const [over, setOver] = useState(false)
+  const dirty = useAddRegisterZustand((z) => isFormDirty(z, z.pristine))
+
   const handleClick = useCallback(() => {
-    const { address, registerType, setRegisterType, setEditRegister } =
-      useAddRegisterZustand.getState()
-    if (!registerType) return
-
-    const serverZustand = useServerZustand.getState()
-    const uuid = serverZustand.selectedUuid
-    const unitId = serverZustand.getUnitId(uuid)
-
-    const numericAddress = Number(address)
-    const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[numericAddress]
-    const dataType = entry?.params?.dataType ?? 'uint16'
-
-    serverZustand.removeRegister({
-      uuid,
-      unitId,
-      address: numericAddress,
-      registerType,
-      dataType,
-      length: entry?.params?.length
-    })
-
-    setRegisterType(undefined)
-    setEditRegister(undefined)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.remove()
+    addRegisterZustand.setRegisterType(undefined)
+    addRegisterZustand.setEditRegister(undefined)
   }, [])
 
   return (
     <Button
       data-testid="add-reg-remove-btn"
       sx={{ flex: 1, flexBasis: 0 }}
+      disabled={dirty}
       startIcon={<Delete />}
       variant="outlined"
       color={over ? 'error' : 'primary'}

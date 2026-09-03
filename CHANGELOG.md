@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unplugging the serial adapter now stops the RTU server in the view.** The
   server stayed marked as running on a port that was gone, so the only sign was
   that nothing answered it any more.
+- **Remove in the edit dialog no longer answers for an address you only typed.**
+  Changing the address and then pressing Remove left the register you opened
+  where it was, deleted whatever sat at the address you had typed, and closed
+  the dialog as though it had worked. The two buttons now follow what the
+  dialog holds: Remove until you change something, Submit Change once you have.
 
 ### Changed
 
