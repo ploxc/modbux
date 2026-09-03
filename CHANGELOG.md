@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The second window restarted every running server, and anything connected was
   dropped without a word. Clearing a server's registers did the same. Both now
   leave the connection where it is.
+- **Writing one coil no longer switches off the ones beside it.** The write
+  dialog started every coil at off, and a write of multiple coils sends every
+  coil from the one you opened to the end of the range, so everything you had
+  not touched went out as off. The dialog now opens showing what the last read
+  returned, which is what goes back to the device.
 - **A server that fails to start says so.** The port was reported back to the
   view before the server had actually taken it, so a port claimed in the
   meantime left you with a server that looked up and answered nothing. Modbux
