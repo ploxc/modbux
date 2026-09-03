@@ -436,7 +436,19 @@ export const useServerZustand = create<
             if (!state.serverRegisters[uuid][unitId]) {
               state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
-            state.serverRegisters[uuid][unitId][registerType][address].value = value
+
+            // The address is the one level that can be gone by now. These
+            // arrive batched on a 50 ms timer, and the event that proved the
+            // entry existed fired before it, so a `removeRegister` or a
+            // `resetRegisters` in between lands the flush on nothing.
+            //
+            // Dropped rather than recreated, which is what `setBool` does with
+            // its own: a bool entry is a value, and a register entry carries
+            // the params that say what it is. There is nothing here to build
+            // one from.
+            const entry = state.serverRegisters[uuid][unitId][registerType][address]
+            if (!entry) continue
+            entry.value = value
           }
         })
       },

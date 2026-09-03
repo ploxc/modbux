@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before.** A register your configuration gives no type kept whatever the last
   one used, so a value could go out encoded as something the address is not.
   Such an address now opens as INT16.
+- **Resetting server registers while a client writes to them no longer breaks
+  the view.** Values arrive in batches, so one could land just after you deleted
+  a register or reset the type, and that threw where nothing could catch it.
+  Such a value is now dropped, and the address you deleted stays deleted.
 - **A write no longer times out a read that was already on its way.** Logging a
   transaction threw away the bookkeeping for every request still waiting for an
   answer, so a read overlapping a write reported a timeout that never happened
