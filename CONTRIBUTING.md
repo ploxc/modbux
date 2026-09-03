@@ -104,7 +104,7 @@ folder it sits in.
 for `@mui/icons-material`, `@mui/x-data-grid` and `@mui/x-date-pickers`, because
 the rule is about barrels and those are barrels. Two exceptions are the package's
 doing rather than a choice: `useGridApiContext` and `useGridApiRef` are exported
-by none of the thirteen subpaths `@mui/x-data-grid` declares, so they come from
+by none of the subpaths `@mui/x-data-grid` declares, so they come from
 the root.
 
 **Nothing in `src/shared` imports from `src/main`.** All three processes import
@@ -141,7 +141,7 @@ that is gone, so the last import leaving is what retires it.
 costs nothing to keep and says nothing when it stops being true, so the test
 expands it rather than reading its shape.
 
-### Two rules no test can see
+### The rules no test can see
 
 **The store owns IPC that changes state; a component owns IPC the user asked
 for.** Writing through another store is a mutation, and the store owns those. A
