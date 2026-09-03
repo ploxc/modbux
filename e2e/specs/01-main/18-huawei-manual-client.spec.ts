@@ -74,38 +74,41 @@ function buildGroups(regs: Record<string, ClientRegister>, maxLength: number = 3
     .map(([addr, reg]) => ({ address: Number(addr), reg }))
     .sort((a, b) => a.address - b.address)
 
+  // A register's width needs the address after it, so the widths are taken
+  // first and the packing below is one pass.
+  const withEnd = sorted.map((entry, index) => ({
+    ...entry,
+    end: entry.address + getWidth(entry.reg.dataType, entry.address, sorted[index + 1]?.address) - 1
+  }))
+
   const groups: AddressGroup[] = []
-  let i = 0
+  let open: { start: number; end: number; registers: typeof withEnd } | undefined
 
-  while (i < sorted.length) {
-    const startAddr = sorted[i].address
-    const groupRegs = [sorted[i]]
-    let endAddr =
-      startAddr + getWidth(sorted[i].reg.dataType, startAddr, sorted[i + 1]?.address) - 1
-    let j = i
+  const close = (): void => {
+    if (open) {
+      groups.push({
+        start: open.start,
+        length: open.end - open.start + 1,
+        registers: open.registers
+      })
+    }
+  }
 
-    while (j + 1 < sorted.length) {
-      const next = sorted[j + 1]
-      const nextWidth = getWidth(next.reg.dataType, next.address, sorted[j + 2]?.address)
-      const nextEnd = next.address + nextWidth - 1
-      const span = Math.max(endAddr, nextEnd) - startAddr + 1
-
-      if (span <= maxLength) {
-        endAddr = Math.max(endAddr, nextEnd)
-        groupRegs.push(next)
-        j++
-      } else {
-        break
+  for (const entry of withEnd) {
+    if (open) {
+      const candidateEnd = Math.max(open.end, entry.end)
+      if (candidateEnd - open.start + 1 <= maxLength) {
+        open.end = candidateEnd
+        open.registers.push(entry)
+        continue
       }
     }
 
-    groups.push({
-      start: startAddr,
-      length: endAddr - startAddr + 1,
-      registers: groupRegs
-    })
-    i = j + 1
+    close()
+    open = { start: entry.address, end: entry.end, registers: [entry] }
   }
+
+  close()
 
   return groups
 }

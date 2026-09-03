@@ -8,6 +8,7 @@
   ],
   "compilerOptions": {
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "composite": true,
     "moduleResolution": "bundler",
     "types": [

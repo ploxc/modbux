@@ -96,9 +96,9 @@ describe('createIpcHandle', () => {
     expect(listener).not.toHaveBeenCalled()
     expect(returned).toBeUndefined()
     expect(sent).toHaveLength(1)
-    expect(sent[0].variant).toBe('error')
-    expect(String(sent[0].error)).toContain('set_bool')
-    expect(String(sent[0].error)).toContain('unitId')
+    expect(sent[0]?.variant).toBe('error')
+    expect(String(sent[0]?.error)).toContain('set_bool')
+    expect(String(sent[0]?.error)).toContain('unitId')
   })
 
   it('reports rather than throws, so the renderer never sees a rejected invoke', async () => {
@@ -125,7 +125,7 @@ describe('createIpcHandle', () => {
       extra: 'stripped'
     })
 
-    expect(listener.mock.calls[0][1]).toEqual({
+    expect(listener.mock.calls[0]?.[1]).toEqual({
       uuid: 'server-1',
       unitId: '1',
       registerType: 'coils',

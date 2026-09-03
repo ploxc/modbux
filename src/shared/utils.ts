@@ -69,7 +69,7 @@ export const createRegisters = (
   dataType: BaseDataType,
   value: number,
   littleEndian: boolean
-): number[] => {
+): [number, ...number[]] => {
   // The switch below has no utf8 case, so asking registerWidth for one would
   // buy ten registers of zero. The server branches to createStringRegisters
   // before reaching here; the client's write path does not.
@@ -119,11 +119,12 @@ export const createRegisters = (
       break
   }
 
-  // Convert bytes to array of 16-bit words.
-  const bytes = Array.from(buffer)
-  const registers: number[] = []
-  for (let i = 0; i < bytes.length; i += 2) {
-    registers.push(bytes[i] * 256 + bytes[i + 1])
+  // Convert bytes to array of 16-bit words. `bufferSize` is two at its
+  // smallest, so the first word is always there and the return type says so:
+  // `_writeRegister` sends registers[0] to FC6.
+  const registers: [number, ...number[]] = [buffer.readUInt16BE(0)]
+  for (let i = 2; i < buffer.length; i += 2) {
+    registers.push(buffer.readUInt16BE(i))
   }
 
   return registers
@@ -152,7 +153,7 @@ export const createStringRegisters = (text: string, registerCount: number): numb
   buf.write(text, 'utf-8')
   const registers: number[] = []
   for (let i = 0; i < byteLength; i += 2) {
-    registers.push(buf[i] * 256 + buf[i + 1])
+    registers.push(buf.readUInt16BE(i))
   }
   return registers
 }

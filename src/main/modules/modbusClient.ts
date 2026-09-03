@@ -398,8 +398,7 @@ export class ModbusClient {
       : []
     const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
-    for (let gi = 0; gi < groups.length; gi++) {
-      const [a, l] = groups[gi]
+    for (const [gi, [a, l]] of groups.entries()) {
       // Per group: `_logTransaction` below runs whether the group threw or not,
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
@@ -643,9 +642,21 @@ export class ModbusClient {
 
     try {
       if (single) {
+        // FC5 writes the first coil of the list, and the schema accepts an
+        // empty one, which would put `undefined` on the wire.
+        const [first] = value
+        if (first === undefined) {
+          this._emitMessage({
+            message: 'No coil value to write',
+            variant: 'warning',
+            error: undefined
+          })
+          return
+        }
+
         // Wrtie single coil
         await new Promise<WriteCoilResult>((resolve, reject) =>
-          this._client.writeFC5(unitId, address, value[0], (err, data) => {
+          this._client.writeFC5(unitId, address, first, (err, data) => {
             if (err) {
               reject(err)
               return

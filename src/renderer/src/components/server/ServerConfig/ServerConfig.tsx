@@ -155,7 +155,7 @@ const UnitId = meme(() => {
 
 const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
-  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid])
+  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid] ?? '')
   const [localPort, setLocalPort] = useState(portFromStore)
 
   // Sync localPort with store if store changes (e.g. after backend update)

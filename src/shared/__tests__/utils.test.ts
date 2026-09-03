@@ -311,46 +311,37 @@ describe('createRegisters', () => {
     })
   })
 
+  /** The registers as the bytes they stand for, big endian. */
+  const toBuffer = (registers: number[]): Buffer => {
+    const buffer = Buffer.alloc(registers.length * 2)
+    registers.forEach((register, i) => buffer.writeUInt16BE(register, i * 2))
+    return buffer
+  }
+
   describe('round-trip consistency', () => {
     it('int32: value → registers → buffer → value', () => {
       const value = 123456
       const regs = createRegisters('int32', value, false)
-      // Reconstruct buffer from registers
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      expect(buf.readInt32BE(0)).toBe(value)
+      expect(toBuffer(regs).readInt32BE(0)).toBe(value)
     })
 
     it('float: value → registers → buffer → value', () => {
       const value = 3.14
       const regs = createRegisters('float', value, false)
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      expect(buf.readFloatBE(0)).toBeCloseTo(value, 2)
+      expect(toBuffer(regs).readFloatBE(0)).toBeCloseTo(value, 2)
     })
 
     it('double: value → registers → buffer → value', () => {
       const value = 3.141592653589793
       const regs = createRegisters('double', value, false)
-      const buf = Buffer.alloc(8)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      buf.writeUInt16BE(regs[2], 4)
-      buf.writeUInt16BE(regs[3], 6)
-      expect(buf.readDoubleBE(0)).toBeCloseTo(value, 10)
+      expect(toBuffer(regs).readDoubleBE(0)).toBeCloseTo(value, 10)
     })
 
     it('uint32 little endian: value → registers → swapped buffer → value', () => {
       const value = 70000
       const regs = createRegisters('uint32', value, true)
-      // LE registers need to be swapped back to read
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      // Swap the two words back
-      const swapped = littleEndian32(buf, 0)
+      // The two words go back the other way round to be read
+      const swapped = littleEndian32(toBuffer(regs), 0)
       expect(swapped.readUInt32BE(0)).toBe(value)
     })
   })

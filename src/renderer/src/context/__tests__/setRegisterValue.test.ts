@@ -5,7 +5,7 @@
 // `resetRegisters` are both one click, which is what puts a flush on an address
 // that is gone.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAIN_SERVER_UUID } from '@shared'
+import { MAIN_SERVER_UUID, ServerRegister, ServerRegisters } from '@shared'
 
 const stubRenderer = (): void => {
   const w = window as unknown as { electron: unknown; api: unknown }
@@ -25,30 +25,46 @@ beforeEach(() => {
   stubRenderer()
 })
 
+/**
+ * The main server's default unit, or a failure saying it is not there.
+ *
+ * `clean` fills every unit id, so a miss here means the store was not seeded.
+ */
+const unit = (
+  registers: Record<string, Record<string, ServerRegisters | undefined> | undefined>
+): ServerRegisters => {
+  const found = registers[MAIN_SERVER_UUID]?.['0']
+  if (!found) throw new Error('the main server has no default unit')
+  return found
+}
+
+/** One register entry, as the add dialog would have built it. */
+const entry = (address: number, value: number): ServerRegister[string] => ({
+  value,
+  params: {
+    address,
+    registerType: 'holding_registers',
+    dataType: 'uint16',
+    comment: '',
+    value,
+    min: undefined,
+    max: undefined,
+    interval: undefined
+  }
+})
+
 /** The store with one holding register at address 10, on the default unit. */
 const seeded = async (): Promise<typeof import('../server.zustand')> => {
   const store = await import('../server.zustand')
   store.useServerZustand.getState().clean(MAIN_SERVER_UUID)
   store.useServerZustand.setState((state) => {
-    state.serverRegisters[MAIN_SERVER_UUID]!['0']!.holding_registers[10] = {
-      value: 1,
-      params: {
-        address: 10,
-        registerType: 'holding_registers',
-        dataType: 'uint16',
-        comment: '',
-        value: 1,
-        min: undefined,
-        max: undefined,
-        interval: undefined
-      }
-    }
+    unit(state.serverRegisters).holding_registers[10] = entry(10, 1)
   })
   return store
 }
 
-const registers = (store: typeof import('../server.zustand')): Record<string, { value: number }> =>
-  store.useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]!['0']!.holding_registers
+const registers = (store: typeof import('../server.zustand')): ServerRegister =>
+  unit(store.useServerZustand.getState().serverRegisters).holding_registers
 
 describe('setRegisterValue', () => {
   it('writes the value of an entry that is there', async () => {
@@ -64,7 +80,7 @@ describe('setRegisterValue', () => {
   it('drops a value for an address whose entry is gone', async () => {
     const store = await seeded()
     store.useServerZustand.setState((state) => {
-      delete state.serverRegisters[MAIN_SERVER_UUID]!['0']!.holding_registers[10]
+      delete unit(state.serverRegisters).holding_registers[10]
     })
 
     expect(() =>
@@ -80,20 +96,8 @@ describe('setRegisterValue', () => {
   it('writes the entries beside one that is gone', async () => {
     const store = await seeded()
     store.useServerZustand.setState((state) => {
-      state.serverRegisters[MAIN_SERVER_UUID]!['0']!.holding_registers[20] = {
-        value: 2,
-        params: {
-          address: 20,
-          registerType: 'holding_registers',
-          dataType: 'uint16',
-          comment: '',
-          value: 2,
-          min: undefined,
-          max: undefined,
-          interval: undefined
-        }
-      }
-      delete state.serverRegisters[MAIN_SERVER_UUID]!['0']!.holding_registers[10]
+      unit(state.serverRegisters).holding_registers[20] = entry(20, 2)
+      delete unit(state.serverRegisters).holding_registers[10]
     })
 
     store.useServerZustand.getState().setRegisterValue([
