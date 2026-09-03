@@ -377,7 +377,6 @@ export class ModbusClient {
     this._client.setID(unitId)
     this._client.setTimeout(this._appState.registerConfig.timeout)
 
-    let errorMessage: string | undefined
     const data: RegisterData[] = []
 
     const { type, address, length } = this._appState.registerConfig
@@ -389,6 +388,9 @@ export class ModbusClient {
 
     for (let gi = 0; gi < groups.length; gi++) {
       const [a, l] = groups[gi]
+      // Per group: `_logTransaction` below runs whether the group threw or not,
+      // so an errorMessage that outlives its group logs a clean group as failed.
+      let errorMessage: string | undefined
       try {
         const rows = await this._tryRead(type, a, l)
         rows.forEach((r) => {

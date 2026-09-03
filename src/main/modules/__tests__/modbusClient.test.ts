@@ -871,6 +871,50 @@ describe('ModbusClient', () => {
       expect(txCalls[0][1].id).not.toContain('NaN')
     })
 
+    // The two below discriminate a per-group error message from one that
+    // outlives its group: the second group answers, and the question is which
+    // error the transaction it produced is logged with.
+    const readTwoGroups = async (failFirst: boolean) => {
+      await connectClient()
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {
+          0: { dataType: 'uint16' },
+          100: { dataType: 'uint16' }
+        }
+      })
+
+      let callCount = 0
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async (address: number) => {
+        callCount++
+        mockModbusRTU._transactions = { [String(callCount)]: createMockTransaction(address) }
+        if (failFirst && callCount === 1) throw new Error('read timeout')
+        return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
+      })
+
+      await client.read()
+      return getWindowCalls('transaction').map((c) => c[1])
+    }
+
+    it('logs the group that succeeds after a failed one without an error', async () => {
+      const transactions = await readTwoGroups(true)
+
+      expect(transactions).toHaveLength(2)
+      expect(transactions[0].errorMessage).toBe('read timeout')
+      expect(transactions[1].errorMessage).toBeUndefined()
+    })
+
+    it('logs both groups without an error when both succeed', async () => {
+      const transactions = await readTwoGroups(false)
+
+      expect(transactions).toHaveLength(2)
+      expect(transactions[0].errorMessage).toBeUndefined()
+      expect(transactions[1].errorMessage).toBeUndefined()
+    })
+
     it('records timeout flag from transaction', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
