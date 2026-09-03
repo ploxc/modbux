@@ -96,10 +96,11 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
-const WriteRegistersButton = meme(() => {
+export const WriteRegistersButton = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const dataType = useValueInputZustand((z) => z.dataType)
   const value = useValueInputZustand((z) => z.value)
+  const valid = useValueInputZustand((z) => z.valid)
 
   const handleWrite = useCallback(
     (single: boolean) => {
@@ -114,9 +115,12 @@ const WriteRegistersButton = meme(() => {
     [address, dataType, value]
   )
 
+  // An empty field is `Number('')`, which is 0, and 0 is a value the device
+  // accepts without complaint. The mask says whether anything was typed, so the
+  // buttons say what the red box already says.
   const singleDisabled = useMemo(() => {
-    return !['int16', 'uint16'].includes(dataType)
-  }, [dataType])
+    return !valid || !['int16', 'uint16'].includes(dataType)
+  }, [valid, dataType])
 
   return (
     <ButtonGroup size="small">
@@ -132,6 +136,7 @@ const WriteRegistersButton = meme(() => {
       </Button>
       <Button
         title="FC16: Write multiple registers"
+        disabled={!valid}
         variant="outlined"
         color="primary"
         onClick={() => handleWrite(false)}
@@ -295,7 +300,7 @@ const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: WriteM
 
   const handleClose = useCallback(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    valueInputZustand.setValue('0')
+    valueInputZustand.resetValue()
     onClose()
   }, [onClose])
 
