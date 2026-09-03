@@ -81,7 +81,14 @@ const ServerRegisterValue = meme(({ register }: RowProps): JSX.Element => {
     }
   }, [register.value, register.params.stringValue, register])
 
-  return <Box sx={{ pr: 2 }}>{displayValue}</Box>
+  return (
+    <Box
+      data-testid={`server-reg-value-${register.params.registerType}-${register.params.address}`}
+      sx={{ pr: 2 }}
+    >
+      {displayValue}
+    </Box>
+  )
 })
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {

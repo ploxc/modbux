@@ -178,6 +178,8 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
 // Server-side bitmap tests
 // ─────────────────────────────────────────────────────────────────────────────
 
+const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
+
 test.describe.serial('Server bitmap — expand, bit toggle & comment', () => {
   test('navigate to server and clear state', async ({ mainPage }) => {
     await cleanServerState(mainPage)
@@ -211,43 +213,35 @@ test.describe.serial('Server bitmap — expand, bit toggle & comment', () => {
     await expect(mainPage.getByTestId('server-bit-15')).toBeVisible()
   })
 
+  // A circle is visible whatever its bit is. `data-active` carries the state
+  // its colour comes from.
   test('verify initial bit states (value=5 → bits 0,2 on)', async ({ mainPage }) => {
-    // Bit 0 circle should be "on" (success color)
-    const bit0Circle = mainPage.getByTestId('server-bit-circle-0')
-    await expect(bit0Circle).toBeVisible()
-
-    // Bit 1 circle should be "off"
-    const bit1Circle = mainPage.getByTestId('server-bit-circle-1')
-    await expect(bit1Circle).toBeVisible()
-
-    // Bit 2 circle should be "on"
-    const bit2Circle = mainPage.getByTestId('server-bit-circle-2')
-    await expect(bit2Circle).toBeVisible()
+    for (const bitIndex of BIT_INDICES) {
+      const expected = (5 >> bitIndex) & 1 ? 'true' : 'false'
+      await expect(mainPage.getByTestId(`server-bit-circle-${bitIndex}`)).toHaveAttribute(
+        'data-active',
+        expected
+      )
+    }
   })
 
   test('toggle bit 1 on (value changes 5 → 7)', async ({ mainPage }) => {
     await mainPage.getByTestId('server-bit-circle-1').click()
-    await mainPage.waitForTimeout(500)
 
-    // Value in the register row should now show 7
-    const row = mainPage.getByTestId('server-edit-reg-holding_registers-100')
-    await expect(row).toBeVisible()
+    await expect(mainPage.getByTestId('server-bit-circle-1')).toHaveAttribute('data-active', 'true')
+    await expect(mainPage.getByTestId('server-reg-value-holding_registers-100')).toHaveText('7')
   })
 
   test('add comment to bit 0', async ({ mainPage }) => {
-    // Click the comment area of bit 0 to start editing
-    const bit0 = mainPage.getByTestId('server-bit-0')
-    await bit0.locator('span.MuiTypography-root').last().click()
+    // The comment carries one testid in both of its states, editing and not.
+    await mainPage.getByTestId('server-bit-comment-0').click()
     await mainPage.waitForTimeout(200)
 
-    // Type comment and press Enter
-    const input = bit0.locator('input')
+    const input = mainPage.getByTestId('server-bit-0').locator('input')
     await input.fill('motor running')
     await input.press('Enter')
-    await mainPage.waitForTimeout(300)
 
-    // Verify comment is displayed
-    await expect(bit0).toContainText('motor running')
+    await expect(mainPage.getByTestId('server-bit-comment-0')).toHaveText('motor running')
   })
 
   test('collapse bitmap row', async ({ mainPage }) => {
