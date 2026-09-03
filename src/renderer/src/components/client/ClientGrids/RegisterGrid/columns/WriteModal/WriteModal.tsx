@@ -14,10 +14,10 @@ import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inpu
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
+import { notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import { seedCoils, useValueInputZustand } from './writeModal.zustand'
+import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -73,12 +73,13 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
   )
 })
 
-const DataTypeSelect = meme(({ address }: { address: number }) => {
+export const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
 
   const setDataType = useValueInputZustand.getState().setDataType
 
-  // Set the data type based on the address if it's defined in the register mapping
+  // The type comes from the register mapping, and an address the mapping says
+  // nothing about gets the default rather than the last address's type.
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
     const {
@@ -86,11 +87,7 @@ const DataTypeSelect = meme(({ address }: { address: number }) => {
       registerConfig: { type }
     } = useClientZustand.getState()
 
-    const dataType = registerMapping[type][address]?.dataType
-    if (!dataType) return
-
-    const result = BaseDataTypeSchema.safeParse(dataType)
-    if (result.success) valueInputZustand.setDataType(result.data)
+    valueInputZustand.setDataType(writeDataTypeFor(registerMapping[type][address]?.dataType))
   }, [address])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />

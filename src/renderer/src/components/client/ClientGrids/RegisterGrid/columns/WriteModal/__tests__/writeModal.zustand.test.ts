@@ -1,6 +1,6 @@
 import { RegisterData } from '@shared'
 import { describe, expect, it } from 'vitest'
-import { seedCoils } from '../writeModal.zustand'
+import { seedCoils, writeDataTypeFor } from '../writeModal.zustand'
 
 const row = (id: number, bit: boolean): RegisterData => ({
   id,
@@ -38,5 +38,26 @@ describe('seedCoils', () => {
 
   it('answers a list as long as the range, whatever the grid holds', () => {
     expect(seedCoils([], 0, 3)).toEqual([false, false, false])
+  })
+})
+
+describe('writeDataTypeFor', () => {
+  it('takes the type the mapping gives the address', () => {
+    expect(writeDataTypeFor('float')).toBe('float')
+    expect(writeDataTypeFor('uint32')).toBe('uint32')
+  })
+
+  it('falls back to int16 for an address the mapping does not name', () => {
+    expect(writeDataTypeFor(undefined)).toBe('int16')
+  })
+
+  it('reads none as a mapping without a type', () => {
+    expect(writeDataTypeFor('none')).toBe('int16')
+  })
+
+  it('falls back for a type that is not one of ours', () => {
+    // A hand-edited config is the way this arrives.
+    expect(writeDataTypeFor('int24')).toBe('int16')
+    expect(writeDataTypeFor(16)).toBe('int16')
   })
 })
