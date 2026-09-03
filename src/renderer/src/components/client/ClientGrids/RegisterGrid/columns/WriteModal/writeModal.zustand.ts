@@ -34,6 +34,7 @@ interface ValueInputZustand {
   value: string
   valid: boolean
   setValue: MaskSetFn
+  resetValue: () => void
   address: number
   setAddress: (address: number) => void
   coilFunction: 5 | 15
@@ -56,6 +57,14 @@ export const useValueInputZustand = create<ValueInputZustand, [['zustand/mutativ
       set((state) => {
         state.value = value
         state.valid = !!valid
+      }),
+    // The dialog closes on a value nobody typed, so it closes on a valid one.
+    // `setValue` reads its second argument as the verdict, and a reset that
+    // leaves it out marks a plain 0 as invalid for the next address opened.
+    resetValue: () =>
+      set((state) => {
+        state.value = '0'
+        state.valid = true
       }),
     address: 0,
     setAddress: (address: number) =>

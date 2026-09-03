@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coil from the one you opened to the end of the range, so everything you had
   not touched went out as off. The dialog now opens showing what the last read
   returned, which is what goes back to the device.
+- **An empty value field no longer writes a zero.** The box turned red and the
+  write went out anyway, as a 0, because an empty field is what JavaScript reads
+  as zero. The write buttons are now off until the field holds a number, and the
+  field is no longer left marked as wrong after you close the dialog.
 - **A server that fails to start says so.** The port was reported back to the
   view before the server had actually taken it, so a port claimed in the
   meantime left you with a server that looked up and answered nothing. Modbux
