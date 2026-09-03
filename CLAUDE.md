@@ -24,7 +24,7 @@ src/renderer/  the React UI
 
 `@renderer/*` and `@shared` are the import aliases. There are no others.
 
-# Four things that break if you do not know them
+# What breaks if you do not know it
 
 - **Nothing in `src/shared` may import from `src/main`.** All three processes
   import shared; it is the one layer that may not reach back.

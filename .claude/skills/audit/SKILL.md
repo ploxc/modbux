@@ -35,7 +35,7 @@ Apply all eight. Do not merge them and do not skip the cosmetic ones.
 
 1. **What the conformance suite cannot see.** The store-versus-component IPC
    rule, the folder-per-component judgement, and anything else CONTRIBUTING
-   states as prose under *Two rules no test can see*.
+   states as prose under *The rules no test can see*.
 2. **Duplication.** Search for the shape, not the name. Two functions doing one
    job often share no word, so a search for what one is called returns neither.
    Report identical copies too, because they diverge later. A duplication claim
