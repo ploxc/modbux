@@ -67,6 +67,15 @@ export const BROADCAST_UNIT_ID: UnitIdString = '0'
 export const isPort = (port: number): boolean =>
   Number.isInteger(port) && port >= 1 && port <= 65535
 
+/**
+ * How long a bind may take before the listener is treated as failed.
+ *
+ * `listen` answers with one of its two events, so nobody sits through this. It
+ * is here because a promise that neither event resolves would hang
+ * `createServer` and every caller behind it.
+ */
+export const BIND_TIMEOUT_MS = 5000
+
 type ServerDataUnitMap = Map<UnitIdString, ServerData>
 type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
 
@@ -236,50 +245,97 @@ export class ModbusServer {
   }
 
   /**
-   * Creates or recreates a Modbus TCP server for the given UUID and port.
-   * If a server already exists, it is closed and replaced.
-   * Also ensures value generator maps are initialized for all unitIds.
+   * Closes the listener registered for a UUID and forgets it, if there is one.
+   *
+   * `ServerTCP.close` destroys every socket in `modbus.socks`, so whoever was
+   * connected gets a FIN.
+   */
+  private async _closeAndForget(uuid: string): Promise<void> {
+    const existingServer = this._servers.get(uuid)
+    if (!existingServer) return
+    await new Promise<void>((resolve) => {
+      existingServer.close((err) => {
+        if (err)
+          this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
+        resolve()
+      })
+    })
+    this._servers.delete(uuid)
+    this._port.delete(uuid)
+  }
+
+  /**
+   * Binds a TCP listener for a UUID and answers what the socket did.
+   *
+   * The constructor returns before `listen` has finished, and a refused bind
+   * arrives as a `serverError` carrying `EADDRINUSE` rather than as a throw. A
+   * constructor that returned is therefore no evidence of a listener, so the
+   * maps are written only once one of the two events has said so.
+   */
+  private async _bindServer(
+    uuid: string,
+    port: number
+  ): Promise<{ ok: boolean; errorCode?: string }> {
+    const server = new ServerTCP(this._getVector(uuid, 'tcp'), { host: '0.0.0.0', port })
+
+    // // !Debug: Simulate connection loss by destroying incoming sockets after a delay.
+    // // - Short delay (e.g. 3000ms): triggers burst detection (reconnects fail within the 10s stability window)
+    // // - Long delay (e.g. 15000ms): allows stable connection, so the reconnect counter resets between drops
+    // const netServer = server['_server'] as net.Server
+    // netServer.on('connection', (sock) => {
+    //   setTimeout(() => sock.destroy(), 15000)
+    // })
+
+    const result = await new Promise<{ ok: boolean; errorCode?: string }>((resolve) => {
+      const timer = setTimeout(
+        () => resolve({ ok: false, errorCode: 'ETIMEDOUT' }),
+        BIND_TIMEOUT_MS
+      )
+      server.on('initialized', () => {
+        clearTimeout(timer)
+        resolve({ ok: true })
+      })
+      server.on('serverError', (err) => {
+        clearTimeout(timer)
+        resolve({ ok: false, errorCode: (err as NodeJS.ErrnoException | null)?.code })
+      })
+    })
+
+    if (!result.ok) {
+      server.close(() => {})
+      return result
+    }
+
+    this._servers.set(uuid, server)
+    this._port.set(uuid, port)
+    return result
+  }
+
+  /**
+   * Creates a Modbus TCP server for the given UUID and port.
    * Returns the actual port used (may differ from requested if taken).
+   *
+   * A listener already on the requested port is the answer to this call. The
+   * vectors read `_serverData` when a request arrives rather than when they are
+   * built, so nothing about the register data needs a fresh listener, and a
+   * port change is `setPort`'s job. Rebinding drops every connected master, so
+   * it happens only where it buys something.
    */
   public createServer = async ({ uuid, port }: CreateServerParams): Promise<number> => {
     // A stored 0 from before this was refused would send the server to a port
     // nobody can name, so it starts where it would have started without one.
     let actualPort = port !== undefined && isPort(port) ? port : DEFAULT_MOBUS_PORT
     const maxAttempts = 10000
-    let server: ServerTCP | undefined
 
-    const existingServer = this._servers.get(uuid)
-    if (existingServer) {
-      await new Promise<void>((resolve) => {
-        existingServer.close((err) => {
-          if (err)
-            this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
-          resolve()
-        })
-      })
-      this._servers.delete(uuid)
-      this._port.delete(uuid)
-    }
+    if (this._servers.has(uuid) && this._port.get(uuid) === actualPort) return actualPort
+
+    await this._closeAndForget(uuid)
 
     for (let i = 0; i < maxAttempts; i++) {
       const result = await this._isPortAvailable(actualPort)
       if (result.available) {
-        server = new ServerTCP(this._getVector(uuid, 'tcp'), {
-          host: '0.0.0.0',
-          port: actualPort
-        })
-
-        // // !Debug: Simulate connection loss by destroying incoming sockets after a delay.
-        // // - Short delay (e.g. 3000ms): triggers burst detection (reconnects fail within the 10s stability window)
-        // // - Long delay (e.g. 15000ms): allows stable connection, so the reconnect counter resets between drops
-        // const netServer = server['_server'] as net.Server
-        // netServer.on('connection', (sock) => {
-        //   setTimeout(() => sock.destroy(), 15000)
-        // })
-
-        this._servers.set(uuid, server)
-        this._port.set(uuid, actualPort)
-        return actualPort
+        const bind = await this._bindServer(uuid, actualPort)
+        if (bind.ok) return actualPort
       }
       actualPort++
     }
@@ -300,20 +356,11 @@ export class ModbusServer {
       await this.stopRtuServer()
     }
 
-    const server = this._servers.get(uuid)
-    if (!server) {
+    if (!this._servers.has(uuid)) {
       this._emitMessage({ message: `No server found for UUID ${uuid}`, variant: 'error' })
       return
     }
-    await new Promise<void>((resolve) => {
-      server.close((err) => {
-        if (err)
-          this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
-        resolve()
-      })
-    })
-    this._servers.delete(uuid)
-    this._port.delete(uuid)
+    await this._closeAndForget(uuid)
     const unitIdGenerators = this._generatorMap.get(uuid)
     if (unitIdGenerators) {
       this._disposeAllGenerators(unitIdGenerators)
@@ -322,8 +369,12 @@ export class ModbusServer {
   }
 
   /**
-   * Resets the server for a given UUID.
-   * Disposes all value generators, clears server data, and recreates the server.
+   * Resets the server for a given UUID: disposes its value generators and
+   * clears its register data.
+   *
+   * The vectors read `_serverData` per request, so the cleared data is what a
+   * master gets from the listener that is already up. `createServer` is called
+   * for the case where there is none, such as after a spell in RTU mode.
    */
   public resetServer = async (uuid: string): Promise<void> => {
     const unitIdGenerators = this._generatorMap.get(uuid)
@@ -685,26 +736,23 @@ export class ModbusServer {
     }
 
     // Port is confirmed available — now close the existing server
-    const existingServer = this._servers.get(uuid)
-    if (existingServer) {
-      await new Promise<void>((resolve) => {
-        existingServer.close((err) => {
-          if (err)
-            this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
-          resolve()
-        })
-      })
-      this._servers.delete(uuid)
-      this._port.delete(uuid)
-    }
+    await this._closeAndForget(uuid)
 
-    const server = new ServerTCP(this._getVector(uuid, 'tcp'), {
-      host: '0.0.0.0',
-      port: requestedPort
-    })
-    this._servers.set(uuid, server)
-    this._port.set(uuid, requestedPort)
-    return requestedPort
+    const bind = await this._bindServer(uuid, requestedPort)
+    if (bind.ok) return requestedPort
+
+    // The probe above passed and the bind still failed, so something took the
+    // port in between. The old listener is already gone, so put it back rather
+    // than leave the uuid with none.
+    this._emitMessage({ message: `Port ${requestedPort} is already in use`, variant: 'error' })
+    const restored = await this._bindServer(uuid, currentPort)
+    if (!restored.ok) {
+      this._emitMessage({
+        message: `The server could not be restarted on port ${currentPort}`,
+        variant: 'error'
+      })
+    }
+    return currentPort
   }
 
   // -------------------------------------------------------------------------

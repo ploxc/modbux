@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A write to a unit you never configured no longer creates one.** Any client
   on the network could turn an unused unit ID into one the server answers for,
   and nothing in the view said it had happened.
+- **Opening the server in its own window no longer disconnects your clients.**
+  The second window restarted every running server, and anything connected was
+  dropped without a word. Clearing a server's registers did the same. Both now
+  leave the connection where it is.
+- **A server that fails to start says so.** The port was reported back to the
+  view before the server had actually taken it, so a port claimed in the
+  meantime left you with a server that looked up and answered nothing. Modbux
+  now waits for the answer, moves to the next free port, and keeps a server on
+  its old port when a port change cannot be completed.
 
 ### Changed
 

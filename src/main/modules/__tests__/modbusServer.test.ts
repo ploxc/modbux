@@ -7,11 +7,31 @@ import type { IServiceVector } from 'modbus-serial/ServerTCP'
 // Each entry is either a boolean (true=available) or a string error code (e.g. 'EACCES', 'EADDRINUSE')
 let portAvailableResults: (boolean | string)[] = []
 
+// What each ServerTCP bind does, in order: true emits `initialized`, a string
+// emits `serverError` with that code, false emits neither so the timeout runs.
+let bindResults: (boolean | string)[] = []
+
 // Mock modbus-serial before importing ModbusServer
 vi.mock('modbus-serial', () => ({
   // Must use `function` (not arrow) so it can be called with `new`
   ServerTCP: vi.fn().mockImplementation(function () {
-    return { close: vi.fn((cb: (err: Error | null) => void) => cb(null)) }
+    const handlers: Record<string, (err?: Error) => void> = {}
+    const entry = bindResults.length > 0 ? bindResults.shift()! : true
+
+    // The real constructor returns before `listen` finishes, so the event
+    // cannot fire until the caller has had the chance to register for it.
+    queueMicrotask(() => {
+      if (entry === true) handlers['initialized']?.()
+      else if (typeof entry === 'string')
+        handlers['serverError']?.(Object.assign(new Error(`listen ${entry}`), { code: entry }))
+    })
+
+    return {
+      on: vi.fn((event: string, handler: (err?: Error) => void) => {
+        handlers[event] = handler
+      }),
+      close: vi.fn((cb: (err: Error | null) => void) => cb(null))
+    }
   }),
   ServerSerial: vi.fn().mockImplementation(function () {
     const handlers: Record<string, (...args: unknown[]) => void> = {}
@@ -54,7 +74,8 @@ import {
   ModbusServer,
   SERVER_DEVICE_FAILURE,
   ILLEGAL_DATA_ADDRESS,
-  GATEWAY_TARGET_FAILED
+  GATEWAY_TARGET_FAILED,
+  BIND_TIMEOUT_MS
 } from '../modbusServer'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 
@@ -69,6 +90,7 @@ describe('ModbusServer', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     portAvailableResults = []
+    bindResults = []
     vi.mocked(ServerTCP).mockClear()
     vi.mocked(ServerSerial).mockClear()
     windows = createMockWindows()
@@ -892,6 +914,45 @@ describe('ModbusServer', () => {
       expect(messages.some((m) => m[1].message === 'Error closing server')).toBe(true)
     })
 
+    it('leaves a listener that is already on the requested port alone', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const firstInstance = vi.mocked(ServerTCP).mock.results[0].value
+
+      const port = await server.createServer({ uuid, port: 5020 })
+
+      expect(port).toBe(5020)
+      expect(vi.mocked(ServerTCP).mock.calls.length).toBe(1)
+      expect(firstInstance.close).not.toHaveBeenCalled()
+    })
+
+    it('binds again on the same port after the TCP servers were stopped', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      await server.stopAllTcpServers()
+      vi.mocked(ServerTCP).mockClear()
+
+      const port = await server.createServer({ uuid, port: 5020 })
+
+      expect(port).toBe(5020)
+      expect(vi.mocked(ServerTCP).mock.calls.length).toBe(1)
+    })
+
+    it('moves on when the bind fails after the probe passed', async () => {
+      bindResults = ['EADDRINUSE']
+      const port = await server.createServer({ uuid, port: 5020 })
+
+      expect(port).toBe(5021)
+      // The refused listener is closed rather than kept as if it were up.
+      expect(vi.mocked(ServerTCP).mock.results[0].value.close).toHaveBeenCalled()
+    })
+
+    it('moves on when the bind answers with neither event', async () => {
+      bindResults = [false]
+      const pending = server.createServer({ uuid, port: 5020 })
+      await vi.advanceTimersByTimeAsync(BIND_TIMEOUT_MS)
+
+      expect(await pending).toBe(5021)
+    })
+
     it('emits error and returns port when no port available after max attempts', async () => {
       portAvailableResults = new Array(10000).fill(false)
       const port = await server.createServer({ uuid, port: 5020 })
@@ -988,8 +1049,10 @@ describe('ModbusServer', () => {
         .filter((c) => c[0] === 'register_value')
       expect(newCalls.length).toBe(0)
 
-      // Server was recreated (ServerTCP called again)
-      expect(vi.mocked(ServerTCP).mock.calls.length).toBeGreaterThanOrEqual(2)
+      // The listener is left alone: a reset clears data the vectors read per
+      // request, and rebinding would drop whoever is connected.
+      expect(vi.mocked(ServerTCP).mock.calls.length).toBe(1)
+      expect(vi.mocked(ServerTCP).mock.results[0].value.close).not.toHaveBeenCalled()
     })
 
     it('handles reset when no generators exist', async () => {
@@ -1048,6 +1111,36 @@ describe('ModbusServer', () => {
       expect(ServerTCP).not.toHaveBeenCalled()
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5020 is already in use')).toBe(true)
+    })
+
+    it('puts the server back on its old port when the new bind fails', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      vi.mocked(ServerTCP).mockClear()
+
+      // The probe passes and the bind still fails, which is what happens when
+      // something takes the port between the two.
+      bindResults = ['EADDRINUSE', true]
+      const port = await server.setPort({ uuid, port: 5021 })
+
+      expect(port).toBe(5020)
+      expect(vi.mocked(ServerTCP).mock.calls[1][1]).toEqual({ host: '0.0.0.0', port: 5020 })
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Port 5021 is already in use')).toBe(true)
+    })
+
+    it('says so when the old port cannot be taken back either', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      bindResults = ['EADDRINUSE', 'EADDRINUSE']
+      const port = await server.setPort({ uuid, port: 5021 })
+
+      expect(port).toBe(5020)
+      const messages = getWindowCalls('backend_message')
+      expect(
+        messages.some((m) => m[1].message === 'The server could not be restarted on port 5020')
+      ).toBe(true)
     })
 
     it('refuses port 0 and keeps the server where it is', async () => {
