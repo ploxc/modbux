@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before.** A register your configuration gives no type kept whatever the last
   one used, so a value could go out encoded as something the address is not.
   Such an address now opens as INT16.
+- **A disconnect that hangs no longer costs you auto-reconnect.** When closing
+  the connection took too long, the client was replaced by a fresh one that
+  nobody was listening to, so for the rest of the session a dropped connection
+  went unreported and was never reconnected.
 - **The transaction log no longer marks a good read as failed.** Reading a
   configuration reads one group of addresses at a time, and once one group
   failed, every group after it was logged carrying that group's error.
