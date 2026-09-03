@@ -2,15 +2,15 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { onEvent } from '@renderer/events'
-import { BackendMessage } from '@shared'
+import { BackendMessage, resetMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
 
 // Receives message and shows them in a snackbar
 const MessageReceiver = meme((): null => {
   const { enqueueSnackbar } = useSnackbar()
-  const clientConfigWasReset = useClientZustand((z) => z.configWasReset)
-  const serverConfigWasReset = useServerZustand((z) => z.configWasReset)
+  const clientConfigReset = useClientZustand((z) => z.configReset)
+  const serverConfigReset = useServerZustand((z) => z.configReset)
 
   const handleMessage = useCallback(
     (message: BackendMessage) => {
@@ -27,10 +27,10 @@ const MessageReceiver = meme((): null => {
     return (): void => unlisten()
   }, [handleMessage])
 
-  // A store whose persisted config failed its schema resets itself while the
-  // module graph is still evaluating, which is before any provider exists to
-  // tell. It records the reset instead, and this says so. Both windows report
-  // their own: the server window runs the server store and no message listener.
+  // A store repairs its persisted config while the module graph is still
+  // evaluating, which is before any provider exists to tell. It records what it
+  // had to reset instead, and this says so. Both windows report their own: the
+  // server window runs the server store and no message listener.
   //
   // Acknowledged after telling, because this component mounts inside Client and
   // Server rather than at the root: without that, walking Home and back reports
@@ -38,21 +38,15 @@ const MessageReceiver = meme((): null => {
   useEffect(() => {
     const clientZustand = useClientZustand.getState()
     const serverZustand = useServerZustand.getState()
-    if (clientConfigWasReset) {
-      enqueueSnackbar({
-        variant: 'error',
-        message: 'Client configuration was corrupted and has been reset to defaults.'
-      })
+    if (clientConfigReset !== undefined) {
+      enqueueSnackbar({ variant: 'error', message: resetMessage('Client', clientConfigReset) })
       clientZustand.acknowledgeConfigReset()
     }
-    if (serverConfigWasReset) {
-      enqueueSnackbar({
-        variant: 'error',
-        message: 'Server configuration was corrupted and has been reset to defaults.'
-      })
+    if (serverConfigReset !== undefined) {
+      enqueueSnackbar({ variant: 'error', message: resetMessage('Server', serverConfigReset) })
       serverZustand.acknowledgeConfigReset()
     }
-  }, [clientConfigWasReset, serverConfigWasReset, enqueueSnackbar])
+  }, [clientConfigReset, serverConfigReset, enqueueSnackbar])
 
   return null
 })

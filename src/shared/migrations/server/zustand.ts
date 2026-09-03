@@ -2,6 +2,9 @@ import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } f
 
 export const CURRENT_SERVER_ZUSTAND_VERSION = 3
 
+/** Where the server store keeps its state. */
+export const SERVER_ZUSTAND_STORAGE_KEY = 'server.zustand'
+
 interface V1ZustandServerState {
   serverRegisters?: Record<string, V1ServerRegistersPerUnit | undefined>
   littleEndian?: Record<string, boolean>

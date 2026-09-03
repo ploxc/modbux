@@ -14,10 +14,20 @@ import {
   CURRENT_CLIENT_ZUSTAND_VERSION,
   migrateClientState,
   carryFormerClientState,
-  CLIENT_ZUSTAND_STORAGE_KEY
+  CLIENT_ZUSTAND_STORAGE_KEY,
+  keepCorrupt,
+  repairPersisted
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 import { onEvent } from '@renderer/events'
+
+/**
+ * The version the blob on disk carried, set by `migrate` and read once below.
+ *
+ * persist calls `migrate` for any version that is not the current one, the ones
+ * above it included, and that call is the only place the number is offered.
+ */
+let persistedVersion: number | undefined
 
 // Debounced IPC sync — avoids flooding the main process on rapid cell edits
 let _ipcTimer: ReturnType<typeof setTimeout> | null = null
@@ -71,10 +81,10 @@ export const useClientZustand = create<
         set((state) => {
           state.name = name
         }),
-      configWasReset: false,
+      configReset: undefined,
       acknowledgeConfigReset: () =>
         set((state) => {
-          state.configWasReset = false
+          state.configReset = undefined
         }),
       registerMapping: {
         coils: {},
@@ -412,7 +422,10 @@ export const useClientZustand = create<
     {
       name: CLIENT_ZUSTAND_STORAGE_KEY,
       version: CURRENT_CLIENT_ZUSTAND_VERSION,
-      migrate: (state, version) => migrateClientState(state, version) as PersistedClientZustand,
+      migrate: (state, version) => {
+        persistedVersion = version
+        return migrateClientState(state, version) as PersistedClientZustand
+      },
       partialize: (state) => ({
         name: state.name,
         connectionConfig: state.connectionConfig,
@@ -426,27 +439,29 @@ export const useClientZustand = create<
 const clientZustand = useClientZustand.getState()
 
 /**
- * Clear when state is corrupted, and record that it happened.
+ * Keep the fields that parsed and default the rest, then say which went.
  *
  * This runs while the module graph is still evaluating. notistack assigns its
  * standalone enqueueSnackbar inside the SnackbarProvider constructor, and that
  * provider is built by createRoot().render() in main.tsx, so calling it here
  * throws out of module scope and nothing below this line ever runs: no init, no
- * event listeners, and no React render either. MessageReceiver reads the flag
+ * event listeners, and no React render either. MessageReceiver reads the report
  * once it is mounted, where a provider exists to tell.
+ *
+ * The blob is copied rather than cleared, because a register mapping worth
+ * hundreds of rows is worth having in a bug report even once it is unreadable.
  */
-const clear = (): void => {
-  useClientZustand.persist.clearStorage()
-  useClientZustand.setState({
-    ...useClientZustand.getInitialState(),
-    configWasReset: true
-  })
-}
+const repair = repairPersisted(
+  PersistedClientZustandSchema,
+  clientZustand,
+  useClientZustand.getInitialState(),
+  persistedVersion !== undefined && persistedVersion > CURRENT_CLIENT_ZUSTAND_VERSION
+)
 
-const stateResult = PersistedClientZustandSchema.safeParse(clientZustand)
-if (!stateResult.success) {
-  console.warn(stateResult.error)
-  clear()
+if (repair.reset !== undefined) {
+  console.warn('client config repaired', repair.reset)
+  keepCorrupt(localStorage, CLIENT_ZUSTAND_STORAGE_KEY)
+  useClientZustand.setState({ ...repair.state, configReset: repair.reset })
 }
 
 // Sync the main process state with the front end

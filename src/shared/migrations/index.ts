@@ -5,7 +5,8 @@ export {
   migrateServerRegistersState,
   migrateServerModeState,
   migrateBoolShape,
-  CURRENT_SERVER_ZUSTAND_VERSION
+  CURRENT_SERVER_ZUSTAND_VERSION,
+  SERVER_ZUSTAND_STORAGE_KEY
 } from './server/zustand'
 export { migrateClientConfig, CURRENT_CLIENT_CONFIG_VERSION } from './client/config'
 export {
