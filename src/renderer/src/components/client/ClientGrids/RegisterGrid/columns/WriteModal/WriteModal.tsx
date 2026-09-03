@@ -12,11 +12,12 @@ import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSele
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import { useValueInputZustand } from './writeModal.zustand'
+import { seedCoils, useValueInputZustand } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -220,6 +221,7 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
     <Button
       size="small"
       data-testid={`write-coil-${address}-select-btn`}
+      aria-pressed={state}
       variant={state ? 'contained' : 'outlined'}
       color="primary"
       onClick={handleClick}
@@ -239,9 +241,9 @@ const Coils = meme(() => {
 
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const newCoils = Array(length).fill(false)
-    valueInputZustand.initCoils(newCoils)
-  }, [length])
+    const { registerData } = useDataZustand.getState()
+    valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
+  }, [length, registerConfigAddress])
 
   const rows = useMemo(() => {
     const amount = Math.ceil(length / 8)

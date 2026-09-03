@@ -1,8 +1,32 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
-import { BaseDataType } from '@shared'
+import { BaseDataType, RegisterData } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
+
+/**
+ * The coil list the write dialog starts from: what the grid holds for the
+ * range, and false for an address it has no row for.
+ *
+ * FC15 sends every coil from the opened address to the end of the range, so a
+ * list that starts out all false writes false over every coil the user did not
+ * touch. The rows are what the device answered on the last read, so they are
+ * what goes back out.
+ */
+export const seedCoils = (
+  registerData: RegisterData[],
+  firstAddress: number,
+  length: number
+): boolean[] => {
+  const coils: boolean[] = Array(length).fill(false)
+
+  registerData.forEach((row) => {
+    const index = row.id - firstAddress
+    if (index >= 0 && index < length) coils[index] = row.bit
+  })
+
+  return coils
+}
 
 interface ValueInputZustand {
   dataType: BaseDataType

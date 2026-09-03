@@ -575,11 +575,44 @@ export async function writeCoil(p: Page, address: number, state: boolean): Promi
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 
-  if (state) {
-    await p.getByTestId(`write-coil-${address}-select-btn`).click()
-  }
+  await setCoilButton(p, address, state)
 
   await p.getByTestId('write-fc5-btn').click()
+  await p.getByTestId('write-submit-btn').click()
+
+  // Close the dialog
+  await p.keyboard.press('Escape')
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).not.toBeVisible()
+}
+
+/**
+ * Click a coil button only when it is not already showing the state you want.
+ *
+ * The dialog opens with what the grid holds, so a coil the device already
+ * answered TRUE for opens pressed, and clicking it would send the opposite of
+ * what the caller asked for.
+ */
+async function setCoilButton(p: Page, address: number, state: boolean): Promise<void> {
+  const coil = p.getByTestId(`write-coil-${address}-select-btn`)
+  if ((await coil.getAttribute('aria-pressed')) !== String(state)) await coil.click()
+}
+
+/** Open the write dialog on `address`, set the given coils, and send FC15 */
+export async function writeCoilsFc15(
+  p: Page,
+  address: number,
+  states: Record<number, boolean>
+): Promise<void> {
+  await p.getByTestId(`write-action-${address}`).click()
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
+
+  await p.getByTestId('write-fc15-btn').click()
+
+  for (const [coilAddress, state] of Object.entries(states)) {
+    await expect(p.getByTestId(`write-coil-${coilAddress}-select-btn`)).toBeVisible()
+    await setCoilButton(p, Number(coilAddress), state)
+  }
+
   await p.getByTestId('write-submit-btn').click()
 
   // Close the dialog
