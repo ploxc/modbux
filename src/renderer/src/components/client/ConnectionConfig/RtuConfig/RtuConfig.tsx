@@ -160,12 +160,9 @@ const ClientParitySelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const parity = useClientZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
 
-  const handleChange = useCallback((value: string): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setParity(value as SerialPortOptions['parity'])
-  }, [])
+  const setParity = useClientZustand.getState().setParity
 
-  return <ParitySelect value={parity} onChange={handleChange} disabled={disabled} />
+  return <ParitySelect value={parity} onChange={setParity} disabled={disabled} />
 })
 
 const ClientDataBitsSelect = meme(() => {

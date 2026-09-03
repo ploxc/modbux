@@ -2,6 +2,7 @@ import {
   Protocol,
   RegisterType,
   ModbusBaudRate,
+  Parity,
   ClientState,
   Transaction,
   RegisterMapping,
@@ -70,7 +71,7 @@ export type ClientZustand = {
   setType: (type: RegisterType) => void
   setCom: MaskSetFn
   setBaudRate: (baudRate: ModbusBaudRate) => void
-  setParity: (parity: SerialPortOptions['parity']) => void
+  setParity: (parity: Parity) => void
   setDataBits: (dataBits: SerialPortOptions['dataBits']) => void
   setStopBits: (stopBits: SerialPortOptions['stopBits']) => void
   setPollRate: (pollRate: number) => void

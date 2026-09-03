@@ -13,6 +13,7 @@ import {
   ServerSerialConfigSchema,
   SerialPortInfo,
   ModbusBaudRate,
+  Parity,
   ConfigReset
 } from '@shared'
 import { AsyncMaskSetFn, MaskSetFn } from './client.zustand.types'
@@ -95,7 +96,7 @@ export type ServerZustand = {
   setServerCom: (com: string) => void
   applyServerCom: () => Promise<void>
   setServerBaudRate: (baudRate: ModbusBaudRate) => void
-  setServerParity: (parity: string) => void
+  setServerParity: (parity: Parity) => void
   setServerDataBits: (dataBits: number) => void
   setServerStopBits: (stopBits: number) => void
   serverSerialPorts: SerialPortInfo[]
