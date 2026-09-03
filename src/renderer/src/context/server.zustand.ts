@@ -22,9 +22,12 @@ import {
   migrateServerModeState,
   migrateBoolShape,
   CURRENT_SERVER_ZUSTAND_VERSION,
+  SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
   ServerSerialConfig,
-  ModbusBaudRate
+  ModbusBaudRate,
+  keepCorrupt,
+  repairPersisted
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
@@ -62,16 +65,24 @@ const restartRtuIfActive = (get: () => ServerZustand): void => {
   })
 }
 
+/**
+ * The version the blob on disk carried, set by `migrate` and read once below.
+ *
+ * persist calls `migrate` for any version that is not the current one, the ones
+ * above it included, and that call is the only place the number is offered.
+ */
+let persistedVersion: number | undefined
+
 export const useServerZustand = create<
   ServerZustand,
   [['zustand/persist', PersistedServerZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, get) => ({
-      configWasReset: false,
+      configReset: undefined,
       acknowledgeConfigReset: () =>
         set((state) => {
-          state.configWasReset = false
+          state.configReset = undefined
         }),
       ready: { [MAIN_SERVER_UUID]: false },
       selectedUuid: MAIN_SERVER_UUID,
@@ -588,9 +599,10 @@ export const useServerZustand = create<
       }
     })),
     {
-      name: `server.zustand`,
+      name: SERVER_ZUSTAND_STORAGE_KEY,
       version: CURRENT_SERVER_ZUSTAND_VERSION,
       migrate: (persistedState, version) => {
+        persistedVersion = version
         let state = persistedState as Record<string, unknown>
 
         // Version 0/1 (old format with littleEndian per register)
@@ -628,25 +640,24 @@ export const useServerZustand = create<
 )
 
 /**
- * Clear when state is corrupted, and record that it happened.
+ * Keep the fields that parsed and default the rest, then say which went.
  *
- * Module scope, so it cannot report through notistack: see the same function in
+ * Module scope, so it cannot report through notistack: see the same block in
  * client.zustand.ts for why. MessageReceiver tells the user once it is mounted.
  */
-const clear = (): void => {
-  useServerZustand.persist.clearStorage()
-  useServerZustand.setState({
-    ...useServerZustand.getInitialState(),
-    configWasReset: true
-  })
-}
-
 const serverZustand = useServerZustand.getState()
 
-const stateResult = PersistedServerZustandSchema.safeParse(serverZustand)
-if (!stateResult.success) {
-  console.warn(stateResult.error)
-  clear()
+const repair = repairPersisted(
+  PersistedServerZustandSchema,
+  serverZustand,
+  useServerZustand.getInitialState(),
+  persistedVersion !== undefined && persistedVersion > CURRENT_SERVER_ZUSTAND_VERSION
+)
+
+if (repair.reset !== undefined) {
+  console.warn('server config repaired', repair.reset)
+  keepCorrupt(localStorage, SERVER_ZUSTAND_STORAGE_KEY)
+  useServerZustand.setState({ ...repair.state, configReset: repair.reset })
 }
 
 // Init server

@@ -11,7 +11,8 @@ import {
   ConnectionConfigSchema,
   RegisterConfigSchema,
   SerialPortInfo,
-  SerialPortValidationResult
+  SerialPortValidationResult,
+  ConfigReset
 } from '@shared'
 import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import z from 'zod'
@@ -48,8 +49,8 @@ export type ClientZustand = {
   ) => void
   replaceRegisterMapping: (registerMapping: RegisterMapping) => void
   clearRegisterMapping: () => void
-  /** Set when the persisted config failed its schema and was reset. */
-  configWasReset: boolean
+  /** What the persisted config lost on the way in, or undefined when it lost nothing. */
+  configReset: ConfigReset | undefined
   /** Called once the reset has been reported, so it is reported once. */
   acknowledgeConfigReset: () => void
   // Transaction log

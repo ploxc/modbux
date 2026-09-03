@@ -25,7 +25,15 @@ beforeEach(() => {
   stubRenderer()
 })
 
-describe('a persisted client config that fails its schema', () => {
+/** A mapping a user would have built by hand, and would not want to lose. */
+const mapping = {
+  coils: {},
+  discrete_inputs: {},
+  input_registers: {},
+  holding_registers: { '5': { dataType: 'uint16', comment: 'Feeder A' } }
+}
+
+describe('a persisted client config with one field that fails its schema', () => {
   it('lets the module finish evaluating', async () => {
     localStorage.setItem(
       'client.zustand',
@@ -34,10 +42,21 @@ describe('a persisted client config that fails its schema', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().configWasReset).toBe(true)
+    expect(useClientZustand.getState().configReset).toBeDefined()
   })
 
-  it('leaves the store on its defaults rather than the broken config', async () => {
+  it('names the field it reset', async () => {
+    localStorage.setItem(
+      'client.zustand',
+      JSON.stringify({ state: { connectionConfig: {} }, version: 2 })
+    )
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    expect(useClientZustand.getState().configReset?.fields).toEqual(['connectionConfig'])
+  })
+
+  it('defaults that field rather than leaving the broken one', async () => {
     localStorage.setItem(
       'client.zustand',
       JSON.stringify({ state: { connectionConfig: {} }, version: 2 })
@@ -48,25 +67,91 @@ describe('a persisted client config that fails its schema', () => {
     expect(useClientZustand.getState().connectionConfig.protocol).toBeDefined()
   })
 
+  it('keeps the register mapping standing beside it', async () => {
+    localStorage.setItem(
+      'client.zustand',
+      JSON.stringify({ state: { connectionConfig: {}, registerMapping: mapping }, version: 2 })
+    )
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    expect(useClientZustand.getState().registerMapping.holding_registers[5]?.comment).toBe(
+      'Feeder A'
+    )
+  })
+
+  it('copies the unreadable blob rather than clearing it', async () => {
+    const stored = JSON.stringify({ state: { connectionConfig: {} }, version: 2 })
+    localStorage.setItem('client.zustand', stored)
+
+    await import('../client.zustand')
+
+    const kept = Object.keys(localStorage).filter((k) => k.startsWith('client.zustand.corrupt-'))
+    expect(kept).toHaveLength(1)
+    expect(localStorage.getItem(kept[0])).toBe(stored)
+  })
+
   it('says nothing when the config parses', async () => {
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().configWasReset).toBe(false)
+    expect(useClientZustand.getState().configReset).toBeUndefined()
   })
 })
 
-describe('a persisted server config that fails its schema', () => {
+describe('a persisted client config from a newer version', () => {
+  it('keeps the fields that still fit and says where it came from', async () => {
+    localStorage.setItem(
+      'client.zustand',
+      JSON.stringify({ state: { registerMapping: mapping, connectionConfig: {} }, version: 99 })
+    )
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    const reset = useClientZustand.getState().configReset
+    expect(reset?.savedByNewerVersion).toBe(true)
+    expect(reset?.fields).toEqual(['connectionConfig'])
+    expect(useClientZustand.getState().registerMapping.holding_registers[5]?.comment).toBe(
+      'Feeder A'
+    )
+  })
+
+  it('reports it even when every field still fits', async () => {
+    const { useClientZustand: fresh } = await import('../client.zustand')
+    const whole = JSON.stringify({
+      state: {
+        name: '',
+        registerMapping: fresh.getInitialState().registerMapping,
+        connectionConfig: fresh.getInitialState().connectionConfig,
+        registerConfig: fresh.getInitialState().registerConfig
+      },
+      version: 99
+    })
+    vi.resetModules()
+    localStorage.clear()
+    stubRenderer()
+    localStorage.setItem('client.zustand', whole)
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    expect(useClientZustand.getState().configReset).toEqual({
+      fields: [],
+      savedByNewerVersion: true
+    })
+  })
+})
+
+describe('a persisted server config with one field that fails its schema', () => {
   it('lets the module finish evaluating', async () => {
     localStorage.setItem('server.zustand', JSON.stringify({ state: { port: 'nope' }, version: 3 }))
 
     const { useServerZustand } = await import('../server.zustand')
 
-    expect(useServerZustand.getState().configWasReset).toBe(true)
+    expect(useServerZustand.getState().configReset?.fields).toContain('port')
   })
 
   it('says nothing when the config parses', async () => {
     const { useServerZustand } = await import('../server.zustand')
 
-    expect(useServerZustand.getState().configWasReset).toBe(false)
+    expect(useServerZustand.getState().configReset).toBeUndefined()
   })
 })
