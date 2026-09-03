@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   meantime left you with a server that looked up and answered nothing. Modbux
   now waits for the answer, moves to the next free port, and keeps a server on
   its old port when a port change cannot be completed.
+- **Unplugging the serial adapter now stops the RTU server in the view.** The
+  server stayed marked as running on a port that was gone, so the only sign was
+  that nothing answered it any more.
 
 ### Changed
 

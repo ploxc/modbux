@@ -35,12 +35,22 @@ vi.mock('modbus-serial', () => ({
   }),
   ServerSerial: vi.fn().mockImplementation(function () {
     const handlers: Record<string, (...args: unknown[]) => void> = {}
+    // The SerialPort the library opens. `startRtuServer` reaches for it by name
+    // and registers on it, so a mock without one leaves those listeners out of
+    // every test.
+    const pathHandlers: Record<string, (...args: unknown[]) => void> = {}
     return {
       on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
         handlers[event] = handler
       }),
       close: vi.fn((cb: (err: Error | null) => void) => cb(null)),
-      _handlers: handlers
+      _handlers: handlers,
+      _serverPath: {
+        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+          pathHandlers[event] = handler
+        }),
+        _handlers: pathHandlers
+      }
     }
   })
 }))
@@ -116,6 +126,28 @@ const lastInstance = (constructor: typeof ServerTCP | typeof ServerSerial) => {
   const result = vi.mocked(constructor).mock.results.at(-1)
   if (!result) throw new Error('no server was constructed')
   return result.value
+}
+
+/** A serial server as the mock builds it, with the handler records exposed. */
+type MockSerialServer = {
+  _handlers: Record<string, (...args: unknown[]) => void>
+  _serverPath: { _handlers: Record<string, (...args: unknown[]) => void> }
+}
+
+/**
+ * Fire what `startRtuServer` registered on a server's serial port.
+ *
+ * A handler it never registered fails here saying which event, where
+ * `_handlers['close']()` would say only that something is not a function.
+ */
+const fireSerialPathEvent = (
+  instance: MockSerialServer,
+  event: 'error' | 'close',
+  ...args: unknown[]
+): void => {
+  const handler = instance._serverPath._handlers[event]
+  if (!handler) throw new Error(`the serial port got no '${event}' handler`)
+  handler(...args)
 }
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
@@ -1304,6 +1336,77 @@ describe('ModbusServer', () => {
       const cb = vi.fn()
       await vector.getHoldingRegister(0, 1, cb)
       expect(cb).toHaveBeenCalledWith(null, 42)
+    })
+
+    it('reports the port closing under a running server', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = lastInstance(ServerSerial)
+      instance._handlers['initialized']()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
+
+      expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
+      const messageCalls = getWindowCalls('backend_message')
+      expect(
+        messageCalls.some((c) => c[1].message === 'RTU server disconnected from /dev/ttyUSB0')
+      ).toBe(true)
+    })
+
+    it('stops a disconnected server without claiming it was running', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = lastInstance(ServerSerial)
+      instance._handlers['initialized']()
+      fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      await server.stopRtuServer()
+
+      // `stopRtuServer` says 'RTU server stopped' for a server that was up, and
+      // the close above is what takes it down.
+      expect(getWindowCalls('backend_message')).toEqual([])
+    })
+
+    it('says nothing about a close it asked for itself', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = lastInstance(ServerSerial)
+      instance._handlers['initialized']()
+
+      await server.stopRtuServer()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      fireSerialPathEvent(instance, 'close', undefined)
+
+      expect(getWindowCalls('backend_message')).toEqual([])
+      expect(getWindowCalls('rtu_server_status')).toEqual([])
+    })
+
+    it('reports one disconnect when the port both errors and closes', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const instance = lastInstance(ServerSerial)
+      instance._handlers['initialized']()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      // A port unplugged during a write emits both: `_write`'s callback carries
+      // the error into the stream and `_disconnected` closes it.
+      fireSerialPathEvent(instance, 'error', new Error('Disconnected'))
+      fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
+
+      const messageCalls = getWindowCalls('backend_message')
+      expect(messageCalls.map((c) => c[1].message)).toEqual(['RTU server error: Disconnected'])
+    })
+
+    it('leaves the running server alone when an earlier port closes', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const replaced = lastInstance(ServerSerial)
+
+      await server.startRtuServer({ uuid, serialConfig })
+      lastInstance(ServerSerial)._handlers['initialized']()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      fireSerialPathEvent(replaced, 'close', new Error('Disconnected'))
+
+      expect(getWindowCalls('rtu_server_status')).toEqual([])
+      expect(getWindowCalls('backend_message')).toEqual([])
     })
   })
 

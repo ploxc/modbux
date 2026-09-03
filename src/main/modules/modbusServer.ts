@@ -616,15 +616,39 @@ export class ModbusServer {
       })
       this._rtuUuid = uuid
 
-      // Catch open errors on _serverPath (SerialPort) — prevents unhandled promise rejection
+      // The SerialPort under the server. Its `error` listener catches open
+      // failures, which would otherwise surface as an unhandled rejection.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const serverPath = (this._rtuServer as any)._serverPath
+      const rtuServer = this._rtuServer
       if (serverPath && typeof serverPath.on === 'function') {
         serverPath.on('error', (err: Error) => {
           this._rtuActive = false
           this._emitMessage({
             message: `RTU server error: ${err?.message ?? err}`,
             variant: 'error'
+          })
+          this._windows.send('rtu_server_status', { active: false })
+        })
+
+        // `close` is the disconnect event. `@serialport/stream` documents it as
+        // "in the case of a disconnect it will be called with a Disconnect Error
+        // object", and its `_disconnected` answers a failed read with
+        // `close(undefined, new DisconnectedError(...))` while pushing nothing
+        // into the stream. So an adapter pulled between requests arrives here
+        // and nowhere else, and without this the view keeps showing a server
+        // whose port is gone.
+        serverPath.on('close', (err?: Error) => {
+          // A close this process caused is already reported. `stopRtuServer`
+          // clears both fields before it closes the port, and the `error`
+          // listener above clears `_rtuActive` for the write path, where one
+          // unplug emits both events.
+          if (this._rtuServer !== rtuServer || !this._rtuActive) return
+          this._rtuActive = false
+          this._emitMessage({
+            message: `RTU server disconnected from ${serialConfig.com}`,
+            variant: 'error',
+            error: err
           })
           this._windows.send('rtu_server_status', { active: false })
         })
