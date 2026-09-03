@@ -1,8 +1,24 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
-import { BaseDataType, RegisterData } from '@shared'
+import { BaseDataType, BaseDataTypeSchema, RegisterData } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
+
+/** What the dialog writes with when the address does not name a type. */
+export const DEFAULT_WRITE_DATA_TYPE: BaseDataType = 'int16'
+
+/**
+ * The data type the dialog opens with for an address.
+ *
+ * This store outlives the dialog, so an address the mapping says nothing about
+ * would otherwise be written with whatever the address before it used. `none`
+ * is a mapping without a type rather than a type to write with.
+ */
+export const writeDataTypeFor = (mapped: unknown): BaseDataType => {
+  const result = BaseDataTypeSchema.safeParse(mapped)
+  if (!result.success || result.data === 'none') return DEFAULT_WRITE_DATA_TYPE
+  return result.data
+}
 
 /**
  * The coil list the write dialog starts from: what the grid holds for the
@@ -46,7 +62,7 @@ interface ValueInputZustand {
 
 export const useValueInputZustand = create<ValueInputZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
-    dataType: 'int16',
+    dataType: DEFAULT_WRITE_DATA_TYPE,
     setDataType: (dataType) =>
       set((state) => {
         state.dataType = dataType

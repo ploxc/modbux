@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write went out anyway, as a 0, because an empty field is what JavaScript reads
   as zero. The write buttons are now off until the field holds a number, and the
   field is no longer left marked as wrong after you close the dialog.
+- **The write dialog no longer keeps the data type of the address you opened
+  before.** A register your configuration gives no type kept whatever the last
+  one used, so a value could go out encoded as something the address is not.
+  Such an address now opens as INT16.
 - **A server that fails to start says so.** The port was reported back to the
   view before the server had actually taken it, so a port claimed in the
   meantime left you with a server that looked up and answered nothing. Modbux
