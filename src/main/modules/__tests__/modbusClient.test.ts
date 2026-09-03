@@ -827,14 +827,50 @@ describe('ModbusClient', () => {
       expect(tx.errorMessage).toBeUndefined()
     })
 
-    it('clears transactions after processing', async () => {
+    it('removes the transaction it logged', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([0])
 
       await client.read()
 
-      // After _logTransaction, _transactions should be empty
-      expect(Object.keys(mockModbusRTU._transactions).length).toBe(0)
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
+    })
+
+    it('logs a transaction once', async () => {
+      await connectClient()
+      let callCount = 0
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        callCount++
+        // Only the first read leaves a transaction behind, so a second call
+        // that logged the same one again would show up as two.
+        if (callCount === 1) mockModbusRTU._transactions = { '1': createMockTransaction() }
+        return { data: [0], buffer: Buffer.alloc(2) }
+      })
+
+      await client.read()
+      await client.read()
+
+      expect(getWindowCalls('transaction')).toHaveLength(1)
+    })
+
+    it('leaves a transaction it did not log alone', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        // Key 1 is a request still in flight, key 2 the one this read
+        // finished. modbus-serial drops a response whose entry is gone, so
+        // taking 1 out with 2 times that request out instead of answering it.
+        mockModbusRTU._transactions = {
+          '1': createMockTransaction(50),
+          '2': createMockTransaction(0)
+        }
+        return { data: [0], buffer: Buffer.alloc(2) }
+      })
+
+      await client.read()
+
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      expect(getWindowCalls('transaction')).toHaveLength(1)
+      expect(getWindowCalls('transaction')[0][1].id).toContain('2__')
     })
 
     it('skips when no transactions exist', async () => {
