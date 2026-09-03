@@ -17,7 +17,8 @@ import {
   expandAllServerPanels,
   selectRegisterType,
   selectUnitId,
-  expectCell
+  expectCell,
+  sectionCount
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -174,11 +175,7 @@ test.describe.serial('Server RTU — UI elements', () => {
     await selectUnitId(mainPage, '1')
 
     // Check register count
-    const section = mainPage.getByTestId('section-holding_registers')
-    const textBefore = await section.textContent()
-    const matchBefore = textBefore?.match(/\((\d+)\)/)
-    expect(matchBefore).toBeTruthy()
-    const countBefore = Number(matchBefore![1])
+    const countBefore = await sectionCount(mainPage, 'holding_registers')
     expect(countBefore).toBeGreaterThanOrEqual(70)
 
     // Switch to RTU and back
@@ -187,10 +184,7 @@ test.describe.serial('Server RTU — UI elements', () => {
     await mainPage.getByTestId('server-mode-tcp-btn').click()
 
     // Register count unchanged
-    const textAfter = await section.textContent()
-    const matchAfter = textAfter?.match(/\((\d+)\)/)
-    expect(matchAfter).toBeTruthy()
-    expect(Number(matchAfter![1])).toBe(countBefore)
+    expect(await sectionCount(mainPage, 'holding_registers')).toBe(countBefore)
   })
 
   // ─── Cleanup ───────────────────────────────────────────────────────
@@ -255,11 +249,7 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
     await selectUnitId(mainPage, '1')
 
     // Verify registers loaded
-    const section = mainPage.getByTestId('section-holding_registers')
-    const text = await section.textContent()
-    const match = text?.match(/\((\d+)\)/)
-    expect(match).toBeTruthy()
-    expect(Number(match![1])).toBeGreaterThanOrEqual(70)
+    expect(await sectionCount(mainPage, 'holding_registers')).toBeGreaterThanOrEqual(70)
   })
 
   test('switch server to RTU mode', async ({ mainPage }) => {

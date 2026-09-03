@@ -1,8 +1,9 @@
 # Contributing to Modbux
 
-Everything below is a rule rather than a suggestion. Eleven of them are asserted
-by `src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead
-of waiting for a reviewer.
+Everything below is a rule rather than a suggestion. The ones under *The
+conventions this codebase has already settled* are asserted by
+`src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead of
+waiting for a reviewer.
 
 ## Ground rules
 
@@ -47,7 +48,7 @@ Formatting and linting are enforced by ESLint, Prettier, and TypeScript strict m
 Beyond what the linter catches:
 
 - **No `any`, no `@ts-ignore`.** If the types are fighting you, your approach is wrong.
-- **No `!` either, and no guard a test cannot reach.** `noUncheckedIndexedAccess` is on, so `record[key]` and `array[i]` are `T | undefined` and every index asks a question. A non-null assertion answers it without leaving the reasoning behind, and `if (!x) break` on an index that is provably in range is a branch no input reaches, no test covers and no mutation can turn red, while telling the reader the case is possible. Take the index away instead: `readUInt16BE`, `for..of`, `.entries()`, `slice`. Where something really can be missing, handle it and test it.
+- **No `!` either, and no guard a test cannot reach.** `noUncheckedIndexedAccess` is on, so `record[key]` and `array[i]` are `T | undefined` and every index asks a question. `@typescript-eslint/no-non-null-assertion` is an error, because an assertion answers that question without leaving the reasoning behind. The other wrong answer passes lint: `if (!x) break` on an index that is provably in range is a branch no input reaches, no test covers and no mutation can turn red, and it tells the reader the case is possible. Take the index away instead: `readUInt16BE`, `for..of`, `.entries()`, `slice`. Where something really can be missing, handle it and write the test that reaches it. In a test, `data[0]?.id` lets a missing element fail the assertion, but `handler?.()` makes it pass quietly, so that one gets a helper that throws by name.
 - **Zod for validation.** External data (configs, IPC payloads) is validated with Zod schemas. Don't trust unvalidated input.
 - **Zustand + Mutative for state.** Follow the existing store patterns. Don't introduce new state management approaches.
 - **MUI only.** Don't add other UI libraries.
@@ -56,8 +57,8 @@ Beyond what the linter catches:
 
 ### The conventions this codebase has already settled
 
-`src/__tests__/conformance.test.ts` asserts the eleven rules below, so a PR that
-breaks one fails `yarn test` rather than waiting for a reviewer to notice. Every
+`src/__tests__/conformance.test.ts` asserts every rule below, so a PR that breaks
+one fails `yarn test` rather than waiting for a reviewer to notice. Every
 rule asserts that the population it reads is not empty before it asserts the
 population holds no violation, because a meter that reads no files passes every
 rule it has.
@@ -117,8 +118,8 @@ carries one. A picker takes the attribute through `slotProps`, which still
 counts as carrying it.
 
 **Every channel that carries an object declares a schema.** TypeScript covers a
-bare primitive and sixteen channels take no argument at all. The rest take an
-object or a union, and that is where a hand-edited config file arrives. The
+bare primitive, and a channel taking no argument has nothing to guard. The rest
+take an object or a union, and that is where a hand-edited config file arrives. The
 schema goes beside the handler in `main/ipc.ts`, and it is only accepted where
 `undefined` is an honest answer: a rejected payload has nothing else to give
 back, so a channel returning a value has to say so in its type.

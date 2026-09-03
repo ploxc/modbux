@@ -18,7 +18,8 @@ import {
   expandAllServerPanels,
   navigateToServer,
   expectCellContains,
-  expectCell
+  expectCell,
+  sectionCount
 } from '../../fixtures/helpers'
 import { HUAWEI_UNIT_0 } from '../../fixtures/test-data'
 import { resolve } from 'path'
@@ -55,13 +56,8 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('verify server has all holding registers', async ({ mainPage }) => {
-    const section = mainPage.getByTestId('section-holding_registers')
     // The config has 75 holding registers
-    const text = await section.textContent()
-    const match = text?.match(/\((\d+)\)/)
-    expect(match).toBeTruthy()
-    const count = Number(match![1])
-    expect(count).toBeGreaterThanOrEqual(70)
+    expect(await sectionCount(mainPage, 'holding_registers')).toBeGreaterThanOrEqual(70)
   })
 
   // ─── Client setup ─────────────────────────────────────────────────

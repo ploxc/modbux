@@ -11,15 +11,15 @@ let existingPaths: string[] = ['/usr/bin/pkexec']
 let execExitCode = 0
 const execFileCalls: { file: string; args: readonly string[] }[] = []
 
-// The groups this "session" holds, as gids.
+// The groups this "session" holds, as group ids.
 let sessionGroups: number[] = []
 
 // What /dev holds, and which of those entries refuse to open.
 let devEntries: string[] = ['ttyUSB0']
 let unreadable: string[] = ['ttyUSB0']
 
-// The gid that owns each device node, which is where the group name comes from.
-let deviceGid = 20
+// The group id that owns each device node, which is where the group name comes from.
+let deviceGroupId = 20
 
 vi.mock('fs/promises', () => ({
   readFile: vi.fn(async () => {
@@ -30,7 +30,7 @@ vi.mock('fs/promises', () => ({
   access: vi.fn(async (path: string) => {
     if (unreadable.some((name) => path.endsWith(name))) throw new Error('EACCES')
   }),
-  stat: vi.fn(async () => ({ gid: deviceGid }))
+  stat: vi.fn(async () => ({ gid: deviceGroupId }))
 }))
 
 vi.mock('fs', () => ({
@@ -78,7 +78,7 @@ beforeEach(() => {
   sessionGroups = []
   devEntries = ['ttyUSB0']
   unreadable = ['ttyUSB0']
-  deviceGid = 20
+  deviceGroupId = 20
   setPlatform('linux')
   process.getgroups = () => sessionGroups
   delete process.env.FLATPAK_ID
@@ -91,14 +91,14 @@ afterEach(() => {
 })
 
 describe('readGroupEntry', () => {
-  it('reads the gid and the members', async () => {
+  it('reads the group id and the members', async () => {
     groupFile = 'root:x:0:\ndialout:x:20:alice,bob\n'
-    expect(await readGroupEntry('dialout')).toEqual({ gid: 20, members: ['alice', 'bob'] })
+    expect(await readGroupEntry('dialout')).toEqual({ groupId: 20, members: ['alice', 'bob'] })
   })
 
   it('reports no members rather than an empty name', async () => {
     groupFile = 'dialout:x:20:\n'
-    expect(await readGroupEntry('dialout')).toEqual({ gid: 20, members: [] })
+    expect(await readGroupEntry('dialout')).toEqual({ groupId: 20, members: [] })
   })
 
   it('returns undefined for a group that is not there', async () => {
@@ -110,11 +110,11 @@ describe('readGroupEntry', () => {
     expect(await readGroupEntry('dialout')).toBeUndefined()
   })
 
-  it('skips a line with the name but no gid field', async () => {
-    // Without the field the parse would have read `undefined` as the gid and
+  it('skips a line with the name but no group id field', async () => {
+    // Without the field the parse would have read `undefined` as the group id and
     // answered NaN, which the caller cannot tell from a real group.
     groupFile = 'dialout:x\ndialout:x:20:alice\n'
-    expect(await readGroupEntry('dialout')).toEqual({ gid: 20, members: ['alice'] })
+    expect(await readGroupEntry('dialout')).toEqual({ groupId: 20, members: ['alice'] })
   })
 })
 
@@ -199,7 +199,7 @@ describe('getSerialGroupStatus', () => {
   it('names the group the device belongs to, not an assumed dialout', async () => {
     // A distribution that calls it uucp, with no dialout anywhere in sight.
     groupFile = 'root:x:0:\nuucp:x:14:someone\n'
-    deviceGid = 14
+    deviceGroupId = 14
 
     const status = await getSerialGroupStatus()
 
@@ -209,7 +209,7 @@ describe('getSerialGroupStatus', () => {
 
   it('says nothing when the session holds the group the device belongs to', async () => {
     groupFile = 'root:x:0:\nuucp:x:14:jens\n'
-    deviceGid = 14
+    deviceGroupId = 14
     sessionGroups = [14]
 
     const status = await getSerialGroupStatus()
@@ -218,9 +218,9 @@ describe('getSerialGroupStatus', () => {
     expect(status.pendingLogin).toBe(false)
   })
 
-  it('advises nothing when the gid that owns the device has no name', async () => {
+  it('advises nothing when the groupId that owns the device has no name', async () => {
     groupFile = 'root:x:0:\ndialout:x:20:someone\n'
-    deviceGid = 999
+    deviceGroupId = 999
 
     const status = await getSerialGroupStatus()
 
@@ -262,7 +262,7 @@ describe('applySerialGroupFix', () => {
 
   it('adds the user to the group the device belongs to', async () => {
     groupFile = 'root:x:0:\nuucp:x:14:jens\n'
-    deviceGid = 14
+    deviceGroupId = 14
 
     const result = await applySerialGroupFix()
 

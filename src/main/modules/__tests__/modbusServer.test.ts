@@ -16,7 +16,7 @@ vi.mock('modbus-serial', () => ({
   // Must use `function` (not arrow) so it can be called with `new`
   ServerTCP: vi.fn().mockImplementation(function () {
     const handlers: Record<string, (err?: Error) => void> = {}
-    const entry = bindResults.length > 0 ? bindResults.shift()! : true
+    const entry = bindResults.shift() ?? true
 
     // The real constructor returns before `listen` finishes, so the event
     // cannot fire until the caller has had the chance to register for it.
@@ -55,7 +55,7 @@ vi.mock('net', () => ({
           handlers[event] = handler
         }),
         listen: vi.fn(() => {
-          const entry = portAvailableResults.length > 0 ? portAvailableResults.shift()! : true
+          const entry = portAvailableResults.shift() ?? true
           if (entry === true && handlers['listening']) {
             handlers['listening']()
           } else if (handlers['error']) {
@@ -78,6 +78,45 @@ import {
   BIND_TIMEOUT_MS
 } from '../modbusServer'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
+
+/** Every handler `createServer` and `startRtuServer` put on their vector. */
+const VECTOR_HANDLERS = [
+  'getCoil',
+  'getDiscreteInput',
+  'getInputRegister',
+  'getHoldingRegister',
+  'setCoil',
+  'setRegister'
+] as const
+
+type ServerVector = Required<Pick<IServiceVector, (typeof VECTOR_HANDLERS)[number]>>
+
+/**
+ * The vector the last server was built with, with its handlers resolved.
+ *
+ * A handler the server never set fails here saying which one, where
+ * `getHoldingRegister!(...)` said only that something was undefined.
+ */
+const lastVector = (constructor: typeof ServerTCP | typeof ServerSerial): ServerVector => {
+  const call = vi.mocked(constructor).mock.calls.at(-1)
+  if (!call) throw new Error('no server was constructed')
+
+  const [vector] = call
+  const resolved: Partial<ServerVector> = {}
+  for (const name of VECTOR_HANDLERS) {
+    const handler = vector[name]
+    if (!handler) throw new Error(`the server set no ${name}`)
+    Object.assign(resolved, { [name]: handler })
+  }
+  return resolved as ServerVector
+}
+
+/** What the last server constructor returned, or a failure saying there was none. */
+const lastInstance = (constructor: typeof ServerTCP | typeof ServerSerial) => {
+  const result = vi.mocked(constructor).mock.results.at(-1)
+  if (!result) throw new Error('no server was constructed')
+  return result.value
+}
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
@@ -362,7 +401,7 @@ describe('ModbusServer', () => {
 
     it('resets all registers occupied by a multi-register type (int32)', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      const vector = lastVector(ServerTCP)
 
       // Add int32 at address 0 — occupies addresses 0 and 1
       server.addRegister({
@@ -383,11 +422,11 @@ describe('ModbusServer', () => {
 
       // Verify both registers are set
       const cb0 = vi.fn()
-      await vector.getHoldingRegister!(0, 1, cb0)
+      await vector.getHoldingRegister(0, 1, cb0)
       expect(cb0).toHaveBeenCalledWith(null, 1) // high word
 
       const cb1 = vi.fn()
-      await vector.getHoldingRegister!(1, 1, cb1)
+      await vector.getHoldingRegister(1, 1, cb1)
       expect(cb1).toHaveBeenCalledWith(null, 4464) // low word
 
       // Remove the register
@@ -401,17 +440,17 @@ describe('ModbusServer', () => {
 
       // Both addresses should be reset to 0
       const cb0After = vi.fn()
-      await vector.getHoldingRegister!(0, 1, cb0After)
+      await vector.getHoldingRegister(0, 1, cb0After)
       expect(cb0After).toHaveBeenCalledWith(null, 0)
 
       const cb1After = vi.fn()
-      await vector.getHoldingRegister!(1, 1, cb1After)
+      await vector.getHoldingRegister(1, 1, cb1After)
       expect(cb1After).toHaveBeenCalledWith(null, 0)
     })
 
     it('resets all registers occupied by a 64-bit type (double)', async () => {
       await server.createServer({ uuid, port: 5020 })
-      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      const vector = lastVector(ServerTCP)
 
       // Add double at address 0 — occupies addresses 0, 1, 2, 3
       server.addRegister({
@@ -442,7 +481,7 @@ describe('ModbusServer', () => {
       // All 4 addresses should be reset to 0
       for (let i = 0; i < 4; i++) {
         const cb = vi.fn()
-        await vector.getHoldingRegister!(i, 1, cb)
+        await vector.getHoldingRegister(i, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, 0)
       }
     })
@@ -1199,7 +1238,7 @@ describe('ModbusServer', () => {
     it('emits success message and status on initialized event', async () => {
       await server.startRtuServer({ uuid, serialConfig })
 
-      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const instance = lastInstance(ServerSerial)
       instance._handlers['initialized']()
 
       const statusCalls = getWindowCalls('rtu_server_status')
@@ -1212,7 +1251,7 @@ describe('ModbusServer', () => {
     it('emits error status on error event', async () => {
       await server.startRtuServer({ uuid, serialConfig })
 
-      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const instance = lastInstance(ServerSerial)
       instance._handlers['error'](new Error('port gone'))
 
       const statusCalls = getWindowCalls('rtu_server_status')
@@ -1261,9 +1300,9 @@ describe('ModbusServer', () => {
       await server.startRtuServer({ uuid, serialConfig })
 
       // The vector passed to ServerSerial should read the same data
-      const vector = vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+      const vector = lastVector(ServerSerial)
       const cb = vi.fn()
-      await vector.getHoldingRegister!(0, 1, cb)
+      await vector.getHoldingRegister(0, 1, cb)
       expect(cb).toHaveBeenCalledWith(null, 42)
     })
   })
@@ -1282,18 +1321,18 @@ describe('ModbusServer', () => {
 
     it('closes the RTU server and emits inactive status', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const instance = lastInstance(ServerSerial)
 
       await server.stopRtuServer()
       expect(instance.close).toHaveBeenCalled()
 
       const statusCalls = getWindowCalls('rtu_server_status')
-      expect(statusCalls.at(-1)![1].active).toBe(false)
+      expect(statusCalls.at(-1)?.[1].active).toBe(false)
     })
 
     it('emits warning message only when server was active', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const instance = lastInstance(ServerSerial)
 
       // Simulate initialized → wasActive = true
       instance._handlers['initialized']()
@@ -1316,7 +1355,7 @@ describe('ModbusServer', () => {
 
     it('silently ignores "Port is not open" errors', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      const instance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const instance = lastInstance(ServerSerial)
       instance.close.mockImplementation((cb: (err: Error | null) => void) =>
         cb(new Error('Port is not open'))
       )
@@ -1374,9 +1413,9 @@ describe('ModbusServer', () => {
         }
       })
 
-      const vector = vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+      const vector = lastVector(ServerSerial)
       const cb = vi.fn()
-      await vector.getHoldingRegister!(0, 1, cb)
+      await vector.getHoldingRegister(0, 1, cb)
       expect(cb).toHaveBeenCalledWith(null, 42)
     })
 
@@ -1397,7 +1436,7 @@ describe('ModbusServer', () => {
         }
       })
 
-      const rtuInstance = vi.mocked(ServerSerial).mock.results.at(-1)!.value
+      const rtuInstance = lastInstance(ServerSerial)
 
       await server.deleteServer(uuid)
       expect(rtuInstance.close).toHaveBeenCalled()
@@ -1405,31 +1444,31 @@ describe('ModbusServer', () => {
   })
 
   describe('vector methods', () => {
-    let vector: IServiceVector
+    let vector: ServerVector
 
     beforeEach(async () => {
       await server.createServer({ uuid, port: 5020 })
-      vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      vector = lastVector(ServerTCP)
     })
 
     describe('getCoil', () => {
       it('returns coil value for valid address and unitId', async () => {
         server.setBool({ uuid, unitId, registerType: 'coils', address: 5, state: true })
         const cb = vi.fn()
-        await vector.getCoil!(5, 1, cb)
+        await vector.getCoil(5, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, true)
       })
 
       it('returns false for unset coil address', async () => {
         server.setBool({ uuid, unitId, registerType: 'coils', address: 0, state: false })
         const cb = vi.fn()
-        await vector.getCoil!(0, 1, cb)
+        await vector.getCoil(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, false)
       })
 
       it('returns error for invalid unitId (>255)', async () => {
         const cb = vi.fn()
-        await vector.getCoil!(0, 300, cb)
+        await vector.getCoil(0, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           false
@@ -1438,7 +1477,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
-        await vector.getCoil!(0, 1, cb)
+        await vector.getCoil(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           false
@@ -1450,13 +1489,13 @@ describe('ModbusServer', () => {
       it('returns discrete input value', async () => {
         server.setBool({ uuid, unitId, registerType: 'discrete_inputs', address: 3, state: true })
         const cb = vi.fn()
-        await vector.getDiscreteInput!(3, 1, cb)
+        await vector.getDiscreteInput(3, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, true)
       })
 
       it('returns error for invalid unitId', async () => {
         const cb = vi.fn()
-        await vector.getDiscreteInput!(0, 300, cb)
+        await vector.getDiscreteInput(0, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           false
@@ -1465,7 +1504,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
-        await vector.getDiscreteInput!(0, 1, cb)
+        await vector.getDiscreteInput(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           false
@@ -1492,13 +1531,13 @@ describe('ModbusServer', () => {
           }
         })
         const cb = vi.fn()
-        await vector.getInputRegister!(10, 1, cb)
+        await vector.getInputRegister(10, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, 42)
       })
 
       it('returns error for invalid unitId', async () => {
         const cb = vi.fn()
-        await vector.getInputRegister!(0, 300, cb)
+        await vector.getInputRegister(0, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           0
@@ -1507,7 +1546,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
-        await vector.getInputRegister!(0, 1, cb)
+        await vector.getInputRegister(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1534,13 +1573,13 @@ describe('ModbusServer', () => {
           }
         })
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 1, cb)
+        await vector.getHoldingRegister(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, 999)
       })
 
       it('returns error for invalid unitId', async () => {
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 300, cb)
+        await vector.getHoldingRegister(0, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           0
@@ -1549,7 +1588,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host', async () => {
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 1, cb)
+        await vector.getHoldingRegister(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1564,7 +1603,7 @@ describe('ModbusServer', () => {
         ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
 
         const cb = vi.fn()
-        await vector.setCoil!(10, true, 1, cb)
+        await vector.setCoil(10, true, 1, cb)
         expect(cb).toHaveBeenCalledWith(null)
         expect(windows.send).toHaveBeenCalledWith(
           'boolean_value',
@@ -1574,7 +1613,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host and leaves it unhosted', async () => {
         const cb = vi.fn()
-        await vector.setCoil!(5, true, 1, cb)
+        await vector.setCoil(5, true, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1582,7 +1621,7 @@ describe('ModbusServer', () => {
 
         // The write must not have created the unit it was refused for.
         const getCb = vi.fn()
-        await vector.getCoil!(5, 1, getCb)
+        await vector.getCoil(5, 1, getCb)
         expect(getCb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           false
@@ -1591,7 +1630,7 @@ describe('ModbusServer', () => {
 
       it('returns error for invalid unitId', async () => {
         const cb = vi.fn()
-        await vector.setCoil!(0, true, 300, cb)
+        await vector.setCoil(0, true, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           0
@@ -1621,7 +1660,7 @@ describe('ModbusServer', () => {
         ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
 
         const cb = vi.fn()
-        await vector.setRegister!(20, 12345, 1, cb)
+        await vector.setRegister(20, 12345, 1, cb)
         expect(cb).toHaveBeenCalledWith(null)
         expect(windows.send).toHaveBeenCalledWith(
           'register_value',
@@ -1637,7 +1676,7 @@ describe('ModbusServer', () => {
 
       it('refuses a unit id it does not host and leaves it unhosted', async () => {
         const cb = vi.fn()
-        await vector.setRegister!(0, 500, 1, cb)
+        await vector.setRegister(0, 500, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1645,7 +1684,7 @@ describe('ModbusServer', () => {
 
         // The write must not have created the unit it was refused for.
         const getCb = vi.fn()
-        await vector.getHoldingRegister!(0, 1, getCb)
+        await vector.getHoldingRegister(0, 1, getCb)
         expect(getCb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1654,7 +1693,7 @@ describe('ModbusServer', () => {
 
       it('returns error for invalid unitId', async () => {
         const cb = vi.fn()
-        await vector.setRegister!(0, 100, 300, cb)
+        await vector.setRegister(0, 100, 300, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: SERVER_DEVICE_FAILURE }),
           0
@@ -1687,15 +1726,15 @@ describe('ModbusServer', () => {
         }
       })
 
-    const tcpVector = async (): Promise<IServiceVector> => {
+    const tcpVector = async (): Promise<ServerVector> => {
       await server.createServer({ uuid, port: 5020 })
-      return vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      return lastVector(ServerTCP)
     }
 
-    const rtuVector = async (): Promise<IServiceVector> => {
+    const rtuVector = async (): Promise<ServerVector> => {
       await server.startRtuServer({ uuid, serialConfig })
-      vi.mocked(ServerSerial).mock.results.at(-1)!.value._handlers['initialized']()
-      return vi.mocked(ServerSerial).mock.calls.at(-1)![0] as IServiceVector
+      lastInstance(ServerSerial)._handlers['initialized']()
+      return lastVector(ServerSerial)
     }
 
     describe('over TCP', () => {
@@ -1704,7 +1743,7 @@ describe('ModbusServer', () => {
         const vector = await tcpVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 1, cb)
+        await vector.getHoldingRegister(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, 42)
       })
 
@@ -1713,7 +1752,7 @@ describe('ModbusServer', () => {
         const vector = await tcpVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 5, cb)
+        await vector.getHoldingRegister(0, 5, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1725,7 +1764,7 @@ describe('ModbusServer', () => {
         const vector = await tcpVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 0, cb)
+        await vector.getHoldingRegister(0, 0, cb)
         expect(cb).toHaveBeenCalledWith(null, 7)
       })
 
@@ -1735,15 +1774,15 @@ describe('ModbusServer', () => {
         const vector = await tcpVector()
 
         const setCb = vi.fn()
-        await vector.setRegister!(9, 111, 0, setCb)
+        await vector.setRegister(9, 111, 0, setCb)
         expect(setCb).toHaveBeenCalledWith(null)
 
         const zeroCb = vi.fn()
-        await vector.getHoldingRegister!(9, 0, zeroCb)
+        await vector.getHoldingRegister(9, 0, zeroCb)
         expect(zeroCb).toHaveBeenCalledWith(null, 111)
 
         const oneCb = vi.fn()
-        await vector.getHoldingRegister!(9, 1, oneCb)
+        await vector.getHoldingRegister(9, 1, oneCb)
         expect(oneCb).toHaveBeenCalledWith(null, 0)
       })
 
@@ -1752,7 +1791,7 @@ describe('ModbusServer', () => {
         const vector = await tcpVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(70000, 1, cb)
+        await vector.getHoldingRegister(70000, 1, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: ILLEGAL_DATA_ADDRESS }),
           0
@@ -1766,7 +1805,7 @@ describe('ModbusServer', () => {
         const vector = await rtuVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 1, cb)
+        await vector.getHoldingRegister(0, 1, cb)
         expect(cb).toHaveBeenCalledWith(null, 42)
       })
 
@@ -1775,7 +1814,7 @@ describe('ModbusServer', () => {
         const vector = await rtuVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 5, cb)
+        await vector.getHoldingRegister(0, 5, cb)
         expect(cb).not.toHaveBeenCalled()
       })
 
@@ -1784,7 +1823,7 @@ describe('ModbusServer', () => {
         const vector = await rtuVector()
 
         const cb = vi.fn()
-        await vector.getCoil!(0, 5, cb)
+        await vector.getCoil(0, 5, cb)
         expect(cb).not.toHaveBeenCalled()
       })
 
@@ -1793,7 +1832,7 @@ describe('ModbusServer', () => {
         const vector = await rtuVector()
 
         const cb = vi.fn()
-        await vector.getHoldingRegister!(0, 0, cb)
+        await vector.getHoldingRegister(0, 0, cb)
         expect(cb).not.toHaveBeenCalled()
       })
 
@@ -1802,14 +1841,14 @@ describe('ModbusServer', () => {
         hostUnit('2', 0, 43)
         const vector = await rtuVector()
 
-        await vector.setRegister!(9, 4242, 0, vi.fn())
+        await vector.setRegister(9, 4242, 0, vi.fn())
 
         const oneCb = vi.fn()
-        await vector.getHoldingRegister!(9, 1, oneCb)
+        await vector.getHoldingRegister(9, 1, oneCb)
         expect(oneCb).toHaveBeenCalledWith(null, 4242)
 
         const twoCb = vi.fn()
-        await vector.getHoldingRegister!(9, 2, twoCb)
+        await vector.getHoldingRegister(9, 2, twoCb)
         expect(twoCb).toHaveBeenCalledWith(null, 4242)
       })
 
@@ -1818,7 +1857,7 @@ describe('ModbusServer', () => {
         const vector = await rtuVector()
 
         const cb = vi.fn()
-        await vector.setRegister!(9, 4242, 0, cb)
+        await vector.setRegister(9, 4242, 0, cb)
         expect(cb).not.toHaveBeenCalled()
       })
 
@@ -1827,14 +1866,14 @@ describe('ModbusServer', () => {
         hostUnit('2', 0, 43)
         const vector = await rtuVector()
 
-        await vector.setCoil!(3, true, 0, vi.fn())
+        await vector.setCoil(3, true, 0, vi.fn())
 
         const oneCb = vi.fn()
-        await vector.getCoil!(3, 1, oneCb)
+        await vector.getCoil(3, 1, oneCb)
         expect(oneCb).toHaveBeenCalledWith(null, true)
 
         const twoCb = vi.fn()
-        await vector.getCoil!(3, 2, twoCb)
+        await vector.getCoil(3, 2, twoCb)
         expect(twoCb).toHaveBeenCalledWith(null, true)
       })
 
@@ -1843,11 +1882,11 @@ describe('ModbusServer', () => {
         const rtu = await rtuVector()
         const tcp = await tcpVector()
 
-        await rtu.setRegister!(0, 500, 5, vi.fn())
+        await rtu.setRegister(0, 500, 5, vi.fn())
 
         // The same uuid over TCP is the only way to ask whether unit 5 now exists.
         const cb = vi.fn()
-        await tcp.getHoldingRegister!(0, 5, cb)
+        await tcp.getHoldingRegister(0, 5, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0
@@ -1922,9 +1961,9 @@ describe('ModbusServer', () => {
       server.addRegister({ uuid, unitId, littleEndian: false, params })
     }
 
-    const readHolding = async (vector: IServiceVector, address: number): Promise<unknown> =>
+    const readHolding = async (vector: ServerVector, address: number): Promise<unknown> =>
       new Promise((resolve) =>
-        vector.getHoldingRegister!(address, 1, (error, value) => resolve(error ? 'ERR' : value))
+        vector.getHoldingRegister(address, 1, (error, value) => resolve(error ? 'ERR' : value))
       )
 
     it('leaves the register next to a deleted string alone', async () => {
@@ -1933,7 +1972,7 @@ describe('ModbusServer', () => {
       addRegister(18, 'utf8', { stringValue: 'HAHA', length: 2 })
 
       await server.createServer({ uuid, port: 5020 })
-      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      const vector = lastVector(ServerTCP)
 
       const before = await readHolding(vector, 20)
       expect(before).not.toBe(0)
@@ -1957,7 +1996,7 @@ describe('ModbusServer', () => {
       addRegister(40, 'uint16', { value: 7 })
 
       await server.createServer({ uuid, port: 5020 })
-      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      const vector = lastVector(ServerTCP)
 
       server.removeRegister({
         uuid,
@@ -1978,7 +2017,7 @@ describe('ModbusServer', () => {
       addRegister(10, 'uint16', { value: 7 })
 
       await server.createServer({ uuid, port: 5020 })
-      const vector = vi.mocked(ServerTCP).mock.calls.at(-1)![0]
+      const vector = lastVector(ServerTCP)
 
       server.removeRegister({
         uuid,

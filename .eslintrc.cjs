@@ -9,6 +9,7 @@ module.exports = {
   plugins: ['react-hooks'],
   rules: {
     'react-hooks/rules-of-hooks': 'error',
+    '@typescript-eslint/no-non-null-assertion': 'error',
     'react-hooks/exhaustive-deps': 'warn',
     'prettier/prettier': [
       'error',

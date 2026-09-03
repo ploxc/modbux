@@ -418,7 +418,7 @@ describe('configMigration', () => {
       migrateBoolShape(serverRegisters)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const regs = serverRegisters['uuid-1']!['0'] as any
+      const regs = serverRegisters['uuid-1']?.['0'] as any
       expect(regs.coils['0']).toEqual({ value: true })
       expect(regs.coils['5']).toEqual({ value: false })
       expect(regs.discrete_inputs['0']).toEqual({ value: false })
@@ -440,7 +440,7 @@ describe('configMigration', () => {
       migrateBoolShape(serverRegisters)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const regs = serverRegisters['uuid-1']!['0'] as any
+      const regs = serverRegisters['uuid-1']?.['0'] as any
       expect(regs.coils['0']).toEqual({ value: true })
       expect(regs.coils['5']).toEqual({ value: false, comment: 'test' })
     })
@@ -466,7 +466,8 @@ describe('configMigration', () => {
 
       const result = migrateServerConfig(v1Config)
 
-      const unit = result.config.serverRegistersPerUnit['1']!
+      const unit = result.config.serverRegistersPerUnit['1']
+      if (!unit) throw new Error('the migrated config has no unit 1')
       expect(unit.coils['0']).toEqual({ value: true })
       expect(unit.coils['1']).toEqual({ value: false })
       expect(unit.discrete_inputs['3']).toEqual({ value: true })
@@ -489,7 +490,8 @@ describe('configMigration', () => {
       })
 
       const result = migrateServerConfig(v2Config)
-      const unit = result.config.serverRegistersPerUnit['0']!
+      const unit = result.config.serverRegistersPerUnit['0']
+      if (!unit) throw new Error('the migrated config has no unit 0')
       expect(unit.coils['0']).toEqual({ value: true })
       expect(unit.coils['1']).toEqual({ value: false })
     })

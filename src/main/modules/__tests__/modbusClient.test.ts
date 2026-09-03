@@ -1467,7 +1467,7 @@ describe('ModbusClient', () => {
       const progress = getWindowCalls('scan_progress')
       expect(progress.length).toBeGreaterThan(0)
       // Last progress should be 100
-      expect(progress.at(-1)![1]).toBe(100)
+      expect(progress.at(-1)?.[1]).toBe(100)
     })
 
     // ! Coverage-only: exercises FALSE branch of registerTypes.includes('holding_registers')
