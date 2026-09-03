@@ -101,7 +101,7 @@ export const findUnreadablePorts = async (): Promise<string[]> => {
 }
 
 interface GroupEntry {
-  gid: number
+  groupId: number
   members: string[]
 }
 
@@ -111,10 +111,10 @@ export const readGroupEntry = async (group: string): Promise<GroupEntry | undefi
     const file = await readFile(GROUP_FILE_PATH, 'utf8')
     for (const line of file.split('\n')) {
       // A line with fewer fields than this is not a group entry.
-      const [name, , gid, members] = line.split(':')
-      if (name !== group || gid === undefined) continue
+      const [name, , groupId, members] = line.split(':')
+      if (name !== group || groupId === undefined) continue
       return {
-        gid: Number.parseInt(gid, 10),
+        groupId: Number.parseInt(groupId, 10),
         members: (members ?? '').split(',').filter(Boolean)
       }
     }
@@ -124,9 +124,9 @@ export const readGroupEntry = async (group: string): Promise<GroupEntry | undefi
   return undefined
 }
 
-/** Reads one group out of /etc/group by gid. Undefined when it is not there. */
-export const readGroupByGid = async (
-  gid: number
+/** Reads one group out of /etc/group by its id. Undefined when it is not there. */
+export const readGroupById = async (
+  groupId: number
 ): Promise<(GroupEntry & { name: string }) | undefined> => {
   try {
     const file = await readFile(GROUP_FILE_PATH, 'utf8')
@@ -134,8 +134,8 @@ export const readGroupByGid = async (
       // A line with fewer fields than this is not a group entry.
       const [name, , id, members] = line.split(':')
       if (name === undefined || id === undefined) continue
-      if (Number.parseInt(id, 10) !== gid) continue
-      return { name, gid, members: (members ?? '').split(',').filter(Boolean) }
+      if (Number.parseInt(id, 10) !== groupId) continue
+      return { name, groupId, members: (members ?? '').split(',').filter(Boolean) }
     }
   } catch {
     // Unreadable or not Linux. The caller treats that as nothing to report.
@@ -148,13 +148,13 @@ export const readGroupByGid = async (
  *
  * Asking the device rather than assuming `dialout` is the point: the name is a
  * distribution's choice, and guessing wrong means saying nothing on exactly the
- * machines where it matters. Undefined when nothing refuses, or when the gid
+ * machines where it matters. Undefined when nothing refuses, or when the group id
  * that owns it has no name -- neither leaves anything useful to say.
  */
 export const blockedPortGroup = async (): Promise<(GroupEntry & { name: string }) | undefined> => {
   for (const port of await findUnreadablePorts()) {
     try {
-      const group = await readGroupByGid((await stat(join(DEV_DIR, port))).gid)
+      const group = await readGroupById((await stat(join(DEV_DIR, port))).gid)
       if (group) return group
     } catch {
       // Gone between the scan and the stat. Try the next one.
@@ -197,7 +197,7 @@ export const getSerialGroupStatus = async (): Promise<SerialGroupStatus> => {
 
   // Holding the group and still being refused means something else is wrong --
   // a device mode of 0600, say -- and the group is not the thing to talk about.
-  const heldNow = process.getgroups?.().includes(group.gid) ?? false
+  const heldNow = process.getgroups?.().includes(group.groupId) ?? false
   const listed = group.members.includes(username)
 
   return {

@@ -398,14 +398,14 @@ export class ModbusClient {
       : []
     const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
-    for (const [gi, [a, l]] of groups.entries()) {
+    for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
       // Per group: `_logTransaction` below runs whether the group threw or not,
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
       try {
-        const rows = await this._tryRead(type, a, l)
-        rows.forEach((r) => {
-          r.groupIndex = gi
+        const rows = await this._tryRead(type, groupAddress, groupLength)
+        rows.forEach((row) => {
+          row.groupIndex = groupIndex
         })
         data.push(...rows)
       } catch (error) {
@@ -417,29 +417,29 @@ export class ModbusClient {
           const mapping = this._appState.registerMapping?.[type]
           if (mapping) {
             for (const [addressKey, mapValue] of Object.entries(mapping)) {
-              const address = Number(addressKey)
+              const mappedAddress = Number(addressKey)
               if (
-                address >= a &&
-                address < a + l &&
+                mappedAddress >= groupAddress &&
+                mappedAddress < groupAddress + groupLength &&
                 mapValue?.dataType &&
                 mapValue.dataType !== 'none'
               ) {
                 data.push({
-                  id: address,
+                  id: mappedAddress,
                   buffer: new Uint8Array(2),
                   hex: '0000',
                   words: undefined,
                   bit: false,
                   isScanned: false,
                   error: errorMessage,
-                  groupIndex: gi
+                  groupIndex
                 })
               }
             }
           }
         } else {
           this._emitMessage({
-            message: `${errorMessage} [addr:${a}, len:${l}, id:${this._appState.connectionConfig.unitId}]`,
+            message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${this._appState.connectionConfig.unitId}]`,
             variant: 'error',
             error
           })
@@ -920,8 +920,8 @@ export class ModbusClient {
     this._logTransaction(errorMessage)
 
     if (!data) return
-    data = data.filter((d) =>
-      ['coils', 'discrete_inputs'].includes(type) ? d.bit : d.hex !== '0000'
+    data = data.filter((row) =>
+      ['coils', 'discrete_inputs'].includes(type) ? row.bit : row.hex !== '0000'
     )
     this._sendData(data)
   }
@@ -936,9 +936,9 @@ export class ModbusClient {
   public listSerialPorts = async (): Promise<{ path: string; manufacturer?: string }[]> => {
     try {
       const ports = await ModbusRTU.getPorts()
-      return ports.map((p) => ({
-        path: p.path,
-        manufacturer: p.manufacturer ?? undefined
+      return ports.map((port) => ({
+        path: port.path,
+        manufacturer: port.manufacturer ?? undefined
       }))
     } catch (error) {
       const message = humanizeSerialError(error as Error)
@@ -952,7 +952,7 @@ export class ModbusClient {
   ): Promise<{ valid: boolean; message: string }> => {
     try {
       const ports = await ModbusRTU.getPorts()
-      const found = ports.some((p) => p.path.toLowerCase() === portPath.toLowerCase())
+      const found = ports.some((port) => port.path.toLowerCase() === portPath.toLowerCase())
       return {
         valid: found,
         message: found

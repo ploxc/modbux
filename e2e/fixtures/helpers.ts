@@ -52,6 +52,19 @@ export async function cell(p: Page, rowId: number, field: string): Promise<strin
   return ((await cellLocator(p, rowId, field).textContent()) ?? '').trim()
 }
 
+/**
+ * The count a server section title carries in brackets, as in `Holding (75)`.
+ *
+ * A title with no count fails here with the text that was there, which is what
+ * the caller needs to know.
+ */
+export async function sectionCount(p: Page, registerType: string): Promise<number> {
+  const text = await p.getByTestId(`section-${registerType}`).textContent()
+  const count = text?.match(/\((\d+)\)/)?.[1]
+  if (count === undefined) throw new Error(`no count in the ${registerType} title: ${text}`)
+  return Number(count)
+}
+
 /** Assert a cell's text, retrying until it matches or the timeout expires. */
 export async function expectCell(
   p: Page,
@@ -225,8 +238,9 @@ export async function setupServerConfig(
     // This lets us open the modal once per type and chain with Add & Next.
     const byType = new Map<string, RegisterDef[]>()
     for (const reg of config.registers) {
-      if (!byType.has(reg.registerType)) byType.set(reg.registerType, [])
-      byType.get(reg.registerType)!.push(reg)
+      const forType = byType.get(reg.registerType) ?? []
+      forType.push(reg)
+      byType.set(reg.registerType, forType)
     }
 
     for (const regs of byType.values()) {
@@ -260,7 +274,9 @@ export async function setupServerConfig(
       }
     })
 
-    const boolsWithComment = config.bools.filter((b) => b.comment)
+    const boolsWithComment = config.bools.filter(
+      (b): b is (typeof config.bools)[number] & { comment: string } => Boolean(b.comment)
+    )
     if (boolsWithComment.length > 0) {
       await test.step(`set ${boolsWithComment.length} bool comments`, async () => {
         for (const bool of boolsWithComment) {
@@ -269,7 +285,7 @@ export async function setupServerConfig(
           await row.locator('p').click()
           const input = row.locator('input')
           await expect(input).toBeVisible()
-          await input.fill(bool.comment!)
+          await input.fill(bool.comment)
           await input.press('Enter')
           await p.waitForTimeout(t(100, fast))
         }
