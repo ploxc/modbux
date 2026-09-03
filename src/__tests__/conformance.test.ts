@@ -640,6 +640,61 @@ describe('every channel carrying an object declares a schema', () => {
 })
 
 //
+// ─── Every channel has a caller ──────────────────────────────────────────────
+//
+// `window.api` is generated from IPC_CHANNELS, so a channel nobody calls still
+// gets a method, a handler and a spec entry, and nothing says so.
+// `get_connection_config` and `get_client_state` sat that way, with the app's
+// only config repair branch inside one of them. A handler that reads as a guard
+// and never runs is worse than no handler.
+//
+// The caller has to be in the renderer. A channel only the e2e suite drives is
+// a channel the app itself does not use, and that is a decision to take rather
+// than to let happen.
+
+describe('every channel has a caller', () => {
+  const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
+
+  /** Each channel, and the camelCase method it becomes on `window.api`. */
+  const methods = new Map<string, string>()
+  eachNode(spec, (node) => {
+    if (!ts.isVariableDeclaration(node)) return
+    if (node.name.getText(spec) !== 'IPC_CHANNELS') return
+    eachNode(node as unknown as ts.SourceFile, (child) => {
+      if (!ts.isStringLiteral(child)) return
+      methods.set(
+        child.text,
+        child.text.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+      )
+    })
+  })
+
+  /** Every name called as `<something>.<name>(` in the renderer. */
+  const called = new Set<string>()
+  for (const file of sourceFiles(rendererRoot)) {
+    eachNode(parse(file), (node) => {
+      if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return
+      called.add(node.expression.name.text)
+    })
+  }
+
+  it('finds channels to check', () => {
+    expect(methods.size).toBeGreaterThan(30)
+  })
+
+  it('finds calls to check', () => {
+    expect(called.size).toBeGreaterThan(30)
+  })
+
+  it('leaves none of them uncalled', () => {
+    const dead = [...methods]
+      .filter(([, method]) => !called.has(method))
+      .map(([channel, method]) => `${channel}\t${method}`)
+    expect(dead).toEqual([])
+  })
+})
+
+//
 // ─── Every configured path is somewhere ──────────────────────────────────────
 //
 // @backend pointed at a directory that had been deleted, and the alias outlived

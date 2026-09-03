@@ -1,8 +1,8 @@
 # Contributing to Modbux
 
-Everything below is a rule rather than a suggestion. Ten of them are asserted by
-`src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead of
-waiting for a reviewer.
+Everything below is a rule rather than a suggestion. Eleven of them are asserted
+by `src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead
+of waiting for a reviewer.
 
 ## Ground rules
 
@@ -55,7 +55,7 @@ Beyond what the linter catches:
 
 ### The conventions this codebase has already settled
 
-`src/__tests__/conformance.test.ts` asserts the ten rules below, so a PR that
+`src/__tests__/conformance.test.ts` asserts the eleven rules below, so a PR that
 breaks one fails `yarn test` rather than waiting for a reviewer to notice. Every
 rule asserts that the population it reads is not empty before it asserts the
 population holds no violation, because a meter that reads no files passes every
@@ -121,6 +121,14 @@ object or a union, and that is where a hand-edited config file arrives. The
 schema goes beside the handler in `main/ipc.ts`, and it is only accepted where
 `undefined` is an honest answer: a rejected payload has nothing else to give
 back, so a channel returning a value has to say so in its type.
+
+**Every channel has a caller in the renderer.** `window.api` is generated from
+`IPC_CHANNELS`, so a channel nobody calls still gets a method, a handler and a
+spec entry, and nothing says so. Two sat that way with the app's only config
+repair branch inside one of them, which is worse than no repair at all: it reads
+like a guard. The caller has to be in `src/renderer`, because a channel only the
+e2e suite drives is one the app does not use, and that is a decision to take
+rather than to let happen.
 
 **Every configured path alias is imported through.** `@renderer/*` and `@shared`
 are the two, in the tsconfigs and in `electron.vite.config.ts` alike. An alias
