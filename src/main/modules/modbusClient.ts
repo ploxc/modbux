@@ -92,6 +92,17 @@ export class ModbusClient {
     this._appState = appState
     this._windows = windows
 
+    this._attachClientHandlers()
+  }
+
+  /**
+   * Register the handlers that carry connection errors and auto-reconnect.
+   *
+   * These live on the `ModbusRTU` object rather than on the port, so a client
+   * that gets replaced comes back without them. Every site that assigns
+   * `this._client` calls this.
+   */
+  private _attachClientHandlers = (): void => {
     this._client
       .on('error', (error) => {
         this._clientState.connectState = 'disconnected'
@@ -328,6 +339,7 @@ export class ModbusClient {
             this._emitMessage({ message, variant: 'warning', error: null })
             resolve()
             this._client = new ModbusRTU()
+            this._attachClientHandlers()
           })
         }, 5000)
 

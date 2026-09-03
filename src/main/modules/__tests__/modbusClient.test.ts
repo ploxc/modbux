@@ -282,6 +282,40 @@ describe('ModbusClient', () => {
       expect(messages.some((m) => m[1].message.includes('Disconnect timeout'))).toBe(true)
     })
 
+    // The mock constructor hands out one shared object, so the replacement is
+    // the same instance and its handlers are still attached. Emptying the
+    // record first is what makes the two below see the registration itself.
+    it('re-registers its handlers on the client the timeout replaces', async () => {
+      await connectClient()
+      mockModbusRTU.close.mockImplementation(() => {})
+
+      clientEventHandlers = {}
+      const disconnectPromise = client.disconnect()
+      await vi.advanceTimersByTimeAsync(5500)
+      await disconnectPromise
+
+      expect(Object.keys(clientEventHandlers).sort()).toEqual(['close', 'error'])
+
+      // And they still do the work: a close on the replacement reconnects.
+      mockModbusRTU.isOpen = false
+      await connectClient()
+      clientEventHandlers.close()
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message.includes('Connection lost, reconnecting'))).toBe(
+        true
+      )
+    })
+
+    it('leaves the handlers alone when close answers in time', async () => {
+      await connectClient()
+
+      clientEventHandlers = {}
+      await client.disconnect()
+
+      expect(Object.keys(clientEventHandlers)).toEqual([])
+    })
+
     it('handles disconnect error', async () => {
       await connectClient()
       mockModbusRTU.close.mockImplementation(() => {
