@@ -8,6 +8,8 @@ import { useCallback, useEffect } from 'react'
 import { FixedOrGenerator, ValueParameters } from './valueParameters'
 import { AddressField, DataTypeSelect, CommentField } from './registerFields'
 import { AddButtons, DeleteButton } from './addRegisterActions'
+import { FIELD_DEFAULTS } from './addRegister.zustand.helpers'
+import { DEFAULT_UTF8_LENGTH } from '@shared'
 
 const AddRegister = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -47,24 +49,31 @@ const AddRegister = meme(() => {
       length
     } = addRegisterZustand.serverRegisterEdit.params
 
+    // The masked setters take the validity of what they are given as a second
+    // argument, and a stored register holds values that were valid when it was
+    // added. Left off, a field came up marked wrong, and only a field on screen
+    // had that corrected, by the mask under it reporting back on mount.
     addRegisterZustand.setFixed(value !== undefined)
-    addRegisterZustand.setAddress(String(address))
+    addRegisterZustand.setAddress(String(address), true)
     addRegisterZustand.setRegisterType(registerType)
     addRegisterZustand.setComment(comment)
-    addRegisterZustand.setInterval(interval ? String(interval / 1000) : '1')
-    addRegisterZustand.setMax(String(max))
-    addRegisterZustand.setMin(String(min))
+    addRegisterZustand.setInterval(
+      interval ? String(interval / 1000) : FIELD_DEFAULTS.interval,
+      true
+    )
+    addRegisterZustand.setMax(max === undefined ? FIELD_DEFAULTS.max : String(max), true)
+    addRegisterZustand.setMin(min === undefined ? FIELD_DEFAULTS.min : String(min), true)
 
     if (dataType === 'utf8') {
       addRegisterZustand.setStringValue(stringValue ?? '')
-      addRegisterZustand.setRegisterLength(String(length ?? 10), true)
-      addRegisterZustand.setValue('0', true)
+      addRegisterZustand.setRegisterLength(String(length ?? DEFAULT_UTF8_LENGTH), true)
+      addRegisterZustand.setValue(FIELD_DEFAULTS.value, true)
     } else if (['unix', 'datetime'].includes(dataType) && value !== undefined) {
       // Convert stored value back to ms for the date picker
       const ms = dataType === 'unix' ? Number(value) * 1000 : Number(value)
       addRegisterZustand.setValue(String(ms), true)
     } else {
-      addRegisterZustand.setValue(String(value))
+      addRegisterZustand.setValue(value === undefined ? FIELD_DEFAULTS.value : String(value), true)
     }
 
     addRegisterZustand.setDataType(dataType)

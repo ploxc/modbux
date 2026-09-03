@@ -14,6 +14,7 @@ import {
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import {
+  FIELD_DEFAULTS,
   isAddressInUse,
   RegisterFormSnapshot,
   toFormSnapshot,
@@ -238,14 +239,14 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.valid.registerLength = result.registerLengthValid
       }),
 
-    value: '0',
+    value: FIELD_DEFAULTS.value,
     setValue: (value, valid) =>
       set((state) => {
         state.value = value
         state.valid.value = !!valid
       }),
 
-    interval: '1',
+    interval: FIELD_DEFAULTS.interval,
     setInterval: (interval, valid) =>
       set((state) => {
         state.interval = interval
@@ -258,14 +259,14 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.comment = comment
       }),
 
-    min: '0',
+    min: FIELD_DEFAULTS.min,
     setMin: (min, valid) =>
       set((state) => {
         state.min = min
         state.valid.min = !!valid
       }),
 
-    max: '1',
+    max: FIELD_DEFAULTS.max,
     setMax: (max, valid) =>
       set((state) => {
         state.max = max
@@ -418,10 +419,10 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       set((state) => {
         state.address = '0'
         state.dataType = 'int16'
-        state.value = '0'
-        state.min = '0'
-        state.max = '1'
-        state.interval = '1'
+        state.value = FIELD_DEFAULTS.value
+        state.min = FIELD_DEFAULTS.min
+        state.max = FIELD_DEFAULTS.max
+        state.interval = FIELD_DEFAULTS.interval
         state.comment = ''
         state.fixed = true
         state.stringValue = ''
