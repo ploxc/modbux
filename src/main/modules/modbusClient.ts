@@ -467,8 +467,8 @@ export class ModbusClient {
   // writing down what those actually guarantee.
   //
   // A transaction is created by the writeFCx methods and never removed again:
-  // the library only ever assigns _transactions in its constructor. Clearing
-  // it is ours to do, or a session grows one entry per request.
+  // the library only ever assigns _transactions in its constructor. Removing
+  // them is ours to do, or a session grows one entry per request.
   //
   // request and responses are stashed only while debug mode is on, and only
   // by the write that reaches the port, so a transaction can carry neither.
@@ -486,11 +486,13 @@ export class ModbusClient {
     const lastTransaction = rawTransactions.at(-1)
     if (!lastTransaction) return
 
-    // Clear the transactions so we don't log a transaction twice
-    // For example when encountering an error we would log the same last transaction again
-    this._client['_transactions'] = {}
-
     const [transactionIdKey, rawTransaction] = lastTransaction
+
+    // Only the entry being logged, so the same one is not logged again on the
+    // next call. Emptying the table takes entries for requests still in flight
+    // with it, and `_onReceive` drops a response whose entry is gone, so the
+    // request times out rather than resolving.
+    delete this._client['_transactions'][transactionIdKey]
 
     const transaction: Transaction = {
       id: `${transactionIdKey}__${v4()}`,

@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before.** A register your configuration gives no type kept whatever the last
   one used, so a value could go out encoded as something the address is not.
   Such an address now opens as INT16.
+- **A write no longer times out a read that was already on its way.** Logging a
+  transaction threw away the bookkeeping for every request still waiting for an
+  answer, so a read overlapping a write reported a timeout that never happened
+  and the grid kept its old values.
 - **A disconnect that hangs no longer costs you auto-reconnect.** When closing
   the connection took too long, the client was replaced by a fresh one that
   nobody was listening to, so for the rest of the session a dropped connection
