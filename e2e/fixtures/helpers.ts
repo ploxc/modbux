@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { RegisterDef, ServerConfig } from './types'
 
 /** Scale a timeout for fast mode: 300→75ms, 200→50ms, ≤100→0ms, 500→100ms */
@@ -727,4 +727,22 @@ export async function openColumnMenu(p: Page, field: string): Promise<void> {
     // Not getByRole('menu'): the action cells carry that role too.
     await expect(menu).toBeVisible()
   })
+}
+
+/**
+ * Split the server out of Home and hand back the window that opens.
+ *
+ * `waitForEvent` hangs its listener at the moment it is called, so awaiting the
+ * click first leaves a gap the window can open in, and by then the event is
+ * gone. Measured on Linux with the listener armed after the click: 2 timeouts
+ * in 3 runs, with the Server window open in all three. Arming it beside the
+ * click is what Playwright documents for this.
+ */
+export async function splitOutServerWindow(app: ElectronApplication, p: Page): Promise<Page> {
+  const [serverPage] = await Promise.all([
+    app.waitForEvent('window', { timeout: 10_000 }),
+    p.getByTestId('home-split-btn').click()
+  ])
+  await serverPage.waitForLoadState('domcontentloaded')
+  return serverPage
 }
