@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToHome, navigateToServer } from '../../fixtures/helpers'
+import { navigateToHome, navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { type Page } from '@playwright/test'
 import net from 'net'
 
@@ -37,9 +37,7 @@ test.describe.serial('Split View — Server in separate window', () => {
   })
 
   test('open split view from Home', async ({ electronApp, mainPage }) => {
-    await mainPage.getByTestId('home-split-btn').click()
-    serverPage = await electronApp.waitForEvent('window', { timeout: 10000 })
-    await serverPage.waitForLoadState('domcontentloaded')
+    serverPage = await splitOutServerWindow(electronApp, mainPage)
     await serverPage.waitForTimeout(500)
     const title = await electronApp.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()

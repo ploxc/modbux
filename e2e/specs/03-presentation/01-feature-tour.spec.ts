@@ -34,7 +34,8 @@ import {
   cell,
   disableClientRawMode,
   expectCell,
-  expectCellContains
+  expectCellContains,
+  splitOutServerWindow
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
@@ -927,10 +928,7 @@ test.describe.serial('Act V — Side by Side', () => {
     await navigateToHome(mainPage)
     await beat(mainPage, 3500)
 
-    // Open split view
-    await mainPage.getByTestId('home-split-btn').click()
-    serverPage = await electronApp.waitForEvent('window', { timeout: 10000 })
-    await serverPage.waitForLoadState('domcontentloaded')
+    serverPage = await splitOutServerWindow(electronApp, mainPage)
     await beat(serverPage, 1500)
 
     await snap(mainPage, 'split-view-client')

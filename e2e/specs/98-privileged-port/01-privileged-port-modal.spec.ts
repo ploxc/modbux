@@ -21,7 +21,7 @@ import {
   type Page
 } from '@playwright/test'
 import { launchOptions } from '../../fixtures/launch'
-import { navigateToServer } from '../../fixtures/helpers'
+import { navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { readFileSync } from 'fs'
 
 const PROC_PATH = '/proc/sys/net/ipv4/ip_unprivileged_port_start'
@@ -178,9 +178,7 @@ test.describe.serial('Privileged port modal (manual, Linux only)', () => {
     await closeApp()
     await launchApp()
 
-    await page.getByTestId('home-split-btn').click()
-    const serverPage = await app.waitForEvent('window', { timeout: 10_000 })
-    await serverPage.waitForLoadState('domcontentloaded')
+    const serverPage = await splitOutServerWindow(app, page)
 
     await waitForModal(serverPage)
     await expect(page.getByTestId(MODAL)).toBeHidden()
