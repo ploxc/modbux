@@ -110,6 +110,56 @@ describe('Windows', () => {
     })
   })
 
+  /**
+   * The setters send `window_update`, and they send it at the one moment a
+   * window is going away, so this is where a stale handle is most likely to be
+   * in the list.
+   */
+  describe('window_update', () => {
+    it('a destroyed main window does not cost the server window its update', () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+
+      mainWindow.isDestroyed.mockReturnValue(true)
+      mainWindow.webContents.send.mockImplementation(() => {
+        throw new Error('Object has been destroyed')
+      })
+
+      windows.server = serverWindow as never
+
+      expect(serverWindow.webContents.send).toHaveBeenCalledWith('window_update', {
+        main: true,
+        server: true
+      })
+    })
+
+    it('reports which windows are open', () => {
+      const mainWindow = createMockWindow()
+      windows.main = mainWindow as never
+
+      expect(mainWindow.webContents.send).toHaveBeenCalledWith('window_update', {
+        main: true,
+        server: false
+      })
+    })
+
+    it('reports a window that was nulled as closed', () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+      windows.server = serverWindow as never
+      serverWindow.webContents.send.mockClear()
+
+      windows.main = null
+
+      expect(serverWindow.webContents.send).toHaveBeenCalledWith('window_update', {
+        main: false,
+        server: true
+      })
+    })
+  })
+
   describe('main getter/setter', () => {
     // ! Coverage-only: trivial initial state
     it('returns null initially', () => {
