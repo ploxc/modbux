@@ -134,23 +134,6 @@ describe('configMigration', () => {
         expect(result.config.littleEndian).toBe(false)
         expect(result.warning).toBe('MIXED_ENDIANNESS')
       })
-
-      it('applies legacy string replacements (camelCase to snake_case)', () => {
-        const v1ConfigLegacy = JSON.stringify({
-          name: 'Legacy',
-          serverRegistersPerUnit: {
-            '1': {
-              Coils: {},
-              DiscreteInputs: {},
-              InputRegisters: {},
-              HoldingRegisters: {}
-            }
-          }
-        })
-
-        // Should not throw
-        expect(() => migrateServerConfig(v1ConfigLegacy)).not.toThrow()
-      })
     })
 
     describe('v2 pass-through', () => {

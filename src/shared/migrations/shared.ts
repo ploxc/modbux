@@ -67,15 +67,34 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
   }
 }
 
+const LEGACY_REGISTER_TYPE_KEYS: Record<string, string> = {
+  Coils: 'coils',
+  DiscreteInputs: 'discrete_inputs',
+  InputRegisters: 'input_registers',
+  HoldingRegisters: 'holding_registers'
+}
+
 /**
- * Apply legacy string replacements (camelCase to snake_case)
+ * Rename the register type keys a config from before `b3474fe` carries.
+ *
+ * `RegisterType` was an enum of camelCase members until that commit, and its
+ * members were the keys of the register map, so a config saved earlier names
+ * them that way. Versioned configs arrived at `b4f558b`, eight months later,
+ * which is why only the v1 migrations call this.
+ *
+ * A key is the only thing renamed. The four names read as ordinary English, so
+ * running them over the file text instead rewrote a config name and any comment
+ * carrying one of them.
  */
-export function applyLegacyStringReplacements(content: string): string {
-  return content
-    .replaceAll('InputRegisters', 'input_registers')
-    .replaceAll('DiscreteInputs', 'discrete_inputs')
-    .replaceAll('Coils', 'coils')
-    .replaceAll('HoldingRegisters', 'holding_registers')
+export function renameLegacyRegisterTypeKeys(value: unknown): void {
+  if (!isRecord(value)) return
+  for (const [key, entry] of Object.entries(value)) {
+    renameLegacyRegisterTypeKeys(entry)
+    const currentName = LEGACY_REGISTER_TYPE_KEYS[key]
+    if (currentName === undefined) continue
+    value[currentName] = entry
+    delete value[key]
+  }
 }
 
 /**
