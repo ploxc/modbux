@@ -169,6 +169,17 @@ test.describe.serial('macOS dock — the app outlives its windows', () => {
     await expect.poll(() => requestsSeen, { timeout: 10000 }).toBeGreaterThan(before)
   })
 
+  /**
+   * The window that came back has to be told, because main pushes `client_state`
+   * on a change and the last change was before this window existed. Without the
+   * question in `init` the button reads Connect while the polling above is
+   * running, and pressing it answers `Already connected`.
+   */
+  test('the window that came back knows the client is connected', async () => {
+    await navigateToClient(page)
+    await expect(page.getByTestId('connect-btn')).toContainText('Disconnect', { timeout: 5000 })
+  })
+
   test('the master survived it too', async () => {
     expect(masterEvents).toEqual([])
     expect(master.readyState).toBe('open')

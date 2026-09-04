@@ -51,6 +51,16 @@ export const flushRegisterMappingToMain = (): void => {
   window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
 }
 
+/**
+ * Whether a `client_state` push has landed since the module was evaluated.
+ *
+ * `init` asks main what the client is doing, because main pushes on a change
+ * and a window opened after the last push starts on the initial literal. The
+ * answer is main's state read when the handler ran, so a push that arrives
+ * while the answer is in flight is the newer of the two and keeps its value.
+ */
+let clientStatePushed = false
+
 carryFormerClientState(localStorage)
 
 export const useClientZustand = create<
@@ -71,6 +81,21 @@ export const useClientZustand = create<
           state.readConfiguration = false
           state.ready = true
         })
+
+        // Ready is set before this, so a store action does not wait on a round
+        // trip. The catch is the point of the try: this runs from module scope
+        // with nothing awaiting it, and a rejection there is an unhandled one.
+        // Falling through leaves the initial literal, which is what the window
+        // showed before it asked.
+        try {
+          const clientState = await window.api.getClientState()
+          if (!clientStatePushed)
+            set((state) => {
+              state.clientState = clientState
+            })
+        } catch {
+          // Main answers this synchronously; a rejection means it is not there.
+        }
       },
       connectionConfig: defaultConnectionConfig,
       registerConfig: defaultRegisterConfig,
@@ -475,6 +500,7 @@ clientZustand.init()
 
 // Client state, like polling, scanning, etc.
 onEvent('client_state', (clientState) => {
+  clientStatePushed = true
   const clientZustand = useClientZustand.getState()
   clientZustand.setClientState(clientState)
 })
