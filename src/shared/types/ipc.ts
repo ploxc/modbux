@@ -48,6 +48,7 @@ import { SharedProps } from 'notistack'
 export const IPC_CHANNELS = [
   'update_connection_config',
   'update_register_config',
+  'get_client_state',
   'set_register_mapping',
   'connect',
   'disconnect',
@@ -106,6 +107,18 @@ export interface IpcHandlerSpec {
   ['update_register_config']: {
     args: [DeepPartial<RegisterConfig>]
     return: void
+  }
+
+  /**
+   * What the client is doing right now.
+   *
+   * `client_state` is pushed on a change, so a window that opens after the last
+   * push has nothing to catch up on and starts on the initial literal. This is
+   * how it asks.
+   */
+  ['get_client_state']: {
+    args: []
+    return: ClientState
   }
 
   /** Set the RegisterMapping */

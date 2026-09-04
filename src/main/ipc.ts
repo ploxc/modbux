@@ -114,6 +114,9 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
     RegisterConfigSchema.deepPartial()
   )
 
+  // Client state
+  ipcHandle('get_client_state', () => client.state)
+
   // Register mapping
   ipcHandle(
     'set_register_mapping',
