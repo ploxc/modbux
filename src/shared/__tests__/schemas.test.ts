@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { RegisterMapObjectSchema } from '../types/client'
+import { ConnectionConfigSchema, RegisterMapObjectSchema } from '../types/client'
+import { defaultConnectionConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
 import { RegisterParamsSchema } from '../types/server'
 
@@ -158,5 +159,49 @@ describe('BitMapConfigSchema', () => {
 
   it('accepts empty config', () => {
     expect(BitMapConfigSchema.safeParse({}).success).toBe(true)
+  })
+})
+
+describe('ConnectionConfigSchema', () => {
+  const withUnitId = (unitId: unknown): unknown => ({ ...defaultConnectionConfig, unitId })
+  const withPort = (port: unknown): unknown => ({
+    ...defaultConnectionConfig,
+    tcp: {
+      ...defaultConnectionConfig.tcp,
+      options: { ...defaultConnectionConfig.tcp.options, port }
+    }
+  })
+
+  it('accepts the config the app starts on', () => {
+    expect(ConnectionConfigSchema.safeParse(defaultConnectionConfig).success).toBe(true)
+  })
+
+  it.each([0, 1, 255])('accepts unit id %s', (unitId) => {
+    expect(ConnectionConfigSchema.safeParse(withUnitId(unitId)).success).toBe(true)
+  })
+
+  // 3.7 is in the list because `writeUInt8` truncates it to 3 rather than
+  // throwing: an unchecked fractional id polls the wrong unit and says nothing.
+  it.each([256, 999, -5, 3.7, Infinity])('refuses unit id %s', (unitId) => {
+    expect(ConnectionConfigSchema.safeParse(withUnitId(unitId)).success).toBe(false)
+  })
+
+  it.each([0, 502, 65535])('accepts port %s', (port) => {
+    expect(ConnectionConfigSchema.safeParse(withPort(port)).success).toBe(true)
+  })
+
+  it.each([65536, -1, 502.5])('refuses port %s', (port) => {
+    expect(ConnectionConfigSchema.safeParse(withPort(port)).success).toBe(false)
+  })
+
+  // `update_connection_config` guards on the partial, which is the door a
+  // renderer reaches. Both ranges have to survive `deepPartial`.
+  it('carries both ranges into the partial the ipc channel guards on', () => {
+    const partial = ConnectionConfigSchema.deepPartial()
+
+    expect(partial.safeParse({ unitId: 255 }).success).toBe(true)
+    expect(partial.safeParse({ unitId: 999 }).success).toBe(false)
+    expect(partial.safeParse({ tcp: { options: { port: 502 } } }).success).toBe(true)
+    expect(partial.safeParse({ tcp: { options: { port: 65536 } } }).success).toBe(false)
   })
 })

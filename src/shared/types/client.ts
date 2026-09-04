@@ -2,7 +2,7 @@ import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
-import { RegisterAddressSchema } from './ranges'
+import { PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
 
 //
 //
@@ -101,7 +101,7 @@ export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
 
 // modbus-serial TcpPortOptions partial
 export const TcpPortOptionsSchema = z.object({
-  port: z.number(),
+  port: PortSchema,
   timeout: z.number()
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
@@ -137,9 +137,17 @@ export const ConnectionConfigRtuSchema = z.object({
 })
 export type ConnectionConfigRtu = z.infer<typeof ConnectionConfigRtuSchema>
 
+/**
+ * The unit id and the port the client sends, on the range the protocol fixes.
+ *
+ * The server checks every unit id that arrives, with `UnitIdStringSchema` in
+ * every getter and setter, and it is the same byte going the other way. The
+ * mask inputs hold both fields to these ranges, so what is left for a schema to
+ * refuse is the persisted store and `update_connection_config`.
+ */
 export const ConnectionConfigSchema = z.object({
   protocol: ProtocolSchema,
-  unitId: z.number(),
+  unitId: UnitIdSchema,
   tcp: ConnectionConfigTcpSchema,
   rtu: ConnectionConfigRtuSchema
 })
