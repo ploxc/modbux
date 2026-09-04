@@ -92,16 +92,30 @@ function isolatedUserDataDir(): string {
 }
 
 /**
+ * A profile no other launch shares, for a spec that runs two apps against each
+ * other. The single instance lock is taken per profile, so two launches sharing
+ * one is what makes the second lose it, and a spec that wants that has to keep
+ * the worker's app out of the race.
+ */
+export function ownProfileDir(): string {
+  return mkdtempSync(join(tmpdir(), 'modbux-e2e-own-'))
+}
+
+/**
  * Launch options for every `electron.launch()` call in the suite, so dev and
  * packaged runs stay in sync.
+ *
+ * `userDataDir` names the profile explicitly, for a spec that launches more
+ * than one app and decides itself which of them share state and a lock.
  */
-export function launchOptions(): LaunchOptions {
+export function launchOptions(userDataDir?: string): LaunchOptions {
   // Packaged runs always get their own profile. Dev runs use the default one
   // (matching how the suite has always run) unless asked to isolate — set
   // E2E_ISOLATED_PROFILE=1 to check whether a spec depends on state left on
   // this machine by earlier runs rather than on state it sets up itself.
   const isolate = isPackaged || process.env.E2E_ISOLATED_PROFILE === '1'
-  const args = isolate ? [`--user-data-dir=${isolatedUserDataDir()}`] : []
+  const profile = userDataDir ?? (isolate ? isolatedUserDataDir() : undefined)
+  const args = profile ? [`--user-data-dir=${profile}`] : []
 
   // MODBUX_E2E turns off DataGrid virtualisation, so a locator finds the column
   // or row it names instead of only the ones the current window happens to

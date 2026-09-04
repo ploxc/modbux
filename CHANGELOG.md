@@ -86,6 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reading "read InputRegisters here" came back as "read input_registers here".
   Saving after that made it permanent. The rename now applies to the keys it was
   written for, and only to a configuration old enough to need it.
+- **On macOS, opening Modbux again while it sits in the Dock with no window now
+  brings the window back.** It used to answer with a red "A JavaScript error
+  occurred in the main process" dialog and no window at all. Your client stays
+  connected and polling the whole time, and the server keeps the connections it
+  has, which was already true and is now covered by a test.
 
 ### Changed
 
