@@ -6,7 +6,7 @@ import { initIpc, onIpcEvent } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
 import os from 'os'
-import { ModbusServer } from './modules/mobusServer'
+import { ModbusServer } from './modules/modbusServer'
 import { Windows } from '@shared'
 
 if (is.dev && os.platform() === 'darwin') {
@@ -26,7 +26,7 @@ const client = new ModbusClient({ appState, windows })
 const server = new ModbusServer({ windows })
 
 // IPC
-initIpc(app, appState, client, server)
+initIpc(app, appState, client, server, windows)
 
 /**
  * Say which path took the app down.
@@ -45,18 +45,26 @@ if (!gotTheLock) {
   lifecycle('another instance holds the single instance lock, quitting')
   app.quit()
 } else {
+  /**
+   * Someone launched Modbux again. Show them the app they already have.
+   *
+   * On macos `window-all-closed` does not quit, so the app can be sitting in
+   * the dock with no window at all, and then there is nothing to focus and one
+   * to create. Everywhere else the app is gone before a second launch can
+   * happen, so only macos reaches the second branch.
+   */
   app.on('second-instance', () => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (windows.main) {
-      if (windows.main.isMinimized()) windows.main.restore()
-      windows.main.focus()
+    if (windows.main === null) {
+      createWindow()
+      return
     }
+    if (windows.main.isMinimized()) windows.main.restore()
+    windows.main.focus()
   })
 }
 
 function createWindow(): BrowserWindow {
-  // Create the browser window.
-  windows.main = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     width: 1480,
     height: 1000,
     minWidth: 820,
@@ -75,29 +83,42 @@ function createWindow(): BrowserWindow {
     backgroundColor: '#181818'
   })
 
-  windows.main.on('ready-to-show', () => {
-    if (windows.main === null) return
-    windows.main.show()
+  windows.main = mainWindow
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
   })
 
-  windows.main.webContents.setWindowOpenHandler((details) => {
+  mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
-  windows.main.on('close', () => {
+  mainWindow.on('close', () => {
     windows.server?.close()
+  })
+
+  /**
+   * Let go of the handle the moment the window is destroyed, the way the server
+   * window already does.
+   *
+   * `close` is too early: the window is still alive there and a listener may
+   * still cancel it. Every method on a destroyed `BrowserWindow` throws, so a
+   * handle kept past this point is one that costs whoever reads it next.
+   */
+  mainWindow.on('closed', () => {
+    windows.main = null
   })
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    windows.main.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    windows.main.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  return windows.main
+  return mainWindow
 }
 
 //

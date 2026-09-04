@@ -14,7 +14,7 @@ vi.hoisted(() => {
 })
 
 import { render, screen, fireEvent } from '@testing-library/react'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions/MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions/MenuConnectionOptions'
 
@@ -23,18 +23,18 @@ import MenuConnectionOptions from '../MenuConnectionOptions/MenuConnectionOption
 // leave a stray separator. These tests guard that null-behaviour and the
 // RTU-over-TCP toggle without needing a real Modbus server.
 
-const seed = (partial: Parameters<typeof useRootZustand.setState>[0]): void => {
-  useRootZustand.setState(partial as never)
+const seed = (partial: Parameters<typeof useClientZustand.setState>[0]): void => {
+  useClientZustand.setState(partial as never)
 }
 
 beforeEach(() => {
   window.api = { updateConnectionConfig: vi.fn() } as never
-  useRootZustand.setState({
+  useClientZustand.setState({
     ready: true,
     clientState: {
       connectState: 'disconnected',
       polling: false,
-      scanningUniId: false,
+      scanningUnitIds: false,
       scanningRegisters: false
     }
   } as never)
@@ -43,7 +43,7 @@ beforeEach(() => {
 describe('MenuRegisterOptions', () => {
   it('renders advanced/64-bit options with a trailing divider for 16-bit register types', () => {
     seed({
-      registerConfig: { ...useRootZustand.getState().registerConfig, type: 'holding_registers' }
+      registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
     })
 
     const { container } = render(<MenuRegisterOptions />)
@@ -54,7 +54,7 @@ describe('MenuRegisterOptions', () => {
   })
 
   it('renders nothing (no options, no divider) for non-16-bit register types', () => {
-    seed({ registerConfig: { ...useRootZustand.getState().registerConfig, type: 'coils' } })
+    seed({ registerConfig: { ...useClientZustand.getState().registerConfig, type: 'coils' } })
 
     const { container } = render(<MenuRegisterOptions />)
 
@@ -66,7 +66,7 @@ describe('MenuRegisterOptions', () => {
 describe('MenuConnectionOptions', () => {
   it('renders the RTU-over-TCP checkbox with a trailing divider when TCP is selected', () => {
     seed({
-      connectionConfig: { ...useRootZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
+      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
     })
 
     const { container } = render(<MenuConnectionOptions />)
@@ -78,7 +78,7 @@ describe('MenuConnectionOptions', () => {
   it('checks the box when the protocol is RTU over TCP', () => {
     seed({
       connectionConfig: {
-        ...useRootZustand.getState().connectionConfig,
+        ...useClientZustand.getState().connectionConfig,
         protocol: 'ModbusRtuOverTcp'
       }
     })
@@ -90,7 +90,7 @@ describe('MenuConnectionOptions', () => {
 
   it('renders nothing (no checkbox, no divider) for serial RTU', () => {
     seed({
-      connectionConfig: { ...useRootZustand.getState().connectionConfig, protocol: 'ModbusRtu' }
+      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusRtu' }
     })
 
     const { container } = render(<MenuConnectionOptions />)
@@ -101,26 +101,26 @@ describe('MenuConnectionOptions', () => {
 
   it('toggles the protocol between TCP and RTU-over-TCP via the checkbox', () => {
     seed({
-      connectionConfig: { ...useRootZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
+      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
     })
 
     render(<MenuConnectionOptions />)
 
     fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    expect(useRootZustand.getState().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
+    expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
     expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ protocol: 'ModbusRtuOverTcp' })
 
     fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    expect(useRootZustand.getState().connectionConfig.protocol).toBe('ModbusTcp')
+    expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusTcp')
   })
 
   it('disables the checkbox while not disconnected', () => {
     seed({
-      connectionConfig: { ...useRootZustand.getState().connectionConfig, protocol: 'ModbusTcp' },
+      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' },
       clientState: {
         connectState: 'connected',
         polling: false,
-        scanningUniId: false,
+        scanningUnitIds: false,
         scanningRegisters: false
       }
     } as never)

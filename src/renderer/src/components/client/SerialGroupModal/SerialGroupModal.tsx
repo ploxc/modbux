@@ -1,18 +1,17 @@
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography
-} from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Typography from '@mui/material/Typography'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { meme } from '@renderer/components/shared/inputs/meme'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
-import { useSerialGroupZustand } from './_zustand'
+import { useSerialGroupZustand } from './serialGroupModal.zustand'
 
 /**
  * Linux serial group modal
@@ -59,7 +58,7 @@ const decline = (): void => {
 //
 //
 // The command, built from whoever is logged in
-const Command = (): JSX.Element => {
+const Command = meme((): JSX.Element => {
   const username = useSerialGroupZustand((z) => z.status?.username)
   // The group the refusing device actually belongs to, not an assumed dialout.
   const group = useSerialGroupZustand((z) => z.status?.group)
@@ -69,12 +68,12 @@ const Command = (): JSX.Element => {
       testId="serial-group-command"
     />
   )
-}
+})
 
 //
 //
 // After the command has run: in the file, not yet in the session
-const PendingLogin = (): JSX.Element => {
+const PendingLogin = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
   return (
     <Alert
@@ -92,12 +91,12 @@ const PendingLogin = (): JSX.Element => {
       in before Modbux can open a port.
     </Alert>
   )
-}
+})
 
 //
 //
 // Before it has run: what is wrong, and what will fix it
-const Explanation = (): JSX.Element => {
+const Explanation = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
   const username = useSerialGroupZustand((z) => z.status?.username)
   // A string or null, so it compares by value like any other primitive.
@@ -123,29 +122,29 @@ const Explanation = (): JSX.Element => {
       <Command />
     </>
   )
-}
+})
 
 //
 //
 // Body
-const Body = (): JSX.Element => {
+const Body = meme((): JSX.Element => {
   const done = useSerialGroupZustand((z) => z.done)
   return done ? <PendingLogin /> : <Explanation />
-}
+})
 
 //
 //
 // Buttons
-const NotNowButton = (): JSX.Element => {
+const NotNowButton = meme((): JSX.Element => {
   const busy = useSerialGroupZustand((z) => z.busy)
   return (
     <Button onClick={decline} disabled={busy} data-testid="serial-group-close-btn">
       Not now
     </Button>
   )
-}
+})
 
-const RunCommandButton = (): JSX.Element | null => {
+const RunCommandButton = meme((): JSX.Element | null => {
   const busy = useSerialGroupZustand((z) => z.busy)
   const blocked = useSerialGroupZustand((z) => blockedReason(z.status))
   const { enqueueSnackbar } = useSnackbar()
@@ -171,22 +170,26 @@ const RunCommandButton = (): JSX.Element | null => {
       {busy ? 'Waiting for authorization…' : 'Run command'}
     </Button>
   )
-}
+})
 
-const LaterButton = (): JSX.Element => {
-  const setOpen = useSerialGroupZustand((z) => z.setOpen)
+const LaterButton = meme((): JSX.Element => {
+  const handleClick = useCallback((): void => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
+    serialGroupZustand.setOpen(false)
+  }, [])
+
   return (
-    <Button onClick={() => setOpen(false)} data-testid="serial-group-later-btn">
+    <Button onClick={handleClick} data-testid="serial-group-later-btn">
       Later
     </Button>
   )
-}
+})
 
-const LogoutButton = (): JSX.Element => {
-  const setOpen = useSerialGroupZustand((z) => z.setOpen)
+const LogoutButton = meme((): JSX.Element => {
   const { enqueueSnackbar } = useSnackbar()
 
   const logout = useCallback(async (): Promise<void> => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
     const asked = await window.api.requestLogout()
     if (!asked) {
       enqueueSnackbar({
@@ -194,17 +197,17 @@ const LogoutButton = (): JSX.Element => {
         variant: 'info'
       })
     }
-    setOpen(false)
-  }, [enqueueSnackbar, setOpen])
+    serialGroupZustand.setOpen(false)
+  }, [enqueueSnackbar])
 
   return (
     <Button onClick={logout} data-testid="serial-group-logout-btn">
       Log out now
     </Button>
   )
-}
+})
 
-const Actions = (): JSX.Element => {
+const Actions = meme((): JSX.Element => {
   const done = useSerialGroupZustand((z) => z.done)
   return (
     <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -221,32 +224,32 @@ const Actions = (): JSX.Element => {
       )}
     </DialogActions>
   )
-}
+})
 
 //
 //
 // Title
-const Title = (): JSX.Element => {
+const Title = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
   return <DialogTitle>Serial ports need the {group} group</DialogTitle>
-}
+})
 
 //
 //
 // MAIN
-interface Props {
+interface SerialGroupModalProps {
   /** True while RTU is the selected transport. The check runs then, and only then. */
   active: boolean
 }
 
-const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
+const SerialGroupModal = meme(({ active }: SerialGroupModalProps): JSX.Element | null => {
   const open = useSerialGroupZustand((z) => z.open)
   const hasStatus = useSerialGroupZustand((z) => z.status !== null)
 
   // Which ports exist, as one string so it compares by value. Selecting RTU is
   // not the only moment this matters: plugging an adapter in afterwards is the
   // other one, and the list only changes when something is refreshed.
-  const ports = useRootZustand((z) => z.serialPorts.map((p) => p.path).join(','))
+  const ports = useClientZustand((z) => z.serialPorts.map((p) => p.path).join(','))
 
   useEffect(() => {
     if (!active) return
@@ -265,14 +268,19 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
     }
   }, [active, ports])
 
+  // Read busy rather than subscribe to it: the shell has no other reason to
+  // re-render while the command runs.
+  const handleClose = useCallback((): void => {
+    const serialGroupZustand = useSerialGroupZustand.getState()
+    if (!serialGroupZustand.busy) decline()
+  }, [])
+
   if (!hasStatus) return null
 
   return (
     <Dialog
       open={open}
-      // Read busy rather than subscribe to it: the shell has no other reason
-      // to re-render while the command runs.
-      onClose={() => !useSerialGroupZustand.getState().busy && decline()}
+      onClose={handleClose}
       maxWidth="sm"
       fullWidth
       data-testid="serial-group-modal"
@@ -284,6 +292,6 @@ const SerialGroupModal = ({ active }: Props): JSX.Element | null => {
       <Actions />
     </Dialog>
   )
-}
+})
 
 export default SerialGroupModal

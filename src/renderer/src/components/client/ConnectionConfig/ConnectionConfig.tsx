@@ -1,19 +1,17 @@
-import {
-  Box,
-  Button,
-  ButtonProps,
-  CircularProgress,
-  InputBaseComponentProps,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import { ButtonProps } from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import Tooltip from '@mui/material/Tooltip'
 import RtuConfig from './RtuConfig/RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
-import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/_zustand'
+import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig/TcpConfig'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { Protocol } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -23,8 +21,13 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 
 // Protocol
 const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const setProtocol = useRootZustand((z) => z.setProtocol)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+
+  const handleChange = useCallback((_event: unknown, value: Protocol | null): void => {
+    if (value === null) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setProtocol(value)
+  }, [])
 
   // RTU over TCP is a TCP-family transport (toggled from the options menu),
   // so the TCP button stays highlighted for it -- but in warning colour, since
@@ -55,7 +58,7 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
       exclusive
       color="primary"
       value={toggleValue}
-      onChange={(_, v) => v !== null && setProtocol(v)}
+      onChange={handleChange}
     >
       {rtuOverTcp ? (
         <Tooltip title="RTU over TCP is on: raw RTU frames over the socket, not Modbus TCP. Turn it off in the cog menu.">
@@ -72,15 +75,14 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 })
 
 const ConnectButton = meme(() => {
-  const connectState = useRootZustand((z) => z.clientState.connectState)
-  const setRegisterData = useDataZustand((z) => z.setRegisterData)
+  const connectState = useClientZustand((z) => z.clientState.connectState)
 
   const action = useCallback(async (): Promise<void> => {
-    const currentConnectedState = useRootZustand.getState().clientState.connectState
+    const currentConnectedState = useClientZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
-      if (!useRootZustand.getState().readConfiguration) {
-        setRegisterData([])
+      if (!useClientZustand.getState().readConfiguration) {
+        useDataZustand.getState().setRegisterData([])
       }
       return
     }
@@ -88,13 +90,13 @@ const ConnectButton = meme(() => {
     if (currentConnectedState === 'disconnected') {
       // On RTU the port can be there and still refuse to open. Ask first and
       // say why, rather than let the connect fail on a permission error.
-      if (useRootZustand.getState().connectionConfig.protocol === 'ModbusRtu') {
+      if (useClientZustand.getState().connectionConfig.protocol === 'ModbusRtu') {
         const blocked = await useSerialGroupZustand.getState().check(true)
         if (blocked) return
       }
       window.api.connect()
     }
-  }, [setRegisterData])
+  }, [])
 
   const disabled = ['disconnecting'].includes(connectState)
 
@@ -134,7 +136,9 @@ const ConnectButton = meme(() => {
 //
 // Unit Id
 const UnitId = meme(() => {
-  const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
+  const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
+
+  const setUnitId = useClientZustand.getState().setUnitId
 
   return (
     <TextField
@@ -147,7 +151,7 @@ const UnitId = meme(() => {
       slotProps={{
         input: {
           inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: useRootZustand.getState().setUnitId })
+          inputProps: maskInputProps({ set: setUnitId })
         }
       }}
     />
@@ -155,7 +159,7 @@ const UnitId = meme(() => {
 })
 
 const ConnectionConfig = meme(() => {
-  const protocol = useRootZustand((z) => z.connectionConfig.protocol)
+  const protocol = useClientZustand((z) => z.connectionConfig.protocol)
   return (
     <>
       {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}

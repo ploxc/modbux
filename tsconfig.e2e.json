@@ -12,6 +12,7 @@
   ],
   "compilerOptions": {
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "moduleResolution": "bundler",
     // "node" for the fixtures' fs/os/path use, "electron-vite/node" for the
     // import.meta.env that reaches in via src/preload

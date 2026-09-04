@@ -1,0 +1,445 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
+import { useServerZustand } from '@renderer/context/server.zustand'
+import {
+  BaseDataType,
+  DataType,
+  DEFAULT_UTF8_LENGTH,
+  getAddressFitError,
+  NumberRegisters,
+  registerWidth,
+  ServerRegister,
+  UnitIdString
+} from '@shared'
+import { create } from 'zustand'
+import { mutative } from 'zustand-mutative'
+import {
+  FIELD_DEFAULTS,
+  isAddressInUse,
+  RegisterFormSnapshot,
+  toFormSnapshot,
+  toRegisterParams
+} from './addRegister.zustand.helpers'
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+type GetAddressInUseFn = (
+  uuid: string,
+  unitId: UnitIdString,
+  registerType: NumberRegisters,
+  dataType: DataType,
+  address: number,
+  length?: number
+) => boolean
+
+export const getAddressInUse: GetAddressInUseFn = (
+  uuid,
+  unitId,
+  registerType,
+  dataType,
+  address,
+  length
+) => {
+  const editRegister = useAddRegisterZustand.getState().serverRegisterEdit
+  const usedAddresses = registerType
+    ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
+    : []
+
+  return isAddressInUse(
+    usedAddresses,
+    dataType,
+    address,
+    length,
+    editRegister
+      ? {
+          dataType: editRegister.params.dataType,
+          address: editRegister.params.address,
+          length: editRegister.params.length
+        }
+      : undefined
+  )
+}
+
+// ─── Address validation ──────────────────────────────────────────────────────
+
+interface AddressValidationResult {
+  addressInUse: boolean
+  addressFitError: boolean
+  /** Whether the address field itself should be marked valid */
+  addressValid: boolean
+  /** Whether the registerLength field should be marked valid (only relevant for utf8) */
+  registerLengthValid: boolean
+}
+
+/**
+ * Derives the full address + registerLength validity from raw field strings.
+ * Each field is only responsible for its own errors — a bad registerLength
+ * never makes the address red and vice versa.
+ */
+const validateAddress = (
+  address: string,
+  dataType: DataType,
+  registerType: NumberRegisters | undefined,
+  registerLength: string
+): AddressValidationResult => {
+  const registerLengthValid = dataType !== 'utf8' || registerLength.length > 0
+
+  if (!registerType) {
+    return {
+      addressInUse: false,
+      addressFitError: false,
+      addressValid: address.length > 0,
+      registerLengthValid
+    }
+  }
+
+  const serverZustand = useServerZustand.getState()
+  const uuid = serverZustand.selectedUuid
+  const unitId = serverZustand.getUnitId(uuid)
+  const addressNum = Number(address)
+  const length = dataType === 'utf8' ? Number(registerLength) || DEFAULT_UTF8_LENGTH : undefined
+
+  const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum, length)
+  const addressFitError = getAddressFitError(dataType, addressNum, length)
+
+  return {
+    addressInUse,
+    addressFitError,
+    addressValid: address.length > 0 && !addressInUse && !addressFitError,
+    registerLengthValid
+  }
+}
+
+// ─── Store types ─────────────────────────────────────────────────────────────
+
+interface AddRegisterZustand {
+  serverRegisterEdit: ServerRegister[number] | undefined
+  registerType: NumberRegisters | undefined
+  setRegisterType: (registerType: NumberRegisters | undefined) => void
+  setEditRegister: (register: ServerRegister[number] | undefined) => void
+  /** What the fields held once the edit dialog had filled them. */
+  pristine: RegisterFormSnapshot | undefined
+  capturePristine: () => void
+  valid: {
+    address: boolean
+    value: boolean
+    min: boolean
+    max: boolean
+    interval: boolean
+    registerLength: boolean
+    stringValue: boolean
+  }
+  address: string
+  addressInUse: boolean
+  addressFitError: boolean
+  setAddress: MaskSetFn
+  dataType: BaseDataType
+  setDataType: (dataType: BaseDataType) => void
+  value: string
+  setValue: MaskSetFn
+  interval: string
+  setInterval: MaskSetFn
+  comment: string
+  setComment: MaskSetFn
+  min: string
+  setMin: MaskSetFn
+  max: string
+  setMax: MaskSetFn
+  fixed: boolean
+  setFixed: (fixed: boolean) => void
+  stringValue: string
+  setStringValue: (stringValue: string) => void
+  registerLength: string
+  setRegisterLength: MaskSetFn
+  showDatePickerUtc: boolean
+  setShowDatePickerUtc: (utc: boolean) => void
+  initNextUnusedAddress: (startFrom?: number) => void
+  resetToDefaults: () => void
+  /**
+   * Writes what the dialog holds to the server, and answers where it landed.
+   *
+   * Undefined when there is no register type, which means nothing was written.
+   */
+  submit: (isEdit: boolean) => { address: number; dataType: BaseDataType } | undefined
+  /**
+   * Removes the register the dialog was opened on, and nothing outside edit
+   * mode.
+   */
+  remove: () => void
+}
+
+// ─── Store ───────────────────────────────────────────────────────────────────
+
+export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutative', never]]>(
+  mutative((set, getState) => ({
+    serverRegisterEdit: undefined,
+    registerType: undefined,
+
+    setRegisterType: (registerType) =>
+      set((state) => {
+        state.registerType = registerType
+      }),
+
+    setEditRegister: (register) =>
+      set((state) => {
+        state.serverRegisterEdit = register
+        // The fields still hold the previous register, so there is nothing to
+        // compare against until the edit effect has filled them again.
+        state.pristine = undefined
+      }),
+
+    pristine: undefined,
+
+    capturePristine: () =>
+      set((state) => {
+        state.pristine = toFormSnapshot(getState())
+      }),
+
+    valid: {
+      address: true,
+      value: true,
+      min: true,
+      max: true,
+      interval: true,
+      registerLength: true,
+      stringValue: true
+    },
+
+    address: '0',
+    addressInUse: false,
+    addressFitError: false,
+
+    setAddress: (address, valid) =>
+      set((state) => {
+        state.address = address
+        const { registerType, dataType, registerLength } = getState()
+        const result = validateAddress(address, dataType, registerType, registerLength)
+        state.addressInUse = result.addressInUse
+        state.addressFitError = result.addressFitError
+        state.valid.address = !!valid && result.addressValid
+      }),
+
+    dataType: 'int16',
+
+    setDataType: (dataType) =>
+      set((state) => {
+        state.dataType = dataType
+
+        if (dataType === 'utf8' || dataType === 'bitmap') state.fixed = true
+        if (['unix', 'datetime'].includes(dataType)) {
+          state.value = String(Date.now())
+          state.valid.value = true
+        }
+
+        const { registerType, address, registerLength } = getState()
+        const result = validateAddress(address, dataType, registerType, registerLength)
+        state.addressInUse = result.addressInUse
+        state.addressFitError = result.addressFitError
+        state.valid.address = result.addressValid
+        state.valid.registerLength = result.registerLengthValid
+      }),
+
+    value: FIELD_DEFAULTS.value,
+    setValue: (value, valid) =>
+      set((state) => {
+        state.value = value
+        state.valid.value = !!valid
+      }),
+
+    interval: FIELD_DEFAULTS.interval,
+    setInterval: (interval, valid) =>
+      set((state) => {
+        state.interval = interval
+        state.valid.interval = !!valid
+      }),
+
+    comment: '',
+    setComment: (comment) =>
+      set((state) => {
+        state.comment = comment
+      }),
+
+    min: FIELD_DEFAULTS.min,
+    setMin: (min, valid) =>
+      set((state) => {
+        state.min = min
+        state.valid.min = !!valid
+      }),
+
+    max: FIELD_DEFAULTS.max,
+    setMax: (max, valid) =>
+      set((state) => {
+        state.max = max
+        state.valid.max = !!valid
+      }),
+
+    fixed: true,
+    setFixed: (fixed) =>
+      set((state) => {
+        state.fixed = fixed
+      }),
+
+    stringValue: '',
+    setStringValue: (value) => {
+      const { registerLength } = getState()
+      const maxBytes = (Number(registerLength) || DEFAULT_UTF8_LENGTH) * 2
+      const valid = new TextEncoder().encode(value).length <= maxBytes
+      set((state) => {
+        state.stringValue = value
+        state.valid.stringValue = valid
+      })
+    },
+
+    registerLength: '10',
+    setRegisterLength: (registerLength, valid) =>
+      set((state) => {
+        state.registerLength = registerLength
+        const { registerType, dataType, address } = getState()
+        if (!registerType || dataType !== 'utf8') return
+        const result = validateAddress(address, dataType, registerType, registerLength)
+        state.addressInUse = result.addressInUse
+        state.addressFitError = result.addressFitError
+        state.valid.address = result.addressValid
+        state.valid.registerLength = !!valid && result.registerLengthValid
+      }),
+
+    showDatePickerUtc: false,
+    setShowDatePickerUtc: (utc) =>
+      set((state) => {
+        state.showDatePickerUtc = utc
+      }),
+
+    initNextUnusedAddress: (startFrom?: number) =>
+      set((state) => {
+        const { registerType, dataType, registerLength } = getState()
+        if (!registerType) return
+
+        const serverZustand = useServerZustand.getState()
+        const uuid = serverZustand.selectedUuid
+        const unitId = serverZustand.getUnitId(uuid)
+        const usedAddresses = serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
+        const size = registerWidth(
+          dataType,
+          dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+        )
+
+        for (let address = startFrom ?? 0; address <= 65535 - (size - 1); address++) {
+          const needed = Array.from({ length: size }, (_, i) => address + i)
+          if (needed.every((a) => !usedAddresses.includes(a))) {
+            state.address = String(address)
+            state.addressInUse = false
+            state.addressFitError = false
+            state.valid.address = true
+            break
+          }
+        }
+      }),
+
+    /**
+     * The store owns this rather than the buttons, because it is a state
+     * mutation: it reads the whole form and writes through the server store.
+     * The translation itself is pure and lives in the helpers, where its unit
+     * conversions are tested.
+     */
+    submit: (isEdit) => {
+      const form = getState()
+      const { registerType, serverRegisterEdit } = form
+      if (!registerType) return undefined
+
+      const serverZustand = useServerZustand.getState()
+      const uuid = serverZustand.selectedUuid
+      const unitId = serverZustand.getUnitId(uuid)
+
+      const params = toRegisterParams({
+        fixed: form.fixed,
+        address: form.address,
+        value: form.value,
+        dataType: form.dataType,
+        registerType,
+        min: form.min,
+        max: form.max,
+        interval: form.interval,
+        comment: form.comment,
+        stringValue: form.stringValue,
+        registerLength: form.registerLength
+      })
+
+      // Moving an existing register means the old address has to go first
+      if (isEdit && serverRegisterEdit) {
+        const oldAddress = serverRegisterEdit.params.address
+        if (oldAddress !== params.address) {
+          serverZustand.removeRegister({
+            uuid,
+            unitId,
+            address: oldAddress,
+            registerType,
+            dataType: serverRegisterEdit.params.dataType,
+            length: serverRegisterEdit.params.length
+          })
+        }
+      }
+
+      serverZustand.addRegister({
+        uuid,
+        unitId,
+        littleEndian: serverZustand.littleEndian[uuid] ?? false,
+        params
+      })
+
+      return { address: params.address, dataType: form.dataType }
+    },
+
+    /**
+     * Beside `submit`, and for the same reason: it reads the dialog and writes
+     * through the server store.
+     *
+     * What it removes is the register the dialog was opened on, which the
+     * address field does not answer. That field is editable, and a changed one
+     * means the user is moving the register rather than naming another.
+     */
+    remove: () => {
+      const { serverRegisterEdit } = getState()
+      if (!serverRegisterEdit) return
+
+      const serverZustand = useServerZustand.getState()
+      const uuid = serverZustand.selectedUuid
+      const { address, registerType, dataType, length } = serverRegisterEdit.params
+
+      serverZustand.removeRegister({
+        uuid,
+        unitId: serverZustand.getUnitId(uuid),
+        address,
+        registerType,
+        dataType,
+        length
+      })
+    },
+
+    resetToDefaults: () =>
+      set((state) => {
+        state.address = '0'
+        state.dataType = 'int16'
+        state.value = FIELD_DEFAULTS.value
+        state.min = FIELD_DEFAULTS.min
+        state.max = FIELD_DEFAULTS.max
+        state.interval = FIELD_DEFAULTS.interval
+        state.comment = ''
+        state.fixed = true
+        state.stringValue = ''
+        state.registerLength = '10'
+        state.serverRegisterEdit = undefined
+        state.pristine = undefined
+        state.addressInUse = false
+        state.addressFitError = false
+        state.valid = {
+          address: true,
+          value: true,
+          min: true,
+          max: true,
+          interval: true,
+          registerLength: true,
+          stringValue: true
+        }
+      })
+  }))
+)

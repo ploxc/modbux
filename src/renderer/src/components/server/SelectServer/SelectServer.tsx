@@ -1,4 +1,5 @@
-import { Add, Delete } from '@mui/icons-material'
+import Add from '@mui/icons-material/Add'
+import Delete from '@mui/icons-material/Delete'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { findAvailablePort, MAIN_SERVER_UUID } from '@shared'
@@ -26,15 +27,21 @@ const SelectServer = meme(() => {
   const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 10)
 
   const addServer = useCallback(async () => {
-    const z = useServerZustand.getState()
-    const newPort = findAvailablePort(Object.values(z.port).map((v) => Number(v)))
+    const serverZustand = useServerZustand.getState()
+    const newPort = findAvailablePort(Object.values(serverZustand.port).map((v) => Number(v)))
     if (!newPort) throw new Error('No available port')
-    z.createServer({ port: newPort, uuid: v4() })
+    serverZustand.createServer({ port: newPort, uuid: v4() })
   }, [])
 
   const deleteServer = useCallback(() => {
-    const z = useServerZustand.getState()
-    z.deleteServer(z.selectedUuid)
+    const serverZustand = useServerZustand.getState()
+    serverZustand.deleteServer(serverZustand.selectedUuid)
+  }, [])
+
+  const handleSelect = useCallback((_event: unknown, value: string | null): void => {
+    if (!value) return
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setSelectedUuid(value)
   }, [])
 
   if (serverMode === 'rtu') return null
@@ -67,10 +74,7 @@ const SelectServer = meme(() => {
         color="primary"
         value={selectedUuid}
         exclusive
-        onChange={(_, v) => {
-          if (!v) return
-          useServerZustand.getState().setSelectedUuid(v)
-        }}
+        onChange={handleSelect}
       >
         {serverUuids.map((uuid) => (
           <SelectServerToggle key={uuid} uuid={uuid} />

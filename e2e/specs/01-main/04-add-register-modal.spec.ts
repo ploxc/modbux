@@ -184,6 +184,33 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
+  test('edit mode: typing swaps which of the two buttons is offered', async ({ mainPage }) => {
+    await mainPage.getByTestId('server-edit-reg-holding_registers-100').click()
+    await mainPage.waitForTimeout(300)
+
+    // Nothing typed, so there is nothing to submit and Remove means the
+    // register the dialog was opened on.
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
+    await expect(mainPage.getByTestId('add-reg-remove-btn')).toBeEnabled()
+
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('300')
+    await mainPage.waitForTimeout(300)
+
+    // A typed address means the register is being moved. Remove there answered
+    // for 300, so the register at 100 stayed and the dialog closed anyway.
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeEnabled()
+    await expect(mainPage.getByTestId('add-reg-remove-btn')).toBeDisabled()
+
+    await addressInput.fill('100')
+    await mainPage.waitForTimeout(300)
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
+    await expect(mainPage.getByTestId('add-reg-remove-btn')).toBeEnabled()
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+  })
+
   test('remove test registers via edit modal', async ({ mainPage }) => {
     // Remove register at 100
     await mainPage.getByTestId('server-edit-reg-holding_registers-100').click()

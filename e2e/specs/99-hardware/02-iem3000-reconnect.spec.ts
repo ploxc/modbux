@@ -49,8 +49,9 @@ async function launchApp(clearStorage = true): Promise<void> {
     const found = await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
     )
-    if (found && app.windows().length === 1) {
-      page = app.windows()[0]
+    const [firstWindow] = app.windows()
+    if (found && firstWindow && app.windows().length === 1) {
+      page = firstWindow
       break
     }
     await new Promise((r) => setTimeout(r, 1000))

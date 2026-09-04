@@ -21,7 +21,7 @@ import {
   type Page
 } from '@playwright/test'
 import { launchOptions } from '../../fixtures/launch'
-import { navigateToServer } from '../../fixtures/helpers'
+import { navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { readFileSync } from 'fs'
 
 const PROC_PATH = '/proc/sys/net/ipv4/ip_unprivileged_port_start'
@@ -166,6 +166,24 @@ test.describe.serial('Privileged port modal (manual, Linux only)', () => {
     await navigateToServer(page)
     await page.waitForTimeout(2000)
     await expect(page.getByTestId(MODAL)).toBeHidden()
+  })
+
+  /**
+   * Splitting from Home is the path where the main window never shows the
+   * server view at all, so the window that pops out is the only one that can
+   * ask. The check used to return on `isServerWindow`, which left it unasked in
+   * both windows.
+   */
+  test('the split-out server window asks', async () => {
+    await closeApp()
+    await launchApp()
+
+    const serverPage = await splitOutServerWindow(app, page)
+
+    await waitForModal(serverPage)
+    await expect(page.getByTestId(MODAL)).toBeHidden()
+
+    await closeApp()
   })
 
   // ─── Fix it through the modal itself ───────────────────────────────

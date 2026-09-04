@@ -1,13 +1,14 @@
 # Contributing to Modbux
 
-Thanks for your interest in contributing. Modbux was born from real-world frustration with Modbus tooling, and your help makes it better for the entire industry.
-
-Before you start, please read this document carefully. These guidelines exist to keep the codebase consistent and the review process smooth. They are not suggestions.
+Everything below is a rule rather than a suggestion. The ones under *The
+conventions this codebase has already settled* are asserted by
+`src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead of
+waiting for a reviewer.
 
 ## Ground rules
 
-1. **Open an issue first.** Before writing code, open an issue describing the bug or feature. This avoids wasted effort if the change doesn't align with the project direction.
-2. **One PR, one concern.** Don't mix a bug fix with a refactor. Don't sneak in "while I was here" changes. Keep your diff focused.
+1. **Open an issue first.** Describe the bug or the feature before writing code, so a change that does not fit the project's direction is found before you build it.
+2. **One PR, one concern.** Don't mix a bug fix with a refactor, and don't sneak in "while I was here" changes.
 3. **Don't break the build.** Run `yarn verify` before pushing. If it doesn't pass, your PR won't be reviewed.
 4. **Match the existing style.** Don't introduce new patterns, conventions, or abstractions without discussing them first.
 
@@ -38,7 +39,7 @@ e2e/
   fixtures/             Test data and helpers
 ```
 
-**Path aliases:** `@main`, `@renderer/*`, `@preload`, `@shared`, `@backend`. Use them instead of deep relative imports.
+**Path aliases:** `@renderer/*` and `@shared`. There are no others. Use them instead of deep relative imports.
 
 ## Code style
 
@@ -47,12 +48,116 @@ Formatting and linting are enforced by ESLint, Prettier, and TypeScript strict m
 Beyond what the linter catches:
 
 - **No `any`, no `@ts-ignore`.** If the types are fighting you, your approach is wrong.
+- **No `!` either, and no guard a test cannot reach.** `noUncheckedIndexedAccess` is on, so `record[key]` and `array[i]` are `T | undefined` and every index asks a question. `@typescript-eslint/no-non-null-assertion` is an error, because an assertion answers that question without leaving the reasoning behind. The other wrong answer passes lint: `if (!x) break` on an index that is provably in range is a branch no input reaches, no test covers and no mutation can turn red, and it tells the reader the case is possible. Take the index away instead: `readUInt16BE`, `for..of`, `.entries()`, `slice`. Where something really can be missing, handle it and write the test that reaches it. In a test, `data[0]?.id` lets a missing element fail the assertion, but `handler?.()` makes it pass quietly, so that one gets a helper that throws by name.
 - **Zod for validation.** External data (configs, IPC payloads) is validated with Zod schemas. Don't trust unvalidated input.
 - **Zustand + Mutative for state.** Follow the existing store patterns. Don't introduce new state management approaches.
 - **MUI only.** Don't add other UI libraries.
-- **Every interactive element needs a `data-testid`** for e2e tests.
 - **Spell out variable names.** `resetButton`, not `rstBtn`. `registerAddress`, not `regAddr`. Abbreviations make code harder to read. The only exceptions are well-known conventions like `i` in loops, `el` in DOM callbacks, `z` for Zod schemas and Zustand state accessors, and established project abbreviations like `e2e`.
 - **Match existing patterns.** Look at how the codebase does it, do it the same way.
+
+### The conventions this codebase has already settled
+
+`src/__tests__/conformance.test.ts` asserts every rule below, so a PR that breaks
+one fails `yarn test` rather than waiting for a reviewer to notice. Every
+rule asserts that the population it reads is not empty before it asserts the
+population holds no violation, because a meter that reads no files passes every
+rule it has.
+
+**One store selector per field.** `useClientZustand((z) => z.a)` and then
+`((z) => z.b)`, never one selector returning an object. An object literal is a
+new reference on every render, so a selector that returns one re-renders its
+component on every flush of any field. The same goes for a call with no selector
+and for `(z) => z`, which take the whole store the long way round. The renderer
+has zero of all three and zero `useShallow`, and that is why it draws a
+two-thousand-row grid without either.
+
+**An action is fetched where it runs, not subscribed to.** A selector that hands
+back a store function puts that function in the dependency list, and a
+dependency list naming something the component does not own is a list no reader
+can check. What the component holds goes in the list; what the store holds is
+read through `getState()`. That also covers a *value* the component wants at a
+moment rather than on every change: read that way, it causes no render.
+
+Two shapes, and which one you write depends on whether the component adds
+anything. A handler that does its own work is a `useCallback` whose first line
+reads the store, `const clientZustand = useClientZustand.getState()`. A prop
+that only forwards takes the action itself,
+`const setHost = useClientZustand.getState().setHost`, because wrapping it in a
+`useCallback` that calls it with the same arguments only gives it a second name.
+
+Either way the thing has a name and the prop takes the name, so a `getState()`
+written into a JSX attribute breaks the rule from the other side: the call sits
+where the reader is looking at layout, and a handler with no name is a handler
+with nothing to read.
+
+**Every component is wrapped in `meme`.** Props or not, one rule with no
+exception to remember. A declaration counts as a component when it is rendered
+as JSX somewhere or exported as its file's default. React's bare `memo` does not
+satisfy it: `meme` is `memo` with `deepEqual`, and the shallow comparator is what
+a mutated row defeats.
+
+**A local store is named after its component.** `<name>.zustand.ts`, matching
+the global stores in `context/`, and named after the component rather than the
+folder it sits in.
+
+**MUI is imported deep.** `@mui/material/Button`, not `@mui/material`. The same
+for `@mui/icons-material`, `@mui/x-data-grid` and `@mui/x-date-pickers`, because
+the rule is about barrels and those are barrels. Two exceptions are the package's
+doing rather than a choice: `useGridApiContext` and `useGridApiRef` are exported
+by none of the subpaths `@mui/x-data-grid` declares, so they come from
+the root.
+
+**Nothing in `src/shared` imports from `src/main`.** All three processes import
+shared; it is the one layer that may not reach back.
+
+**Every interactive element carries a `data-testid`.** Buttons, fields, sliders,
+selects and grid action cells. Containers do not, because the e2e suite reaches
+what is inside them instead: a `ToggleButtonGroup` through its `ToggleButton`s,
+and a `Select`'s options through `getByRole('option')`. The `Select` itself
+carries one. A picker takes the attribute through `slotProps`, which still
+counts as carrying it.
+
+**Every channel that carries an object declares a schema.** TypeScript covers a
+bare primitive, and a channel taking no argument has nothing to guard. The rest
+take an object or a union, and that is where a hand-edited config file arrives. The
+schema goes beside the handler in `main/ipc.ts`, and it is only accepted where
+`undefined` is an honest answer: a rejected payload has nothing else to give
+back, so a channel returning a value has to say so in its type.
+
+**Every channel has a caller in the renderer.** `window.api` is generated from
+`IPC_CHANNELS`, so a channel nobody calls still gets a method, a handler and a
+spec entry, and nothing says so. Two sat that way with the app's only config
+repair branch inside one of them, which is worse than no repair at all: it reads
+like a guard. The caller has to be in `src/renderer`, because a channel only the
+e2e suite drives is one the app does not use, and that is a decision to take
+rather than to let happen.
+
+**Every configured path alias is imported through.** `@renderer/*` and `@shared`
+are the two, in the tsconfigs and in `electron.vite.config.ts` alike. An alias
+nobody imports through resolves whatever it points at, including a directory
+that is gone, so the last import leaving is what retires it.
+
+**Every configured include points at something.** A glob that matches nothing
+costs nothing to keep and says nothing when it stops being true, so the test
+expands it rather than reading its shape.
+
+### The rules no test can see
+
+**The store owns IPC that changes state; a component owns IPC the user asked
+for.** Writing through another store is a mutation, and the store owns those. A
+button press is the component's.
+
+The same channel can be called from both and be right both times, which is why
+this is a reviewer's judgement and not an assertion: `read` is a consequence of
+flipping endianness in the store, and a button in the toolbar. Same channel, two
+concerns.
+
+**A component that owns something gets a folder.** Its store, its helpers, its
+subcomponents and their tests go in with it, and the folder takes its name. A
+component that owns nothing stays a file: `SliderComponent.tsx` and
+`HomeButton.tsx` are leaves, `columns/` and `shared/inputs/` are collections of
+them, and neither wants a folder each. Where the line falls is a judgement, so
+no test draws it.
 
 ## Commits
 
@@ -100,15 +205,15 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 are invoked on purpose:
 
 - `99-hardware` needs an Arduino on a serial port. It finds the board by USB
-  vendor ID and skips the suite when none is attached, so it runs unattended --
-  but CI has no board, which is why it stays out of `test:e2e`.
+  vendor ID and skips the suite when none is attached, so it runs unattended.
+  CI has no board, which is why it stays out of `test:e2e`.
 - `03-presentation` is a documentation utility, not a check. It clicks through
   the app and captures what it sees without asserting much, so it costs two
   minutes to tell you little that `01-main` does not already cover. Run it when
   the UI changed and the manual needs new screenshots.
 
-`verify` deliberately leaves out `test:e2e:packaged` — it adds a full packaging
-step and runs far longer, which is too much for every push. The `test:all:*`
+`verify` deliberately leaves out `test:e2e:packaged`, which adds a full packaging
+step and runs far longer than is worth doing on every push. The `test:all:*`
 rounds do include it, and those are for cutting a release rather than for a PR.
 It is the only check that exercises what actually ships: `electron-vite`
 externalizes whatever sits in `dependencies` and `electron-builder` packs only
@@ -120,10 +225,9 @@ installed Modbux's config.
 `playwright.config.ts` ignores `99-hardware`, so neither `test:e2e` nor
 `test:e2e:packaged` picks those specs up. They need an Arduino running
 `tools/arduino/iem3000.ino` on a serial port. The board is found by USB vendor
-ID — `manufacturer` is useless for this, it reads "Microsoft" on Windows where
-the generic driver claims the device — and the suite skips itself when no board
-is attached. So the round is unattended, and every `test:all:*` ends with it.
-Use `yarn test:e2e:hardware` to run it alone.
+ID rather than by `manufacturer`, which reads "Microsoft" on Windows where the
+generic driver claims the device. Every `test:all:*` ends with this round, and
+`yarn test:e2e:hardware` runs it alone.
 
 ### Test expectations
 

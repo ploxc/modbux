@@ -1,11 +1,12 @@
-import { FilterAltOff } from '@mui/icons-material'
+import FilterAltOff from '@mui/icons-material/FilterAltOff'
 import IconButton from '@mui/material/IconButton'
+import { useGridApiContext } from '@mui/x-data-grid'
 import {
   gridFilterActiveItemsSelector,
   gridFilterModelSelector,
-  useGridApiContext,
   useGridSelector
-} from '@mui/x-data-grid'
+} from '@mui/x-data-grid/hooks'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 
 // The grid sets a filter of its own while read configuration is on, to keep
@@ -14,7 +15,7 @@ import { useCallback } from 'react'
 // survives a clear. Dropping it would fill the list with empty rows.
 const INTERNAL_FILTER_ID = 1
 
-const ClearFiltersButton = (): JSX.Element | null => {
+const ClearFiltersButton = meme((): JSX.Element | null => {
   const apiRef = useGridApiContext()
   // Active items rather than the model: opening the filter panel already puts
   // an empty item in the model, and a form nobody has typed in yet is not a
@@ -44,6 +45,6 @@ const ClearFiltersButton = (): JSX.Element | null => {
       <FilterAltOff />
     </IconButton>
   )
-}
+})
 
 export default ClearFiltersButton

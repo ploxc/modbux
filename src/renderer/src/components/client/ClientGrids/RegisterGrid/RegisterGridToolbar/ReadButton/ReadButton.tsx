@@ -1,9 +1,10 @@
 import Button, { ButtonProps } from '@mui/material/Button'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { meme } from '@renderer/components/shared/inputs/meme'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useRef, useState } from 'react'
 
-const ReadButton = (): JSX.Element => {
-  const disabled = useRootZustand(
+const ReadButton = meme((): JSX.Element => {
+  const disabled = useClientZustand(
     (z) => z.clientState.connectState !== 'connected' || z.clientState.polling
   )
 
@@ -34,6 +35,6 @@ const ReadButton = (): JSX.Element => {
       Read
     </Button>
   )
-}
+})
 
 export default ReadButton

@@ -1,6 +1,7 @@
-import { GridRow, GridRowProps } from '@mui/x-data-grid'
+import { GridRow, GridRowProps } from '@mui/x-data-grid/components'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { BITMAP_DATATYPE } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 
@@ -11,14 +12,14 @@ import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 // the virtual-scroller height slot when expanded.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BitMapRow = (props: GridRowProps): JSX.Element => {
+const BitMapRow = meme((props: GridRowProps): JSX.Element => {
   const address = props.rowId as number
 
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const isExpanded = expandedAddress === address
 
   const isBitmap =
-    useRootZustand((z) => z.registerMapping[z.registerConfig.type][address]?.dataType) ===
+    useClientZustand((z) => z.registerMapping[z.registerConfig.type][address]?.dataType) ===
     BITMAP_DATATYPE
 
   if (!isBitmap) {
@@ -50,6 +51,6 @@ const BitMapRow = (props: GridRowProps): JSX.Element => {
       )}
     </div>
   )
-}
+})
 
 export default BitMapRow

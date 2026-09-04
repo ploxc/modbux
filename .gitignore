@@ -17,6 +17,7 @@ out
 .pnp.*
 
 tmp
+TODO.md
 temp
 
 # Test coverage
@@ -28,3 +29,5 @@ e2e/presentation-output
 
 # Claude Code
 .claude/settings.local.json
+# TypeScript incremental build info
+*.tsbuildinfo

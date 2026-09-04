@@ -36,9 +36,9 @@ import { SharedProps } from 'notistack'
 /**
  * IPC Channel Definitions
  *
- * Channel names are defined in snake_case (e.g., 'get_connection_config').
+ * Channel names are defined in snake_case (e.g., 'update_register_config').
  * These are automatically converted to camelCase methods on window.api
- * in the preload script (e.g., window.api.getConnectionConfig()).
+ * in the preload script (e.g., window.api.updateRegisterConfig()).
  *
  * To add a new IPC channel:
  * 1. Add the channel name to IPC_CHANNELS
@@ -46,7 +46,6 @@ import { SharedProps } from 'notistack'
  * 3. The camelCase method will be automatically available on window.api
  */
 export const IPC_CHANNELS = [
-  'get_connection_config',
   'update_connection_config',
   'update_register_config',
   'get_client_state',
@@ -98,12 +97,6 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  * ! If you remove one, remove it here. No extras allowed.
  */
 export interface IpcHandlerSpec {
-  /** Retrieve the ConnectionConfig */
-  ['get_connection_config']: {
-    args: []
-    return: ConnectionConfig
-  }
-
   /** Update the ConnectionConfig (DeepPartial) */
   ['update_connection_config']: {
     args: [DeepPartial<ConnectionConfig>]
@@ -116,7 +109,13 @@ export interface IpcHandlerSpec {
     return: void
   }
 
-  /** Retrieve the current ClientState */
+  /**
+   * What the client is doing right now.
+   *
+   * `client_state` is pushed on a change, so a window that opens after the last
+   * push has nothing to catch up on and starts on the initial literal. This is
+   * how it asks.
+   */
   ['get_client_state']: {
     args: []
     return: ClientState
@@ -233,13 +232,13 @@ export interface IpcHandlerSpec {
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
-    return: Promise<number>
+    return: Promise<number | undefined>
   }
 
   /** Create a new server */
   ['create_server']: {
     args: [CreateServerParams]
-    return: Promise<number>
+    return: Promise<number | undefined>
   }
 
   /** Delete an existing server (UUID) */
@@ -305,7 +304,7 @@ export interface IpcHandlerSpec {
   /** Lower the Linux unprivileged-port floor via pkexec */
   ['apply_privileged_port_fix']: {
     args: [PrivilegedPortFixMode]
-    return: PrivilegedPortFixResult
+    return: Promise<PrivilegedPortFixResult | undefined>
   }
 
   /** Report whether this user may open a serial port on Linux */

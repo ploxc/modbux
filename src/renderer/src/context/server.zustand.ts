@@ -21,13 +21,17 @@ import {
   migrateServerRegistersState,
   migrateServerModeState,
   migrateBoolShape,
+  repairPersistedParity,
+  dropUnservableRegisters,
   CURRENT_SERVER_ZUSTAND_VERSION,
-  getRegisterLength,
+  SERVER_ZUSTAND_STORAGE_KEY,
+  registerWidth,
   ServerSerialConfig,
-  ModbusBaudRate
+  ModbusBaudRate,
+  keepCorrupt,
+  repairPersisted
 } from '@shared'
 import { onEvent } from '@renderer/events'
-import { enqueueSnackbar } from 'notistack'
 import { round } from 'lodash'
 import {
   extractUnitIdsWithData,
@@ -63,12 +67,25 @@ const restartRtuIfActive = (get: () => ServerZustand): void => {
   })
 }
 
+/**
+ * The version the blob on disk carried, set by `migrate` and read once below.
+ *
+ * persist calls `migrate` for any version that is not the current one, the ones
+ * above it included, and that call is the only place the number is offered.
+ */
+let persistedVersion: number | undefined
+
 export const useServerZustand = create<
   ServerZustand,
   [['zustand/persist', PersistedServerZustand], ['zustand/mutative', never]]
 >(
   persist(
     mutative((set, get) => ({
+      configReset: undefined,
+      acknowledgeConfigReset: () =>
+        set((state) => {
+          state.configReset = undefined
+        }),
       ready: { [MAIN_SERVER_UUID]: false },
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [MAIN_SERVER_UUID],
@@ -113,11 +130,12 @@ export const useServerZustand = create<
         })
       },
       createServer: async (params) => {
-        // Only update port from backend response, never from input
+        // Only update port from backend response, never from input. A refused
+        // payload answers undefined, and writing that would put the string
+        // "undefined" in the port field.
         const actualPort = await window.api.createServer(params)
-        const { uuid, port } = params
-
-        console.log({ port, uuid, actualPort })
+        if (actualPort === undefined) return
+        const { uuid } = params
 
         set((state) => {
           state.port[uuid] = String(actualPort)
@@ -132,7 +150,10 @@ export const useServerZustand = create<
         await window.api.deleteServer(uuid)
         set((state) => {
           state.uuids = state.uuids.filter((u) => u !== uuid)
-          if (state.selectedUuid === uuid) state.selectedUuid = state.uuids[0]
+          // The delete button is off for the main server, so the list keeps at
+          // least that one and the selection lands on a server that is there.
+          const [firstRemaining = MAIN_SERVER_UUID] = state.uuids
+          if (state.selectedUuid === uuid) state.selectedUuid = firstRemaining
           delete state.port[uuid]
           delete state.unitId[uuid]
           delete state.serverRegisters[uuid]
@@ -213,6 +234,7 @@ export const useServerZustand = create<
           for (const syncUuid of uuidsToSync) {
             const port = Number(state.port[syncUuid])
             const actualPort = await window.api.createServer({ uuid: syncUuid, port })
+            if (actualPort === undefined) continue
 
             set((state) => {
               state.port[syncUuid] = String(actualPort)
@@ -419,7 +441,19 @@ export const useServerZustand = create<
             if (!state.serverRegisters[uuid][unitId]) {
               state.serverRegisters[uuid][unitId] = getDefaultServerRegisters()
             }
-            state.serverRegisters[uuid][unitId][registerType][address].value = value
+
+            // The address is the one level that can be gone by now. These
+            // arrive batched on a 50 ms timer, and the event that proved the
+            // entry existed fired before it, so a `removeRegister` or a
+            // `resetRegisters` in between lands the flush on nothing.
+            //
+            // Dropped rather than recreated, which is what `setBool` does with
+            // its own: a bool entry is a value, and a register entry carries
+            // the params that say what it is. There is nothing here to build
+            // one from.
+            const entry = state.serverRegisters[uuid][unitId][registerType][address]
+            if (!entry) continue
+            entry.value = value
           }
         })
       },
@@ -457,6 +491,8 @@ export const useServerZustand = create<
 
         // Only update port from backend response
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
+        if (actualPort === undefined) return
+
         set((state) => {
           state.port[uuid] = String(actualPort)
         })
@@ -534,7 +570,7 @@ export const useServerZustand = create<
       setServerParity: (parity) => {
         set((state) => {
           if (!state.serialConfig) state.serialConfig = { ...defaultSerialConfig }
-          state.serialConfig.options.parity = parity as 'none' | 'even' | 'odd' | 'mark' | 'space'
+          state.serialConfig.options.parity = parity
         })
         restartRtuIfActive(get)
       },
@@ -580,9 +616,10 @@ export const useServerZustand = create<
       }
     })),
     {
-      name: `server.zustand`,
+      name: SERVER_ZUSTAND_STORAGE_KEY,
       version: CURRENT_SERVER_ZUSTAND_VERSION,
       migrate: (persistedState, version) => {
+        persistedVersion = version
         let state = persistedState as Record<string, unknown>
 
         // Version 0/1 (old format with littleEndian per register)
@@ -599,6 +636,16 @@ export const useServerZustand = create<
               | Record<string, Record<string, unknown> | undefined>
               | undefined
           )
+        }
+
+        // v3→v4: the RTU parity the serial binding refuses
+        if (version < 4) {
+          repairPersistedParity(state, 'serialConfig', 'options')
+        }
+
+        // v4→v5: registers at an address outside the 16 bit map
+        if (version < 5) {
+          dropUnservableRegisters(state)
         }
 
         return state as PersistedServerZustand
@@ -619,22 +666,25 @@ export const useServerZustand = create<
   )
 )
 
-// Clear when state is corrupted
-const clear = (): void => {
-  useServerZustand.persist.clearStorage()
-  useServerZustand.setState(useServerZustand.getInitialState())
-  enqueueSnackbar({
-    variant: 'error',
-    message: 'Server configuration was corrupted and has been reset to defaults.'
-  })
-}
+/**
+ * Keep the fields that parsed and default the rest, then say which went.
+ *
+ * Module scope, so it cannot report through notistack: see the same block in
+ * client.zustand.ts for why. MessageReceiver tells the user once it is mounted.
+ */
+const serverZustand = useServerZustand.getState()
 
-const state = useServerZustand.getState()
+const repair = repairPersisted(
+  PersistedServerZustandSchema,
+  serverZustand,
+  useServerZustand.getInitialState(),
+  persistedVersion !== undefined && persistedVersion > CURRENT_SERVER_ZUSTAND_VERSION
+)
 
-const stateResult = PersistedServerZustandSchema.safeParse(state)
-if (!stateResult.success) {
-  console.warn(stateResult.error)
-  clear()
+if (repair.reset !== undefined) {
+  console.warn('server config repaired', repair.reset)
+  keepCorrupt(localStorage, SERVER_ZUSTAND_STORAGE_KEY)
+  useServerZustand.setState({ ...repair.state, configReset: repair.reset })
 }
 
 // Init server
@@ -652,7 +702,7 @@ const delayedSetRegister = () => {
   clearTimeout(updateRegisterTimeout)
 
   const update = () => {
-    state.setRegisterValue(Array.from(setRegisterParameterMap.values()))
+    serverZustand.setRegisterValue(Array.from(setRegisterParameterMap.values()))
     setRegisterParameterMap.clear()
     pendingCompositeValues.clear()
     updateRegisterCount = 0
@@ -668,7 +718,7 @@ const delayedSetRegister = () => {
 
 // On raw register value result
 onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegisterValue }) => {
-  const state = useServerZustand.getState()
+  const serverZustand = useServerZustand.getState()
 
   // 1) Find the “base entry” in state.serverRegisters[*][*][registerType]
   //    We look back up to 3 registers because the largest DataType (int64/double) uses 4 registers.
@@ -676,7 +726,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   let entryAddress: number | undefined
 
   for (let cand = address; cand >= address - 3; cand--) {
-    const maybe = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
+    const maybe = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
     if (!maybe) continue
     // Found an entry at candidate index—this is our base
     serverRegisterEntry = maybe
@@ -692,13 +742,14 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
   const currentValue = pendingCompositeValues.get(cacheKey) ?? serverRegisterEntry.value
   const { dataType } = serverRegisterEntry.params
   // Get littleEndian from global server state
-  const littleEndian = state.littleEndian[uuid] ?? false
+  const littleEndian = serverZustand.littleEndian[uuid] ?? false
 
   // Skip composite merging for types that don't use numeric compositing
   if (dataType === 'utf8') return // Strings: no composite value
+  if (dataType === 'none') return // No data type, nothing to compose
 
   // 2) Calculate how many registers this DataType spans
-  const registersCount = getRegisterLength(dataType, address)
+  const registersCount = registerWidth(dataType)
   if (registersCount < 1 || registersCount > 4) return // Defensive: only support 1-4 registers
 
   // 3) Determine which register‐offset was written
@@ -830,7 +881,7 @@ const delayedSetBool = () => {
   clearTimeout(updateBoolTimeout)
 
   const update = () => {
-    state.setBool(Array.from(setBooleanParameterSet.values()))
+    serverZustand.setBool(Array.from(setBooleanParameterSet.values()))
     setBooleanParameterSet.clear()
     pendingBooleanValues.clear()
     updateBoolCount = 0
@@ -845,8 +896,8 @@ const delayedSetBool = () => {
 }
 
 onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
-  const state = useServerZustand.getState()
-  const entry = state.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
+  const serverZustand = useServerZustand.getState()
+  const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
   if (entry === undefined) return
 
   const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`

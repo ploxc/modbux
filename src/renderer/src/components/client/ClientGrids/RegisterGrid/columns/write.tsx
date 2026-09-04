@@ -1,9 +1,11 @@
-import { Edit } from '@mui/icons-material'
-import { GridActionsColDef, useGridApiContext } from '@mui/x-data-grid'
+import Edit from '@mui/icons-material/Edit'
+import { useGridApiContext } from '@mui/x-data-grid'
+import { GridActionsColDef } from '@mui/x-data-grid/models'
 import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterType, RegisterData } from '@shared'
 import { ReactElement, useEffect, useRef, useState } from 'react'
 
@@ -12,14 +14,14 @@ interface ActionProps {
   type: RegisterType
 }
 
-const Action = ({ address, type }: ActionProps): JSX.Element => {
+const Action = meme(({ address, type }: ActionProps): JSX.Element => {
   const [open, setOpen] = useState(false)
 
   const text = type === 'coils' ? 'Write Coil' : 'Write Register'
   const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
-  const disabled = useRootZustand((z) => {
+  const disabled = useClientZustand((z) => {
     return z.clientState.polling || z.clientState.connectState !== 'connected'
   })
 
@@ -57,7 +59,7 @@ const Action = ({ address, type }: ActionProps): JSX.Element => {
       )}
     </>
   )
-}
+})
 
 export const writeActionColumn = (type: RegisterType): GridActionsColDef<RegisterData> => ({
   field: 'actions',

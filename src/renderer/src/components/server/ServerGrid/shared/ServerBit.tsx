@@ -1,4 +1,7 @@
-import { Box, TextField, Typography, alpha } from '@mui/material'
+import Box from '@mui/material/Box'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -69,6 +72,9 @@ const ServerBit = meme(
         {/* Toggle circle */}
         <Box
           data-testid={`${testIdPrefix}-circle-${bitIndex}`}
+          // On and off differ only in background and shadow, so the circle
+          // renders identically to a test either way. This is the state itself.
+          data-active={active}
           onClick={readOnly ? undefined : onToggle}
           sx={(theme) => ({
             width: 12,
@@ -103,6 +109,7 @@ const ServerBit = meme(
         {/* Comment — inline editable */}
         {!readOnly && editing ? (
           <TextField
+            data-testid={`${testIdPrefix}-comment-${bitIndex}`}
             variant="standard"
             size="small"
             autoFocus
@@ -127,6 +134,10 @@ const ServerBit = meme(
           />
         ) : (
           <Typography
+            // The same field in its other state, so it answers to the same
+            // name. The bitmap spec reached this one by its MUI class before,
+            // which CONTRIBUTING forbids.
+            data-testid={`${testIdPrefix}-comment-${bitIndex}`}
             variant="caption"
             noWrap
             title={comment}

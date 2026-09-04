@@ -1,22 +1,21 @@
-import {
-  alpha,
-  Box,
-  Button,
-  InputBaseComponentProps,
-  Modal,
-  Paper,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup
-} from '@mui/material'
-import { DataGrid } from '@mui/x-data-grid'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import Modal from '@mui/material/Modal'
+import Paper from '@mui/material/Paper'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import { alpha } from '@mui/material/styles'
+import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { RegisterType } from '@shared'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
-import { useScanUnitIdZustand } from './_zustand'
+import { useScanUnitIdZustand } from './scanUnitIds.zustand'
 import { ScanCloseButton, ScanProgress, ScanTimeoutField } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
@@ -24,10 +23,11 @@ import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 //
 //
 // Start Unit ID field
-const StartUnitIdField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const StartUnitIdField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
-  const setStartUnitId = useScanUnitIdZustand((z) => z.setStartUnitId)
+
+  const setStartUnitId = useScanUnitIdZustand.getState().setStartUnitId
 
   return (
     <TextField
@@ -46,15 +46,16 @@ const StartUnitIdField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Count field
-const CountField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const CountField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const count = useScanUnitIdZustand((z) => String(z.count))
-  const setCount = useScanUnitIdZustand((z) => z.setCount)
+
+  const setCount = useScanUnitIdZustand.getState().setCount
 
   return (
     <TextField
@@ -73,15 +74,16 @@ const CountField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Address field with base toggle
-const AddressField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const AddressField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const address = useScanUnitIdZustand((z) => z.address)
-  const setAddress = useScanUnitIdZustand((z) => z.setAddress)
+
+  const setAddress = useScanUnitIdZustand.getState().setAddress
 
   return (
     <AddressBaseInput
@@ -92,15 +94,16 @@ const AddressField = (): JSX.Element => {
       baseTestId="scan-unitid-base"
     />
   )
-}
+})
 
 //
 //
 // Length field
-const LengthField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const LengthField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => String(z.length))
-  const setLength = useScanUnitIdZustand((z) => z.setLength)
+
+  const setLength = useScanUnitIdZustand.getState().setLength
 
   return (
     <TextField
@@ -119,15 +122,16 @@ const LengthField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Timeout field
-const TimeoutField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const TimeoutField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
-  const setTimeout = useScanUnitIdZustand((z) => z.setTimeout)
+
+  const setTimeout = useScanUnitIdZustand.getState().setTimeout
 
   return (
     <ScanTimeoutField
@@ -137,15 +141,19 @@ const TimeoutField = (): JSX.Element => {
       testId="scan-unitid-timeout-input"
     />
   )
-}
+})
 
 //
 //
 // Select register types
-const SelectRegisterTypes = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+const SelectRegisterTypes = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
-  const setRegisterTypes = useScanUnitIdZustand((z) => z.setRegisterTypes)
+
+  const handleChange = useCallback((_event: unknown, value: RegisterType[]): void => {
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    scanUnitIdZustand.setRegisterTypes(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -153,7 +161,7 @@ const SelectRegisterTypes = (): JSX.Element => {
       color="primary"
       size="small"
       value={registerTypes}
-      onChange={(_, rt) => setRegisterTypes(rt)}
+      onChange={handleChange}
       aria-label="Register types to scan"
     >
       {/* The same short names the result columns carry, so the button you
@@ -185,13 +193,13 @@ const SelectRegisterTypes = (): JSX.Element => {
       </ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
 //
 // Scan button
-const ScanButton = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
-  const polling = useRootZustand((z) => z.clientState.polling)
+const ScanButton = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
@@ -202,12 +210,12 @@ const ScanButton = (): JSX.Element => {
 
     window.api.stopPolling()
 
-    const state = useScanUnitIdZustand.getState()
-    const rootState = useRootZustand.getState()
-    rootState.clearScanUnitIdResults()
-    rootState.setScanProgress(0)
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    const clientZustand = useClientZustand.getState()
+    clientZustand.clearScanUnitIdResults()
+    clientZustand.setScanProgress(0)
 
-    const { address, length, startUnitId, count, registerTypes, timeout } = state
+    const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
     window.api.scanUnitIds({
       address,
@@ -232,13 +240,13 @@ const ScanButton = (): JSX.Element => {
       {text}
     </Button>
   )
-}
+})
 
 //
 //
 // Scan result grid
 const ScanResultGrid = meme(() => {
-  const scanResults = useRootZustand((z) => z.scanUnitIdResults)
+  const scanResults = useClientZustand((z) => z.scanUnitIdResults)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   const columns = useScanUnitIdColumns()
@@ -292,8 +300,8 @@ const ScanResultGrid = meme(() => {
 //
 //
 // Scan unit ids button
-export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
+export const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
 
   // Close the menu behind it, the way scanning registers does. Otherwise it is
   // still hanging there when you close the dialog again.
@@ -314,7 +322,7 @@ export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element =>
       Scan Unit ID{`'`}s
     </Button>
   )
-}
+})
 
 //
 //
@@ -326,19 +334,19 @@ export const ScanUnitIdsButton = ({ setAnchor }: SetAnchorProps): JSX.Element =>
  */
 const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
-  const setOpen = useScanUnitIdZustand((z) => z.setOpen)
 
   // Don't close while scanning
-  const scanning = useRootZustand((z) => z.clientState.scanningUniId)
+  const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
 
   const handleClose = useCallback(() => {
-    const currentRootState = useRootZustand.getState()
-    if (currentRootState.clientState.scanningUniId) return
+    const clientZustand = useClientZustand.getState()
+    const scanUnitIdZustand = useScanUnitIdZustand.getState()
+    if (clientZustand.clientState.scanningUnitIds) return
     // The results belong to the dialog. Leaving them behind means the next
     // scan opens on the last one and fills in around it.
-    currentRootState.clearScanUnitIdResults()
-    setOpen(false)
-  }, [setOpen])
+    clientZustand.clearScanUnitIdResults()
+    scanUnitIdZustand.setOpen(false)
+  }, [])
 
   return (
     <Modal

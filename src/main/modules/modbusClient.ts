@@ -68,7 +68,7 @@ export class ModbusClient {
   private _clientState: ClientState = {
     connectState: 'disconnected',
     polling: false,
-    scanningUniId: false,
+    scanningUnitIds: false,
     scanningRegisters: false
   }
 
@@ -92,6 +92,17 @@ export class ModbusClient {
     this._appState = appState
     this._windows = windows
 
+    this._attachClientHandlers()
+  }
+
+  /**
+   * Register the handlers that carry connection errors and auto-reconnect.
+   *
+   * These live on the `ModbusRTU` object rather than on the port, so a client
+   * that gets replaced comes back without them. Every site that assigns
+   * `this._client` calls this.
+   */
+  private _attachClientHandlers = (): void => {
     this._client
       .on('error', (error) => {
         this._clientState.connectState = 'disconnected'
@@ -105,7 +116,7 @@ export class ModbusClient {
       .on('close', () => {
         // If we were connected, go to 'connecting' and try to reconnect
         if (this._shouldAutoReconnect) {
-          // Remeber polling state before trying to reconnect
+          // Remember polling state before trying to reconnect
           this._reconnectWasPolling = this._clientState.polling
 
           // Only emit reconnecting message if not already in connecting state
@@ -328,6 +339,7 @@ export class ModbusClient {
             this._emitMessage({ message, variant: 'warning', error: null })
             resolve()
             this._client = new ModbusRTU()
+            this._attachClientHandlers()
           })
         }, 5000)
 
@@ -377,7 +389,6 @@ export class ModbusClient {
     this._client.setID(unitId)
     this._client.setTimeout(this._appState.registerConfig.timeout)
 
-    let errorMessage: string | undefined
     const data: RegisterData[] = []
 
     const { type, address, length } = this._appState.registerConfig
@@ -387,12 +398,14 @@ export class ModbusClient {
       : []
     const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
-    for (let gi = 0; gi < groups.length; gi++) {
-      const [a, l] = groups[gi]
+    for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
+      // Per group: `_logTransaction` below runs whether the group threw or not,
+      // so an errorMessage that outlives its group logs a clean group as failed.
+      let errorMessage: string | undefined
       try {
-        const rows = await this._tryRead(type, a, l)
-        rows.forEach((r) => {
-          r.groupIndex = gi
+        const rows = await this._tryRead(type, groupAddress, groupLength)
+        rows.forEach((row) => {
+          row.groupIndex = groupIndex
         })
         data.push(...rows)
       } catch (error) {
@@ -404,29 +417,29 @@ export class ModbusClient {
           const mapping = this._appState.registerMapping?.[type]
           if (mapping) {
             for (const [addressKey, mapValue] of Object.entries(mapping)) {
-              const address = Number(addressKey)
+              const mappedAddress = Number(addressKey)
               if (
-                address >= a &&
-                address < a + l &&
+                mappedAddress >= groupAddress &&
+                mappedAddress < groupAddress + groupLength &&
                 mapValue?.dataType &&
                 mapValue.dataType !== 'none'
               ) {
                 data.push({
-                  id: address,
+                  id: mappedAddress,
                   buffer: new Uint8Array(2),
                   hex: '0000',
                   words: undefined,
                   bit: false,
                   isScanned: false,
                   error: errorMessage,
-                  groupIndex: gi
+                  groupIndex
                 })
               }
             }
           }
         } else {
           this._emitMessage({
-            message: `${errorMessage} [addr:${a}, len:${l}, id:${this._appState.connectionConfig.unitId}]`,
+            message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${this._appState.connectionConfig.unitId}]`,
             variant: 'error',
             error
           })
@@ -453,8 +466,8 @@ export class ModbusClient {
   // writing down what those actually guarantee.
   //
   // A transaction is created by the writeFCx methods and never removed again:
-  // the library only ever assigns _transactions in its constructor. Clearing
-  // it is ours to do, or a session grows one entry per request.
+  // the library only ever assigns _transactions in its constructor. Removing
+  // them is ours to do, or a session grows one entry per request.
   //
   // request and responses are stashed only while debug mode is on, and only
   // by the write that reaches the port, so a transaction can carry neither.
@@ -472,11 +485,13 @@ export class ModbusClient {
     const lastTransaction = rawTransactions.at(-1)
     if (!lastTransaction) return
 
-    // Clear the transactions so we don't log a transaction twice
-    // For example when encountering an error we would log the same last transaction again
-    this._client['_transactions'] = {}
-
     const [transactionIdKey, rawTransaction] = lastTransaction
+
+    // Only the entry being logged, so the same one is not logged again on the
+    // next call. Emptying the table takes entries for requests still in flight
+    // with it, and `_onReceive` drops a response whose entry is gone, so the
+    // request times out rather than resolving.
+    delete this._client['_transactions'][transactionIdKey]
 
     const transaction: Transaction = {
       id: `${transactionIdKey}__${v4()}`,
@@ -627,9 +642,21 @@ export class ModbusClient {
 
     try {
       if (single) {
+        // FC5 writes the first coil of the list, and the schema accepts an
+        // empty one, which would put `undefined` on the wire.
+        const [first] = value
+        if (first === undefined) {
+          this._emitMessage({
+            message: 'No coil value to write',
+            variant: 'warning',
+            error: undefined
+          })
+          return
+        }
+
         // Wrtie single coil
         await new Promise<WriteCoilResult>((resolve, reject) =>
-          this._client.writeFC5(unitId, address, value[0], (err, data) => {
+          this._client.writeFC5(unitId, address, first, (err, data) => {
             if (err) {
               reject(err)
               return
@@ -667,7 +694,7 @@ export class ModbusClient {
 
     if (single && !['int16', 'uint16'].includes(dataType)) {
       this._emitMessage({
-        message: 'Single register only supported fot 16 bit values',
+        message: 'Single register only supported for 16 bit values',
         variant: 'warning',
         error: undefined
       })
@@ -724,7 +751,7 @@ export class ModbusClient {
     }
 
     this._client.setTimeout(params.timeout)
-    this._clientState.scanningUniId = true
+    this._clientState.scanningUnitIds = true
     this._sendClientState()
 
     const { range } = params
@@ -734,14 +761,14 @@ export class ModbusClient {
 
     for (let id = range[0]; id <= range[1]; id++) await this._scanUnitIds({ id, ...params })
 
-    this._clientState.scanningUniId = false
+    this._clientState.scanningUnitIds = false
     this._sendClientState()
   }
 
   public stopScanningUnitIds = (): void => {
     // Set scanning unit id to false so the scanning is stopped
     // after the last asynchonous operation has completed.
-    this._clientState.scanningUniId = false
+    this._clientState.scanningUnitIds = false
   }
 
   private _scanUnitIds: ScanUnitIdFn = async ({ address, id, length, registerTypes }) => {
@@ -760,7 +787,7 @@ export class ModbusClient {
       }
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -777,7 +804,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -793,7 +820,7 @@ export class ModbusClient {
       }
       await this._sendScanProgress()
     }
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -810,7 +837,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -827,7 +854,7 @@ export class ModbusClient {
       await this._sendScanProgress()
     }
 
-    if (!this._clientState.scanningUniId) {
+    if (!this._clientState.scanningUnitIds) {
       this._sendClientState()
       return
     }
@@ -893,8 +920,8 @@ export class ModbusClient {
     this._logTransaction(errorMessage)
 
     if (!data) return
-    data = data.filter((d) =>
-      ['coils', 'discrete_inputs'].includes(type) ? d.bit : d.hex !== '0000'
+    data = data.filter((row) =>
+      ['coils', 'discrete_inputs'].includes(type) ? row.bit : row.hex !== '0000'
     )
     this._sendData(data)
   }
@@ -909,9 +936,9 @@ export class ModbusClient {
   public listSerialPorts = async (): Promise<{ path: string; manufacturer?: string }[]> => {
     try {
       const ports = await ModbusRTU.getPorts()
-      return ports.map((p) => ({
-        path: p.path,
-        manufacturer: p.manufacturer ?? undefined
+      return ports.map((port) => ({
+        path: port.path,
+        manufacturer: port.manufacturer ?? undefined
       }))
     } catch (error) {
       const message = humanizeSerialError(error as Error)
@@ -925,7 +952,7 @@ export class ModbusClient {
   ): Promise<{ valid: boolean; message: string }> => {
     try {
       const ports = await ModbusRTU.getPorts()
-      const found = ports.some((p) => p.path.toLowerCase() === portPath.toLowerCase())
+      const found = ports.some((port) => port.path.toLowerCase() === portPath.toLowerCase())
       return {
         valid: found,
         message: found

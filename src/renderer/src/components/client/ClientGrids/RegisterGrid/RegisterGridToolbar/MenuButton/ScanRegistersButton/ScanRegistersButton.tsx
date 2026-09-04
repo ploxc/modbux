@@ -1,7 +1,7 @@
 import Button from '@mui/material/Button'
-import { useScanRegistersZustand } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
+import { useScanRegistersZustand } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/scanRegisters.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 
 export interface SetAnchorProps {
@@ -9,8 +9,8 @@ export interface SetAnchorProps {
 }
 
 const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'connected')
-  const type = useRootZustand((z) => z.registerConfig.type)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
+  const type = useClientZustand((z) => z.registerConfig.type)
   const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
   const handleOpen = useCallback(() => {

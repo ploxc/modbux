@@ -1,8 +1,9 @@
 import { IMaskInput, IMask } from 'react-imask'
 import { forwardRef } from 'react'
+import { meme } from './meme'
 import { MaskInputProps } from './types'
 
-const LengthInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+const LengthInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, max = 125, ...other } = props
   return (
     <IMaskInput
@@ -17,6 +18,8 @@ const LengthInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) =>
   )
 })
 
-LengthInput.displayName = 'LengthInput'
+LengthInputForward.displayName = 'LengthInput'
+
+const LengthInput = meme(LengthInputForward)
 
 export default LengthInput

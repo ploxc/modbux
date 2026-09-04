@@ -1,5 +1,10 @@
-import { Autocomplete, Box, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import { CheckCircleOutlined, Refresh } from '@mui/icons-material'
+import Autocomplete from '@mui/material/Autocomplete'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined'
+import Refresh from '@mui/icons-material/Refresh'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import {
   BaudRateSelect,
@@ -10,21 +15,33 @@ import {
   StopBitsSelect,
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 //
 //
 // COM Port Input
 const ComInput = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const com = useRootZustand((z) => z.connectionConfig.rtu.com)
-  const comValid = useRootZustand((z) => z.valid.com)
-  const loading = useRootZustand((z) => z.serialPortsLoading)
-  const ports = useRootZustand((z) => z.serialPorts)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const com = useClientZustand((z) => z.connectionConfig.rtu.com)
+  const comValid = useClientZustand((z) => z.valid.com)
+  const loading = useClientZustand((z) => z.serialPortsLoading)
+  const ports = useClientZustand((z) => z.serialPorts)
   const inputWidth = useComInputWidth(ports)
+
+  // Typing is valid only once it is not blank; picking from the list always is.
+  const handleInputChange = useCallback((_event: unknown, value: string): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setCom(value, value.trim().length > 0)
+  }, [])
+
+  const handleChange = useCallback((_event: unknown, value: string | null): void => {
+    if (!value) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setCom(value, true)
+  }, [])
 
   return (
     <Autocomplete
@@ -33,12 +50,8 @@ const ComInput = meme(() => {
       options={ports.map((p) => p.path)}
       value={com}
       data-testid="rtu-com-input"
-      onInputChange={(_event, newValue) =>
-        useRootZustand.getState().setCom(newValue, newValue.trim().length > 0)
-      }
-      onChange={(_event, newValue) => {
-        if (newValue) useRootZustand.getState().setCom(newValue, true)
-      }}
+      onInputChange={handleInputChange}
+      onChange={handleChange}
       sx={{ width: inputWidth, maxWidth: 220 }}
       renderInput={(params) => (
         <ComTextField {...params} comLabel="COM Port" comError={!comValid} comLoading={loading} />
@@ -55,20 +68,20 @@ const ComInput = meme(() => {
 //
 // COM Port Actions
 const ComActions = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const com = useRootZustand((z) => z.connectionConfig.rtu.com)
-  const loading = useRootZustand((z) => z.serialPortsLoading)
-  const validating = useRootZustand((z) => z.serialPortValidating)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const com = useClientZustand((z) => z.connectionConfig.rtu.com)
+  const loading = useClientZustand((z) => z.serialPortsLoading)
+  const validating = useClientZustand((z) => z.serialPortValidating)
   const { enqueueSnackbar } = useSnackbar()
 
   const onRefresh = (): void => {
-    useRootZustand.getState().refreshSerialPorts()
+    useClientZustand.getState().refreshSerialPorts()
   }
 
   const onValidate = async (): Promise<void> => {
     if (!com || com.trim() === '') return
-    const result = await useRootZustand.getState().validateSerialPort(com)
-    useRootZustand.getState().setCom(com, result.valid)
+    const result = await useClientZustand.getState().validateSerialPort(com)
+    useClientZustand.getState().setCom(com, result.valid)
     enqueueSnackbar({
       message: result.message,
       variant: result.valid ? 'success' : 'warning'
@@ -116,11 +129,11 @@ const ComActions = meme(() => {
 //
 //
 // COM Port (composite)
-const Com = (): JSX.Element => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
+const Com = meme((): JSX.Element => {
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
 
   useEffect(() => {
-    if (!disabled) useRootZustand.getState().refreshSerialPorts()
+    if (!disabled) useClientZustand.getState().refreshSerialPorts()
   }, [disabled])
 
   return (
@@ -129,50 +142,54 @@ const Com = (): JSX.Element => {
       <ComActions />
     </Box>
   )
-}
+})
 
 //
 //
 // Selects (thin wrappers over shared components)
 const ClientBaudRateSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const baudRate = useRootZustand((z) => z.connectionConfig.rtu.options.baudRate)
-  const setBaudRate = useRootZustand((z) => z.setBaudRate)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const baudRate = useClientZustand((z) => z.connectionConfig.rtu.options.baudRate)
+
+  const setBaudRate = useClientZustand.getState().setBaudRate
 
   return <BaudRateSelect value={baudRate} onChange={setBaudRate} disabled={disabled} />
 })
 
 const ClientParitySelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const parity = useRootZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
-  const setParity = useRootZustand((z) => z.setParity)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const parity = useClientZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
 
-  return (
-    <ParitySelect
-      value={parity}
-      onChange={(v) => setParity(v as SerialPortOptions['parity'])}
-      disabled={disabled}
-    />
-  )
+  const setParity = useClientZustand.getState().setParity
+
+  return <ParitySelect value={parity} onChange={setParity} disabled={disabled} />
 })
 
 const ClientDataBitsSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const dataBits = useRootZustand((z) => z.connectionConfig.rtu.options.dataBits)
-  const setDataBits = useRootZustand((z) => z.setDataBits)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const dataBits = useClientZustand((z) => z.connectionConfig.rtu.options.dataBits)
 
-  return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
+  const handleChange = useCallback((value: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setDataBits(value as SerialPortOptions['dataBits'])
+  }, [])
+
+  return <DataBitsSelect value={dataBits} onChange={handleChange} disabled={disabled} />
 })
 
 const ClientStopBitsSelect = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const stopBits = useRootZustand((z) => z.connectionConfig.rtu.options.stopBits)
-  const setStopBits = useRootZustand((z) => z.setStopBits)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const stopBits = useClientZustand((z) => z.connectionConfig.rtu.options.stopBits)
 
-  return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
+  const handleChange = useCallback((value: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setStopBits(value as SerialPortOptions['stopBits'])
+  }, [])
+
+  return <StopBitsSelect value={stopBits} onChange={handleChange} disabled={disabled} />
 })
 
-const RtuConfig = (): JSX.Element => {
+const RtuConfig = meme((): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
       <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
@@ -186,5 +203,5 @@ const RtuConfig = (): JSX.Element => {
       </Box>
     </Box>
   )
-}
+})
 export default RtuConfig

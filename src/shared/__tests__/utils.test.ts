@@ -6,6 +6,7 @@ import {
   bigEndian64,
   littleEndian64,
   createRegisters,
+  registerWidth,
   getMinMaxValues,
   notEmpty,
   humanizeSerialError
@@ -91,6 +92,46 @@ describe('littleEndian64', () => {
 // ---------------------------------------------------------------------------
 // createRegisters
 // ---------------------------------------------------------------------------
+describe('registerWidth', () => {
+  it('is 1 for the 16-bit types', () => {
+    expect(registerWidth('int16')).toBe(1)
+    expect(registerWidth('uint16')).toBe(1)
+    expect(registerWidth('bitmap')).toBe(1)
+  })
+
+  it('is 2 for the 32-bit types', () => {
+    expect(registerWidth('int32')).toBe(2)
+    expect(registerWidth('uint32')).toBe(2)
+    expect(registerWidth('float')).toBe(2)
+    expect(registerWidth('unix')).toBe(2)
+  })
+
+  it('is 4 for the 64-bit types', () => {
+    expect(registerWidth('int64')).toBe(4)
+    expect(registerWidth('uint64')).toBe(4)
+    expect(registerWidth('double')).toBe(4)
+    expect(registerWidth('datetime')).toBe(4)
+  })
+
+  it('is the length the user gave for a string', () => {
+    expect(registerWidth('utf8', 2)).toBe(2)
+    expect(registerWidth('utf8', 124)).toBe(124)
+  })
+
+  it('is 10 for a string with no length, which is what the dialog offers', () => {
+    expect(registerWidth('utf8')).toBe(10)
+  })
+
+  it('ignores a length on a type that does not have one', () => {
+    expect(registerWidth('int16', 7)).toBe(1)
+    expect(registerWidth('double', 7)).toBe(4)
+  })
+
+  it('is 1 for none, which occupies its address without holding a value', () => {
+    expect(registerWidth('none')).toBe(1)
+  })
+})
+
 describe('createRegisters', () => {
   describe('int16', () => {
     it('converts positive value', () => {
@@ -270,46 +311,37 @@ describe('createRegisters', () => {
     })
   })
 
+  /** The registers as the bytes they stand for, big endian. */
+  const toBuffer = (registers: number[]): Buffer => {
+    const buffer = Buffer.alloc(registers.length * 2)
+    registers.forEach((register, i) => buffer.writeUInt16BE(register, i * 2))
+    return buffer
+  }
+
   describe('round-trip consistency', () => {
     it('int32: value → registers → buffer → value', () => {
       const value = 123456
       const regs = createRegisters('int32', value, false)
-      // Reconstruct buffer from registers
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      expect(buf.readInt32BE(0)).toBe(value)
+      expect(toBuffer(regs).readInt32BE(0)).toBe(value)
     })
 
     it('float: value → registers → buffer → value', () => {
       const value = 3.14
       const regs = createRegisters('float', value, false)
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      expect(buf.readFloatBE(0)).toBeCloseTo(value, 2)
+      expect(toBuffer(regs).readFloatBE(0)).toBeCloseTo(value, 2)
     })
 
     it('double: value → registers → buffer → value', () => {
       const value = 3.141592653589793
       const regs = createRegisters('double', value, false)
-      const buf = Buffer.alloc(8)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      buf.writeUInt16BE(regs[2], 4)
-      buf.writeUInt16BE(regs[3], 6)
-      expect(buf.readDoubleBE(0)).toBeCloseTo(value, 10)
+      expect(toBuffer(regs).readDoubleBE(0)).toBeCloseTo(value, 10)
     })
 
     it('uint32 little endian: value → registers → swapped buffer → value', () => {
       const value = 70000
       const regs = createRegisters('uint32', value, true)
-      // LE registers need to be swapped back to read
-      const buf = Buffer.alloc(4)
-      buf.writeUInt16BE(regs[0], 0)
-      buf.writeUInt16BE(regs[1], 2)
-      // Swap the two words back
-      const swapped = littleEndian32(buf, 0)
+      // The two words go back the other way round to be read
+      const swapped = littleEndian32(toBuffer(regs), 0)
       expect(swapped.readUInt32BE(0)).toBe(value)
     })
   })

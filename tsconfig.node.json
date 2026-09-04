@@ -5,10 +5,10 @@
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
-    "src/backend/**/*",
   ],
   "compilerOptions": {
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "composite": true,
     "moduleResolution": "bundler",
     "types": [

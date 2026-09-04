@@ -1,0 +1,111 @@
+import {
+  Protocol,
+  RegisterType,
+  ModbusBaudRate,
+  Parity,
+  ClientState,
+  Transaction,
+  RegisterMapping,
+  RegisterMapValue,
+  ScanUnitIDResult,
+  RegisterMappingSchema,
+  ConnectionConfigSchema,
+  RegisterConfigSchema,
+  SerialPortInfo,
+  SerialPortValidationResult,
+  ConfigReset
+} from '@shared'
+import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
+import z from 'zod'
+
+interface Valid {
+  host: boolean
+  com: boolean
+  lenght: boolean
+}
+
+export const PersistedClientZustandSchema = z.object({
+  name: z.string(),
+  registerMapping: RegisterMappingSchema,
+  connectionConfig: ConnectionConfigSchema,
+  registerConfig: RegisterConfigSchema
+})
+export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema>
+
+export type ClientZustand = {
+  transactions: Transaction[]
+  clientState: ClientState
+  ready: boolean
+  readConfiguration: boolean
+  valid: Valid
+  lastSuccessfulTransactionMillis: number | null
+  scanUnitIdResults: ScanUnitIDResult[]
+  scanProgress: number
+  setName: (name: string) => void
+  // Register mapping
+  setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
+    register: number,
+    key: K,
+    value: V
+  ) => void
+  replaceRegisterMapping: (registerMapping: RegisterMapping) => void
+  clearRegisterMapping: () => void
+  /** What the persisted config lost on the way in, or undefined when it lost nothing. */
+  configReset: ConfigReset | undefined
+  /** Called once the reset has been reported, so it is reported once. */
+  acknowledgeConfigReset: () => void
+  // Transaction log
+  addTransaction: (transactions: Transaction) => void
+  clearTransactions: () => void
+  // Config
+  init: () => Promise<void>
+  // State
+  setClientState: (clientState: ClientState) => void
+  // Configuration actions
+  setProtocol: (protocol: Protocol) => void
+  setPort: MaskSetFn
+  setHost: MaskSetFn
+  setUnitId: MaskSetFn
+  setAddress: MaskSetFn
+  setLength: MaskSetFn
+  setType: (type: RegisterType) => void
+  setCom: MaskSetFn
+  setBaudRate: (baudRate: ModbusBaudRate) => void
+  setParity: (parity: Parity) => void
+  setDataBits: (dataBits: SerialPortOptions['dataBits']) => void
+  setStopBits: (stopBits: SerialPortOptions['stopBits']) => void
+  setPollRate: (pollRate: number) => void
+  setTimeout: (timeout: number) => void
+  setLittleEndian: (littleEndian: boolean) => void
+
+  // Layout configuration settings (i want them to be persistent)
+  setAddressBase: (addressBase: '0' | '1') => void
+  setAdvancedMode: (advancedMode: boolean) => void
+  setShow64BitValues: (show64BitValues: boolean) => void
+
+  // Transaction
+  setLastSuccessfulTransactionMillis: (value: number | null) => void
+
+  // Unit ID Scannning
+  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
+  clearScanUnitIdResults: () => void
+
+  // Scan progress
+  setScanProgress: (scanProgress: number) => void
+
+  // Read configuration
+  setReadConfiguration: (readConfiguration: boolean) => void
+  // Version
+
+  // Serial port discovery
+  serialPorts: SerialPortInfo[]
+  serialPortsLoading: boolean
+  serialPortValidating: boolean
+  refreshSerialPorts: () => Promise<void>
+  validateSerialPort: (portPath: string) => Promise<SerialPortValidationResult>
+} & PersistedClientZustand
+
+export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void
+
+/** A masked setter that waits on the backend before the value settles. */
+export type AsyncMaskSetFn<V extends string = string> = (value: V, valid?: boolean) => Promise<void>

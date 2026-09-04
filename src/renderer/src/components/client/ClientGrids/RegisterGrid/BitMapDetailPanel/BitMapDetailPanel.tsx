@@ -1,10 +1,10 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import { BitColor, BitMapConfig } from '@shared'
-import BitIndicator from './BitIndicator'
+import BitIndicator from './BitIndicator/BitIndicator'
 
 interface BitMapDetailPanelProps {
   address: number
@@ -21,13 +21,14 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     (z) => z.registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
   )
 
-  const bitConfig = useRootZustand((z) => z.registerMapping[z.registerConfig.type][address]?.bitMap)
-  const setRegisterMapping = useRootZustand((z) => z.setRegisterMapping)
+  const bitConfig = useClientZustand(
+    (z) => z.registerMapping[z.registerConfig.type][address]?.bitMap
+  )
 
-  const registerType = useRootZustand((z) => z.registerConfig.type)
+  const registerType = useClientZustand((z) => z.registerConfig.type)
   const writable = registerType === 'holding_registers'
-  const connectState = useRootZustand((z) => z.clientState.connectState)
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const connectState = useClientZustand((z) => z.clientState.connectState)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const canWrite = writable && connectState === 'connected' && !polling
 
   const handleToggle = useCallback(
@@ -51,6 +52,7 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
 
   const updateBitMap = useCallback(
     (bitIndex: number, patch: Record<string, unknown>) => {
+      const clientZustand = useClientZustand.getState()
       const current = bitConfig ?? {}
       const entry = current[String(bitIndex)] ?? {}
       const updated: BitMapConfig = {
@@ -66,9 +68,13 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
         // Remove entry entirely if empty
         if (Object.keys(updatedEntry).length === 0) delete updated[String(bitIndex)]
       }
-      setRegisterMapping(address, 'bitMap', Object.keys(updated).length > 0 ? updated : undefined)
+      clientZustand.setRegisterMapping(
+        address,
+        'bitMap',
+        Object.keys(updated).length > 0 ? updated : undefined
+      )
     },
-    [address, bitConfig, setRegisterMapping]
+    [address, bitConfig]
   )
 
   const handleCommentChange = useCallback(

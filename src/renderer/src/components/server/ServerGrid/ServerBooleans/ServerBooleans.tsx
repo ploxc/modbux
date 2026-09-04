@@ -1,5 +1,10 @@
 import { DeleteFilled, PlusCircleOutlined } from '@ant-design/icons'
-import { Box, IconButton, InputBaseComponentProps, Paper, TextField, alpha } from '@mui/material'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import Paper from '@mui/material/Paper'
+import TextField from '@mui/material/TextField'
+import { alpha } from '@mui/material/styles'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters, ServerBoolEntry } from '@shared'
 import { deepEqual } from 'fast-equals'
@@ -10,6 +15,7 @@ import useServerGridZustand from '../serverGrid.zustand'
 import ServerBit from '../shared/ServerBit'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
+import { gridSurface } from '@renderer/theme'
 
 interface ServerBooleanProps {
   name: string
@@ -122,8 +128,12 @@ const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
 // ─── Inline Add bar ──────────────────────────────────────────────────────────
 
 const getRegs = (type: BooleanRegisters): Record<string, unknown> => {
-  const z = useServerZustand.getState()
-  return z.serverRegisters[z.selectedUuid]?.[z.getUnitId(z.selectedUuid)]?.[type] ?? {}
+  const serverZustand = useServerZustand.getState()
+  return (
+    serverZustand.serverRegisters[serverZustand.selectedUuid]?.[
+      serverZustand.getUnitId(serverZustand.selectedUuid)
+    ]?.[type] ?? {}
+  )
 }
 
 const nextFree = (from: number, regs: Record<string, unknown>): number => {
@@ -222,7 +232,7 @@ const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
           flex: 1,
           width: '100%',
           height: '100%',
-          backgroundColor: '#2A2A2A',
+          backgroundColor: gridSurface,
           fontSize: '0.95em',
           position: 'relative'
         }}

@@ -12,9 +12,11 @@ import {
   ServerModeSchema,
   ServerSerialConfigSchema,
   SerialPortInfo,
-  ModbusBaudRate
+  ModbusBaudRate,
+  Parity,
+  ConfigReset
 } from '@shared'
-import { AsyncMaskSetFn, MaskSetFn } from './root.zustand.types'
+import { AsyncMaskSetFn, MaskSetFn } from './client.zustand.types'
 import { z } from 'zod'
 
 export const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
@@ -55,6 +57,10 @@ export interface SetRegisterValueParameters {
 }
 
 export type ServerZustand = {
+  /** What the persisted config lost on the way in, or undefined when it lost nothing. */
+  configReset: ConfigReset | undefined
+  /** Called once the reset has been reported, so it is reported once. */
+  acknowledgeConfigReset: () => void
   ready: { [uuid: string]: boolean }
   clean: (uuid: string) => void
   /**
@@ -90,7 +96,7 @@ export type ServerZustand = {
   setServerCom: (com: string) => void
   applyServerCom: () => Promise<void>
   setServerBaudRate: (baudRate: ModbusBaudRate) => void
-  setServerParity: (parity: string) => void
+  setServerParity: (parity: Parity) => void
   setServerDataBits: (dataBits: number) => void
   setServerStopBits: (stopBits: number) => void
   serverSerialPorts: SerialPortInfo[]

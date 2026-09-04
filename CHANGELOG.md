@@ -5,6 +5,107 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The server no longer answers for units it does not have.** On a shared
+  RS-485 line it replied to every address on the bus, including the ones
+  belonging to the real devices on it, so its frame went out at the same moment
+  theirs did. It now says nothing at all for an address it does not host, which
+  is the only answer that leaves the line alone. Over TCP, where saying nothing
+  is just a timeout, it replies that the unit is not there. A unit is one you
+  gave registers to, and the ID picker still lists all 256.
+- **A write to a unit you never configured no longer creates one.** Any client
+  on the network could turn an unused unit ID into one the server answers for,
+  and nothing in the view said it had happened.
+- **Opening the server in its own window no longer disconnects your clients.**
+  The second window restarted every running server, and anything connected was
+  dropped without a word. Clearing a server's registers did the same. Both now
+  leave the connection where it is.
+- **Writing one coil no longer switches off the ones beside it.** The write
+  dialog started every coil at off, and a write of multiple coils sends every
+  coil from the one you opened to the end of the range, so everything you had
+  not touched went out as off. The dialog now opens showing what the last read
+  returned, which is what goes back to the device.
+- **An empty value field no longer writes a zero.** The box turned red and the
+  write went out anyway, as a 0, because an empty field is what JavaScript reads
+  as zero. The write buttons are now off until the field holds a number, and the
+  field is no longer left marked as wrong after you close the dialog.
+- **The write dialog no longer keeps the data type of the address you opened
+  before.** A register your configuration gives no type kept whatever the last
+  one used, so a value could go out encoded as something the address is not.
+  Such an address now opens as INT16.
+- **Resetting server registers while a client writes to them no longer breaks
+  the view.** Values arrive in batches, so one could land just after you deleted
+  a register or reset the type, and that threw where nothing could catch it.
+  Such a value is now dropped, and the address you deleted stays deleted.
+- **A write no longer times out a read that was already on its way.** Logging a
+  transaction threw away the bookkeeping for every request still waiting for an
+  answer, so a read overlapping a write reported a timeout that never happened
+  and the grid kept its old values.
+- **A disconnect that hangs no longer costs you auto-reconnect.** When closing
+  the connection took too long, the client was replaced by a fresh one that
+  nobody was listening to, so for the rest of the session a dropped connection
+  went unreported and was never reconnected.
+- **The transaction log no longer marks a good read as failed.** Reading a
+  configuration reads one group of addresses at a time, and once one group
+  failed, every group after it was logged carrying that group's error.
+- **A server that fails to start says so.** The port was reported back to the
+  view before the server had actually taken it, so a port claimed in the
+  meantime left you with a server that looked up and answered nothing. Modbux
+  now waits for the answer, moves to the next free port, and keeps a server on
+  its old port when a port change cannot be completed.
+- **On Linux the offer to unblock port 502 now reaches the split window too.**
+  It was asked only by the main window, and splitting puts the server in a
+  window of its own, so anyone who worked that way was left on port 1024 with no
+  explanation.
+- **Unplugging the serial adapter now stops the RTU server in the view.** The
+  server stayed marked as running on a port that was gone, so the only sign was
+  that nothing answered it any more.
+- **Remove in the edit dialog no longer answers for an address you only typed.**
+  Changing the address and then pressing Remove left the register you opened
+  where it was, deleted whatever sat at the address you had typed, and closed
+  the dialog as though it had worked. The two buttons now follow what the
+  dialog holds: Remove until you change something, Submit Change once you have.
+- **Switching a register between Fixed and Generator no longer leaves the other
+  side blank.** A fixed register carries no range and a generator carries no
+  value, so the fields you switched to came up empty and marked wrong, and
+  Submit Change stayed off until you typed both of them. They now start where a
+  new register starts. Opening the dialog also no longer flashes the labels red
+  for a moment.
+- **A register at an address outside the map no longer loads.** A configuration
+  file edited by hand could put one past 65535, where no Modbus request can
+  reach it and Remove could not clear it, because the add path was the one that
+  left the range unchecked. Such a file is now refused and names the register,
+  and a saved setup that already carried one comes back without it, with
+  everything else kept.
+- **Loading a configuration no longer rewrites your own words.** Four register
+  type names were renamed everywhere they appeared in the file, so a
+  configuration called "Coils bank A" came back as "coils bank A" and a comment
+  reading "read InputRegisters here" came back as "read input_registers here".
+  Saving after that made it permanent. The rename now applies to the keys it was
+  written for, and only to a configuration old enough to need it.
+- **On macOS, opening Modbux again while it sits in the Dock with no window now
+  brings the window back.** It used to answer with a red "A JavaScript error
+  occurred in the main process" dialog and no window at all. Your client stays
+  connected and polling the whole time, and the server keeps the connections it
+  has, which was already true and is now covered by a test.
+
+### Changed
+
+- **Unit 0 is the broadcast address on RTU.** A request to 0 goes to every
+  device on the bus at once and none of them replies, so registers you put on
+  unit 0 cannot be read back over serial. A write to 0 still lands, on every
+  unit the server hosts, and nothing goes back on the line. Modbux says so once
+  while the RTU server is running and unit 0 holds registers. Over TCP there is
+  no broadcast and unit 0 stays an ordinary address.
+- **The parity list offers none, even and odd.** Mark and space were in it, and
+  on macOS and Linux picking either one failed the connection outright, because
+  the serial layer Modbux uses has no setting for them on those platforms. A
+  saved configuration that carries one now comes back on none, with the com port
+  and baud rate beside it kept.
+
 ## [2.3.0] - 2026-08-30
 
 ### Added

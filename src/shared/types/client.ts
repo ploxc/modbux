@@ -1,7 +1,8 @@
 import z from 'zod'
-import { BaseDataType, DataTypeSchema } from './datatype'
+import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
+import { PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
 
 //
 //
@@ -100,16 +101,27 @@ export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
 
 // modbus-serial TcpPortOptions partial
 export const TcpPortOptionsSchema = z.object({
-  port: z.number(),
+  port: PortSchema,
   timeout: z.number()
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
+
+/**
+ * What the serial binding accepts on every platform.
+ *
+ * `modbus-serial` also types `mark` and `space`, and `serialport_win.cpp` has a
+ * case for both. `serialport_unix.cpp` has three cases and a default that
+ * returns -1, so on macOS and Linux either one fails the open with
+ * "Invalid parity setting".
+ */
+export const ParitySchema = z.enum(['none', 'even', 'odd'])
+export type Parity = z.infer<typeof ParitySchema>
 
 export const SerialPortOptionsSchema = z.object({
   baudRate: ModbusBaudRateSchema,
   dataBits: z.number(),
   stopBits: z.number(),
-  parity: z.enum(['none', 'even', 'odd', 'mark', 'space']).optional()
+  parity: ParitySchema.optional()
 })
 export type SerialPortOptions = z.infer<typeof SerialPortOptionsSchema>
 
@@ -125,9 +137,17 @@ export const ConnectionConfigRtuSchema = z.object({
 })
 export type ConnectionConfigRtu = z.infer<typeof ConnectionConfigRtuSchema>
 
+/**
+ * The unit id and the port the client sends, on the range the protocol fixes.
+ *
+ * The server checks every unit id that arrives, with `UnitIdStringSchema` in
+ * every getter and setter, and it is the same byte going the other way. The
+ * mask inputs hold both fields to these ranges, so what is left for a schema to
+ * refuse is the persisted store and `update_connection_config`.
+ */
 export const ConnectionConfigSchema = z.object({
   protocol: ProtocolSchema,
-  unitId: z.number(),
+  unitId: UnitIdSchema,
   tcp: ConnectionConfigTcpSchema,
   rtu: ConnectionConfigRtuSchema
 })
@@ -140,18 +160,26 @@ export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>
 //
 
 // WriteParameters
-export type WriteParameters = { address: number; single: boolean } & (
-  | {
-      type: 'coils'
-      value: boolean[]
-      dataType?: never
-    }
-  | {
-      type: 'holding_registers'
-      value: number
-      dataType: BaseDataType
-    }
-)
+export const WriteParametersSchema = z
+  .object({
+    address: RegisterAddressSchema,
+    single: z.boolean()
+  })
+  .and(
+    z.union([
+      z.object({
+        type: z.literal('coils'),
+        value: z.array(z.boolean()),
+        dataType: z.undefined()
+      }),
+      z.object({
+        type: z.literal('holding_registers'),
+        value: z.number(),
+        dataType: BaseDataTypeSchema
+      })
+    ])
+  )
+export type WriteParameters = z.infer<typeof WriteParametersSchema>
 
 //
 //
@@ -167,7 +195,7 @@ export type ConnectState = z.infer<typeof ConnectStateSchema>
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),
-  scanningUniId: z.boolean(),
+  scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean()
 })
 export type ClientState = z.infer<typeof ClientStateSchema>

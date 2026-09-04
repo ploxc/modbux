@@ -1,12 +1,16 @@
-import { CallSplit } from '@mui/icons-material'
-import { Fade, Box, Button, Typography, SxProps } from '@mui/material'
+import CallSplit from '@mui/icons-material/CallSplit'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Fade from '@mui/material/Fade'
+import Typography from '@mui/material/Typography'
+import { SxProps } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useCallback, useEffect } from 'react'
 import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { sendEvent } from '@renderer/events'
 import Ploxc from '@renderer/svg/Ploxc'
 import GithubCat from '@renderer/svg/GithubCat'
@@ -16,8 +20,13 @@ import GithubCat from '@renderer/svg/GithubCat'
 //
 // Button to open the modbus client
 const ClientButton = meme(() => {
-  const setAppType = useLayoutZustand((z) => z.setAppType)
-  const connected = useRootZustand((z) => z.clientState.connectState === 'connected')
+  const connected = useClientZustand((z) => z.clientState.connectState === 'connected')
+
+  const handleClick = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.setAppType('client')
+  }, [])
+
   return (
     <Button
       data-testid="home-client-btn"
@@ -30,7 +39,7 @@ const ClientButton = meme(() => {
         height: 160,
         position: 'relative'
       }}
-      onClick={() => setAppType('client')}
+      onClick={handleClick}
     >
       {connected && (
         <Box
@@ -59,7 +68,11 @@ const ClientButton = meme(() => {
 //
 // Button to open the modbus server configurator
 const ServerButton = meme((): JSX.Element => {
-  const setAppType = useLayoutZustand((z) => z.setAppType)
+  const handleClick = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.setAppType('server')
+  }, [])
+
   return (
     <Button
       data-testid="home-server-btn"
@@ -71,7 +84,7 @@ const ServerButton = meme((): JSX.Element => {
         width: 160,
         height: 160
       }}
-      onClick={() => setAppType('server')}
+      onClick={handleClick}
     >
       <ServerIcon sx={(theme) => ({ fill: theme.palette.background.default })} />
       <Typography variant="overline" sx={(theme) => ({ color: theme.palette.background.default })}>
@@ -85,21 +98,15 @@ const ServerButton = meme((): JSX.Element => {
 //
 // Listens to the shift key
 const useShiftKeyListener = (): void => {
-  const setHomeShiftKeyDown = useLayoutZustand((z) => z.setHomeShiftKeyDown)
+  const keyDownListener = useCallback((event: KeyboardEvent): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    if (event.key === 'Shift') layoutZustand.setHomeShiftKeyDown(true)
+  }, [])
 
-  const keyDownListener = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Shift') setHomeShiftKeyDown(true)
-    },
-    [setHomeShiftKeyDown]
-  )
-
-  const keyUpListener = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Shift') setHomeShiftKeyDown(false)
-    },
-    [setHomeShiftKeyDown]
-  )
+  const keyUpListener = useCallback((event: KeyboardEvent): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    if (event.key === 'Shift') layoutZustand.setHomeShiftKeyDown(false)
+  }, [])
 
   useEffect(() => {
     window.addEventListener('keydown', keyDownListener)
@@ -121,7 +128,7 @@ const bottomElementsCommonSx: SxProps = {
   '&:hover': { opacity: 1 }
 }
 
-const PloxcLogo = (): JSX.Element => {
+const PloxcLogo = meme((): JSX.Element => {
   return (
     <Box
       data-testid="home-ploxc-link"
@@ -133,13 +140,15 @@ const PloxcLogo = (): JSX.Element => {
       sx={{ left: 16, ...bottomElementsCommonSx }}
     >
       <Ploxc sx={{ height: 18 }} />
-      <Typography sx={{ fontWeight: 800, color: '#cccccc' }}>Ploxc</Typography>
+      <Typography sx={(theme) => ({ fontWeight: 800, color: theme.palette.info.main })}>
+        Ploxc
+      </Typography>
     </Box>
   )
-}
+})
 
-const Version = (): JSX.Element => {
-  const version = useRootZustand((z) => z.version)
+const Version = meme((): JSX.Element => {
+  const version = useLayoutZustand((z) => z.version)
 
   return (
     <Box
@@ -156,7 +165,7 @@ const Version = (): JSX.Element => {
       <GithubCat sx={{ width: 16 }} />
     </Box>
   )
-}
+})
 
 //
 //

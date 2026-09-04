@@ -1,31 +1,53 @@
-import { Timer } from '@mui/icons-material'
+import Timer from '@mui/icons-material/Timer'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Popover from '@mui/material/Popover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import SliderComponent from '@renderer/components/shared/SliderComponent'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useState } from 'react'
 
 // Polling interval slider
-const PollRate = (): JSX.Element => {
-  const value = useRootZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
-  const setValue = useRootZustand((z) => z.setPollRate)
+const PollRate = meme((): JSX.Element => {
+  const value = useClientZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
 
-  return <SliderComponent label="Poll Rate" value={value} setValue={(v) => setValue(v * 1000)} />
-}
+  const handleChange = useCallback((seconds: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setPollRate(seconds * 1000)
+  }, [])
+
+  return (
+    <SliderComponent
+      testId="poll-rate-slider"
+      label="Poll Rate"
+      value={value}
+      setValue={handleChange}
+    />
+  )
+})
 
 // Read Timeout slider
-const Timeout = (): JSX.Element => {
-  const value = useRootZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
-  const setValue = useRootZustand((z) => z.setTimeout)
+const Timeout = meme((): JSX.Element => {
+  const value = useClientZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
 
-  return <SliderComponent label="Timeout" value={value} setValue={(v) => setValue(v * 1000)} />
-}
+  const handleChange = useCallback((seconds: number): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setTimeout(seconds * 1000)
+  }, [])
+
+  return (
+    <SliderComponent
+      testId="timeout-slider"
+      label="Timeout"
+      value={value}
+      setValue={handleChange}
+    />
+  )
+})
 
 const TimeSettings = meme(() => {
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const handleOpenMenu = useCallback(

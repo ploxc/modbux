@@ -2,6 +2,41 @@ import { BaseDataType, DataType, RegisterParams, ServerRegisters } from './types
 
 export const getBit = (word: number, bit: number): boolean => (word & (2 ** bit)) === 2 ** bit
 
+/** The width the add dialog offers for a string when the field is left alone. */
+export const DEFAULT_UTF8_LENGTH = 10
+
+/**
+ * How many registers a value of this type occupies.
+ *
+ * One answer, because this was stated seven times and the copies disagreed on
+ * `utf8`, so deleting a string erased registers belonging to its neighbours.
+ * The switch is exhaustive: a new DataType is a type error here.
+ */
+export const registerWidth = (dataType: DataType, length?: number): number => {
+  switch (dataType) {
+    case 'utf8':
+      return length ?? DEFAULT_UTF8_LENGTH
+
+    case 'int32':
+    case 'uint32':
+    case 'float':
+    case 'unix':
+      return 2
+
+    case 'int64':
+    case 'uint64':
+    case 'double':
+    case 'datetime':
+      return 4
+
+    case 'none':
+    case 'int16':
+    case 'uint16':
+    case 'bitmap':
+      return 1
+  }
+}
+
 // Regular most significant word first (big endian)
 export const bigEndian32 = (buffer: Buffer, offset: number): Buffer => {
   return buffer.subarray(offset, offset + 4)
@@ -34,11 +69,11 @@ export const createRegisters = (
   dataType: BaseDataType,
   value: number,
   littleEndian: boolean
-): number[] => {
-  let bufferSize = 2
-
-  if (['int32', 'uint32', 'float', 'unix'].includes(dataType)) bufferSize = 4
-  if (['int64', 'uint64', 'double', 'datetime'].includes(dataType)) bufferSize = 8
+): [number, ...number[]] => {
+  // The switch below has no utf8 case, so asking registerWidth for one would
+  // buy ten registers of zero. The server branches to createStringRegisters
+  // before reaching here; the client's write path does not.
+  const bufferSize = dataType === 'utf8' ? 2 : registerWidth(dataType) * 2
 
   let buffer = Buffer.alloc(bufferSize)
 
@@ -84,11 +119,12 @@ export const createRegisters = (
       break
   }
 
-  // Convert bytes to array of 16-bit words.
-  const bytes = Array.from(buffer)
-  const registers: number[] = []
-  for (let i = 0; i < bytes.length; i += 2) {
-    registers.push(bytes[i] * 256 + bytes[i + 1])
+  // Convert bytes to array of 16-bit words. `bufferSize` is two at its
+  // smallest, so the first word is always there and the return type says so:
+  // `_writeRegister` sends registers[0] to FC6.
+  const registers: [number, ...number[]] = [buffer.readUInt16BE(0)]
+  for (let i = 2; i < buffer.length; i += 2) {
+    registers.push(buffer.readUInt16BE(i))
   }
 
   return registers
@@ -117,7 +153,7 @@ export const createStringRegisters = (text: string, registerCount: number): numb
   buf.write(text, 'utf-8')
   const registers: number[] = []
   for (let i = 0; i < byteLength; i += 2) {
-    registers.push(buf[i] * 256 + buf[i + 1])
+    registers.push(buf.readUInt16BE(i))
   }
   return registers
 }
@@ -167,10 +203,7 @@ export const humanizeSerialError = (error: Error, port?: string): string => {
 export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
   const addressSet = new Set<number>()
   registers.forEach((p) => {
-    let size = 1
-    if (['int32', 'uint32', 'float', 'unix'].includes(p.dataType)) size = 2
-    else if (['int64', 'uint64', 'double', 'datetime'].includes(p.dataType)) size = 4
-    else if (p.dataType === 'utf8') size = p.length ?? 10
+    const size = registerWidth(p.dataType, p.length)
 
     for (let i = 0; i < size; i++) {
       addressSet.add(p.address + i)
@@ -194,11 +227,7 @@ export function getAddressFitError(
   address: number,
   length?: number
 ): boolean {
-  let size = 1
-  if (['int32', 'uint32', 'float', 'unix'].includes(dataType)) size = 2
-  if (['int64', 'uint64', 'double', 'datetime'].includes(dataType)) size = 4
-  if (dataType === 'utf8') size = length ?? 10
-  return address + size - 1 > 65535
+  return address + registerWidth(dataType, length) - 1 > 65535
 }
 
 export const findAvailablePort = (usedPorts: number[]): number | undefined => {

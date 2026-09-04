@@ -1,5 +1,10 @@
-import { Alert, AlertTitle, IconButton, Link, Collapse } from '@mui/material'
+import Alert from '@mui/material/Alert'
+import AlertTitle from '@mui/material/AlertTitle'
+import Collapse from '@mui/material/Collapse'
+import IconButton from '@mui/material/IconButton'
+import Link from '@mui/material/Link'
 import CloseIcon from '@mui/icons-material/Close'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useEffect, useState } from 'react'
 
 const FORCE_SHOW_BANNER = false // Set to true for testing
@@ -9,7 +14,7 @@ interface GitHubRelease {
   html_url: string
 }
 
-const UpdateBanner = (): JSX.Element | null => {
+const UpdateBanner = meme((): JSX.Element | null => {
   const [showBanner, setShowBanner] = useState(false)
   const [latestVersion, setLatestVersion] = useState<string | null>(null)
   const [releaseUrl, setReleaseUrl] = useState<string | null>(null)
@@ -35,6 +40,9 @@ const UpdateBanner = (): JSX.Element | null => {
 
         const release: GitHubRelease = await response.json()
         const latestTag = release.tag_name.replace(/^v/, '') // Remove 'v' prefix if present
+        // Asked for directly rather than read off the root store, so the
+        // banner stays testable on its own. The version cannot change while
+        // the app runs, so a second read costs nothing.
         const currentVersion = await window.api.getAppVersion()
 
         // Compare versions
@@ -113,6 +121,6 @@ const UpdateBanner = (): JSX.Element | null => {
       </Alert>
     </Collapse>
   )
-}
+})
 
 export default UpdateBanner

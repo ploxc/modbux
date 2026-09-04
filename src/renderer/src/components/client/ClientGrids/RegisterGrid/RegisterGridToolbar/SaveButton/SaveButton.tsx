@@ -1,17 +1,18 @@
-import { Save } from '@mui/icons-material'
+import Save from '@mui/icons-material/Save'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterMapConfig, RegisterType } from '@shared'
 import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
 const SaveButton = meme(() => {
-  const saveRegisterConfig = useCallback(async () => {
-    const z = useRootZustand.getState()
-    const { name } = z
+  const saveRegisterConfig = useCallback(() => {
+    const clientZustand = useClientZustand.getState()
+    const { name } = clientZustand
 
-    const registerMapping = structuredClone(z.registerMapping)
+    const registerMapping = structuredClone(clientZustand.registerMapping)
     const registerMappingKeys = Object.keys(registerMapping) as RegisterType[]
     registerMappingKeys.forEach((key) => {
       Object.keys(registerMapping[key]).forEach((register) => {
@@ -21,14 +22,14 @@ const SaveButton = meme(() => {
       })
     })
 
-    // Get app version
-    const modbuxVersion = await window.api.getAppVersion()
+    // The store reads the version once at startup; it cannot change after that
+    const modbuxVersion = useLayoutZustand.getState().version
 
     const registerMapConfig: RegisterMapConfig = {
       version: 2,
       modbuxVersion,
       name,
-      littleEndian: z.registerConfig.littleEndian,
+      littleEndian: clientZustand.registerConfig.littleEndian,
       registerMapping
     }
 
@@ -42,7 +43,7 @@ const SaveButton = meme(() => {
 
     const {
       connectionConfig: { unitId }
-    } = useRootZustand.getState()
+    } = useClientZustand.getState()
 
     const idText = `_id${unitId}`
 

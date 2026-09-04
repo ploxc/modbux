@@ -1,6 +1,10 @@
-import { FileOpen, Save, Delete } from '@mui/icons-material'
-import { Box, IconButton } from '@mui/material'
+import Delete from '@mui/icons-material/Delete'
+import FileOpen from '@mui/icons-material/FileOpen'
+import Save from '@mui/icons-material/Save'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, migrateServerConfig } from '@shared'
 import { ServerConfig, ServerRegistersPerUnit, UnitIdStringSchema } from '@shared'
@@ -30,17 +34,17 @@ const useOpen: UseOpenHook = () => {
       openingRef.current = true
       setOpening(true)
 
-      const state = useServerZustand.getState()
+      const serverZustand = useServerZustand.getState()
 
       // Reset the server before opening a new configuration
       // This way we can ensure that the server is in a clean state
       // When unitId's are configured which are not present in the file
       // there would be remaining registers in the server because
       // they are now overwritten
-      await window.api.resetServer(state.selectedUuid)
+      await window.api.resetServer(serverZustand.selectedUuid)
       // Also clean the zustand state
       // to ensure that the state is in a clean state
-      state.clean(state.selectedUuid)
+      serverZustand.clean(serverZustand.selectedUuid)
 
       const content = await file.text()
 
@@ -50,8 +54,8 @@ const useOpen: UseOpenHook = () => {
         const { config, migrated, warning, wasMixedEndianness } = migrationResult
 
         // Set name and littleEndian
-        state.setName(config.name)
-        state.setLittleEndian(config.littleEndian)
+        serverZustand.setName(config.name)
+        serverZustand.setLittleEndian(config.littleEndian)
 
         // Load all unit configs
         for (const unitId of UnitIdStringSchema.options) {
@@ -59,7 +63,7 @@ const useOpen: UseOpenHook = () => {
           if (!serverRegisters) continue
           const hasConfig = checkHasConfig(serverRegisters)
           if (!hasConfig) continue
-          state.replaceServerRegisters(unitId, serverRegisters)
+          serverZustand.replaceServerRegisters(unitId, serverRegisters)
           await new Promise((r) => setTimeout(r, 1))
         }
 
@@ -102,7 +106,7 @@ const useOpen: UseOpenHook = () => {
       }
 
       // Synchronize only the selected server after opening the configuration
-      await state.init(state.selectedUuid)
+      await serverZustand.init(serverZustand.selectedUuid)
 
       openingRef.current = false
       setOpening(false)
@@ -121,10 +125,10 @@ type UseSaveHook = () => {
 }
 
 const useSave: UseSaveHook = () => {
-  const save = useCallback(async () => {
-    const z = useServerZustand.getState()
-    const { serverRegisters, selectedUuid, littleEndian } = z
-    const name = z.name[selectedUuid] ?? ''
+  const save = useCallback(() => {
+    const serverZustand = useServerZustand.getState()
+    const { serverRegisters, selectedUuid, littleEndian } = serverZustand
+    const name = serverZustand.name[selectedUuid] ?? ''
 
     const serverRegistersPerUnit: ServerRegistersPerUnit = {}
 
@@ -136,8 +140,8 @@ const useSave: UseSaveHook = () => {
       serverRegistersPerUnit[unitId] = registers
     })
 
-    // Get app version
-    const modbuxVersion = await window.api.getAppVersion()
+    // The store reads the version once at startup; it cannot change after that
+    const modbuxVersion = useLayoutZustand.getState().version
 
     const config: ServerConfig = {
       version: 2,
@@ -171,17 +175,17 @@ const OpenSaveClear = meme(() => {
   const { save } = useSave()
 
   const clear = useCallback(async () => {
-    const state = useServerZustand.getState()
-    state.setName('')
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setName('')
     // Reset the server before opening a new configuration
     // This way we can ensure that the server is in a clean state
     // When unitId's are configured which are not present in the file
     // there would be remaining registers in the server because
     // they are now overwritten
-    await window.api.resetServer(state.selectedUuid)
+    await window.api.resetServer(serverZustand.selectedUuid)
     // Also clean the zustand state
     // to ensure that the state is in a clean state
-    state.clean(state.selectedUuid)
+    serverZustand.clean(serverZustand.selectedUuid)
   }, [])
 
   return (

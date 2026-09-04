@@ -1,12 +1,13 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { Box, Button, InputBaseComponentProps, Modal, Paper, TextField } from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import Modal from '@mui/material/Modal'
+import Paper from '@mui/material/Paper'
+import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { ElementType, useCallback, useMemo } from 'react'
-import { create } from 'zustand'
-import { mutative } from 'zustand-mutative'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
@@ -19,56 +20,16 @@ import {
   ScanTimeoutField
 } from '../../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
-
-interface ScanRegistersZustand {
-  open: boolean
-  setOpen: (open: boolean) => void
-  address: number
-  setAddress: MaskSetFn
-  scanLength: number
-  setScanLength: MaskSetFn
-  chunkSize: number
-  setChunkSize: MaskSetFn
-  timeout: number
-  setTimeout: MaskSetFn
-}
-export const useScanRegistersZustand = create<ScanRegistersZustand, [['zustand/mutative', never]]>(
-  mutative((set) => ({
-    open: false,
-    setOpen: (open) =>
-      set((state) => {
-        state.open = open
-      }),
-    address: 0,
-    setAddress: (address) =>
-      set((state) => {
-        state.address = Number(address)
-      }),
-    scanLength: 10000,
-    setScanLength: (scanLength) =>
-      set((state) => {
-        state.scanLength = Number(scanLength)
-      }),
-    chunkSize: 100,
-    setChunkSize: (chunkSize) =>
-      set((state) => {
-        state.chunkSize = Number(chunkSize)
-      }),
-    timeout: 500,
-    setTimeout: (timeout) =>
-      set((state) => {
-        state.timeout = Number(timeout)
-      })
-  }))
-)
+import { useScanRegistersZustand } from './scanRegisters.zustand'
 
 //
 //
 // Unit ID field (syncs with main connection config)
-const UnitIdField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
-  const unitId = useRootZustand((z) => String(z.connectionConfig.unitId))
-  const setUnitId = useRootZustand((z) => z.setUnitId)
+const UnitIdField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
+
+  const setUnitId = useClientZustand.getState().setUnitId
 
   return (
     <TextField
@@ -87,15 +48,16 @@ const UnitIdField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Address field with base toggle
-const AddressField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const AddressField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const address = useScanRegistersZustand((z) => z.address)
-  const setAddress = useScanRegistersZustand((z) => z.setAddress)
+
+  const setAddress = useScanRegistersZustand.getState().setAddress
 
   return (
     <AddressBaseInput
@@ -106,15 +68,16 @@ const AddressField = (): JSX.Element => {
       baseTestId="scan-base"
     />
   )
-}
+})
 
 //
 //
 // Scan Length field
-const ScanLengthField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const ScanLengthField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const scanLength = useScanRegistersZustand((z) => String(z.scanLength))
-  const setScanLength = useScanRegistersZustand((z) => z.setScanLength)
+
+  const setScanLength = useScanRegistersZustand.getState().setScanLength
 
   return (
     <TextField
@@ -133,18 +96,19 @@ const ScanLengthField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Chunk Size field
-const ChunkSizeField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const ChunkSizeField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
-  const setChunkSize = useScanRegistersZustand((z) => z.setChunkSize)
-  const type = useRootZustand((z) => z.registerConfig.type)
+  const type = useClientZustand((z) => z.registerConfig.type)
   const isCoilType = ['coils', 'discrete_inputs'].includes(type)
   const max = isCoilType ? 2000 : 125
+
+  const setChunkSize = useScanRegistersZustand.getState().setChunkSize
 
   return (
     <TextField
@@ -163,15 +127,16 @@ const ChunkSizeField = (): JSX.Element => {
       }}
     />
   )
-}
+})
 
 //
 //
 // Timeout field
-const TimeoutField = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const TimeoutField = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => z.timeout)
-  const setTimeout = useScanRegistersZustand((z) => z.setTimeout)
+
+  const setTimeout = useScanRegistersZustand.getState().setTimeout
 
   return (
     <ScanTimeoutField
@@ -181,7 +146,7 @@ const TimeoutField = (): JSX.Element => {
       testId="scan-timeout-input"
     />
   )
-}
+})
 
 //
 //
@@ -192,30 +157,34 @@ const TimeoutField = (): JSX.Element => {
 // zero. So the length of the grid data is the count of what the scan turned
 // up, and it means that while a scan is running, since the same list holds
 // polled data the rest of the time.
-const FoundCount = (): JSX.Element | null => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const FoundCount = meme((): JSX.Element | null => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const count = useDataZustand((z) => z.registerData.length)
 
   if (!scanning) return null
 
   return <ScanFoundCount count={count} testId="scan-found-count" />
-}
+})
 
 //
 //
 // Show the grid while scanning
-const GridToggle = (): JSX.Element => {
+const GridToggle = meme((): JSX.Element => {
   const shown = useLayoutZustand((z) => z.showGridWhileScanning)
-  const toggle = useLayoutZustand((z) => z.toggleShowGridWhileScanning)
 
-  return <ScanGridToggle shown={shown} toggle={toggle} />
-}
+  const handleToggle = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.toggleShowGridWhileScanning()
+  }, [])
+
+  return <ScanGridToggle shown={shown} toggle={handleToggle} />
+})
 
 //
 //
 // Scan button
-const ScanButton = (): JSX.Element => {
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+const ScanButton = meme((): JSX.Element => {
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   const scan = useCallback(async () => {
     if (scanning) {
@@ -225,19 +194,19 @@ const ScanButton = (): JSX.Element => {
 
     window.api.stopPolling()
 
-    const state = useScanRegistersZustand.getState()
-    const rootState = useRootZustand.getState()
-    const dataState = useDataZustand.getState()
-    rootState.setReadConfiguration(false)
+    const scanRegistersZustand = useScanRegistersZustand.getState()
+    const clientZustand = useClientZustand.getState()
+    const dataZustand = useDataZustand.getState()
+    clientZustand.setReadConfiguration(false)
     // A scan walks raw addresses, which is what the extra columns are for, and
     // the rows land in a grid you are now watching fill.
-    if (!rootState.registerConfig.advancedMode) rootState.setAdvancedMode(true)
-    rootState.clearScanUnitIdResults()
-    rootState.setScanProgress(0)
+    if (!clientZustand.registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
+    clientZustand.clearScanUnitIdResults()
+    clientZustand.setScanProgress(0)
     dropPendingScanRows()
-    dataState.setRegisterData([])
+    dataZustand.setRegisterData([])
 
-    const { address, scanLength, chunkSize, timeout } = state
+    const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
     await window.api.scanRegisters({
       addressRange: [address, address + scanLength - 1],
@@ -254,7 +223,7 @@ const ScanButton = (): JSX.Element => {
       {text}
     </Button>
   )
-}
+})
 
 //
 //
@@ -262,11 +231,11 @@ const ScanButton = (): JSX.Element => {
 const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   const handleClose = useCallback(() => {
-    const rootState = useRootZustand.getState()
-    if (rootState.clientState.scanningRegisters) return
+    const clientZustand = useClientZustand.getState()
+    if (clientZustand.clientState.scanningRegisters) return
     useScanRegistersZustand.getState().setOpen(false)
   }, [])
 

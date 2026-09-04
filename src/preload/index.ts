@@ -35,8 +35,8 @@ type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
  * This code automatically converts snake_case IPC channels to camelCase methods.
  *
  * HOW IT WORKS:
- * 1. Takes all channels from IPC_CHANNELS (e.g., 'get_connection_config')
- * 2. Converts to camelCase (e.g., 'getConnectionConfig')
+ * 1. Takes all channels from IPC_CHANNELS (e.g., 'update_register_config')
+ * 2. Converts to camelCase (e.g., 'updateRegisterConfig')
  * 3. Creates a method that calls ipcInvoke with the original channel name
  * 4. Exposes on window.api with full TypeScript support
  *
@@ -51,7 +51,7 @@ type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
  */
 const handlers = Object.fromEntries(
   (Object.values(IPC_CHANNELS) as Array<keyof IpcHandlerMap>).map((channelName) => {
-    // channelName is a string like "get_connection_config"
+    // channelName is a string like "update_register_config"
     const methodName = snakeToCamel(channelName) as CamelCase<typeof channelName>
     return [
       methodName,

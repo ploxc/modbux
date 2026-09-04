@@ -1,17 +1,20 @@
-import { TextField, Box, InputBaseComponentProps } from '@mui/material'
+import Box from '@mui/material/Box'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
 import HostInput from '@renderer/components/shared/inputs/HostInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { ElementType } from 'react'
 
 // Host
 const Host = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const host = useRootZustand((z) => z.connectionConfig.tcp.host)
-  const hostValid = useRootZustand((z) => z.valid.host)
-  const setHost = useRootZustand((z) => z.setHost)
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const host = useClientZustand((z) => z.connectionConfig.tcp.host)
+  const hostValid = useClientZustand((z) => z.valid.host)
+
+  const setHost = useClientZustand.getState().setHost
 
   return (
     <TextField
@@ -37,8 +40,10 @@ const Host = meme(() => {
 //
 // Port
 const Port = meme(() => {
-  const disabled = useRootZustand((z) => z.clientState.connectState !== 'disconnected')
-  const port = useRootZustand((z) => String(z.connectionConfig.tcp.options.port))
+  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const port = useClientZustand((z) => String(z.connectionConfig.tcp.options.port))
+
+  const setPort = useClientZustand.getState().setPort
 
   return (
     <TextField
@@ -52,14 +57,14 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: useRootZustand.getState().setPort })
+          inputProps: maskInputProps({ set: setPort })
         }
       }}
     />
   )
 })
 
-const TcpConfig = (): JSX.Element => {
+const TcpConfig = meme((): JSX.Element => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'no-wrap' }}>
       <Host />
@@ -67,5 +72,5 @@ const TcpConfig = (): JSX.Element => {
       <Port />
     </Box>
   )
-}
+})
 export default TcpConfig

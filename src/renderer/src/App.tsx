@@ -1,11 +1,12 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from './context/layout.zustand'
 import Home from './containers/Home'
 import Client from './containers/Client'
 import Server from './containers/Server'
 import UpdateBanner from './components/UpdateBanner'
 
-const App = (): JSX.Element => {
+const App = meme((): JSX.Element => {
   const appType = useLayoutZustand((z) => z.appType)
 
   return (
@@ -24,6 +25,6 @@ const App = (): JSX.Element => {
       </Box>
     </Box>
   )
-}
+})
 
 export default App

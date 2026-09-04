@@ -8,11 +8,12 @@ import './index.css'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { CssBaseline, IconButton } from '@mui/material'
+import CssBaseline from '@mui/material/CssBaseline'
+import IconButton from '@mui/material/IconButton'
 import { styled, ThemeProvider } from '@mui/material/styles'
 import { theme } from './theme'
 import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
-import { Close } from '@mui/icons-material'
+import Close from '@mui/icons-material/Close'
 import App from './App'
 
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
@@ -59,7 +60,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             default: StyledMaterialDesignContent
           },
           action: (snackbarId) => (
-            <IconButton onClick={() => closeSnackbar(snackbarId)}>
+            <IconButton data-testid="snackbar-close-btn" onClick={() => closeSnackbar(snackbarId)}>
               <Close />
             </IconButton>
           )

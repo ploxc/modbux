@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test'
+import { test, expect, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import type { RegisterDef, ServerConfig } from './types'
 
 /** Scale a timeout for fast mode: 300→75ms, 200→50ms, ≤100→0ms, 500→100ms */
@@ -50,6 +50,19 @@ export function cellLocator(p: Page, rowId: number, field: string): Locator {
  */
 export async function cell(p: Page, rowId: number, field: string): Promise<string> {
   return ((await cellLocator(p, rowId, field).textContent()) ?? '').trim()
+}
+
+/**
+ * The count a server section title carries in brackets, as in `Holding (75)`.
+ *
+ * A title with no count fails here with the text that was there, which is what
+ * the caller needs to know.
+ */
+export async function sectionCount(p: Page, registerType: string): Promise<number> {
+  const text = await p.getByTestId(`section-${registerType}`).textContent()
+  const count = text?.match(/\((\d+)\)/)?.[1]
+  if (count === undefined) throw new Error(`no count in the ${registerType} title: ${text}`)
+  return Number(count)
 }
 
 /** Assert a cell's text, retrying until it matches or the timeout expires. */
@@ -225,14 +238,15 @@ export async function setupServerConfig(
     // This lets us open the modal once per type and chain with Add & Next.
     const byType = new Map<string, RegisterDef[]>()
     for (const reg of config.registers) {
-      if (!byType.has(reg.registerType)) byType.set(reg.registerType, [])
-      byType.get(reg.registerType)!.push(reg)
+      const forType = byType.get(reg.registerType) ?? []
+      forType.push(reg)
+      byType.set(reg.registerType, forType)
     }
 
     for (const regs of byType.values()) {
-      for (let i = 0; i < regs.length; i++) {
+      for (const [i, reg] of regs.entries()) {
         const isLast = i === regs.length - 1
-        await addRegister(p, { ...regs[i], next: !isLast }, i > 0, fast)
+        await addRegister(p, { ...reg, next: !isLast }, i > 0, fast)
       }
     }
   } else {
@@ -260,7 +274,9 @@ export async function setupServerConfig(
       }
     })
 
-    const boolsWithComment = config.bools.filter((b) => b.comment)
+    const boolsWithComment = config.bools.filter(
+      (b): b is (typeof config.bools)[number] & { comment: string } => Boolean(b.comment)
+    )
     if (boolsWithComment.length > 0) {
       await test.step(`set ${boolsWithComment.length} bool comments`, async () => {
         for (const bool of boolsWithComment) {
@@ -269,7 +285,7 @@ export async function setupServerConfig(
           await row.locator('p').click()
           const input = row.locator('input')
           await expect(input).toBeVisible()
-          await input.fill(bool.comment!)
+          await input.fill(bool.comment)
           await input.press('Enter')
           await p.waitForTimeout(t(100, fast))
         }
@@ -575,11 +591,44 @@ export async function writeCoil(p: Page, address: number, state: boolean): Promi
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 
-  if (state) {
-    await p.getByTestId(`write-coil-${address}-select-btn`).click()
-  }
+  await setCoilButton(p, address, state)
 
   await p.getByTestId('write-fc5-btn').click()
+  await p.getByTestId('write-submit-btn').click()
+
+  // Close the dialog
+  await p.keyboard.press('Escape')
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).not.toBeVisible()
+}
+
+/**
+ * Click a coil button only when it is not already showing the state you want.
+ *
+ * The dialog opens with what the grid holds, so a coil the device already
+ * answered TRUE for opens pressed, and clicking it would send the opposite of
+ * what the caller asked for.
+ */
+async function setCoilButton(p: Page, address: number, state: boolean): Promise<void> {
+  const coil = p.getByTestId(`write-coil-${address}-select-btn`)
+  if ((await coil.getAttribute('aria-pressed')) !== String(state)) await coil.click()
+}
+
+/** Open the write dialog on `address`, set the given coils, and send FC15 */
+export async function writeCoilsFc15(
+  p: Page,
+  address: number,
+  states: Record<number, boolean>
+): Promise<void> {
+  await p.getByTestId(`write-action-${address}`).click()
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
+
+  await p.getByTestId('write-fc15-btn').click()
+
+  for (const [coilAddress, state] of Object.entries(states)) {
+    await expect(p.getByTestId(`write-coil-${coilAddress}-select-btn`)).toBeVisible()
+    await setCoilButton(p, Number(coilAddress), state)
+  }
+
   await p.getByTestId('write-submit-btn').click()
 
   // Close the dialog
@@ -678,4 +727,22 @@ export async function openColumnMenu(p: Page, field: string): Promise<void> {
     // Not getByRole('menu'): the action cells carry that role too.
     await expect(menu).toBeVisible()
   })
+}
+
+/**
+ * Split the server out of Home and hand back the window that opens.
+ *
+ * `waitForEvent` hangs its listener at the moment it is called, so awaiting the
+ * click first leaves a gap the window can open in, and by then the event is
+ * gone. Measured on Linux with the listener armed after the click: 2 timeouts
+ * in 3 runs, with the Server window open in all three. Arming it beside the
+ * click is what Playwright documents for this.
+ */
+export async function splitOutServerWindow(app: ElectronApplication, p: Page): Promise<Page> {
+  const [serverPage] = await Promise.all([
+    app.waitForEvent('window', { timeout: 10_000 }),
+    p.getByTestId('home-split-btn').click()
+  ])
+  await serverPage.waitForLoadState('domcontentloaded')
+  return serverPage
 }

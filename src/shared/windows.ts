@@ -21,19 +21,26 @@ export class Windows {
     }
   }
 
+  /**
+   * Send an event to every open window.
+   *
+   * The guard is per window rather than around the loop, because a throw on one
+   * window costs every window after it the event. `Object.values` puts `main`
+   * first, so without it a stale main handle is what the server window's
+   * `window_update` goes missing behind.
+   */
   public send = <E extends IpcEvent>(event: E, ...args: IpcEventPayloadMap[E]): void => {
     try {
       Object.values(this._windows).forEach((w) => {
-        // Check if window exists and isn't destroyed
         if (w && !w.isDestroyed() && w.webContents && !w.webContents.isDestroyed()) {
           w.webContents.send(event, ...args)
         }
       })
     } catch (error) {
       /**
-       * When the window is closed on macos sending a window update will throw an error.
-       * We can ignore this error because when the window is opened again,
-       * the IPC event will be handled properly by the window again.
+       * A window that passes the guard can still be gone by the time the send
+       * lands, and on macos the app outlives its windows, so this is where that
+       * shows up.
        */
     }
   }
@@ -56,20 +63,10 @@ export class Windows {
     this._sendUpdate()
   }
 
-  // Send update when windows change
   private _sendUpdate(): void {
-    const windowsOpen = {
+    this.send('window_update', {
       main: !!this._windows.main,
       server: !!this._windows.server
-    }
-    try {
-      Object.values(this._windows).forEach((w) => w?.webContents.send('window_update', windowsOpen))
-    } catch (error) {
-      /**
-       * When the window is closed on macos sending a window update will throw an error.
-       * We can ignore this error because when the window is opened again,
-       * the IPC event will be handled properly by the window again.
-       */
-    }
+    })
   }
 }

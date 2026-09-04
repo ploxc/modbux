@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import PollButton from './PollButton/PollButton'
 import ReadButton from './ReadButton/ReadButton'
@@ -12,11 +12,17 @@ import ShowLogButton from './ShowLogButton/ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import RawButton from './RawButton/RawButton'
 import ClearFiltersButton from './ClearFiltersButton/ClearFiltersButton'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import TextField from '@mui/material/TextField'
+import { ChangeEvent, useCallback } from 'react'
 
 const ClientConfigName = meme(() => {
-  const name = useRootZustand((z) => z.name ?? '')
+  const name = useClientZustand((z) => z.name ?? '')
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setName(event.target.value)
+  }, [])
 
   return (
     <TextField
@@ -28,7 +34,7 @@ const ClientConfigName = meme(() => {
       color="primary"
       placeholder="Client Configuration Name"
       value={name}
-      onChange={(e) => useRootZustand.getState().setName(e.target.value)}
+      onChange={handleChange}
     />
   )
 })
@@ -36,7 +42,7 @@ const ClientConfigName = meme(() => {
 const RegisterGridToolbar = meme(() => {
   // Read, Poll, Clear and the config buttons would each undo a scan that is
   // still running, so the strip goes quiet with the rows underneath it.
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   return (
     <Box

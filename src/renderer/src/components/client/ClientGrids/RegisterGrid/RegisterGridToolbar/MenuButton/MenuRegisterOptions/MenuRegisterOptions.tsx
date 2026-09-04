@@ -1,13 +1,25 @@
 import Checkbox from '@mui/material/Checkbox'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { meme } from '@renderer/components/shared/inputs/meme'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { ChangeEvent, useCallback } from 'react'
 
-const MenuRegisterOptions = (): JSX.Element | null => {
-  const type = useRootZustand((z) => z.registerConfig.type)
+const MenuRegisterOptions = meme((): JSX.Element | null => {
+  const type = useClientZustand((z) => z.registerConfig.type)
 
-  const advanceMode = useRootZustand((z) => z.registerConfig.advancedMode)
-  const show64BitValues = useRootZustand((z) => z.registerConfig.show64BitValues)
+  const advanceMode = useClientZustand((z) => z.registerConfig.advancedMode)
+  const show64BitValues = useClientZustand((z) => z.registerConfig.show64BitValues)
+
+  const handleAdvancedChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setAdvancedMode(event.target.checked)
+  }, [])
+
+  const handle64BitChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.setShow64BitValues(event.target.checked)
+  }, [])
 
   const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
   if (!registers16Bit) return null
@@ -19,7 +31,7 @@ const MenuRegisterOptions = (): JSX.Element | null => {
           <Checkbox
             size="small"
             checked={advanceMode}
-            onChange={(e) => useRootZustand.getState().setAdvancedMode(e.target.checked)}
+            onChange={handleAdvancedChange}
             data-testid="advanced-mode-checkbox"
           />
         }
@@ -31,7 +43,7 @@ const MenuRegisterOptions = (): JSX.Element | null => {
           <Checkbox
             size="small"
             checked={show64BitValues}
-            onChange={(e) => useRootZustand.getState().setShow64BitValues(e.target.checked)}
+            onChange={handle64BitChange}
             data-testid="show-64bit-checkbox"
           />
         }
@@ -40,6 +52,6 @@ const MenuRegisterOptions = (): JSX.Element | null => {
       <Divider sx={{ my: 1 }} />
     </>
   )
-}
+})
 
 export default MenuRegisterOptions

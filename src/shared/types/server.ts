@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { BaseDataType, BaseDataTypeSchema } from './datatype'
+import { BaseDataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { RegisterType, SerialPortOptionsSchema } from './client'
-import { ValueGenerator } from '../../main/modules/modbusServer/valueGenerator'
+import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { unitIds } from './unitid'
 
 // Server mode (global: TCP or RTU)
@@ -16,10 +16,11 @@ export const ServerSerialConfigSchema = z.object({
 })
 export type ServerSerialConfig = z.infer<typeof ServerSerialConfigSchema>
 
-export interface StartRtuServerParams {
-  uuid: string
-  serialConfig: ServerSerialConfig
-}
+export const StartRtuServerParamsSchema = z.object({
+  uuid: z.string().min(1),
+  serialConfig: ServerSerialConfigSchema
+})
+export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
 
 // Zod schema for boolean register types
 export const BooleanRegistersSchema = z.enum(['coils', 'discrete_inputs'])
@@ -50,9 +51,17 @@ const RegisterParamsStaticPartSchema = z.object({
 })
 export type RegisterParamsStaticPart = z.infer<typeof RegisterParamsStaticPartSchema>
 
-// Base fields shared by both variants
+/**
+ * Base fields shared by both variants.
+ *
+ * This is the schema a saved config file arrives on, through
+ * `ServerRegistersPerUnitSchema`, and the one `add_replace_server_register` and
+ * `sync_server_register` take. `remove_server_register` takes
+ * `RegisterAddressSchema`, so while this field was a bare number an address
+ * outside the map went in and could not come back out.
+ */
 export const RegisterParamsBasePartSchema = z.object({
-  address: z.number(),
+  address: RegisterAddressSchema,
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
   comment: z.string(),
@@ -75,8 +84,8 @@ export const ServerBoolEntrySchema = z.object({
 })
 export type ServerBoolEntry = z.infer<typeof ServerBoolEntrySchema>
 
-// Schema for a boolean dictionary keyed by numeric strings
-export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), ServerBoolEntrySchema)
+// Schema for a boolean dictionary keyed by address
+export const ServerBoolSchema = z.record(RegisterAddressKeySchema, ServerBoolEntrySchema)
 export type ServerBool = z.infer<typeof ServerBoolSchema>
 
 // Schema for a single register entry
@@ -86,8 +95,8 @@ export const ServerRegisterEntrySchema = z.object({
 })
 export type ServerRegisterEntry = z.infer<typeof ServerRegisterEntrySchema>
 
-// Schema for a dictionary of register entries keyed by numeric strings
-export const ServerRegisterSchema = z.record(z.string().regex(/^\d+$/), ServerRegisterEntrySchema)
+// Schema for a dictionary of register entries keyed by address
+export const ServerRegisterSchema = z.record(RegisterAddressKeySchema, ServerRegisterEntrySchema)
 export type ServerRegister = z.infer<typeof ServerRegisterSchema>
 
 // Schema representing all register types for a server
@@ -124,58 +133,69 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>
 //
 
 // Regular types
-export type AddRegisterParams = {
-  uuid: string
-  unitId: UnitIdString
-  params: RegisterParams
-  littleEndian: boolean
-}
-export interface RemoveRegisterParams {
-  uuid: string
-  unitId: UnitIdString
-  registerType: NumberRegisters
-  address: number
-  dataType: BaseDataType
-}
+export const AddRegisterParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  params: RegisterParamsSchema,
+  littleEndian: z.boolean()
+})
+export type AddRegisterParams = z.infer<typeof AddRegisterParamsSchema>
+export const RemoveRegisterParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerType: NumberRegistersSchema,
+  address: RegisterAddressSchema,
+  dataType: BaseDataTypeSchema,
+  // Only a string has a width the user chose, and without it the server has to
+  // guess how much of the map the register occupied and erases the guess.
+  length: z.number().optional()
+})
+export type RemoveRegisterParams = z.infer<typeof RemoveRegisterParamsSchema>
 
-export interface SyncRegisterValueParams {
-  uuid: string
-  unitId: UnitIdString
-  registerValues: RegisterParams[]
-  littleEndian: boolean
-}
+export const SyncRegisterValueParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerValues: z.array(RegisterParamsSchema),
+  littleEndian: z.boolean()
+})
+export type SyncRegisterValueParams = z.infer<typeof SyncRegisterValueParamsSchema>
 
-export interface ResetRegistersParams {
-  uuid: string
-  unitId: UnitIdString
-  registerType: NumberRegisters
-}
+export const ResetRegistersParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerType: NumberRegistersSchema
+})
+export type ResetRegistersParams = z.infer<typeof ResetRegistersParamsSchema>
 
-export interface SetBooleanParameters {
-  uuid: string
-  unitId: UnitIdString
-  registerType: BooleanRegisters
-  address: number
-  state: boolean
-}
+export const SetBooleanParametersSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerType: BooleanRegistersSchema,
+  address: RegisterAddressSchema,
+  state: z.boolean()
+})
+export type SetBooleanParameters = z.infer<typeof SetBooleanParametersSchema>
 
-export interface ResetBoolsParams {
-  uuid: string
-  unitId: UnitIdString
-  registerType: BooleanRegisters
-}
+export const ResetBoolsParamsSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  registerType: BooleanRegistersSchema
+})
+export type ResetBoolsParams = z.infer<typeof ResetBoolsParamsSchema>
 
-export interface SyncBoolsParameters {
-  uuid: string
-  unitId: UnitIdString
-  coils: boolean[]
-  discrete_inputs: boolean[]
-}
+export const SyncBoolsParametersSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdStringSchema,
+  coils: z.array(z.boolean()),
+  discrete_inputs: z.array(z.boolean())
+})
+export type SyncBoolsParameters = z.infer<typeof SyncBoolsParametersSchema>
 
-export interface CreateServerParams {
-  uuid: string
-  port: number
-}
+export const CreateServerParamsSchema = z.object({
+  uuid: z.string().min(1),
+  port: PortSchema
+})
+export type CreateServerParams = z.infer<typeof CreateServerParamsSchema>
 
 export interface SetUnitIdParams {
   uuid: string
@@ -189,7 +209,18 @@ export interface ServerData {
   holding_registers: number[]
 }
 
+/**
+ * What the server needs of a running generator, which is only the teardown.
+ *
+ * shared is imported by all three processes, so it may not reach into main for
+ * a type. ValueGenerator implements this instead, which leaves the dependency
+ * pointing the one way it is allowed to point.
+ */
+export interface RegisterValueGenerator {
+  dispose: () => void
+}
+
 export interface ValueGenerators {
-  input_registers: Map<number, ValueGenerator>
-  holding_registers: Map<number, ValueGenerator>
+  input_registers: Map<number, RegisterValueGenerator>
+  holding_registers: Map<number, RegisterValueGenerator>
 }

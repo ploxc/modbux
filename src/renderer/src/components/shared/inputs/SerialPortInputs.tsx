@@ -1,15 +1,13 @@
-import {
-  AutocompleteRenderInputParams,
-  Box,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField
-} from '@mui/material'
+import { AutocompleteRenderInputParams } from '@mui/material/Autocomplete'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
+import TextField from '@mui/material/TextField'
 import { meme } from './meme'
-import { ModbusBaudRate, ModbusBaudRateSchema } from '@shared'
+import { ModbusBaudRate, ModbusBaudRateSchema, Parity, ParitySchema } from '@shared'
 import React, { useMemo } from 'react'
 
 export const measureTextWidth = (
@@ -156,8 +154,6 @@ export const BaudRateSelect = meme(
   }
 )
 
-const parityOptions = ['none', 'even', 'odd', 'mark', 'space'] as const
-
 export const ParitySelect = meme(
   ({
     value,
@@ -165,8 +161,8 @@ export const ParitySelect = meme(
     disabled,
     testId = 'rtu-parity-select'
   }: {
-    value: string
-    onChange: (value: string) => void
+    value: Parity
+    onChange: (value: Parity) => void
     disabled?: boolean
     testId?: string
   }) => {
@@ -181,11 +177,11 @@ export const ParitySelect = meme(
           labelId={labelId}
           value={value}
           label="Parity"
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value as Parity)}
           sx={{ width: 85 }}
           data-testid={testId}
         >
-          {parityOptions.map((option) => (
+          {ParitySchema.options.map((option) => (
             <MenuItem key={`parity_${option}`} value={option}>
               {option}
             </MenuItem>

@@ -31,9 +31,12 @@ test.describe.serial('Server layout — panels stay inside the view', () => {
     test(`no overflow at ${width}x${height}`, async ({ mainPage, electronApp }) => {
       await electronApp.evaluate(
         ({ BrowserWindow }, size) => {
-          BrowserWindow.getAllWindows()[0].setSize(size[0], size[1])
+          const [window] = BrowserWindow.getAllWindows()
+          if (!window) throw new Error('no window to resize')
+          const [w, h] = size
+          window.setSize(w, h)
         },
-        [width, height]
+        [width, height] as [number, number]
       )
       await mainPage.waitForTimeout(500)
 
@@ -47,7 +50,10 @@ test.describe.serial('Server layout — panels stay inside the view', () => {
 
   test('restore the window', async ({ electronApp }) => {
     await electronApp.evaluate(({ BrowserWindow }, size) => {
-      BrowserWindow.getAllWindows()[0].setSize(size[0], size[1])
+      const [window] = BrowserWindow.getAllWindows()
+      if (!window) throw new Error('no window to restore')
+      const [w, h] = size
+      window.setSize(w, h)
     }, DEFAULT_SIZE)
   })
 })

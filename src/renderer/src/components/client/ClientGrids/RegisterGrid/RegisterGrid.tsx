@@ -1,19 +1,16 @@
-import { Paper, Typography } from '@mui/material'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import Paper from '@mui/material/Paper'
+import Typography from '@mui/material/Typography'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
-import {
-  DataGrid,
-  GridFilterModel,
-  GridFooterContainer,
-  GridLogicOperator,
-  GridPagination,
-  useGridApiRef
-} from '@mui/x-data-grid'
+import { useGridApiRef } from '@mui/x-data-grid'
+import { DataGrid } from '@mui/x-data-grid/DataGrid'
+import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
+import { GridFilterModel, GridLogicOperator } from '@mui/x-data-grid/models'
 import { DataType, RegisterData } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
@@ -24,7 +21,7 @@ import BitMapRow from './BitMapRow/BitMapRow'
 //
 // Footer
 const Footer = meme(() => {
-  const time = useRootZustand((z) => z.lastSuccessfulTransactionMillis)
+  const time = useClientZustand((z) => z.lastSuccessfulTransactionMillis)
   return (
     <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
       <Typography variant="caption" sx={{ opacity: 0.5 }}>
@@ -43,21 +40,21 @@ const Footer = meme(() => {
 //
 //
 // DataGrid
-const RegisterGridContent = (): JSX.Element => {
+const RegisterGridContent = meme((): JSX.Element => {
   const registerData = useDataZustand((z) => z.registerData)
-  const registerMapping = useRootZustand((z) => z.registerMapping[z.registerConfig.type])
+  const registerMapping = useClientZustand((z) => z.registerMapping[z.registerConfig.type])
   const columns = useRegisterGridColumns()
 
   const apiRef = useGridApiRef()
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
-  const readConfiguration = useRootZustand((z) => z.readConfiguration)
+  const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still
   // arriving is a fight nobody wins. Scrolling and paging stay.
-  const scanning = useRootZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {
@@ -76,6 +73,36 @@ const RegisterGridContent = (): JSX.Element => {
     }
     prevReadConfigRef.current = readConfiguration
   }, [apiRef, readConfiguration])
+
+  const handleRowUpdate = useCallback(
+    (newRow: RegisterData, oldRow: RegisterData): RegisterData => {
+      const clientZustand = useClientZustand.getState()
+
+      // Update datatype
+      if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
+        clientZustand.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
+      }
+
+      // Update scaling factor
+      // This will ignore zero too, if you don't want to ignore zero compare with undefined
+      if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
+        clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
+      }
+
+      // Update comment
+      if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
+        clientZustand.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+      }
+
+      // Update group end
+      if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
+        clientZustand.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
+      }
+
+      return newRow
+    },
+    []
+  )
 
   return (
     <DataGrid
@@ -178,50 +205,22 @@ const RegisterGridContent = (): JSX.Element => {
       //
       //
       // Row update
-      processRowUpdate={(newRow, oldRow) => {
-        const z = useRootZustand.getState()
-
-        // Update datatype
-        if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
-          z.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
-        }
-
-        // Update scaling factor
-        // This will ignore zero too, if you don't want to ignore zero compare with undefined
-        if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
-          const z = useRootZustand.getState()
-          z.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
-        }
-
-        // Update comment
-        if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
-          const z = useRootZustand.getState()
-          z.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
-        }
-
-        // Update group end
-        if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
-          const z = useRootZustand.getState()
-          z.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
-        }
-
-        return newRow
-      }}
+      processRowUpdate={handleRowUpdate}
     />
   )
-}
+})
 
 //
 //
 //
 //
 // DataGrid paper
-const RegisterGrid = (): JSX.Element => {
+const RegisterGrid = meme((): JSX.Element => {
   return (
     <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
       <RegisterGridContent />
     </Paper>
   )
-}
+})
 
 export default RegisterGrid

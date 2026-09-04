@@ -1,9 +1,10 @@
 import ServerBooleans from './ServerBooleans/ServerBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
-import AddRegister from './ServerRegisters/AddRegister'
+import AddRegister from './ServerRegisters/AddRegister/AddRegister'
 import Box from '@mui/material/Box'
+import { meme } from '@renderer/components/shared/inputs/meme'
 
-const ServerGrid = (): JSX.Element => {
+const ServerGrid = meme((): JSX.Element => {
   return (
     <Box
       data-testid="server-grid"
@@ -16,5 +17,5 @@ const ServerGrid = (): JSX.Element => {
       <AddRegister />
     </Box>
   )
-}
+})
 export default ServerGrid

@@ -12,6 +12,7 @@ import {
   cleanServerState,
   writeRegister,
   writeCoil,
+  writeCoilsFc15,
   expectCell,
   expectCellContains
 } from '../../fixtures/helpers'
@@ -183,6 +184,38 @@ test.describe.serial('Write Operations', () => {
     test('verify coil written FALSE', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
       await expectCell(mainPage, 0, 'bit', 'FALSE')
+      await clearData(mainPage)
+    })
+
+    test('set a coil above the one FC15 will be opened on', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+      await writeCoil(mainPage, 6, true)
+    })
+
+    test('verify the neighbour is TRUE before the FC15 write', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+      await expectCell(mainPage, 6, 'bit', 'TRUE')
+    })
+
+    /**
+     * FC15 sends every coil from the opened address to the end of the range, so
+     * coil 6 is in the frame a write opened on coil 5 puts on the wire.
+     */
+    test('write coil 5 via FC15', async ({ mainPage }) => {
+      await writeCoilsFc15(mainPage, 5, { 5: true })
+    })
+
+    test('verify FC15 wrote coil 5 and left coil 6 alone', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '8')
+      await expectCell(mainPage, 5, 'bit', 'TRUE')
+      await expectCell(mainPage, 6, 'bit', 'TRUE')
+    })
+
+    test('put both coils back to FALSE', async ({ mainPage }) => {
+      await writeCoilsFc15(mainPage, 5, { 5: false, 6: false })
+      await readRegisters(mainPage, '0', '8')
+      await expectCell(mainPage, 5, 'bit', 'FALSE')
+      await expectCell(mainPage, 6, 'bit', 'FALSE')
       await clearData(mainPage)
     })
   })

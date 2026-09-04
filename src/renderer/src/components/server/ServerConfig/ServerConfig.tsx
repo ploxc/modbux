@@ -1,11 +1,9 @@
 import FormControl from '@mui/material/FormControl'
-import {
-  TextField,
-  Box,
-  InputBaseComponentProps,
-  ToggleButtonGroup,
-  ToggleButton
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import InputLabel from '@mui/material/InputLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -13,21 +11,22 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, ServerMode } from '@shared'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import Select from '@mui/material/Select'
+import Select, { SelectChangeEvent } from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
-import React, { useState } from 'react'
-import ServerRtuConfig from './ServerRtuConfig'
+import React, { useCallback, useState } from 'react'
+import ServerRtuConfig from './ServerRtuConfig/ServerRtuConfig'
 
 const ModeToggle = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
 
   const handleModeChange = async (_: React.MouseEvent, value: ServerMode | null): Promise<void> => {
+    const serverZustand = useServerZustand.getState()
     if (!value || value === serverMode) return
     if (value === 'rtu') {
-      await useServerZustand.getState().switchToRtu()
+      await serverZustand.switchToRtu()
     } else {
-      await useServerZustand.getState().switchToTcp()
+      await serverZustand.switchToTcp()
     }
   }
 
@@ -52,8 +51,13 @@ const ModeToggle = meme(() => {
 const EndianToggle = meme(() => {
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
   const littleEndian = useServerZustand((z) => z.littleEndian[selectedUuid] ?? false)
-  const setLittleEndian = useServerZustand((z) => z.setLittleEndian)
   const ready = useServerZustand((z) => z.ready[selectedUuid])
+
+  const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
+    if (value === null) return
+    const serverZustand = useServerZustand.getState()
+    serverZustand.setLittleEndian(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -62,7 +66,7 @@ const EndianToggle = meme(() => {
       color="primary"
       value={littleEndian}
       disabled={!ready}
-      onChange={(_, v) => v !== null && setLittleEndian(v)}
+      onChange={handleChange}
     >
       <ToggleButton
         data-testid="server-endian-be-btn"
@@ -121,6 +125,12 @@ const UnitId = meme(() => {
   })
   const labelId = 'unit-id-select'
 
+  const handleChange = useCallback((event: SelectChangeEvent<UnitIdString>): void => {
+    const serverZustand = useServerZustand.getState()
+    const result = UnitIdStringSchema.safeParse(event.target.value)
+    if (result.success) serverZustand.setUnitId(result.data)
+  }, [])
+
   return (
     <FormControl size="small" sx={{ minWidth: 80 }}>
       <InputLabel id={labelId}>Unit ID</InputLabel>
@@ -130,10 +140,7 @@ const UnitId = meme(() => {
         labelId={labelId}
         value={unitId}
         label="Unit ID"
-        onChange={(e) => {
-          const result = UnitIdStringSchema.safeParse(e.target.value)
-          if (result.success) useServerZustand.getState().setUnitId(result.data)
-        }}
+        onChange={handleChange}
         slotProps={{ input: { sx: { pr: 0, pl: 1 } } }}
       >
         {UnitIdStringSchema.options.map((unitId) => (
@@ -148,7 +155,7 @@ const UnitId = meme(() => {
 
 const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
-  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid])
+  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid] ?? '')
   const [localPort, setLocalPort] = useState(portFromStore)
 
   // Sync localPort with store if store changes (e.g. after backend update)
@@ -187,6 +194,8 @@ PortInput.displayName = 'PortInput'
 const Port = meme(() => {
   const port = useServerZustand((z) => z.port[z.selectedUuid])
 
+  const setPort = useServerZustand.getState().setPort
+
   return (
     <TextField
       data-testid="server-port-input"
@@ -198,9 +207,7 @@ const Port = meme(() => {
       slotProps={{
         input: {
           inputComponent: PortInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({
-            set: useServerZustand.getState().setPort
-          })
+          inputProps: maskInputProps({ set: setPort })
         }
       }}
     />
@@ -210,7 +217,7 @@ const Port = meme(() => {
 //
 //
 // Server Config
-const ServerConfig = (): JSX.Element => {
+const ServerConfig = meme((): JSX.Element => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
 
   return (
@@ -221,6 +228,6 @@ const ServerConfig = (): JSX.Element => {
       <UnitId />
     </Box>
   )
-}
+})
 
 export default ServerConfig

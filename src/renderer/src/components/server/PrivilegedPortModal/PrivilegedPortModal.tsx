@@ -1,17 +1,16 @@
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography
-} from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import Typography from '@mui/material/Typography'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   PrivilegedPortFixMode,
@@ -20,8 +19,8 @@ import {
   UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
 import { useSnackbar } from 'notistack'
-import { useCallback, useEffect } from 'react'
-import { usePrivilegedPortZustand } from './_zustand'
+import { ChangeEvent, useCallback, useEffect } from 'react'
+import { usePrivilegedPortZustand } from './privilegedPortModal.zustand'
 
 /**
  * Linux privileged port modal
@@ -63,15 +62,15 @@ const close = (): void => {
 //
 //
 // Title
-const Title = (): JSX.Element => {
+const Title = meme((): JSX.Element => {
   const port = usePrivilegedPortZustand((z) => z.status?.port)
   return <DialogTitle>Port {port} needs a system setting</DialogTitle>
-}
+})
 
 //
 //
 // What is in the way
-const Explanation = (): JSX.Element => {
+const Explanation = meme((): JSX.Element => {
   const port = usePrivilegedPortZustand((z) => z.status?.port)
   const floor = usePrivilegedPortZustand((z) => z.status?.unprivilegedPortStart)
 
@@ -88,14 +87,19 @@ const Explanation = (): JSX.Element => {
         : `Until that floor is lowered, Modbux cannot use it and clients looking for ${port} will not find it.`}
     </Typography>
   )
-}
+})
 
 //
 //
 // Permanently or until reboot, driving both the command shown and the one run
-const ModeToggle = (): JSX.Element => {
+const ModeToggle = meme((): JSX.Element => {
   const mode = usePrivilegedPortZustand((z) => z.mode)
-  const setMode = usePrivilegedPortZustand((z) => z.setMode)
+
+  const handleChange = useCallback((_event: unknown, value: PrivilegedPortFixMode | null): void => {
+    if (!value) return
+    const privilegedPortZustand = usePrivilegedPortZustand.getState()
+    privilegedPortZustand.setMode(value)
+  }, [])
 
   return (
     <ToggleButtonGroup
@@ -103,7 +107,7 @@ const ModeToggle = (): JSX.Element => {
       exclusive
       color="primary"
       value={mode}
-      onChange={(_, value: PrivilegedPortFixMode | null) => value && setMode(value)}
+      onChange={handleChange}
       sx={{ mb: 1.5 }}
     >
       <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
@@ -114,12 +118,12 @@ const ModeToggle = (): JSX.Element => {
       </ToggleButton>
     </ToggleButtonGroup>
   )
-}
+})
 
 //
 //
 // The command, which follows the toggle so the two cannot drift apart
-const Command = (): JSX.Element => {
+const Command = meme((): JSX.Element => {
   const mode = usePrivilegedPortZustand((z) => z.mode)
   const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
 
@@ -130,14 +134,18 @@ const Command = (): JSX.Element => {
       testId="privileged-port-command"
     />
   )
-}
+})
 
 //
 //
 // Don't ask again
-const DontAskCheckbox = (): JSX.Element => {
+const DontAskCheckbox = meme((): JSX.Element => {
   const dontAsk = usePrivilegedPortZustand((z) => z.dontAsk)
-  const setDontAsk = usePrivilegedPortZustand((z) => z.setDontAsk)
+
+  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
+    const privilegedPortZustand = usePrivilegedPortZustand.getState()
+    privilegedPortZustand.setDontAsk(event.target.checked)
+  }, [])
 
   return (
     <FormControlLabel
@@ -146,19 +154,19 @@ const DontAskCheckbox = (): JSX.Element => {
         <Checkbox
           size="small"
           checked={dontAsk}
-          onChange={(e) => setDontAsk(e.target.checked)}
+          onChange={handleChange}
           data-testid="privileged-port-dont-ask"
         />
       }
       label={<Typography variant="body2">Don&apos;t ask again</Typography>}
     />
   )
-}
+})
 
 //
 //
 // Body
-const Body = (): JSX.Element => {
+const Body = meme((): JSX.Element => {
   const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
 
   return (
@@ -186,21 +194,21 @@ const Body = (): JSX.Element => {
       <DontAskCheckbox />
     </>
   )
-}
+})
 
 //
 //
 // Buttons
-const CancelButton = (): JSX.Element => {
+const CancelButton = meme((): JSX.Element => {
   const busy = usePrivilegedPortZustand((z) => z.busy)
   return (
     <Button onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
       Not now
     </Button>
   )
-}
+})
 
-const RunCommandButton = (): JSX.Element | null => {
+const RunCommandButton = meme((): JSX.Element | null => {
   const busy = usePrivilegedPortZustand((z) => z.busy)
   const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
   const { enqueueSnackbar } = useSnackbar()
@@ -210,6 +218,10 @@ const RunCommandButton = (): JSX.Element | null => {
     setBusy(true)
     try {
       const result = await window.api.applyPrivilegedPortFix(mode)
+      // undefined means the payload was refused at the boundary, which already
+      // sent its own message. Saying so twice helps nobody.
+      if (!result) return
+
       enqueueSnackbar({ message: result.message, variant: result.ok ? 'success' : 'warning' })
 
       if (!result.ok) return
@@ -231,19 +243,22 @@ const RunCommandButton = (): JSX.Element | null => {
       {busy ? 'Waiting for authorization…' : 'Run command'}
     </Button>
   )
-}
+})
 
 //
 //
 // MAIN
-const PrivilegedPortModal = (): JSX.Element | null => {
+const PrivilegedPortModal = meme((): JSX.Element | null => {
   const open = usePrivilegedPortZustand((z) => z.open)
   const hasStatus = usePrivilegedPortZustand((z) => z.status !== null)
   const ready = useServerZustand((z) => !!z.ready[z.selectedUuid])
 
   useEffect(() => {
-    // The popped-out server window would otherwise show a second copy.
-    if (window.api.isServerWindow) return
+    // Whichever window is showing the server view asks, and never both: the
+    // main window is put on the client view for as long as a server window
+    // exists, so this is mounted once. Asking only the main window left the
+    // question unasked in split view, which is the state a user who splits
+    // from Home is in from the start.
     if (localStorage.getItem(DISMISS_KEY) === 'true') return
     if (!ready) return
 
@@ -286,6 +301,6 @@ const PrivilegedPortModal = (): JSX.Element | null => {
       </DialogActions>
     </Dialog>
   )
-}
+})
 
 export default PrivilegedPortModal

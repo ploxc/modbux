@@ -1,10 +1,18 @@
 export type { MigrationResult } from './types'
+export { formatZodError, repairPersistedParity, dropUnservableRegisters } from './shared'
 export { migrateServerConfig, CURRENT_SERVER_CONFIG_VERSION } from './server/config'
 export {
   migrateServerRegistersState,
   migrateServerModeState,
   migrateBoolShape,
-  CURRENT_SERVER_ZUSTAND_VERSION
+  CURRENT_SERVER_ZUSTAND_VERSION,
+  SERVER_ZUSTAND_STORAGE_KEY
 } from './server/zustand'
 export { migrateClientConfig, CURRENT_CLIENT_CONFIG_VERSION } from './client/config'
-export { migrateRootState, CURRENT_ROOT_ZUSTAND_VERSION } from './client/zustand'
+export {
+  migrateClientState,
+  carryFormerClientState,
+  CURRENT_CLIENT_ZUSTAND_VERSION,
+  CLIENT_ZUSTAND_STORAGE_KEY,
+  FORMER_CLIENT_ZUSTAND_STORAGE_KEY
+} from './client/zustand'

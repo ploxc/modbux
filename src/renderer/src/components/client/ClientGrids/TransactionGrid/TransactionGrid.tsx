@@ -1,26 +1,26 @@
-import { Box, Button, Paper } from '@mui/material'
-import {
-  DataGrid,
-  GridFooterContainer,
-  GridPagination,
-  useGridApiContext,
-  useGridApiRef
-} from '@mui/x-data-grid'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Paper from '@mui/material/Paper'
+import { useGridApiContext, useGridApiRef } from '@mui/x-data-grid'
+import { DataGrid } from '@mui/x-data-grid/DataGrid'
+import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import useTransactionGridColumns from './_columns'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useCallback } from 'react'
 
 //
 //
 //
 //
 // Log export button exports the transaction log as a CSV file
-const ExportButton = (): JSX.Element => {
+const ExportButton = meme((): JSX.Element => {
   const api = useGridApiContext()
 
   return (
     <Button
+      data-testid="transaction-export-btn"
       size="small"
       variant="outlined"
       onClick={() =>
@@ -32,21 +32,30 @@ const ExportButton = (): JSX.Element => {
       Export
     </Button>
   )
-}
+})
 
 //
 //
 //
 //
 // Clears the transaction log
-const ClearButton = (): JSX.Element => {
-  const clear = useRootZustand((z) => z.clearTransactions)
+const ClearButton = meme((): JSX.Element => {
+  const handleClick = useCallback((): void => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.clearTransactions()
+  }, [])
+
   return (
-    <Button size="small" variant="outlined" onClick={clear}>
+    <Button
+      data-testid="transaction-clear-btn"
+      size="small"
+      variant="outlined"
+      onClick={handleClick}
+    >
       Clear
     </Button>
   )
-}
+})
 
 //
 //
@@ -72,7 +81,7 @@ const CustomFooter = (): JSX.Element => {
 const TransactionGridContent = meme(() => {
   const api = useGridApiRef()
 
-  const transactions = useRootZustand((z) => z.transactions)
+  const transactions = useClientZustand((z) => z.transactions)
   const columns = useTransactionGridColumns()
 
   return (
@@ -114,7 +123,7 @@ const TransactionGridContent = meme(() => {
 //
 //
 // DataGrid paper
-const TransactionGrid = (): JSX.Element => {
+const TransactionGrid = meme((): JSX.Element => {
   return (
     <Paper
       data-testid="transaction-log-panel"
@@ -123,6 +132,6 @@ const TransactionGrid = (): JSX.Element => {
       <TransactionGridContent />
     </Paper>
   )
-}
+})
 
 export default TransactionGrid

@@ -1,26 +1,25 @@
-import {
-  Button,
-  IconButton,
-  InputBaseComponentProps,
-  LinearProgress,
-  TextField,
-  Tooltip,
-  Typography
-} from '@mui/material'
-import { Visibility, VisibilityOff } from '@mui/icons-material'
+import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import LinearProgress from '@mui/material/LinearProgress'
+import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
+import Typography from '@mui/material/Typography'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { useRootZustand } from '@renderer/context/root.zustand'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
 
 // Scan progress
 export const ScanProgress = meme(() => {
-  const scanning = useRootZustand(
-    (z) => z.clientState.scanningUniId || z.clientState.scanningRegisters
+  const scanning = useClientZustand(
+    (z) => z.clientState.scanningUnitIds || z.clientState.scanningRegisters
   )
-  const scanProgress = useRootZustand((z) => z.scanProgress)
+  const scanProgress = useClientZustand((z) => z.scanProgress)
 
   return scanning ? (
     <LinearProgress

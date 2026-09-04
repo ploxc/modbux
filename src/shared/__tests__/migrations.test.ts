@@ -134,23 +134,6 @@ describe('configMigration', () => {
         expect(result.config.littleEndian).toBe(false)
         expect(result.warning).toBe('MIXED_ENDIANNESS')
       })
-
-      it('applies legacy string replacements (camelCase to snake_case)', () => {
-        const v1ConfigLegacy = JSON.stringify({
-          name: 'Legacy',
-          serverRegistersPerUnit: {
-            '1': {
-              Coils: {},
-              DiscreteInputs: {},
-              InputRegisters: {},
-              HoldingRegisters: {}
-            }
-          }
-        })
-
-        // Should not throw
-        expect(() => migrateServerConfig(v1ConfigLegacy)).not.toThrow()
-      })
     })
 
     describe('v2 pass-through', () => {
@@ -310,7 +293,7 @@ describe('configMigration', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const serverRegisters = migrated.serverRegisters as Record<string, Record<string, any>>
-      const register = serverRegisters['uuid-1']['1'].input_registers['0']
+      const register = serverRegisters['uuid-1']?.['1'].input_registers['0']
       expect(register.params).not.toHaveProperty('littleEndian')
       expect(register.params.comment).toBe('Test')
     })
@@ -418,7 +401,7 @@ describe('configMigration', () => {
       migrateBoolShape(serverRegisters)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const regs = serverRegisters['uuid-1']!['0'] as any
+      const regs = serverRegisters['uuid-1']?.['0'] as any
       expect(regs.coils['0']).toEqual({ value: true })
       expect(regs.coils['5']).toEqual({ value: false })
       expect(regs.discrete_inputs['0']).toEqual({ value: false })
@@ -440,7 +423,7 @@ describe('configMigration', () => {
       migrateBoolShape(serverRegisters)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const regs = serverRegisters['uuid-1']!['0'] as any
+      const regs = serverRegisters['uuid-1']?.['0'] as any
       expect(regs.coils['0']).toEqual({ value: true })
       expect(regs.coils['5']).toEqual({ value: false, comment: 'test' })
     })
@@ -466,7 +449,8 @@ describe('configMigration', () => {
 
       const result = migrateServerConfig(v1Config)
 
-      const unit = result.config.serverRegistersPerUnit['1']!
+      const unit = result.config.serverRegistersPerUnit['1']
+      if (!unit) throw new Error('the migrated config has no unit 1')
       expect(unit.coils['0']).toEqual({ value: true })
       expect(unit.coils['1']).toEqual({ value: false })
       expect(unit.discrete_inputs['3']).toEqual({ value: true })
@@ -489,7 +473,8 @@ describe('configMigration', () => {
       })
 
       const result = migrateServerConfig(v2Config)
-      const unit = result.config.serverRegistersPerUnit['0']!
+      const unit = result.config.serverRegistersPerUnit['0']
+      if (!unit) throw new Error('the migrated config has no unit 0')
       expect(unit.coils['0']).toEqual({ value: true })
       expect(unit.coils['1']).toEqual({ value: false })
     })

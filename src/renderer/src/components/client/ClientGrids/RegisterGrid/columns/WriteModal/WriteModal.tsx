@@ -1,78 +1,23 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { Publish } from '@mui/icons-material'
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  InputBaseComponentProps,
-  Modal,
-  Paper,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup
-} from '@mui/material'
+import Publish from '@mui/icons-material/Publish'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import ButtonGroup from '@mui/material/ButtonGroup'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import Modal from '@mui/material/Modal'
+import Paper from '@mui/material/Paper'
+import TextField from '@mui/material/TextField'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { useRootZustand } from '@renderer/context/root.zustand'
-import { MaskSetFn } from '@renderer/context/root.zustand.types'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { BaseDataType, BaseDataTypeSchema, notEmpty, RegisterType } from '@shared'
+import { notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { IMaskInput, IMask } from 'react-imask'
-import { create } from 'zustand'
-import { mutative } from 'zustand-mutative'
-
-interface ValueInputZusand {
-  dataType: BaseDataType
-  setDataType: (dataType: BaseDataType) => void
-  value: string
-  valid: boolean
-  setValue: MaskSetFn
-  address: number
-  setAddress: (address: number) => void
-  coilFunction: 5 | 15
-  setCoilFunction: (coilFunction: 5 | 15) => void
-  coils: boolean[]
-  initCoils: (coils: boolean[]) => void
-  setCoils: (coil: boolean, index: number) => void
-}
-
-const useValueInputZustand = create<ValueInputZusand, [['zustand/mutative', never]]>(
-  mutative((set) => ({
-    dataType: 'int16',
-    setDataType: (dataType) =>
-      set((state) => {
-        state.dataType = dataType
-      }),
-    value: '0',
-    valid: true,
-    setValue: (value, valid) =>
-      set((state) => {
-        state.value = value
-        state.valid = !!valid
-      }),
-    address: 0,
-    setAddress: (address: number) =>
-      set((state) => {
-        state.address = address
-      }),
-    coilFunction: 5,
-    setCoilFunction: (coilFunction: 5 | 15) =>
-      set((state) => {
-        state.coilFunction = coilFunction
-      }),
-    coils: [],
-    initCoils: (coils) =>
-      set((state) => {
-        state.coils = coils
-      }),
-    setCoils: (coil, index) =>
-      set((state) => {
-        state.coils[index] = coil
-      })
-  }))
-)
+import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -106,7 +51,8 @@ const ValueInput = meme(ValueInputForward)
 const ValueInputComponent = meme(({ address }: { address: number }) => {
   const value = useValueInputZustand((z) => z.value)
   const valid = useValueInputZustand((z) => z.valid)
-  const setValue = useValueInputZustand((z) => z.setValue)
+
+  const setValue = useValueInputZustand.getState().setValue
 
   return (
     <TextField
@@ -127,31 +73,31 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
   )
 })
 
-const DataTypeSelect = meme(({ address }: { address: number }) => {
+export const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
-  const setDataType = useValueInputZustand((z) => z.setDataType)
 
-  // Set the data type based on the address if it's defined in the register mapping
+  const setDataType = useValueInputZustand.getState().setDataType
+
+  // The type comes from the register mapping, and an address the mapping says
+  // nothing about gets the default rather than the last address's type.
   useEffect(() => {
+    const valueInputZustand = useValueInputZustand.getState()
     const {
       registerMapping,
       registerConfig: { type }
-    } = useRootZustand.getState()
+    } = useClientZustand.getState()
 
-    const dataType = registerMapping[type][address]?.dataType
-    if (!dataType) return
-
-    const result = BaseDataTypeSchema.safeParse(dataType)
-    if (result.success) setDataType(result.data)
-  }, [address, setDataType])
+    valueInputZustand.setDataType(writeDataTypeFor(registerMapping[type][address]?.dataType))
+  }, [address])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
 
-const WriteRegistersButton = meme(() => {
+export const WriteRegistersButton = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const dataType = useValueInputZustand((z) => z.dataType)
   const value = useValueInputZustand((z) => z.value)
+  const valid = useValueInputZustand((z) => z.valid)
 
   const handleWrite = useCallback(
     (single: boolean) => {
@@ -166,9 +112,12 @@ const WriteRegistersButton = meme(() => {
     [address, dataType, value]
   )
 
+  // An empty field is `Number('')`, which is 0, and 0 is a value the device
+  // accepts without complaint. The mask says whether anything was typed, so the
+  // buttons say what the red box already says.
   const singleDisabled = useMemo(() => {
-    return !['int16', 'uint16'].includes(dataType)
-  }, [dataType])
+    return !valid || !['int16', 'uint16'].includes(dataType)
+  }, [valid, dataType])
 
   return (
     <ButtonGroup size="small">
@@ -184,6 +133,7 @@ const WriteRegistersButton = meme(() => {
       </Button>
       <Button
         title="FC16: Write multiple registers"
+        disabled={!valid}
         variant="outlined"
         color="primary"
         onClick={() => handleWrite(false)}
@@ -197,10 +147,15 @@ const WriteRegistersButton = meme(() => {
 
 const CoilFunctionSelect = meme(() => {
   const address = useValueInputZustand((z) => z.address)
-  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
-  const setCoilFunction = useValueInputZustand((z) => z.setCoilFunction)
+
+  const handleFunctionChange = useCallback((_event: unknown, value: 5 | 15 | null): void => {
+    if (value === null) return
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setCoilFunction(value)
+  }, [])
 
   const handleWrite = useCallback(() => {
     window.api.write({
@@ -219,7 +174,7 @@ const CoilFunctionSelect = meme(() => {
         exclusive
         color="primary"
         value={coilFunction}
-        onChange={(_, v) => v !== null && setCoilFunction(v)}
+        onChange={handleFunctionChange}
       >
         <ToggleButton
           sx={{ flex: 1, flexBasis: 0 }}
@@ -258,15 +213,20 @@ interface CoilButtonProps {
 
 const CoilButton = meme(({ address, index }: CoilButtonProps) => {
   const state = useValueInputZustand((z) => z.coils[index])
-  const setCoils = useValueInputZustand((z) => z.setCoils)
+
+  const handleClick = useCallback((): void => {
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setCoils(!state, index)
+  }, [state, index])
 
   return (
     <Button
       size="small"
       data-testid={`write-coil-${address}-select-btn`}
+      aria-pressed={state}
       variant={state ? 'contained' : 'outlined'}
       color="primary"
-      onClick={() => setCoils(!state, index)}
+      onClick={handleClick}
       sx={{ flex: 1, flexBasis: 0 }}
     >
       {address}
@@ -275,17 +235,17 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 })
 
 const Coils = meme(() => {
-  const length = useRootZustand((z) => z.registerConfig.length)
-  const registerConfigAddress = useRootZustand((z) => z.registerConfig.address)
+  const length = useClientZustand((z) => z.registerConfig.length)
+  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
-  const initCoils = useValueInputZustand((z) => z.initCoils)
 
   useEffect(() => {
-    const newCoils = Array(length).fill(false)
-    initCoils(newCoils)
-  }, [initCoils, length])
+    const valueInputZustand = useValueInputZustand.getState()
+    const { registerData } = useDataZustand.getState()
+    valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
+  }, [length, registerConfigAddress])
 
   const rows = useMemo(() => {
     const amount = Math.ceil(length / 8)
@@ -323,7 +283,7 @@ const Coils = meme(() => {
   )
 })
 
-interface Props {
+interface WriteModalProps {
   address: number
   open: boolean
   onClose: () => void
@@ -331,19 +291,19 @@ interface Props {
   type: RegisterType
 }
 
-const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: Props) => {
+const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: WriteModalProps) => {
   const rect = actionCellRef.current?.getBoundingClientRect()
   const right = (rect?.right ? window.innerWidth - rect.right : 0) + 38
-  const setValue = useValueInputZustand((z) => z.setValue)
-  const setAddress = useValueInputZustand((z) => z.setAddress)
 
   const handleClose = useCallback(() => {
-    setValue('0')
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.resetValue()
     onClose()
-  }, [setValue, onClose])
+  }, [onClose])
 
   useEffect(() => {
-    setAddress(address)
+    const valueInputZustand = useValueInputZustand.getState()
+    valueInputZustand.setAddress(address)
     // ! deliberate only once when the component mounts
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

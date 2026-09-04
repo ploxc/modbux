@@ -1,7 +1,8 @@
 import { forwardRef } from 'react'
+import { meme } from './meme'
 import { MaskInputProps } from './types'
 
-const HostInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+const HostInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
   return (
     <input
@@ -15,6 +16,8 @@ const HostInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
-HostInput.displayName = 'HostInput'
+HostInputForward.displayName = 'HostInput'
+
+const HostInput = meme(HostInputForward)
 
 export default HostInput

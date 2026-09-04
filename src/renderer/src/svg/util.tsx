@@ -1,4 +1,4 @@
-import { styled, SxProps, Theme } from '@mui/material'
+import { SxProps, Theme, styled } from '@mui/material/styles'
 
 export const StyledSvg = styled('svg')({})
 

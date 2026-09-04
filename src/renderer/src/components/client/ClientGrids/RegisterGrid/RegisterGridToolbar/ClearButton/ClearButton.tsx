@@ -1,17 +1,18 @@
 import Button from '@mui/material/Button'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useRootZustand } from '@renderer/context/root.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 
-const ClearButton = (): JSX.Element => {
+const ClearButton = meme((): JSX.Element => {
   const noData = useDataZustand((z) => z.registerData.length === 0)
-  const polling = useRootZustand((z) => z.clientState.polling)
+  const polling = useClientZustand((z) => z.clientState.polling)
   const disabled = noData || polling
-  const setRegisterData = useDataZustand((z) => z.setRegisterData)
 
-  const handleClear = useCallback(() => {
-    setRegisterData([])
-  }, [setRegisterData])
+  const handleClear = useCallback((): void => {
+    const dataZustand = useDataZustand.getState()
+    dataZustand.setRegisterData([])
+  }, [])
 
   return (
     <Button
@@ -24,6 +25,6 @@ const ClearButton = (): JSX.Element => {
       Clear
     </Button>
   )
-}
+})
 
 export default ClearButton

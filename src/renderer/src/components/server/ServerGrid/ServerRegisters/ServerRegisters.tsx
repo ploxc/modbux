@@ -1,13 +1,19 @@
-import { Edit, ExpandLess, ExpandMore } from '@mui/icons-material'
-import { Paper, Box, IconButton, alpha } from '@mui/material'
+import Edit from '@mui/icons-material/Edit'
+import ExpandLess from '@mui/icons-material/ExpandLess'
+import ExpandMore from '@mui/icons-material/ExpandMore'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import Paper from '@mui/material/Paper'
+import { alpha } from '@mui/material/styles'
 import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { gridSurface } from '@renderer/theme'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAddRegisterZustand } from './addRegister.zustand'
+import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
-import ServerBitMapDetail from './ServerBitMapDetail'
+import ServerBitMapDetail from './ServerBitMapDetail/ServerBitMapDetail'
 import { DateTime } from 'luxon'
 
 interface RowProps {
@@ -16,8 +22,8 @@ interface RowProps {
 
 const RowEdit = meme(({ register }: RowProps) => {
   const handleClick = useCallback(() => {
-    const state = useAddRegisterZustand.getState()
-    state.setEditRegister(register)
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setEditRegister(register)
   }, [register])
 
   return (
@@ -63,7 +69,7 @@ const getDisplayValue = (register: ServerRegister[number]): string | number => {
   return register.value
 }
 
-const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
+const ServerRegisterValue = meme(({ register }: RowProps): JSX.Element => {
   const [displayValue, setDisplayValue] = useState(() => getDisplayValue(register))
 
   useEffect(() => {
@@ -75,8 +81,15 @@ const ServerRegisterValue = ({ register }: RowProps): JSX.Element => {
     }
   }, [register.value, register.params.stringValue, register])
 
-  return <Box sx={{ pr: 2 }}>{displayValue}</Box>
-}
+  return (
+    <Box
+      data-testid={`server-reg-value-${register.params.registerType}-${register.params.address}`}
+      sx={{ pr: 2 }}
+    >
+      {displayValue}
+    </Box>
+  )
+})
 
 const ServerRegisterRow = meme(({ register }: RowProps) => {
   const isBitmap = register.params.dataType === 'bitmap'
@@ -183,7 +196,7 @@ const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
           flex: 1,
           width: '100%',
           height: '100%',
-          backgroundColor: '#2A2A2A',
+          backgroundColor: gridSurface,
           fontSize: '0.95em',
           position: 'relative'
         }}

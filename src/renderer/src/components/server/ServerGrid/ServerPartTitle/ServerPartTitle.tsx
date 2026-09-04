@@ -1,17 +1,19 @@
 import { DeleteFilled, PlusCircleFilled } from '@ant-design/icons'
-import { alpha, Box, IconButton } from '@mui/material'
+import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
+import { alpha } from '@mui/material/styles'
 import { RegisterType } from '@shared'
 import { useCallback } from 'react'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { useAddRegisterZustand } from '../ServerRegisters/addRegister.zustand'
+import { useAddRegisterZustand } from '../ServerRegisters/AddRegister/addRegister.zustand'
 import useServerGridZustand from '../serverGrid.zustand'
 
 const AddButton = meme(({ type }: { type: RegisterType }) => {
   const handleClick = useCallback(() => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
     if (type === 'input_registers' || type === 'holding_registers') {
-      const setRegisterType = useAddRegisterZustand.getState().setRegisterType
-      setRegisterType(type)
+      addRegisterZustand.setRegisterType(type)
     }
     // For bools, the inline add bar in ServerBooleans handles adding
   }, [type])
@@ -35,12 +37,12 @@ const AddButton = meme(({ type }: { type: RegisterType }) => {
 
 const DeleteButton = meme(({ registerType }: { registerType: RegisterType }) => {
   const handleClick = useCallback(() => {
-    const state = useServerZustand.getState()
+    const serverZustand = useServerZustand.getState()
     if (registerType === 'coils' || registerType === 'discrete_inputs') {
-      state.resetBools(registerType)
+      serverZustand.resetBools(registerType)
     }
     if (registerType === 'input_registers' || registerType === 'holding_registers') {
-      state.resetRegisters(registerType)
+      serverZustand.resetRegisters(registerType)
     }
   }, [registerType])
 
@@ -72,6 +74,12 @@ const ServerPartTitleName = meme(
       const amount = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
       return amount
     })
+
+    const handleClick = useCallback((): void => {
+      const serverGridZustand = useServerGridZustand.getState()
+      serverGridZustand.toggleCollapse(registerType)
+    }, [registerType])
+
     return (
       <Box
         data-testid={`section-${registerType}`}
@@ -90,7 +98,7 @@ const ServerPartTitleName = meme(
             backgroundColor: alpha(theme.palette.primary.dark, 0.2)
           }
         })}
-        onClick={() => useServerGridZustand.getState().toggleCollapse(registerType)}
+        onClick={handleClick}
       >
         {name} ({amount})
       </Box>
