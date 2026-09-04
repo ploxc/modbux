@@ -2,6 +2,7 @@ import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
+import { RegisterAddressSchema } from './ranges'
 
 //
 //
@@ -153,7 +154,7 @@ export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>
 // WriteParameters
 export const WriteParametersSchema = z
   .object({
-    address: z.number().int().min(0).max(65535),
+    address: RegisterAddressSchema,
     single: z.boolean()
   })
   .and(

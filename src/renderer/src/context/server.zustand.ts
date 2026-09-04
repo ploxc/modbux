@@ -22,6 +22,7 @@ import {
   migrateServerModeState,
   migrateBoolShape,
   repairPersistedParity,
+  dropUnservableRegisters,
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
@@ -640,6 +641,11 @@ export const useServerZustand = create<
         // v3→v4: the RTU parity the serial binding refuses
         if (version < 4) {
           repairPersistedParity(state, 'serialConfig', 'options')
+        }
+
+        // v4→v5: registers at an address outside the 16 bit map
+        if (version < 5) {
+          dropUnservableRegisters(state)
         }
 
         return state as PersistedServerZustand

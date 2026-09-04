@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { BaseDataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { RegisterType, SerialPortOptionsSchema } from './client'
-import { PortSchema, RegisterAddressSchema } from './ranges'
+import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { unitIds } from './unitid'
 
 // Server mode (global: TCP or RTU)
@@ -51,9 +51,17 @@ const RegisterParamsStaticPartSchema = z.object({
 })
 export type RegisterParamsStaticPart = z.infer<typeof RegisterParamsStaticPartSchema>
 
-// Base fields shared by both variants
+/**
+ * Base fields shared by both variants.
+ *
+ * This is the schema a saved config file arrives on, through
+ * `ServerRegistersPerUnitSchema`, and the one `add_replace_server_register` and
+ * `sync_server_register` take. `remove_server_register` takes
+ * `RegisterAddressSchema`, so while this field was a bare number an address
+ * outside the map went in and could not come back out.
+ */
 export const RegisterParamsBasePartSchema = z.object({
-  address: z.number(),
+  address: RegisterAddressSchema,
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
   comment: z.string(),
@@ -76,8 +84,8 @@ export const ServerBoolEntrySchema = z.object({
 })
 export type ServerBoolEntry = z.infer<typeof ServerBoolEntrySchema>
 
-// Schema for a boolean dictionary keyed by numeric strings
-export const ServerBoolSchema = z.record(z.string().regex(/^\d+$/), ServerBoolEntrySchema)
+// Schema for a boolean dictionary keyed by address
+export const ServerBoolSchema = z.record(RegisterAddressKeySchema, ServerBoolEntrySchema)
 export type ServerBool = z.infer<typeof ServerBoolSchema>
 
 // Schema for a single register entry
@@ -87,8 +95,8 @@ export const ServerRegisterEntrySchema = z.object({
 })
 export type ServerRegisterEntry = z.infer<typeof ServerRegisterEntrySchema>
 
-// Schema for a dictionary of register entries keyed by numeric strings
-export const ServerRegisterSchema = z.record(z.string().regex(/^\d+$/), ServerRegisterEntrySchema)
+// Schema for a dictionary of register entries keyed by address
+export const ServerRegisterSchema = z.record(RegisterAddressKeySchema, ServerRegisterEntrySchema)
 export type ServerRegister = z.infer<typeof ServerRegisterSchema>
 
 // Schema representing all register types for a server
@@ -163,7 +171,7 @@ export const SetBooleanParametersSchema = z.object({
   uuid: z.string().min(1),
   unitId: UnitIdStringSchema,
   registerType: BooleanRegistersSchema,
-  address: z.number().int().min(0).max(65535),
+  address: RegisterAddressSchema,
   state: z.boolean()
 })
 export type SetBooleanParameters = z.infer<typeof SetBooleanParametersSchema>

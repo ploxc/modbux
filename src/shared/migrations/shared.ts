@@ -1,5 +1,6 @@
 import type { ZodError } from 'zod'
 import { ParitySchema } from '../types/client'
+import { RegisterAddressKeySchema, RegisterAddressSchema } from '../types/ranges'
 
 /**
  * Replace a stored parity that `ParitySchema` no longer names, at `path` from
@@ -23,6 +24,47 @@ export function repairPersistedParity(state: Record<string, unknown>, ...path: s
   if (ParitySchema.safeParse(serialOptions.parity).success) return
 
   serialOptions.parity = 'none'
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/** The object values of `value`, and nothing at all when it is not an object. */
+const objectValues = (value: unknown): Record<string, unknown>[] =>
+  isRecord(value) ? Object.values(value).filter(isRecord) : []
+
+/**
+ * A register map is keyed by address, and a register entry repeats the address
+ * in its parameters, so both have to be in the map for the entry to be. A
+ * boolean entry carries the key alone.
+ */
+const isServable = (address: string, entry: Record<string, unknown>): boolean => {
+  if (!RegisterAddressKeySchema.safeParse(address).success) return false
+  const params = entry.params
+  if (!isRecord(params)) return true
+  return RegisterAddressSchema.safeParse(params.address).success
+}
+
+/**
+ * Drop persisted registers at an address outside the 16 bit map.
+ *
+ * `RegisterParamsBasePartSchema.address` was a bare number until it was
+ * measured against the remove channel, so a config file loaded before that
+ * could put a register at 70000 and the store persisted it. `repairPersisted`
+ * works a top level field at a time, and without this one such register costs
+ * every register on every server and every unit.
+ */
+export function dropUnservableRegisters(state: Record<string, unknown>): void {
+  for (const registersPerUnit of objectValues(state.serverRegisters)) {
+    for (const registersByType of objectValues(registersPerUnit)) {
+      for (const entriesByAddress of objectValues(registersByType)) {
+        for (const [address, entry] of Object.entries(entriesByAddress)) {
+          if (isRecord(entry) && isServable(address, entry)) continue
+          delete entriesByAddress[address]
+        }
+      }
+    }
+  }
 }
 
 /**

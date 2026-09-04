@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Submit Change stayed off until you typed both of them. They now start where a
   new register starts. Opening the dialog also no longer flashes the labels red
   for a moment.
+- **A register at an address outside the map no longer loads.** A configuration
+  file edited by hand could put one past 65535, where no Modbus request can
+  reach it and Remove could not clear it, because the add path was the one that
+  left the range unchecked. Such a file is now refused and names the register,
+  and a saved setup that already carried one comes back without it, with
+  everything else kept.
 
 ### Changed
 
