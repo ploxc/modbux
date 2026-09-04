@@ -12,3 +12,15 @@ import { z } from 'zod'
 export const RegisterAddressSchema = z.number().int().min(0).max(65535)
 export const UnitIdSchema = z.number().int().min(0).max(255)
 export const PortSchema = z.number().int().min(0).max(65535)
+
+/**
+ * The same range for a register map keyed by address.
+ *
+ * A JSON object key is a string, so the range has to be checked after the
+ * conversion. Digits only already gives an integer at or above zero, which
+ * leaves the ceiling.
+ */
+export const RegisterAddressKeySchema = z
+  .string()
+  .regex(/^\d+$/)
+  .refine((key) => Number(key) <= 65535, { message: 'Number must be less than or equal to 65535' })
