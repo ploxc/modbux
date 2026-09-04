@@ -7,7 +7,7 @@ import {
   ServerRegisters
 } from '../../types/server'
 import { MigrationResult, Migration } from '../types'
-import { applyLegacyStringReplacements, formatZodError } from '../shared'
+import { formatZodError, renameLegacyRegisterTypeKeys } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 
 export const CURRENT_SERVER_CONFIG_VERSION = 2
@@ -19,11 +19,13 @@ const SERVER_CONFIG_MIGRATIONS: Record<number, Migration<ServerConfig>> = {
 
 /**
  * Migrate server config from v1 to v2.
+ * - Renames the camelCase register type keys
  * - Adds version and modbuxVersion fields
  * - Extracts global littleEndian from per-register settings
  * - Removes littleEndian from individual register params
  */
 function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndianness?: boolean } {
+  renameLegacyRegisterTypeKeys(v1Config)
   const config = v1Config as V1ServerConfig
   const v1Registers = config.serverRegistersPerUnit ?? {}
   const { endianness, wasMixed } = extractGlobalEndianness(v1Registers)
@@ -120,9 +122,7 @@ function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
  * Migrate server config to current version
  */
 export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> {
-  // Apply legacy string replacements first
-  const cleanedContent = applyLegacyStringReplacements(raw)
-  const parsed = JSON.parse(cleanedContent)
+  const parsed = JSON.parse(raw)
   const detectedVersion = parsed.version ?? 1
 
   // Current version - migrate bool shape if needed, then validate

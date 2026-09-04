@@ -1,6 +1,6 @@
 import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../../types/client'
 import { MigrationResult, Migration } from '../types'
-import { applyLegacyStringReplacements, formatZodError } from '../shared'
+import { formatZodError, renameLegacyRegisterTypeKeys } from '../shared'
 
 export const CURRENT_CLIENT_CONFIG_VERSION = 2
 
@@ -16,9 +16,11 @@ const CLIENT_CONFIG_MIGRATIONS: Record<number, Migration<RegisterMapConfig>> = {
 
 /**
  * Migrate client config from v1 to v2.
+ * - Renames the camelCase register type keys
  * - Adds version and modbuxVersion fields
  */
 function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
+  renameLegacyRegisterTypeKeys(v1Config)
   const config = v1Config as V1ClientConfig
   return {
     version: 2,
@@ -33,9 +35,7 @@ function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
  * Migrate client config to current version
  */
 export function migrateClientConfig(raw: string): MigrationResult<RegisterMapConfig> {
-  // Apply legacy string replacements first
-  const cleanedContent = applyLegacyStringReplacements(raw)
-  const parsed = JSON.parse(cleanedContent)
+  const parsed = JSON.parse(raw)
   const detectedVersion = parsed.version ?? 1
 
   // Current version - no migration needed

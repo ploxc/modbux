@@ -80,6 +80,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left the range unchecked. Such a file is now refused and names the register,
   and a saved setup that already carried one comes back without it, with
   everything else kept.
+- **Loading a configuration no longer rewrites your own words.** Four register
+  type names were renamed everywhere they appeared in the file, so a
+  configuration called "Coils bank A" came back as "coils bank A" and a comment
+  reading "read InputRegisters here" came back as "read input_registers here".
+  Saving after that made it permanent. The rename now applies to the keys it was
+  written for, and only to a configuration old enough to need it.
 
 ### Changed
 
