@@ -99,8 +99,8 @@ export type ServerZustand = {
   setServerParity: (parity: Parity) => void
   setServerDataBits: (dataBits: number) => void
   setServerStopBits: (stopBits: number) => void
-  serverSerialPorts: SerialPortInfo[]
-  serverSerialPortsLoading: boolean
-  refreshServerSerialPorts: () => Promise<void>
+  serialPorts: SerialPortInfo[]
+  serialPortsLoading: boolean
+  refreshSerialPorts: () => Promise<void>
   rtuServerActive: boolean
 } & PersistedServerZustand
