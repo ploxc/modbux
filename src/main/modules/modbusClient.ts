@@ -73,6 +73,7 @@ export class ModbusClient {
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
+  private _pollGeneration = 0
   private _totalScans = 1
   private _scansDone = 1
 
@@ -521,24 +522,44 @@ export class ModbusClient {
   //
   //
   // Polling
+  /**
+   * Start a poll chain, unless one is already running.
+   *
+   * A chain is a read, a wait, and the next read, so a second chain is a second
+   * read on one connection. Both callers can arrive while a read is in flight:
+   * `start_polling` passes on whatever the renderer sends, and the reconnect
+   * resume fires a second after the connect that scheduled it.
+   */
   public startPolling = (): void => {
-    clearTimeout(this._pollTimeout)
+    if (this._clientState.polling) return
     this._clientState.polling = true
     this._sendClientState()
-    this._poll()
+    this._poll(++this._pollGeneration)
   }
 
   public stopPolling = (): void => {
     clearTimeout(this._pollTimeout)
+    this._pollGeneration++
     this._clientState.polling = false
     this._sendClientState()
   }
 
-  private _poll = async (): Promise<void> => {
-    clearTimeout(this._pollTimeout)
-    if (!this._clientState.polling) return
+  /**
+   * Read, then arm the next read, as long as this chain is still the current one.
+   *
+   * `stopPolling` clears the handle a sleeping chain holds, and a chain that is
+   * awaiting a read holds none, because `_pollTimeout` is assigned after the
+   * await. It takes the generation instead: the read resolves into a number
+   * that is no longer current, and the chain ends there rather than arming a
+   * timer nothing can clear.
+   */
+  private _poll = async (generation: number): Promise<void> => {
     await this._read()
-    this._pollTimeout = setTimeout(this._poll, this._appState.registerConfig.pollRate)
+    if (generation !== this._pollGeneration) return
+    this._pollTimeout = setTimeout(
+      () => this._poll(generation),
+      this._appState.registerConfig.pollRate
+    )
   }
 
   //
