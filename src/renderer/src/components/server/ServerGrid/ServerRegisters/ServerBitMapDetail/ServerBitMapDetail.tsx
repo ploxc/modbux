@@ -17,7 +17,6 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
 
   const uuid = useServerZustand((z) => z.selectedUuid)
   const unitId = useServerZustand((z) => z.getUnitId(z.selectedUuid))
-  const littleEndian = useServerZustand((z) => z.littleEndian[z.selectedUuid] ?? false)
 
   const handleToggle = useCallback(
     (bitIndex: number) => {
@@ -30,11 +29,10 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
       serverZustand.addRegister({
         uuid,
         unitId,
-        params: { ...params, value: newValue, min: undefined, max: undefined, interval: undefined },
-        littleEndian
+        params: { ...params, value: newValue, min: undefined, max: undefined, interval: undefined }
       })
     },
-    [register.value, params, uuid, unitId, littleEndian]
+    [register.value, params, uuid, unitId]
   )
 
   const handleCommentChange = useCallback(
@@ -60,11 +58,10 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
         params: {
           ...params,
           bitMap: newBitMap
-        },
-        littleEndian
+        }
       })
     },
-    [bitConfig, params, uuid, unitId, littleEndian]
+    [bitConfig, params, uuid, unitId]
   )
 
   return (

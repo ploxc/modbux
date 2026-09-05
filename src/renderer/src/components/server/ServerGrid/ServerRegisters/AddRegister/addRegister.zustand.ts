@@ -379,12 +379,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         }
       }
 
-      serverZustand.addRegister({
-        uuid,
-        unitId,
-        littleEndian: serverZustand.littleEndian[uuid] ?? false,
-        params
-      })
+      serverZustand.addRegister({ uuid, unitId, params })
 
       return { address: params.address, dataType: form.dataType }
     },

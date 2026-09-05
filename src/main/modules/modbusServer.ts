@@ -18,7 +18,7 @@ import {
   StartRtuServerParams
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
-import { Windows } from '@shared'
+import { ServerEndianness, Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal } from 'modbus-serial'
 import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
@@ -100,6 +100,14 @@ export class ModbusServer {
   private _windows: Windows
 
   // Map to store server data for each unit ID of a server UUID
+  /**
+   * The byte order each server encodes its registers in, big-endian until told.
+   *
+   * The renderer used to send it with every add and every sync, which is the
+   * same field of the same server read again each time. It is set once here
+   * and read where a register is encoded.
+   */
+  private _littleEndian: Map<string, boolean> = new Map()
   private _serverData: ServerDataMap = new Map()
   private _generatorMap: ValueGeneratorsMap = new Map()
 
@@ -366,6 +374,7 @@ export class ModbusServer {
       this._disposeAllGenerators(unitIdGenerators)
     }
     this._generatorMap.delete(uuid)
+    this._littleEndian.delete(uuid)
   }
 
   /**
@@ -387,12 +396,18 @@ export class ModbusServer {
     if (port) await this.createServer({ uuid, port })
   }
 
+  /** Sets the byte order this server encodes its registers in. */
+  public setEndianness = ({ uuid, littleEndian }: ServerEndianness): void => {
+    this._littleEndian.set(uuid, littleEndian)
+  }
+
   /**
    * Adds a register or value generator for a given server and unitId.
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
    */
-  public addRegister = ({ uuid, unitId, params, littleEndian }: AddRegisterParams): void => {
+  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): void => {
+    const littleEndian = this._littleEndian.get(uuid) ?? false
     const {
       address,
       registerType,
@@ -512,8 +527,7 @@ export class ModbusServer {
   public syncServerRegisters = ({
     uuid,
     unitId,
-    registerValues,
-    littleEndian
+    registerValues
   }: SyncRegisterValueParams): void => {
     // Cleanup generators only for this unitId
     const unitIdGenerators = this._generatorMap.get(uuid)
@@ -528,7 +542,7 @@ export class ModbusServer {
     }
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
-    for (const params of registerValues) this.addRegister({ uuid, unitId, params, littleEndian })
+    for (const params of registerValues) this.addRegister({ uuid, unitId, params })
   }
 
   /**

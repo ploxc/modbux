@@ -53,7 +53,6 @@ describe('a server that was just created', () => {
     await useServerZustand.getState().addRegister({
       uuid: NEW_UUID,
       unitId: '0',
-      littleEndian: false,
       params: {
         address: 10,
         registerType: 'holding_registers',

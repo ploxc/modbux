@@ -21,7 +21,8 @@ import {
   ScanUnitIDParametersSchema,
   StartRtuServerParamsSchema,
   SyncBoolsParametersSchema,
-  SyncRegisterValueParamsSchema
+  SyncRegisterValueParamsSchema,
+  ServerEndiannessSchema
 } from '@shared'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/modbusServer'
@@ -174,6 +175,11 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
     'sync_server_register',
     (_, params) => server.syncServerRegisters(params),
     SyncRegisterValueParamsSchema
+  )
+  ipcHandle(
+    'set_server_endianness',
+    (_, params) => server.setEndianness(params),
+    ServerEndiannessSchema
   )
   ipcHandle(
     'reset_registers',

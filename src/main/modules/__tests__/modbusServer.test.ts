@@ -180,7 +180,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -210,7 +209,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 10,
           registerType: 'holding_registers',
@@ -240,11 +238,70 @@ describe('ModbusServer', () => {
       )
     })
 
+    /**
+     * The byte order used to travel with every add and every sync, which was
+     * the same field of the same server read again each time. The server holds
+     * it, and until it is told, a register is big-endian.
+     */
+    it('swaps the words of a 32-bit value once the server is told', () => {
+      server.setEndianness({ uuid, littleEndian: true })
+
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 10,
+          registerType: 'holding_registers',
+          dataType: 'int32',
+          comment: '',
+          value: 70000,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      // 70000 = 0x00011170, low word first
+      expect(windows.send).toHaveBeenCalledWith(
+        'register_value',
+        expect.objectContaining({ address: 10, raw: 4464 })
+      )
+      expect(windows.send).toHaveBeenCalledWith(
+        'register_value',
+        expect.objectContaining({ address: 11, raw: 1 })
+      )
+    })
+
+    it('goes back to big-endian for a server built again on the same uuid', async () => {
+      server.setEndianness({ uuid, littleEndian: true })
+      await server.createServer({ uuid, port: 5020 })
+      await server.deleteServer(uuid)
+
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 10,
+          registerType: 'holding_registers',
+          dataType: 'int32',
+          comment: '',
+          value: 70000,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      expect(windows.send).toHaveBeenCalledWith(
+        'register_value',
+        expect.objectContaining({ address: 10, raw: 1 })
+      )
+    })
+
     it('writes to input_registers', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 5,
           registerType: 'input_registers',
@@ -273,7 +330,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -301,7 +357,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -321,7 +376,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -361,7 +415,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 5,
           registerType: 'holding_registers',
@@ -389,7 +442,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -439,7 +491,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -488,7 +539,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -522,7 +572,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -676,7 +725,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -714,7 +762,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -732,7 +779,6 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId,
-        littleEndian: false,
         registerValues: [
           {
             address: 10,
@@ -763,7 +809,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'input_registers',
@@ -779,7 +824,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -796,7 +840,6 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId,
-        littleEndian: false,
         registerValues: []
       })
 
@@ -814,7 +857,6 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid: 'fresh-uuid',
         unitId,
-        littleEndian: false,
         registerValues: [
           {
             address: 0,
@@ -842,7 +884,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -860,7 +901,6 @@ describe('ModbusServer', () => {
       server.syncServerRegisters({
         uuid,
         unitId: '2' as UnitIdString,
-        littleEndian: false,
         registerValues: [
           {
             address: 0,
@@ -890,7 +930,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -907,7 +946,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId: unitId2,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -1080,7 +1118,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'input_registers',
@@ -1096,7 +1133,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -1316,7 +1352,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -1492,7 +1527,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId,
-        littleEndian: false,
         params: {
           address: 0,
           registerType: 'holding_registers',
@@ -1620,7 +1654,6 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
-          littleEndian: false,
           params: {
             address: 10,
             registerType: 'input_registers',
@@ -1662,7 +1695,6 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
-          littleEndian: false,
           params: {
             address: 0,
             registerType: 'holding_registers',
@@ -1747,7 +1779,6 @@ describe('ModbusServer', () => {
         server.addRegister({
           uuid,
           unitId,
-          littleEndian: false,
           params: {
             address: 0,
             registerType: 'holding_registers',
@@ -1816,7 +1847,6 @@ describe('ModbusServer', () => {
       server.addRegister({
         uuid,
         unitId: id,
-        littleEndian: false,
         params: {
           address,
           registerType: 'holding_registers',
@@ -2061,7 +2091,7 @@ describe('ModbusServer', () => {
         max: undefined,
         interval: undefined
       }
-      server.addRegister({ uuid, unitId, littleEndian: false, params })
+      server.addRegister({ uuid, unitId, params })
     }
 
     const readHolding = async (vector: ServerVector, address: number): Promise<unknown> =>

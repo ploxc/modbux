@@ -41,8 +41,7 @@ export const syncBoolsWithBackend = async (
 export const syncRegistersWithBackend = async (
   serverRegisters: DefinedServerRegisters,
   unitId: UnitIdString,
-  uuid: string,
-  littleEndian: boolean
+  uuid: string
 ): Promise<{
   inputRegisterRegisterValues: RegisterParams[]
   holdingRegisterRegisterValues: RegisterParams[]
@@ -57,8 +56,7 @@ export const syncRegistersWithBackend = async (
   await window.api.syncServerRegister({
     uuid: uuid,
     unitId,
-    registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues],
-    littleEndian
+    registerValues: [...inputRegisterRegisterValues, ...holdingRegisterRegisterValues]
   })
 
   return { inputRegisterRegisterValues, holdingRegisterRegisterValues }
