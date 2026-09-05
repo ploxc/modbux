@@ -97,16 +97,22 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  * ! If you remove one, remove it here. No extras allowed.
  */
 export interface IpcHandlerSpec {
-  /** Update the ConnectionConfig (DeepPartial) */
+  /**
+   * Update the ConnectionConfig (DeepPartial), and say whether it was taken.
+   *
+   * `true` is the whole answer, because main merges exactly the payload it was
+   * given. A refusal answers `undefined`, which is what `createIpcHandle` sends
+   * back, and the store keeps what it had.
+   */
   ['update_connection_config']: {
     args: [DeepPartial<ConnectionConfig>]
-    return: void
+    return: true | undefined
   }
 
-  /** Update the RegisterConfig (DeepPartial) */
+  /** Update the RegisterConfig (DeepPartial), and say whether it was taken. */
   ['update_register_config']: {
     args: [DeepPartial<RegisterConfig>]
-    return: void
+    return: true | undefined
   }
 
   /**

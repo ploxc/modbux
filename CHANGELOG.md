@@ -91,6 +91,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   occurred in the main process" dialog and no window at all. Your client stays
   connected and polling the whole time, and the server keeps the connections it
   has, which was already true and is now covered by a test.
+- **A comma typed into a client field no longer resets those settings at the
+  next start.** The unit ID, port, address and length fields take a comma as a
+  decimal separator, and a value carrying one was stored as no number at all.
+  The next start could not read it back and put the connection or the register
+  settings back to their defaults. Modbux now keeps the value the field had, and
+  what your client sends and what the field shows can no longer drift apart.
 
 ### Changed
 

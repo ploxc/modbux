@@ -61,27 +61,27 @@ export type ClientZustand = {
   init: () => Promise<void>
   // State
   setClientState: (clientState: ClientState) => void
-  // Configuration actions
-  setProtocol: (protocol: Protocol) => void
-  setPort: MaskSetFn
-  setHost: MaskSetFn
-  setUnitId: MaskSetFn
-  setAddress: MaskSetFn
-  setLength: MaskSetFn
-  setType: (type: RegisterType) => void
-  setCom: MaskSetFn
-  setBaudRate: (baudRate: ModbusBaudRate) => void
-  setParity: (parity: Parity) => void
-  setDataBits: (dataBits: SerialPortOptions['dataBits']) => void
-  setStopBits: (stopBits: SerialPortOptions['stopBits']) => void
-  setPollRate: (pollRate: number) => void
-  setTimeout: (timeout: number) => void
-  setLittleEndian: (littleEndian: boolean) => void
+  // Configuration actions, each one waiting on the boundary before it writes
+  setProtocol: (protocol: Protocol) => Promise<void>
+  setPort: AsyncMaskSetFn
+  setHost: AsyncMaskSetFn
+  setUnitId: AsyncMaskSetFn
+  setAddress: AsyncMaskSetFn
+  setLength: AsyncMaskSetFn
+  setType: (type: RegisterType) => Promise<void>
+  setCom: AsyncMaskSetFn
+  setBaudRate: (baudRate: ModbusBaudRate) => Promise<void>
+  setParity: (parity: Parity) => Promise<void>
+  setDataBits: (dataBits: SerialPortOptions['dataBits']) => Promise<void>
+  setStopBits: (stopBits: SerialPortOptions['stopBits']) => Promise<void>
+  setPollRate: (pollRate: number) => Promise<void>
+  setTimeout: (timeout: number) => Promise<void>
+  setLittleEndian: (littleEndian: boolean) => Promise<void>
 
   // Layout configuration settings (i want them to be persistent)
-  setAddressBase: (addressBase: '0' | '1') => void
-  setAdvancedMode: (advancedMode: boolean) => void
-  setShow64BitValues: (show64BitValues: boolean) => void
+  setAddressBase: (addressBase: '0' | '1') => Promise<void>
+  setAdvancedMode: (advancedMode: boolean) => Promise<void>
+  setShow64BitValues: (show64BitValues: boolean) => Promise<void>
 
   // Transaction
   setLastSuccessfulTransactionMillis: (value: number | null) => void

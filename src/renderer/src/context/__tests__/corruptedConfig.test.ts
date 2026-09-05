@@ -7,18 +7,7 @@
 // window came up blank with no UI left to clear the bad config from.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CURRENT_CLIENT_ZUSTAND_VERSION } from '@shared'
-
-const stubRenderer = (): void => {
-  const w = window as unknown as { electron: unknown; api: unknown }
-  w.electron = {
-    ipcRenderer: {
-      on: (): (() => void) => (): void => {},
-      send: (): void => {},
-      invoke: async (): Promise<undefined> => undefined
-    }
-  }
-  w.api = new Proxy({}, { get: () => (): Promise<undefined> => Promise.resolve(undefined) })
-}
+import { stubRenderer } from './stubRenderer'
 
 beforeEach(() => {
   vi.resetModules()
