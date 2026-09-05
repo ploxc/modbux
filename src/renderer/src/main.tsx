@@ -16,7 +16,37 @@ import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistac
 import Close from '@mui/icons-material/Close'
 import App from './App'
 
+const AUTO_HIDE_MS = 3000
+
 const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
+  // How long is left. notistack pauses its timer on hover and on window blur,
+  // and only the first of those is reachable from CSS, so the bar and the timer
+  // agree while the pointer is on the snackbar and drift while the window is in
+  // the background.
+  //
+  // `persist` leaves no timer for a bar to be about, so a snackbar that never
+  // hides passes `no-countdown`. Nothing passes it yet: the unit 0 warning is
+  // the one that wants it.
+  position: 'relative',
+  overflow: 'hidden',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    transformOrigin: 'left',
+    backgroundColor: 'currentColor',
+    opacity: 0.35,
+    animation: `snackbar-countdown ${AUTO_HIDE_MS}ms linear forwards`
+  },
+  '&:hover::after': { animationPlayState: 'paused' },
+  '&.no-countdown::after': { display: 'none' },
+  '@keyframes snackbar-countdown': {
+    from: { transform: 'scaleX(1)' },
+    to: { transform: 'scaleX(0)' }
+  },
   '&.notistack-MuiContent-success': {
     backgroundColor: theme.palette.success.main,
     color: theme.palette.success.contrastText,
@@ -51,7 +81,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         maxSnack={3}
         {...{
           preventDuplicate: true,
-          autoHideDuration: 3000,
+          autoHideDuration: AUTO_HIDE_MS,
           Components: {
             error: StyledMaterialDesignContent,
             success: StyledMaterialDesignContent,
