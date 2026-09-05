@@ -107,6 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through left the scan walking the rest of the address range against a client
   that was gone, raising an error for every chunk it tried, and the scan dialog
   would not close while that ran. The scan now stops at the read that failed.
+- **Starting the poll again right after stopping it no longer runs two read
+  loops at once.** Pressing Stop and then Poll while a read was still on its way
+  left the old loop running beside the new one, so the device was asked twice as
+  often and two requests could sit on one connection. Only one loop runs now,
+  however fast the buttons are pressed.
 
 ### Changed
 
