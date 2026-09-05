@@ -195,6 +195,22 @@ export class ModbusClient {
     this._sendClientState()
   }
 
+  /**
+   * The read loop that owns the client, named, or nothing.
+   *
+   * One request at a time is what this class can promise, and each of the
+   * three loops puts one on the wire without asking. Before this, `read`
+   * refused a poll and not a scan, and nothing refused a write: the write
+   * action cell and the bitmap panel disable on `polling`, which is a button
+   * rather than an answer.
+   */
+  private _readLoopOwner = (): string | undefined => {
+    if (this._clientState.polling) return 'a poll'
+    if (this._clientState.scanningUnitIds) return 'a unit id scan'
+    if (this._clientState.scanningRegisters) return 'a register scan'
+    return undefined
+  }
+
   //
   //
   // Connect
@@ -371,8 +387,9 @@ export class ModbusClient {
   }
 
   public read = async (): Promise<void> => {
-    if (this._clientState.polling) {
-      this._emitMessage({ message: 'Already polling', variant: 'warning', error: null })
+    const owner = this._readLoopOwner()
+    if (owner) {
+      this._emitMessage({ message: `Cannot read during ${owner}`, variant: 'warning', error: null })
       return
     }
 
@@ -641,6 +658,16 @@ export class ModbusClient {
   //
   // Write
   public write = async (writeParameters: WriteParameters): Promise<void> => {
+    const owner = this._readLoopOwner()
+    if (owner) {
+      this._emitMessage({
+        message: `Cannot write during ${owner}`,
+        variant: 'warning',
+        error: null
+      })
+      return
+    }
+
     const { address, type, value, dataType, single } = writeParameters
 
     let errorMessage: string | undefined
@@ -657,8 +684,9 @@ export class ModbusClient {
     // Log the write transaction.
     this._logTransaction(errorMessage)
 
-    // When specified, perform a read after writing the register.
-    if (!this._clientState.polling) this.read()
+    // Read back what the device now holds, unless a loop started during the
+    // write and is reading anyway.
+    if (!this._readLoopOwner()) this.read()
   }
 
   private _writeCoil = async (

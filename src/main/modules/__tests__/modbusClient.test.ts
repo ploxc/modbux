@@ -560,9 +560,31 @@ describe('ModbusClient', () => {
       await client.read()
 
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Already polling')).toBe(true)
+      expect(messages.some((m) => m[1].message === 'Cannot read during a poll')).toBe(true)
 
       client.stopPolling()
+    })
+
+    it('emits warning when trying to read during a unit id scan', async () => {
+      await connectClient()
+      gateTheReads()
+
+      client.scanUnitIds({
+        range: [5, 6],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.state.scanningUnitIds).toBe(true)
+
+      await client.read()
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot read during a unit id scan')).toBe(true)
+
+      client.stopScanningUnitIds()
     })
 
     it('polls repeatedly at configured rate', async () => {
@@ -1307,8 +1329,7 @@ describe('ModbusClient', () => {
       })
     })
 
-    // ! Coverage-only: exercises FALSE branch of !polling check after write
-    it('skips auto-read after write when polling is active', async () => {
+    it('refuses a write during a poll', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
       mockModbusRTU.writeFC5.mockImplementation(
@@ -1318,16 +1339,70 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(100)
 
-      // Reset read call count after polling has started
-      mockModbusRTU.readHoldingRegisters.mockClear()
+      await client.write({ address: 0, type: 'coils', value: [true], single: true })
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot write during a poll')).toBe(true)
+      expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
+
+      client.stopPolling()
+    })
+
+    it('refuses a write during a register scan', async () => {
+      await connectClient()
+      gateTheReads()
+      mockModbusRTU.writeFC5.mockImplementation(
+        (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => cb(null)
+      )
+
+      client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.state.scanningRegisters).toBe(true)
 
       await client.write({ address: 0, type: 'coils', value: [true], single: true })
 
-      // No extra read should be triggered — polling is already active
-      // (the next read will come from the poll cycle, not from the write)
-      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot write during a register scan')).toBe(
+        true
+      )
+      expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
 
-      client.stopPolling()
+      client.stopScanningRegisters()
+    })
+
+    it('skips the read after a write when a scan starts during it', async () => {
+      await connectClient()
+      gateTheReads()
+      const finishers: Array<() => void> = []
+      mockModbusRTU.writeFC5.mockImplementation(
+        (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => {
+          finishers.push(() => cb(null))
+        }
+      )
+
+      const writePromise = client.write({ address: 0, type: 'coils', value: [true], single: true })
+      await vi.advanceTimersByTimeAsync(0)
+
+      // The scan owns the client from here, and its own first read is the one
+      // call that follows.
+      client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.state.scanningRegisters).toBe(true)
+
+      const [finishWrite] = finishers
+      if (!finishWrite) throw new Error('writeFC5 was never called')
+      // The read after a write would be refused and say so, and the user asked
+      // for neither, so the messages after the write are the ones before it.
+      const messagesBeforeFinish = getWindowCalls('backend_message').map((m) => m[1].message)
+      finishWrite()
+      await writePromise
+
+      expect(getWindowCalls('backend_message').map((m) => m[1].message)).toEqual(
+        messagesBeforeFinish
+      )
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+
+      client.stopScanningRegisters()
     })
 
     it('triggers auto-read after write when not polling', async () => {
