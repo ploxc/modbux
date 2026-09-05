@@ -155,8 +155,19 @@ describe('checkHasConfig', () => {
     expect(checkHasConfig({ ...emptyRegisters, coils: { '0': { value: true } } })).toBe(true)
   })
 
-  it('returns false when coils only have falsy values', () => {
-    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': { value: false } } })).toBe(false)
+  /**
+   * `addBool` writes `{ value: false }`, so this is the coil the user added and
+   * left off. Counting the value instead of the entry dropped its unit from a
+   * saved config.
+   */
+  it('returns true for a coil that is there and off', () => {
+    expect(checkHasConfig({ ...emptyRegisters, coils: { '0': { value: false } } })).toBe(true)
+  })
+
+  it('returns true for a discrete input that is there and off', () => {
+    expect(checkHasConfig({ ...emptyRegisters, discrete_inputs: { '0': { value: false } } })).toBe(
+      true
+    )
   })
 
   it('returns true when discrete_inputs have truthy values', () => {

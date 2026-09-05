@@ -212,13 +212,19 @@ export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
   return Array.from(addressSet)
 }
 
+/**
+ * Whether a unit carries anything the user put there.
+ *
+ * A bool counts because it exists, not because it is on. `addBool` writes
+ * `{ value: false }`, so the coil you add and leave off is an entry like any
+ * other, and reading the value instead dropped exactly that unit from a saved
+ * config.
+ */
 export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
-  const coils = reg?.coils ?? {}
-  const hasCoils = Object.values(coils).some((v) => v.value)
-  const discrete = reg?.discrete_inputs ?? {}
-  const hasDiscrete = Object.values(discrete).some((v) => v.value)
-  const hasInput = Object.values(reg?.input_registers ?? []).length > 0
-  const hasHolding = Object.values(reg?.holding_registers ?? []).length > 0
+  const hasCoils = Object.keys(reg?.coils ?? {}).length > 0
+  const hasDiscrete = Object.keys(reg?.discrete_inputs ?? {}).length > 0
+  const hasInput = Object.keys(reg?.input_registers ?? {}).length > 0
+  const hasHolding = Object.keys(reg?.holding_registers ?? {}).length > 0
   return hasCoils || hasDiscrete || hasInput || hasHolding
 }
 

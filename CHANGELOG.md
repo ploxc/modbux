@@ -91,6 +91,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   occurred in the main process" dialog and no window at all. Your client stays
   connected and polling the whole time, and the server keeps the connections it
   has, which was already true and is now covered by a test.
+- **A saved configuration keeps the coils you added and left off.** A unit
+  whose only content was coils or discrete inputs, none of them switched on,
+  was written to the file as nothing at all, and opening that file gave you an
+  empty unit back. The bits you place are configuration whether they are on or
+  off, and they are saved and loaded as such.
 - **A comma typed into a number field no longer resets those settings at the
   next start.** The unit ID, port, address and length fields read a comma as a
   decimal separator, and a value carrying one was stored as no number at all.
