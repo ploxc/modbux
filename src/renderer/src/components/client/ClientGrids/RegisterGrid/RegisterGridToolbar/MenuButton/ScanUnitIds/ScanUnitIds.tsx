@@ -199,7 +199,6 @@ const SelectRegisterTypes = meme((): JSX.Element => {
 // Scan button
 const ScanButton = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
-  const polling = useClientZustand((z) => z.clientState.polling)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
@@ -229,7 +228,7 @@ const ScanButton = meme((): JSX.Element => {
 
   return (
     <Button
-      disabled={disabled || polling}
+      disabled={disabled}
       variant="contained"
       color={color}
       onClick={scan}
