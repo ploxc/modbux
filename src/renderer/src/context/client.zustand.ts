@@ -14,7 +14,8 @@ import {
   CURRENT_CLIENT_ZUSTAND_VERSION,
   migrateClientState,
   carryFormerClientState,
-  CLIENT_ZUSTAND_STORAGE_KEY
+  CLIENT_ZUSTAND_STORAGE_KEY,
+  RegisterMapping
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
@@ -50,6 +51,14 @@ export const flushRegisterMappingToMain = (): void => {
   _ipcTimer = null
   window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
 }
+
+/** A mapping with nothing configured, one empty record per register type. */
+const emptyRegisterMapping = (): RegisterMapping => ({
+  coils: {},
+  discrete_inputs: {},
+  holding_registers: {},
+  input_registers: {}
+})
 
 /**
  * Drop the rows on screen, unless something is about to replace them.
@@ -124,12 +133,7 @@ export const useClientZustand = create<
         set((state) => {
           state.configReset = undefined
         }),
-      registerMapping: {
-        coils: {},
-        discrete_inputs: {},
-        holding_registers: {},
-        input_registers: {}
-      },
+      registerMapping: emptyRegisterMapping(),
       setRegisterMapping: (register, key, value) => {
         const type = get().registerConfig.type
 
@@ -155,19 +159,18 @@ export const useClientZustand = create<
 
         syncRegisterMappingToMain()
       },
-      replaceRegisterMapping: (registerMapping) =>
+      replaceRegisterMapping: (registerMapping) => {
+        // Read configuration is the one thing that makes main read the mapping,
+        // so turning it off first leaves no read answering out of the mapping
+        // this call throws away. `syncRegisterMappingToMain` debounces for
+        // rapid cell edits, and a whole new mapping is not one.
+        get().setReadConfiguration(false)
         set((state) => {
           state.registerMapping = registerMapping
-        }),
-      clearRegisterMapping: () =>
-        set((state) => {
-          state.registerMapping = {
-            coils: {},
-            discrete_inputs: {},
-            holding_registers: {},
-            input_registers: {}
-          }
-        }),
+        })
+        flushRegisterMappingToMain()
+      },
+      clearRegisterMapping: () => get().replaceRegisterMapping(emptyRegisterMapping()),
       transactions: [],
       addTransaction: (transaction) =>
         set((state) => {
