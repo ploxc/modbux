@@ -208,8 +208,6 @@ const ScanButton = meme((): JSX.Element => {
       return
     }
 
-    window.api.stopPolling()
-
     const scanUnitIdZustand = useScanUnitIdZustand.getState()
     const clientZustand = useClientZustand.getState()
     clientZustand.clearScanUnitIdResults()

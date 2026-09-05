@@ -103,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   settings back to their defaults. Those fields hold whole numbers now, so the
   comma never lands, and what your client sends and what the field shows can no
   longer drift apart.
+- **A scan ends when the connection does.** Losing the connection partway
+  through left the scan walking the rest of the address range against a client
+  that was gone, raising an error for every chunk it tried, and the scan dialog
+  would not close while that ran. The scan now stops at the read that failed.
 
 ### Changed
 
