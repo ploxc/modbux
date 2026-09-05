@@ -67,7 +67,6 @@ const LoadButton = meme((): JSX.Element => {
       openingRef.current = false
       setOpening(false)
       showMapping()
-      useClientZustand.getState().setReadConfiguration(false)
     },
     [enqueueSnackbar]
   )
