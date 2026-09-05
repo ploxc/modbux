@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left the old loop running beside the new one, so the device was asked twice as
   often and two requests could sit on one connection. Only one loop runs now,
   however fast the buttons are pressed.
+- **A scan of coils or discrete inputs now shows every one it read.** The scan
+  asks for the chunk size the dialog is set to, and the grid was filled with the
+  read length from the toolbar instead, so the default chunk of 100 against a
+  read length of 10 kept ten coils out of every hundred it found. Every address
+  in the chunk now arrives.
 
 ### Changed
 
