@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToServer, navigateToClient, selectUnitId } from '../../fixtures/helpers'
+import { addBool, navigateToServer, navigateToClient, selectUnitId } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
 
@@ -150,6 +150,46 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
     expect(Object.keys(unit0.input_registers)).toHaveLength(2)
 
     // Clean up temp file
+    await fs.unlink(savePath).catch(() => {})
+  })
+
+  // ─── Bools that are off are still configuration ───────────────────────
+
+  /**
+   * A coil is added off, so a unit holding nothing else used to be dropped from
+   * the file: `checkHasConfig` read the value where it should have counted the
+   * entry, and both the save and the load asked it.
+   */
+  test('save and reopen a unit whose coils are all off', async ({ electronApp, mainPage }) => {
+    await mainPage.getByTestId('server-clear-btn').click()
+    await mainPage.waitForTimeout(500)
+
+    await addBool(mainPage, 'coils', 0)
+    await addBool(mainPage, 'coils', 1)
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(2)')
+
+    const savePath = resolve(tmpdir(), `modbux-test-coils-off-${Date.now()}.json`)
+    await electronApp.evaluate(({ session }, path) => {
+      session.defaultSession.on('will-download', (_event, item) => {
+        item.setSavePath(path)
+      })
+    }, savePath)
+
+    await mainPage.getByTestId('server-save-btn').click()
+    await mainPage.waitForTimeout(1000)
+
+    const fs = await import('fs/promises')
+    const config = JSON.parse(await fs.readFile(savePath, 'utf-8'))
+    expect(Object.keys(config.serverRegistersPerUnit['0'].coils)).toEqual(['0', '1'])
+
+    await mainPage.getByTestId('server-clear-btn').click()
+    await mainPage.waitForTimeout(500)
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(0)')
+
+    await mainPage.getByTestId('server-open-file-input').setInputFiles(savePath)
+    await mainPage.waitForTimeout(1000)
+    await expect(mainPage.getByTestId('section-coils')).toContainText('(2)')
+
     await fs.unlink(savePath).catch(() => {})
   })
 
