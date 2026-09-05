@@ -6,6 +6,7 @@
  * than spread through the dialog.
  */
 import { useAddRegisterZustand } from './addRegister.zustand'
+import { integerMask } from '@renderer/components/shared/inputs/integerMask'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { forwardRef } from 'react'
@@ -24,7 +25,7 @@ const AddressInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props,
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...integerMask}
       min={0}
       max={maxAddress}
       autofix
@@ -136,14 +137,10 @@ const IntervalInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...integerMask}
       min={1}
       max={10}
       autofix
-      {...{
-        scale: 0,
-        thousandsSeparator: ''
-      }}
       inputRef={ref}
       onAccept={(value) => set(value, notEmpty(value))}
     />
@@ -160,12 +157,10 @@ const RegisterLengthForward = forwardRef<HTMLInputElement, MaskInputProps>((prop
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...integerMask}
       min={1}
       max={124}
       autofix
-      scale={0}
-      thousandsSeparator=""
       inputRef={ref}
       onAccept={(value) => set(value, notEmpty(value))}
     />

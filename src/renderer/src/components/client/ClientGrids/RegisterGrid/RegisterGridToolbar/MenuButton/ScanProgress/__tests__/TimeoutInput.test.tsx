@@ -56,6 +56,16 @@ describe('scan timeout field', () => {
     expect(input.value).toBe('100')
   })
 
+  it('refuses a decimal separator, which would reach the setter as NaN', async () => {
+    const user = userEvent.setup()
+    const input = renderField()
+
+    await user.clear(input)
+    await user.type(input, '1,5')
+
+    expect(input.value).toBe('15')
+  })
+
   it('leaves a usable value alone', async () => {
     const user = userEvent.setup()
     const input = renderField()

@@ -5,12 +5,13 @@ import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import InputLabel from '@mui/material/InputLabel'
+import { integerMask } from '@renderer/components/shared/inputs/integerMask'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps, maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, ServerMode } from '@shared'
 import { ElementType, forwardRef } from 'react'
-import { IMaskInput, IMask } from 'react-imask'
+import { IMaskInput } from 'react-imask'
 import Select, { SelectChangeEvent } from '@mui/material/Select'
 import { UnitIdString, UnitIdStringSchema } from '@shared'
 import MenuItem from '@mui/material/MenuItem'
@@ -166,8 +167,8 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   return (
     <IMaskInput
       {...other}
+      {...integerMask}
       autofix
-      mask={IMask.MaskedNumber}
       min={0}
       max={65535}
       inputRef={ref}

@@ -1,5 +1,6 @@
-import { IMaskInput, IMask } from 'react-imask'
+import { IMaskInput } from 'react-imask'
 import { forwardRef } from 'react'
+import { integerMask } from './integerMask'
 import { meme } from './meme'
 import { MaskInputProps } from './types'
 
@@ -8,7 +9,7 @@ const LengthInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, 
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...integerMask}
       autofix
       min={0}
       max={Math.min(125, max)}

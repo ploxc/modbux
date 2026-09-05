@@ -36,6 +36,14 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     expect(Number(val)).toBe(65535)
   })
 
+  test('address input: a typed comma is not a decimal separator', async ({ mainPage }) => {
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('')
+    await addressInput.pressSequentially('1,5')
+    await mainPage.waitForTimeout(200)
+    expect(await addressInput.inputValue()).toBe('15')
+  })
+
   test('address max changes per data type: INT32 max=65534, INT64 max=65532', async ({
     mainPage
   }) => {
@@ -265,6 +273,30 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
     // Empty input should be invalid (restore a valid value)
     await hostInput.fill('127.0.0.1')
     await mainPage.waitForTimeout(300)
+  })
+
+  /**
+   * A comma used to reach the setter, and `Number()` answers `NaN` to it. The
+   * store wrote that, `JSON.stringify` persisted `null`, and the next start
+   * refused the connection config and reset it.
+   *
+   * They run before the two clamping tests, so those still leave the fields as
+   * they did for the specs after this one.
+   */
+  test('unit ID input: a typed comma is not a decimal separator', async ({ mainPage }) => {
+    const unitIdInput = mainPage.getByTestId('client-unitid-input').locator('input')
+    await unitIdInput.fill('')
+    await unitIdInput.pressSequentially('1,5')
+    await mainPage.waitForTimeout(300)
+    expect(await unitIdInput.inputValue()).toBe('15')
+  })
+
+  test('port input: a typed comma is not a decimal separator', async ({ mainPage }) => {
+    const portInput = mainPage.getByTestId('tcp-port-input').locator('input')
+    await portInput.fill('')
+    await portInput.pressSequentially('50,2')
+    await mainPage.waitForTimeout(300)
+    expect(await portInput.inputValue()).toBe('502')
   })
 
   test('port input: clamped to 65535', async ({ mainPage }) => {

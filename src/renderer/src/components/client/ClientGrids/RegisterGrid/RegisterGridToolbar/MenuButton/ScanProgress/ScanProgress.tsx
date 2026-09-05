@@ -7,12 +7,13 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
+import { integerMask } from '@renderer/components/shared/inputs/integerMask'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { ElementType, forwardRef } from 'react'
-import { IMaskInput, IMask } from 'react-imask'
+import { IMaskInput } from 'react-imask'
 
 // Scan progress
 export const ScanProgress = meme(() => {
@@ -55,7 +56,7 @@ const TimeoutInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props,
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...integerMask}
       min={0}
       inputRef={ref}
       onAccept={(value) => set(value, true)}
