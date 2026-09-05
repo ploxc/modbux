@@ -794,6 +794,25 @@ describe('ModbusClient', () => {
       expect(dataCalls.length).toBe(1)
     })
 
+    // A toolbar read has one group, `[address, registerConfig.length]`, so the
+    // row count is that length whatever the device padded its answer to.
+    it('reads the configured length of coils, not what the byte held', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'coils', address: 0, length: 3 })
+      mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
+        mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
+        return {
+          data: [true, false, true, true, true, true, true, true],
+          buffer: Buffer.from([0xfd])
+        }
+      })
+
+      await client.read()
+
+      const sent = getWindowCalls('register_data')[0]?.[1]
+      expect(sent.map((row: { id: number }) => row.id)).toEqual([0, 1, 2])
+    })
+
     it('reads discrete inputs and sends data', async () => {
       await connectClient()
       appState.updateRegisterConfig({ type: 'discrete_inputs' })
@@ -1996,6 +2015,33 @@ describe('ModbusClient', () => {
       // Only registers with bit=true should pass the filter (addresses 0 and 2)
       const sentData = dataCalls[0]?.[1]
       expect(sentData.every((d: { bit: boolean }) => d.bit === true)).toBe(true)
+    })
+
+    // The chunk size and the grid's read length are two separate fields, and
+    // the chunk is what goes on the wire.
+    it('sends every coil a chunk read, not the grid length', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'coils', length: 10 })
+      mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
+        mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
+        return {
+          data: Array.from({ length }, () => true),
+          buffer: Buffer.alloc(Math.ceil(length / 8))
+        }
+      })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 99],
+        length: 100,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      const sent = getWindowCalls('register_data')[0]?.[1]
+      expect(sent.map((row: { id: number }) => row.id)).toEqual(
+        Array.from({ length: 100 }, (_, index) => index)
+      )
     })
 
     it('emits scan progress', async () => {

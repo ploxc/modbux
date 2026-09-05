@@ -598,22 +598,26 @@ export class ModbusClient {
    */
   private _readers: Record<RegisterType, ReadRegisters> = {
     coils: async (address, length) =>
-      this._toBits(await this._client.readCoils(address, length), address),
+      this._toBits(await this._client.readCoils(address, length), address, length),
     discrete_inputs: async (address, length) =>
-      this._toBits(await this._client.readDiscreteInputs(address, length), address),
+      this._toBits(await this._client.readDiscreteInputs(address, length), address, length),
     input_registers: async (address, length) =>
       this._toRegisters(await this._client.readInputRegisters(address, length), address),
     holding_registers: async (address, length) =>
       this._toRegisters(await this._client.readHoldingRegisters(address, length), address)
   }
 
-  private _toBits = (result: ReadCoilResult, address: number): RegisterData[] =>
-    convertBitData(
-      result,
-      address,
-      this._appState.registerConfig.length,
-      this._clientState.scanningRegisters
-    )
+  /**
+   * One row per bit that was asked for.
+   *
+   * The length is the read's own, not `registerConfig.length`. modbus-serial
+   * answers a bit read with eight booleans per byte, so a read of three comes
+   * back as eight and the row count has to come from the request. The two are
+   * one number for a read out of the toolbar, where the only group is
+   * `[address, registerConfig.length]`. Every other caller passes its own.
+   */
+  private _toBits = (result: ReadCoilResult, address: number, length: number): RegisterData[] =>
+    convertBitData(result, address, length, this._clientState.scanningRegisters)
 
   private _toRegisters = (result: ReadRegisterResult, address: number): RegisterData[] =>
     convertRegisterData(
