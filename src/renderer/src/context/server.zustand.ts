@@ -29,9 +29,7 @@ import {
   ServerSerialConfig,
   SerialPortOptions,
   ModbusBaudRate,
-  defaultSerialPortOptions,
-  keepCorrupt,
-  repairPersisted
+  defaultSerialPortOptions
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
@@ -41,6 +39,7 @@ import {
   syncRegistersWithBackend
 } from './server.zustand.helpers'
 import { loadSerialPorts } from './serialPorts'
+import { repairPersistedStore } from './repairPersistedStore'
 
 const getDefaultServerRegisters = (): ServerRegisters => ({
   coils: {},
@@ -614,26 +613,16 @@ export const useServerZustand = create<
   )
 )
 
-/**
- * Keep the fields that parsed and default the rest, then say which went.
- *
- * Module scope, so it cannot report through notistack: see the same block in
- * client.zustand.ts for why. MessageReceiver tells the user once it is mounted.
- */
 const serverZustand = useServerZustand.getState()
 
-const repair = repairPersisted(
-  PersistedServerZustandSchema,
-  serverZustand,
-  useServerZustand.getInitialState(),
-  persistedVersion !== undefined && persistedVersion > CURRENT_SERVER_ZUSTAND_VERSION
-)
+// Keep the fields that parsed and default the rest, then say which went.
+const repair = repairPersistedStore(useServerZustand, PersistedServerZustandSchema, {
+  storageKey: SERVER_ZUSTAND_STORAGE_KEY,
+  persistedVersion,
+  currentVersion: CURRENT_SERVER_ZUSTAND_VERSION
+})
 
-if (repair.reset !== undefined) {
-  console.warn('server config repaired', repair.reset)
-  keepCorrupt(localStorage, SERVER_ZUSTAND_STORAGE_KEY)
-  useServerZustand.setState({ ...repair.state, configReset: repair.reset })
-}
+if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.reset })
 
 // Init server
 useServerZustand.getState().init()
