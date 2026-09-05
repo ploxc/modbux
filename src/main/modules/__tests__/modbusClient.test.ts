@@ -147,6 +147,28 @@ describe('ModbusClient', () => {
     )
   }
 
+  /**
+   * Hold every holding-register read open until the test lets it answer.
+   *
+   * A poll chain is only observable while its read is in flight: that is where
+   * a second `startPolling` finds it and where `stopPolling` leaves it holding
+   * no timer handle.
+   */
+  const gateTheReads = () => {
+    const gates: Array<() => void> = []
+    mockModbusRTU.readHoldingRegisters.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          gates.push(() => resolve({ data: [100], buffer: Buffer.from([0x00, 0x64]) }))
+        })
+    )
+    return {
+      resolveAll: (): void => {
+        gates.forEach((gate) => gate())
+      }
+    }
+  }
+
   describe('initial state', () => {
     it('starts in disconnected state', () => {
       expect(client.state.connectState).toBe('disconnected')
@@ -557,35 +579,52 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBeGreaterThanOrEqual(3)
     })
 
-    // ! Coverage-only: exercises early return in _poll when polling=false
-    it('exits _poll early when polling has been stopped mid-cycle', async () => {
+    it('arms no next read when polling has been stopped mid-cycle', async () => {
       await connectClient()
-
-      // Use a controllable promise so we can stop polling while _read is in progress
-      let resolveRead!: () => void
-      mockModbusRTU.readHoldingRegisters.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveRead = () => resolve({ data: [100], buffer: Buffer.from([0x00, 0x64]) })
-          })
-      )
+      const gates = gateTheReads()
 
       client.startPolling()
-      // _poll is now awaiting readHoldingRegisters
-
-      // Stop polling while the read is still in progress
-      client.stopPolling()
-
-      // Resolve the read — _poll continues and schedules a NEW setTimeout
-      resolveRead()
       await vi.advanceTimersByTimeAsync(0)
 
-      // Advance past pollRate so the next _poll fires
+      // The read is in flight, so the chain holds no timer handle to clear.
+      client.stopPolling()
+      gates.resolveAll()
       await vi.advanceTimersByTimeAsync(2000)
 
-      // The second _poll should have returned early (polling=false)
-      // readHoldingRegisters was only called once (from the first _poll)
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+    })
+
+    it('starts no second read when startPolling is called while a read is in flight', async () => {
+      await connectClient()
+      gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves one chain when a stop and a start land during a read', async () => {
+      await connectClient()
+      const gates = gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      // The first chain cannot take its read back, so both are in flight and
+      // what the second start must not leave behind is a second chain.
+      client.stopPolling()
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(2)
+
+      gates.resolveAll()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(3)
+
+      client.stopPolling()
     })
   })
 
