@@ -183,13 +183,14 @@ export class ModbusClient {
   }
   private _setDisconnected = (): void => {
     this._clientState.connectState = 'disconnected'
-    this.stopPolling()
     // A scan is a read loop like polling is, so it ends here too. The loops
     // break on the connect state as well, so what these two add is the flag
-    // reaching the dialogs in this `client_state` rather than at the end of the
-    // read in flight.
+    // reaching the dialogs in the `client_state` reporting the disconnect
+    // rather than at the end of the read in flight. They go before
+    // `stopPolling`, which sends one.
     this.stopScanningUnitIds()
     this.stopScanningRegisters()
+    this.stopPolling()
     this._sendClientState()
   }
 

@@ -69,7 +69,22 @@ const firstCallOrder = (
   return order
 }
 
-const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
+/**
+ * What the renderer would have received, in the order it would have received it.
+ *
+ * Electron structured-clones a payload on its way to a window, so the mock does
+ * too. Keeping the argument keeps a live reference, and `_sendClientState` sends
+ * `this._clientState` itself, so an assertion on an earlier send would read that
+ * state as it is now rather than as it was.
+ */
+let sentToWindows: any[][] = []
+
+const createMockWindows = (): Windows =>
+  ({
+    send: vi.fn((event: string, ...args: unknown[]) => {
+      sentToWindows.push([event, ...args.map((arg) => structuredClone(arg))])
+    })
+  }) as unknown as Windows
 
 describe('ModbusClient', () => {
   let client: ModbusClient
@@ -84,6 +99,7 @@ describe('ModbusClient', () => {
     ;(ModbusRTU as any).getPorts.mockReset()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ModbusRTU as any).getPorts.mockResolvedValue([])
+    sentToWindows = []
     windows = createMockWindows()
     appState = new AppState()
     client = new ModbusClient({ appState, windows })
@@ -101,8 +117,7 @@ describe('ModbusClient', () => {
     await client.connect()
   }
 
-  const getWindowCalls = (event: string) =>
-    (windows.send as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === event)
+  const getWindowCalls = (event: string) => sentToWindows.filter((call) => call[0] === event)
 
   const getLastClientState = () => {
     const calls = getWindowCalls('client_state')
@@ -1530,19 +1545,17 @@ describe('ModbusClient', () => {
       expect(lastId).toBe(1)
     })
 
-    // Read at the moment the disconnect returns, not after the scan. The
-    // dialogs read this flag to decide whether Close is live, and the loop sets
-    // it false on its own way out, so an assertion at the end passes either way.
-    it('a disconnect clears the unit id scan flag before the loop does', async () => {
+    // The dialogs read this flag out of `client_state` to decide whether Close
+    // is live, so the state reporting the disconnect is where it has to be
+    // false. The loop sets it false on its own way out, one read later.
+    it('the client_state reporting a disconnect says the unit id scan is over', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockResolvedValue({
         data: [0],
         buffer: Buffer.alloc(2)
       })
-      let scanningAtDisconnect: boolean | undefined
       mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
         await client.disconnect()
-        scanningAtDisconnect = client.state.scanningUnitIds
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1556,7 +1569,9 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
 
-      expect(scanningAtDisconnect).toBe(false)
+      const states = getWindowCalls('client_state').map((call) => call[1])
+      const firstDisconnected = states.find((state) => state.connectState === 'disconnected')
+      expect(firstDisconnected?.scanningUnitIds).toBe(false)
     })
 
     it('scans all four register types', async () => {
@@ -1873,16 +1888,14 @@ describe('ModbusClient', () => {
       expect(lastAddress).toBe(0)
     })
 
-    // Read at the moment the disconnect returns, not after the scan. The
-    // dialogs read this flag to decide whether Close is live, and the loop sets
-    // it false on its own way out, so an assertion at the end passes either way.
-    it('a disconnect clears the register scan flag before the loop does', async () => {
+    // The dialogs read this flag out of `client_state` to decide whether Close
+    // is live, so the state reporting the disconnect is where it has to be
+    // false. The loop sets it false on its own way out, one read later.
+    it('the client_state reporting a disconnect says the register scan is over', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
-      let scanningAtDisconnect: boolean | undefined
       mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
         await client.disconnect()
-        scanningAtDisconnect = client.state.scanningRegisters
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
 
@@ -1894,7 +1907,9 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
 
-      expect(scanningAtDisconnect).toBe(false)
+      const states = getWindowCalls('client_state').map((call) => call[1])
+      const firstDisconnected = states.find((state) => state.connectState === 'disconnected')
+      expect(firstDisconnected?.scanningRegisters).toBe(false)
     })
 
     it('handles read errors during register scan', async () => {
