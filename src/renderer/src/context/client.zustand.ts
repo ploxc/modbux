@@ -19,6 +19,7 @@ import {
   repairPersisted
 } from '@shared'
 import { useDataZustand } from './data.zustand'
+import { loadSerialPorts } from './serialPorts'
 import { onEvent } from '@renderer/events'
 
 /**
@@ -496,25 +497,18 @@ export const useClientZustand = create<
       serialPorts: [],
       serialPortsLoading: false,
       serialPortValidating: false,
-      refreshSerialPorts: async () => {
-        set((state) => {
-          state.serialPortsLoading = true
-        })
-        const ports = await window.api.listSerialPorts()
-        set((state) => {
-          state.serialPorts = ports
-          state.serialPortsLoading = false
-        })
-      },
+      refreshSerialPorts: () => loadSerialPorts(set),
       validateSerialPort: async (portPath) => {
         set((state) => {
           state.serialPortValidating = true
         })
-        const result = await window.api.validateSerialPort(portPath)
-        set((state) => {
-          state.serialPortValidating = false
-        })
-        return result
+        try {
+          return await window.api.validateSerialPort(portPath)
+        } finally {
+          set((state) => {
+            state.serialPortValidating = false
+          })
+        }
       }
     })),
     {

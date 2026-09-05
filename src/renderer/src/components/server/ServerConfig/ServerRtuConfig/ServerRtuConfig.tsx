@@ -26,8 +26,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 // COM Port Input (onBlur pattern)
 const ComInput = meme(() => {
   const comFromStore = useServerZustand((z) => z.serialConfig?.com ?? '')
-  const loading = useServerZustand((z) => z.serverSerialPortsLoading)
-  const ports = useServerZustand((z) => z.serverSerialPorts)
+  const loading = useServerZustand((z) => z.serialPortsLoading)
+  const ports = useServerZustand((z) => z.serialPorts)
   const [localCom, setLocalCom] = useState(comFromStore)
   const inputWidth = useComInputWidth(ports)
 
@@ -127,10 +127,10 @@ const RtuStatus = meme(() => {
 //
 // COM Port Actions
 const ComActions = meme(() => {
-  const loading = useServerZustand((z) => z.serverSerialPortsLoading)
+  const loading = useServerZustand((z) => z.serialPortsLoading)
 
   const onRefresh = (): void => {
-    useServerZustand.getState().refreshServerSerialPorts()
+    useServerZustand.getState().refreshSerialPorts()
   }
 
   return (
@@ -164,7 +164,7 @@ const ComActions = meme(() => {
 // COM Port (composite)
 const Com = meme((): JSX.Element => {
   useEffect(() => {
-    useServerZustand.getState().refreshServerSerialPorts()
+    useServerZustand.getState().refreshSerialPorts()
   }, [])
 
   return (

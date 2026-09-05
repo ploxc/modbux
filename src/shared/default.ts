@@ -3,8 +3,24 @@ import {
   ConnectionConfig,
   RegisterConfig,
   RegisterData,
-  RegisterDataWords
+  RegisterDataWords,
+  SerialPortOptions
 } from './types'
+
+/**
+ * What a serial port opens with until someone says otherwise.
+ *
+ * `ConnectionConfigRtuSchema` and `ServerSerialConfigSchema` are both
+ * `{ com: z.string(), options: SerialPortOptionsSchema }`, so the client's
+ * connection and the server's RTU mode start from these four values. Copied at
+ * each use, so a store writing one option leaves the other's alone.
+ */
+export const defaultSerialPortOptions: SerialPortOptions = {
+  baudRate: '9600',
+  dataBits: 8,
+  stopBits: 1,
+  parity: 'none'
+}
 
 export const defaultConnectionConfig: ConnectionConfig = {
   unitId: 1,
@@ -15,7 +31,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   },
   rtu: {
     com: 'COM3',
-    options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
+    options: { ...defaultSerialPortOptions }
   }
 }
 export const defaultRegisterConfig: RegisterConfig = {
