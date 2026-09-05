@@ -14,12 +14,11 @@ import {
   CURRENT_CLIENT_ZUSTAND_VERSION,
   migrateClientState,
   carryFormerClientState,
-  CLIENT_ZUSTAND_STORAGE_KEY,
-  keepCorrupt,
-  repairPersisted
+  CLIENT_ZUSTAND_STORAGE_KEY
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
+import { repairPersistedStore } from './repairPersistedStore'
 import { onEvent } from '@renderer/events'
 
 /**
@@ -530,31 +529,14 @@ export const useClientZustand = create<
 
 const clientZustand = useClientZustand.getState()
 
-/**
- * Keep the fields that parsed and default the rest, then say which went.
- *
- * This runs while the module graph is still evaluating. notistack assigns its
- * standalone enqueueSnackbar inside the SnackbarProvider constructor, and that
- * provider is built by createRoot().render() in main.tsx, so calling it here
- * throws out of module scope and nothing below this line ever runs: no init, no
- * event listeners, and no React render either. MessageReceiver reads the report
- * once it is mounted, where a provider exists to tell.
- *
- * The blob is copied rather than cleared, because a register mapping worth
- * hundreds of rows is worth having in a bug report even once it is unreadable.
- */
-const repair = repairPersisted(
-  PersistedClientZustandSchema,
-  clientZustand,
-  useClientZustand.getInitialState(),
-  persistedVersion !== undefined && persistedVersion > CURRENT_CLIENT_ZUSTAND_VERSION
-)
+// Keep the fields that parsed and default the rest, then say which went.
+const repair = repairPersistedStore(useClientZustand, PersistedClientZustandSchema, {
+  storageKey: CLIENT_ZUSTAND_STORAGE_KEY,
+  persistedVersion,
+  currentVersion: CURRENT_CLIENT_ZUSTAND_VERSION
+})
 
-if (repair.reset !== undefined) {
-  console.warn('client config repaired', repair.reset)
-  keepCorrupt(localStorage, CLIENT_ZUSTAND_STORAGE_KEY)
-  useClientZustand.setState({ ...repair.state, configReset: repair.reset })
-}
+if (repair) useClientZustand.setState({ ...repair.state, configReset: repair.reset })
 
 // Sync the main process state with the front end
 clientZustand.init()
