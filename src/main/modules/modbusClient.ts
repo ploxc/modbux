@@ -184,6 +184,12 @@ export class ModbusClient {
   private _setDisconnected = (): void => {
     this._clientState.connectState = 'disconnected'
     this.stopPolling()
+    // A scan is a read loop like polling is, so it ends here too. The loops
+    // break on the connect state as well, so what these two add is the flag
+    // reaching the dialogs in this `client_state` rather than at the end of the
+    // read in flight.
+    this.stopScanningUnitIds()
+    this.stopScanningRegisters()
     this._sendClientState()
   }
 
@@ -737,18 +743,29 @@ export class ModbusClient {
 
   //
   //
+  // Scanning
+  //
+  // Polling and scanning are two read loops over one port, so starting a scan
+  // stops the poll. That is a consequence of scanning rather than something the
+  // user asked for, so it is taken here and neither dialog does it.
+  /**
+   * Whether a scan may start, with the message a refused one gets.
+   *
+   * A scan does not go through `_read`, so it asks here what `_read` asks
+   * before it reads.
+   */
+  private _canScan = (): boolean => {
+    if (this._clientState.connectState === 'connected' && this._client.isOpen) return true
+    this._emitMessage({ message: 'Cannot scan, not connected', variant: 'warning', error: null })
+    return false
+  }
+
   //
   //
   // Scan Unit ID
   public scanUnitIds = async (params: ScanUnitIDParameters): Promise<void> => {
-    if (this._clientState.polling) {
-      this._emitMessage({
-        message: 'Cannot scan while polling is enabled',
-        variant: 'warning',
-        error: undefined
-      })
-      return
-    }
+    if (!this._canScan()) return
+    this.stopPolling()
 
     this._client.setTimeout(params.timeout)
     this._clientState.scanningUnitIds = true
@@ -759,7 +776,11 @@ export class ModbusClient {
     this._totalScans = (range[1] - range[0] + 1) * params.registerTypes.length
     this._scansDone = 0
 
-    for (let id = range[0]; id <= range[1]; id++) await this._scanUnitIds({ id, ...params })
+    for (let id = range[0]; id <= range[1]; id++) {
+      await this._scanUnitIds({ id, ...params })
+      if (!this._clientState.scanningUnitIds) break
+      if (this._clientState.connectState !== 'connected') break
+    }
 
     this._clientState.scanningUnitIds = false
     this._sendClientState()
@@ -869,14 +890,8 @@ export class ModbusClient {
   //
   // Scan Registers
   public scanRegisters = async (params: ScanRegistersParameters): Promise<void> => {
-    if (this._clientState.polling) {
-      this._emitMessage({
-        message: 'Cannot scan while polling is enabled',
-        variant: 'warning',
-        error: undefined
-      })
-      return
-    }
+    if (!this._canScan()) return
+    this.stopPolling()
 
     const { unitId } = this._appState.connectionConfig
     this._client.setID(unitId)
@@ -895,6 +910,7 @@ export class ModbusClient {
       await this._scanRegister(address, length)
       await this._sendScanProgress()
       if (!this._clientState.scanningRegisters) break
+      if (this._clientState.connectState !== 'connected') break
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
 

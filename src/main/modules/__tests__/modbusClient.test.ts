@@ -585,14 +585,55 @@ describe('ModbusClient', () => {
       expect(client.state.scanningRegisters).toBe(false)
     })
 
-    it('scanUnitIds emits warning when polling is active', async () => {
+    it('scanUnitIds stops polling and scans', async () => {
       await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({ data: [0], buffer: Buffer.alloc(2) })
 
       client.startPolling()
       await vi.advanceTimersByTimeAsync(100)
+      expect(client.state.polling).toBe(true)
 
+      const scanPromise = client.scanUnitIds({
+        range: [5, 6],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(client.state.polling).toBe(false)
+      const results = getWindowCalls('scan_unit_id_result')
+      expect(results.map((c) => c[1].id)).toEqual([5, 6])
+    })
+
+    it('scanRegisters stops polling and scans', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([0])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(100)
+      expect(client.state.polling).toBe(true)
+
+      // The poll reads address 0 for 10 registers, so a scan that starts at 50
+      // is the only thing that can have asked for these two.
+      const scanPromise = client.scanRegisters({
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      expect(client.state.polling).toBe(false)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(50, 10)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(60, 10)
+    })
+
+    it('scanUnitIds refuses while disconnected', async () => {
       await client.scanUnitIds({
-        range: [1, 5],
+        range: [1, 3],
         address: 0,
         length: 1,
         registerTypes: ['holding_registers'],
@@ -600,27 +641,44 @@ describe('ModbusClient', () => {
       })
 
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('Cannot scan while polling'))).toBe(true)
-
-      client.stopPolling()
+      expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(client.state.scanningUnitIds).toBe(false)
     })
 
-    it('scanRegisters emits warning when polling is active', async () => {
-      await connectClient()
-
-      client.startPolling()
-      await vi.advanceTimersByTimeAsync(100)
-
-      await client.scanRegisters({
-        addressRange: [0, 100],
-        length: 10,
-        timeout: 1000
-      })
+    it('scanRegisters refuses while disconnected', async () => {
+      await client.scanRegisters({ addressRange: [0, 99], length: 10, timeout: 1000 })
 
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('Cannot scan while polling'))).toBe(true)
+      expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(client.state.scanningRegisters).toBe(false)
+    })
 
-      client.stopPolling()
+    it('scanRegisters refuses while a reconnect is in flight', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      // The port object is still open here. What says no is the connect state.
+      fireClientEvent('close')
+      expect(client.state.connectState).toBe('connecting')
+
+      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+    })
+
+    it('scanRegisters refuses when the port closed under a connected state', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([0])
+      mockModbusRTU.isOpen = false
+
+      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
     })
   })
 
@@ -1416,6 +1474,91 @@ describe('ModbusClient', () => {
       expect(client.state.scanningUnitIds).toBe(false)
     })
 
+    // The test above reads the results, which stop arriving either way. This one
+    // reads the loop: `_scanUnitIds` sets the unit id before it reads the flag,
+    // so the last id handed to `setID` is the last iteration that ran.
+    it('leaves the remaining unit ids unvisited after a cancel', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+      mockModbusRTU.setID.mockClear()
+
+      const scanPromise = client.scanUnitIds({
+        range: [1, 100],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+
+      await vi.advanceTimersByTimeAsync(50)
+      client.stopScanningUnitIds()
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      const lastId = mockModbusRTU.setID.mock.calls.at(-1)?.[0]
+      expect(lastId).toBeLessThan(20)
+    })
+
+    it('stops a unit id scan when the connection drops mid-scan', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+      // 'error' rather than 'close': close schedules a reconnect, and a
+      // reconnect calls setID again, which is what this asserts on.
+      mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
+        fireClientEvent('error', new Error('socket hang up'))
+        throw new Error('Port Not Open')
+      })
+      mockModbusRTU.setID.mockClear()
+
+      const scanPromise = client.scanUnitIds({
+        range: [1, 100],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      const lastId = mockModbusRTU.setID.mock.calls.at(-1)?.[0]
+      expect(lastId).toBe(1)
+    })
+
+    // Read at the moment the disconnect returns, not after the scan. The
+    // dialogs read this flag to decide whether Close is live, and the loop sets
+    // it false on its own way out, so an assertion at the end passes either way.
+    it('a disconnect clears the unit id scan flag before the loop does', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+      let scanningAtDisconnect: boolean | undefined
+      mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
+        await client.disconnect()
+        scanningAtDisconnect = client.state.scanningUnitIds
+        return { data: [0], buffer: Buffer.alloc(2) }
+      })
+
+      const scanPromise = client.scanUnitIds({
+        range: [1, 100],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      expect(scanningAtDisconnect).toBe(false)
+    })
+
     it('scans all four register types', async () => {
       await connectClient()
       mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
@@ -1707,6 +1850,51 @@ describe('ModbusClient', () => {
       // Should have stopped early
       expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBeLessThan(100)
       expect(client.state.scanningRegisters).toBe(false)
+    })
+
+    it('stops a register scan when the connection drops mid-scan', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
+        fireClientEvent('error', new Error('socket hang up'))
+        throw new Error('Port Not Open')
+      })
+      mockModbusRTU.readHoldingRegisters.mockClear()
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 999],
+        length: 10,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      const lastAddress = mockModbusRTU.readHoldingRegisters.mock.calls.at(-1)?.[0]
+      expect(lastAddress).toBe(0)
+    })
+
+    // Read at the moment the disconnect returns, not after the scan. The
+    // dialogs read this flag to decide whether Close is live, and the loop sets
+    // it false on its own way out, so an assertion at the end passes either way.
+    it('a disconnect clears the register scan flag before the loop does', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      let scanningAtDisconnect: boolean | undefined
+      mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
+        await client.disconnect()
+        scanningAtDisconnect = client.state.scanningRegisters
+        return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
+      })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 999],
+        length: 10,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      expect(scanningAtDisconnect).toBe(false)
     })
 
     it('handles read errors during register scan', async () => {
