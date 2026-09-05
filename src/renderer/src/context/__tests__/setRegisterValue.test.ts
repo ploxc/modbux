@@ -6,18 +6,7 @@
 // that is gone.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAIN_SERVER_UUID, ServerRegister, ServerRegisters } from '@shared'
-
-const stubRenderer = (): void => {
-  const w = window as unknown as { electron: unknown; api: unknown }
-  w.electron = {
-    ipcRenderer: {
-      on: (): (() => void) => (): void => {},
-      send: (): void => {},
-      invoke: async (): Promise<undefined> => undefined
-    }
-  }
-  w.api = new Proxy({}, { get: () => (): Promise<undefined> => Promise.resolve(undefined) })
-}
+import { stubRenderer } from './stubRenderer'
 
 beforeEach(() => {
   vi.resetModules()

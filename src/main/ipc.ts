@@ -103,14 +103,20 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   // Connection config
   ipcHandle(
     'update_connection_config',
-    (_, config) => state.updateConnectionConfig(config),
+    (_, config) => {
+      state.updateConnectionConfig(config)
+      return true
+    },
     ConnectionConfigSchema.deepPartial()
   )
 
   // Register config
   ipcHandle(
     'update_register_config',
-    (_, config) => state.updateRegisterConfig(config),
+    (_, config) => {
+      state.updateRegisterConfig(config)
+      return true
+    },
     RegisterConfigSchema.deepPartial()
   )
 

@@ -52,6 +52,19 @@ export const flushRegisterMappingToMain = (): void => {
 }
 
 /**
+ * Drop the rows on screen, unless something is about to replace them.
+ *
+ * Address, length and type each change what a read asks for, so the rows from
+ * the last read answer a different question. Polling puts new ones there on its
+ * own, and so does read configuration.
+ */
+const clearRegisterDataWhenIdle = (): void => {
+  const { clientState, readConfiguration } = useClientZustand.getState()
+  if (clientState.polling || readConfiguration) return
+  useDataZustand.getState().setRegisterData([])
+}
+
+/**
  * Whether a `client_state` push has landed since the module was evaluated.
  *
  * `init` asks main what the client is doing, because main pushes on a change
@@ -189,178 +202,236 @@ export const useClientZustand = create<
       //
       //
       // Protocol
-      setProtocol: (protocol) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+      //
+      // Every setter below sends first and writes only what main took, so a
+      // payload the schemas refuse leaves both sides on the value they had.
+      // `1,5` in a mask field is `NaN`, `UnitIdSchema` refuses it, and a store
+      // that wrote it persisted `null` and lost the whole config on the next
+      // launch. A round trip is shorter than the gap between two keystrokes, so
+      // no field waits on the answer.
+      setProtocol: async (protocol) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
+        if (!(await window.api.updateConnectionConfig({ protocol }))) return
+
+        set((state) => {
           state.connectionConfig.protocol = protocol
-          window.api.updateConnectionConfig({ protocol })
-        }),
+        })
+      },
       //
       //
       // TCP
-      setPort: (port) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+      setPort: async (port) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
-          const newPort = Number(port)
+        const newPort = Number(port)
+        if (!(await window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })))
+          return
+
+        set((state) => {
           state.connectionConfig.tcp.options.port = newPort
-          window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })
-        }),
-      setHost: (host, valid) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+        })
+      },
+      setHost: async (host, valid) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
-          state.valid.host = !!valid
+        // The field reads its text from the store, so an invalid host is kept
+        // here and never sent. What the boundary never sees needs no answer.
+        if (!valid) {
+          set((state) => {
+            state.valid.host = false
+            state.connectionConfig.tcp.host = host
+          })
+          return
+        }
+
+        if (!(await window.api.updateConnectionConfig({ tcp: { host } }))) return
+
+        set((state) => {
+          state.valid.host = true
           state.connectionConfig.tcp.host = host
-          if (!valid) return
-          window.api.updateConnectionConfig({ tcp: { host } })
-        }),
+        })
+      },
       //
       //
       // RTU
-      setCom: (com, valid) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+      setCom: async (com, valid) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
+        if (!(await window.api.updateConnectionConfig({ rtu: { com } }))) return
+
+        set((state) => {
           state.valid.com = !!valid
           state.connectionConfig.rtu.com = com
-          window.api.updateConnectionConfig({ rtu: { com } })
-        }),
-      setBaudRate: (baudRate) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+        })
+      },
+      setBaudRate: async (baudRate) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
+        if (!(await window.api.updateConnectionConfig({ rtu: { options: { baudRate } } }))) return
+
+        set((state) => {
           state.connectionConfig.rtu.options.baudRate = baudRate
-          window.api.updateConnectionConfig({ rtu: { options: { baudRate } } })
-        }),
-      setParity: (parity) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+        })
+      },
+      setParity: async (parity) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
+        if (!(await window.api.updateConnectionConfig({ rtu: { options: { parity } } }))) return
+
+        set((state) => {
           state.connectionConfig.rtu.options.parity = parity
-          window.api.updateConnectionConfig({ rtu: { options: { parity } } })
-        }),
-      setDataBits: (dataBits) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+        })
+      },
+      setDataBits: async (dataBits) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
-          const newDataBits = Number(dataBits)
+        const newDataBits = Number(dataBits)
+        if (
+          !(await window.api.updateConnectionConfig({
+            rtu: { options: { dataBits: newDataBits } }
+          }))
+        )
+          return
+
+        set((state) => {
           state.connectionConfig.rtu.options.dataBits = newDataBits
-          window.api.updateConnectionConfig({ rtu: { options: { dataBits: newDataBits } } })
-        }),
-      setStopBits: (stopBits) =>
-        set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-          if (currentState.clientState.connectState !== 'disconnected') return
+        })
+      },
+      setStopBits: async (stopBits) => {
+        const currentState = get()
+        if (!currentState.ready) return
+        if (currentState.clientState.connectState !== 'disconnected') return
 
-          const newStopBits = Number(stopBits)
+        const newStopBits = Number(stopBits)
+        if (
+          !(await window.api.updateConnectionConfig({
+            rtu: { options: { stopBits: newStopBits } }
+          }))
+        )
+          return
+
+        set((state) => {
           state.connectionConfig.rtu.options.stopBits = newStopBits
-          window.api.updateConnectionConfig({ rtu: { options: { stopBits: newStopBits } } })
-        }),
+        })
+      },
       //
       //
       // Layout configuration settings
-      setAddressBase: (addressBase) =>
+      setAddressBase: async (addressBase) => {
+        if (!get().ready) return
+        if (!(await window.api.updateRegisterConfig({ addressBase }))) return
+
         set((state) => {
-          if (!get().ready) return
           state.registerConfig.addressBase = addressBase
-          window.api.updateRegisterConfig({ addressBase })
-        }),
-      setShow64BitValues: (show64BitValues) =>
+        })
+      },
+      setShow64BitValues: async (show64BitValues) => {
+        if (!get().ready) return
+        if (!(await window.api.updateRegisterConfig({ show64BitValues }))) return
+
         set((state) => {
-          if (!get().ready) return
           state.registerConfig.show64BitValues = show64BitValues
-          window.api.updateRegisterConfig({ show64BitValues })
-        }),
-      setAdvancedMode: (advancedMode) =>
+        })
+      },
+      setAdvancedMode: async (advancedMode) => {
+        if (!get().ready) return
+        if (!(await window.api.updateRegisterConfig({ advancedMode }))) return
+
         set((state) => {
-          if (!get().ready) return
           state.registerConfig.advancedMode = advancedMode
-          window.api.updateRegisterConfig({ advancedMode })
-        }),
+        })
+      },
       // Addressing
-      setUnitId: (unitId) =>
+      setUnitId: async (unitId) => {
+        if (!get().ready) return
+
+        const newUnitId = Number(unitId)
+        if (!(await window.api.updateConnectionConfig({ unitId: newUnitId }))) return
+
         set((state) => {
-          if (!get().ready) return
-          const newUnitId = Number(unitId)
           state.connectionConfig.unitId = newUnitId
-          window.api.updateConnectionConfig({ unitId: newUnitId })
-        }),
-      setAddress: (address) =>
+        })
+      },
+      setAddress: async (address) => {
+        const currentState = get()
+        if (!currentState.ready) return
+
+        const newAddress = Number(address)
+        if (newAddress === currentState.registerConfig.address) return
+
+        if (!(await window.api.updateRegisterConfig({ address: newAddress }))) return
+
         set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-
-          const newAddress = Number(address)
-          if (newAddress === currentState.registerConfig.address) return
-
           state.registerConfig.address = newAddress
-          window.api.updateRegisterConfig({ address: newAddress })
+        })
+        clearRegisterDataWhenIdle()
+      },
+      setLength: async (length, valid) => {
+        const currentState = get()
+        if (!currentState.ready) return
 
-          // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.readConfiguration)
-            useDataZustand.getState().setRegisterData([])
-        }),
-      setLength: (length, valid) =>
+        const newLength = Number(length)
+
+        // The field reads its length from the store, so an empty or zero one is
+        // kept here and never sent.
+        if (!valid) {
+          set((state) => {
+            state.valid.lenght = false
+            state.registerConfig.length = newLength
+          })
+          return
+        }
+
+        if (!(await window.api.updateRegisterConfig({ length: newLength }))) return
+
         set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-
-          state.valid.lenght = !!valid
-          const newLength = Number(length)
+          state.valid.lenght = true
           state.registerConfig.length = newLength
-          if (!valid) return
-          window.api.updateRegisterConfig({ length: newLength })
+        })
+        clearRegisterDataWhenIdle()
+      },
+      setType: async (type) => {
+        if (!get().ready) return
+        if (!(await window.api.updateRegisterConfig({ type }))) return
 
-          // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.readConfiguration)
-            useDataZustand.getState().setRegisterData([])
-        }),
-      setType: (type) =>
         set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
-
           state.registerConfig.type = type
-          window.api.updateRegisterConfig({ type })
+        })
+        clearRegisterDataWhenIdle()
+      },
+      setLittleEndian: async (littleEndian) => {
+        if (!get().ready) return
+        if (!(await window.api.updateRegisterConfig({ littleEndian }))) return
 
-          // Reset registerdata when not polling and not in readConfiguration mode
-          if (!currentState.clientState.polling && !currentState.readConfiguration)
-            useDataZustand.getState().setRegisterData([])
-        }),
-      setLittleEndian: (littleEndian) =>
         set((state) => {
-          const currentState = get()
-          if (!currentState.ready) return
           state.registerConfig.littleEndian = littleEndian
-          window.api.updateRegisterConfig({ littleEndian })
+        })
 
-          // The rows on screen were read in the other word order, and the
-          // conversion happens where the reading does, so they stay that way
-          // until the next read. Ask for one, unless something else is about
-          // to: polling reads on its own, and a scan is filling the list.
-          const { connectState, polling, scanningRegisters } = currentState.clientState
-          const hasRows = useDataZustand.getState().registerData.length > 0
-          if (connectState === 'connected' && !polling && !scanningRegisters && hasRows) {
-            window.api.read()
-          }
-        }),
+        // The rows on screen were read in the other word order, and the
+        // conversion happens where the reading does, so they stay that way
+        // until the next read. Ask for one, unless something else is about
+        // to: polling reads on its own, and a scan is filling the list.
+        const { connectState, polling, scanningRegisters } = get().clientState
+        const hasRows = useDataZustand.getState().registerData.length > 0
+        if (connectState === 'connected' && !polling && !scanningRegisters && hasRows) {
+          window.api.read()
+        }
+      },
       setReadConfiguration: (readConfiguration) =>
         set((state) => {
           if (!get().ready) return
@@ -368,32 +439,34 @@ export const useClientZustand = create<
           window.api.setReadConfiguration(readConfiguration)
         }),
       // Reading
-      setPollRate: (pollRate) =>
+      setPollRate: async (pollRate) => {
+        if (!get().ready) return
+
+        if (pollRate % 1000 !== 0 || pollRate < 1000 || pollRate > 10000) {
+          console.error('Invalid poll rate. Must be a multiple of 1000 and between 1000 and 10000.')
+          return
+        }
+
+        if (!(await window.api.updateRegisterConfig({ pollRate }))) return
+
         set((state) => {
-          if (!get().ready) return
-
-          if (pollRate % 1000 !== 0 || pollRate < 1000 || pollRate > 10000) {
-            console.error(
-              'Invalid poll rate. Must be a multiple of 1000 and between 1000 and 10000.'
-            )
-            return
-          }
-
           state.registerConfig.pollRate = pollRate
-          window.api.updateRegisterConfig({ pollRate })
-        }),
-      setTimeout: (timeout) =>
+        })
+      },
+      setTimeout: async (timeout) => {
+        if (!get().ready) return
+
+        if (timeout % 1000 !== 0 || timeout < 1000 || timeout > 10000) {
+          console.error('Invalid timeout. Must be a multiple of 1000 and between 1000 and 10000.')
+          return
+        }
+
+        if (!(await window.api.updateRegisterConfig({ timeout }))) return
+
         set((state) => {
-          if (!get().ready) return
-
-          if (timeout % 1000 !== 0 || timeout < 1000 || timeout > 10000) {
-            console.error('Invalid timeout. Must be a multiple of 1000 and between 1000 and 10000.')
-            return
-          }
-
           state.registerConfig.timeout = timeout
-          window.api.updateRegisterConfig({ timeout })
-        }),
+        })
+      },
       // Transaction
       lastSuccessfulTransactionMillis: null,
       setLastSuccessfulTransactionMillis: (value) =>

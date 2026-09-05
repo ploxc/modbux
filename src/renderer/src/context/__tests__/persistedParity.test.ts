@@ -5,18 +5,7 @@
 // such a blob, because the repair is only reached if `migrate` is wired to call
 // it and the version constant has moved past the blob's own.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const stubRenderer = (): void => {
-  const w = window as unknown as { electron: unknown; api: unknown }
-  w.electron = {
-    ipcRenderer: {
-      on: (): (() => void) => (): void => {},
-      send: (): void => {},
-      invoke: async (): Promise<undefined> => undefined
-    }
-  }
-  w.api = new Proxy({}, { get: () => (): Promise<undefined> => Promise.resolve(undefined) })
-}
+import { stubRenderer } from './stubRenderer'
 
 beforeEach(() => {
   vi.resetModules()

@@ -13,7 +13,7 @@ vi.hoisted(() => {
   w.api = new Proxy({}, { get: () => () => Promise.resolve(undefined) })
 })
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions/MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions/MenuConnectionOptions'
@@ -28,7 +28,9 @@ const seed = (partial: Parameters<typeof useClientZustand.setState>[0]): void =>
 }
 
 beforeEach(() => {
-  window.api = { updateConnectionConfig: vi.fn() } as never
+  // The setter writes what main accepted, so a stub answering `undefined`
+  // refuses every payload and the store never moves.
+  window.api = { updateConnectionConfig: vi.fn(() => Promise.resolve(true)) } as never
   useClientZustand.setState({
     ready: true,
     clientState: {
@@ -99,7 +101,7 @@ describe('MenuConnectionOptions', () => {
     expect(container.querySelectorAll('hr')).toHaveLength(0)
   })
 
-  it('toggles the protocol between TCP and RTU-over-TCP via the checkbox', () => {
+  it('toggles the protocol between TCP and RTU-over-TCP via the checkbox', async () => {
     seed({
       connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
     })
@@ -107,11 +109,15 @@ describe('MenuConnectionOptions', () => {
     render(<MenuConnectionOptions />)
 
     fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
+    await waitFor(() =>
+      expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
+    )
     expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ protocol: 'ModbusRtuOverTcp' })
 
     fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusTcp')
+    await waitFor(() =>
+      expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusTcp')
+    )
   })
 
   it('disables the checkbox while not disconnected', () => {
