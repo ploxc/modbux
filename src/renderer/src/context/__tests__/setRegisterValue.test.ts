@@ -17,7 +17,8 @@ beforeEach(() => {
 /**
  * The main server's default unit, or a failure saying it is not there.
  *
- * `clean` fills every unit id, so a miss here means the store was not seeded.
+ * A unit is made when something is written into it, so a miss here means the
+ * store was not seeded.
  */
 const unit = (
   registers: Record<string, Record<string, ServerRegisters | undefined> | undefined>
@@ -46,8 +47,11 @@ const entry = (address: number, value: number): ServerRegister[string] => ({
 const seeded = async (): Promise<typeof import('../server.zustand')> => {
   const store = await import('../server.zustand')
   store.useServerZustand.getState().clean(MAIN_SERVER_UUID)
-  store.useServerZustand.setState((state) => {
-    unit(state.serverRegisters).holding_registers[10] = entry(10, 1)
+  store.useServerZustand.getState().replaceServerRegisters('0', {
+    coils: {},
+    discrete_inputs: {},
+    input_registers: {},
+    holding_registers: { 10: entry(10, 1) }
   })
   return store
 }
