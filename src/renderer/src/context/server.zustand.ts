@@ -226,12 +226,18 @@ export const useServerZustand = create<
             })
           }
 
+          // Before anything is encoded: main keeps the byte order per server and
+          // reads it where it builds a register.
+          await window.api.setServerEndianness({
+            uuid: syncUuid,
+            littleEndian: !!state.littleEndian[syncUuid]
+          })
+
           const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
           for (const unitId of unitIdsWithData) {
             await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
-            const littleEndian = !!state.littleEndian[syncUuid]
             const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
-              await syncRegistersWithBackend(serverRegisters, unitId, syncUuid, littleEndian)
+              await syncRegistersWithBackend(serverRegisters, unitId, syncUuid)
 
             const inputUsedAddresses = getUsedAddresses(inputRegisterRegisterValues)
             const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
@@ -268,13 +274,17 @@ export const useServerZustand = create<
               })
             }
 
+            await window.api.setServerEndianness({
+              uuid: syncUuid,
+              littleEndian: !!state.littleEndian[syncUuid]
+            })
+
             const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
 
             for (const unitId of unitIdsWithData) {
               await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
-              const littleEndian = !!state.littleEndian[syncUuid]
               const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
-                await syncRegistersWithBackend(serverRegisters, unitId, syncUuid, littleEndian)
+                await syncRegistersWithBackend(serverRegisters, unitId, syncUuid)
 
               const inputUsedAddresses = getUsedAddresses(inputRegisterRegisterValues)
               const holdingUsedAddresses = getUsedAddresses(holdingRegisterRegisterValues)
@@ -393,8 +403,6 @@ export const useServerZustand = create<
       },
       addRegister: async (addParams) => {
         const { uuid, unitId, params } = addParams
-        // Get littleEndian from global state
-        const littleEndian = get().littleEndian[uuid] ?? false
 
         set((state) => {
           const registers = unitRegisters(state, uuid, unitId)
@@ -404,13 +412,7 @@ export const useServerZustand = create<
           )
         })
 
-        // Send to backend with littleEndian from global state
-        await window.api.addReplaceServerRegister({
-          uuid,
-          unitId,
-          params,
-          littleEndian
-        })
+        await window.api.addReplaceServerRegister({ uuid, unitId, params })
       },
       removeRegister: (removeParams) => {
         const { uuid, unitId, registerType, address } = removeParams
@@ -496,13 +498,17 @@ export const useServerZustand = create<
           state.littleEndian[uuid] = littleEndian
         })
 
+        // Told before the registers are sent, because main encodes them with
+        // the order it holds at that moment.
+        await window.api.setServerEndianness({ uuid, littleEndian })
+
         const serverRegisters = currentState.serverRegisters[uuid]
         if (!serverRegisters) return
 
         const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
 
         for (const unitId of unitIdsWithData) {
-          await syncRegistersWithBackend(serverRegisters, unitId, uuid, littleEndian)
+          await syncRegistersWithBackend(serverRegisters, unitId, uuid)
         }
       },
       replaceServerRegisters: (unitId, registers) => {

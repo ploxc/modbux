@@ -8,6 +8,7 @@ import type {
   SetBooleanParameters,
   SyncBoolsParameters,
   SyncRegisterValueParams,
+  ServerEndianness,
   WriteParameters,
   RegisterMapping,
   ResetRegistersParams,
@@ -63,6 +64,7 @@ export const IPC_CHANNELS = [
   'add_replace_server_register',
   'remove_server_register',
   'sync_server_register',
+  'set_server_endianness',
   'reset_registers',
   'set_bool',
   'reset_bools',
@@ -208,6 +210,12 @@ export interface IpcHandlerSpec {
   /** Synchronize server registers */
   ['sync_server_register']: {
     args: [SyncRegisterValueParams]
+    return: void
+  }
+
+  /** Set the byte order a server encodes its registers in */
+  ['set_server_endianness']: {
+    args: [ServerEndianness]
     return: void
   }
 

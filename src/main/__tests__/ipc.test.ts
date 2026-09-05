@@ -201,7 +201,6 @@ describe('write-path schemas', () => {
     const result = AddRegisterParamsSchema.safeParse({
       uuid: 'server-1',
       unitId: '1',
-      littleEndian: false,
       params: { address: 0, registerType: 'holding_registers' }
     })
     expect(result.success).toBe(false)
@@ -273,8 +272,7 @@ describe('server register schemas', () => {
     const result = SyncRegisterValueParamsSchema.safeParse({
       uuid: 'server-1',
       unitId: '1',
-      registerValues: [],
-      littleEndian: false
+      registerValues: []
     })
     expect(result.success).toBe(true)
   })
@@ -283,8 +281,7 @@ describe('server register schemas', () => {
     const result = SyncRegisterValueParamsSchema.safeParse({
       uuid: 'server-1',
       unitId: '1',
-      registerValues: [{ registerType: 'holding_registers', dataType: 'uint16', value: 1 }],
-      littleEndian: false
+      registerValues: [{ registerType: 'holding_registers', dataType: 'uint16', value: 1 }]
     })
     expect(result.success).toBe(false)
   })
@@ -397,7 +394,6 @@ describe('each guarded channel got its own schema', () => {
     add_replace_server_register: {
       uuid: 'server-1',
       unitId: '1',
-      littleEndian: false,
       params: {
         address: 0,
         registerType: 'holding_registers',
@@ -416,8 +412,7 @@ describe('each guarded channel got its own schema', () => {
     sync_server_register: {
       uuid: 'server-1',
       unitId: '1',
-      registerValues: [],
-      littleEndian: false
+      registerValues: []
     },
     reset_registers: { uuid: 'server-1', unitId: '1', registerType: 'holding_registers' },
     set_bool: { uuid: 'server-1', unitId: '1', registerType: 'coils', address: 0, state: true },

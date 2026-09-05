@@ -136,8 +136,7 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>
 export const AddRegisterParamsSchema = z.object({
   uuid: z.string().min(1),
   unitId: UnitIdStringSchema,
-  params: RegisterParamsSchema,
-  littleEndian: z.boolean()
+  params: RegisterParamsSchema
 })
 export type AddRegisterParams = z.infer<typeof AddRegisterParamsSchema>
 export const RemoveRegisterParamsSchema = z.object({
@@ -155,10 +154,24 @@ export type RemoveRegisterParams = z.infer<typeof RemoveRegisterParamsSchema>
 export const SyncRegisterValueParamsSchema = z.object({
   uuid: z.string().min(1),
   unitId: UnitIdStringSchema,
-  registerValues: z.array(RegisterParamsSchema),
+  registerValues: z.array(RegisterParamsSchema)
+})
+
+export type SyncRegisterValueParams = z.infer<typeof SyncRegisterValueParamsSchema>
+
+/**
+ * The byte order a server encodes its registers in.
+ *
+ * It belongs to the server rather than to a register: the v1 to v2 migration
+ * took it off each register, and every write that carried it afterwards read
+ * the same field of the same server. The server keeps it, and a write says
+ * which registers to encode rather than how.
+ */
+export const ServerEndiannessSchema = z.object({
+  uuid: z.string().min(1),
   littleEndian: z.boolean()
 })
-export type SyncRegisterValueParams = z.infer<typeof SyncRegisterValueParamsSchema>
+export type ServerEndianness = z.infer<typeof ServerEndiannessSchema>
 
 export const ResetRegistersParamsSchema = z.object({
   uuid: z.string().min(1),
