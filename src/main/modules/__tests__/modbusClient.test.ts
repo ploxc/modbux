@@ -1498,30 +1498,31 @@ describe('ModbusClient', () => {
       expect(results[0]?.[1].registerTypes).not.toContain('coils')
     })
 
-    // ! Coverage-only: exercises scan-stop check after coils
-    it('stops scan after coils check when scanning is cancelled', async () => {
+    // The loop reads the flag once, at the top, so a cancel during any register
+    // type ends the unit before the next one.
+    it('reads no further register type for a unit cancelled mid-list', async () => {
       await connectClient()
-      mockModbusRTU.readCoils.mockImplementation(async () => {
+      mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
+      mockModbusRTU.readDiscreteInputs.mockImplementation(async () => {
         client.stopScanningUnitIds()
         return { data: [true], buffer: Buffer.from([0x01]) }
       })
-      mockModbusRTU.readDiscreteInputs.mockResolvedValue({
-        data: [true],
-        buffer: Buffer.from([0x01])
-      })
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({ data: [0], buffer: Buffer.alloc(2) })
+      mockModbusRTU.readInputRegisters.mockResolvedValue({ data: [0], buffer: Buffer.alloc(2) })
 
       const scanPromise = client.scanUnitIds({
         range: [1, 5],
         address: 0,
         length: 1,
-        registerTypes: ['coils', 'discrete_inputs'],
+        registerTypes: ['coils', 'discrete_inputs', 'holding_registers', 'input_registers'],
         timeout: 1000
       })
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
 
-      // discrete_inputs should NOT have been called since scan stopped after coils
-      expect(mockModbusRTU.readDiscreteInputs).not.toHaveBeenCalled()
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(mockModbusRTU.readInputRegisters).not.toHaveBeenCalled()
+      expect(getWindowCalls('scan_unit_id_result').length).toBe(0)
     })
 
     // ! Coverage-only: exercises error path for discrete_inputs in scanUnitIds
@@ -1547,33 +1548,6 @@ describe('ModbusClient', () => {
       expect(results.length).toBe(1)
       expect(results[0]?.[1].errorMessage.discrete_inputs).toBe('discrete failed')
       expect(results[0]?.[1].registerTypes).not.toContain('discrete_inputs')
-    })
-
-    // ! Coverage-only: exercises scan-stop check after discrete_inputs
-    it('stops scan after discrete_inputs check when scanning is cancelled', async () => {
-      await connectClient()
-      mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
-      mockModbusRTU.readDiscreteInputs.mockImplementation(async () => {
-        client.stopScanningUnitIds()
-        return { data: [true], buffer: Buffer.from([0x01]) }
-      })
-      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
-      })
-
-      const scanPromise = client.scanUnitIds({
-        range: [1, 5],
-        address: 0,
-        length: 1,
-        registerTypes: ['coils', 'discrete_inputs', 'holding_registers'],
-        timeout: 1000
-      })
-      await vi.advanceTimersByTimeAsync(5000)
-      await scanPromise
-
-      // holding_registers should NOT have been called since scan stopped after discrete_inputs
-      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
     })
 
     it('stops mid-scan when stopScanningUnitIds is called', async () => {
@@ -1742,7 +1716,7 @@ describe('ModbusClient', () => {
       expect(progress.at(-1)?.[1]).toBe(100)
     })
 
-    // ! Coverage-only: exercises FALSE branch of registerTypes.includes('holding_registers')
+    // The loop visits what was asked for, so a type left out is never read.
     it('skips holding_registers when not in registerTypes', async () => {
       await connectClient()
       mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
@@ -1790,35 +1764,6 @@ describe('ModbusClient', () => {
       expect(results[0]?.[1].registerTypes).not.toContain('holding_registers')
     })
 
-    // ! Coverage-only: exercises scan-stop check after holding_registers
-    it('stops scan after holding_registers check when scanning is cancelled', async () => {
-      await connectClient()
-      mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
-      mockModbusRTU.readDiscreteInputs.mockResolvedValue({
-        data: [true],
-        buffer: Buffer.from([0x01])
-      })
-      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        // Stop scanning right after holding_registers completes
-        client.stopScanningUnitIds()
-        return { data: [0], buffer: Buffer.alloc(2) }
-      })
-      mockModbusRTU.readInputRegisters.mockResolvedValue({ data: [0], buffer: Buffer.alloc(2) })
-
-      const scanPromise = client.scanUnitIds({
-        range: [1, 5],
-        address: 0,
-        length: 1,
-        registerTypes: ['coils', 'discrete_inputs', 'holding_registers', 'input_registers'],
-        timeout: 1000
-      })
-      await vi.advanceTimersByTimeAsync(5000)
-      await scanPromise
-
-      // input_registers should NOT have been called since scan stopped after holding_registers
-      expect(mockModbusRTU.readInputRegisters).not.toHaveBeenCalled()
-    })
-
     // ! Coverage-only: exercises error path for input_registers in scanUnitIds
     it('records error for input_registers read failure', async () => {
       await connectClient()
@@ -1843,40 +1788,6 @@ describe('ModbusClient', () => {
       expect(results[0]?.[1].errorMessage.input_registers).toBe('input reg failed')
       expect(results[0]?.[1].registerTypes).toContain('holding_registers')
       expect(results[0]?.[1].registerTypes).not.toContain('input_registers')
-    })
-
-    // ! Coverage-only: exercises scan-stop check after input_registers
-    it('stops scan after input_registers check when scanning is cancelled', async () => {
-      await connectClient()
-      // All register reads succeed but are slow enough to allow cancellation
-      mockModbusRTU.readCoils.mockResolvedValue({ data: [true], buffer: Buffer.from([0x01]) })
-      mockModbusRTU.readDiscreteInputs.mockResolvedValue({
-        data: [true],
-        buffer: Buffer.from([0x01])
-      })
-      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        // Stop scanning right after holding_registers completes
-        client.stopScanningUnitIds()
-        return { data: [0], buffer: Buffer.alloc(2) }
-      })
-      mockModbusRTU.readInputRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
-      })
-
-      const scanPromise = client.scanUnitIds({
-        range: [1, 5],
-        address: 0,
-        length: 1,
-        registerTypes: ['coils', 'discrete_inputs', 'holding_registers', 'input_registers'],
-        timeout: 1000
-      })
-      await vi.advanceTimersByTimeAsync(5000)
-      await scanPromise
-
-      // Should have stopped after first unit's holding_registers (before input_registers)
-      const results = getWindowCalls('scan_unit_id_result')
-      expect(results.length).toBe(0)
     })
   })
 
