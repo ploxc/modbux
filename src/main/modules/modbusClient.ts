@@ -21,12 +21,18 @@ import {
   Windows,
   WriteParameters
 } from '@shared'
-import { WriteCoilResult, WriteMultipleResult, WriteRegisterResult } from 'modbus-serial/ModbusRTU'
+import {
+  ReadCoilResult,
+  ReadRegisterResult,
+  WriteCoilResult,
+  WriteMultipleResult,
+  WriteRegisterResult
+} from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
 
-type TryReadFn = (type: RegisterType, address: number, length: number) => Promise<RegisterData[]>
+type ReadRegisters = (address: number, length: number) => Promise<RegisterData[]>
 
 type ScanUnitIdFn = ({
   id,
@@ -428,7 +434,7 @@ export class ModbusClient {
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
       try {
-        const rows = await this._tryRead(type, groupAddress, groupLength)
+        const rows = await this._readers[type](groupAddress, groupLength)
         rows.forEach((row) => {
           row.groupIndex = groupIndex
         })
@@ -582,75 +588,40 @@ export class ModbusClient {
   //
   //
   // Reading
-  private _tryRead: TryReadFn = async (type, address, length) => {
-    let data: RegisterData[] = []
-
-    switch (type) {
-      case 'coils':
-        data = await this._readCoils(address, length)
-        break
-      case 'discrete_inputs':
-        data = await this._readDiscreteInputs(address, length)
-        break
-      case 'input_registers':
-        data = await this._readInputRegisters(address, length)
-        break
-      case 'holding_registers':
-        data = await this._readHoldingRegisters(address, length)
-        break
-    }
-
-    return data
+  /**
+   * The read each register type asks for, and the rows behind its reply.
+   *
+   * `_read` and `_scanRegister` take the rows. The unit id scan takes the same
+   * four functions and reads only whether the call threw. Each entry reaches
+   * `this._client` when it runs rather than closing over it, because a
+   * disconnect that times out replaces the client.
+   */
+  private _readers: Record<RegisterType, ReadRegisters> = {
+    coils: async (address, length) =>
+      this._toBits(await this._client.readCoils(address, length), address),
+    discrete_inputs: async (address, length) =>
+      this._toBits(await this._client.readDiscreteInputs(address, length), address),
+    input_registers: async (address, length) =>
+      this._toRegisters(await this._client.readInputRegisters(address, length), address),
+    holding_registers: async (address, length) =>
+      this._toRegisters(await this._client.readHoldingRegisters(address, length), address)
   }
 
-  private _readCoils = async (address: number, length: number): Promise<RegisterData[]> => {
-    const result = await this._client.readCoils(address, length)
-    return convertBitData(
+  private _toBits = (result: ReadCoilResult, address: number): RegisterData[] =>
+    convertBitData(
       result,
       address,
       this._appState.registerConfig.length,
       this._clientState.scanningRegisters
     )
-  }
 
-  private _readDiscreteInputs = async (
-    address: number,
-    length: number
-  ): Promise<RegisterData[]> => {
-    const result = await this._client.readDiscreteInputs(address, length)
-    return convertBitData(
-      result,
-      address,
-      this._appState.registerConfig.length,
-      this._clientState.scanningRegisters
-    )
-  }
-
-  private _readInputRegisters = async (
-    address: number,
-    length: number
-  ): Promise<RegisterData[]> => {
-    const result = await this._client.readInputRegisters(address, length)
-    return convertRegisterData(
+  private _toRegisters = (result: ReadRegisterResult, address: number): RegisterData[] =>
+    convertRegisterData(
       result,
       address,
       this._appState.registerConfig.littleEndian,
       this._clientState.scanningRegisters
     )
-  }
-
-  private _readHoldingRegisters = async (
-    address: number,
-    length: number
-  ): Promise<RegisterData[]> => {
-    const result = await this._client.readHoldingRegisters(address, length)
-    return convertRegisterData(
-      result,
-      address,
-      this._appState.registerConfig.littleEndian,
-      this._clientState.scanningRegisters
-    )
-  }
 
   //
   //
@@ -858,70 +829,20 @@ export class ModbusClient {
       }
     }
 
-    if (!this._clientState.scanningUnitIds) {
-      this._sendClientState()
-      return
-    }
-
-    if (registerTypes.includes('coils')) {
-      // Coils
-      try {
-        await this._client.readCoils(address, length)
-        result.registerTypes.push('coils')
-      } catch (error) {
-        result.errorMessage['coils'] = (error as Error).message
-        if (isModbusException(error)) result.refusedRegisterTypes.push('coils')
+    for (const registerType of registerTypes) {
+      if (!this._clientState.scanningUnitIds) {
+        this._sendClientState()
+        return
       }
-      await this._sendScanProgress()
-    }
 
-    if (!this._clientState.scanningUnitIds) {
-      this._sendClientState()
-      return
-    }
-
-    // Discrete Inputs
-    if (registerTypes.includes('discrete_inputs')) {
       try {
-        await this._client.readDiscreteInputs(address, length)
-        result.registerTypes.push('discrete_inputs')
+        await this._readers[registerType](address, length)
+        result.registerTypes.push(registerType)
       } catch (error) {
-        result.errorMessage['discrete_inputs'] = (error as Error).message
-        if (isModbusException(error)) result.refusedRegisterTypes.push('discrete_inputs')
+        result.errorMessage[registerType] = (error as Error).message
+        if (isModbusException(error)) result.refusedRegisterTypes.push(registerType)
       }
-      await this._sendScanProgress()
-    }
-    if (!this._clientState.scanningUnitIds) {
-      this._sendClientState()
-      return
-    }
 
-    // Input Registers
-    if (registerTypes.includes('holding_registers')) {
-      try {
-        await this._client.readHoldingRegisters(address, length)
-        result.registerTypes.push('holding_registers')
-      } catch (error) {
-        result.errorMessage['holding_registers'] = (error as Error).message
-        if (isModbusException(error)) result.refusedRegisterTypes.push('holding_registers')
-      }
-      await this._sendScanProgress()
-    }
-
-    if (!this._clientState.scanningUnitIds) {
-      this._sendClientState()
-      return
-    }
-
-    // Holding Registers
-    if (registerTypes.includes('input_registers')) {
-      try {
-        await this._client.readInputRegisters(address, length)
-        result.registerTypes.push('input_registers')
-      } catch (error) {
-        result.errorMessage['input_registers'] = (error as Error).message
-        if (isModbusException(error)) result.refusedRegisterTypes.push('input_registers')
-      }
       await this._sendScanProgress()
     }
 
@@ -976,7 +897,7 @@ export class ModbusClient {
     let errorMessage: string | undefined
 
     try {
-      data = await this._tryRead(type, address, length)
+      data = await this._readers[type](address, length)
     } catch (error) {
       const readError = error as Error
       errorMessage = readError.message
