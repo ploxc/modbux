@@ -101,7 +101,9 @@ describe('git-restore-guard', () => {
 
   it('fires on a checkout naming a path that exists', () => {
     const cwd = dirtyRepo()
-    expect(fire('git-restore-guard', { command: 'git checkout -- a.ts' }, { cwd })).toContain('a.ts')
+    expect(fire('git-restore-guard', { command: 'git checkout -- a.ts' }, { cwd })).toContain(
+      'a.ts'
+    )
   })
   it('fires on git restore', () => {
     const cwd = dirtyRepo()

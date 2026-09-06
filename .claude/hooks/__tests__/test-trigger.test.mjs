@@ -48,9 +48,7 @@ describe('test-trigger stays quiet on', () => {
 
 describe('test-trigger reaches a test written through Bash', () => {
   it('fires on a heredoc naming a test path', () =>
-    expect(
-      fire({ command: "cat > src/shared/__tests__/a.test.ts <<'EOF'\nx\nEOF" })
-    ).not.toBe(''))
+    expect(fire({ command: "cat > src/shared/__tests__/a.test.ts <<'EOF'\nx\nEOF" })).not.toBe(''))
   it('fires on a heredoc carrying a test call', () =>
     expect(fire({ command: "python3 - <<'PY'\ns = \"it('works', () => {})\"\nPY" })).not.toBe(''))
   it('stays quiet on a heredoc that writes neither', () =>

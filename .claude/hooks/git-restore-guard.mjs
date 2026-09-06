@@ -79,7 +79,7 @@ const rest = atRisk.length > 10 ? ', and more' : ''
 const REMINDER = isStash
   ? `These files hold unstaged changes: ${listed}${rest}. \`git stash\` with nothing to stash ` +
     'succeeds anyway, so a later `git stash pop` takes whatever was already on the stack, ' +
-    'possibly another branch\'s work. To carry work to another branch, `git checkout <branch>` ' +
+    "possibly another branch's work. To carry work to another branch, `git checkout <branch>` " +
     'brings it along when nothing conflicts. To measure another commit, use a worktree.'
   : `These files hold unstaged changes: ${listed}${rest}. \`${verb(command)}\` naming a path ` +
     'restores from the index, and for an unstaged file the index is HEAD, so it deletes ' +

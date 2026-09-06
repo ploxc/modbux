@@ -16,10 +16,10 @@ never from what was interesting.
 Two paths. `/compact` writes its own summary of the conversation, so step 4 has
 no reader on that path and step 4b replaces it.
 
-| next | steps |
-| --- | --- |
-| `/clear`, or a new session | 1, 2, 3, 4, 5 |
-| `/compact` | 1, 2, 3, 4b, 5 |
+| next                       | steps          |
+| -------------------------- | -------------- |
+| `/clear`, or a new session | 1, 2, 3, 4, 5  |
+| `/compact`                 | 1, 2, 3, 4b, 5 |
 
 ## 1. Inventory, by destination
 
@@ -36,13 +36,13 @@ Then sort each item by **where it belongs**, not by how interesting it was.
 `/todo` owns the destinations: invoke it rather than deciding here. Two things
 it does not own:
 
-| what it is | where it goes |
-| --- | --- |
+| what it is                                             | where it goes                        |
+| ------------------------------------------------------ | ------------------------------------ |
 | state: branch, commits, what is green, what is running | the prompt, or the compact paragraph |
-| the next instruction | the user writes it, step 5 |
+| the next instruction                                   | the user writes it, step 5           |
 
-**One question makes it mechanical.** For each item: *if a future session needed
-this and I were gone, where would it look?* A file, then it goes in the file.
+**One question makes it mechanical.** For each item: _if a future session needed
+this and I were gone, where would it look?_ A file, then it goes in the file.
 Nowhere, because it only matters for the next hour, then the prompt. **"It would
 ask me" is the item most likely to be dropped and the one that must be written.**
 
@@ -94,7 +94,7 @@ standing list here, so the paragraph carries itself: state has files, the repo
 answers its own shape, and a sentence repeating either spends the space that was
 actually at risk.
 
-What is left is a judgement about *this* session. Hand over the line to type and
+What is left is a judgement about _this_ session. Hand over the line to type and
 nothing else:
 
 ```sh

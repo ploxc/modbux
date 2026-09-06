@@ -40,7 +40,7 @@ src/renderer/  the React UI
 
 `src/__tests__/conformance.test.ts` asserts the conventions this codebase has
 settled, so breaking one fails `yarn test`. What each means, and the ones no test
-can see, is in CONTRIBUTING.md under *Code style*.
+can see, is in CONTRIBUTING.md under _Code style_.
 
 # The rules
 

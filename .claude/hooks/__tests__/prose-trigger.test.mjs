@@ -16,7 +16,10 @@ const HOOK = join(dirname(fileURLToPath(import.meta.url)), '..', 'prose-trigger.
 
 /** What the hook says, or '' when it declined. Throws when it exits non-zero. */
 const fire = (toolInput, sessionId = `test-${Math.random()}`) => {
-  const payload = JSON.stringify({ session_id: sessionId, ...(toolInput ? { tool_input: toolInput } : {}) })
+  const payload = JSON.stringify({
+    session_id: sessionId,
+    ...(toolInput ? { tool_input: toolInput } : {})
+  })
   const out = execFileSync('node', [HOOK], { input: payload, encoding: 'utf8' })
   return out.trim() ? JSON.parse(out).hookSpecificOutput.additionalContext : ''
 }

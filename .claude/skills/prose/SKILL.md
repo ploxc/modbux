@@ -12,17 +12,17 @@ stands, and **a claim you did not measure does not stay.**
 
 You just wrote a sentence containing one of these. Run its command now.
 
-| the sentence contains | the command |
-| --- | --- |
-| a quoted message — a snackbar, an error, test output | run it and copy the line out of the output |
-| a number — including "both", "all three", "each", "the only remaining" | the command that counts it, pasted with its output |
-| a reference — a file, a symbol, a commit | `git show <ref>:<file>` and `grep -rn '<symbol>' src/` |
-| a cause — "because", "this closes", "it is missing X" | `grep -rn '<symbol>' src/` over every caller, and show both sides |
-| a date or an order — "pre-existing", "added after", "still" | `git log -S '<text>' --format='%h %ad %s' --date=short` |
-| a qualifier — "mostly", "except", a parenthesis | read the hedge back; ask whether the claim in front survives |
-| the shape of the code — "X now calls Y", "the copy is gone" | `grep` and `git diff`, never a green suite |
-| **a command the reader is told to run** | run it, and read its output the way its reader will |
-| **you are adding to a comment or a section that already exists** | read the whole block first — see *read the block* below |
+| the sentence contains                                                  | the command                                                       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| a quoted message — a snackbar, an error, test output                   | run it and copy the line out of the output                        |
+| a number — including "both", "all three", "each", "the only remaining" | the command that counts it, pasted with its output                |
+| a reference — a file, a symbol, a commit                               | `git show <ref>:<file>` and `grep -rn '<symbol>' src/`            |
+| a cause — "because", "this closes", "it is missing X"                  | `grep -rn '<symbol>' src/` over every caller, and show both sides |
+| a date or an order — "pre-existing", "added after", "still"            | `git log -S '<text>' --format='%h %ad %s' --date=short`           |
+| a qualifier — "mostly", "except", a parenthesis                        | read the hedge back; ask whether the claim in front survives      |
+| the shape of the code — "X now calls Y", "the copy is gone"            | `grep` and `git diff`, never a green suite                        |
+| **a command the reader is told to run**                                | run it, and read its output the way its reader will               |
+| **you are adding to a comment or a section that already exists**       | read the whole block first — see _read the block_ below           |
 
 **A fact from outside this repository has no command here.** Cite the source, or
 cut the sentence.
@@ -54,12 +54,12 @@ Four ways it is still wrong:
 not one you just measured.
 
 **The default is not to count.** A sentence with no number in it is the one to
-write unless counting earns its place. *"The suite is green"*, *"its callers are
-`AddButtons`, `DeleteButton` and the edit submit"* — neither can go stale.
+write unless counting earns its place. _"The suite is green"_, _"its callers are
+`AddButtons`, `DeleteButton` and the edit submit"_ — neither can go stale.
 
 **"Did you measure it" is the wrong gate**, and it passes the failures. A
 measured figure fails when **the command counted one set and the sentence names
-another**. So the question is not *did I run it* but **which set did the command
+another**. So the question is not _did I run it_ but **which set did the command
 count, and is that the noun in the sentence?**
 
 **A figure about work in progress does not go in at all** — steps done, files
@@ -73,8 +73,8 @@ the sentence.
 **The reader has the diff.** Files, functions, call sites — `git show` answers all
 of it, correctly, forever.
 
-Naming a mechanism is a count too: *"the linter would catch it"*, *"nothing else
-reads this"* — a claim about a set you did not enumerate.
+Naming a mechanism is a count too: _"the linter would catch it"_, _"nothing else
+reads this"_ — a claim about a set you did not enumerate.
 
 **Check the last item in any list of three.** The first two get verified and the
 third rides along on the pattern they set.
@@ -101,7 +101,7 @@ introduces the thing under it; after any split or reorder, check that it still
 names what follows.
 
 **What it costs is paid by a reviewer, and it is more than one reading.** Two
-comments in one block that disagree cost a *second measurement*, because the only
+comments in one block that disagree cost a _second measurement_, because the only
 way to tell which is the false claim is to go and run the thing.
 
 **In a test file, the sentence naming what the test discriminates stays and the
@@ -116,12 +116,12 @@ Ask of each sentence:
 - Does a test or a schema already hold this fact? Then it needs no prose.
 - Is this the third rewrite of this paragraph? Delete it.
 
-| what | how long |
-| --- | --- |
-| a commit message | what changed and why. The evidence is in the diff, not here |
+| what              | how long                                                         |
+| ----------------- | ---------------------------------------------------------------- |
+| a commit message  | what changed and why. The evidence is in the diff, not here      |
 | a CHANGELOG entry | what a user can now do. Grouped by feature, never by code change |
-| a code comment | what the reader cannot see from the code. If it argues, cut it |
-| an issue reply | casual, brief, first person. No release-notes formatting |
+| a code comment    | what the reader cannot see from the code. If it argues, cut it   |
+| an issue reply    | casual, brief, first person. No release-notes formatting         |
 
 ## References
 

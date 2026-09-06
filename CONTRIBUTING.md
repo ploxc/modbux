@@ -1,7 +1,7 @@
 # Contributing to Modbux
 
-Everything below is a rule rather than a suggestion. The ones under *The
-conventions this codebase has already settled* are asserted by
+Everything below is a rule rather than a suggestion. The ones under _The
+conventions this codebase has already settled_ are asserted by
 `src/__tests__/conformance.test.ts`, so breaking one fails `yarn test` instead of
 waiting for a reviewer.
 
@@ -75,7 +75,7 @@ two-thousand-row grid without either.
 back a store function puts that function in the dependency list, and a
 dependency list naming something the component does not own is a list no reader
 can check. What the component holds goes in the list; what the store holds is
-read through `getState()`. That also covers a *value* the component wants at a
+read through `getState()`. That also covers a _value_ the component wants at a
 moment rather than on every change: read that way, it causes no render.
 
 Two shapes, and which one you write depends on whether the component adds
@@ -173,6 +173,7 @@ chore: bump version to 2.0.0
 ```
 
 **Rules:**
+
 - `feat` = entirely new functionality
 - `fix` = something was broken, now it's not
 - `refactor` = same behavior, different code
@@ -186,20 +187,20 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 
 ### What to run
 
-| Command | What it does |
-|---------|-------------|
-| `yarn test` | Unit tests (Vitest) |
-| `yarn test:watch` | Unit tests in watch mode |
-| `yarn test:e2e` | Build + the e2e suite (Playwright) |
-| `yarn test:e2e:packaged` | Same specs against the packaged app. Run before releasing. |
-| `yarn test:e2e:hardware` | The `99-hardware` specs. Needs an Arduino; skips without one. |
-| `yarn presentation` | Build + regenerate the documentation screenshots |
-| `yarn verify` | Lint + typecheck + unit + e2e. Run this before pushing. |
-| `yarn test:e2e:scan-perf` | What a mounted grid costs during a scan. A measurement, not a check. |
-| `yarn test:e2e:privileged-port` | The port 502 modal. Linux, and someone at the keyboard. |
-| `yarn test:all:mac` | Everything this platform can run, ending with the hardware specs. |
-| `yarn test:all:windows` | Everything this platform can run. No socat, so the socat serial specs skip. |
-| `yarn test:all:linux` | Everything, including the one that waits for a person. |
+| Command                         | What it does                                                                |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `yarn test`                     | Unit tests (Vitest)                                                         |
+| `yarn test:watch`               | Unit tests in watch mode                                                    |
+| `yarn test:e2e`                 | Build + the e2e suite (Playwright)                                          |
+| `yarn test:e2e:packaged`        | Same specs against the packaged app. Run before releasing.                  |
+| `yarn test:e2e:hardware`        | The `99-hardware` specs. Needs an Arduino; skips without one.               |
+| `yarn presentation`             | Build + regenerate the documentation screenshots                            |
+| `yarn verify`                   | Lint + typecheck + unit + e2e. Run this before pushing.                     |
+| `yarn test:e2e:scan-perf`       | What a mounted grid costs during a scan. A measurement, not a check.        |
+| `yarn test:e2e:privileged-port` | The port 502 modal. Linux, and someone at the keyboard.                     |
+| `yarn test:all:mac`             | Everything this platform can run, ending with the hardware specs.           |
+| `yarn test:all:windows`         | Everything this platform can run. No socat, so the socat serial specs skip. |
+| `yarn test:all:linux`           | Everything, including the one that waits for a person.                      |
 
 `test:e2e` covers `01-main` and `02-standalone`. Two suites sit outside it and
 are invoked on purpose:
