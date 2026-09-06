@@ -8,7 +8,7 @@ description: Run the checklist before committing or merging — read the diff, l
 ## While you work
 
 **`git add` before you mutate anything.** `git checkout` naming a path restores
-from the *index*, which on an unstaged file is HEAD — so the command undoing one
+from the _index_, which on an unstaged file is HEAD — so the command undoing one
 mutation deletes everything else you wrote in that file.
 
 **A scripted edit leaves no name behind.** After any edit you did not type line
@@ -39,7 +39,7 @@ git diff --staged
 Read **every** changed file, and untracked files in full: a new file has no diff,
 and is where a fresh copy of something the project already owns lands.
 
-Then, against `CONTRIBUTING.md` *Code style* and `CLAUDE.md`:
+Then, against `CONTRIBUTING.md` _Code style_ and `CLAUDE.md`:
 
 - **A store selector returning an object** is a whole-store subscription wearing
   a selector's clothes. One selector per field.
@@ -86,11 +86,11 @@ for minutes, and running it per commit is how a branch stops being worked on.
 **Report what every step above produced.** A waiver covers the permission, never
 the checklist.
 
-| what you are about to do | ask first? |
-| --- | --- |
-| `git commit` | no |
-| `git push`, `gh` | **yes** — the line is whether it leaves the machine |
-| merge | **yes**, and show the squash message first |
+| what you are about to do | ask first?                                          |
+| ------------------------ | --------------------------------------------------- |
+| `git commit`             | no                                                  |
+| `git push`, `gh`         | **yes** — the line is whether it leaves the machine |
+| merge                    | **yes**, and show the squash message first          |
 
 ## 6. Commit
 

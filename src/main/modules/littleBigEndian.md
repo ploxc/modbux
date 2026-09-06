@@ -12,7 +12,6 @@ A table showing the association between Modbus registers and the SCL variables `
 ### Explanation:
 
 - **Big-Endian (BE)**:
-
   - **Bytes** are stored as `12 34 56 78`, with the most significant bytes coming first.
   - In terms of words:
     - `W1` (most significant word) = `0x1234`.

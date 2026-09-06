@@ -1,57 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>Splash Window</title>
     <meta name="theme-color" content="#181818" />
     <meta name="msapplication-TileColor" content="#181818" />
     <style>
-        html,
-        body {
-            margin: 0;
-            background: #181818;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            /* Not the window size in pixels: on Windows the content area comes
+      html,
+      body {
+        margin: 0;
+        background: #181818;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Not the window size in pixels: on Windows the content area comes
                out smaller than the size the BrowserWindow was asked for, and a
                page fixed at that size no longer fits inside it. */
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-size: 14px;
-        }
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-size: 14px;
+      }
 
-        .name {
-            position: fixed;
-            left: 16px;
-            bottom: 12px;
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            font-weight: bold;
-            color: #5b9279;
-        }
+      .name {
+        position: fixed;
+        left: 16px;
+        bottom: 12px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          'Open Sans',
+          'Helvetica Neue',
+          sans-serif;
+        font-weight: bold;
+        color: #5b9279;
+      }
 
-        #version {
-            position: fixed;
-            right: 16px;
-            bottom: 12px;
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            color: #5b9279;
-        }
+      #version {
+        position: fixed;
+        right: 16px;
+        bottom: 12px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          'Open Sans',
+          'Helvetica Neue',
+          sans-serif;
+        color: #5b9279;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div>
-        <img src="icon.png" alt="splash" width="160" />
-        <span class="name">MODBUX</span><span id="version">...</span>
+      <img src="icon.png" alt="splash" width="160" />
+      <span class="name">MODBUX</span><span id="version">...</span>
     </div>
-</body>
-<script>
-    window.api.getAppVersion().then(version => {
-        document.getElementById('version').textContent = version
+  </body>
+  <script>
+    window.api.getAppVersion().then((version) => {
+      document.getElementById('version').textContent = version
     })
-</script>
-
+  </script>
 </html>

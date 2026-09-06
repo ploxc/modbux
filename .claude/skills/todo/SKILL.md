@@ -14,24 +14,24 @@ handled. Before choosing a place, choose whether there is one:
 - **larger** — tell the user, and let them decide
 - **the user deferred it** — now it goes somewhere, and the rest of this decides where
 
-**The tell is the sentence you are about to write.** *"Pre-existing"*, *"older
-than this branch"*, *"not mine"*, *"pulled in by proximity"*. Each of those can
+**The tell is the sentence you are about to write.** _"Pre-existing"_, _"older
+than this branch"_, _"not mine"_, _"pulled in by proximity"_. Each of those can
 be true, and none of them answers whether the fix is small.
 
 ## Then: state, or history?
 
-| what you are writing | where it goes |
-| --- | --- |
-| something to **do**, on this branch or the next | `TODO.md`, one line |
-| something a **user** would recognise as a bug or a request | a GitHub issue |
-| **why** — a decision, a measurement, an approach that failed | the memory directory |
-| a **preference** the user stated, or how they want to work | the memory directory, never the repository |
-| something already in the **plan being executed** | there, and not twice |
-| what a user can now **do** | `CHANGELOG.md`, at the release |
+| what you are writing                                         | where it goes                              |
+| ------------------------------------------------------------ | ------------------------------------------ |
+| something to **do**, on this branch or the next              | `TODO.md`, one line                        |
+| something a **user** would recognise as a bug or a request   | a GitHub issue                             |
+| **why** — a decision, a measurement, an approach that failed | the memory directory                       |
+| a **preference** the user stated, or how they want to work   | the memory directory, never the repository |
+| something already in the **plan being executed**             | there, and not twice                       |
+| what a user can now **do**                                   | `CHANGELOG.md`, at the release             |
 
-**The tell is the tense.** *"Enable `require-await`"* is a task. *"Two handlers
+**The tell is the tense.** _"Enable `require-await`"_ is a task. _"Two handlers
 stayed async because reading the version off the store took their only await,
-and lint has the rule off"* is a record. If your sentence explains, it is not a
+and lint has the rule off"_ is a record. If your sentence explains, it is not a
 task, however true it is.
 
 **The other tell is length.** A task is one line, maybe three. The moment you

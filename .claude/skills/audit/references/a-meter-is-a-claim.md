@@ -21,7 +21,7 @@ fix. Expanding the glob with `globSync` answers the question that was asked; a
 rule about the shape of the string answers a different one.
 
 **It matched the name and not the thing.** Renaming `rootState` to `clientState`
-with a regex renamed the `clientState` *field* on the store as well, producing
+with a regex renamed the `clientState` _field_ on the store as well, producing
 `clientState.clientState`. The language service knows which binding an
 identifier is on; a search and replace knows only the characters.
 

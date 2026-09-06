@@ -23,8 +23,8 @@ const REMINDER =
   'A scripted edit fails quietly in three directions: it removes what you did not name, it ' +
   'eats half a sentence in prose and leaves no symbol behind, or it raises before writing and ' +
   'changes nothing. After it runs: `git diff --stat -- <the files you named>` (empty means ' +
-  'nothing happened), `git diff | grep \'^-\' | grep -E \'const |function |export \'` (what ' +
-  'left, by name), and for prose `git diff | grep -E \'^[-+][[:space:]]*(//|\\*)\'`. Not ' +
+  "nothing happened), `git diff | grep '^-' | grep -E 'const |function |export '` (what " +
+  "left, by name), and for prose `git diff | grep -E '^[-+][[:space:]]*(//|\\*)'`. Not " +
   '`--word-diff`, which prefixes every line with a space so those filters return nothing.'
 
 /** Every firing after it asks the question instead of repeating the rule. */

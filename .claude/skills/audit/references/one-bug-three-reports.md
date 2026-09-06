@@ -3,11 +3,11 @@
 Six areas were audited in parallel. The agents could not see each other, which is
 what makes a refutation reviewer worth having and also what produces this:
 
-| the area | names it as | claim |
-| --- | --- | --- |
-| modbus | `modbusServer.ts removeRegister` | clears a fixed 24 registers where `addRegister` wrote `length ?? 10` |
-| server-ui | `DeleteButton` and `addRegister.zustand.ts submit` | removing a utf8 register blanks unrelated registers past its end |
-| shared | `addressGrouping.ts getRegisterLength` | returns 24 with no `nextAddress`, and takes no `length` parameter at all |
+| the area  | names it as                                        | claim                                                                    |
+| --------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| modbus    | `modbusServer.ts removeRegister`                   | clears a fixed 24 registers where `addRegister` wrote `length ?? 10`     |
+| server-ui | `DeleteButton` and `addRegister.zustand.ts submit` | removing a utf8 register blanks unrelated registers past its end         |
+| shared    | `addressGrouping.ts getRegisterLength`             | returns 24 with no `nextAddress`, and takes no `length` parameter at all |
 
 One defect. Three blocking findings. Three different files named, and **none of
 the three is where the fix belongs**: the width is stated in several places that

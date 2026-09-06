@@ -2,14 +2,14 @@
 
 **A split left six section banners naming the wrong thing.** `AddRegister.tsx`
 was 900 lines and 27 components; a script cut it into five files on each `const`
-line. A banner sits *above* the component it introduces, so every one of them
+line. A banner sits _above_ the component it introduces, so every one of them
 stayed behind with the component before it.
 
-| the banner | what ended up under it |
-| --- | --- |
-| `// Min Max components` | `IntervalInputForward` |
-| `// Fixed Or Generator` | `CommentField` |
-| `// MAIN`, `// Comment`, `// Shared submit logic` | nothing, end of file |
+| the banner                                        | what ended up under it |
+| ------------------------------------------------- | ---------------------- |
+| `// Min Max components`                           | `IntervalInputForward` |
+| `// Fixed Or Generator`                           | `CommentField`         |
+| `// MAIN`, `// Comment`, `// Shared submit logic` | nothing, end of file   |
 
 Jens found the first by reading the diff. The sweep that found the other five
 was a script too:

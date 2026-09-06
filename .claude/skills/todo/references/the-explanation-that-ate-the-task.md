@@ -14,7 +14,7 @@ awk 'END{printf "%.1f lines per open item\n", NR/o} /^[[:space:]]*- \[ \]/{o++}'
 
 **Read a rise, not a level.** Anything shorter than the current mean lowers it,
 so six one-line tasks move the number as far as a large cut does. What it
-measures is *prose per task*, and the only thing that raises it is prose.
+measures is _prose per task_, and the only thing that raises it is prose.
 
 The shape is the same at document scale. Ploxc's `precommit` skill records
 going 5398, 5523, 5699 and 5799 words over four review rounds, one correct step

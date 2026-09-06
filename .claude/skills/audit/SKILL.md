@@ -13,14 +13,14 @@ finding, including the one-line obvious ones.
 
 Split by what the code shares, not by directory size. One area per run.
 
-| area | what it is |
-| --- | --- |
-| `modbus` | `main/modules/modbusClient.ts`, `modbusServer.ts` and `modbusServer/` |
-| `boundary` | `main/ipc.ts`, `preload/`, `shared/types/ipc.ts`, `main/state.ts`, `main/windows.ts` |
-| `shared` | `shared/` minus `types/ipc.ts`: schemas, migrations, pure helpers |
-| `stores` | `renderer/src/context/` |
-| `client-ui` | `renderer/src/components/client/` |
-| `server-ui` | `renderer/src/components/server/`, `components/shared/`, `containers/` |
+| area        | what it is                                                                           |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `modbus`    | `main/modules/modbusClient.ts`, `modbusServer.ts` and `modbusServer/`                |
+| `boundary`  | `main/ipc.ts`, `preload/`, `shared/types/ipc.ts`, `main/state.ts`, `main/windows.ts` |
+| `shared`    | `shared/` minus `types/ipc.ts`: schemas, migrations, pure helpers                    |
+| `stores`    | `renderer/src/context/`                                                              |
+| `client-ui` | `renderer/src/components/client/`                                                    |
+| `server-ui` | `renderer/src/components/server/`, `components/shared/`, `containers/`               |
 
 ## Before you start
 
@@ -35,17 +35,17 @@ Apply all eight. Do not merge them and do not skip the cosmetic ones.
 
 1. **What the conformance suite cannot see.** The store-versus-component IPC
    rule, the folder-per-component judgement, and anything else CONTRIBUTING
-   states as prose under *The rules no test can see*.
+   states as prose under _The rules no test can see_.
 2. **Duplication.** Search for the shape, not the name. Two functions doing one
    job often share no word, so a search for what one is called returns neither.
    Report identical copies too, because they diverge later. A duplication claim
-   carries its own burden of proof, under *Verification*.
+   carries its own burden of proof, under _Verification_.
    → [WHY: a meter is a claim too](./references/a-meter-is-a-claim.md)
 3. **Dead code.** Unused exports, unreachable branches, config entries pointing
    at deleted paths, comments naming files that are gone.
 4. **Deferred comments.** Every `TODO`, `FIXME`, `for now`, `later`, `until we`,
    with its exact location and text.
-5. **Test coverage.** What is *not* covered. Think like someone with a field
+5. **Test coverage.** What is _not_ covered. Think like someone with a field
    device, not like the author: a unit id of 0 and of 248, an address at 65535
    with a data type needing four registers, a serial port that disappears
    mid-read, a config file from two versions ago.
@@ -60,6 +60,7 @@ Apply all eight. Do not merge them and do not skip the cosmetic ones.
    alone. Count code lines and test lines separately: a file that looks like the
    worst offender is sometimes a thin one with a large test block bolted on, and
    the two call for opposite conclusions.
+
 7. **Architecture fit.** Does this block RTU over TCP, a second client, the
    gateway idea, or anything `CHANGELOG.md` says is coming?
 8. **What modbus-serial actually does.** For `modbus`, `boundary` and `shared`:
@@ -113,11 +114,11 @@ and its output) · `proposal` · `recipe` if reproduced.
 **severity — what the app does to a user decides it, not how much it annoys
 you.**
 
-| | |
-| --- | --- |
+|              |                                                                                                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **blocking** | A user gets a wrong answer, a crash, or lost configuration. A malformed frame reaching the socket. A register read as the wrong type. Also: dead code that makes something look covered when it is not. |
-| **annoying** | Right behaviour, wrong construction. Duplication, a rule enforced in one of two places, untested logic. Nothing a user sees today; the next change here is where it bites. |
-| **cosmetic** | Neither. A stale comment, an unused export, a name that misleads. |
+| **annoying** | Right behaviour, wrong construction. Duplication, a rule enforced in one of two places, untested logic. Nothing a user sees today; the next change here is where it bites.                              |
+| **cosmetic** | Neither. A stale comment, an unused export, a name that misleads.                                                                                                                                       |
 
 **size — how much work the proposal is, not how large the defect is.** **S** is
 one file and no decision. **M** touches several call sites or needs a small
@@ -168,14 +169,14 @@ Two exceptions, where the burden runs the other way:
 
 ## What a finding is worth once it is written
 
-| part | trust |
-| --- | --- |
-| the file, the symbol, the evidence | high, and verifiable |
-| the claim, if reproduced | high |
-| the claim, if only read | good |
-| **the recipe** | **low** — the most common defect in an audit is a recipe describing an input that does not trigger the behaviour |
-| **the proposal** | **low** — a guess by someone who did not read the rest of the file |
-| any summary or state | **low** — a compression, and compressions interpret |
+| part                               | trust                                                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| the file, the symbol, the evidence | high, and verifiable                                                                                             |
+| the claim, if reproduced           | high                                                                                                             |
+| the claim, if only read            | good                                                                                                             |
+| **the recipe**                     | **low** — the most common defect in an audit is a recipe describing an input that does not trigger the behaviour |
+| **the proposal**                   | **low** — a guess by someone who did not read the rest of the file                                               |
+| any summary or state               | **low** — a compression, and compressions interpret                                                              |
 
 Open the file, reproduce, then decide. Being written down is not evidence.
 

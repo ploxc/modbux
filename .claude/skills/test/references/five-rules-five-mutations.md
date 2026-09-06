@@ -24,8 +24,8 @@ helper, not a covered rule.
 
 **A sixth run reported `Tests no tests`**, which looks like a mutation nothing
 covers and was a quoting error in the script doing the mutating: the file no
-longer parsed, so vitest collected nothing. A mutation run that reports *no
-tests* rather than a failure has broken the file, and says nothing about
+longer parsed, so vitest collected nothing. A mutation run that reports _no
+tests_ rather than a failure has broken the file, and says nothing about
 coverage.
 
 The restore is checked rather than assumed:
