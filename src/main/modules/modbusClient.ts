@@ -424,9 +424,17 @@ export class ModbusClient {
 
     const { type, address, length } = this._appState.registerConfig
 
-    const configGroups = this._appState.readConfiguration
-      ? groupAddressInfos(this._appState.registerMapping?.[type])
-      : []
+    // Read configuration groups by data type, and a bit type carries none: the
+    // grid mounts the data type column for input and holding registers alone,
+    // so a comment is all it writes into a coil. A config file is another
+    // matter, because `RegisterMappingSchema` uses one object schema for all
+    // four types, and a data type it puts on a coil address is ignored here the
+    // way the toolbar button refuses it.
+    const groupable = type === 'input_registers' || type === 'holding_registers'
+    const configGroups =
+      this._appState.readConfiguration && groupable
+        ? groupAddressInfos(this._appState.registerMapping?.[type])
+        : []
     const groups = configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {

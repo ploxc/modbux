@@ -887,6 +887,33 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(100, 1)
     })
 
+    // The pair for the group above: a data type on a coil address parses,
+    // because the mapping schema is one object schema for all four types, and
+    // it is the only way a bit mapping gets one.
+    it('reads the toolbar window for a bit type, whatever the mapping carries', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'coils', address: 0, length: 10 })
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {
+          0: { dataType: 'uint16' },
+          100: { dataType: 'uint16' }
+        },
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {}
+      })
+      mockModbusRTU.readCoils.mockResolvedValue({
+        data: [true],
+        buffer: Buffer.from([0x01])
+      })
+
+      await client.read()
+
+      expect(mockModbusRTU.readCoils).toHaveBeenCalledTimes(1)
+      expect(mockModbusRTU.readCoils).toHaveBeenCalledWith(0, 10)
+    })
+
     it('handles read error and continues to next group', async () => {
       await connectClient()
       appState.setReadConfiguration(true)
