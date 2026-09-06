@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left the old loop running beside the new one, so the device was asked twice as
   often and two requests could sit on one connection. Only one loop runs now,
   however fast the buttons are pressed.
+- **Read configuration is only offered where there is something to read.** The
+  button went live as soon as an address carried anything at all, a comment
+  included. On coils and discrete inputs a comment is the only thing you can
+  add, so labelling one was enough to switch the button on, and pressing it
+  emptied the grid and disabled the address and length fields until you pressed
+  it again. It now counts the addresses you gave a data type, which is what it
+  reads.
 - **A scan of coils or discrete inputs now shows every one it read.** The scan
   asks for the chunk size the dialog is set to, and the grid was filled with the
   read length from the toolbar instead, so the default chunk of 100 against a

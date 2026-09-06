@@ -115,8 +115,16 @@ const ReadConfiguration = meme(() => {
     useClientZustand.getState().setReadConfiguration(toggleState)
   }, [])
 
-  const disabled = useClientZustand(
-    (z) => Object.keys(z.registerMapping[z.registerConfig.type]).length === 0
+  // The same question `showMapping` and `groupAddressInfos` ask: an entry with
+  // no data type configures nothing to read. Counting keys instead put the
+  // button on a mapping that carries only comments, and pressing it there
+  // emptied the grid and disabled the address and length fields. A bit type
+  // reaches that first, because the grid mounts the data type column for input
+  // and holding registers alone and a comment is all it writes into a coil.
+  const disabled = useClientZustand((z) =>
+    Object.values(z.registerMapping[z.registerConfig.type]).every(
+      (entry) => !entry?.dataType || entry.dataType === 'none'
+    )
   )
 
   useEffect(() => {
