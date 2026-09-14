@@ -1,11 +1,41 @@
 import {
   BaseDataType,
   DataType,
+  getMinMaxValues,
   NumberRegisters,
   RegisterParams,
   RegisterParamsBasePart,
   registerWidth
 } from '@shared'
+
+/** The two types the dialog offers a date picker for instead of a value field. */
+export const isTimestampType = (dataType: DataType): boolean =>
+  dataType === 'unix' || dataType === 'datetime'
+
+/**
+ * The window a timestamp register can carry, in the milliseconds the picker
+ * works in.
+ *
+ * `getMinMaxValues` answers in the unit the register stores, which
+ * `toRegisterParams` splits: seconds for `unix`, milliseconds for `datetime`.
+ * Everything that offers or accepts a date reads it here, because a picker
+ * wider than the writer takes a date the register does not get:
+ * `encodeIEC870DateTime` clamps 2200 to the end of 2127, and `createRegisters`'
+ * `value >>> 0` wraps 2200 into 2063/11/24 17:31:44.
+ */
+export const timestampWindow = (dataType: DataType): { min: number; max: number } => {
+  const { min, max } = getMinMaxValues(dataType)
+  const toMilliseconds = dataType === 'unix' ? 1000 : 1
+
+  return { min: min * toMilliseconds, max: max * toMilliseconds }
+}
+
+/** Whether a timestamp in milliseconds is one this register can carry. */
+export const inTimestampWindow = (dataType: DataType, milliseconds: number): boolean => {
+  const { min, max } = timestampWindow(dataType)
+
+  return milliseconds >= min && milliseconds <= max
+}
 
 /**
  * Pure function that checks whether an address (+ its data-type span) overlaps

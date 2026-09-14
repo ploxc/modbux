@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /// <reference types="@testing-library/jest-dom/vitest" />
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ServerRegister } from '@shared'
@@ -78,6 +78,36 @@ const timestampAt100 = (dataType: 'unix' | 'datetime', value: number): ServerReg
 
 const datetimeAt100 = timestampAt100('datetime', JUNE_2024_MS)
 const unixAt100 = timestampAt100('unix', Math.floor(JUNE_2024_MS / 1000))
+
+/** A timestamp register that generates, which carries an interval and no value. */
+const timestampGeneratorAt100 = (dataType: 'unix' | 'datetime'): ServerRegister[number] => ({
+  value: 0,
+  params: {
+    address: 100,
+    registerType: 'holding_registers',
+    dataType,
+    comment: 'stamp',
+    value: undefined,
+    min: 0,
+    max: 0,
+    interval: 5000
+  }
+})
+
+/** A bitmap the dialog has no generator controls for, which a config file can still hold. */
+const bitmapGeneratorAt100: ServerRegister[number] = {
+  value: 0,
+  params: {
+    address: 100,
+    registerType: 'holding_registers',
+    dataType: 'bitmap',
+    comment: 'status',
+    value: undefined,
+    min: 0,
+    max: 65535,
+    interval: 5000
+  }
+}
 
 const submitButton = (): HTMLElement => screen.getByTestId('add-reg-submit-btn')
 const removeButton = (): HTMLElement => screen.getByTestId('add-reg-remove-btn')
@@ -272,6 +302,50 @@ describe('the edit dialog buttons', () => {
 
     expect(datetimeSections()).toHaveAttribute('aria-invalid', 'true')
     expect(submitButton()).toBeDisabled()
+  })
+
+  // The picker has to show a date, and a generator carries none, so the type
+  // seeds the current time. Setting the type first made the value branch below
+  // it write the epoch over that seed.
+  it('opens a timestamp generator on a date the picker can show', () => {
+    const openedAt = Date.now()
+    renderEditing(timestampGeneratorAt100('unix'))
+
+    expect(Number(useAddRegisterZustand.getState().value)).toBeGreaterThanOrEqual(openedAt)
+  })
+
+  // `RegisterParamsSchema` bounds no value, so this arrives from a config file.
+  it('marks a stored datetime outside the window wrong before anything is typed', () => {
+    renderEditing(timestampAt100('datetime', Date.UTC(2200, 0, 1)))
+
+    expect(datetimeSections()).toHaveAttribute('aria-invalid', 'true')
+    expect(useAddRegisterZustand.getState().valid.value).toBe(false)
+  })
+
+  // `setDataType` forces a bitmap fixed, and the dialog draws no Fixed/Generator
+  // toggle for one, so opening it as a generator leaves no way back.
+  it('opens a bitmap fixed even when the register it reads generates', () => {
+    renderEditing(bitmapGeneratorAt100)
+
+    expect(useAddRegisterZustand.getState().fixed).toBe(true)
+    expect(fieldInput('add-reg-value-input')).toBeVisible()
+  })
+
+  // Add & Next keeps the type and clears the value, and for a timestamp the
+  // cleared value is the current time: '0' left the picker showing now over a
+  // store holding the epoch, and the next Add wrote the epoch.
+  it('leaves Add & Next on a date the picker can show', async () => {
+    const user = userEvent.setup()
+    useAddRegisterZustand.getState().setRegisterType('holding_registers')
+    render(<AddRegister />)
+    // The add-mode effect resets the dialog on mount, so the type is picked
+    // after it has run, the way a user picks it.
+    await act(async () => useAddRegisterZustand.getState().setDataType('datetime'))
+
+    const clickedAt = Date.now()
+    await user.click(screen.getByTestId('add-reg-next-btn'))
+
+    expect(Number(useAddRegisterZustand.getState().value)).toBeGreaterThanOrEqual(clickedAt)
   })
 
   it('removes the register it was opened on', async () => {

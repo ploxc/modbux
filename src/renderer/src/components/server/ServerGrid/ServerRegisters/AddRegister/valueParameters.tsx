@@ -10,7 +10,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { DataType, getMinMaxValues } from '@shared'
+import { inTimestampWindow, timestampWindow } from './addRegister.zustand.helpers'
 import { ChangeEvent, ElementType, useCallback, useEffect, useMemo } from 'react'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
@@ -178,31 +178,15 @@ const IntervalTextField = meme(() => {
 //
 // DateTimePicker for unix/datetime fixed mode
 
-/**
- * The window the picker offers, as the milliseconds it works in.
- *
- * `getMinMaxValues` answers in the unit the register stores, which
- * `toRegisterParams` splits: seconds for `unix`, milliseconds for `datetime`.
- * Without a window the picker took any year it could render, and neither writer
- * refuses one: `encodeIEC870DateTime` clamps 2200 to the end of 2127, and
- * `createRegisters`' `value >>> 0` wraps 2200 into 2063/11/24 17:31:44.
- */
-const pickerWindow = (dataType: DataType): { minDate: DateTime; maxDate: DateTime } => {
-  const { min, max } = getMinMaxValues(dataType)
-  const toMilliseconds = dataType === 'unix' ? 1000 : 1
-
-  return {
-    minDate: DateTime.fromMillis(min * toMilliseconds),
-    maxDate: DateTime.fromMillis(max * toMilliseconds)
-  }
-}
-
 const DateTimeField = meme(() => {
   const value = useAddRegisterZustand((z) => z.value)
   const dataType = useAddRegisterZustand((z) => z.dataType)
   const showDatePickerUtc = useAddRegisterZustand((z) => z.showDatePickerUtc)
 
-  const { minDate, maxDate } = useMemo(() => pickerWindow(dataType), [dataType])
+  const { minDate, maxDate } = useMemo(() => {
+    const { min, max } = timestampWindow(dataType)
+    return { minDate: DateTime.fromMillis(min), maxDate: DateTime.fromMillis(max) }
+  }, [dataType])
 
   const handleChange = useCallback(
     (dt: DateTime | null): void => {
@@ -210,10 +194,9 @@ const DateTimeField = meme(() => {
       const addRegisterZustand = useAddRegisterZustand.getState()
 
       const milliseconds = dt.toMillis()
-      const inWindow = milliseconds >= minDate.toMillis() && milliseconds <= maxDate.toMillis()
-      addRegisterZustand.setValue(String(milliseconds), inWindow)
+      addRegisterZustand.setValue(String(milliseconds), inTimestampWindow(dataType, milliseconds))
     },
-    [minDate, maxDate]
+    [dataType]
   )
 
   const handleUtcChange = useCallback((): void => {
@@ -221,7 +204,10 @@ const DateTimeField = meme(() => {
     addRegisterZustand.setShowDatePickerUtc(!addRegisterZustand.showDatePickerUtc)
   }, [])
 
-  const dateValue = value && value !== '0' ? DateTime.fromMillis(Number(value)) : DateTime.now()
+  // What the store holds, always: a picker showing a date nothing wrote back is
+  // a date the Add button sends nothing of. `setDataType` seeds the current
+  // time when the type becomes a timestamp, and so does Add & Next.
+  const dateValue = DateTime.fromMillis(Number(value))
 
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon}>

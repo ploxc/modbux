@@ -8,7 +8,7 @@ import { useCallback, useEffect } from 'react'
 import { FixedOrGenerator, ValueParameters } from './valueParameters'
 import { AddressField, DataTypeSelect, CommentField } from './registerFields'
 import { AddButtons, DeleteButton } from './addRegisterActions'
-import { FIELD_DEFAULTS } from './addRegister.zustand.helpers'
+import { FIELD_DEFAULTS, inTimestampWindow, isTimestampType } from './addRegister.zustand.helpers'
 import { DEFAULT_UTF8_LENGTH } from '@shared'
 
 const AddRegister = meme(() => {
@@ -49,18 +49,19 @@ const AddRegister = meme(() => {
       length
     } = addRegisterZustand.serverRegisterEdit.params
 
-    // The type goes first because `setDataType` seeds a unix or datetime value
-    // with the current time, which is right when the user picks the type and
-    // wrong here: set last, it replaced the timestamp the register holds, and
-    // `capturePristine` then recorded the replacement as what the dialog opened
-    // with.
-    addRegisterZustand.setDataType(dataType)
-
     // The masked setters take the validity of what they are given as a second
     // argument, and a stored register holds values that were valid when it was
     // added. Left off, a field came up marked wrong, and only a field on screen
     // had that corrected, by the mask under it reporting back on mount.
     addRegisterZustand.setFixed(value !== undefined)
+
+    // The type comes before the value fields and after `setFixed`, because
+    // `setDataType` forces a utf8 or bitmap register fixed and seeds a unix or
+    // datetime one with the current time. Set last, it replaced the timestamp
+    // the register holds, and `capturePristine` recorded the replacement as what
+    // the dialog opened with.
+    addRegisterZustand.setDataType(dataType)
+
     addRegisterZustand.setAddress(String(address), true)
     addRegisterZustand.setRegisterType(registerType)
     addRegisterZustand.setComment(comment)
@@ -75,12 +76,19 @@ const AddRegister = meme(() => {
       addRegisterZustand.setStringValue(stringValue ?? '')
       addRegisterZustand.setRegisterLength(String(length ?? DEFAULT_UTF8_LENGTH), true)
       addRegisterZustand.setValue(FIELD_DEFAULTS.value, true)
-    } else if (['unix', 'datetime'].includes(dataType) && value !== undefined) {
-      // Convert stored value back to ms for the date picker
-      const ms = dataType === 'unix' ? Number(value) * 1000 : Number(value)
-      addRegisterZustand.setValue(String(ms), true)
-    } else {
-      addRegisterZustand.setValue(value === undefined ? FIELD_DEFAULTS.value : String(value), true)
+    } else if (value !== undefined && isTimestampType(dataType)) {
+      // The picker works in milliseconds and a unix register stores seconds.
+      // `RegisterParamsSchema` bounds no value, so a config file can hold one
+      // outside the window, and the field says so rather than the picker having
+      // to be touched first.
+      const milliseconds = dataType === 'unix' ? Number(value) * 1000 : Number(value)
+      addRegisterZustand.setValue(String(milliseconds), inTimestampWindow(dataType, milliseconds))
+    } else if (value !== undefined) {
+      addRegisterZustand.setValue(String(value), true)
+    } else if (!isTimestampType(dataType)) {
+      // A generator carries no value. A timestamp keeps the current time
+      // `setDataType` seeded, which is the date the picker is showing.
+      addRegisterZustand.setValue(FIELD_DEFAULTS.value, true)
     }
 
     // The fields are set, so this records what the dialog opened with. The

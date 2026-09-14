@@ -70,6 +70,11 @@ describe('what the server row shows for a timestamp', () => {
     expect(cell).toHaveTextContent('—')
   })
 
+  it('shows a dash for a day the month does not have', async () => {
+    const cell = await valueCellFor(registerAt6('datetime', packed(0x0018, 0x021f, 0x0c22, 0xddd5)))
+    expect(cell).toHaveTextContent('—')
+  })
+
   it('shows a dash for a month outside the year', async () => {
     const cell = await valueCellFor(registerAt6('datetime', packed(0x0018, 0x0d01, 0x0c22, 0xddd5)))
     expect(cell).toHaveTextContent('—')
