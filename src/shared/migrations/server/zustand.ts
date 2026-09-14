@@ -1,5 +1,5 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
-import { dropUnservableRegisters, repairPersistedParity } from '../shared'
+import { dropUnservableRegisters, migrateBoolShapeForUnit, repairPersistedParity } from '../shared'
 
 export const CURRENT_SERVER_ZUSTAND_VERSION = 6
 
@@ -24,19 +24,7 @@ export function migrateBoolShape(
     if (!serverPerUnit) continue
 
     for (const unitRegisters of Object.values(serverPerUnit)) {
-      if (!unitRegisters || typeof unitRegisters !== 'object') continue
-      const regs = unitRegisters as Record<string, unknown>
-
-      for (const boolType of ['coils', 'discrete_inputs'] as const) {
-        const boolRecord = regs[boolType]
-        if (!boolRecord || typeof boolRecord !== 'object') continue
-
-        for (const [address, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
-          if (typeof entry === 'boolean') {
-            ;(boolRecord as Record<string, unknown>)[address] = { value: entry }
-          }
-        }
-      }
+      migrateBoolShapeForUnit(unitRegisters)
     }
   }
 }
