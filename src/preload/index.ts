@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { IPC_CHANNELS, IpcHandlerMap, snakeToCamel } from '@shared'
+import { CamelCase, IPC_CHANNELS, IpcHandlerMap, snakeToCamel } from '@shared'
 
 const passedArgs = process.argv.slice(2)
 const isServerWindow = passedArgs.includes('is-server-window')
@@ -21,13 +21,6 @@ export const ipcInvoke = <C extends keyof IpcHandlerMap>(
 ): Promise<IpcHandlerMap[C]['return']> => {
   return ipcRenderer.invoke(channel, ...args)
 }
-
-type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
-  ? // If there's an underscore, concatenate Head with Capitalize of the next segment,
-    // then recursively process the remainder.
-    `${Head}${Capitalize<CamelCase<Tail>>}`
-  : // If no underscore remains, simply return S.
-    S
 
 /**
  * AUTOMATIC IPC HANDLER GENERATION
@@ -52,7 +45,7 @@ type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`
 const handlers = Object.fromEntries(
   (Object.values(IPC_CHANNELS) as Array<keyof IpcHandlerMap>).map((channelName) => {
     // channelName is a string like "update_register_config"
-    const methodName = snakeToCamel(channelName) as CamelCase<typeof channelName>
+    const methodName = snakeToCamel(channelName)
     return [
       methodName,
       (

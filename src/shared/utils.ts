@@ -1,4 +1,4 @@
-import { BaseDataType, DataType, RegisterParams, ServerRegisters } from './types'
+import { BaseDataType, CamelCase, DataType, RegisterParams, ServerRegisters } from './types'
 
 export const getBit = (word: number, bit: number): boolean => (word & (2 ** bit)) === 2 ** bit
 
@@ -255,6 +255,15 @@ export const findAvailablePort = (usedPorts: number[]): number | undefined => {
   return undefined
 }
 
-export function snakeToCamel<S extends string>(str: S): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+/**
+ * The camelCase method name a snake_case channel becomes on `window.api`.
+ *
+ * The cast is what no compiler can do for a string replace, and it sits here
+ * rather than at the call site so every caller is checked against it. It holds
+ * for names of lowercase segments, which is the shape the conformance suite
+ * requires of `IPC_CHANNELS`: `_([a-z])` leaves a digit or a capital where it
+ * stands, and `CamelCase` would capitalise it.
+ */
+export function snakeToCamel<S extends string>(str: S): CamelCase<S> {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()) as CamelCase<S>
 }

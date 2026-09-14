@@ -611,6 +611,94 @@ describe('every configured path alias is used', () => {
 })
 
 //
+// ─── The three lists that name a channel agree ───────────────────────────────
+//
+// `IpcHandlerMap` is `{ [K in IpcChannel]: IpcHandlerSpec[K] }`. A channel in
+// `IPC_CHANNELS` and not in the spec fails to index and typecheck catches it.
+// The other direction is silent: the mapped type omits it, so there is no
+// generated method, no handler and no error. A channel in both with no
+// `ipcHandle` call is silent too, until `window.api.foo()` rejects at runtime
+// with `No handler registered`.
+//
+// The same asymmetry sits between `IPC_EVENTS` and `IpcEventPayloadMap`.
+
+describe('the lists that name a channel agree', () => {
+  const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
+
+  /** The string literals of a `const` array declared in `ipc.ts`. */
+  const literalsOf = (declaration: string): Set<string> => {
+    const names = new Set<string>()
+    eachNode(spec, (node) => {
+      if (!ts.isVariableDeclaration(node)) return
+      if (node.name.getText(spec) !== declaration) return
+      eachNode(node as unknown as ts.SourceFile, (child) => {
+        if (ts.isStringLiteral(child)) names.add(child.text)
+      })
+    })
+    return names
+  }
+
+  /** The member names of an interface declared in `ipc.ts`. */
+  const membersOf = (declaration: string): Set<string> => {
+    const names = new Set<string>()
+    eachNode(spec, (node) => {
+      if (!ts.isInterfaceDeclaration(node) || node.name.text !== declaration) return
+      for (const member of node.members) {
+        if (ts.isPropertySignature(member))
+          names.add(member.name.getText(spec).replace(/[[\]']/g, ''))
+      }
+    })
+    return names
+  }
+
+  const channels = literalsOf('IPC_CHANNELS')
+  const specced = membersOf('IpcHandlerSpec')
+  const events = literalsOf('IPC_EVENTS')
+  const payloads = membersOf('IpcEventPayloadMap')
+
+  /** Every channel `initIpc` registered a handler for. */
+  const handled = new Set<string>()
+  eachNode(parse(join(repoRoot, 'src/main/ipc.ts')), (node) => {
+    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return
+    if (node.expression.text !== 'ipcHandle') return
+    const channel = node.arguments[0]
+    if (channel && ts.isStringLiteral(channel)) handled.add(channel.text)
+  })
+
+  const missingFrom = (from: Set<string>, against: Set<string>): string[] =>
+    [...against].filter((name) => !from.has(name)).sort()
+
+  it('finds channels and events to check', () => {
+    expect(channels.size).toBeGreaterThan(30)
+    expect(events.size).toBeGreaterThan(5)
+  })
+
+  it('has a spec entry for every channel and a channel for every spec entry', () => {
+    expect(missingFrom(specced, channels)).toEqual([])
+    expect(missingFrom(channels, specced)).toEqual([])
+  })
+
+  it('has a handler for every channel and a channel for every handler', () => {
+    expect(missingFrom(handled, channels)).toEqual([])
+    expect(missingFrom(channels, handled)).toEqual([])
+  })
+
+  it('has a payload entry for every event and an event for every payload entry', () => {
+    expect(missingFrom(payloads, events)).toEqual([])
+    expect(missingFrom(events, payloads)).toEqual([])
+  })
+
+  // `snakeToCamel` replaces `_([a-z])` and `CamelCase` capitalises whatever
+  // follows an underscore. So `set_2wire` becomes the method `set_2wire` and
+  // the type `set2wire`, and `window.api.set2wire` is undefined at runtime with
+  // typecheck green. Lowercase segments are where the two cannot disagree.
+  it('names every channel and event in lowercase segments', () => {
+    const odd = [...channels, ...events].filter((name) => !/^[a-z]+(_[a-z]+)*$/.test(name))
+    expect(odd).toEqual([])
+  })
+})
+
+//
 // ─── Every channel carrying an object declares a schema ──────────────────────
 //
 // TypeScript covers the shape of a bare primitive, and sixteen channels take no

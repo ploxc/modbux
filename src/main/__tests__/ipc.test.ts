@@ -452,7 +452,11 @@ describe('each guarded channel got its own schema', () => {
         com: '/dev/ttyUSB0',
         options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
       }
-    }
+    },
+    set_server_port: { uuid: 'server-1', port: 5020 },
+    create_server: { uuid: 'server-1', port: 5020 },
+    apply_privileged_port_fix: 'persist',
+    set_server_endianness: { uuid: 'server-1', littleEndian: true }
   }
 
   const start = (): { sent: SentMessage[] } => {
@@ -467,6 +471,35 @@ describe('each guarded channel got its own schema', () => {
     )
     return { sent }
   }
+
+  /**
+   * Every channel `initIpc` registered that refuses a payload which is not an
+   * object, which is what having a schema means from outside.
+   *
+   * The list above was written by hand and covered fourteen of the eighteen,
+   * so a channel added with a schema did not join it. `set_server_port`,
+   * `create_server`, `apply_privileged_port_fix` and `set_server_endianness`
+   * were the four it missed, and the audit that named three had counted by
+   * hand as well.
+   */
+  const guardedChannels = async (): Promise<string[]> => {
+    const { sent } = start()
+    const registered = handle.mock.calls.map((call) => String(call[0]))
+    const guarded: string[] = []
+    for (const channel of registered) {
+      const before = sent.length
+      await invoke(channel, 'not a payload')
+      if (sent.length > before) guarded.push(channel)
+    }
+    return guarded
+  }
+
+  it('covers every channel that guards its payload', async () => {
+    const guarded = await guardedChannels()
+
+    expect(guarded.length).toBeGreaterThan(10)
+    expect(guarded.sort()).toEqual(Object.keys(validPayloads).sort())
+  })
 
   it.each(Object.keys(validPayloads))('lets a valid %s payload through', async (channel) => {
     const { sent } = start()
