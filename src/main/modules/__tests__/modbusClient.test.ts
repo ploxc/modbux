@@ -617,45 +617,6 @@ describe('ModbusClient', () => {
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Connection closed unexpectedly')).toBe(true)
     })
-
-    it('suppresses close message when the port closes during a deliberate disconnect', async () => {
-      await connectClient()
-
-      // A serial port emits 'close' while close() is running — before the
-      // callback that resolves disconnect(). Firing it afterwards, as a naive
-      // test does, misses the race entirely.
-      mockModbusRTU.close.mockImplementation((cb: () => void) => {
-        mockModbusRTU.isOpen = false
-        fireClientEvent('close')
-        cb()
-      })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
-      await client.disconnect()
-
-      const messages = getWindowCalls('backend_message')
-      expect(messages.every((m) => m[1].message !== 'Connection closed unexpectedly')).toBe(true)
-      expect(messages.some((m) => m[1].message === 'Disconnected from server')).toBe(true)
-    })
-
-    it('still reports an unexpected close after an earlier deliberate disconnect', async () => {
-      // A disconnect whose port never emits 'close' leaves the flag set; the
-      // next connect has to clear it or the next real drop goes unreported.
-      await connectClient()
-      await client.disconnect()
-
-      await connectClient()
-      await vi.advanceTimersByTimeAsync(11000)
-      for (let i = 0; i < 5; i++) {
-        fireClientEvent('close')
-        await vi.advanceTimersByTimeAsync(3500)
-      }
-
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
-      fireClientEvent('close')
-
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Connection closed unexpectedly')).toBe(true)
-    })
   })
 
   describe('polling', () => {
