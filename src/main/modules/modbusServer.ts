@@ -20,7 +20,8 @@ import {
   StopBits
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
-import { ServerEndianness, Windows } from '@shared'
+import { ServerEndianness } from '@shared'
+import { Windows } from '../windows'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
 import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'

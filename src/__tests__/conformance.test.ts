@@ -199,6 +199,24 @@ describe('shared does not import from main', () => {
     }
     expect(reaching).toEqual([])
   })
+
+  // The rule above reads the specifier, and `Windows` reached `BrowserWindow`
+  // through `electron` rather than through `@main`, so it passed while holding
+  // two main process windows. The renderer bundle stayed clean only because
+  // rollup dropped a class nothing referenced.
+  it('has none of them importing electron', () => {
+    const reaching: string[] = []
+    for (const file of files) {
+      eachNode(parse(file), (node) => {
+        const specifier = importedFrom(node)
+        if (specifier === null) return
+        if (specifier === 'electron' || specifier.startsWith('electron/')) {
+          reaching.push(`${at(file)}\t${specifier}`)
+        }
+      })
+    }
+    expect(reaching).toEqual([])
+  })
 })
 
 //

@@ -18,9 +18,9 @@ import {
   ScanUnitIDParameters,
   ScanUnitIDResult,
   Transaction,
-  Windows,
   WriteParameters
 } from '@shared'
+import { Windows } from '../windows'
 import {
   ReadCoilResult,
   ReadRegisterResult,

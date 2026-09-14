@@ -25,9 +25,9 @@ import {
   SyncBoolsParametersSchema,
   SyncRegisterValueParamsSchema,
   WriteParametersSchema,
-  type BackendMessage,
-  type Windows
+  type BackendMessage
 } from '@shared'
+import type { Windows } from '../windows'
 import { createIpcHandle, initIpc } from '../ipc'
 
 const createWindows = (): { windows: Windows; sent: BackendMessage[] } => {

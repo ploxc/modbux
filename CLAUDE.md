@@ -26,8 +26,9 @@ src/renderer/  the React UI
 
 # What breaks if you do not know it
 
-- **Nothing in `src/shared` may import from `src/main`.** All three processes
-  import shared; it is the one layer that may not reach back.
+- **Nothing in `src/shared` may import from `src/main`, or from `electron`.**
+  All three processes import shared; it is the one layer that may not reach
+  back.
 - **One store selector per field.** `useClientZustand((z) => z.a)` and then
   `((z) => z.b)`, never one selector returning an object. The renderer has zero
   whole-store subscriptions and zero `useShallow`, and that is why it renders a

@@ -5,7 +5,6 @@ import {
   IpcHandlerMap,
   IpcEvent,
   IpcEventPayloadMap,
-  Windows,
   formatZodError,
   WriteParametersSchema,
   AddRegisterParamsSchema,
@@ -24,6 +23,7 @@ import {
   SyncRegisterValueParamsSchema,
   ServerEndiannessSchema
 } from '@shared'
+import { Windows } from './windows'
 import { ModbusClient } from './modules/modbusClient'
 import { ModbusServer } from './modules/modbusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
