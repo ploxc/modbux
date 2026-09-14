@@ -141,6 +141,7 @@ export class ModbusServer {
   private _rtuServer: ServerSerial | null = null
   private _rtuUuid: string | null = null
   private _rtuActive: boolean = false
+  private _rtuGeneration: number = 0
   private _broadcastWarningSent: boolean = false
   private _windows: Windows
 
@@ -652,8 +653,17 @@ export class ModbusServer {
     this._setServerData(uuid, unitId, serverData)
   }
 
-  /** Reports the RTU server down: the message, and the status the view reads. */
-  private _reportRtuDown(message: string, error?: Error): void {
+  /**
+   * Reports the RTU server down: the message, and the status the view reads.
+   *
+   * A generation that is not the current one belongs to a server `startRtuServer`
+   * has already replaced, and that server says nothing. An open still in flight
+   * is what gets here: `stopRtuServer` cannot close a port that never opened,
+   * because `SerialPortStream.close` takes its `!isOpen` branch and answers
+   * "Port is not open", so the open outlives the server it was started for.
+   */
+  private _reportRtuDown(generation: number, message: string, error?: Error): void {
+    if (generation !== this._rtuGeneration) return
     this._rtuActive = false
     this._emitMessage({ message, variant: 'error', error })
     this._windows.send('rtu_server_status', { active: false })
@@ -667,6 +677,7 @@ export class ModbusServer {
     if (!serialConfig.com.trim()) return
     await this.stopRtuServer()
     this._broadcastWarningSent = false
+    const generation = ++this._rtuGeneration
 
     try {
       // No unitID on purpose: passing one makes the library answer for that id
@@ -682,7 +693,7 @@ export class ModbusServer {
           // when one is passed and emits `error` on the port when none is. The
           // same callback carries the success, with null in place of an error.
           openCallback: (err): void => {
-            if (err) this._reportRtuDown(`RTU server error: ${err.message}`)
+            if (err) this._reportRtuDown(generation, `RTU server error: ${err.message}`)
           }
         },
         {
@@ -693,13 +704,12 @@ export class ModbusServer {
       this._rtuUuid = uuid
 
       const serverPort = (this._rtuServer as ServerSerialWithPort).getPort()
-      const rtuServer = this._rtuServer
 
       // A write to a port that is gone fails in `_write`, which disconnects the
       // stream and calls back with the error, and a Writable given an error
       // emits it. A failed open arrives in `openCallback` instead.
       serverPort.on('error', (err) => {
-        this._reportRtuDown(`RTU server error: ${err?.message ?? err}`)
+        this._reportRtuDown(generation, `RTU server error: ${err?.message ?? err}`)
       })
 
       // `close` is the disconnect event. `@serialport/stream` documents it as
@@ -711,14 +721,16 @@ export class ModbusServer {
       // whose port is gone.
       serverPort.on('close', (err) => {
         // A close this process caused is already reported. `stopRtuServer`
-        // clears both fields before it closes the port, and the `error`
-        // listener above clears `_rtuActive` for the write path, where one
-        // unplug emits both events.
-        if (this._rtuServer !== rtuServer || !this._rtuActive) return
-        this._reportRtuDown(`RTU server disconnected from ${serialConfig.com}`, err)
+        // clears `_rtuActive` before it closes the port, and the `error`
+        // listener above clears it for the write path, where one unplug emits
+        // both events. A replaced server is refused on its generation instead.
+        if (!this._rtuActive) return
+        this._reportRtuDown(generation, `RTU server disconnected from ${serialConfig.com}`, err)
       })
 
       this._rtuServer.on('initialized', () => {
+        // A server that has already been replaced does not get to say it is up.
+        if (generation !== this._rtuGeneration) return
         this._rtuActive = true
         this._emitMessage({
           message: `RTU server started on ${serialConfig.com}`,
@@ -734,7 +746,7 @@ export class ModbusServer {
       // turned the error into an exception frame by then. `socketError` is what
       // a failure of the pipe under the server emits.
       this._rtuServer.on('socketError', (err) => {
-        this._reportRtuDown(`RTU server error: ${err?.message ?? err}`)
+        this._reportRtuDown(generation, `RTU server error: ${err?.message ?? err}`)
       })
     } catch (err) {
       this._emitMessage({
@@ -754,6 +766,7 @@ export class ModbusServer {
     this._rtuServer = null
     this._rtuUuid = null
     this._rtuActive = false
+    this._rtuGeneration++
     this._broadcastWarningSent = false
     this._windows.send('rtu_server_status', { active: false })
     if (wasActive) {
