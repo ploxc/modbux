@@ -1,5 +1,10 @@
 export type { MigrationResult } from './types'
-export { formatZodError, repairPersistedParity, dropUnservableRegisters } from './shared'
+export {
+  formatZodError,
+  repairPersistedParity,
+  dropUnservableRegisters,
+  dropUnmappableRegisters
+} from './shared'
 export { migrateServerConfig, CURRENT_SERVER_CONFIG_VERSION } from './server/config'
 export {
   migrateServerRegistersState,

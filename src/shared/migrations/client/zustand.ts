@@ -1,6 +1,6 @@
-import { repairPersistedParity } from '../shared'
+import { dropUnmappableRegisters, repairPersistedParity } from '../shared'
 
-export const CURRENT_CLIENT_ZUSTAND_VERSION = 3
+export const CURRENT_CLIENT_ZUSTAND_VERSION = 4
 
 /** Where the client store keeps its state. */
 export const CLIENT_ZUSTAND_STORAGE_KEY = 'client.zustand'
@@ -25,6 +25,11 @@ export function migrateClientState(
   // v2→v3: the RTU parity the serial binding refuses
   if (version < 3) {
     repairPersistedParity(state, 'connectionConfig', 'rtu', 'options')
+  }
+
+  // v3→v4: mapping entries at an address outside the 16 bit map
+  if (version < 4) {
+    dropUnmappableRegisters(state)
   }
 
   return state

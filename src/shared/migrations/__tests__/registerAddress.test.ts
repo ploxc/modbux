@@ -6,7 +6,8 @@ import {
   SyncRegisterValueParamsSchema
 } from '../../types/server'
 import { CURRENT_SERVER_ZUSTAND_VERSION } from '../server/zustand'
-import { dropUnservableRegisters } from '../shared'
+import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
+import { dropUnmappableRegisters, dropUnservableRegisters } from '../shared'
 
 /** The last store version whose blobs can carry a register outside the map. */
 const LAST_VERSION_ACCEPTING_ANY_ADDRESS = 4
@@ -269,5 +270,62 @@ describe('a persisted generator the interval floor refuses', () => {
 
   it('is behind a version the store has moved past', () => {
     expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_INTERVAL)
+  })
+})
+
+describe('a persisted mapping entry outside the map', () => {
+  /** The last client store version whose blobs can carry any numeric key. */
+  const LAST_VERSION_ACCEPTING_ANY_KEY = 3
+
+  const persistedMapping = (addresses: string[]): Record<string, unknown> => ({
+    registerMapping: {
+      coils: {},
+      discrete_inputs: {},
+      input_registers: {},
+      holding_registers: Object.fromEntries(
+        addresses.map((address) => [address, { dataType: 'uint16' }])
+      )
+    }
+  })
+
+  const holdingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
+    const mapping = state.registerMapping as Record<string, Record<string, unknown>>
+    return mapping.holding_registers as Record<string, unknown>
+  }
+
+  it('goes, and the entries beside it stay', () => {
+    const state = persistedMapping(['0', '', '1e5', '100', '-1', 'Infinity', '65535', '65536'])
+    dropUnmappableRegisters(state)
+
+    expect(Object.keys(holdingRegisters(state))).toEqual(['0', '100', '65535'])
+  })
+
+  it('leaves a blob with no mapping alone', () => {
+    const state: Record<string, unknown> = { name: 'bench' }
+    dropUnmappableRegisters(state)
+
+    expect(state).toEqual({ name: 'bench' })
+  })
+
+  // A hand-edited store is where a null in the middle of the walk comes from.
+  it('walks past a null where a register type should be', () => {
+    const state: Record<string, unknown> = { registerMapping: { coils: null } }
+    dropUnmappableRegisters(state)
+
+    expect(state).toEqual({ registerMapping: { coils: null } })
+  })
+
+  it('is behind a version the store has moved past', () => {
+    expect(CURRENT_CLIENT_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_KEY)
+  })
+
+  // The drop on its own is not the store's behaviour; the step in `migrate` is.
+  it('is dropped by the migration a v3 blob runs', () => {
+    const state = migrateClientState(
+      persistedMapping(['100', '70000']),
+      LAST_VERSION_ACCEPTING_ANY_KEY
+    )
+
+    expect(Object.keys(holdingRegisters(state))).toEqual(['100'])
   })
 })
