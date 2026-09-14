@@ -188,6 +188,24 @@ describe('ModbusServer', () => {
   let windows: Windows
   const uuid = 'test-server-uuid'
   const unitId: UnitIdString = '1'
+  const unitIdNumber = Number(unitId)
+
+  /** A register the unit hosts, which is what makes the server answer for it at all. */
+  const hostUnit = (): void =>
+    server.addRegister({
+      uuid,
+      unitId,
+      params: {
+        address: 100,
+        registerType: 'holding_registers',
+        dataType: 'uint16',
+        comment: '',
+        value: 1,
+        min: undefined,
+        max: undefined,
+        interval: undefined
+      }
+    })
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -252,6 +270,62 @@ describe('ModbusServer', () => {
           value: 1234
         })
       )
+    })
+
+    // `none` reaches a register map only from a config file. It holds its
+    // address open and stands for no value, and both writers wrote a register
+    // of zero over whatever the address held.
+    it('leaves the address alone for a fixed register with no data type', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const vector = lastVector(ServerTCP)
+      hostUnit()
+      await vector.setRegister(0, 1234, unitIdNumber, vi.fn())
+
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'none',
+          comment: 'placeholder',
+          value: 5,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      const cb = vi.fn()
+      await vector.getHoldingRegister(0, unitIdNumber, cb)
+      expect(cb).toHaveBeenCalledWith(null, 1234)
+    })
+
+    it('leaves the address alone for a generator with no data type', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      const vector = lastVector(ServerTCP)
+      hostUnit()
+      await vector.setRegister(0, 1234, unitIdNumber, vi.fn())
+
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'none',
+          comment: 'placeholder',
+          value: undefined,
+          min: 0,
+          max: 100,
+          interval: 1000
+        }
+      })
+      vi.advanceTimersByTime(5000)
+
+      const cb = vi.fn()
+      await vector.getHoldingRegister(0, unitIdNumber, cb)
+      expect(cb).toHaveBeenCalledWith(null, 1234)
     })
 
     it('writes a 32-bit value across 2 registers', () => {

@@ -820,6 +820,18 @@ export class ModbusClient {
       return
     }
 
+    // The dialog offers UTF-8 in the same list as the numbers, and a string is
+    // written from its characters rather than from the value field. Asking
+    // `createRegisters` for one wrote a single register of zero over it.
+    if (dataType === 'utf8' || dataType === 'none') {
+      this._emitMessage({
+        message: `Modbux cannot write a value as ${dataType === 'utf8' ? 'UTF-8' : 'NONE'}`,
+        variant: 'warning',
+        error: undefined
+      })
+      return
+    }
+
     const { unitId } = this._appState.connectionConfig
     const registers = createRegisters(dataType, value, littleEndian)
 

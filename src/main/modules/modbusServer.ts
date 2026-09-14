@@ -505,6 +505,11 @@ export class ModbusServer {
     const serverData = this._unitData(uuid, unitId)
     this._setServerData(uuid, unitId, serverData)
 
+    // `none` is an address held open with nothing in it, so there is nothing to
+    // write and nothing to generate. The generator above is disposed either way,
+    // which is what editing a register to `none` has to do.
+    if (dataType === 'none') return
+
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
     if (fixedValue) {
