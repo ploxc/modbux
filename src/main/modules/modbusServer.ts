@@ -83,8 +83,13 @@ type ServerDataMap = Map<string, ServerDataUnitMap>
 type ValueGeneratorsMap = Map<string, ValueGeneratorsUnitMap>
 
 /**
- * Joined type of all register getters, these are the same for every type.
- * If the modbus-serial package ever changes we will notice it
+ * One accessor shape per direction, because `IServiceVector`'s four getters and
+ * two setters differ only in the value they carry.
+ *
+ * These are written out rather than derived from `IServiceVector`, so what
+ * checks them is the assignment in `_getVector`. That catches a signature
+ * modbus-serial changes incompatibly and not one it widens, because a version
+ * that adds an optional parameter stays assignable to these.
  */
 type IServiceVectorGet<T> = (addr: number, unitID: number, cb: FCallbackVal<T>) => void
 type IServiceVectorSet<T> = (addr: number, value: T, unitID: number, cb: FCallback) => void
