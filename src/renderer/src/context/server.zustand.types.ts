@@ -14,7 +14,9 @@ import {
   SerialPortInfo,
   ModbusBaudRate,
   Parity,
-  ConfigReset
+  ConfigReset,
+  DataBits,
+  StopBits
 } from '@shared'
 import { AsyncMaskSetFn, MaskSetFn } from './client.zustand.types'
 import { z } from 'zod'
@@ -97,8 +99,8 @@ export type ServerZustand = {
   applyServerCom: () => Promise<void>
   setServerBaudRate: (baudRate: ModbusBaudRate) => void
   setServerParity: (parity: Parity) => void
-  setServerDataBits: (dataBits: number) => void
-  setServerStopBits: (stopBits: number) => void
+  setServerDataBits: (dataBits: DataBits) => void
+  setServerStopBits: (stopBits: StopBits) => void
   serialPorts: SerialPortInfo[]
   serialPortsLoading: boolean
   refreshSerialPorts: () => Promise<void>

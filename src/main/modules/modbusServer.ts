@@ -15,7 +15,9 @@ import {
   UnitIdStringSchema,
   StartRtuServerParams,
   RegisterType,
-  RegisterValue
+  RegisterValue,
+  DataBits,
+  StopBits
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { ServerEndianness, Windows } from '@shared'
@@ -119,8 +121,8 @@ interface ServerSerialWithPort extends ServerSerial {
  * opens at its own defaults, `dataBits: 8` and `stopBits: 1`.
  */
 interface ServerSerialPortOptions {
-  dataBits: 8 | 7 | 6 | 5
-  stopBits: 1 | 2
+  dataBits: DataBits
+  stopBits: StopBits
 }
 
 type ServerSerialConstructor = new (
@@ -697,8 +699,8 @@ export class ModbusServer {
           }
         },
         {
-          dataBits: serialConfig.options.dataBits as 8 | 7 | 6 | 5,
-          stopBits: serialConfig.options.stopBits as 1 | 2
+          dataBits: serialConfig.options.dataBits,
+          stopBits: serialConfig.options.stopBits
         }
       )
       this._rtuUuid = uuid

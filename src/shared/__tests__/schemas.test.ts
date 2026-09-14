@@ -7,6 +7,7 @@ import {
 import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
 import { RegisterParamsSchema } from '../types/server'
+import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
 
 describe('RegisterMapObjectSchema', () => {
   it('accepts numeric string keys', () => {
@@ -326,5 +327,40 @@ describe('Server RegisterParamsSchema — generator', () => {
       value: 42
     }
     expect(RegisterParamsSchema.safeParse(fixed).success).toBe(true)
+  })
+})
+
+describe('SerialPortOptionsSchema', () => {
+  const withOptions = (options: Record<string, unknown>): unknown => ({
+    baudRate: '9600',
+    dataBits: 8,
+    stopBits: 1,
+    parity: 'none',
+    ...options
+  })
+
+  it.each([8, 7, 6, 5])('accepts data bits %s', (dataBits) => {
+    expect(SerialPortOptionsSchema.safeParse(withOptions({ dataBits })).success).toBe(true)
+  })
+
+  it.each([1, 2])('accepts stop bits %s', (stopBits) => {
+    expect(SerialPortOptionsSchema.safeParse(withOptions({ stopBits })).success).toBe(true)
+  })
+
+  // `bindings-cpp` merges these into its defaults and hands them to the native
+  // binding without checking either, so the schema is the only refusal.
+  it.each([99, 4, 9, 0, 8.5])('refuses data bits %s', (dataBits) => {
+    expect(SerialPortOptionsSchema.safeParse(withOptions({ dataBits })).success).toBe(false)
+  })
+
+  it.each([7, 0, 3, 1.5])('refuses stop bits %s', (stopBits) => {
+    expect(SerialPortOptionsSchema.safeParse(withOptions({ stopBits })).success).toBe(false)
+  })
+
+  // The selects build their menus from these, so a value on offer is a value
+  // the schema takes.
+  it('offers exactly what the selects list', () => {
+    expect(DataBitsSchema.options.map((option) => option.value)).toEqual([8, 7, 6, 5])
+    expect(StopBitsSchema.options.map((option) => option.value)).toEqual([1, 2])
   })
 })

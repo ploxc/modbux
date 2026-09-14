@@ -24,10 +24,24 @@ export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
 export const ParitySchema = z.enum(['none', 'even', 'odd'])
 export type Parity = z.infer<typeof ParitySchema>
 
+/**
+ * The frame widths the selects offer and the binding is handed.
+ *
+ * `ModbusServer.startRtuServer` casts both to exactly these literals on the way
+ * into `ServerSerialPortOptions`, and `bindings-cpp` merges its options into
+ * defaults and hands them to the native binding with no check of its own on
+ * either. Spelling the literals here is what lets those casts go.
+ */
+export const DataBitsSchema = z.union([z.literal(8), z.literal(7), z.literal(6), z.literal(5)])
+export type DataBits = z.infer<typeof DataBitsSchema>
+
+export const StopBitsSchema = z.union([z.literal(1), z.literal(2)])
+export type StopBits = z.infer<typeof StopBitsSchema>
+
 export const SerialPortOptionsSchema = z.object({
   baudRate: ModbusBaudRateSchema,
-  dataBits: z.number(),
-  stopBits: z.number(),
+  dataBits: DataBitsSchema,
+  stopBits: StopBitsSchema,
   parity: ParitySchema.optional()
 })
 export type SerialPortOptions = z.infer<typeof SerialPortOptionsSchema>

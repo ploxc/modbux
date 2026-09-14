@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { BaseDataType, RegisterParams, UnitIdString, Windows } from '@shared'
+import { defaultSerialPortOptions } from '@shared'
 import type { IServiceVector } from 'modbus-serial/ServerTCP'
 
 // Configurable port availability for net mock
@@ -1314,7 +1315,7 @@ describe('ModbusServer', () => {
   describe('startRtuServer', () => {
     const serialConfig = {
       com: '/dev/ttyUSB0',
-      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+      options: { ...defaultSerialPortOptions }
     }
 
     it('creates a ServerSerial with correct config', async () => {
@@ -1570,7 +1571,7 @@ describe('ModbusServer', () => {
   describe('stopRtuServer', () => {
     const serialConfig = {
       com: '/dev/ttyUSB0',
-      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+      options: { ...defaultSerialPortOptions }
     }
 
     it('does nothing when no RTU server is running', async () => {
@@ -1962,7 +1963,7 @@ describe('ModbusServer', () => {
   describe('the unit ids a server answers for', () => {
     const serialConfig = {
       com: '/dev/ttyUSB0',
-      options: { baudRate: '9600' as const, dataBits: 8, stopBits: 1, parity: 'none' as const }
+      options: { ...defaultSerialPortOptions }
     }
 
     const hostUnit = (id: UnitIdString, address: number, value: number): void =>

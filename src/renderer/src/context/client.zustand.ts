@@ -303,16 +303,10 @@ export const useClientZustand = create<
         if (!currentState.ready) return
         if (currentState.clientState.connectState !== 'disconnected') return
 
-        const newDataBits = Number(dataBits)
-        if (
-          !(await window.api.updateConnectionConfig({
-            rtu: { options: { dataBits: newDataBits } }
-          }))
-        )
-          return
+        if (!(await window.api.updateConnectionConfig({ rtu: { options: { dataBits } } }))) return
 
         set((state) => {
-          state.connectionConfig.rtu.options.dataBits = newDataBits
+          state.connectionConfig.rtu.options.dataBits = dataBits
         })
       },
       setStopBits: async (stopBits) => {
@@ -320,16 +314,10 @@ export const useClientZustand = create<
         if (!currentState.ready) return
         if (currentState.clientState.connectState !== 'disconnected') return
 
-        const newStopBits = Number(stopBits)
-        if (
-          !(await window.api.updateConnectionConfig({
-            rtu: { options: { stopBits: newStopBits } }
-          }))
-        )
-          return
+        if (!(await window.api.updateConnectionConfig({ rtu: { options: { stopBits } } }))) return
 
         set((state) => {
-          state.connectionConfig.rtu.options.stopBits = newStopBits
+          state.connectionConfig.rtu.options.stopBits = stopBits
         })
       },
       //
