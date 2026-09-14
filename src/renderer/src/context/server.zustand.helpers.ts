@@ -235,7 +235,10 @@ export class ServerDelayedSetter<T, P> {
       this._updateCount = 0
     }
 
-    if (this._updateCount > this._maxCount) {
+    // Counted on the test, because a burst with no 50 ms gap in it clears the
+    // pending timeout every time and nothing ever reaches the grid. The
+    // ceiling is what makes this a debounce that still delivers.
+    if (this._updateCount++ > this._maxCount) {
       update()
       return
     }
