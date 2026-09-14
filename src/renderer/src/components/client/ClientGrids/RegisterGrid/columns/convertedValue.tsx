@@ -69,10 +69,12 @@ export const convertedValueColumn = (
 
       let register = registerMap[address + count]
 
-      // Continue until we find the next register with a defined datatype
-      // Or stop when we reach the end of the group
+      // Continue until we find the next register with a defined datatype, or
+      // until the end of the group. The group is [startAddress, + length), the
+      // same half-open range the `find` above reads it as, and `<=` took two
+      // characters out of whatever was read after it.
       while (
-        address + count <= startAddress + length &&
+        address + count < startAddress + length &&
         (!register || register.dataType === 'none' || !register.dataType)
       ) {
         count++
