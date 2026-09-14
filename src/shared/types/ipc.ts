@@ -20,7 +20,6 @@ import type {
   Transaction,
   ScanUnitIDResult,
   RegisterValue,
-  WindowsOpen,
   AddressGroup,
   SerialPortInfo,
   SerialPortValidationResult,
@@ -32,6 +31,17 @@ import type {
   SerialGroupFixResult
 } from '@shared'
 import { SharedProps } from 'notistack'
+
+/**
+ * Which windows are open, as `window_update` carries it.
+ *
+ * The handles live in main's `Windows`; this is the renderer's half of that,
+ * which is why it sits with the event that carries it.
+ */
+export interface WindowsOpen {
+  main: boolean
+  server: boolean
+}
 
 /**
  * IPC Channel Definitions

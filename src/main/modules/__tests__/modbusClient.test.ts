@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Protocol, Windows } from '@shared'
+import type { Protocol } from '@shared'
+import type { Windows } from '../../windows'
 import { AppState } from '../../state'
 
 // Track event handlers registered on the mock ModbusRTU client

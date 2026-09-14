@@ -6,11 +6,6 @@ interface WindowsObject {
   server: BrowserWindow | null
 }
 
-export interface WindowsOpen {
-  main: boolean
-  server: boolean
-}
-
 export class Windows {
   private _windows: WindowsObject
 

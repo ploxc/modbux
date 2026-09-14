@@ -11,8 +11,8 @@ import {
   registerWidth,
   UnitIdString
 } from '@shared'
+import { Windows } from '../../windows'
 import { round } from 'lodash'
-import { Windows } from '@shared'
 
 type ValueGeneratorParams = {
   uuid: string

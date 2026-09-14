@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { BaseDataType, RegisterParams, UnitIdString, Windows } from '@shared'
+import type { BaseDataType, RegisterParams, UnitIdString } from '@shared'
+import type { Windows } from '../../windows'
 import { defaultSerialPortOptions } from '@shared'
 import type { IServiceVector } from 'modbus-serial/ServerTCP'
 

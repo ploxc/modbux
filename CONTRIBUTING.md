@@ -107,8 +107,11 @@ doing rather than a choice: `useGridApiContext` and `useGridApiRef` are exported
 by none of the subpaths `@mui/x-data-grid` declares, so they come from
 the root.
 
-**Nothing in `src/shared` imports from `src/main`.** All three processes import
-shared; it is the one layer that may not reach back.
+**Nothing in `src/shared` imports from `src/main`, or from `electron`.** All
+three processes import shared; it is the one layer that may not reach back.
+Electron is the same rule read through the other specifier: `Windows` held two
+`BrowserWindow`s from inside shared and passed, because it named `electron`
+rather than `@main`.
 
 **Every interactive element carries a `data-testid`.** Buttons, fields, sliders,
 selects and grid action cells. Containers do not, because the e2e suite reaches
