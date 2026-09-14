@@ -68,6 +68,26 @@ test.describe.serial('Split View — Server in separate window', () => {
     expect(master.readyState).toBe('open')
   })
 
+  /**
+   * 0 is a port number the way "any" is a name, and `ModbusServer.setPort`
+   * refuses it. The message used to go to every window, and the server window
+   * had no listener, so in split view the field snapped back to its old port
+   * with nothing said in the window the user was looking at.
+   */
+  test('a refused port reports in the window showing the server', async () => {
+    const portInput = serverPage.getByTestId('server-port-input').locator('input')
+    await portInput.click()
+    await portInput.selectText()
+    await portInput.pressSequentially('0')
+    await portInput.blur()
+
+    await expect(serverPage.locator('.notistack-SnackbarContainer')).toContainText(
+      'A server needs a port between 1 and 65535',
+      { timeout: 5000 }
+    )
+    await expect(portInput).toHaveValue(String(serverPort))
+  })
+
   test('close server window and verify main returns to normal', async ({
     electronApp,
     mainPage

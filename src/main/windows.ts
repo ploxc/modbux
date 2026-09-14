@@ -1,5 +1,5 @@
 import { IpcEvent, IpcEventPayloadMap } from '@shared'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, WebContents } from 'electron'
 
 interface WindowsObject {
   main: BrowserWindow | null
@@ -38,6 +38,43 @@ export class Windows {
        * shows up.
        */
     }
+  }
+
+  /**
+   * Send an event to one addressee.
+   *
+   * A `WebContents` is the window that asked: `ipcMain.handle` hands the
+   * invoking contents to every handler, so a refused payload reports where it
+   * came from rather than everywhere.
+   *
+   * `'main'` is the window the client work happens in, which never moves.
+   * `'serverView'` is the window showing the server, which is the popped out
+   * one while it exists and the main window otherwise, the same question
+   * `PrivilegedPortModal` answers by where it is mounted.
+   *
+   * Both windows render `MessageReceiver`, so without an addressee a message
+   * about one view snackbars in the other as well.
+   */
+  public sendTo = <E extends IpcEvent>(
+    target: WebContents | 'main' | 'serverView',
+    event: E,
+    ...args: IpcEventPayloadMap[E]
+  ): void => {
+    const contents = this._contentsFor(target)
+    try {
+      if (contents && !contents.isDestroyed()) contents.send(event, ...args)
+    } catch (error) {
+      // Gone between the guard and the send, the same way `send` describes.
+    }
+  }
+
+  private _contentsFor(target: WebContents | 'main' | 'serverView'): WebContents | null {
+    if (target === 'main') return this._windows.main?.webContents ?? null
+    if (target === 'serverView') {
+      const window = this._windows.server ?? this._windows.main
+      return window?.webContents ?? null
+    }
+    return target
   }
 
   // Main window access

@@ -273,6 +273,11 @@ export class ModbusServer {
   /**
    * Emits a backend message to the frontend via the Windows IPC interface.
    */
+  /**
+   * A server message goes to the window showing the server, which in split view
+   * is the popped out one. Broadcasting put "A server needs a port between 1 and
+   * 65535" in the window on the client view and in the one that asked.
+   */
   private _emitMessage({
     message,
     variant,
@@ -282,7 +287,7 @@ export class ModbusServer {
     variant: 'default' | 'error' | 'success' | 'warning' | 'info'
     error?: Error
   }): void {
-    this._windows.send('backend_message', { message, variant, error })
+    this._windows.sendTo('serverView', 'backend_message', { message, variant, error })
   }
 
   /**
