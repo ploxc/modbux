@@ -133,10 +133,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server opened at 8 data bits and 1 stop bit whatever the panel showed. Baud
   rate and parity always arrived, and the client was never affected.
 - **Cancelling a connect to a serial port now cancels it.** The Connect button
-  turns into a Cancel while the port is opening, and pressing it left the
-  connecting running: a moment later the app reported "Connected over Modbus
-  RTU" and sat there holding the port. The cancelled connect now closes the
-  port it opened and says nothing. Over TCP the cancel always worked.
+  turns into a Cancel while the port is opening. Pressing it used to change
+  nothing: a moment later the app reported "Connected over Modbus RTU" and sat
+  there holding the port. The cancelled connect now closes the port it opened
+  and says nothing. Pressing Connect again before it has let that port go says
+  so rather than opening a second one. Over TCP the cancel always worked.
 
 ### Changed
 
