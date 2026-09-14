@@ -13,14 +13,7 @@ export interface ReadCoilResultLike {
   buffer: Buffer
 }
 
-export const parseIEC870DateTime = (buf: Buffer): string => {
-  if (buf.length !== 8) return ''
-
-  const word1 = buf.readUInt16BE(0)
-  const word2 = buf.readUInt16BE(2)
-  const word3 = buf.readUInt16BE(4)
-  const word4 = buf.readUInt16BE(6)
-
+const parseIEC870Words = (word1: number, word2: number, word3: number, word4: number): string => {
   if (word1 === 0xffff && word2 === 0xffff && word3 === 0xffff && word4 === 0xffff) {
     return ''
   }
@@ -55,6 +48,41 @@ export const parseIEC870DateTime = (buf: Buffer): string => {
 
   return datetime.toFormat('yyyy/MM/dd HH:mm:ss')
 }
+
+/** The IEC 870-5 datetime the four registers at an offset hold. */
+export const parseIEC870DateTime = (buf: Buffer): string => {
+  if (buf.length !== 8) return ''
+
+  return parseIEC870Words(
+    buf.readUInt16BE(0),
+    buf.readUInt16BE(2),
+    buf.readUInt16BE(4),
+    buf.readUInt16BE(6)
+  )
+}
+
+/**
+ * The same datetime, read off the composite number the server store keeps.
+ *
+ * The store folds the four registers into one `value`, so the row had its own
+ * copy of the layout above, without the invalid flag and without the range gate.
+ * The number carries all 64 bits up to `Number.MAX_SAFE_INTEGER` and no further:
+ * the encoding of 2099/12/31 23:59:59.999 rounds up by one millisecond on the
+ * way through `Number`, and the year offset is what pushes it that far.
+ */
+export const parseIEC870DateTimeValue = (packed: number): string =>
+  parseIEC870Words(
+    Math.floor(packed / 2 ** 48) & 0xffff,
+    Math.floor(packed / 2 ** 32) & 0xffff,
+    Math.floor(packed / 2 ** 16) & 0xffff,
+    packed & 0xffff
+  )
+
+/** The `yyyy/MM/dd HH:mm:ss` a unix register's seconds stand for. */
+export const formatUnixSeconds = (seconds: number): string =>
+  DateTime.fromMillis(seconds * 1000)
+    .toUTC()
+    .toFormat('yyyy/MM/dd HH:mm:ss')
 
 export const convertRegisterData = (
   result: ReadRegisterResultLike,
@@ -106,11 +134,7 @@ export const convertRegisterData = (
         int32: buf32 ? buf32.readInt32BE(0) : 0,
         uint32: buf32 ? buf32.readUInt32BE(0) : 0,
         float: buf32 ? round(buf32.readFloatBE(0), 5) : 0,
-        unix: buf32
-          ? DateTime.fromMillis(buf32.readUInt32BE(0) * 1000)
-              .toUTC()
-              .toFormat('yyyy/MM/dd HH:mm:ss')
-          : '',
+        unix: buf32 ? formatUnixSeconds(buf32.readUInt32BE(0)) : '',
 
         // 64 bits
         int64: buf64 ? buf64.readBigInt64BE(0) : BigInt(0),
