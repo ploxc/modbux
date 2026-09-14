@@ -94,6 +94,21 @@ type ValueGeneratorsMap = Map<string, ValueGeneratorsUnitMap>
 type IServiceVectorGet<T> = (addr: number, unitID: number, cb: FCallbackVal<T>) => void
 type IServiceVectorSet<T> = (addr: number, value: T, unitID: number, cb: FCallback) => void
 
+/**
+ * The serial port under a `ServerSerial`, with the events this file listens for.
+ *
+ * `serverserial.js` opens a `SerialPort` into `_serverPath` and returns it from
+ * `getPort()`. `ServerSerial.d.ts` declares neither, so reaching the port needs
+ * a type written here.
+ */
+interface RtuSerialPort {
+  on(event: 'error' | 'close', listener: (err?: Error) => void): void
+}
+
+interface ServerSerialWithPort extends ServerSerial {
+  getPort(): RtuSerialPort
+}
+
 export interface ServerParams {
   windows: Windows
 }
@@ -619,6 +634,13 @@ export class ModbusServer {
     this._setServerData(uuid, unitId, serverData)
   }
 
+  /** Reports the RTU server down: the message, and the status the view reads. */
+  private _reportRtuDown(message: string, error?: Error): void {
+    this._rtuActive = false
+    this._emitMessage({ message, variant: 'error', error })
+    this._windows.send('rtu_server_status', { active: false })
+  }
+
   /**
    * Starts an RTU server on a serial port for the given UUID.
    * Closes any existing RTU server first.
@@ -637,47 +659,41 @@ export class ModbusServer {
         baudRate: Number(serialConfig.options.baudRate),
         dataBits: serialConfig.options.dataBits as 8 | 7 | 6 | 5,
         stopBits: serialConfig.options.stopBits as 1 | 2,
-        parity: serialConfig.options.parity ?? 'none'
+        parity: serialConfig.options.parity ?? 'none',
+        // `@serialport/stream`'s `_error` hands a failed open to this callback
+        // when one is passed and emits `error` on the port when none is. The
+        // same callback carries the success, with null in place of an error.
+        openCallback: (err): void => {
+          if (err) this._reportRtuDown(`RTU server error: ${err.message}`)
+        }
       })
       this._rtuUuid = uuid
 
-      // The SerialPort under the server. Its `error` listener catches open
-      // failures, which would otherwise surface as an unhandled rejection.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const serverPath = (this._rtuServer as any)._serverPath
+      const serverPort = (this._rtuServer as ServerSerialWithPort).getPort()
       const rtuServer = this._rtuServer
-      if (serverPath && typeof serverPath.on === 'function') {
-        serverPath.on('error', (err: Error) => {
-          this._rtuActive = false
-          this._emitMessage({
-            message: `RTU server error: ${err?.message ?? err}`,
-            variant: 'error'
-          })
-          this._windows.send('rtu_server_status', { active: false })
-        })
 
-        // `close` is the disconnect event. `@serialport/stream` documents it as
-        // "in the case of a disconnect it will be called with a Disconnect Error
-        // object", and its `_disconnected` answers a failed read with
-        // `close(undefined, new DisconnectedError(...))` while pushing nothing
-        // into the stream. So an adapter pulled between requests arrives here
-        // and nowhere else, and without this the view keeps showing a server
-        // whose port is gone.
-        serverPath.on('close', (err?: Error) => {
-          // A close this process caused is already reported. `stopRtuServer`
-          // clears both fields before it closes the port, and the `error`
-          // listener above clears `_rtuActive` for the write path, where one
-          // unplug emits both events.
-          if (this._rtuServer !== rtuServer || !this._rtuActive) return
-          this._rtuActive = false
-          this._emitMessage({
-            message: `RTU server disconnected from ${serialConfig.com}`,
-            variant: 'error',
-            error: err
-          })
-          this._windows.send('rtu_server_status', { active: false })
-        })
-      }
+      // A write to a port that is gone fails in `_write`, which disconnects the
+      // stream and calls back with the error, and a Writable given an error
+      // emits it. A failed open arrives in `openCallback` instead.
+      serverPort.on('error', (err) => {
+        this._reportRtuDown(`RTU server error: ${err?.message ?? err}`)
+      })
+
+      // `close` is the disconnect event. `@serialport/stream` documents it as
+      // "in the case of a disconnect it will be called with a Disconnect Error
+      // object", and its `_disconnected` answers a failed read with
+      // `close(undefined, new DisconnectedError(...))` while pushing nothing
+      // into the stream. So an adapter pulled between requests arrives here
+      // and nowhere else, and without this the view keeps showing a server
+      // whose port is gone.
+      serverPort.on('close', (err) => {
+        // A close this process caused is already reported. `stopRtuServer`
+        // clears both fields before it closes the port, and the `error`
+        // listener above clears `_rtuActive` for the write path, where one
+        // unplug emits both events.
+        if (this._rtuServer !== rtuServer || !this._rtuActive) return
+        this._reportRtuDown(`RTU server disconnected from ${serialConfig.com}`, err)
+      })
 
       this._rtuServer.on('initialized', () => {
         this._rtuActive = true
@@ -689,13 +705,13 @@ export class ModbusServer {
         this._warnBroadcastUnit(uuid)
       })
 
-      this._rtuServer.on('error', (err) => {
-        this._rtuActive = false
-        this._emitMessage({
-          message: `RTU server error: ${err?.message ?? err}`,
-          variant: 'error'
-        })
-        this._windows.send('rtu_server_status', { active: false })
+      // `socketError`, not `error`. `serverserial.js` emits `error` only from
+      // `sockWriter`'s `if (err)`, and the only caller of `sockWriter` is
+      // `_callbackFactory`, which passes null on both of its branches: it has
+      // turned the error into an exception frame by then. `socketError` is what
+      // a failure of the pipe under the server emits.
+      this._rtuServer.on('socketError', (err) => {
+        this._reportRtuDown(`RTU server error: ${err?.message ?? err}`)
       })
     } catch (err) {
       this._emitMessage({

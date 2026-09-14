@@ -35,22 +35,23 @@ vi.mock('modbus-serial', () => ({
   }),
   ServerSerial: vi.fn().mockImplementation(function () {
     const handlers: Record<string, (...args: unknown[]) => void> = {}
-    // The SerialPort the library opens. `startRtuServer` reaches for it by name
-    // and registers on it, so a mock without one leaves those listeners out of
-    // every test.
+    // The SerialPort the library opens and returns from `getPort()`.
+    // `startRtuServer` registers on it, so a mock without one leaves those
+    // listeners out of every test.
     const pathHandlers: Record<string, (...args: unknown[]) => void> = {}
+    const port = {
+      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        pathHandlers[event] = handler
+      }),
+      _handlers: pathHandlers
+    }
     return {
       on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
         handlers[event] = handler
       }),
       close: vi.fn((cb: (err: Error | null) => void) => cb(null)),
       _handlers: handlers,
-      _serverPath: {
-        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-          pathHandlers[event] = handler
-        }),
-        _handlers: pathHandlers
-      }
+      getPort: vi.fn(() => port)
     }
   })
 }))
@@ -131,7 +132,7 @@ const lastInstance = (constructor: typeof ServerTCP | typeof ServerSerial) => {
 /** A serial server as the mock builds it, with the handler records exposed. */
 type MockSerialServer = {
   _handlers: Record<string, (...args: unknown[]) => void>
-  _serverPath: { _handlers: Record<string, (...args: unknown[]) => void> }
+  getPort: () => { _handlers: Record<string, (...args: unknown[]) => void> }
 }
 
 /**
@@ -145,9 +146,23 @@ const fireSerialPathEvent = (
   event: 'error' | 'close',
   ...args: unknown[]
 ): void => {
-  const handler = instance._serverPath._handlers[event]
+  const handler = instance.getPort()._handlers[event]
   if (!handler) throw new Error(`the serial port got no '${event}' handler`)
   handler(...args)
+}
+
+/**
+ * Fire the `openCallback` the last serial server was constructed with.
+ *
+ * A server built without one fails here saying so, where
+ * `call[1].openCallback?.(err)` would pass quietly.
+ */
+const fireOpenCallback = (err: Error | null): void => {
+  const call = vi.mocked(ServerSerial).mock.calls.at(-1)
+  if (!call) throw new Error('no server was constructed')
+  const openCallback = call[1].openCallback
+  if (!openCallback) throw new Error('the server was built with no openCallback')
+  openCallback(err)
 }
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
@@ -1316,17 +1331,46 @@ describe('ModbusServer', () => {
       expect(messageCalls.some((c) => c[1].message.includes('/dev/ttyUSB0'))).toBe(true)
     })
 
-    it('emits error status on error event', async () => {
+    it('emits error status on socketError event', async () => {
       await server.startRtuServer({ uuid, serialConfig })
 
       const instance = lastInstance(ServerSerial)
-      instance._handlers['error'](new Error('port gone'))
+      // A listener on `error` instead would never fire, and the view would keep
+      // showing a running server.
+      instance._handlers['socketError'](new Error('port gone'))
 
       const statusCalls = getWindowCalls('rtu_server_status')
       expect(statusCalls.some((c) => c[1].active === false)).toBe(true)
 
       const messageCalls = getWindowCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message.includes('port gone'))).toBe(true)
+    })
+
+    it('reports an open that failed', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      fireOpenCallback(new Error('cannot open /dev/ttyUSB0'))
+
+      expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
+      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+        'RTU server error: cannot open /dev/ttyUSB0'
+      ])
+    })
+
+    it('says nothing when the port opens', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      // The same callback carries the success, with null in place of an error.
+      fireOpenCallback(null)
+      const instance = lastInstance(ServerSerial)
+      instance._handlers['initialized']()
+
+      expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([true])
+      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+        'RTU server started on /dev/ttyUSB0'
+      ])
     })
 
     it('skips start when COM port is empty', async () => {
