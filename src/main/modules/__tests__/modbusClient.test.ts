@@ -230,6 +230,46 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()
     })
 
+    /**
+     * A connect the user cancelled while the port was still opening.
+     *
+     * The open resolves after `disconnect` has run, which is the whole case:
+     * on a socat pty the app reported "Connected over Modbus RTU" and left the
+     * button on Disconnect.
+     */
+    const cancelDuringOpen = async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
+      let finishOpen = (): void => {}
+      mockModbusRTU.connectRTUBuffered.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finishOpen = (): void => {
+              mockModbusRTU.isOpen = true
+              resolve()
+            }
+          })
+      )
+
+      const connecting = client.connect()
+      await client.disconnect()
+      finishOpen()
+      await connecting
+    }
+
+    it('reports nothing for a connect that was cancelled while opening', async () => {
+      await cancelDuringOpen()
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message.includes('Connected over'))).toBe(false)
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    it('closes the port a cancelled connect opened', async () => {
+      await cancelDuringOpen()
+
+      expect(mockModbusRTU.close).toHaveBeenCalled()
+    })
+
     it('emits "Already connected" warning if client is open', async () => {
       mockModbusRTU.isOpen = true
 
