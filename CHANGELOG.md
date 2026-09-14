@@ -124,6 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read length from the toolbar instead, so the default chunk of 100 against a
   read length of 10 kept ten coils out of every hundred it found. Every address
   in the chunk now arrives.
+- **The RTU server now opens at the data bits and stop bits you set.** Both were
+  handed to the serial library in a place it does not read, so every serial
+  server opened at 8 data bits and 1 stop bit whatever the panel showed. Baud
+  rate and parity always arrived, and the client was never affected.
 
 ### Changed
 

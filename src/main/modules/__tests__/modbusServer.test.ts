@@ -165,6 +165,19 @@ const fireOpenCallback = (err: Error | null): void => {
   openCallback(err)
 }
 
+/**
+ * The third constructor argument of the last serial server.
+ *
+ * `ServerSerial`'s typings stop at two arguments and `serverserial.js` reads a
+ * third, so the call tuple is read through a type that admits one.
+ */
+const lastSerialPortOptions = (): unknown => {
+  const calls: readonly (readonly unknown[])[] = vi.mocked(ServerSerial).mock.calls
+  const call = calls.at(-1)
+  if (!call) throw new Error('no server was constructed')
+  return call[2]
+}
+
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
 describe('ModbusServer', () => {
@@ -1311,11 +1324,26 @@ describe('ModbusServer', () => {
         expect.objectContaining({
           path: '/dev/ttyUSB0',
           baudRate: 9600,
-          dataBits: 8,
-          stopBits: 1,
           parity: 'none'
-        })
+        }),
+        { dataBits: 8, stopBits: 1 }
       )
+    })
+
+    it('gives the port the data bits and stop bits it was configured with', async () => {
+      // `serverserial.js` builds its own option object and assigns it over the
+      // third argument, and the two it does not name reach `SerialPort` by no
+      // other route. In the second argument they typecheck and go nowhere, and
+      // the binding opens at 8 and 1, which is why this asks for 7 and 2.
+      await server.startRtuServer({
+        uuid,
+        serialConfig: {
+          ...serialConfig,
+          options: { ...serialConfig.options, dataBits: 7, stopBits: 2 }
+        }
+      })
+
+      expect(lastSerialPortOptions()).toEqual({ dataBits: 7, stopBits: 2 })
     })
 
     it('emits success message and status on initialized event', async () => {
