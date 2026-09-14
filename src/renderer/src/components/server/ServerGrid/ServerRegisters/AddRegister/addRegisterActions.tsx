@@ -17,7 +17,9 @@ export const AddButtons = meme(() => {
       return z.valid.address && z.valid.stringValue && z.valid.registerLength
     }
     if (['unix', 'datetime'].includes(z.dataType)) {
-      return z.fixed ? z.valid.address : z.valid.address && z.valid.interval
+      // A fixed timestamp comes from the picker, which reports a date outside
+      // the window the register can carry the way a mask reports a bad number.
+      return z.fixed ? z.valid.address && z.valid.value : z.valid.address && z.valid.interval
     }
     if (z.fixed) return z.valid.address && z.valid.value
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval

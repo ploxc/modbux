@@ -59,12 +59,44 @@ const generatorAt100: ServerRegister[number] = {
   }
 }
 
+/** A timestamp the store folds as milliseconds and stores as seconds for unix. */
+const JUNE_2024_MS = Date.UTC(2024, 5, 1, 12, 34, 56, 789)
+
+const timestampAt100 = (dataType: 'unix' | 'datetime', value: number): ServerRegister[number] => ({
+  value: 0,
+  params: {
+    address: 100,
+    registerType: 'holding_registers',
+    dataType,
+    comment: 'stamp',
+    value,
+    min: undefined,
+    max: undefined,
+    interval: undefined
+  }
+})
+
+const datetimeAt100 = timestampAt100('datetime', JUNE_2024_MS)
+const unixAt100 = timestampAt100('unix', Math.floor(JUNE_2024_MS / 1000))
+
 const submitButton = (): HTMLElement => screen.getByTestId('add-reg-submit-btn')
 const removeButton = (): HTMLElement => screen.getByTestId('add-reg-remove-btn')
 
 /** The attribute sits on the MUI field, and what a user types into is inside it. */
 const fieldInput = (testId: string): HTMLElement =>
   within(screen.getByTestId(testId)).getByRole('textbox')
+
+/**
+ * The picker's sections, which is what a user types a date into.
+ *
+ * The testid is on the input beside them, which the accessible field structure
+ * marks `aria-hidden` and leaves out of the tab order.
+ */
+const datetimeSections = (): HTMLElement => {
+  const sections = screen.getByTestId('add-reg-datetime-input').parentElement
+  if (!sections) throw new Error('the datetime picker rendered no sections container')
+  return sections
+}
 
 /** The dialog opened on a register, which is what puts the two buttons up. */
 const renderEditing = (register: ServerRegister[number]): void => {
@@ -173,6 +205,73 @@ describe('the edit dialog buttons', () => {
 
     expect(submitButton()).toBeDisabled()
     expect(removeButton()).toBeEnabled()
+  })
+
+  // The picker reads `value`, so what the store holds is what it draws.
+  it('opens a fixed datetime on the timestamp the register holds', () => {
+    renderEditing(datetimeAt100)
+
+    expect(useAddRegisterZustand.getState().value).toBe(String(JUNE_2024_MS))
+  })
+
+  it('opens a fixed unix on the timestamp the register holds', () => {
+    renderEditing(unixAt100)
+
+    expect(useAddRegisterZustand.getState().value).toBe(String(JUNE_2024_MS - 789))
+  })
+
+  it('offers Remove and not Submit Change for a datetime nothing was typed into', () => {
+    renderEditing(datetimeAt100)
+
+    expect(submitButton()).toBeDisabled()
+    expect(removeButton()).toBeEnabled()
+  })
+
+  // The window is the register's, not the picker's, and the two registers do
+  // not share one: IEC 870-5 runs to the end of 2127, a uint32 of seconds to
+  // 2106/02/07. A date outside greys out Submit Change the way a bad number does.
+  it('takes a datetime inside the window the format carries', async () => {
+    const user = userEvent.setup()
+    renderEditing(datetimeAt100)
+
+    await user.click(datetimeSections())
+    await user.keyboard('06152110')
+
+    expect(datetimeSections()).toHaveAttribute('aria-invalid', 'false')
+    expect(submitButton()).toBeEnabled()
+  })
+
+  it('refuses a datetime past the year the format ends at', async () => {
+    const user = userEvent.setup()
+    renderEditing(datetimeAt100)
+
+    await user.click(datetimeSections())
+    await user.keyboard('06152200')
+
+    expect(datetimeSections()).toHaveAttribute('aria-invalid', 'true')
+    expect(submitButton()).toBeDisabled()
+  })
+
+  it('takes a unix timestamp inside the range a uint32 of seconds covers', async () => {
+    const user = userEvent.setup()
+    renderEditing(unixAt100)
+
+    await user.click(datetimeSections())
+    await user.keyboard('06152024')
+
+    expect(datetimeSections()).toHaveAttribute('aria-invalid', 'false')
+    expect(submitButton()).toBeEnabled()
+  })
+
+  it('refuses for unix the same year it takes for datetime', async () => {
+    const user = userEvent.setup()
+    renderEditing(unixAt100)
+
+    await user.click(datetimeSections())
+    await user.keyboard('06152110')
+
+    expect(datetimeSections()).toHaveAttribute('aria-invalid', 'true')
+    expect(submitButton()).toBeDisabled()
   })
 
   it('removes the register it was opened on', async () => {
