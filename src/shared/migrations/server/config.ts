@@ -7,7 +7,7 @@ import {
   ServerRegisters
 } from '../../types/server'
 import { MigrationResult, Migration } from '../types'
-import { formatZodError, renameLegacyRegisterTypeKeys } from '../shared'
+import { formatZodError, migrateBoolShapeForUnit, renameLegacyRegisterTypeKeys } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 
 export const CURRENT_SERVER_CONFIG_VERSION = 2
@@ -93,28 +93,15 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 }
 
 /**
- * Convert old `boolean` bool entries to `{ value: boolean }` in a parsed config object.
- * Mutates in place. Safe to call on already-migrated data.
+ * Convert old `boolean` bool entries to `{ value: boolean }` in a parsed config
+ * object. Mutates in place. Safe to call on already-migrated data.
  */
 function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
-  const spu = config.serverRegistersPerUnit as
-    | Record<string, Record<string, unknown> | undefined>
-    | undefined
-  if (!spu) return
+  const registersPerUnit = config.serverRegistersPerUnit
+  if (typeof registersPerUnit !== 'object' || registersPerUnit === null) return
 
-  for (const unitRegisters of Object.values(spu)) {
-    if (!unitRegisters || typeof unitRegisters !== 'object') continue
-
-    for (const boolType of ['coils', 'discrete_inputs'] as const) {
-      const boolRecord = unitRegisters[boolType]
-      if (!boolRecord || typeof boolRecord !== 'object') continue
-
-      for (const [address, entry] of Object.entries(boolRecord as Record<string, unknown>)) {
-        if (typeof entry === 'boolean') {
-          ;(boolRecord as Record<string, unknown>)[address] = { value: entry }
-        }
-      }
-    }
+  for (const unitRegisters of Object.values(registersPerUnit)) {
+    migrateBoolShapeForUnit(unitRegisters)
   }
 }
 

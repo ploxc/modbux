@@ -87,6 +87,27 @@ export function dropUnmappableRegisters(state: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Convert one unit's old `boolean` bool entries to `{ value: boolean }`.
+ *
+ * Two callers walk to a unit's registers by different routes: a config file
+ * through `serverRegistersPerUnit[unit]`, the persisted store through
+ * `serverRegisters[uuid][unit]`. Only that walk differed, and the work below it
+ * was written out twice.
+ */
+export function migrateBoolShapeForUnit(unitRegisters: unknown): void {
+  if (!isRecord(unitRegisters)) return
+
+  for (const boolType of ['coils', 'discrete_inputs'] as const) {
+    const boolRecord = unitRegisters[boolType]
+    if (!isRecord(boolRecord)) continue
+
+    for (const [address, entry] of Object.entries(boolRecord)) {
+      if (typeof entry === 'boolean') boolRecord[address] = { value: entry }
+    }
+  }
+}
+
 const LEGACY_REGISTER_TYPE_KEYS: Record<string, string> = {
   Coils: 'coils',
   DiscreteInputs: 'discrete_inputs',
