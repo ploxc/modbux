@@ -21,7 +21,8 @@ import {
   StartRtuServerParamsSchema,
   SyncBoolsParametersSchema,
   SyncRegisterValueParamsSchema,
-  ServerEndiannessSchema
+  ServerEndiannessSchema,
+  ServerUuidSchema
 } from '@shared'
 import { Windows } from './windows'
 import { ModbusClient } from './modules/modbusClient'
@@ -194,10 +195,10 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   ipcHandle('set_bool', (_, params) => server.setBool(params), SetBooleanParametersSchema)
   ipcHandle('reset_bools', (_, params) => server.resetBools(params), ResetBoolsParamsSchema)
   ipcHandle('sync_bools', (_, params) => server.syncBools(params), SyncBoolsParametersSchema)
-  ipcHandle('reset_server', (_, uuid) => server.resetServer(uuid))
+  ipcHandle('reset_server', (_, uuid) => server.resetServer(uuid), ServerUuidSchema)
   ipcHandle('set_server_port', (_, params) => server.setPort(params), CreateServerParamsSchema)
   ipcHandle('create_server', (_, params) => server.createServer(params), CreateServerParamsSchema)
-  ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid))
+  ipcHandle('delete_server', (_, uuid) => server.deleteServer(uuid), ServerUuidSchema)
 
   // RTU Server
   ipcHandle(
