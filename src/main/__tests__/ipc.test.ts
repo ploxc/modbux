@@ -30,19 +30,33 @@ import {
 import type { Windows } from '../windows'
 import { createIpcHandle, initIpc } from '../ipc'
 
-const createWindows = (): { windows: Windows; sent: BackendMessage[] } => {
-  const sent: BackendMessage[] = []
+/** The addressee `sendTo` was given, beside the message it carried. */
+interface SentMessage {
+  to: unknown
+  message: BackendMessage
+}
+
+const createWindows = (): { windows: Windows; sent: SentMessage[] } => {
+  const sent: SentMessage[] = []
   const windows = {
-    send: (_event: string, payload: BackendMessage) => sent.push(payload)
+    send: (_event: string, message: BackendMessage) => sent.push({ to: 'all', message }),
+    sendTo: (to: unknown, _event: string, message: BackendMessage) => sent.push({ to, message })
   } as unknown as Windows
   return { windows, sent }
 }
 
+/** Stands in for the `WebContents` that `ipcMain.handle` hands every listener. */
+const SENDER = { id: 'the window that asked' }
+
 /** Invokes the listener that was registered for `channel`. */
-const invoke = async (channel: string, payload?: unknown): Promise<unknown> => {
+const invoke = async (
+  channel: string,
+  payload?: unknown,
+  sender: unknown = SENDER
+): Promise<unknown> => {
   const call = handle.mock.calls.find((c) => c[0] === channel)
   if (!call) throw new Error(`nothing registered for ${channel}`)
-  return (call[1] as (e: unknown, p?: unknown) => unknown)({}, payload)
+  return (call[1] as (e: unknown, p?: unknown) => unknown)({ sender }, payload)
 }
 
 beforeEach(() => handle.mockClear())
@@ -56,7 +70,7 @@ describe('createIpcHandle', () => {
     ipcHandle('update_connection_config', listener)
     await invoke('update_connection_config', { unitId: 3 })
 
-    expect(listener).toHaveBeenCalledWith({}, { unitId: 3 })
+    expect(listener).toHaveBeenCalledWith({ sender: SENDER }, { unitId: 3 })
     expect(sent).toEqual([])
   })
 
@@ -96,9 +110,23 @@ describe('createIpcHandle', () => {
     expect(listener).not.toHaveBeenCalled()
     expect(returned).toBeUndefined()
     expect(sent).toHaveLength(1)
-    expect(sent[0]?.variant).toBe('error')
-    expect(String(sent[0]?.error)).toContain('set_bool')
-    expect(String(sent[0]?.error)).toContain('unitId')
+    expect(sent[0]?.message.variant).toBe('error')
+    expect(String(sent[0]?.message.error)).toContain('set_bool')
+    expect(String(sent[0]?.message.error)).toContain('unitId')
+  })
+
+  // Broadcasting reached whichever windows were listening. In split view that
+  // was the main one, so a payload refused on a channel the server window owns
+  // reported into the window the user was not looking at.
+  it('reports the refusal to the window that asked', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const otherWindow = { id: 'a window that asked nothing' }
+
+    ipcHandle('set_bool', vi.fn(), SetBooleanParametersSchema)
+    await invoke('set_bool', 'not a payload', otherWindow)
+
+    expect(sent.map(({ to }) => to)).toEqual([otherWindow])
   })
 
   it('reports rather than throws, so the renderer never sees a rejected invoke', async () => {
@@ -427,7 +455,7 @@ describe('each guarded channel got its own schema', () => {
     }
   }
 
-  const start = (): { sent: BackendMessage[] } => {
+  const start = (): { sent: SentMessage[] } => {
     handle.mockClear()
     const { windows, sent } = createWindows()
     initIpc(
@@ -443,7 +471,7 @@ describe('each guarded channel got its own schema', () => {
   it.each(Object.keys(validPayloads))('lets a valid %s payload through', async (channel) => {
     const { sent } = start()
     await invoke(channel, validPayloads[channel])
-    expect(sent.map((message) => message.error)).toEqual([])
+    expect(sent.map(({ message }) => message.error)).toEqual([])
   })
 
   // A string reaches every one of these as an object was expected, so it is the
@@ -453,7 +481,7 @@ describe('each guarded channel got its own schema', () => {
     async (channel) => {
       const { sent } = start()
       await invoke(channel, 'not a payload')
-      expect(sent.map((message) => String(message.error).split(':')[0])).toEqual([channel])
+      expect(sent.map(({ message }) => String(message.error).split(':')[0])).toEqual([channel])
     }
   )
 })

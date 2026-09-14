@@ -61,6 +61,11 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
  * error crossing the IPC boundary surfaces in the renderer as an unhandled
  * rejection carrying the channel name and nothing else, which is exactly the
  * failure the Linux helpers avoid by returning results instead of throwing.
+ *
+ * It goes back to the window that asked. Broadcasting it reached whichever
+ * windows were listening, which in split view was the main one, so a payload
+ * refused on a channel the server window owns reported into a window the user
+ * was not looking at.
  */
 export const createIpcHandle =
   (windows: Windows) =>
@@ -78,7 +83,7 @@ export const createIpcHandle =
       const result = schema.safeParse(args[0])
 
       if (!result.success) {
-        windows.send('backend_message', {
+        windows.sendTo(event.sender, 'backend_message', {
           message: 'Invalid request, nothing was changed',
           variant: 'error',
           error: `${channel}: ${formatZodError(result.error)}`

@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coil from the one you opened to the end of the range, so everything you had
   not touched went out as off. The dialog now opens showing what the last read
   returned, which is what goes back to the device.
+- **The server window now tells you what went wrong in it.** With the server in
+  its own window, every message from the backend went to the main window
+  instead, which is the one on the client view. A port the server refused, a
+  port already taken, an RTU port that disconnected: the field snapped back and
+  nothing was said where you were looking. Each message now goes to the window
+  it is about.
 - **An empty value field no longer writes a zero.** The box turned red and the
   write went out anyway, as a 0, because an empty field is what JavaScript reads
   as zero. The write buttons are now off until the field holds a number, and the

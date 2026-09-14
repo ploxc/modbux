@@ -143,11 +143,20 @@ const firstCallOrder = (
  * state as it is now rather than as it was.
  */
 let sentToWindows: any[][] = []
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let addressedTo: any[][] = []
 
 const createMockWindows = (): Windows =>
   ({
     send: vi.fn((event: string, ...args: unknown[]) => {
       sentToWindows.push([event, ...args.map((arg) => structuredClone(arg))])
+    }),
+    // `sendTo` puts the addressee first and the event second, and a test that
+    // reads the payload wants the same shape either way. The addressee is
+    // recorded beside it, because who a message reached is its own question.
+    sendTo: vi.fn((target: unknown, event: string, ...args: unknown[]) => {
+      sentToWindows.push([event, ...args.map((arg) => structuredClone(arg))])
+      addressedTo.push([target, event])
     })
   }) as unknown as Windows
 
@@ -167,6 +176,7 @@ describe('ModbusClient', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ModbusRTU as any).getPorts.mockResolvedValue([])
     sentToWindows = []
+    addressedTo = []
     windows = createMockWindows()
     appState = new AppState()
     client = new ModbusClient({ appState, windows })
@@ -283,6 +293,18 @@ describe('ModbusClient', () => {
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].variant === 'success')).toBe(true)
+    })
+
+    // The client view never leaves the main window, so broadcasting put a
+    // connection error in the server window too while the two were split.
+    it('sends its messages to the main window', async () => {
+      mockModbusRTU.connectTCP.mockRejectedValue(new Error('Connection refused'))
+
+      await client.connect()
+
+      const to = addressedTo.filter(([, event]) => event === 'backend_message').map(([t]) => t)
+      expect(to.length).toBeGreaterThan(0)
+      expect(new Set(to)).toEqual(new Set(['main']))
     })
 
     it('transitions to disconnected on connection failure', async () => {

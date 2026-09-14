@@ -181,7 +181,7 @@ const lastSerialPortOptions = (): unknown => {
   return call[2]
 }
 
-const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
+const createMockWindows = (): Windows => ({ send: vi.fn(), sendTo: vi.fn() }) as unknown as Windows
 
 describe('ModbusServer', () => {
   let server: ModbusServer
@@ -205,6 +205,24 @@ describe('ModbusServer', () => {
 
   const getWindowCalls = (event: string) =>
     (windows.send as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === event)
+
+  /** What `sendTo` carried for `event`, with the addressee stripped off the front. */
+  const getAddressedCalls = (event: string) =>
+    (windows.sendTo as ReturnType<typeof vi.fn>).mock.calls
+      .filter((c) => c[1] === event)
+      .map((c) => c.slice(1))
+
+  /** Both recorders, for a test that wants only what happens after a setup step. */
+  const clearWindowCalls = (): void => {
+    ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+    ;(windows.sendTo as ReturnType<typeof vi.fn>).mockClear()
+  }
+
+  /** Who each `sendTo` of `event` was addressed to. */
+  const getAddressees = (event: string) =>
+    (windows.sendTo as ReturnType<typeof vi.fn>).mock.calls
+      .filter((c) => c[1] === event)
+      .map((c) => c[0])
 
   describe('addRegister with static value', () => {
     it('writes a uint16 value to the correct address', () => {
@@ -1050,7 +1068,7 @@ describe('ModbusServer', () => {
       )
 
       await server.createServer({ uuid, port: 5021 })
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Error closing server')).toBe(true)
     })
 
@@ -1097,7 +1115,7 @@ describe('ModbusServer', () => {
       portAvailableResults = new Array(10000).fill(false)
       const port = await server.createServer({ uuid, port: 5020 })
       expect(port).toBe(15020) // 5020 + 10000
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
     })
   })
@@ -1126,7 +1144,7 @@ describe('ModbusServer', () => {
 
     it('emits error when server not found', async () => {
       await server.deleteServer('non-existent')
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message.includes('No server found'))).toBe(true)
     })
 
@@ -1137,7 +1155,7 @@ describe('ModbusServer', () => {
       )
 
       await server.deleteServer(uuid)
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Error closing server')).toBe(true)
     })
   })
@@ -1219,12 +1237,12 @@ describe('ModbusServer', () => {
     it('emits EACCES error and returns current port for privileged port', async () => {
       // First create a server on a working port
       await server.createServer({ uuid, port: 5020 })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       portAvailableResults = ['EACCES']
       const port = await server.setPort({ uuid, port: 502 })
       expect(port).toBe(5020) // Returns current port, not requested
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 502 requires elevated privileges')).toBe(
         true
       )
@@ -1232,12 +1250,12 @@ describe('ModbusServer', () => {
 
     it('emits EADDRINUSE error and returns current port when port is taken', async () => {
       await server.createServer({ uuid, port: 5020 })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       portAvailableResults = ['EADDRINUSE']
       const port = await server.setPort({ uuid, port: 5021 })
       expect(port).toBe(5020) // Returns current port
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5021 is already in use')).toBe(true)
     })
 
@@ -1247,13 +1265,13 @@ describe('ModbusServer', () => {
       expect(port).toBe(5020) // Returns requested port (no current server)
       // ServerTCP should never have been called
       expect(ServerTCP).not.toHaveBeenCalled()
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5020 is already in use')).toBe(true)
     })
 
     it('puts the server back on its old port when the new bind fails', async () => {
       await server.createServer({ uuid, port: 5020 })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
       vi.mocked(ServerTCP).mockClear()
 
       // The probe passes and the bind still fails, which is what happens when
@@ -1263,19 +1281,19 @@ describe('ModbusServer', () => {
 
       expect(port).toBe(5020)
       expect(vi.mocked(ServerTCP).mock.calls[1]?.[1]).toEqual({ host: '0.0.0.0', port: 5020 })
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Port 5021 is already in use')).toBe(true)
     })
 
     it('says so when the old port cannot be taken back either', async () => {
       await server.createServer({ uuid, port: 5020 })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       bindResults = ['EADDRINUSE', 'EADDRINUSE']
       const port = await server.setPort({ uuid, port: 5021 })
 
       expect(port).toBe(5020)
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(
         messages.some((m) => m[1].message === 'The server could not be restarted on port 5020')
       ).toBe(true)
@@ -1283,7 +1301,7 @@ describe('ModbusServer', () => {
 
     it('refuses port 0 and keeps the server where it is', async () => {
       await server.createServer({ uuid, port: 5020 })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
       const callsBefore = vi.mocked(ServerTCP).mock.calls.length
 
       // Listening on 0 succeeds: the kernel hands out a free port, the server
@@ -1292,10 +1310,21 @@ describe('ModbusServer', () => {
 
       expect(port).toBe(5020)
       expect(vi.mocked(ServerTCP).mock.calls.length).toBe(callsBefore)
-      const messages = getWindowCalls('backend_message')
+      const messages = getAddressedCalls('backend_message')
       expect(
         messages.some((m) => m[1].message === 'A server needs a port between 1 and 65535')
       ).toBe(true)
+    })
+
+    // Broadcasting put this in both windows, and in split view the main one is
+    // on the client view, where a message about a server port means nothing.
+    it('sends the refusal to the window showing the server', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      clearWindowCalls()
+
+      await server.setPort({ uuid, port: 0 })
+
+      expect(getAddressees('backend_message')).toEqual(['serverView'])
     })
 
     it('refuses port 0 with no server yet and answers with the default', async () => {
@@ -1358,7 +1387,7 @@ describe('ModbusServer', () => {
       const statusCalls = getWindowCalls('rtu_server_status')
       expect(statusCalls.some((c) => c[1].active === true)).toBe(true)
 
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message.includes('/dev/ttyUSB0'))).toBe(true)
     })
 
@@ -1373,25 +1402,25 @@ describe('ModbusServer', () => {
       const statusCalls = getWindowCalls('rtu_server_status')
       expect(statusCalls.some((c) => c[1].active === false)).toBe(true)
 
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message.includes('port gone'))).toBe(true)
     })
 
     it('reports an open that failed', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       fireOpenCallback(new Error('cannot open /dev/ttyUSB0'))
 
       expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
-      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+      expect(getAddressedCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server error: cannot open /dev/ttyUSB0'
       ])
     })
 
     it('says nothing when the port opens', async () => {
       await server.startRtuServer({ uuid, serialConfig })
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       // The same callback carries the success, with null in place of an error.
       fireOpenCallback(null)
@@ -1399,7 +1428,7 @@ describe('ModbusServer', () => {
       instance._handlers['initialized']()
 
       expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([true])
-      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+      expect(getAddressedCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server started on /dev/ttyUSB0'
       ])
     })
@@ -1452,12 +1481,12 @@ describe('ModbusServer', () => {
       await server.startRtuServer({ uuid, serialConfig })
       const instance = lastInstance(ServerSerial)
       instance._handlers['initialized']()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
 
       expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(
         messageCalls.some((c) => c[1].message === 'RTU server disconnected from /dev/ttyUSB0')
       ).toBe(true)
@@ -1468,13 +1497,13 @@ describe('ModbusServer', () => {
       const instance = lastInstance(ServerSerial)
       instance._handlers['initialized']()
       fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       await server.stopRtuServer()
 
       // `stopRtuServer` says 'RTU server stopped' for a server that was up, and
       // the close above is what takes it down.
-      expect(getWindowCalls('backend_message')).toEqual([])
+      expect(getAddressedCalls('backend_message')).toEqual([])
     })
 
     it('says nothing about a close it asked for itself', async () => {
@@ -1483,10 +1512,10 @@ describe('ModbusServer', () => {
       instance._handlers['initialized']()
 
       await server.stopRtuServer()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
       fireSerialPathEvent(instance, 'close', undefined)
 
-      expect(getWindowCalls('backend_message')).toEqual([])
+      expect(getAddressedCalls('backend_message')).toEqual([])
       expect(getWindowCalls('rtu_server_status')).toEqual([])
     })
 
@@ -1494,14 +1523,14 @@ describe('ModbusServer', () => {
       await server.startRtuServer({ uuid, serialConfig })
       const instance = lastInstance(ServerSerial)
       instance._handlers['initialized']()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       // A port unplugged during a write emits both: `_write`'s callback carries
       // the error into the stream and `_disconnected` closes it.
       fireSerialPathEvent(instance, 'error', new Error('Disconnected'))
       fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
 
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.map((c) => c[1].message)).toEqual(['RTU server error: Disconnected'])
     })
 
@@ -1510,7 +1539,7 @@ describe('ModbusServer', () => {
       await server.startRtuServer({ uuid, serialConfig })
       const live = lastInstance(ServerSerial)
       live._handlers['initialized']()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       // `stopRtuServer` cannot close a port that never opened, so the first
       // server's open is still in flight while the second one is serving.
@@ -1519,7 +1548,7 @@ describe('ModbusServer', () => {
       // What proves the live server is still up is its own close, which reports
       // only while `_rtuActive` holds.
       fireSerialPathEvent(live, 'close', new Error('Disconnected'))
-      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+      expect(getAddressedCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server disconnected from /dev/ttyUSB0'
       ])
     })
@@ -1534,7 +1563,7 @@ describe('ModbusServer', () => {
       // A port that opens late, after the server it belongs to was replaced.
       replaced._handlers['initialized']()
 
-      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+      expect(getAddressedCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server started on /dev/ttyUSB0'
       ])
       expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([false, true])
@@ -1549,7 +1578,7 @@ describe('ModbusServer', () => {
       await server.startRtuServer({ uuid, serialConfig })
       lastInstance(ServerSerial)._handlers['initialized']()
 
-      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+      expect(getAddressedCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server started on /dev/ttyUSB0'
       ])
     })
@@ -1560,12 +1589,12 @@ describe('ModbusServer', () => {
 
       await server.startRtuServer({ uuid, serialConfig })
       lastInstance(ServerSerial)._handlers['initialized']()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       fireSerialPathEvent(replaced, 'close', new Error('Disconnected'))
 
       expect(getWindowCalls('rtu_server_status')).toEqual([])
-      expect(getWindowCalls('backend_message')).toEqual([])
+      expect(getAddressedCalls('backend_message')).toEqual([])
     })
   })
 
@@ -1598,20 +1627,20 @@ describe('ModbusServer', () => {
 
       // Simulate initialized → wasActive = true
       instance._handlers['initialized']()
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       await server.stopRtuServer()
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message === 'RTU server stopped')).toBe(true)
     })
 
     it('does not emit warning when server never became active', async () => {
       await server.startRtuServer({ uuid, serialConfig })
       // Don't trigger initialized event
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      clearWindowCalls()
 
       await server.stopRtuServer()
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message === 'RTU server stopped')).toBe(false)
     })
 
@@ -1624,7 +1653,7 @@ describe('ModbusServer', () => {
 
       await server.stopRtuServer()
       // No error message emitted
-      const messageCalls = getWindowCalls('backend_message')
+      const messageCalls = getAddressedCalls('backend_message')
       expect(messageCalls.some((c) => c[1].variant === 'error')).toBe(false)
     })
   })
@@ -1859,7 +1888,7 @@ describe('ModbusServer', () => {
       it('sets coil value and emits event', async () => {
         // First ensure data exists
         server.setBool({ uuid, unitId, registerType: 'coils', address: 0, state: false })
-        ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+        clearWindowCalls()
 
         const cb = vi.fn()
         await vector.setCoil(10, true, 1, cb)
@@ -1915,7 +1944,7 @@ describe('ModbusServer', () => {
             interval: undefined
           }
         })
-        ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+        clearWindowCalls()
 
         const cb = vi.fn()
         await vector.setRegister(20, 12345, 1, cb)
@@ -2155,7 +2184,7 @@ describe('ModbusServer', () => {
       const warning = 'Unit 0 is the broadcast address on RTU. Its registers cannot be read.'
 
       const warnings = (): unknown[] =>
-        getWindowCalls('backend_message').filter((c) => c[1].message === warning)
+        getAddressedCalls('backend_message').filter((c) => c[1].message === warning)
 
       it('warns when the port comes up on a config that already uses unit 0', async () => {
         hostUnit('0', 0, 7)

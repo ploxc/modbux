@@ -20,9 +20,12 @@ const MessageReceiver = meme((): null => {
     [enqueueSnackbar]
   )
 
+  // Both windows listen. The server window returned here instead, so in split
+  // view a payload refused on a channel it owns reported into the window the
+  // user was not looking at, and the port field snapped back with nothing said.
+  // A refusal now goes to the window that asked, so listening in both costs no
+  // duplicate snackbar.
   useEffect(() => {
-    // Don't apply the message listener in the server window
-    if (window.api.isServerWindow) return
     const unlisten = onEvent('backend_message', handleMessage)
     return (): void => unlisten()
   }, [handleMessage])

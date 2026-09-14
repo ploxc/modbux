@@ -3,7 +3,7 @@ import { ValueGenerator } from '../modbusServer/valueGenerator'
 import type { ServerData, UnitIdString } from '@shared'
 import type { Windows } from '../../windows'
 
-const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
+const createMockWindows = (): Windows => ({ send: vi.fn(), sendTo: vi.fn() }) as unknown as Windows
 
 const createServerData = (): ServerData => ({
   coils: new Array(65536).fill(false),

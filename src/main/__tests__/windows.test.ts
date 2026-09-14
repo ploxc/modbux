@@ -110,6 +110,88 @@ describe('Windows', () => {
     })
   })
 
+  describe('sendTo', () => {
+    const message = { message: 'refused', variant: 'error', error: null } as never
+
+    it('reaches the contents it was handed and nothing else', () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+      windows.server = serverWindow as never
+      mainWindow.webContents.send.mockClear()
+      serverWindow.webContents.send.mockClear()
+
+      windows.sendTo(mainWindow.webContents as never, 'backend_message', message)
+
+      expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
+      expect(serverWindow.webContents.send).not.toHaveBeenCalled()
+    })
+
+    it("'main' reaches the main window while the server window is open", () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+      windows.server = serverWindow as never
+      mainWindow.webContents.send.mockClear()
+      serverWindow.webContents.send.mockClear()
+
+      windows.sendTo('main', 'backend_message', message)
+
+      expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
+      expect(serverWindow.webContents.send).not.toHaveBeenCalled()
+    })
+
+    it("'serverView' reaches the server window once it exists", () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+      windows.server = serverWindow as never
+      mainWindow.webContents.send.mockClear()
+      serverWindow.webContents.send.mockClear()
+
+      windows.sendTo('serverView', 'backend_message', message)
+
+      expect(serverWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
+      expect(mainWindow.webContents.send).not.toHaveBeenCalled()
+    })
+
+    // Unsplit there is one window, and it is the one showing the server.
+    it("'serverView' is the main window while no server window exists", () => {
+      const mainWindow = createMockWindow()
+      windows.main = mainWindow as never
+      mainWindow.webContents.send.mockClear()
+
+      windows.sendTo('serverView', 'backend_message', message)
+
+      expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
+    })
+
+    it('says nothing when the addressee has no window', () => {
+      expect(() => windows.sendTo('serverView', 'backend_message', message)).not.toThrow()
+    })
+
+    it('skips destroyed contents', () => {
+      const mainWindow = createMockWindow()
+      windows.main = mainWindow as never
+      mainWindow.webContents.send.mockClear()
+      mainWindow.webContents.isDestroyed.mockReturnValue(true)
+
+      windows.sendTo('main', 'backend_message', message)
+
+      expect(mainWindow.webContents.send).not.toHaveBeenCalled()
+    })
+
+    it('catches a send that lands after the window is gone', () => {
+      const mainWindow = createMockWindow()
+      windows.main = mainWindow as never
+      mainWindow.webContents.send.mockImplementation(() => {
+        throw new Error('Object has been destroyed')
+      })
+
+      expect(() => windows.sendTo('main', 'backend_message', message)).not.toThrow()
+    })
+  })
+
   /**
    * The setters send `window_update`, and they send it at the one moment a
    * window is going away, so this is where a stale handle is most likely to be
