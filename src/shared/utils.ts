@@ -142,10 +142,12 @@ export const createRegisters = (
  * The window an IEC 870-5 datetime can carry, in milliseconds.
  *
  * The format holds the year as a seven bit offset from 2000, so 2000 through
- * 2127 is the whole of it and `parseIEC870DateTime` refuses the rest. Both ends
- * are stated once because `getMinMaxValues` hands them to the mask and
- * `encodeIEC870DateTime` clamps to them, and a mask wider than the clamp accepts
- * a date the register does not get.
+ * 2127 is the whole of it and a year outside has no encoding at all.
+ * `parseIEC870DateTime` cannot say so, because the same seven bits mask a wrong
+ * year into a right-looking one on the way back, which is why this is the
+ * encoder's question. Both ends are stated once: `getMinMaxValues` hands them to
+ * the mask and `encodeIEC870DateTime` clamps to them, and a mask wider than the
+ * clamp accepts a date the register does not get.
  */
 export const IEC870_MIN_MS = Date.UTC(2000, 0, 1)
 export const IEC870_MAX_MS = Date.UTC(2127, 11, 31, 23, 59, 59, 999)

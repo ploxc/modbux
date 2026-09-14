@@ -104,6 +104,23 @@ describe('parseIEC870DateTime', () => {
 
     expect(parseIEC870DateTime(buf)).toBe('2024/12/31 23:59:59')
   })
+
+  // Seven bits of year, so the decoder has no out-of-range year to refuse and
+  // the guard on either end of it was a branch no register reached.
+  it('reads a year inside 2000 to 2127 out of every word the first register holds', () => {
+    const buf = Buffer.alloc(8)
+    buf.writeUInt16BE((6 << 8) | 15, 2) // month=6, day=15
+    buf.writeUInt16BE((10 << 8) | 30, 4) // hour=10, minute=30
+    buf.writeUInt16BE(0, 6)
+
+    const years = new Set<string>()
+    for (let word1 = 0; word1 <= 0xffff; word1++) {
+      buf.writeUInt16BE(word1, 0)
+      years.add(parseIEC870DateTime(buf).slice(0, 4))
+    }
+
+    expect([...years].sort()).toEqual(Array.from({ length: 2 ** 7 }, (_, i) => String(2000 + i)))
+  })
 })
 
 describe('parseIEC870DateTimeValue', () => {
