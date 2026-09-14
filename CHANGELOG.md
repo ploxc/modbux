@@ -50,8 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   went unreported and was never reconnected. The client it replaced went the
   other way: Modbux kept listening to it, and on a serial port it kept the port
   open, so its own close could arrive later as a connection lost on the
-  connection that had taken its place. Modbux now stops listening to it, and
-  says that the port may stay open until you close Modbux.
+  connection that had taken its place. Modbux now stops listening to it. On a
+  serial port it also says that the port may stay open until you close Modbux,
+  which is what a "Cannot lock port" on the next connect means.
 - **The transaction log no longer marks a good read as failed.** Reading a
   configuration reads one group of addresses at a time, and once one group
   failed, every group after it was logged carrying that group's error.
