@@ -152,13 +152,14 @@ const fireSerialPathEvent = (
 }
 
 /**
- * Fire the `openCallback` the last serial server was constructed with.
+ * Fire the `openCallback` a serial server was constructed with, the last by
+ * default and an earlier one at a negative index.
  *
  * A server built without one fails here saying so, where
  * `call[1].openCallback?.(err)` would pass quietly.
  */
-const fireOpenCallback = (err: Error | null): void => {
-  const call = vi.mocked(ServerSerial).mock.calls.at(-1)
+const fireOpenCallback = (err: Error | null, index: number = -1): void => {
+  const call = vi.mocked(ServerSerial).mock.calls.at(index)
   if (!call) throw new Error('no server was constructed')
   const openCallback = call[1].openCallback
   if (!openCallback) throw new Error('the server was built with no openCallback')
@@ -1500,6 +1501,55 @@ describe('ModbusServer', () => {
 
       const messageCalls = getWindowCalls('backend_message')
       expect(messageCalls.map((c) => c[1].message)).toEqual(['RTU server error: Disconnected'])
+    })
+
+    it('a replaced server does not report its failed open', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      await server.startRtuServer({ uuid, serialConfig })
+      const live = lastInstance(ServerSerial)
+      live._handlers['initialized']()
+      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+
+      // `stopRtuServer` cannot close a port that never opened, so the first
+      // server's open is still in flight while the second one is serving.
+      fireOpenCallback(new Error('cannot open /dev/ttyUSB0'), -2)
+
+      // What proves the live server is still up is its own close, which reports
+      // only while `_rtuActive` holds.
+      fireSerialPathEvent(live, 'close', new Error('Disconnected'))
+      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+        'RTU server disconnected from /dev/ttyUSB0'
+      ])
+    })
+
+    it('a replaced server does not report itself up', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      const replaced = lastInstance(ServerSerial)
+
+      await server.startRtuServer({ uuid, serialConfig })
+      lastInstance(ServerSerial)._handlers['initialized']()
+
+      // A port that opens late, after the server it belongs to was replaced.
+      replaced._handlers['initialized']()
+
+      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+        'RTU server started on /dev/ttyUSB0'
+      ])
+      expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([false, true])
+    })
+
+    it('a stopped server does not report its failed open', async () => {
+      await server.startRtuServer({ uuid, serialConfig })
+      await server.stopRtuServer()
+
+      fireOpenCallback(new Error('cannot open /dev/ttyUSB0'))
+
+      await server.startRtuServer({ uuid, serialConfig })
+      lastInstance(ServerSerial)._handlers['initialized']()
+
+      expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
+        'RTU server started on /dev/ttyUSB0'
+      ])
     })
 
     it('leaves the running server alone when an earlier port closes', async () => {
