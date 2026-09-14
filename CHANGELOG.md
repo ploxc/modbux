@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range the format carries, which is 2000 through 2127. A date past 2127 used to
   be written with the year wrapped, so a register set to 2200 read back as 2072;
   it now stops at the end of 2127.
+- **A config file Modbux refuses now says which register and which field.** One
+  malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
+  naming neither the address nor what was wrong with it, and a unit id outside
+  0 to 255 produced a message that listed all 256 of them.
 - **Writing a value as UTF-8 no longer writes a zero.** The write dialog lists
   UTF-8 with the number types and has no field for the characters, so the write
   went out as one register of 0 over whatever the address held. Modbux now says

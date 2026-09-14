@@ -141,9 +141,18 @@ export const ServerRegistersSchema = z.object({
 })
 export type ServerRegisters = z.infer<typeof ServerRegistersSchema>
 
+/**
+ * The register map, keyed by unit id.
+ *
+ * The value is optional rather than a union with `z.undefined()`, because a
+ * union answers `invalid_union` at its own path and keeps what each branch said
+ * out of `issues`. One malformed register was refused as
+ * `serverRegistersPerUnit.1: Invalid input`, naming neither the address nor the
+ * field.
+ */
 export const ServerRegistersPerUnitSchema = z.record(
   UnitIdStringSchema,
-  z.union([ServerRegistersSchema, z.undefined()])
+  ServerRegistersSchema.optional()
 )
 export type ServerRegistersPerUnit = z.infer<typeof ServerRegistersPerUnitSchema>
 

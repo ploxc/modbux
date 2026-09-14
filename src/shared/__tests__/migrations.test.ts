@@ -196,6 +196,93 @@ describe('configMigration', () => {
         expect(() => migrateServerConfig(invalidConfig)).toThrow()
       })
     })
+
+    // A refused file is refused whole, so the message is the only thing that
+    // says which register to go and fix.
+    describe('What a refused config names', () => {
+      const v2Config = (registersPerUnit: unknown): string =>
+        JSON.stringify({
+          version: 2,
+          modbuxVersion: '2.0.0',
+          name: 'probe',
+          littleEndian: false,
+          serverRegistersPerUnit: registersPerUnit
+        })
+
+      const unitWith = (params: unknown): unknown => ({
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: { '10': { value: 0, params } }
+        }
+      })
+
+      const refusal = (config: string): string => {
+        try {
+          migrateServerConfig(config)
+        } catch (error) {
+          return (error as Error).message
+        }
+        throw new Error('the config was accepted')
+      }
+
+      // `RegisterParamsSchema` is a union, and a union answers `Invalid input`
+      // at its own path with every branch's reason kept out of `issues`.
+      it('names the address and every field a half filled register fits neither shape by', () => {
+        const message = refusal(
+          v2Config(
+            unitWith({
+              address: 10,
+              registerType: 'holding_registers',
+              dataType: 'uint16',
+              comment: '',
+              value: 5,
+              min: 0
+            })
+          )
+        )
+
+        // Every line, because a unit whose value is a union with `z.undefined()`
+        // adds `serverRegistersPerUnit.1: Expected undefined, received object`,
+        // which names no register and reads like a second fault.
+        expect(message.split('\n')).toEqual([
+          'Invalid server config v2: serverRegistersPerUnit.1.holding_registers.10.params.max: Required',
+          'serverRegistersPerUnit.1.holding_registers.10.params.interval: Required',
+          'serverRegistersPerUnit.1.holding_registers.10.params.value: Expected undefined, received number',
+          'serverRegistersPerUnit.1.holding_registers.10.params.min: Expected undefined, received number'
+        ])
+      })
+
+      it('names the address and the field a register is missing', () => {
+        const message = refusal(
+          v2Config(
+            unitWith({
+              address: 10,
+              registerType: 'holding_registers',
+              dataType: 'uint16',
+              value: 5
+            })
+          )
+        )
+
+        expect(message).toContain('holding_registers.10.params.comment: Required')
+      })
+
+      // The default enum message lists all 256 members.
+      it('says what a unit id is rather than listing every one', () => {
+        const message = refusal(
+          v2Config({
+            '256': { coils: {}, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
+          })
+        )
+
+        expect(message).toContain(
+          'serverRegistersPerUnit.256: Unit id must be a whole number from 0 to 255'
+        )
+        expect(message.length).toBeLessThan(200)
+      })
+    })
   })
 
   describe('Client Config Migration', () => {
