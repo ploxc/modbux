@@ -1,6 +1,14 @@
 import { BaseDataType, CamelCase, DataType, RegisterParams, ServerRegisters } from './types'
 
-export const getBit = (word: number, bit: number): boolean => (word & (2 ** bit)) === 2 ** bit
+/**
+ * Whether bit `bit` of `word` is set.
+ *
+ * `&` is a 32 bit signed operation, so `word & (2 ** bit)` answered false for
+ * bit 31 of 2 ** 31 and for every bit above it. Both callers ask for bits 0 to
+ * 15 of a one register bitmap, which `BitMapConfigSchema` and `registerWidth`
+ * hold them to, so the arithmetic answers a question nothing asks yet.
+ */
+export const getBit = (word: number, bit: number): boolean => Math.floor(word / 2 ** bit) % 2 === 1
 
 /** The width the add dialog offers for a string when the field is left alone. */
 export const DEFAULT_UTF8_LENGTH = 10
@@ -204,8 +212,14 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
   }
 }
 
+/**
+ * Whether the mask has taken anything a number could be made of.
+ *
+ * A lone `'-'` is a sign with no digits behind it. `.replace('-', '')` takes the
+ * first one only, so `'--'` passed as a value.
+ */
 export const notEmpty = (value: number | string): boolean =>
-  String(value).replace('-', '').length > 0
+  String(value).replace(/-/g, '').length > 0
 
 export const humanizeSerialError = (error: Error, port?: string): string => {
   const prefix = port ? `${port}: ` : ''
