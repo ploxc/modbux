@@ -209,13 +209,25 @@ describe('configMigration', () => {
           serverRegistersPerUnit: registersPerUnit
         })
 
-      const unitWith = (params: unknown): unknown => ({
+      const unitWith = (...registers: [number, unknown][]): unknown => ({
         '1': {
           coils: {},
           discrete_inputs: {},
           input_registers: {},
-          holding_registers: { '10': { value: 0, params } }
+          holding_registers: Object.fromEntries(
+            registers.map(([address, params]) => [String(address), { value: 0, params }])
+          )
         }
+      })
+
+      /** A register carrying a fixed value and a leftover range, which fits neither shape. */
+      const halfFilled = (address: number): unknown => ({
+        address,
+        registerType: 'holding_registers',
+        dataType: 'uint16',
+        comment: '',
+        value: 5,
+        min: 0
       })
 
       const refusal = (config: string): string => {
@@ -229,44 +241,40 @@ describe('configMigration', () => {
 
       // `RegisterParamsSchema` is a union, and a union answers `Invalid input`
       // at its own path with every branch's reason kept out of `issues`.
-      it('names the address and every field a half filled register fits neither shape by', () => {
-        const message = refusal(
-          v2Config(
-            unitWith({
-              address: 10,
-              registerType: 'holding_registers',
-              dataType: 'uint16',
-              comment: '',
-              value: 5,
-              min: 0
-            })
-          )
-        )
+      it('names the address and the field a half filled register fits neither shape by', () => {
+        const message = refusal(v2Config(unitWith([10, halfFilled(10)])))
 
-        // Every line, because a unit whose value is a union with `z.undefined()`
-        // adds `serverRegistersPerUnit.1: Expected undefined, received object`,
-        // which names no register and reads like a second fault.
-        expect(message.split('\n')).toEqual([
-          'Invalid server config v2: serverRegistersPerUnit.1.holding_registers.10.params.max: Required',
-          'serverRegistersPerUnit.1.holding_registers.10.params.interval: Required',
-          'serverRegistersPerUnit.1.holding_registers.10.params.value: Expected undefined, received number',
-          'serverRegistersPerUnit.1.holding_registers.10.params.min: Expected undefined, received number'
-        ])
+        expect(message).toContain('holding_registers.10.params.min')
+      })
+
+      // Only the nearest branch is reported, and `z.undefined()` is nearer than
+      // a unit holding two faults, so a union over the unit hides both.
+      it('names both registers when a unit holds two of them', () => {
+        const message = refusal(v2Config(unitWith([10, halfFilled(10)], [11, halfFilled(11)])))
+
+        expect(message).toContain('holding_registers.10.params.min')
+        expect(message).toContain('holding_registers.11.params.min')
       })
 
       it('names the address and the field a register is missing', () => {
         const message = refusal(
           v2Config(
-            unitWith({
-              address: 10,
-              registerType: 'holding_registers',
-              dataType: 'uint16',
-              value: 5
-            })
+            unitWith([
+              10,
+              { address: 10, registerType: 'holding_registers', dataType: 'uint16', value: 5 }
+            ])
           )
         )
 
-        expect(message).toContain('holding_registers.10.params.comment: Required')
+        expect(message).toContain('holding_registers.10.params.comment')
+      })
+
+      // The intersection refuses it on both halves, in the same words.
+      it('says once that a register has no parameters at all', () => {
+        const message = refusal(v2Config(unitWith([10, 5])))
+
+        expect(message.split('\n')).toHaveLength(1)
+        expect(message).toContain('holding_registers.10.params')
       })
 
       // The default enum message lists all 256 members.
@@ -281,6 +289,18 @@ describe('configMigration', () => {
           'serverRegistersPerUnit.256: Unit id must be a whole number from 0 to 255'
         )
         expect(message.length).toBeLessThan(200)
+      })
+
+      // Five lines is the budget, and one register used to spend all of it.
+      it('still reaches the unit id past a unit full of bad registers', () => {
+        const message = refusal(
+          v2Config({
+            ...(unitWith([10, halfFilled(10)], [11, halfFilled(11)]) as object),
+            '256': { coils: {}, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
+          })
+        )
+
+        expect(message).toContain('serverRegistersPerUnit.256')
       })
     })
   })
