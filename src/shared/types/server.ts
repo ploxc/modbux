@@ -12,6 +12,15 @@ import {
   RegisterType
 } from './register'
 
+/**
+ * The uuid a server is addressed by, which ten schemas spelled out by hand.
+ *
+ * `delete_server` and `reset_server` take this uuid and nothing else, and took
+ * it unguarded. Every object channel carrying one states the rule, so those two
+ * were the only doors to a server that did not.
+ */
+export const ServerUuidSchema = z.string().min(1)
+
 // Server mode (global: TCP or RTU)
 export const ServerModeSchema = z.enum(['tcp', 'rtu'])
 export type ServerMode = z.infer<typeof ServerModeSchema>
@@ -24,7 +33,7 @@ export const ServerSerialConfigSchema = z.object({
 export type ServerSerialConfig = z.infer<typeof ServerSerialConfigSchema>
 
 export const StartRtuServerParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   serialConfig: ServerSerialConfigSchema
 })
 export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
@@ -156,13 +165,13 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>
 
 // Regular types
 export const AddRegisterParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   params: RegisterParamsSchema
 })
 export type AddRegisterParams = z.infer<typeof AddRegisterParamsSchema>
 export const RemoveRegisterParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   registerType: NumberRegistersSchema,
   address: RegisterAddressSchema,
@@ -174,7 +183,7 @@ export const RemoveRegisterParamsSchema = z.object({
 export type RemoveRegisterParams = z.infer<typeof RemoveRegisterParamsSchema>
 
 export const SyncRegisterValueParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   registerValues: z.array(RegisterParamsSchema)
 })
@@ -190,20 +199,20 @@ export type SyncRegisterValueParams = z.infer<typeof SyncRegisterValueParamsSche
  * which registers to encode rather than how.
  */
 export const ServerEndiannessSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   littleEndian: z.boolean()
 })
 export type ServerEndianness = z.infer<typeof ServerEndiannessSchema>
 
 export const ResetRegistersParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   registerType: NumberRegistersSchema
 })
 export type ResetRegistersParams = z.infer<typeof ResetRegistersParamsSchema>
 
 export const SetBooleanParametersSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   registerType: BooleanRegistersSchema,
   address: RegisterAddressSchema,
@@ -212,14 +221,14 @@ export const SetBooleanParametersSchema = z.object({
 export type SetBooleanParameters = z.infer<typeof SetBooleanParametersSchema>
 
 export const ResetBoolsParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   registerType: BooleanRegistersSchema
 })
 export type ResetBoolsParams = z.infer<typeof ResetBoolsParamsSchema>
 
 export const SyncBoolsParametersSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   unitId: UnitIdStringSchema,
   coils: z.array(z.boolean()),
   discrete_inputs: z.array(z.boolean())
@@ -227,7 +236,7 @@ export const SyncBoolsParametersSchema = z.object({
 export type SyncBoolsParameters = z.infer<typeof SyncBoolsParametersSchema>
 
 export const CreateServerParamsSchema = z.object({
-  uuid: z.string().min(1),
+  uuid: ServerUuidSchema,
   port: PortSchema
 })
 export type CreateServerParams = z.infer<typeof CreateServerParamsSchema>

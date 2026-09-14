@@ -456,7 +456,9 @@ describe('each guarded channel got its own schema', () => {
     set_server_port: { uuid: 'server-1', port: 5020 },
     create_server: { uuid: 'server-1', port: 5020 },
     apply_privileged_port_fix: 'persist',
-    set_server_endianness: { uuid: 'server-1', littleEndian: true }
+    set_server_endianness: { uuid: 'server-1', littleEndian: true },
+    delete_server: 'server-1',
+    reset_server: 'server-1'
   }
 
   const start = (): { sent: SentMessage[] } => {
@@ -473,14 +475,15 @@ describe('each guarded channel got its own schema', () => {
   }
 
   /**
-   * Every channel `initIpc` registered that refuses a payload which is not an
-   * object, which is what having a schema means from outside.
+   * Every channel `initIpc` registered a schema for, asked of the app rather
+   * than listed by hand.
    *
-   * The list above was written by hand and covered fourteen of the eighteen,
-   * so a channel added with a schema did not join it. `set_server_port`,
-   * `create_server`, `apply_privileged_port_fix` and `set_server_endianness`
-   * were the four it missed, and the audit that named three had counted by
-   * hand as well.
+   * `undefined` is the one payload every schema here refuses, so a channel that
+   * answers with a message has a schema and one that stays silent has none. A
+   * string would not do it: `ServerUuidSchema` takes one.
+   *
+   * The list above was written by hand and covered fourteen of the twenty, so a
+   * channel added with a schema did not join it.
    */
   const guardedChannels = async (): Promise<string[]> => {
     const { sent } = start()
@@ -488,7 +491,7 @@ describe('each guarded channel got its own schema', () => {
     const guarded: string[] = []
     for (const channel of registered) {
       const before = sent.length
-      await invoke(channel, 'not a payload')
+      await invoke(channel, undefined)
       if (sent.length > before) guarded.push(channel)
     }
     return guarded
@@ -507,13 +510,13 @@ describe('each guarded channel got its own schema', () => {
     expect(sent.map(({ message }) => message.error)).toEqual([])
   })
 
-  // A string reaches every one of these as an object was expected, so it is the
-  // one payload that is wrong for all of them and right for none.
+  // `undefined` is the payload every schema here refuses. A string used to be,
+  // until `delete_server` and `reset_server` took one.
   it.each(Object.keys(validPayloads))(
     'guards %s against a payload that is not one',
     async (channel) => {
       const { sent } = start()
-      await invoke(channel, 'not a payload')
+      await invoke(channel, undefined)
       expect(sent.map(({ message }) => String(message.error).split(':')[0])).toEqual([channel])
     }
   )
