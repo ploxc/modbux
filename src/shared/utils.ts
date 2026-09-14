@@ -131,11 +131,25 @@ export const createRegisters = (
 }
 
 /**
+ * The window an IEC 870-5 datetime can carry, in milliseconds.
+ *
+ * The format holds the year as a seven bit offset from 2000, so 2000 through
+ * 2127 is the whole of it and `parseIEC870DateTime` refuses the rest. Both ends
+ * are stated once because `getMinMaxValues` hands them to the mask and
+ * `encodeIEC870DateTime` clamps to them, and a mask wider than the clamp accepts
+ * a date the register does not get.
+ */
+export const IEC870_MIN_MS = Date.UTC(2000, 0, 1)
+export const IEC870_MAX_MS = Date.UTC(2127, 11, 31, 23, 59, 59, 999)
+
+/**
  * Encode a timestamp (milliseconds) to IEC 870-5 datetime format (8 bytes / 4 registers).
+ *
+ * Only the low end clamped, and the decoder masks the year to seven bits, so
+ * 2200 came back as 2072 with nothing to say it had moved.
  */
 export const encodeIEC870DateTime = (timestampMs: number): Buffer<ArrayBuffer> => {
-  // Clamp to year 2000 minimum (IEC 870-5 uses year offset from 2000)
-  const dt = new Date(Math.max(timestampMs, 946684800000))
+  const dt = new Date(Math.min(Math.max(timestampMs, IEC870_MIN_MS), IEC870_MAX_MS))
   const buf = Buffer.alloc(8)
   buf.writeUInt16BE(dt.getUTCFullYear() - 2000, 0)
   buf.writeUInt16BE(((dt.getUTCMonth() + 1) << 8) | dt.getUTCDate(), 2)
@@ -180,7 +194,9 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
     case 'unix':
       return { min: 0, max: 4294967295 } // uint32 range (seconds since epoch)
     case 'datetime':
-      return { min: 0, max: 4102444799 } // ~2100-01-01
+      // Milliseconds, which is the unit `createRegisters` hands the encoder.
+      // Stated in seconds, the whole range encoded to the clamp floor.
+      return { min: IEC870_MIN_MS, max: IEC870_MAX_MS }
     case 'utf8':
       return { min: 0, max: 0 } // N/A for strings
     default:

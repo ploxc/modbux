@@ -76,13 +76,26 @@ test.describe.serial('Write Operations', () => {
         dataType: 'FLOAT',
         mode: 'fixed',
         value: '1.5',
-        comment: 'write test float'
+        comment: 'write test float',
+        next: true
+      },
+      true,
+      true
+    )
+    await addRegister(
+      mainPage,
+      {
+        registerType: 'holding_registers',
+        address: 6,
+        dataType: 'DATETIME',
+        mode: 'fixed-datetime',
+        comment: 'write test datetime'
       },
       true,
       true
     )
 
-    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(4)')
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(5)')
 
     // Add coils
     await addCoils(mainPage, 0, true)
@@ -143,6 +156,23 @@ test.describe.serial('Write Operations', () => {
     test('verify FLOAT written value', async ({ mainPage }) => {
       await readRegisters(mainPage, '4', '2')
       await expectCellContains(mainPage, 4, 'word_float', '3.14')
+      await clearData(mainPage)
+    })
+
+    // The value field is milliseconds, and its range used to be stated in
+    // seconds, so everything it accepted fell before the year 2000 the format
+    // starts at and went out as the clamp floor.
+    test('write DATETIME via FC16', async ({ mainPage }) => {
+      await readRegisters(mainPage, '0', '10')
+      await writeRegister(mainPage, 6, '1717245296789', 'fc16', 'DATETIME')
+    })
+
+    test('verify DATETIME written value', async ({ mainPage }) => {
+      await readRegisters(mainPage, '6', '4')
+      await expectCell(mainPage, 6, 'hex', '0018')
+      await expectCell(mainPage, 7, 'hex', '0601')
+      await expectCell(mainPage, 8, 'hex', '0C22')
+      await expectCell(mainPage, 9, 'hex', 'DDD5')
       await clearData(mainPage)
     })
 
