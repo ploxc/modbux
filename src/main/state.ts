@@ -39,8 +39,10 @@ export interface State {
 }
 
 export class AppState {
-  private _connectionConfig = defaultConnectionConfig
-  private _registerConfig = defaultRegisterConfig
+  // Copies, because a field initialiser that names an export makes main's state
+  // that export, until the first update replaces the tree.
+  private _connectionConfig = structuredClone(defaultConnectionConfig)
+  private _registerConfig = structuredClone(defaultRegisterConfig)
   private _registerMapping?: RegisterMapping
   private _readConfiguration = false
 

@@ -87,10 +87,16 @@ export const PROTOCOL_LABELS: Record<Protocol, string> = {
   ModbusRtuOverTcp: 'RTU over TCP'
 }
 
-// modbus-serial TcpPortOptions partial
+/**
+ * The part of modbus-serial's `TcpPortOptions` Modbux sets.
+ *
+ * Its `timeout` is not here, because `connectTCP` and `connectTelnet` both
+ * overwrite `options.timeout` with the client's own before they construct the
+ * port. `registerConfig.timeout` is the one a user sets, and `_read` applies it
+ * per request.
+ */
 export const TcpPortOptionsSchema = z.object({
-  port: PortSchema,
-  timeout: z.number()
+  port: PortSchema
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
 

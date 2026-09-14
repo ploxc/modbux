@@ -42,6 +42,17 @@ describe('AppState', () => {
     it('has no register mapping initially', () => {
       expect(state.registerMapping).toBeUndefined()
     })
+
+    // Every nested object, because a spread would copy the top level and leave
+    // `tcp.options` shared. What writing into a shared one costs is in
+    // `modbusClient.test.ts`, where modbus-serial does it.
+    it('does not share the exported defaults', () => {
+      expect(state.connectionConfig).not.toBe(defaultConnectionConfig)
+      expect(state.connectionConfig.tcp).not.toBe(defaultConnectionConfig.tcp)
+      expect(state.connectionConfig.tcp.options).not.toBe(defaultConnectionConfig.tcp.options)
+      expect(state.connectionConfig.rtu.options).not.toBe(defaultConnectionConfig.rtu.options)
+      expect(state.registerConfig).not.toBe(defaultRegisterConfig)
+    })
   })
 
   describe('updateConnectionConfig', () => {

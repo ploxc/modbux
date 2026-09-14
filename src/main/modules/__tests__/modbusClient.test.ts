@@ -19,6 +19,34 @@ const fireClientEvent = (event: 'close' | 'error', ...args: unknown[]): void => 
   handler(...args)
 }
 
+type ConnectName = 'connectTCP' | 'connectTelnet' | 'connectRTUBuffered'
+
+/** What each connect was handed, copied before the library wrote into it. */
+let handedOver: Partial<Record<ConnectName, { target: string; options: unknown }>> = {}
+
+/**
+ * Keep a copy of the options a connect was handed, then write into them the way
+ * the library does.
+ *
+ * `apis/connection.js` assigns into the caller's own object before it
+ * constructs the port: `connectTCP` and `connectTelnet` write
+ * `options.timeout`, and `connectRTUBuffered` writes `options.platformOptions`
+ * while the `RTUBufferedPort` constructor writes `options.autoOpen`. A mock
+ * that writes nothing lets a caller hand over its own state unseen.
+ *
+ * The copy is what the shape assertions read, because a recorded argument is a
+ * reference and carries those writes by the time they run.
+ */
+const recordConnect = (
+  name: ConnectName,
+  target: string,
+  options: Record<string, unknown>,
+  writes: Record<string, unknown>
+): void => {
+  handedOver[name] = { target, options: { ...options } }
+  Object.assign(options, writes)
+}
+
 /**
  * A `ModbusRTU`, with the handlers registered on this one kept beside it.
  *
@@ -47,9 +75,18 @@ const createMockModbusRTU = () => ({
   }),
   setTimeout: vi.fn(),
   setID: vi.fn(),
-  connectTCP: vi.fn().mockResolvedValue(undefined),
-  connectRTUBuffered: vi.fn().mockResolvedValue(undefined),
-  connectTelnet: vi.fn().mockResolvedValue(undefined),
+  connectTCP: vi.fn(async (host: string, options: Record<string, unknown>) => {
+    recordConnect('connectTCP', host, options, { timeout: 3000 })
+  }),
+  connectRTUBuffered: vi.fn(async (path: string, options: Record<string, unknown>) => {
+    recordConnect('connectRTUBuffered', path, options, {
+      autoOpen: false,
+      platformOptions: { vmin: 5, vtime: 0 }
+    })
+  }),
+  connectTelnet: vi.fn(async (host: string, options: Record<string, unknown>) => {
+    recordConnect('connectTelnet', host, options, { timeout: 3000 })
+  }),
   close: vi.fn((cb: () => void) => cb()),
   destroy: vi.fn((cb: () => void) => cb()),
   readCoils: vi.fn().mockResolvedValue(undefined),
@@ -122,6 +159,7 @@ describe('ModbusClient', () => {
     vi.useFakeTimers()
     clientEventHandlers = {}
     modbusInstances = []
+    handedOver = {}
     mockModbusRTU = createMockModbusRTU()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ModbusRTU as any).getPorts.mockReset()
@@ -137,11 +175,14 @@ describe('ModbusClient', () => {
     vi.useRealTimers()
   })
 
-  // Helper: simulate a successful TCP connection
+  /** Connect over TCP and leave the port open, which `isOpen` is read for. */
   const connectClient = async () => {
-    mockModbusRTU.connectTCP.mockImplementation(async () => {
-      mockModbusRTU.isOpen = true
-    })
+    mockModbusRTU.connectTCP.mockImplementation(
+      async (host: string, options: Record<string, unknown>) => {
+        recordConnect('connectTCP', host, options, { timeout: 3000 })
+        mockModbusRTU.isOpen = true
+      }
+    )
     await client.connect()
   }
 
@@ -232,9 +273,9 @@ describe('ModbusClient', () => {
     it('transitions to connecting then connected on TCP success', async () => {
       await connectClient()
 
-      expect(mockModbusRTU.connectTCP).toHaveBeenCalledWith('192.168.1.10', {
-        port: 502,
-        timeout: 5000
+      expect(handedOver.connectTCP).toEqual({
+        target: '192.168.1.10',
+        options: { port: 502 }
       })
 
       expect(getLastClientState().connectState).toBe('connected')
@@ -256,7 +297,6 @@ describe('ModbusClient', () => {
 
     it('uses RTU when protocol is ModbusRtu', async () => {
       appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
-      mockModbusRTU.connectRTUBuffered.mockResolvedValue(undefined)
 
       await client.connect()
 
@@ -266,18 +306,36 @@ describe('ModbusClient', () => {
 
     it('uses encapsulated RTU over TCP (raw RTU frames via connectTelnet) when protocol is ModbusRtuOverTcp', async () => {
       appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp' })
-      mockModbusRTU.connectTelnet.mockResolvedValue(undefined)
 
       await client.connect()
 
       // connectTelnet sends the RTU frame (with CRC) unchanged over TCP.
       // connectTCP / connectTcpRTUBuffered would speak MBAP (plain Modbus TCP).
-      expect(mockModbusRTU.connectTelnet).toHaveBeenCalledWith('192.168.1.10', {
-        port: 502,
-        timeout: 5000
+      expect(handedOver.connectTelnet).toEqual({
+        target: '192.168.1.10',
+        options: { port: 502 }
       })
       expect(mockModbusRTU.connectTCP).not.toHaveBeenCalled()
       expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tcp options it read out of the connect it made', async () => {
+      await connectClient()
+
+      expect(appState.connectionConfig.tcp.options).toEqual({ port: 502 })
+    })
+
+    it('keeps the serial options it read out of the connect it made', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
+
+      await client.connect()
+
+      expect(appState.connectionConfig.rtu.options).toEqual({
+        baudRate: '9600',
+        dataBits: 8,
+        stopBits: 1,
+        parity: 'none'
+      })
     })
 
     /**
@@ -409,7 +467,6 @@ describe('ModbusClient', () => {
 
     it('sets unitId and timeout before connecting', async () => {
       appState.updateConnectionConfig({ unitId: 42 })
-      mockModbusRTU.connectTCP.mockResolvedValue(undefined)
 
       await client.connect()
 

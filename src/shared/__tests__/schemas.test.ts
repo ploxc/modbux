@@ -194,6 +194,23 @@ describe('ConnectionConfigSchema', () => {
     expect(ConnectionConfigSchema.safeParse(withPort(port)).success).toBe(false)
   })
 
+  // An install from before the field was dropped has it in localStorage, and
+  // `repairPersistedStore` parses that blob. The key is stripped rather than
+  // refused, so there is no migration.
+  it('drops a tcp timeout a stored config still carries', () => {
+    const stored = {
+      ...defaultConnectionConfig,
+      tcp: {
+        ...defaultConnectionConfig.tcp,
+        options: { ...defaultConnectionConfig.tcp.options, timeout: 5000 }
+      }
+    }
+    const parsed = ConnectionConfigSchema.safeParse(stored)
+
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.tcp.options).toEqual({ port: 502 })
+  })
+
   // `update_connection_config` guards on the partial, which is the door a
   // renderer reaches. Both ranges have to survive `deepPartial`.
   it('carries both ranges into the partial the ipc channel guards on', () => {
