@@ -120,6 +120,16 @@ and a `Select`'s options through `getByRole('option')`. The `Select` itself
 carries one. A picker takes the attribute through `slotProps`, which still
 counts as carrying it.
 
+**The three lists that name a channel agree, and so do the two that name an
+event.** `IPC_CHANNELS`, `IpcHandlerSpec` and the `ipcHandle` calls in
+`main/ipc.ts`; `IPC_EVENTS` and `IpcEventPayloadMap`. Typecheck catches one
+direction only: a channel in `IPC_CHANNELS` and not in the spec fails to index,
+while a channel in the spec and not in `IPC_CHANNELS` is dropped by the mapped
+type in silence, and one in both with no handler rejects at runtime instead. A
+channel and an event name is lowercase segments, because that is where
+`snakeToCamel` and `CamelCase` cannot disagree: `set_2wire` would be the method
+`set_2wire` and the type `set2wire`.
+
 **Every channel that carries an object declares a schema.** TypeScript covers a
 bare primitive, and a channel taking no argument has nothing to guard. The rest
 take an object or a union, and that is where a hand-edited config file arrives. The
