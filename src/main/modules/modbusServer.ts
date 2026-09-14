@@ -109,6 +109,24 @@ interface ServerSerialWithPort extends ServerSerial {
   getPort(): RtuSerialPort
 }
 
+/**
+ * `ServerSerial`'s third constructor argument, which its typings leave out.
+ *
+ * `serverserial.js` builds its own option object out of `path`, `baudRate`,
+ * `parity`, `debug`, `unitID` and `binding`, and assigns it over this one. So
+ * these two reach `SerialPort` by no other route, and the options object the
+ * typings do declare accepts them and drops them. Without them the binding
+ * opens at its own defaults, `dataBits: 8` and `stopBits: 1`.
+ */
+interface ServerSerialPortOptions {
+  dataBits: 8 | 7 | 6 | 5
+  stopBits: 1 | 2
+}
+
+type ServerSerialConstructor = new (
+  ...args: [...ConstructorParameters<typeof ServerSerial>, ServerSerialPortOptions]
+) => ServerSerial
+
 export interface ServerParams {
   windows: Windows
 }
@@ -654,19 +672,24 @@ export class ModbusServer {
       // No unitID on purpose: passing one makes the library answer for that id
       // alone. Its default of 255 means "listen to all addresses", and the
       // vector filters, because only the vector knows which ids have data.
-      this._rtuServer = new ServerSerial(this._getVector(uuid, 'rtu'), {
-        path: serialConfig.com,
-        baudRate: Number(serialConfig.options.baudRate),
-        dataBits: serialConfig.options.dataBits as 8 | 7 | 6 | 5,
-        stopBits: serialConfig.options.stopBits as 1 | 2,
-        parity: serialConfig.options.parity ?? 'none',
-        // `@serialport/stream`'s `_error` hands a failed open to this callback
-        // when one is passed and emits `error` on the port when none is. The
-        // same callback carries the success, with null in place of an error.
-        openCallback: (err): void => {
-          if (err) this._reportRtuDown(`RTU server error: ${err.message}`)
+      this._rtuServer = new (ServerSerial as ServerSerialConstructor)(
+        this._getVector(uuid, 'rtu'),
+        {
+          path: serialConfig.com,
+          baudRate: Number(serialConfig.options.baudRate),
+          parity: serialConfig.options.parity ?? 'none',
+          // `@serialport/stream`'s `_error` hands a failed open to this callback
+          // when one is passed and emits `error` on the port when none is. The
+          // same callback carries the success, with null in place of an error.
+          openCallback: (err): void => {
+            if (err) this._reportRtuDown(`RTU server error: ${err.message}`)
+          }
+        },
+        {
+          dataBits: serialConfig.options.dataBits as 8 | 7 | 6 | 5,
+          stopBits: serialConfig.options.stopBits as 1 | 2
         }
-      })
+      )
       this._rtuUuid = uuid
 
       const serverPort = (this._rtuServer as ServerSerialWithPort).getPort()
