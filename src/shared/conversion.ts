@@ -49,6 +49,11 @@ const parseIEC870Words = (word1: number, word2: number, word3: number, word4: nu
 
   const datetime = DateTime.utc(year, month, day, hour, minute, second, millisecond)
 
+  // The day is five bits and every month it is checked against is 28 to 31 days
+  // long, so 02/31 passes every gate above and luxon formats it as the literal
+  // `Invalid DateTime`.
+  if (!datetime.isValid) return ''
+
   return datetime.toFormat('yyyy/MM/dd HH:mm:ss')
 }
 

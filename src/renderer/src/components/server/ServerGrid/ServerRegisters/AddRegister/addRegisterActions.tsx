@@ -7,7 +7,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 import Delete from '@mui/icons-material/Delete'
 import { registerWidth } from '@shared'
-import { isFormDirty } from './addRegister.zustand.helpers'
+import { FIELD_DEFAULTS, isFormDirty, isTimestampType } from './addRegister.zustand.helpers'
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -39,8 +39,14 @@ export const AddButtons = meme(() => {
     const { address, dataType } = result
     const addRegisterZustand = useAddRegisterZustand.getState()
     const size = registerWidth(dataType, Number(addRegisterZustand.registerLength) || undefined)
-    // Reset value and comment, keep dataType/LE/fixed/min/max/interval
-    addRegisterZustand.setValue('0', true)
+    // Reset value and comment, keep dataType/LE/fixed/min/max/interval. A
+    // timestamp resets to the current time, the way picking the type seeds it:
+    // '0' left the picker showing now over a store holding the epoch, and Add
+    // wrote the epoch.
+    addRegisterZustand.setValue(
+      isTimestampType(dataType) ? String(Date.now()) : FIELD_DEFAULTS.value,
+      true
+    )
     addRegisterZustand.setComment('')
     if (dataType === 'utf8') addRegisterZustand.setStringValue('')
     addRegisterZustand.initNextUnusedAddress(address + size)

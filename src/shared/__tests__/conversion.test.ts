@@ -105,6 +105,17 @@ describe('parseIEC870DateTime', () => {
     expect(parseIEC870DateTime(buf)).toBe('2024/12/31 23:59:59')
   })
 
+  // The day is five bits and the gate above allows 31 in every month, so the
+  // 31st of February passes it and luxon formats it as `Invalid DateTime`.
+  it('returns empty string for a day the month does not have', () => {
+    const buf = Buffer.alloc(8, 0)
+    buf.writeUInt16BE(24, 0) // year 2024
+    buf.writeUInt16BE((2 << 8) | 31, 2) // month=2, day=31
+    buf.writeUInt16BE((10 << 8) | 30, 4)
+    buf.writeUInt16BE(0, 6)
+    expect(parseIEC870DateTime(buf)).toBe('')
+  })
+
   // Seven bits of year, so the decoder has no out-of-range year to refuse and
   // the guard on either end of it was a branch no register reached.
   it('reads a year inside 2000 to 2127 out of every word the first register holds', () => {

@@ -20,6 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   UTF-8 with the number types and has no field for the characters, so the write
   went out as one register of 0 over whatever the address held. Modbux now says
   it cannot write the value as UTF-8 and sends nothing.
+- **The date picker now writes the date it shows.** Opening a stored UNIX or
+  DATETIME register to edit it put the current time in the field instead of the
+  date the register holds, so changing the comment or the address wrote today
+  over it. Add & Next left the picker showing the current time over a field it
+  had cleared, so the next Add wrote 1970/01/01 for a UNIX register and
+  2000/01/01 for a DATETIME.
+- **The date picker no longer takes a date the register cannot carry.** A
+  DATETIME runs out at the end of 2127 and a UNIX timestamp on 2106/02/07, and
+  the picker took any year it could show: a UNIX register set to 2200 read back
+  as 2063/11/24. Such a date is now marked wrong, and Add stays off until you
+  pick one the register holds.
+- **A timestamp row now shows only a date the registers really hold.** The
+  server's DATETIME row decoded the four registers itself, without the format's
+  invalid flag and without checking the fields it read, so whatever a client had
+  written into them came back as a plausible date. A day its month does not
+  have, such as the 31st of February, came out as the words `Invalid DateTime`,
+  in the client grid as well. Both now show nothing, and a UNIX register holding
+  0 shows 1970/01/01 00:00:00 where it used to show a dash.
 - **The server no longer answers for units it does not have.** On a shared
   RS-485 line it replied to every address on the bus, including the ones
   belonging to the real devices on it, so its frame went out at the same moment
