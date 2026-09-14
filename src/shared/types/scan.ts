@@ -1,6 +1,6 @@
-import { RegisterTypeSchema } from './client'
+import { RegisterType, RegisterTypeSchema } from './register'
 import { RegisterAddressSchema, UnitIdSchema } from './ranges'
-import { z } from 'zod'
+import z from 'zod'
 
 // Scan Registers
 export const ScanRegistersParametersSchema = z.object({
@@ -27,7 +27,7 @@ const ScanUnitIdErrorMessageSchema = z.object({
   discrete_inputs: z.string(),
   input_registers: z.string(),
   holding_registers: z.string()
-})
+} satisfies Record<RegisterType, z.ZodString>)
 
 export const ScanUnitIDResultSchema = z.object({
   id: z.number(),

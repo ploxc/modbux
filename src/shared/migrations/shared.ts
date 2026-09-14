@@ -1,6 +1,6 @@
 import type { ZodError } from 'zod'
-import { ParitySchema } from '../types/client'
 import { RegisterAddressKeySchema, RegisterAddressSchema } from '../types/ranges'
+import { ParitySchema } from '../types'
 
 /**
  * Replace a stored parity that `ParitySchema` no longer names, at `path` from

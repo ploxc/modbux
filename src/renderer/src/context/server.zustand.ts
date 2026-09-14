@@ -5,8 +5,7 @@ import {
   PersistedServerZustandSchema,
   ServerZustand,
   SetBoolParameters,
-  SetRegisterValueParameters,
-  UsedAddresses
+  SetRegisterValueParameters
 } from './server.zustand.types'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
@@ -14,7 +13,6 @@ import {
   getUsedAddresses,
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
-  ServerRegisters,
   SyncBoolsParameters,
   UnitIdString,
   SetBooleanParameters,
@@ -26,138 +24,24 @@ import {
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
-  ServerSerialConfig,
-  SerialPortOptions,
-  ModbusBaudRate,
-  defaultSerialPortOptions
+  ModbusBaudRate
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
 import {
   extractUnitIdsWithData,
-  syncBoolsWithBackend,
-  syncRegistersWithBackend
+  serverRegistersOf,
+  syncRegistersWithBackend,
+  syncUuidToBackend,
+  unitRegisters,
+  unitUsedAddresses,
+  getDefaultSerialConfig,
+  restartRtuServer,
+  setSerialOption,
+  ServerDelayedSetter
 } from './server.zustand.helpers'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
-
-const getDefaultServerRegisters = (): ServerRegisters => ({
-  coils: {},
-  discrete_inputs: {},
-  input_registers: {},
-  holding_registers: {}
-})
-
-const getDefaultSerialConfig = (): ServerSerialConfig => ({
-  com: '',
-  options: { ...defaultSerialPortOptions }
-})
-
-const getDefaultUsedAddresses = (): UsedAddresses => ({
-  input_registers: [],
-  holding_registers: []
-})
-
-/**
- * Where an empty unit is made, and the only place that makes one.
- *
- * `clean` gives a uuid two empty maps rather than an entry for each of the 256
- * unit ids, so a unit gets its entry the first time something is written into
- * it. A read takes the optional chain instead: a unit nobody has written to
- * holds nothing, and asking what is in it should not create it.
- */
-const serverRegistersOf = (state: ServerZustand, uuid: string) =>
-  (state.serverRegisters[uuid] ??= {})
-
-const usedAddressesOf = (state: ServerZustand, uuid: string) => (state.usedAddresses[uuid] ??= {})
-
-const unitRegisters = (state: ServerZustand, uuid: string, unitId: UnitIdString): ServerRegisters =>
-  (serverRegistersOf(state, uuid)[unitId] ??= getDefaultServerRegisters())
-
-const unitUsedAddresses = (
-  state: ServerZustand,
-  uuid: string,
-  unitId: UnitIdString
-): UsedAddresses => (usedAddressesOf(state, uuid)[unitId] ??= getDefaultUsedAddresses())
-
-/** The recipe half of the store's `set`, for a helper that writes through it. */
-type ServerSet = (recipe: (state: ServerZustand) => void) => void
-
-/**
- * Hands main everything a uuid holds, then marks it ready.
- *
- * The byte order goes first, because main encodes each register with the order
- * it holds at that moment. Both modes send the same thing afterwards: RTU and
- * TCP differ in what they do to open the transport, not in what they put on it.
- */
-const syncUuidToBackend = async (
-  set: ServerSet,
-  get: () => ServerZustand,
-  syncUuid: string
-): Promise<void> => {
-  const serverRegisters = get().serverRegisters[syncUuid] ?? {}
-  set((state) => {
-    state.serverRegisters[syncUuid] ??= {}
-  })
-
-  await window.api.setServerEndianness({
-    uuid: syncUuid,
-    littleEndian: !!get().littleEndian[syncUuid]
-  })
-
-  for (const unitId of extractUnitIdsWithData(serverRegisters)) {
-    await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
-    const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
-      await syncRegistersWithBackend(serverRegisters, unitId, syncUuid)
-
-    set((state) => {
-      const addresses = unitUsedAddresses(state, syncUuid, unitId)
-      addresses['input_registers'] = getUsedAddresses(inputRegisterRegisterValues)
-      addresses['holding_registers'] = getUsedAddresses(holdingRegisterRegisterValues)
-    })
-  }
-
-  set((state) => {
-    state.ready[syncUuid] = true
-  })
-}
-
-/**
- * Puts the RTU server back on the serial settings the store now holds.
- *
- * The stop is unconditional: `stopRtuServer` returns at once when nothing is
- * running, and an empty COM field is a server that has to come down rather
- * than one to leave alone. The start is what the field gates.
- *
- * Every caller is a setter that cannot wait, so the failure is swallowed here.
- * Main reports it through the `backend_message` event.
- */
-const restartRtuServer = async (get: () => ServerZustand): Promise<void> => {
-  const { serverMode, serialConfig = getDefaultSerialConfig() } = get()
-  if (serverMode !== 'rtu') return
-
-  try {
-    await window.api.stopRtuServer()
-    if (!serialConfig.com.trim()) return
-    await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
-  } catch {
-    // Reported through backend_message.
-  }
-}
-
-/** One serial option, then the restart that makes the server speak it. */
-const setSerialOption = <Key extends keyof SerialPortOptions>(
-  set: ServerSet,
-  get: () => ServerZustand,
-  key: Key,
-  value: SerialPortOptions[Key]
-): void => {
-  set((state) => {
-    state.serialConfig ??= getDefaultSerialConfig()
-    state.serialConfig.options[key] = value
-  })
-  void restartRtuServer(get)
-}
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -287,6 +171,7 @@ export const useServerZustand = create<
             }
           }
 
+          // Hands main everything a uuid holds, then marks it ready.
           await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
 
           set((state) => {
@@ -305,6 +190,7 @@ export const useServerZustand = create<
               state.port[syncUuid] = String(actualPort)
             })
 
+            // Hands main everything a uuid holds, then marks it ready.
             await syncUuidToBackend(set, get, syncUuid)
           }
 
@@ -627,35 +513,48 @@ if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.res
 // Init server
 useServerZustand.getState().init()
 
-// Update register values in batches to avoid excessive re-renders
-const pendingCompositeValues = new Map<string, number | bigint>()
-const setRegisterParameterMap = new Map<string, SetRegisterValueParameters>()
+const delayedBool = new ServerDelayedSetter<boolean, SetBoolParameters>({
+  maxCount: 250,
+  set: serverZustand.setBool
+})
 
-const updateRegisterCountMax = 250
-let updateRegisterCount = 0
-let updateRegisterTimeout: NodeJS.Timeout
+const delayedRegister = new ServerDelayedSetter<number | bigint, SetRegisterValueParameters>({
+  maxCount: 250,
+  set: serverZustand.setRegisterValue
+})
 
-const delayedSetRegister = () => {
-  clearTimeout(updateRegisterTimeout)
+// On raw register value result
+onEvent('register_value', (payload) => {
+  const serverZustand = useServerZustand.getState()
 
-  const update = () => {
-    serverZustand.setRegisterValue(Array.from(setRegisterParameterMap.values()))
-    setRegisterParameterMap.clear()
-    pendingCompositeValues.clear()
-    updateRegisterCount = 0
-  }
+  // Handle coils and discrete inputs
+  if (payload.registerType === 'coils' || payload.registerType === 'discrete_inputs') {
+    const { uuid, unitId, registerType, address, value: booleanValue } = payload
+    const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
+    if (entry === undefined) return
 
-  if (updateRegisterCount++ > updateRegisterCountMax) {
-    update()
+    const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`
+    const currentBool = delayedBool.getValue(cacheKey) ?? entry.value
+
+    if (currentBool !== booleanValue) {
+      delayedBool.setValue(cacheKey, booleanValue)
+
+      delayedBool.setParameter(cacheKey, {
+        registerType,
+        address,
+        boolState: booleanValue,
+        optionalUuid: uuid,
+        optionalUnitId: unitId
+      })
+
+      delayedBool.trigger()
+    }
+
     return
   }
 
-  updateRegisterTimeout = setTimeout(update, 50)
-}
-
-// On raw register value result
-onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegisterValue }) => {
-  const serverZustand = useServerZustand.getState()
+  // Handle input and holding registers
+  const { uuid, unitId, registerType, address, value: numberValue } = payload
 
   // 1) Find the “base entry” in state.serverRegisters[*][*][registerType]
   //    We look back up to 3 registers because the largest DataType (int64/double) uses 4 registers.
@@ -676,7 +575,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 
   // Extract the parameters and current composite value (from cache when state isn't updated yet)
   const cacheKey = `${uuid}-${unitId}-${registerType}-${entryAddress}`
-  const currentValue = pendingCompositeValues.get(cacheKey) ?? serverRegisterEntry.value
+  const currentValue = delayedRegister.getValue(cacheKey) ?? serverRegisterEntry.value
   const { dataType } = serverRegisterEntry.params
   // Get littleEndian from global server state
   const littleEndian = serverZustand.littleEndian[uuid] ?? false
@@ -740,7 +639,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
         return
     }
     // 5) Overwrite just the one 16-bit register that the client wrote
-    view.setUint16(byteOffset, rawRegisterValue, littleEndian)
+    view.setUint16(byteOffset, numberValue, littleEndian)
   } catch (e) {
     // Defensive: If any DataView error occurs, abort
     console.error('register_value DataView error', e, {
@@ -793,9 +692,9 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
 
   const value = round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
 
-  pendingCompositeValues.set(cacheKey, newComposite)
+  delayedRegister.setValue(cacheKey, newComposite)
 
-  setRegisterParameterMap.set(cacheKey, {
+  delayedRegister.setParameter(cacheKey, {
     registerType,
     address: entryAddress,
     value,
@@ -803,55 +702,7 @@ onEvent('register_value', ({ uuid, unitId, registerType, address, raw: rawRegist
     optionalUnitId: unitId
   })
 
-  delayedSetRegister()
-})
-
-// Update boolean values in batches to avoid excessive re-renders
-const setBooleanParameterSet = new Map<string, SetBoolParameters>()
-const pendingBooleanValues = new Map<string, boolean>()
-
-const updateBoolCountMax = 250
-let updateBoolCount = 0
-let updateBoolTimeout: NodeJS.Timeout
-
-const delayedSetBool = () => {
-  clearTimeout(updateBoolTimeout)
-
-  const update = () => {
-    serverZustand.setBool(Array.from(setBooleanParameterSet.values()))
-    setBooleanParameterSet.clear()
-    pendingBooleanValues.clear()
-    updateBoolCount = 0
-  }
-
-  if (updateBoolCount++ > updateBoolCountMax) {
-    update()
-    return
-  }
-
-  updateBoolTimeout = setTimeout(update, 50)
-}
-
-onEvent('boolean_value', ({ uuid, unitId, registerType, address, value }) => {
-  const serverZustand = useServerZustand.getState()
-  const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
-  if (entry === undefined) return
-
-  const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`
-  const currentBool = pendingBooleanValues.get(cacheKey) ?? entry.value
-
-  if (currentBool !== value) {
-    pendingBooleanValues.set(cacheKey, value)
-
-    setBooleanParameterSet.set(cacheKey, {
-      registerType,
-      address,
-      boolState: value,
-      optionalUuid: uuid,
-      optionalUnitId: unitId
-    })
-    delayedSetBool()
-  }
+  delayedRegister.trigger()
 })
 
 // RTU server status

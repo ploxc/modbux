@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import z from 'zod'
 
 /** What a store lost on the way in, and why, so the user can be told both. */
 export interface ConfigReset {

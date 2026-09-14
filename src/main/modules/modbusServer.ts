@@ -13,14 +13,14 @@ import {
   AddRegisterParams,
   UnitIdString,
   UnitIdStringSchema,
-  BooleanRegisters,
-  NumberRegisters,
-  StartRtuServerParams
+  StartRtuServerParams,
+  RegisterType,
+  RegisterValue
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { ServerEndianness, Windows } from '@shared'
 import { ValueGenerator } from './modbusServer/valueGenerator'
-import type { IServiceVector, FCallbackVal } from 'modbus-serial'
+import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
 import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
 import net from 'net'
 
@@ -82,6 +82,13 @@ type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
 type ServerDataMap = Map<string, ServerDataUnitMap>
 type ValueGeneratorsMap = Map<string, ValueGeneratorsUnitMap>
 
+/**
+ * Joined type of all register getters, these are the same for every type.
+ * If the modbus-serial package ever changes we will notice it
+ */
+type IServiceVectorGet<T> = (addr: number, unitID: number, cb: FCallbackVal<T>) => void
+type IServiceVectorSet<T> = (addr: number, value: T, unitID: number, cb: FCallback) => void
+
 export interface ServerParams {
   windows: Windows
 }
@@ -125,10 +132,13 @@ export class ModbusServer {
    * @param uuid - The server UUID
    * @returns The inner map for the UUID
    */
-  private _ensureInnerMap<T>(outerMap: Map<string, T>, uuid: string): T {
+  private _ensureInnerMap<K extends UnitIdString, V>(
+    outerMap: Map<string, Map<K, V>>,
+    uuid: string
+  ): Map<K, V> {
     let inner = outerMap.get(uuid)
     if (!inner) {
-      inner = new Map() as T
+      inner = new Map()
       outerMap.set(uuid, inner)
     }
     return inner
@@ -139,12 +149,12 @@ export class ModbusServer {
    * This vector provides all the Modbus register accessors and mutators.
    */
   private _getVector = (uuid: string, transport: ServerTransport): IServiceVector => ({
-    getCoil: this._getCoil(uuid, transport),
-    getDiscreteInput: this._getDiscreteInput(uuid, transport),
-    getInputRegister: this._getInputRegister(uuid, transport),
-    getHoldingRegister: this._getHoldingRegister(uuid, transport),
-    setCoil: this._setCoil(uuid, transport),
-    setRegister: this._setHoldingRegister(uuid, transport)
+    getCoil: this._get('coils', uuid, transport, false),
+    getDiscreteInput: this._get('discrete_inputs', uuid, transport, false),
+    getInputRegister: this._get('input_registers', uuid, transport, 0),
+    getHoldingRegister: this._get('holding_registers', uuid, transport, 0),
+    setCoil: this._set('coils', uuid, transport),
+    setRegister: this._set('holding_registers', uuid, transport)
   })
 
   /**
@@ -202,7 +212,7 @@ export class ModbusServer {
    * Helper to set server data for a unitId in the server data map.
    */
   private _setServerData(uuid: string, unitId: UnitIdString, serverData: ServerData): void {
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
+    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
     perUnitMap.set(unitId, serverData)
     this._warnBroadcastUnit(uuid)
   }
@@ -401,6 +411,13 @@ export class ModbusServer {
     this._littleEndian.set(uuid, littleEndian)
   }
 
+  private _unitData = (uuid: string, unitId: UnitIdString): ServerData => {
+    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
+    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    return serverData
+  }
+
   /**
    * Adds a register or value generator for a given server and unitId.
    * If a generator already exists at the address, it is disposed and replaced.
@@ -422,7 +439,7 @@ export class ModbusServer {
     } = params
 
     // Ensure generator map for this server and unitId
-    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
       this._generatorMap,
       uuid
     )
@@ -438,8 +455,7 @@ export class ModbusServer {
     generators?.delete(address)
 
     // Ensure server data map for this server and unitId
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
+    const serverData = this._unitData(uuid, unitId)
     this._setServerData(uuid, unitId, serverData)
 
     // If a fixed value is provided, set the register directly
@@ -457,7 +473,7 @@ export class ModbusServer {
           unitId,
           registerType,
           address: registerAddress,
-          raw: register
+          value: register
         })
       })
       this._setServerData(uuid, unitId, serverData)
@@ -498,9 +514,7 @@ export class ModbusServer {
     dataType,
     length
   }: RemoveRegisterParams): void => {
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    const serverData = this._unitData(uuid, unitId)
 
     // Reset all registers occupied by this data type
     const registerCount = registerWidth(dataType, length)
@@ -508,7 +522,7 @@ export class ModbusServer {
       serverData[registerType][address + i] = 0
     }
 
-    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
       this._generatorMap,
       uuid
     )
@@ -551,7 +565,7 @@ export class ModbusServer {
    */
   public resetRegisters = ({ uuid, unitId, registerType }: ResetRegistersParams): void => {
     // Dispose and clear only generators for this unitId and registerType
-    const perUnitGeneratorMap = this._ensureInnerMap<ValueGeneratorsUnitMap>(
+    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
       this._generatorMap,
       uuid
     )
@@ -562,9 +576,7 @@ export class ModbusServer {
       generators.clear()
     }
 
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    const serverData = this._unitData(uuid, unitId)
     serverData[registerType] = new Array(65536).fill(0)
     this._setServerData(uuid, unitId, serverData)
   }
@@ -574,21 +586,17 @@ export class ModbusServer {
    * Updates the server data and emits a value change event.
    */
   public setBool = ({ uuid, unitId, registerType, address, state }: SetBooleanParameters): void => {
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    const serverData = this._unitData(uuid, unitId)
     serverData[registerType][address] = state
     this._setServerData(uuid, unitId, serverData)
-    this._windows.send('boolean_value', { uuid, unitId, registerType, address, value: state })
+    this._windows.send('register_value', { uuid, unitId, registerType, address, value: state })
   }
 
   /**
    * Resets all boolean values (coils or discrete inputs) for a given server and unitId.
    */
   public resetBools = ({ uuid, unitId, registerType }: ResetBoolsParams): void => {
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    const serverData = this._unitData(uuid, unitId)
     serverData[registerType] = new Array(65536).fill(false)
     this._setServerData(uuid, unitId, serverData)
   }
@@ -598,9 +606,7 @@ export class ModbusServer {
    */
   public syncBools = (params: SyncBoolsParameters): void => {
     const { uuid, unitId } = params
-    const perUnitMap = this._ensureInnerMap<ServerDataUnitMap>(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
+    const serverData = this._unitData(uuid, unitId)
     params['coils'].forEach((value, index) => (serverData['coils'][index] = value))
     params['discrete_inputs'].forEach((value, index) => {
       serverData['discrete_inputs'][index] = value
@@ -798,116 +804,61 @@ export class ModbusServer {
   // -------------------------------------------------------------------------
 
   /**
-   * Returns the value of a coil for a given address and unitId.
+   * Returns the value of a register type for a given address and unitId.
    * Calls the callback with the value or a Modbus error.
    */
-  private _getCoil: (uuid: string, transport: ServerTransport) => IServiceVector['getCoil'] =
-    (uuid, transport) => async (address, unitIdNumber, cb) => {
+  private _get: <K extends keyof ServerData>(
+    registerType: K,
+    uuid: string,
+    transport: ServerTransport,
+    fallback: ServerData[K][number]
+  ) => IServiceVectorGet<ServerData[K][number]> =
+    (registerType, uuid, transport, fallback) => async (address, unitIdNumber, cb) => {
       const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
-      if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, false)
+      if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, fallback)
       // A broadcast is never acknowledged, so there is nothing to read from one.
       if (this._isBroadcast(transport, unitId.data)) return
-      if (!this._hostsUnit(uuid, unitId.data)) return this._refuseUnit(transport, cb, false)
+      if (!this._hostsUnit(uuid, unitId.data)) return this._refuseUnit(transport, cb, fallback)
 
-      const value = this._serverData.get(uuid)?.get(unitId.data)?.coils[address]
-      if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, false)
-
-      cb(null, value)
-    }
-
-  /**
-   * Returns the value of a discrete input for a given address and unitId.
-   * Calls the callback with the value or a Modbus error.
-   */
-  private _getDiscreteInput: (
-    uuid: string,
-    transport: ServerTransport
-  ) => IServiceVector['getDiscreteInput'] =
-    (uuid, transport) => async (address, unitIdNumber, cb) => {
-      const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
-      if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, false)
-      if (this._isBroadcast(transport, unitId.data)) return
-      if (!this._hostsUnit(uuid, unitId.data)) return this._refuseUnit(transport, cb, false)
-
-      const value = this._serverData.get(uuid)?.get(unitId.data)?.discrete_inputs[address]
-      if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, false)
+      const value = this._serverData.get(uuid)?.get(unitId.data)?.[registerType][address]
+      if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, fallback)
 
       cb(null, value)
     }
 
   /**
-   * Returns the value of an input register for a given address and unitId.
-   * Calls the callback with the value or a Modbus error.
+   * Writes a coil or holding register into a unit this server hosts and tells the view.
    */
-  private _getInputRegister: (
-    uuid: string,
-    transport: ServerTransport
-  ) => IServiceVector['getInputRegister'] = (uuid, transport) => async (address, unitId, cb) => {
-    const unitIdSafe = UnitIdStringSchema.safeParse(String(unitId))
-    if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
-    if (this._isBroadcast(transport, unitIdSafe.data)) return
-    if (!this._hostsUnit(uuid, unitIdSafe.data)) return this._refuseUnit(transport, cb, 0)
-
-    const value = this._serverData.get(uuid)?.get(unitIdSafe.data)?.input_registers[address]
-    if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, 0)
-
-    cb(null, value)
-  }
-
-  /**
-   * Returns the value of a holding register for a given address and unitId.
-   * Calls the callback with the value or a Modbus error.
-   */
-  private _getHoldingRegister: (
-    uuid: string,
-    transport: ServerTransport
-  ) => IServiceVector['getHoldingRegister'] = (uuid, transport) => async (address, unitId, cb) => {
-    const unitIdSafe = UnitIdStringSchema.safeParse(String(unitId))
-    if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
-    if (this._isBroadcast(transport, unitIdSafe.data)) return
-    if (!this._hostsUnit(uuid, unitIdSafe.data)) return this._refuseUnit(transport, cb, 0)
-
-    const value = this._serverData.get(uuid)?.get(unitIdSafe.data)?.holding_registers[address]
-    if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, 0)
-
-    cb(null, value)
-  }
-
-  /**
-   * Writes a coil into a unit this server hosts and tells the view.
-   */
-  private _writeCoil(uuid: string, unitId: UnitIdString, address: number, value: boolean): void {
-    const serverData = this._serverData.get(uuid)?.get(unitId)
-    if (!serverData) return
-    serverData.coils[address] = value
-
-    const registerType: BooleanRegisters = 'coils'
-    this._windows.send('boolean_value', { uuid, unitId, registerType, address, value })
-  }
-
-  /**
-   * Writes a holding register into a unit this server hosts and tells the view.
-   */
-  private _writeHoldingRegister(
+  private _write<K extends RegisterType>(
+    registerType: K,
     uuid: string,
     unitId: UnitIdString,
     address: number,
-    raw: number
+    value: ServerData[K][number]
   ): void {
     const serverData = this._serverData.get(uuid)?.get(unitId)
     if (!serverData) return
-    serverData.holding_registers[address] = raw
+    serverData[registerType][address] = value
 
-    const registerType: NumberRegisters = 'holding_registers'
-    this._windows.send('register_value', { uuid, unitId, registerType, address, raw })
+    this._windows.send('register_value', {
+      uuid,
+      unitId,
+      registerType,
+      address,
+      value
+    } as RegisterValue)
   }
 
   /**
-   * Sets the value of a coil for a given address and unitId.
+   * Sets the value of a coil or holding register for a given address and unitId.
    * Updates the server data and emits a value change event.
    */
-  private _setCoil: (uuid: string, transport: ServerTransport) => IServiceVector['setCoil'] =
-    (uuid, transport) => async (address, value, unitIdNumber, cb) => {
+  private _set: <K extends RegisterType>(
+    registerType: K,
+    uuid: string,
+    transport: ServerTransport
+  ) => IServiceVectorSet<ServerData[K][number]> =
+    (registerType, uuid, transport) => async (address, value, unitIdNumber, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
       const unitId = unitIdSafe.data
@@ -915,38 +866,13 @@ export class ModbusServer {
       // A broadcast write reaches every unit on the bus and is never answered.
       if (this._isBroadcast(transport, unitId)) {
         for (const hostedUnitId of this._serverData.get(uuid)?.keys() ?? [])
-          this._writeCoil(uuid, hostedUnitId, address, value)
+          this._write(registerType, uuid, hostedUnitId, address, value)
         return
       }
 
       if (!this._hostsUnit(uuid, unitId)) return this._refuseUnit(transport, cb, 0)
 
-      this._writeCoil(uuid, unitId, address, value)
-      cb(null)
-    }
-
-  /**
-   * Sets the value of a holding register for a given address and unitId.
-   * Updates the server data and emits a value change event.
-   */
-  private _setHoldingRegister: (
-    uuid: string,
-    transport: ServerTransport
-  ) => IServiceVector['setRegister'] =
-    (uuid, transport) => async (address, raw, unitIdNumber, cb) => {
-      const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
-      if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
-      const unitId = unitIdSafe.data
-
-      if (this._isBroadcast(transport, unitId)) {
-        for (const hostedUnitId of this._serverData.get(uuid)?.keys() ?? [])
-          this._writeHoldingRegister(uuid, hostedUnitId, address, raw)
-        return
-      }
-
-      if (!this._hostsUnit(uuid, unitId)) return this._refuseUnit(transport, cb, 0)
-
-      this._writeHoldingRegister(uuid, unitId, address, raw)
+      this._write(registerType, uuid, unitId, address, value)
       cb(null)
     }
 

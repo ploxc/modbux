@@ -1,8 +1,9 @@
 import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
-import { BooleanRegisters, NumberRegisters, UnitIdString } from './server'
 import { PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
+import { RegisterType, RegisterTypeSchema } from './register'
+import { SerialPortOptionsSchema } from './serial'
 
 //
 //
@@ -38,7 +39,7 @@ export const RegisterMappingSchema = z.object({
   discrete_inputs: RegisterMapObjectSchema,
   input_registers: RegisterMapObjectSchema,
   holding_registers: RegisterMapObjectSchema
-})
+} satisfies Record<RegisterType, typeof RegisterMapObjectSchema>)
 export type RegisterMapping = z.infer<typeof RegisterMappingSchema>
 
 // Client config schema (v2 with metadata)
@@ -86,44 +87,12 @@ export const PROTOCOL_LABELS: Record<Protocol, string> = {
   ModbusRtuOverTcp: 'RTU over TCP'
 }
 
-export const ModbusBaudRateSchema = z.enum([
-  '1200',
-  '2400',
-  '4800',
-  '9600',
-  '14400',
-  '19200',
-  '38400',
-  '57600',
-  '115200'
-])
-export type ModbusBaudRate = z.infer<typeof ModbusBaudRateSchema>
-
 // modbus-serial TcpPortOptions partial
 export const TcpPortOptionsSchema = z.object({
   port: PortSchema,
   timeout: z.number()
 })
 export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
-
-/**
- * What the serial binding accepts on every platform.
- *
- * `modbus-serial` also types `mark` and `space`, and `serialport_win.cpp` has a
- * case for both. `serialport_unix.cpp` has three cases and a default that
- * returns -1, so on macOS and Linux either one fails the open with
- * "Invalid parity setting".
- */
-export const ParitySchema = z.enum(['none', 'even', 'odd'])
-export type Parity = z.infer<typeof ParitySchema>
-
-export const SerialPortOptionsSchema = z.object({
-  baudRate: ModbusBaudRateSchema,
-  dataBits: z.number(),
-  stopBits: z.number(),
-  parity: ParitySchema.optional()
-})
-export type SerialPortOptions = z.infer<typeof SerialPortOptionsSchema>
 
 export const ConnectionConfigTcpSchema = z.object({
   host: z.string(),
@@ -203,13 +172,6 @@ export type ClientState = z.infer<typeof ClientStateSchema>
 //
 //
 // Register config
-export const RegisterTypeSchema = z.enum([
-  'coils',
-  'discrete_inputs',
-  'input_registers',
-  'holding_registers'
-])
-export type RegisterType = z.infer<typeof RegisterTypeSchema>
 
 export const RegisterConfigSchema = z.object({
   address: z.number(),
@@ -264,22 +226,6 @@ export interface RawTransaction {
   // the write that reaches the port. A transaction can carry neither.
   request?: Buffer
   responses?: Buffer[]
-}
-
-export interface RegisterValue {
-  uuid: string
-  unitId: UnitIdString
-  registerType: NumberRegisters
-  address: number
-  raw: number
-}
-
-export interface BooleanValue {
-  uuid: string
-  unitId: UnitIdString
-  registerType: BooleanRegisters
-  address: number
-  value: boolean
 }
 
 export type AddressGroup = [number, number]

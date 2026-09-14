@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import z from 'zod'
 
 /**
  * Ranges the protocol and the socket fix, so a schema states them once.

@@ -20,7 +20,6 @@ import type {
   Transaction,
   ScanUnitIDResult,
   RegisterValue,
-  BooleanValue,
   WindowsOpen,
   AddressGroup,
   SerialPortInfo,
@@ -355,7 +354,6 @@ export const IPC_EVENTS = [
   'scan_unit_id_result',
   'scan_progress',
   'register_value',
-  'boolean_value',
   'window_update',
   'open_server_window',
   'address_groups',
@@ -372,7 +370,6 @@ export interface IpcEventPayloadMap {
   ['scan_unit_id_result']: [ScanUnitIDResult]
   ['scan_progress']: [number]
   ['register_value']: [RegisterValue]
-  ['boolean_value']: [BooleanValue]
   ['window_update']: [WindowsOpen]
   ['open_server_window']: []
   ['address_groups']: [AddressGroup[]]
