@@ -6,11 +6,13 @@ import {
   bigEndian64,
   littleEndian64,
   createRegisters,
+  encodeIEC870DateTime,
   registerWidth,
   getMinMaxValues,
   notEmpty,
   humanizeSerialError
 } from '../utils'
+import { parseIEC870DateTime } from '../conversion'
 import { getDummyRegisterData, dummyWords, MAIN_SERVER_UUID } from '../default'
 
 // ---------------------------------------------------------------------------
@@ -399,6 +401,45 @@ describe('getMinMaxValues', () => {
 
   it('returns { min: 0, max: 0 } for unknown types', () => {
     expect(getMinMaxValues('none')).toEqual({ min: 0, max: 0 })
+  })
+
+  it('states the unix range in the seconds createRegisters writes', () => {
+    const { min, max } = getMinMaxValues('unix')
+    expect(min).toBe(0)
+    expect(max).toBe(4294967295)
+    expect(createRegisters('unix', max, false)).toEqual([0xffff, 0xffff])
+  })
+
+  it('states the datetime range in the milliseconds createRegisters writes', () => {
+    const { min, max } = getMinMaxValues('datetime')
+    expect(parseIEC870DateTime(encodeIEC870DateTime(min))).toBe('2000/01/01 00:00:00')
+    expect(parseIEC870DateTime(encodeIEC870DateTime(max))).toBe('2127/12/31 23:59:59')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// encodeIEC870DateTime
+// ---------------------------------------------------------------------------
+describe('encodeIEC870DateTime', () => {
+  it('round trips a timestamp inside the range', () => {
+    const timestampMs = Date.UTC(2024, 5, 1, 12, 34, 56, 789)
+    expect(parseIEC870DateTime(encodeIEC870DateTime(timestampMs))).toBe('2024/06/01 12:34:56')
+  })
+
+  it('clamps a timestamp before 2000 to the first second of 2000', () => {
+    expect(parseIEC870DateTime(encodeIEC870DateTime(0))).toBe('2000/01/01 00:00:00')
+  })
+
+  it('clamps a timestamp past 2127 to the last second of 2127', () => {
+    const year2200 = Date.UTC(2200, 0, 1)
+    expect(parseIEC870DateTime(encodeIEC870DateTime(year2200))).toBe('2127/12/31 23:59:59')
+  })
+
+  it('keeps the four registers createRegisters splits it into', () => {
+    const timestampMs = Date.UTC(2024, 5, 1, 12, 34, 56, 789)
+    expect(createRegisters('datetime', timestampMs, false)).toEqual([
+      0x0018, 0x0601, 0x0c22, 0xddd5
+    ])
   })
 })
 

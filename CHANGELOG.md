@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A DATETIME write now carries the date you typed.** The write dialog took a
+  value field whose range was stated in seconds while the register is encoded
+  from milliseconds, so every value it accepted fell before the year 2000 and
+  went out as 2000/01/01 00:00:00. The field now takes milliseconds over the
+  range the format carries, which is 2000 through 2127. A date past 2127 used to
+  be written with the year wrapped, so a register set to 2200 read back as 2072;
+  it now stops at the end of 2127.
 - **The server no longer answers for units it does not have.** On a shared
   RS-485 line it replied to every address on the bus, including the ones
   belonging to the real devices on it, so its frame went out at the same moment
