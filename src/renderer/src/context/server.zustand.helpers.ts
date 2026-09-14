@@ -84,13 +84,7 @@ const getDefaultUsedAddresses = (): UsedAddresses => ({
   holding_registers: []
 })
 
-/**
- * Creates an empty object when no used addresses exist for the server.
- *
- * When for example an address is added to the server, it it only creates
- * the object once that server needs is. Not "alocating" the empty space
- * before it actually gets used.
- */
+/** The used-address map for a uuid, made on the first write into it. */
 const usedAddressesOf = (
   state: ServerZustand,
   uuid: string

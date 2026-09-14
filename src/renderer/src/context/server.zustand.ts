@@ -171,7 +171,6 @@ export const useServerZustand = create<
             }
           }
 
-          // Hands main everything a uuid holds, then marks it ready.
           await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
 
           set((state) => {
@@ -190,7 +189,6 @@ export const useServerZustand = create<
               state.port[syncUuid] = String(actualPort)
             })
 
-            // Hands main everything a uuid holds, then marks it ready.
             await syncUuidToBackend(set, get, syncUuid)
           }
 
