@@ -7,7 +7,16 @@ import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import { meme } from './meme'
-import { ModbusBaudRate, ModbusBaudRateSchema, Parity, ParitySchema } from '@shared'
+import {
+  DataBits,
+  DataBitsSchema,
+  ModbusBaudRate,
+  ModbusBaudRateSchema,
+  Parity,
+  ParitySchema,
+  StopBits,
+  StopBitsSchema
+} from '@shared'
 import React, { useMemo } from 'react'
 
 export const measureTextWidth = (
@@ -139,7 +148,7 @@ export const BaudRateSelect = meme(
           labelId={labelId}
           value={value}
           label="Baud Rate"
-          onChange={(e) => onChange(e.target.value as ModbusBaudRate)}
+          onChange={(e) => onChange(e.target.value)}
           sx={{ width: 100 }}
           data-testid={testId}
         >
@@ -177,7 +186,7 @@ export const ParitySelect = meme(
           labelId={labelId}
           value={value}
           label="Parity"
-          onChange={(e) => onChange(e.target.value as Parity)}
+          onChange={(e) => onChange(e.target.value)}
           sx={{ width: 85 }}
           data-testid={testId}
         >
@@ -192,7 +201,7 @@ export const ParitySelect = meme(
   }
 )
 
-const databitsOptions = [8, 7, 6, 5] as const
+const databitsOptions = DataBitsSchema.options.map((option) => option.value)
 
 export const DataBitsSelect = meme(
   ({
@@ -201,8 +210,8 @@ export const DataBitsSelect = meme(
     disabled,
     testId = 'rtu-databits-select'
   }: {
-    value: number
-    onChange: (value: number) => void
+    value: DataBits
+    onChange: (value: DataBits) => void
     disabled?: boolean
     testId?: string
   }) => {
@@ -217,7 +226,7 @@ export const DataBitsSelect = meme(
           labelId={labelId}
           value={value}
           label="Data Bits"
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(e.target.value)}
           sx={{ width: 55 }}
           data-testid={testId}
         >
@@ -232,7 +241,7 @@ export const DataBitsSelect = meme(
   }
 )
 
-const stopBitsOptions = [1, 2] as const
+const stopBitsOptions = StopBitsSchema.options.map((option) => option.value)
 
 export const StopBitsSelect = meme(
   ({
@@ -241,8 +250,8 @@ export const StopBitsSelect = meme(
     disabled,
     testId = 'rtu-stopbits-select'
   }: {
-    value: number
-    onChange: (value: number) => void
+    value: StopBits
+    onChange: (value: StopBits) => void
     disabled?: boolean
     testId?: string
   }) => {
@@ -257,7 +266,7 @@ export const StopBitsSelect = meme(
           labelId={labelId}
           value={value}
           label="Stop Bits"
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(e.target.value)}
           sx={{ width: 55 }}
           data-testid={testId}
         >

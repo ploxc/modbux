@@ -16,7 +16,6 @@ import {
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import type { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
 
@@ -169,24 +168,18 @@ const ClientDataBitsSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const dataBits = useClientZustand((z) => z.connectionConfig.rtu.options.dataBits)
 
-  const handleChange = useCallback((value: number): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setDataBits(value as SerialPortOptions['dataBits'])
-  }, [])
+  const setDataBits = useClientZustand.getState().setDataBits
 
-  return <DataBitsSelect value={dataBits} onChange={handleChange} disabled={disabled} />
+  return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
 })
 
 const ClientStopBitsSelect = meme(() => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
   const stopBits = useClientZustand((z) => z.connectionConfig.rtu.options.stopBits)
 
-  const handleChange = useCallback((value: number): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setStopBits(value as SerialPortOptions['stopBits'])
-  }, [])
+  const setStopBits = useClientZustand.getState().setStopBits
 
-  return <StopBitsSelect value={stopBits} onChange={handleChange} disabled={disabled} />
+  return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
 })
 
 const RtuConfig = meme((): JSX.Element => {

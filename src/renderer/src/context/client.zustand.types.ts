@@ -13,9 +13,10 @@ import {
   RegisterConfigSchema,
   SerialPortInfo,
   SerialPortValidationResult,
-  ConfigReset
+  ConfigReset,
+  DataBits,
+  StopBits
 } from '@shared'
-import { SerialPortOptions } from 'modbus-serial/ModbusRTU'
 import z from 'zod'
 
 interface Valid {
@@ -72,8 +73,8 @@ export type ClientZustand = {
   setCom: AsyncMaskSetFn
   setBaudRate: (baudRate: ModbusBaudRate) => Promise<void>
   setParity: (parity: Parity) => Promise<void>
-  setDataBits: (dataBits: SerialPortOptions['dataBits']) => Promise<void>
-  setStopBits: (stopBits: SerialPortOptions['stopBits']) => Promise<void>
+  setDataBits: (dataBits: DataBits) => Promise<void>
+  setStopBits: (stopBits: StopBits) => Promise<void>
   setPollRate: (pollRate: number) => Promise<void>
   setTimeout: (timeout: number) => Promise<void>
   setLittleEndian: (littleEndian: boolean) => Promise<void>
