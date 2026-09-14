@@ -61,6 +61,18 @@ const toHexString = (bytes: Uint8Array | undefined): string =>
         .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
         .join(' ')
 
+/**
+ * The `removeAllListeners` under a `ModbusRTU`.
+ *
+ * `index.js` has the class extend `EventEmitter`, and `ModbusRTU.d.ts` declares
+ * `on` and nothing else of the emitter, so taking listeners off again needs a
+ * type written here. Nothing inside modbus-serial listens on the client object,
+ * so what comes off is what this file put on.
+ */
+interface ModbusRTUEmitter extends ModbusRTU {
+  removeAllListeners(): void
+}
+
 export interface ClientParams {
   appState: AppState
   windows: Windows
@@ -390,8 +402,17 @@ export class ModbusClient {
     try {
       await new Promise<void>((resolve) => {
         this._disconnectTimeout = setTimeout(() => {
-          this._client.destroy(() => {
-            const message = 'Disconnect timeout, client destroyed'
+          const abandoned = this._client as ModbusRTUEmitter
+          // What `destroy` leaves behind decides what this has to do itself.
+          // It destroys a socket, and returns a serial port untouched:
+          // `RTUBufferedPort` declares no `destroy`, so `ModbusRTU.destroy`
+          // takes the branch that only calls back, keeping the port open and
+          // its close relay on it. Taking the listeners off is what stops that
+          // port speaking to the client that replaces it, which it would do as
+          // a connection lost on a connection that is fine.
+          abandoned.removeAllListeners()
+          abandoned.destroy(() => {
+            const message = 'Disconnect timeout, the port may stay open until Modbux closes'
             this._emitMessage({ message, variant: 'warning', error: null })
             resolve()
             this._client = new ModbusRTU()
