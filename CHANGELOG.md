@@ -47,7 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A disconnect that hangs no longer costs you auto-reconnect.** When closing
   the connection took too long, the client was replaced by a fresh one that
   nobody was listening to, so for the rest of the session a dropped connection
-  went unreported and was never reconnected.
+  went unreported and was never reconnected. The client it replaced went the
+  other way: Modbux kept listening to it, and on a serial port it kept the port
+  open, so its own close could arrive later as a connection lost on the
+  connection that had taken its place. Modbux now stops listening to it, and
+  says that the port may stay open until you close Modbux.
 - **The transaction log no longer marks a good read as failed.** Reading a
   configuration reads one group of addresses at a time, and once one group
   failed, every group after it was logged carrying that group's error.

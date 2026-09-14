@@ -19,11 +19,31 @@ const fireClientEvent = (event: 'close' | 'error', ...args: unknown[]): void => 
   handler(...args)
 }
 
+/**
+ * A `ModbusRTU`, with the handlers registered on this one kept beside it.
+ *
+ * `clientEventHandlers` holds what the newest client registered, which is what
+ * every test firing an event on the live connection wants. A client the app
+ * abandons keeps answering to its own `handlers`, and that record is the only
+ * way to ask whether it still speaks.
+ */
 const createMockModbusRTU = () => ({
   isOpen: false,
-  on: vi.fn(function (this: unknown, event: string, handler: (...args: unknown[]) => void) {
+  handlers: {} as Record<string, (...args: unknown[]) => void>,
+  on: vi.fn(function (
+    this: { handlers: Record<string, (...args: unknown[]) => void> },
+    event: string,
+    handler: (...args: unknown[]) => void
+  ) {
     clientEventHandlers[event] = handler
+    this.handlers[event] = handler
     return this
+  }),
+  removeAllListeners: vi.fn(function (this: {
+    handlers: Record<string, (...args: unknown[]) => void>
+  }) {
+    this.handlers = {}
+    clientEventHandlers = {}
   }),
   setTimeout: vi.fn(),
   setID: vi.fn(),
@@ -46,10 +66,17 @@ const createMockModbusRTU = () => ({
 
 let mockModbusRTU = createMockModbusRTU()
 
+/** Every client constructed since the last `beforeEach`, oldest first. */
+let modbusInstances: Array<ReturnType<typeof createMockModbusRTU>> = []
+
 vi.mock('modbus-serial', () => {
   // Must use `function` (not arrow) so it can be called with `new`
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const MockCtor: any = vi.fn().mockImplementation(function () {
+    // A client per construction, because the one the disconnect timeout
+    // replaces has to stay distinguishable from the one replacing it.
+    mockModbusRTU = createMockModbusRTU()
+    modbusInstances.push(mockModbusRTU)
     return mockModbusRTU
   })
   MockCtor.getPorts = vi.fn().mockResolvedValue([])
@@ -94,6 +121,7 @@ describe('ModbusClient', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     clientEventHandlers = {}
+    modbusInstances = []
     mockModbusRTU = createMockModbusRTU()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(ModbusRTU as any).getPorts.mockReset()
@@ -118,6 +146,17 @@ describe('ModbusClient', () => {
   }
 
   const getWindowCalls = (event: string) => sentToWindows.filter((call) => call[0] === event)
+
+  /**
+   * The nth client the app constructed, or a failure naming the one that was
+   * never built. Index 0 is the client `ModbusClient`'s constructor takes, and
+   * index 1 the one the disconnect timeout puts in its place.
+   */
+  const constructedClient = (index: number) => {
+    const instance = modbusInstances[index]
+    if (!instance) throw new Error(`no client was constructed at index ${index}`)
+    return instance
+  }
 
   const getLastClientState = () => {
     const calls = getWindowCalls('client_state')
@@ -376,14 +415,32 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5500)
       await disconnectPromise
 
-      expect(mockModbusRTU.destroy).toHaveBeenCalled()
+      expect(constructedClient(0).destroy).toHaveBeenCalled()
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message.includes('Disconnect timeout'))).toBe(true)
     })
 
-    // The mock constructor hands out one shared object, so the replacement is
-    // the same instance and its handlers are still attached. Emptying the
-    // record first is what makes the two below see the registration itself.
+    /**
+     * A client the app stops holding keeps its port, and on a serial port it
+     * keeps modbus-serial's close relay too: `RTUBufferedPort` declares no
+     * `destroy`, so `ModbusRTU.destroy` only calls back. Left listening, that
+     * port reports its own close as a connection lost on the connection that
+     * replaced it.
+     */
+    it('leaves the client it abandons deaf, and the one replacing it listening', async () => {
+      await connectClient()
+      mockModbusRTU.close.mockImplementation(() => {})
+
+      const disconnectPromise = client.disconnect()
+      await vi.advanceTimersByTimeAsync(5500)
+      await disconnectPromise
+
+      expect(Object.keys(constructedClient(0).handlers)).toEqual([])
+      expect(Object.keys(constructedClient(1).handlers).sort()).toEqual(['close', 'error'])
+    })
+
+    // `clientEventHandlers` holds the newest registration, so emptying it
+    // first is what makes the two below see the registration itself.
     it('re-registers its handlers on the client the timeout replaces', async () => {
       await connectClient()
       mockModbusRTU.close.mockImplementation(() => {})
