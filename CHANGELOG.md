@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range the format carries, which is 2000 through 2127. A date past 2127 used to
   be written with the year wrapped, so a register set to 2200 read back as 2072;
   it now stops at the end of 2127.
+- **A server timestamp row no longer shows a date the register does not hold.**
+  The DATETIME row decoded the four registers itself, without the format's
+  invalid flag and without checking the fields it read, so whatever a client
+  had written into them came back as a plausible date. It now shows a dash
+  unless the registers really carry one. A UNIX register holding 0 showed a
+  dash as well; that is 1970/01/01 00:00:00, and the row now says so.
 - **The server no longer answers for units it does not have.** On a shared
   RS-485 line it replied to every address on the bus, including the ones
   belonging to the real devices on it, so its frame went out at the same moment

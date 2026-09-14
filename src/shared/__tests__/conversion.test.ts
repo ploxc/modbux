@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect } from 'vitest'
-import { parseIEC870DateTime, convertRegisterData, convertBitData } from '../conversion'
+import {
+  convertBitData,
+  convertRegisterData,
+  formatUnixSeconds,
+  parseIEC870DateTime,
+  parseIEC870DateTimeValue
+} from '../conversion'
 
 describe('parseIEC870DateTime', () => {
   it('returns empty string for wrong buffer length', () => {
@@ -97,6 +103,43 @@ describe('parseIEC870DateTime', () => {
     buf.writeUInt16BE(59 * 1000 + 999, 6) // 59.999 seconds
 
     expect(parseIEC870DateTime(buf)).toBe('2024/12/31 23:59:59')
+  })
+})
+
+describe('parseIEC870DateTimeValue', () => {
+  /** The same four words a buffer holds, folded the way the server store folds them. */
+  const words = [0x0018, 0x0601, 0x0c22, 0xddd5]
+  const buffer = (): Buffer => {
+    const buf = Buffer.alloc(8)
+    words.forEach((word, i) => buf.writeUInt16BE(word, i * 2))
+    return buf
+  }
+  const composite = words.reduce((total, word, i) => total + word * 2 ** (48 - i * 16), 0)
+
+  it('reads the same date out of the composite as out of the buffer', () => {
+    expect(parseIEC870DateTimeValue(composite)).toBe(parseIEC870DateTime(buffer()))
+    expect(parseIEC870DateTimeValue(composite)).toBe('2024/06/01 12:34:56')
+  })
+
+  it('returns empty string for a composite of zero', () => {
+    expect(parseIEC870DateTimeValue(0)).toBe('')
+  })
+
+  // The all-0xFFFF sentinel is 2 ** 64 - 1, which no Number holds: the store
+  // narrows the composite with Number() and it arrives here as 2 ** 64. The
+  // sentinel branch is unreachable from this side, and the range gate answers.
+  it('returns empty string for the sentinel the store rounded past 64 bits', () => {
+    expect(parseIEC870DateTimeValue(2 ** 64)).toBe('')
+  })
+})
+
+describe('formatUnixSeconds', () => {
+  it('formats the epoch itself', () => {
+    expect(formatUnixSeconds(0)).toBe('1970/01/01 00:00:00')
+  })
+
+  it('formats a timestamp in seconds, not milliseconds', () => {
+    expect(formatUnixSeconds(1700000000)).toBe('2023/11/14 22:13:20')
   })
 })
 
