@@ -27,7 +27,7 @@ export const defaultConnectionConfig: ConnectionConfig = {
   protocol: 'ModbusTcp',
   tcp: {
     host: '192.168.1.10',
-    options: { port: 502, timeout: 5000 }
+    options: { port: 502 }
   },
   rtu: {
     com: 'COM3',

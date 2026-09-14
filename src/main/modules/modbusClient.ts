@@ -314,23 +314,19 @@ export class ModbusClient {
     // Enables storing transaction requests and responses for logging purposes
     this._client['isDebugEnabled'] = true
 
-    // Connect
-    rtuOptions['autoOpen'] = true
-
     this._connectInFlight = true
     try {
       if (protocol === 'ModbusTcp') {
-        await this._client.connectTCP(host, tcpOptions)
+        // A copy, because `connectTCP` writes the client's own timeout into the
+        // options object it is handed.
+        await this._client.connectTCP(host, { ...tcpOptions })
       } else if (protocol === 'ModbusRtuOverTcp') {
         // Encapsulated RTU: a full RTU frame (with CRC) sent raw over a TCP
         // socket, for serial-to-Ethernet gateways in transparent mode.
         // connectTelnet writes the RTU frame unchanged; connectTcpRTUBuffered
         // would instead rewrap it as MBAP (i.e. plain Modbus TCP), which is
         // not RTU over TCP.
-        await this._client.connectTelnet(host, {
-          port: tcpOptions.port,
-          timeout: tcpOptions.timeout
-        })
+        await this._client.connectTelnet(host, { port: tcpOptions.port })
       } else {
         await this._client.connectRTUBuffered(com, {
           baudRate: Number(rtuOptions.baudRate),
