@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ConnectionConfigSchema, ParitySchema, SerialPortOptionsSchema } from '../../types/client'
+import { ConnectionConfigSchema, ParitySchema, SerialPortOptionsSchema } from '../../types'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
 import { CURRENT_SERVER_ZUSTAND_VERSION } from '../server/zustand'
 import { repairPersistedParity } from '../shared'

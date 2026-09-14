@@ -104,3 +104,11 @@ export type ServerZustand = {
   refreshSerialPorts: () => Promise<void>
   rtuServerActive: boolean
 } & PersistedServerZustand
+
+/** The recipe half of the store's `set`, for a helper that writes through it. */
+export type ServerSet = (recipe: (state: ServerZustand) => void) => void
+
+export type DefinedServerRegisters = Exclude<
+  PersistedServerZustand['serverRegisters'][UnitIdString],
+  undefined
+>

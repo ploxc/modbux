@@ -1,9 +1,16 @@
-import { z } from 'zod'
+import z from 'zod'
 import { BaseDataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
-import { RegisterType, SerialPortOptionsSchema } from './client'
 import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
-import { unitIds } from './unitid'
+import { SerialPortOptionsSchema } from './serial'
+import { UnitIdString, UnitIdStringSchema } from './unitid'
+import {
+  BooleanRegisters,
+  BooleanRegistersSchema,
+  NumberRegisters,
+  NumberRegistersSchema,
+  RegisterType
+} from './register'
 
 // Server mode (global: TCP or RTU)
 export const ServerModeSchema = z.enum(['tcp', 'rtu'])
@@ -22,18 +29,6 @@ export const StartRtuServerParamsSchema = z.object({
 })
 export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
 
-// Zod schema for boolean register types
-export const BooleanRegistersSchema = z.enum(['coils', 'discrete_inputs'])
-export type BooleanRegisters = z.infer<typeof BooleanRegistersSchema>
-
-// Zod schema for number register types
-export const NumberRegistersSchema = z.enum(['input_registers', 'holding_registers'])
-export type NumberRegisters = z.infer<typeof NumberRegistersSchema>
-
-// Zod schema for unit ids
-export const UnitIdStringSchema = z.enum(unitIds)
-export type UnitIdString = z.infer<typeof UnitIdStringSchema>
-
 // Parameter schema for dynamic or static values
 const RegisterParamsGeneratorPartSchema = z.object({
   min: z.number(),
@@ -50,6 +45,16 @@ const RegisterParamsStaticPartSchema = z.object({
   interval: z.undefined()
 })
 export type RegisterParamsStaticPart = z.infer<typeof RegisterParamsStaticPartSchema>
+
+export type RegisterValue<K extends RegisterType = RegisterType> = {
+  [P in K]: {
+    uuid: string
+    unitId: UnitIdString
+    registerType: P
+    address: number
+    value: ServerData[P][number]
+  }
+}[K]
 
 /**
  * Base fields shared by both variants.
@@ -100,13 +105,15 @@ export const ServerRegisterSchema = z.record(RegisterAddressKeySchema, ServerReg
 export type ServerRegister = z.infer<typeof ServerRegisterSchema>
 
 // Schema representing all register types for a server
-export const ServerRegistersSchema: z.ZodType<{
-  [key in RegisterType]: key extends 'coils' | 'discrete_inputs' ? ServerBool : ServerRegister
-}> = z.object({
+export const ServerRegistersSchema = z.object({
   coils: ServerBoolSchema,
   discrete_inputs: ServerBoolSchema,
   input_registers: ServerRegisterSchema,
   holding_registers: ServerRegisterSchema
+} satisfies {
+  [K in RegisterType]: K extends BooleanRegisters
+    ? typeof ServerBoolSchema
+    : typeof ServerRegisterSchema
 })
 export type ServerRegisters = z.infer<typeof ServerRegistersSchema>
 
@@ -215,12 +222,7 @@ export interface SetUnitIdParams {
   unitID: UnitIdString
 }
 
-export interface ServerData {
-  coils: boolean[]
-  discrete_inputs: boolean[]
-  input_registers: number[]
-  holding_registers: number[]
-}
+export type ServerData = { [K in RegisterType]: K extends BooleanRegisters ? boolean[] : number[] }
 
 /**
  * What the server needs of a running generator, which is only the teardown.
@@ -233,7 +235,6 @@ export interface RegisterValueGenerator {
   dispose: () => void
 }
 
-export interface ValueGenerators {
-  input_registers: Map<number, RegisterValueGenerator>
-  holding_registers: Map<number, RegisterValueGenerator>
+export type ValueGenerators = {
+  [key in NumberRegisters]: Map<number, RegisterValueGenerator>
 }

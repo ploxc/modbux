@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import z from 'zod'
 import { ConfigReset, keepCorrupt, repairPersisted } from '@shared'
 
 /** What a store lost on the way in, for a store that lost something. */

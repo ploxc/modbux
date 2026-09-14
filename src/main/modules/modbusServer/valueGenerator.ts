@@ -114,7 +114,7 @@ export class ValueGenerator implements RegisterValueGenerator {
         unitId: this._unitId,
         registerType: this._registerType,
         address: registerAddress,
-        raw: register
+        value: register
       })
     })
   }

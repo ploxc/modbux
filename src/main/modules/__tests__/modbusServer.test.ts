@@ -200,7 +200,7 @@ describe('ModbusServer', () => {
           unitId,
           registerType: 'holding_registers',
           address: 0,
-          raw: 1234
+          value: 1234
         })
       )
     })
@@ -226,14 +226,14 @@ describe('ModbusServer', () => {
         'register_value',
         expect.objectContaining({
           address: 10,
-          raw: 1 // high word
+          value: 1 // high word
         })
       )
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
         expect.objectContaining({
           address: 11,
-          raw: 4464 // low word (0x1170)
+          value: 4464 // low word (0x1170)
         })
       )
     })
@@ -264,11 +264,11 @@ describe('ModbusServer', () => {
       // 70000 = 0x00011170, low word first
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
-        expect.objectContaining({ address: 10, raw: 4464 })
+        expect.objectContaining({ address: 10, value: 4464 })
       )
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
-        expect.objectContaining({ address: 11, raw: 1 })
+        expect.objectContaining({ address: 11, value: 1 })
       )
     })
 
@@ -294,7 +294,7 @@ describe('ModbusServer', () => {
 
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
-        expect.objectContaining({ address: 10, raw: 1 })
+        expect.objectContaining({ address: 10, value: 1 })
       )
     })
 
@@ -319,7 +319,7 @@ describe('ModbusServer', () => {
         expect.objectContaining({
           registerType: 'input_registers',
           address: 5,
-          raw: 999
+          value: 999
         })
       )
     })
@@ -347,7 +347,7 @@ describe('ModbusServer', () => {
         'register_value',
         expect.objectContaining({
           address: 0,
-          raw: 50
+          value: 50
         })
       )
     })
@@ -393,7 +393,7 @@ describe('ModbusServer', () => {
         'register_value',
         expect.objectContaining({
           address: 0,
-          raw: 99
+          value: 99
         })
       )
 
@@ -403,7 +403,7 @@ describe('ModbusServer', () => {
       const allCalls = (windows.send as ReturnType<typeof vi.fn>).mock.calls.filter(
         (call) => call[0] === 'register_value' && call[1].address === 0
       )
-      const valuesAfterReplace = allCalls.slice(callsAfterFirst).map((call) => call[1].raw)
+      const valuesAfterReplace = allCalls.slice(callsAfterFirst).map((call) => call[1].value)
       // All values should be 99 (from new generator), not 10
       expect(valuesAfterReplace.every((v: number) => v === 99)).toBe(true)
     })
@@ -605,7 +605,7 @@ describe('ModbusServer', () => {
         state: true
       })
 
-      expect(windows.send).toHaveBeenCalledWith('boolean_value', {
+      expect(windows.send).toHaveBeenCalledWith('register_value', {
         uuid,
         unitId,
         registerType: 'coils',
@@ -623,7 +623,7 @@ describe('ModbusServer', () => {
         state: false
       })
 
-      expect(windows.send).toHaveBeenCalledWith('boolean_value', {
+      expect(windows.send).toHaveBeenCalledWith('register_value', {
         uuid,
         unitId,
         registerType: 'discrete_inputs',
@@ -640,7 +640,7 @@ describe('ModbusServer', () => {
       server.setBool({ uuid, unitId, registerType: 'coils', address: 1, state: true })
 
       expect(windows.send).toHaveBeenCalledWith(
-        'boolean_value',
+        'register_value',
         expect.objectContaining({ address: 1, value: true })
       )
     })
@@ -799,7 +799,7 @@ describe('ModbusServer', () => {
         'register_value',
         expect.objectContaining({
           address: 10,
-          raw: 200
+          value: 200
         })
       )
     })
@@ -874,7 +874,7 @@ describe('ModbusServer', () => {
 
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
-        expect.objectContaining({ address: 0, raw: 42 })
+        expect.objectContaining({ address: 0, value: 42 })
       )
     })
 
@@ -918,7 +918,7 @@ describe('ModbusServer', () => {
 
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
-        expect.objectContaining({ unitId: '2', raw: 99 })
+        expect.objectContaining({ unitId: '2', value: 99 })
       )
     })
   })
@@ -964,14 +964,14 @@ describe('ModbusServer', () => {
         'register_value',
         expect.objectContaining({
           unitId: '1',
-          raw: 111
+          value: 111
         })
       )
       expect(windows.send).toHaveBeenCalledWith(
         'register_value',
         expect.objectContaining({
           unitId: '2',
-          raw: 222
+          value: 222
         })
       )
     })
@@ -1741,7 +1741,7 @@ describe('ModbusServer', () => {
         await vector.setCoil(10, true, 1, cb)
         expect(cb).toHaveBeenCalledWith(null)
         expect(windows.send).toHaveBeenCalledWith(
-          'boolean_value',
+          'register_value',
           expect.objectContaining({ uuid, unitId, registerType: 'coils', address: 10, value: true })
         )
       })
@@ -1803,7 +1803,7 @@ describe('ModbusServer', () => {
             unitId,
             registerType: 'holding_registers',
             address: 20,
-            raw: 12345
+            value: 12345
           })
         )
       })

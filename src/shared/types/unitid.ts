@@ -1,4 +1,6 @@
-export const unitIds = [
+import z from 'zod'
+
+const unitIds = [
   '0',
   '1',
   '2',
@@ -256,3 +258,7 @@ export const unitIds = [
   '254',
   '255'
 ] as const
+
+// Zod schema for unit ids
+export const UnitIdStringSchema = z.enum(unitIds)
+export type UnitIdString = z.infer<typeof UnitIdStringSchema>

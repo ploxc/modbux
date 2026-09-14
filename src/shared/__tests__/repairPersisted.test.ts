@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { z } from 'zod'
+import z from 'zod'
 import { keepCorrupt, repairPersisted, resetMessage } from '../repairPersisted'
 
 const Schema = z.object({

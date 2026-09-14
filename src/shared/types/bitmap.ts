@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import z from 'zod'
 
 export const BitColorSchema = z.enum(['default', 'warning', 'error'])
 export type BitColor = z.infer<typeof BitColorSchema>

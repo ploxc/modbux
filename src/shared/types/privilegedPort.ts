@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import z from 'zod'
 /**
  * Linux privileged port types
  *
