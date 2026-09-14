@@ -309,6 +309,39 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.close).toHaveBeenCalled()
     })
 
+    /**
+     * Connect, Cancel, Connect, with the first open still in flight.
+     *
+     * The cancel sets 'disconnected' as it returns, so the button is a live
+     * Connect again while the first port is still opening. `ModbusRTU` holds
+     * one port at a time, so a second attempt would put its port in the slot
+     * the first one is about to close.
+     */
+    it('refuses a connect while an earlier one is still opening', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
+      let finishOpen = (): void => {}
+      mockModbusRTU.connectRTUBuffered.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finishOpen = (): void => {
+              mockModbusRTU.isOpen = true
+              resolve()
+            }
+          })
+      )
+
+      const connecting = client.connect()
+      await client.disconnect()
+      await client.connect()
+
+      expect(mockModbusRTU.connectRTUBuffered).toHaveBeenCalledTimes(1)
+
+      finishOpen()
+      await connecting
+
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
     it('emits "Already connected" warning if client is open', async () => {
       mockModbusRTU.isOpen = true
 

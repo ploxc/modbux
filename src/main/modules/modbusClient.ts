@@ -267,8 +267,28 @@ export class ModbusClient {
    */
   private _connectGeneration = 0
 
+  /**
+   * Whether an open is on its way back.
+   *
+   * One `ModbusRTU` holds one port at a time, and `connect` assigns a new one
+   * into that slot on every attempt. A second attempt starting while the first
+   * is still opening would put its port where the first one is about to close,
+   * so the cancelled attempt would take the live connection down with it. The
+   * cancel itself is what opens that window: it ends on 'disconnected', which
+   * is a Connect button, while the port it cancelled is still opening.
+   */
+  private _connectInFlight = false
+
   // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
+    if (this._connectInFlight) {
+      this._emitMessage({
+        message: 'Still finishing the connect you cancelled',
+        variant: 'warning',
+        error: null
+      })
+      return
+    }
     const generation = ++this._connectGeneration
     this._shouldAutoReconnect = true
     this._deliberateDisconnect = false
@@ -298,6 +318,7 @@ export class ModbusClient {
     // Connect
     rtuOptions['autoOpen'] = true
 
+    this._connectInFlight = true
     try {
       if (protocol === 'ModbusTcp') {
         await this._client.connectTCP(host, tcpOptions)
@@ -366,6 +387,8 @@ export class ModbusClient {
         error
       })
       this._setDisconnected()
+    } finally {
+      this._connectInFlight = false
     }
 
     this._reconnectTriggered = false
