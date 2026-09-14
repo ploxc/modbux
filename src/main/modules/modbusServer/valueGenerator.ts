@@ -5,11 +5,11 @@ import {
   RegisterParamsGeneratorPart,
   RegisterParamsBasePart,
   ServerData,
-  BaseDataType,
   RegisterParams,
   RegisterValueGenerator,
   registerWidth,
-  UnitIdString
+  UnitIdString,
+  ValuedDataType
 } from '@shared'
 import { Windows } from '../../windows'
 import { round } from 'lodash'
@@ -20,8 +20,11 @@ type ValueGeneratorParams = {
   windows: Windows
   serverData: ServerData
   littleEndian: boolean
+  // `modbusServer.addRegister` answers `none` before it gets here, because an
+  // address held open with nothing in it has nothing to generate.
+  dataType: ValuedDataType
 } & RegisterParamsGeneratorPart &
-  RegisterParamsBasePart
+  Omit<RegisterParamsBasePart, 'dataType'>
 
 /**
  * ValueGenerator generates and updates Modbus register values at a set interval.
@@ -34,7 +37,7 @@ export class ValueGenerator implements RegisterValueGenerator {
   private _serverData: ServerData
   private _registerType: NumberRegisters
   private _address: number
-  private _dataType: BaseDataType
+  private _dataType: ValuedDataType
   private _min: number
   private _max: number
   private _littleEndian: boolean

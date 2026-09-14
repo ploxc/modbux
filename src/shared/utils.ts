@@ -1,4 +1,4 @@
-import { BaseDataType, CamelCase, DataType, RegisterParams, ServerRegisters } from './types'
+import { CamelCase, DataType, EncodableDataType, RegisterParams, ServerRegisters } from './types'
 
 /**
  * Whether bit `bit` of `word` is set.
@@ -74,16 +74,11 @@ export const littleEndian64 = (buffer: Buffer, offset: number): Buffer<ArrayBuff
 }
 
 export const createRegisters = (
-  dataType: BaseDataType,
+  dataType: EncodableDataType,
   value: number,
   littleEndian: boolean
 ): [number, ...number[]] => {
-  // The switch below has no utf8 case, so asking registerWidth for one would
-  // buy ten registers of zero. The server branches to createStringRegisters
-  // before reaching here; the client's write path does not.
-  const bufferSize = dataType === 'utf8' ? 2 : registerWidth(dataType) * 2
-
-  let buffer = Buffer.alloc(bufferSize)
+  let buffer = Buffer.alloc(registerWidth(dataType) * 2)
 
   switch (dataType) {
     case 'int16':
@@ -127,9 +122,9 @@ export const createRegisters = (
       break
   }
 
-  // Convert bytes to array of 16-bit words. `bufferSize` is two at its
-  // smallest, so the first word is always there and the return type says so:
-  // `_writeRegister` sends registers[0] to FC6.
+  // Convert bytes to array of 16-bit words. `registerWidth` is one at its
+  // smallest over this type, so the first word is always there and the return
+  // type says so: `_writeRegister` sends registers[0] to FC6.
   const registers: [number, ...number[]] = [buffer.readUInt16BE(0)]
   for (let i = 2; i < buffer.length; i += 2) {
     registers.push(buffer.readUInt16BE(i))
@@ -260,11 +255,7 @@ export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
   return hasCoils || hasDiscrete || hasInput || hasHolding
 }
 
-export function getAddressFitError(
-  dataType: BaseDataType,
-  address: number,
-  length?: number
-): boolean {
+export function getAddressFitError(dataType: DataType, address: number, length?: number): boolean {
   return address + registerWidth(dataType, length) - 1 > 65535
 }
 

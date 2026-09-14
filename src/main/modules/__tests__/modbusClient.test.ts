@@ -1592,6 +1592,44 @@ describe('ModbusClient', () => {
         expect(mockModbusRTU.writeFC6).not.toHaveBeenCalled()
       })
 
+      // The dialog offers UTF-8 beside the numbers and has no string field, so
+      // the value went out as one register of zero over whatever was there.
+      it('refuses a write the value field cannot be encoded as', async () => {
+        await connectClient()
+
+        await client.write({
+          address: 0,
+          type: 'holding_registers',
+          value: 100,
+          dataType: 'utf8',
+          single: false
+        })
+
+        const messages = getWindowCalls('backend_message')
+        expect(messages.some((m) => m[1].message === 'Modbux cannot write a value as UTF-8')).toBe(
+          true
+        )
+        expect(mockModbusRTU.writeFC16).not.toHaveBeenCalled()
+      })
+
+      it('refuses a write for an address the mapping gives no type', async () => {
+        await connectClient()
+
+        await client.write({
+          address: 0,
+          type: 'holding_registers',
+          value: 100,
+          dataType: 'none',
+          single: false
+        })
+
+        const messages = getWindowCalls('backend_message')
+        expect(messages.some((m) => m[1].message === 'Modbux cannot write a value as NONE')).toBe(
+          true
+        )
+        expect(mockModbusRTU.writeFC16).not.toHaveBeenCalled()
+      })
+
       it('handles register write error via FC16', async () => {
         await connectClient()
         mockModbusRTU.writeFC16.mockImplementation(
