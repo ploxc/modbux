@@ -42,6 +42,12 @@ describe('getBit', () => {
       expect(getBit(0, i)).toBe(false)
     }
   })
+
+  it('reads a bit past the width of a signed 32 bit AND', () => {
+    expect(getBit(2 ** 31, 31)).toBe(true)
+    expect(getBit(2 ** 32, 32)).toBe(true)
+    expect(getBit(2 ** 32, 31)).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -467,6 +473,11 @@ describe('notEmpty', () => {
 
   it('returns false for just a minus sign', () => {
     expect(notEmpty('-')).toBe(false)
+  })
+
+  it('returns false for a second minus sign as well', () => {
+    expect(notEmpty('--')).toBe(false)
+    expect(notEmpty('--5')).toBe(true)
   })
 })
 
