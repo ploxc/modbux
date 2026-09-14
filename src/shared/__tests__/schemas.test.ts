@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { ConnectionConfigSchema, RegisterMapObjectSchema } from '../types/client'
-import { defaultConnectionConfig } from '../default'
+import {
+  ConnectionConfigSchema,
+  RegisterConfigSchema,
+  RegisterMapObjectSchema
+} from '../types/client'
+import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
 import { RegisterParamsSchema } from '../types/server'
 
@@ -220,5 +224,107 @@ describe('ConnectionConfigSchema', () => {
     expect(partial.safeParse({ unitId: 999 }).success).toBe(false)
     expect(partial.safeParse({ tcp: { options: { port: 502 } } }).success).toBe(true)
     expect(partial.safeParse({ tcp: { options: { port: 65536 } } }).success).toBe(false)
+  })
+})
+
+describe('RegisterConfigSchema', () => {
+  const withField = (field: string, value: unknown): unknown => ({
+    ...defaultRegisterConfig,
+    [field]: value
+  })
+
+  it('accepts the config the app starts on', () => {
+    expect(RegisterConfigSchema.safeParse(defaultRegisterConfig).success).toBe(true)
+  })
+
+  // Emptying the length field keeps 0 in the store and marks it invalid, so a
+  // persisted 0 is a shipped state and has to survive a restart.
+  it('accepts the length an emptied field leaves behind', () => {
+    expect(RegisterConfigSchema.safeParse(withField('length', 0)).success).toBe(true)
+  })
+
+  // 1e6 is the one that reached `buf.writeUInt16BE` and threw a Node range
+  // error into a snackbar.
+  it.each([1e6, 65536, -5, 1.5])('refuses length %s', (length) => {
+    expect(RegisterConfigSchema.safeParse(withField('length', length)).success).toBe(false)
+  })
+
+  it.each([0, 65535])('accepts address %s', (address) => {
+    expect(RegisterConfigSchema.safeParse(withField('address', address)).success).toBe(true)
+  })
+
+  it.each([65536, -1, 1.5])('refuses address %s', (address) => {
+    expect(RegisterConfigSchema.safeParse(withField('address', address)).success).toBe(false)
+  })
+
+  it.each(['pollRate', 'timeout'])('accepts %s at both ends of the slider', (field) => {
+    expect(RegisterConfigSchema.safeParse(withField(field, 1000)).success).toBe(true)
+    expect(RegisterConfigSchema.safeParse(withField(field, 10000)).success).toBe(true)
+  })
+
+  it.each(['pollRate', 'timeout'])('refuses %s off the slider', (field) => {
+    expect(RegisterConfigSchema.safeParse(withField(field, 0)).success).toBe(false)
+    expect(RegisterConfigSchema.safeParse(withField(field, 1500)).success).toBe(false)
+    expect(RegisterConfigSchema.safeParse(withField(field, 11000)).success).toBe(false)
+    expect(RegisterConfigSchema.safeParse(withField(field, -1000)).success).toBe(false)
+  })
+
+  // `update_register_config` guards on the partial, which is the door a
+  // renderer reaches, and `setPollRate` and `setTimeout` now have no rule of
+  // their own behind it.
+  it('carries the ranges into the partial the ipc channel guards on', () => {
+    const partial = RegisterConfigSchema.deepPartial()
+
+    expect(partial.safeParse({ length: 10 }).success).toBe(true)
+    expect(partial.safeParse({ length: 1e6 }).success).toBe(false)
+    expect(partial.safeParse({ address: 65535 }).success).toBe(true)
+    expect(partial.safeParse({ address: 65536 }).success).toBe(false)
+    expect(partial.safeParse({ pollRate: 10000 }).success).toBe(true)
+    expect(partial.safeParse({ pollRate: 1500 }).success).toBe(false)
+    expect(partial.safeParse({ timeout: 11000 }).success).toBe(false)
+  })
+})
+
+describe('Server RegisterParamsSchema — generator', () => {
+  const generator = {
+    address: 10,
+    registerType: 'holding_registers',
+    dataType: 'int16',
+    comment: '',
+    min: 0,
+    max: 100,
+    interval: 1000
+  }
+
+  it('accepts the interval the mask floor produces', () => {
+    expect(RegisterParamsSchema.safeParse(generator).success).toBe(true)
+  })
+
+  // A generated timestamp reads the clock, so `toRegisterParams` pins both to 0.
+  it('accepts min and max of zero', () => {
+    expect(RegisterParamsSchema.safeParse({ ...generator, min: 0, max: 0 }).success).toBe(true)
+  })
+
+  it.each([0, -5, 500, 1000.5])('refuses interval %s', (interval) => {
+    expect(RegisterParamsSchema.safeParse({ ...generator, interval }).success).toBe(false)
+  })
+
+  // The dialog lets one through and the generator covers the same range either
+  // way, so a rule here would refuse what the Add button sends.
+  it('accepts a min above its max', () => {
+    expect(RegisterParamsSchema.safeParse({ ...generator, min: 10, max: 1 }).success).toBe(true)
+  })
+
+  // The union's other arm carries no interval to bound, and the refine sits on
+  // the generator arm, so an intersection over both still takes a fixed value.
+  it('accepts a fixed value', () => {
+    const fixed = {
+      address: generator.address,
+      registerType: generator.registerType,
+      dataType: generator.dataType,
+      comment: generator.comment,
+      value: 42
+    }
+    expect(RegisterParamsSchema.safeParse(fixed).success).toBe(true)
   })
 })

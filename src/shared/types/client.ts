@@ -58,8 +58,8 @@ export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>
 export const TransactionSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
-  unitId: z.number(),
-  address: z.number(),
+  unitId: UnitIdSchema,
+  address: RegisterAddressSchema,
   code: z.number(),
   responseLength: z.number(),
   timeout: z.boolean(),
@@ -179,12 +179,31 @@ export type ClientState = z.infer<typeof ClientStateSchema>
 //
 // Register config
 
+/**
+ * A poll rate and a read timeout, in milliseconds.
+ *
+ * Both come from `SliderComponent`, which runs 1 to 10 with a step of 1 and
+ * multiplies by a thousand. Stating that here is what lets `setPollRate` and
+ * `setTimeout` drop the copy of it they each carried.
+ */
+const ReadTimingSchema = z.number().int().min(1000).max(10000).multipleOf(1000)
+
+/**
+ * What the client reads, and how long it gives the device to answer.
+ *
+ * This is both the `update_register_config` payload and the persisted half of
+ * the client store, so the rules here decide what a hand-edited `localStorage`
+ * blob keeps. `length` admits 0 for that reason: emptying the length field
+ * keeps the value in the store and marks it invalid rather than sending it, so
+ * 0 is a shipped state and 65536 is not. A length above the 16 bit range
+ * reached `buf.writeUInt16BE` and threw a Node range error into a snackbar.
+ */
 export const RegisterConfigSchema = z.object({
-  address: z.number(),
-  length: z.number(),
+  address: RegisterAddressSchema,
+  length: z.number().int().min(0).max(65535),
   type: RegisterTypeSchema,
-  pollRate: z.number(),
-  timeout: z.number(),
+  pollRate: ReadTimingSchema,
+  timeout: ReadTimingSchema,
   littleEndian: z.boolean(),
   advancedMode: z.boolean(),
   show64BitValues: z.boolean(),

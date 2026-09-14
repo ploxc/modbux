@@ -29,11 +29,26 @@ export const StartRtuServerParamsSchema = z.object({
 })
 export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
 
-// Parameter schema for dynamic or static values
+/**
+ * What a generated register varies between, and how often.
+ *
+ * The interval is typed in whole seconds through a mask with a floor of 1 and
+ * stored in milliseconds, so anything below a second reaches this only from a
+ * config file. An interval of 0 is the one that costs: `valueGenerator` hands
+ * it to `setInterval`, and an interval of 0 fired 78 times in 100 ms when
+ * measured. The ceiling is the mask's rather than the generator's, so it is
+ * not stated here.
+ *
+ * `min` and `max` are each a bare number and stay one. The dialog lets a min
+ * above a max through, and `Math.random() * (max - min) + min` covers the same
+ * range either way: ten thousand draws of min 100 max 10 ran 10 to 100, the
+ * same as min 10 max 100. A rule here would refuse a payload the Add button
+ * sends and cost the whole persisted register map on the next launch.
+ */
 const RegisterParamsGeneratorPartSchema = z.object({
   min: z.number(),
   max: z.number(),
-  interval: z.number(),
+  interval: z.number().int().min(1000),
   value: z.undefined() // Explicitly forbid 'value'
 })
 export type RegisterParamsGeneratorPart = z.infer<typeof RegisterParamsGeneratorPartSchema>

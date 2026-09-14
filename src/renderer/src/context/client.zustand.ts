@@ -444,12 +444,6 @@ export const useClientZustand = create<
       // Reading
       setPollRate: async (pollRate) => {
         if (!get().ready) return
-
-        if (pollRate % 1000 !== 0 || pollRate < 1000 || pollRate > 10000) {
-          console.error('Invalid poll rate. Must be a multiple of 1000 and between 1000 and 10000.')
-          return
-        }
-
         if (!(await window.api.updateRegisterConfig({ pollRate }))) return
 
         set((state) => {
@@ -458,12 +452,6 @@ export const useClientZustand = create<
       },
       setTimeout: async (timeout) => {
         if (!get().ready) return
-
-        if (timeout % 1000 !== 0 || timeout < 1000 || timeout > 10000) {
-          console.error('Invalid timeout. Must be a multiple of 1000 and between 1000 and 10000.')
-          return
-        }
-
         if (!(await window.api.updateRegisterConfig({ timeout }))) return
 
         set((state) => {
