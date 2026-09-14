@@ -69,6 +69,24 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Drop persisted mapping entries at an address outside the 16 bit map.
+ *
+ * `RegisterMapObjectSchema`'s key refine was `!isNaN(Number(v))` until it was
+ * measured, so a config file loaded before that could map `''`, `'1e5'`,
+ * `'-1'` or `'Infinity'` and the store persisted it. `repairPersisted` works a
+ * top level field at a time, and without this one such entry costs the whole
+ * mapping, which is the one thing in the client store built by hand.
+ */
+export function dropUnmappableRegisters(state: Record<string, unknown>): void {
+  for (const entriesByAddress of objectValues(state.registerMapping)) {
+    for (const address of Object.keys(entriesByAddress)) {
+      if (RegisterAddressKeySchema.safeParse(address).success) continue
+      delete entriesByAddress[address]
+    }
+  }
+}
+
 const LEGACY_REGISTER_TYPE_KEYS: Record<string, string> = {
   Coils: 'coils',
   DiscreteInputs: 'discrete_inputs',

@@ -1,7 +1,7 @@
 import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
-import { PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
+import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
 import { RegisterType, RegisterTypeSchema } from './register'
 import { SerialPortOptionsSchema } from './serial'
 
@@ -26,10 +26,15 @@ export const RegisterMapValueSchema = z.object({
 })
 export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
 
+/**
+ * What the client knows about each address, keyed by that address.
+ *
+ * The key was `!isNaN(Number(v))`, which takes `''`, `'1e5'`, `'-1'` and
+ * `'Infinity'`, none of which is an address a read can ask for.
+ * `RegisterAddressKeySchema` is the same key the server's maps take.
+ */
 export const RegisterMapObjectSchema = z.record(
-  z.string().refine((v) => !isNaN(Number(v)), {
-    message: 'Key must be a number string'
-  }),
+  RegisterAddressKeySchema,
   RegisterMapValueSchema.optional()
 )
 export type RegisterMapObject = Record<number, RegisterMapValue | undefined>

@@ -18,11 +18,14 @@ describe('RegisterMapObjectSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects non-numeric string keys', () => {
-    const result = RegisterMapObjectSchema.safeParse({
-      abc: { dataType: 'uint16' }
-    })
-    expect(result.success).toBe(false)
+  it('accepts the last address in the map', () => {
+    expect(RegisterMapObjectSchema.safeParse({ '65535': {} }).success).toBe(true)
+  })
+
+  // The refine here was `!isNaN(Number(v))`, which takes every key below but
+  // `abc`. None of them is an address a read can ask for.
+  it.each(['abc', '', '1e5', '-1', 'Infinity', '65536', '1.5'])('rejects the key %o', (address) => {
+    expect(RegisterMapObjectSchema.safeParse({ [address]: {} }).success).toBe(false)
   })
 
   // ! Coverage-only: trivial empty input, no real logic tested
