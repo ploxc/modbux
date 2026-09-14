@@ -49,6 +49,13 @@ const AddRegister = meme(() => {
       length
     } = addRegisterZustand.serverRegisterEdit.params
 
+    // The type goes first because `setDataType` seeds a unix or datetime value
+    // with the current time, which is right when the user picks the type and
+    // wrong here: set last, it replaced the timestamp the register holds, and
+    // `capturePristine` then recorded the replacement as what the dialog opened
+    // with.
+    addRegisterZustand.setDataType(dataType)
+
     // The masked setters take the validity of what they are given as a second
     // argument, and a stored register holds values that were valid when it was
     // added. Left off, a field came up marked wrong, and only a field on screen
@@ -75,8 +82,6 @@ const AddRegister = meme(() => {
     } else {
       addRegisterZustand.setValue(value === undefined ? FIELD_DEFAULTS.value : String(value), true)
     }
-
-    addRegisterZustand.setDataType(dataType)
 
     // The fields are set, so this records what the dialog opened with. The
     // buttons compare against it to know whether anything has been typed.

@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range the format carries, which is 2000 through 2127. A date past 2127 used to
   be written with the year wrapped, so a register set to 2200 read back as 2072;
   it now stops at the end of 2127.
+- **Editing a fixed UNIX or DATETIME register no longer replaces its date with
+  the current time.** The dialog opened on the register, then set the data type,
+  and setting the type to a timestamp seeds the field with now. It opened
+  showing the wrong date, and changing the comment or the address wrote that
+  date to the register.
+- **The date picker no longer takes a date the register cannot carry.** A
+  DATETIME runs out at the end of 2127 and a UNIX timestamp on 2106/02/07, and
+  the picker took any year it could show: a UNIX register set to 2200 read back
+  as 2063/11/24. The field now marks such a date wrong, and Add stays off until
+  you pick one the register holds.
 - **A server timestamp row no longer shows a date the register does not hold.**
   The DATETIME row decoded the four registers itself, without the format's
   invalid flag and without checking the fields it read, so whatever a client
