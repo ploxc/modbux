@@ -11,6 +11,9 @@ import { dropUnservableRegisters } from '../shared'
 /** The last store version whose blobs can carry a register outside the map. */
 const LAST_VERSION_ACCEPTING_ANY_ADDRESS = 4
 
+/** The last store version whose blobs can carry a generator interval of 0. */
+const LAST_VERSION_ACCEPTING_ANY_INTERVAL = 5
+
 /** A register the add, sync and config paths all take, at `address`. */
 const params = (address: number): Record<string, unknown> => ({
   address,
@@ -209,5 +212,62 @@ describe('the drop on its own', () => {
     const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
     const unit = perUuid.u?.['1'] as Record<string, unknown>
     expect(Object.keys(unit.coils as Record<string, unknown>)).toEqual([])
+  })
+})
+
+describe('a persisted generator the interval floor refuses', () => {
+  /** A generated register firing every `interval` milliseconds, at address 10. */
+  const generator = (interval: number): Record<string, unknown> => ({
+    address: 10,
+    registerType: 'holding_registers',
+    dataType: 'uint16',
+    comment: '',
+    min: 0,
+    max: 100,
+    interval
+  })
+
+  const persistedGenerators = (intervals: number[]): Record<string, unknown> => ({
+    serverRegisters: {
+      u: {
+        '1': {
+          holding_registers: Object.fromEntries(
+            intervals.map((interval, index) => [
+              String(index),
+              { value: 1, params: { ...generator(interval), address: index } }
+            ])
+          )
+        }
+      }
+    }
+  })
+
+  const holdingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    return unit.holding_registers as Record<string, unknown>
+  }
+
+  it('goes, and the generators beside it stay', () => {
+    const state = persistedGenerators([1000, 0, 10000])
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(holdingRegisters(state))).toEqual(['0', '2'])
+  })
+
+  // The Add button sends one, so the drop has to leave it where it is.
+  it('stays when its min sits above its max', () => {
+    const state = persistedGenerators([1000])
+    holdingRegisters(state)['0'] = {
+      value: 1,
+      params: { ...generator(1000), address: 0, min: 10, max: 1 }
+    }
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(holdingRegisters(state))).toEqual(['0'])
+  })
+
+  it('is behind a version the store has moved past', () => {
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_INTERVAL)
   })
 })

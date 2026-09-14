@@ -475,7 +475,8 @@ export const useServerZustand = create<
         }
 
         // v4→v5: registers at an address outside the 16 bit map
-        if (version < 5) {
+        // v5→v6: and generators the interval floor now refuses
+        if (version < 6) {
           dropUnservableRegisters(state)
         }
 

@@ -1,5 +1,6 @@
 import type { ZodError } from 'zod'
-import { RegisterAddressKeySchema, RegisterAddressSchema } from '../types/ranges'
+import { RegisterAddressKeySchema } from '../types/ranges'
+import { RegisterParamsSchema } from '../types/server'
 import { ParitySchema } from '../types'
 
 /**
@@ -34,23 +35,24 @@ const objectValues = (value: unknown): Record<string, unknown>[] =>
   isRecord(value) ? Object.values(value).filter(isRecord) : []
 
 /**
- * A register map is keyed by address, and a register entry repeats the address
- * in its parameters, so both have to be in the map for the entry to be. A
- * boolean entry carries the key alone.
+ * A register map is keyed by address, and a register entry repeats its whole
+ * parameter set, so both have to hold for the entry to be servable. A boolean
+ * entry carries the key alone.
  */
 const isServable = (address: string, entry: Record<string, unknown>): boolean => {
   if (!RegisterAddressKeySchema.safeParse(address).success) return false
   const params = entry.params
   if (!isRecord(params)) return true
-  return RegisterAddressSchema.safeParse(params.address).success
+  return RegisterParamsSchema.safeParse(params).success
 }
 
 /**
- * Drop persisted registers at an address outside the 16 bit map.
+ * Drop persisted registers the current `RegisterParamsSchema` no longer names.
  *
- * `RegisterParamsBasePartSchema.address` was a bare number until it was
- * measured against the remove channel, so a config file loaded before that
- * could put a register at 70000 and the store persisted it. `repairPersisted`
+ * Two rules arrived after registers had already been persisted against looser
+ * ones. `RegisterParamsBasePartSchema.address` was a bare number, so a config
+ * file could put a register at 70000. `interval` was a bare number, so one
+ * could carry a generator that fires every millisecond. `repairPersisted`
  * works a top level field at a time, and without this one such register costs
  * every register on every server and every unit.
  */
