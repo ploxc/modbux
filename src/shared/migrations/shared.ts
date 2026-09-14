@@ -31,7 +31,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
 /** The object values of `value`, and nothing at all when it is not an object. */
-const objectValues = (value: unknown): Record<string, unknown>[] =>
+export const objectValues = (value: unknown): Record<string, unknown>[] =>
   isRecord(value) ? Object.values(value).filter(isRecord) : []
 
 /**
@@ -139,19 +139,53 @@ export function renameLegacyRegisterTypeKeys(value: unknown): void {
 }
 
 /**
+ * The branch a union came closest to matching, which is the one with the fewest
+ * issues. Every branch together is the seed, so a union with no branches at all
+ * reports nothing rather than being reached for.
+ */
+const nearestBranch = (branches: ZodIssue[][]): ZodIssue[] =>
+  branches.reduce(
+    (fewest, issues) => (issues.length < fewest.length ? issues : fewest),
+    branches.flat()
+  )
+
+/**
  * What a union that matched nothing was actually refused for.
  *
  * Zod reports one `invalid_union` at the union's own path, reading
  * `Invalid input`, and keeps what each branch said in `unionErrors`.
  * `RegisterParamsSchema` is a union of a generator and a fixed value, so a
  * register carrying both a `value` and a leftover `min` fitted neither and was
- * refused without a field being named. Every branch is reported, because which
- * one the register was trying to be is not something the file says.
+ * refused without a field being named.
+ *
+ * Only the nearest branch is reported. Every branch spent the whole five line
+ * budget on one register, so a second bad register was named by one field and a
+ * bad unit id after it was not named at all, and a `params` that is not an
+ * object at all printed the same sentence once per branch. `write_register`
+ * reaches this through `main/ipc.ts`, where the string is a snackbar: a bad
+ * `dataType` led with three lines about the coils write nobody made.
  */
 const expandUnion = (issue: ZodIssue): ZodIssue[] => {
   if (issue.code !== 'invalid_union') return [issue]
 
-  return issue.unionErrors.flatMap((branch) => branch.issues.flatMap(expandUnion))
+  return nearestBranch(issue.unionErrors.map((branch) => branch.issues)).flatMap(expandUnion)
+}
+
+/**
+ * One line per fault.
+ *
+ * `RegisterParamsSchema` is an intersection, and both halves refuse a `params`
+ * that is not an object at all, in the same words at the same path.
+ */
+const distinct = (issues: ZodIssue[]): ZodIssue[] => {
+  const seen = new Set<string>()
+
+  return issues.filter((issue) => {
+    const line = `${issue.path.join('.')}: ${issue.message}`
+    if (seen.has(line)) return false
+    seen.add(line)
+    return true
+  })
 }
 
 /**
@@ -159,7 +193,7 @@ const expandUnion = (issue: ZodIssue): ZodIssue[] => {
  * Shows up to 5 issues with their path and message.
  */
 export function formatZodError(error: ZodError): string {
-  const expanded = error.issues.flatMap(expandUnion)
+  const expanded = distinct(error.issues.flatMap(expandUnion))
   const issues = expanded.slice(0, 5)
   const lines = issues.map((issue) => {
     const path = issue.path.length > 0 ? issue.path.join('.') : '(root)'

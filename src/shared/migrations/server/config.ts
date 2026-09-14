@@ -7,7 +7,12 @@ import {
   ServerRegisters
 } from '../../types/server'
 import { MigrationResult, Migration } from '../types'
-import { formatZodError, migrateBoolShapeForUnit, renameLegacyRegisterTypeKeys } from '../shared'
+import {
+  formatZodError,
+  migrateBoolShapeForUnit,
+  objectValues,
+  renameLegacyRegisterTypeKeys
+} from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 
 export const CURRENT_SERVER_CONFIG_VERSION = 2
@@ -97,10 +102,7 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
  * object. Mutates in place. Safe to call on already-migrated data.
  */
 function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
-  const registersPerUnit = config.serverRegistersPerUnit
-  if (typeof registersPerUnit !== 'object' || registersPerUnit === null) return
-
-  for (const unitRegisters of Object.values(registersPerUnit)) {
+  for (const unitRegisters of objectValues(config.serverRegistersPerUnit)) {
     migrateBoolShapeForUnit(unitRegisters)
   }
 }
