@@ -158,6 +158,17 @@ describe('ModbusClient', () => {
     return instance
   }
 
+  /** Fire an event on one client, or fail naming the handler it does not have. */
+  const fireOn = (
+    client: ReturnType<typeof createMockModbusRTU>,
+    event: 'close' | 'error',
+    ...args: unknown[]
+  ): void => {
+    const handler = client.handlers[event]
+    if (!handler) throw new Error(`that client has no '${event}' handler`)
+    handler(...args)
+  }
+
   const getLastClientState = () => {
     const calls = getWindowCalls('client_state')
     return calls.at(-1)?.[1]
@@ -342,6 +353,51 @@ describe('ModbusClient', () => {
       expect(getLastClientState().connectState).toBe('disconnected')
     })
 
+    /**
+     * The refusal has to hold until the port is let go, not until the close is
+     * asked for. The next connect opens the same path, and a serial port that
+     * is still closing refuses that open.
+     */
+    it('refuses a connect until the cancelled one has released its port', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
+      let finishOpen = (): void => {}
+      mockModbusRTU.connectRTUBuffered.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finishOpen = (): void => {
+              mockModbusRTU.isOpen = true
+              resolve()
+            }
+          })
+      )
+      let finishClose = (): void => {}
+      mockModbusRTU.close.mockImplementation((callback: () => void) => {
+        // `SerialPort.isOpen` is `(port?.isOpen ?? false) && !this.closing` and
+        // `close()` sets `closing` before it does anything, so the port reads
+        // shut from the call rather than from the callback. That is why the
+        // `isOpen` guard in `connect` does not cover this window.
+        mockModbusRTU.isOpen = false
+        finishClose = (): void => callback()
+      })
+
+      const connecting = client.connect()
+      await client.disconnect()
+      finishOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      await client.connect()
+      expect(mockModbusRTU.connectRTUBuffered).toHaveBeenCalledTimes(1)
+
+      finishClose()
+      await connecting
+
+      const retry = client.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(mockModbusRTU.connectRTUBuffered).toHaveBeenCalledTimes(2)
+      finishOpen()
+      await retry
+    })
+
     it('emits "Already connected" warning if client is open', async () => {
       mockModbusRTU.isOpen = true
 
@@ -450,7 +506,30 @@ describe('ModbusClient', () => {
 
       expect(constructedClient(0).destroy).toHaveBeenCalled()
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('Disconnect timeout'))).toBe(true)
+      // Over TCP `destroy` does destroy the socket, so the message says so.
+      expect(
+        messages.some((m) => m[1].message === 'Disconnect timeout, the connection was dropped')
+      ).toBe(true)
+    })
+
+    it('says a serial port may stay open when the disconnect times out', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtu' })
+      mockModbusRTU.connectRTUBuffered.mockImplementation(async () => {
+        mockModbusRTU.isOpen = true
+      })
+      await client.connect()
+      mockModbusRTU.close.mockImplementation(() => {})
+
+      const disconnectPromise = client.disconnect()
+      await vi.advanceTimersByTimeAsync(5500)
+      await disconnectPromise
+
+      const messages = getWindowCalls('backend_message')
+      expect(
+        messages.some(
+          (m) => m[1].message === 'Disconnect timeout, the port may stay open until Modbux closes'
+        )
+      ).toBe(true)
     })
 
     /**
@@ -460,7 +539,7 @@ describe('ModbusClient', () => {
      * port reports its own close as a connection lost on the connection that
      * replaced it.
      */
-    it('leaves the client it abandons deaf, and the one replacing it listening', async () => {
+    it('leaves the client it abandons with a sink, and the one replacing it listening', async () => {
       await connectClient()
       mockModbusRTU.close.mockImplementation(() => {})
 
@@ -468,8 +547,15 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5500)
       await disconnectPromise
 
-      expect(Object.keys(constructedClient(0).handlers)).toEqual([])
+      // An `error` listener and nothing else: modbus-serial's `_onError` emits
+      // on the client, `destroy` leaves that relay on a serial port, and an
+      // `error` with no listener is what Node throws on.
+      expect(Object.keys(constructedClient(0).handlers)).toEqual(['error'])
       expect(Object.keys(constructedClient(1).handlers).sort()).toEqual(['close', 'error'])
+
+      const before = getWindowCalls('backend_message').length
+      fireOn(constructedClient(0), 'error', new Error('the port faulted'))
+      expect(getWindowCalls('backend_message').length).toBe(before)
     })
 
     // `clientEventHandlers` holds the newest registration, so emptying it

@@ -149,10 +149,11 @@ export class ModbusClient {
           this._scheduleReconnect()
         } else {
           // Every close that gets here is one the app did not ask for.
-          // modbus-serial takes its close relay off the port inside `close()`
-          // and inside `destroy()`, so a close Modbux asked for reaches no
-          // handler at all. Measured on 8.0.25 over TCP, over a socat pty and
-          // on an Arduino's USB serial port.
+          // modbus-serial takes its close relay off the port inside `close()`,
+          // so the close `disconnect` asks for reaches no handler. Measured on
+          // 8.0.25 over TCP, over a socat pty and on an Arduino's USB serial
+          // port. The other way out of `disconnect` is the timeout, and that
+          // one takes the handlers off itself, for the reason written there.
           this._clientState.connectState = 'disconnected'
           this._sendClientState()
           this._emitMessage({
@@ -342,8 +343,17 @@ export class ModbusClient {
       if (generation !== this._connectGeneration) {
         // A disconnect ran while this one was opening. `close` is what takes
         // modbus-serial's relay off the port, so the port that just opened
-        // goes quiet as well as shut.
-        this._client.close(() => {})
+        // goes quiet as well as shut. Awaited, because the next connect opens
+        // the same path and a serial port that is still closing refuses it:
+        // `_connectInFlight` is cleared in the `finally` below, so what this
+        // waits for is what that flag promises.
+        await new Promise<void>((resolve) => {
+          const giveUp = setTimeout(resolve, 5000)
+          this._client.close(() => {
+            clearTimeout(giveUp)
+            resolve()
+          })
+        })
         this._reconnectTriggered = false
         return
       }
@@ -397,6 +407,7 @@ export class ModbusClient {
   // Disconnect
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
+    const { protocol } = this._appState.connectionConfig
     this._shouldAutoReconnect = false
     this._connectGeneration++
     this._consecutiveReconnects = 0
@@ -428,8 +439,16 @@ export class ModbusClient {
           // port speaking to the client that replaces it, which it would do as
           // a connection lost on a connection that is fine.
           abandoned.removeAllListeners()
+          // modbus-serial's `_onError` emits on the client, and `destroy`
+          // leaves that relay on a serial port too, so a client with no
+          // `error` listener left would take the main process down with an
+          // unhandled `error` event the next time that port faults.
+          abandoned.on('error', () => {})
           abandoned.destroy(() => {
-            const message = 'Disconnect timeout, the port may stay open until Modbux closes'
+            const message =
+              protocol === 'ModbusRtu'
+                ? 'Disconnect timeout, the port may stay open until Modbux closes'
+                : 'Disconnect timeout, the connection was dropped'
             this._emitMessage({ message, variant: 'warning', error: null })
             resolve()
             this._client = new ModbusRTU()
