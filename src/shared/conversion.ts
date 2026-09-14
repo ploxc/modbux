@@ -28,9 +28,12 @@ const parseIEC870Words = (word1: number, word2: number, word3: number, word4: nu
   const millisecond = totalMs % 1000
   const isInvalid = (word3 & 0b10000000) !== 0
 
+  // The year is not asked about. `word1 & 0b1111111` is 0 to 127 over all 65536
+  // words a register can hold, so `year` is 2000 to 2127 before it is read, and
+  // a guard on either end is a branch no register reaches. That is also why
+  // `encodeIEC870DateTime` clamps: a year outside the window has no encoding,
+  // and writing one masks it into a different valid year.
   if (
-    year < 2000 ||
-    year > 2127 ||
     month < 1 ||
     month > 12 ||
     day < 1 ||
