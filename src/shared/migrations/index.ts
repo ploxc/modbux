@@ -7,6 +7,7 @@ export {
 } from './shared'
 export { migrateServerConfig, CURRENT_SERVER_CONFIG_VERSION } from './server/config'
 export {
+  migrateServerState,
   migrateServerRegistersState,
   migrateServerModeState,
   migrateBoolShape,

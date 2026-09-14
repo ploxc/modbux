@@ -16,11 +16,7 @@ import {
   SyncBoolsParameters,
   UnitIdString,
   SetBooleanParameters,
-  migrateServerRegistersState,
-  migrateServerModeState,
-  migrateBoolShape,
-  repairPersistedParity,
-  dropUnservableRegisters,
+  migrateServerState,
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
@@ -451,36 +447,7 @@ export const useServerZustand = create<
       version: CURRENT_SERVER_ZUSTAND_VERSION,
       migrate: (persistedState, version) => {
         persistedVersion = version
-        let state = persistedState as Record<string, unknown>
-
-        // Version 0/1 (old format with littleEndian per register)
-        if (version < 2) {
-          state = migrateServerRegistersState(state)
-        }
-
-        // v2→v3: add serverMode and serialConfig
-        if (version < 3) {
-          state = migrateServerModeState(state)
-          // Also convert old boolean shape if needed
-          migrateBoolShape(
-            (state as Record<string, unknown>).serverRegisters as
-              | Record<string, Record<string, unknown> | undefined>
-              | undefined
-          )
-        }
-
-        // v3→v4: the RTU parity the serial binding refuses
-        if (version < 4) {
-          repairPersistedParity(state, 'serialConfig', 'options')
-        }
-
-        // v4→v5: registers at an address outside the 16 bit map
-        // v5→v6: and generators the interval floor now refuses
-        if (version < 6) {
-          dropUnservableRegisters(state)
-        }
-
-        return state as PersistedServerZustand
+        return migrateServerState(persistedState, version) as PersistedServerZustand
       },
       partialize: (state) => ({
         name: state.name,

@@ -1,4 +1,5 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
+import { dropUnservableRegisters, repairPersistedParity } from '../shared'
 
 export const CURRENT_SERVER_ZUSTAND_VERSION = 6
 
@@ -120,4 +121,45 @@ export function migrateServerRegistersState(
   )
 
   return migrated
+}
+
+/**
+ * Migrate server Zustand state to the current version.
+ * Used by Zustand persist middleware.
+ *
+ * This stood inline in `server.zustand.ts`, where a test could reach every step
+ * it calls and none of the calls. Dropping a whole `if` left the suite green.
+ */
+export function migrateServerState(
+  persistedState: unknown,
+  version: number
+): Record<string, unknown> {
+  let state = persistedState as Record<string, unknown>
+
+  // Version 0/1 (old format with littleEndian per register)
+  if (version < 2) {
+    state = migrateServerRegistersState(state)
+  }
+
+  // v2→v3: add serverMode and serialConfig
+  if (version < 3) {
+    state = migrateServerModeState(state)
+    // Also convert old boolean shape if needed
+    migrateBoolShape(
+      state.serverRegisters as Record<string, Record<string, unknown> | undefined> | undefined
+    )
+  }
+
+  // v3→v4: the RTU parity the serial binding refuses
+  if (version < 4) {
+    repairPersistedParity(state, 'serialConfig', 'options')
+  }
+
+  // v4→v5: registers at an address outside the 16 bit map
+  // v5→v6: and generators the interval floor now refuses
+  if (version < 6) {
+    dropUnservableRegisters(state)
+  }
+
+  return state
 }

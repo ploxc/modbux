@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ConnectionConfigSchema, ParitySchema, SerialPortOptionsSchema } from '../../types'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
-import { CURRENT_SERVER_ZUSTAND_VERSION } from '../server/zustand'
+import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
 import { repairPersistedParity } from '../shared'
 import { defaultConnectionConfig } from '../../default'
 
@@ -86,6 +86,22 @@ describe('a persisted parity the binding accepts', () => {
     )
 
     expect('parity' in migratedRtuOptions(state)).toBe(false)
+  })
+})
+
+describe('the server store runs the repair too', () => {
+  // The test below drives `repairPersistedParity` directly, which leaves the
+  // step in `migrateServerState` calling it uncovered: removing that step kept
+  // the suite green until this.
+  it('repairs the parity a v3 blob carries', () => {
+    const state = migrateServerState(
+      { serialConfig: { com: 'COM3', options: { baudRate: '19200', parity: 'mark' } } },
+      3
+    )
+
+    const serialConfig = state.serialConfig as Record<string, Record<string, unknown>>
+    expect(serialConfig.options?.parity).toBe('none')
+    expect(serialConfig.options?.baudRate).toBe('19200')
   })
 })
 

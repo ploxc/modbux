@@ -5,7 +5,7 @@ import {
   ServerConfigSchema,
   SyncRegisterValueParamsSchema
 } from '../../types/server'
-import { CURRENT_SERVER_ZUSTAND_VERSION } from '../server/zustand'
+import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
 import { dropUnmappableRegisters, dropUnservableRegisters } from '../shared'
 
@@ -167,6 +167,16 @@ describe('a persisted register outside the map', () => {
 
   it('is behind a version the store has moved past', () => {
     expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_ADDRESS)
+  })
+
+  // The drop on its own is not the store's behaviour; the step in `migrate` is.
+  it('is dropped by the migration a v4 blob runs', () => {
+    const state = migrateServerState(
+      persistedWith([100, 70000]),
+      LAST_VERSION_ACCEPTING_ANY_ADDRESS
+    )
+
+    expect(Object.keys(migratedHoldingRegisters(state))).toEqual(['100'])
   })
 })
 
