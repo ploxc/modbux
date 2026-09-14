@@ -1,14 +1,16 @@
 /**
  * Disconnect messaging
  *
- * A deliberate disconnect must not be reported as a failure. The suite never
- * looked at these snackbars before, which is how "Connection closed
- * unexpectedly" managed to appear on every disconnect without a test noticing.
+ * A deliberate disconnect must not be reported as a failure.
  *
- * Both transports are covered. A serial port has always lost that race. A TCP
- * socket only started losing it on the Electron this release moves to, where
- * the close event comes back a tick earlier, so the TCP case here reads as a
- * guard rather than as the bug it was written for.
+ * Nothing in Modbux suppresses that message any more. modbus-serial 8.0.25
+ * takes its close relay off the port inside `close()`, so a close the app asked
+ * for reaches no handler: measured over TCP, over a socat pty and on an
+ * Arduino's USB serial port, with the handler logging every call. In 8.0.23,
+ * the version this spec was written against, `close()` removed only the `data`
+ * listeners and the relay stayed, which is what raised "Connection closed
+ * unexpectedly" beside "Disconnected from server". So what this spec watches is
+ * the library: it goes red if a bump puts that relay back.
  */
 import { test, expect } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'

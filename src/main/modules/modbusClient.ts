@@ -104,8 +104,6 @@ export class ModbusClient {
   private _reconnectWasPolling = false
   private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
-  private _deliberateDisconnect = false
-
   constructor({ appState, windows }: ClientParams) {
     this._client = new ModbusRTU()
     this._appState = appState
@@ -150,17 +148,18 @@ export class ModbusClient {
           this._sendClientState()
           this._scheduleReconnect()
         } else {
+          // Every close that gets here is one the app did not ask for.
+          // modbus-serial takes its close relay off the port inside `close()`
+          // and inside `destroy()`, so a close Modbux asked for reaches no
+          // handler at all. Measured on 8.0.25 over TCP, over a socat pty and
+          // on an Arduino's USB serial port.
           this._clientState.connectState = 'disconnected'
           this._sendClientState()
-          if (!this._deliberateDisconnect) {
-            this._emitMessage({
-              message: 'Connection closed unexpectedly',
-              variant: 'error',
-              error: null
-            })
-          } else {
-            this._deliberateDisconnect = false
-          }
+          this._emitMessage({
+            message: 'Connection closed unexpectedly',
+            variant: 'error',
+            error: null
+          })
         }
       })
   }
@@ -291,7 +290,6 @@ export class ModbusClient {
     }
     const generation = ++this._connectGeneration
     this._shouldAutoReconnect = true
-    this._deliberateDisconnect = false
     if (!this._reconnectTriggered) this._consecutiveReconnects = 0
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
     this._reconnectTimeout = undefined
@@ -401,10 +399,6 @@ export class ModbusClient {
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
     this._connectGeneration++
-    // Set before closing: a serial port emits 'close' during close(), which is
-    // sooner than the callback below, and the handler reads this flag to decide
-    // whether the close was ours.
-    this._deliberateDisconnect = true
     this._consecutiveReconnects = 0
     if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
     if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
