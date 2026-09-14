@@ -1,4 +1,4 @@
-import type { ZodError } from 'zod'
+import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterParamsSchema } from '../types/server'
 import { ParitySchema } from '../types'
@@ -139,15 +139,32 @@ export function renameLegacyRegisterTypeKeys(value: unknown): void {
 }
 
 /**
+ * What a union that matched nothing was actually refused for.
+ *
+ * Zod reports one `invalid_union` at the union's own path, reading
+ * `Invalid input`, and keeps what each branch said in `unionErrors`.
+ * `RegisterParamsSchema` is a union of a generator and a fixed value, so a
+ * register carrying both a `value` and a leftover `min` fitted neither and was
+ * refused without a field being named. Every branch is reported, because which
+ * one the register was trying to be is not something the file says.
+ */
+const expandUnion = (issue: ZodIssue): ZodIssue[] => {
+  if (issue.code !== 'invalid_union') return [issue]
+
+  return issue.unionErrors.flatMap((branch) => branch.issues.flatMap(expandUnion))
+}
+
+/**
  * Format Zod validation errors into a readable summary.
  * Shows up to 5 issues with their path and message.
  */
 export function formatZodError(error: ZodError): string {
-  const issues = error.issues.slice(0, 5)
+  const expanded = error.issues.flatMap(expandUnion)
+  const issues = expanded.slice(0, 5)
   const lines = issues.map((issue) => {
     const path = issue.path.length > 0 ? issue.path.join('.') : '(root)'
     return `${path}: ${issue.message}`
   })
-  const extra = error.issues.length > 5 ? `\n...and ${error.issues.length - 5} more` : ''
+  const extra = expanded.length > 5 ? `\n...and ${expanded.length - 5} more` : ''
   return lines.join('\n') + extra
 }

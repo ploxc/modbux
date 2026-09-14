@@ -259,6 +259,16 @@ const unitIds = [
   '255'
 ] as const
 
-// Zod schema for unit ids
-export const UnitIdStringSchema = z.enum(unitIds)
+/**
+ * Zod schema for unit ids.
+ *
+ * The error message is written here because the default lists all 256 members,
+ * which is 1988 characters of snackbar for a config file naming unit 256.
+ */
+export const UnitIdStringSchema = z.enum(unitIds, {
+  errorMap: (issue, context) =>
+    issue.code === z.ZodIssueCode.invalid_enum_value
+      ? { message: 'Unit id must be a whole number from 0 to 255' }
+      : { message: context.defaultError }
+})
 export type UnitIdString = z.infer<typeof UnitIdStringSchema>
