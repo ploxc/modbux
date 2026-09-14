@@ -245,8 +245,19 @@ export class ModbusClient {
     }, this._reconnectDelay)
   }
 
+  /**
+   * Which connect the port that opens belongs to.
+   *
+   * `connect` awaits an open, and `disconnect` runs while it waits: the button
+   * is a Cancel for as long as the state is 'connecting'. Without this the
+   * cancelled connect resumes and writes 'connected' over the disconnect, on a
+   * port the user asked the app to let go of.
+   */
+  private _connectGeneration = 0
+
   // --- Override connect/disconnect to manage auto-reconnect ---
   public connect = async (): Promise<void> => {
+    const generation = ++this._connectGeneration
     this._shouldAutoReconnect = true
     this._deliberateDisconnect = false
     if (!this._reconnectTriggered) this._consecutiveReconnects = 0
@@ -296,6 +307,16 @@ export class ModbusClient {
           parity: rtuOptions.parity
         })
       }
+
+      if (generation !== this._connectGeneration) {
+        // A disconnect ran while this one was opening. `close` is what takes
+        // modbus-serial's relay off the port, so the port that just opened
+        // goes quiet as well as shut.
+        this._client.close(() => {})
+        this._reconnectTriggered = false
+        return
+      }
+
       if (this._reconnectTriggered) {
         this._emitMessage({
           message: `Reconnected over ${PROTOCOL_LABELS[protocol]}`,
@@ -322,6 +343,10 @@ export class ModbusClient {
       }, 10000)
       this._setConnected()
     } catch (error) {
+      if (generation !== this._connectGeneration) {
+        this._reconnectTriggered = false
+        return
+      }
       const port = protocol === 'ModbusRtu' ? com : undefined
       this._emitMessage({
         message: humanizeSerialError(error as Error, port),
@@ -340,6 +365,7 @@ export class ModbusClient {
   private _disconnectTimeout: NodeJS.Timeout | undefined
   public disconnect = async (): Promise<void> => {
     this._shouldAutoReconnect = false
+    this._connectGeneration++
     // Set before closing: a serial port emits 'close' during close(), which is
     // sooner than the callback below, and the handler reads this flag to decide
     // whether the close was ours.

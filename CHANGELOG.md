@@ -128,6 +128,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handed to the serial library in a place it does not read, so every serial
   server opened at 8 data bits and 1 stop bit whatever the panel showed. Baud
   rate and parity always arrived, and the client was never affected.
+- **Cancelling a connect to a serial port now cancels it.** The Connect button
+  turns into a Cancel while the port is opening, and pressing it left the
+  connecting running: a moment later the app reported "Connected over Modbus
+  RTU" and sat there holding the port. The cancelled connect now closes the
+  port it opened and says nothing. Over TCP the cancel always worked.
 
 ### Changed
 
