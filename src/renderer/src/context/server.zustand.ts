@@ -21,6 +21,7 @@ import {
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
   ModbusBaudRate,
+  RegisterType,
   RegisterValue
 } from '@shared'
 import { onEvent } from '@renderer/events'
@@ -521,6 +522,33 @@ const delayedRegister = new ServerDelayedSetter<number | bigint, SetRegisterValu
   set: serverZustand.setRegisterValue
 })
 
+/** What a value pending in either batcher is filed under. */
+const batchKey = (
+  uuid: string,
+  unitId: UnitIdString,
+  registerType: RegisterType,
+  address: number
+): string => `${uuid}-${unitId}-${registerType}-${address}`
+
+/**
+ * The value the entry is about to hold, for a reader that cannot wait.
+ *
+ * `entry.value` is behind by whatever the batcher is holding, and the batcher
+ * hands over after 50 ms of quiet on any register. A reader that only draws the
+ * value can be behind; one that derives its next value from this one cannot,
+ * because the word it writes back would drop everything written since.
+ */
+export const pendingRegisterValue = (
+  uuid: string,
+  unitId: UnitIdString,
+  entry: ServerRegisterEntry
+): number =>
+  Number(
+    delayedRegister.getValue(
+      batchKey(uuid, unitId, entry.params.registerType, entry.params.address)
+    ) ?? entry.value
+  )
+
 /**
  * Folds one word main wrote into the entry that holds the address.
  *
@@ -538,7 +566,7 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
     const entry = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[address]
     if (entry === undefined) return
 
-    const cacheKey = `${uuid}-${unitId}-${registerType}-${address}`
+    const cacheKey = batchKey(uuid, unitId, registerType, address)
     const currentBool = delayedBool.getValue(cacheKey) ?? entry.value
 
     if (currentBool !== booleanValue) {
@@ -579,7 +607,7 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
   }
 
   // Extract the parameters and current composite value (from cache when state isn't updated yet)
-  const cacheKey = `${uuid}-${unitId}-${registerType}-${entryAddress}`
+  const cacheKey = batchKey(uuid, unitId, registerType, entryAddress)
   const currentValue = delayedRegister.getValue(cacheKey) ?? serverRegisterEntry.value
   const { dataType } = serverRegisterEntry.params
   // Get littleEndian from global server state

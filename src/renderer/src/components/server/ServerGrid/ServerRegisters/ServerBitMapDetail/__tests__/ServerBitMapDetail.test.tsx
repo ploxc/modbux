@@ -17,11 +17,18 @@ const serverState = {
   addRegister: mockAddRegister
 }
 
+/** Answers the entry's own value, which is what the real one does with an empty batcher. */
+const mockPendingRegisterValue = vi.fn(
+  (_uuid: string, _unitId: string, entry: ServerRegisterEntry): number => entry.value
+)
+
 vi.mock('@renderer/context/server.zustand', () => ({
   useServerZustand: Object.assign(
     (selector: (state: typeof serverState) => unknown) => selector(serverState),
     { getState: () => serverState }
-  )
+  ),
+  pendingRegisterValue: (uuid: string, unitId: string, entry: ServerRegisterEntry): number =>
+    mockPendingRegisterValue(uuid, unitId, entry)
 }))
 
 import ServerBitMapDetail from '../ServerBitMapDetail'
@@ -48,14 +55,16 @@ const bitmapAt100 = (
 })
 
 /** The register params the panel wrote back, or a failure naming what is missing. */
-const writtenParams = (): ServerRegisterEntry['params'] => {
-  const call = mockAddRegister.mock.calls[0]?.[0]
-  if (!call) throw new Error('addRegister was never called')
-  return call.params
+const writtenParams = (call = 0): ServerRegisterEntry['params'] => {
+  const written = mockAddRegister.mock.calls[call]?.[0]
+  if (!written) throw new Error(`addRegister was called ${mockAddRegister.mock.calls.length} times`)
+  return written.params
 }
 
 beforeEach(() => {
-  mockAddRegister.mockClear()
+  mockAddRegister.mockReset()
+  mockPendingRegisterValue.mockReset()
+  mockPendingRegisterValue.mockImplementation((_uuid, _unitId, entry) => entry.value)
 })
 
 describe('which bits the panel shows as on', () => {
@@ -111,6 +120,82 @@ describe('toggling a bit', () => {
     expect(params.min).toBeUndefined()
     expect(params.max).toBeUndefined()
     expect(params.interval).toBeUndefined()
+  })
+
+  // `register.value` is a write behind for as long as the batcher holds one,
+  // and a toggle writes the whole word back, so reading it dropped every bit
+  // set since.
+  it('reads the word the batcher is holding, not the one the entry shows', async () => {
+    mockPendingRegisterValue.mockReturnValue(8)
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+
+    expect(writtenParams().value).toBe(9)
+  })
+})
+
+describe('a toggle that arrives before the one before it has landed', () => {
+  /** A write main has taken the call for and not answered yet. */
+  const heldWrite = (): (() => void) => {
+    let answer: () => void = () => {}
+    mockAddRegister.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = (): void => resolve(true)
+        })
+    )
+    return () => answer()
+  }
+
+  it('moves its bit in the word that one sent', async () => {
+    const answerFirst = heldWrite()
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+    await userEvent.click(screen.getByTestId('server-bit-circle-1'))
+
+    expect(writtenParams(1).value).toBe(3)
+    answerFirst()
+  })
+
+  it('clears a bit the toggle before it set', async () => {
+    const answerFirst = heldWrite()
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+
+    expect(writtenParams(1).value).toBe(0)
+    answerFirst()
+  })
+
+  // Discriminates the guard on the clear from an unconditional one: with two
+  // writes out and the first answered, the word the second sent is still the
+  // only one the third can build on.
+  it('keeps the newest word when an older write answers first', async () => {
+    const answerFirst = heldWrite()
+    const answerSecond = heldWrite()
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+    await userEvent.click(screen.getByTestId('server-bit-circle-1'))
+    answerFirst()
+    await userEvent.click(screen.getByTestId('server-bit-circle-2'))
+
+    expect(writtenParams(2).value).toBe(7)
+    answerSecond()
+  })
+
+  it('goes back to the store once the answer is in', async () => {
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+    // A client wrote the top bit while the panel was open, and the store has it.
+    mockPendingRegisterValue.mockReturnValue(0x8000)
+    await userEvent.click(screen.getByTestId('server-bit-circle-1'))
+
+    expect(writtenParams(1).value).toBe(0x8002)
   })
 })
 
