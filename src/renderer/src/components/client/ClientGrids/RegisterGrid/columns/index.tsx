@@ -48,7 +48,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
       columns.push(
         dataTypeColumn(registerMap),
         bitmapValueColumn(registerMap, showRaw),
-        scalingFactorColumn(registerMap, type),
+        scalingFactorColumn(registerMap),
         interpolationColumn(type),
         groupEndColumn(registerMap),
         hexColumn,

@@ -151,8 +151,8 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
 
     // Interpolation (modal with x1, x2, y1, y2 fields)
     if (reg.interpolate) {
-      const interpBtn = row.locator('button[title="Interpolation"]')
-      await interpBtn.click()
+      const interpolationButton = row.getByTestId(`interpolation-action-${rowId}`)
+      await interpolationButton.click()
 
       const modal = p.locator('.MuiModal-root')
       await expect(modal).toBeVisible()
@@ -165,6 +165,11 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
 
       await p.keyboard.press('Escape')
       await expect(modal).not.toBeVisible()
+
+      // The button is dim at 0.2 while the interpolation is the identity and
+      // opaque once it is not. Nothing asserted that before. The one register
+      // this config interpolates maps 0..32767 onto 0.8..1.
+      await expect(interpolationButton).toHaveCSS('opacity', '1')
     }
   })
 }

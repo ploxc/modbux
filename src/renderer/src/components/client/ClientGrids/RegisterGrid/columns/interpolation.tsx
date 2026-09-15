@@ -194,8 +194,14 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
 
   const dataType = useClientZustand((z) => z.registerMapping[type][address]?.dataType)
   const enabled = dataType && enabledDatatypes.includes(dataType)
-  const isDefault = isDefaultInterpolation(
-    useClientZustand.getState().registerMapping[type][address]?.interpolate
+  // Setting an interpolation leaves `dataType` alone, so a `getState()` read
+  // here subscribed to nothing that moved. The colour came out right anyway
+  // because the two writers both re-render this component by another route:
+  // the modal's `setOpen(false)` is state this component holds, and a config
+  // load turns read configuration off and takes the row with it. The selector
+  // answers a boolean, so zustand compares it by value.
+  const isDefault = useClientZustand((z) =>
+    isDefaultInterpolation(z.registerMapping[type][address]?.interpolate)
   )
 
   return (
