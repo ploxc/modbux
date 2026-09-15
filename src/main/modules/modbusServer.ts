@@ -470,13 +470,14 @@ export class ModbusServer {
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
    *
-   * Answers the word now held at `address`, which is 0 for `none` because that
-   * writes nothing. The renderer's store waits for this answer before it
-   * writes, and every `register_value` below goes out before the answer does,
-   * so the value would otherwise reach a store with no entry to put it in and
-   * be dropped.
+   * Answers the words now held from `address` on, which is nothing for `none`
+   * because that writes none. The renderer's store waits for this answer before
+   * it writes, and every `register_value` below goes out before the answer
+   * does, so those words would otherwise reach a store with no entry to put
+   * them in and be dropped. The store folds what comes back through the same
+   * merge the event feeds, which is where a word becomes a value.
    */
-  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number => {
+  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number[] => {
     const littleEndian = this._littleEndian.get(uuid) ?? false
     const {
       address,
@@ -514,7 +515,7 @@ export class ModbusServer {
     // `none` is an address held open with nothing in it, so there is nothing to
     // write and nothing to generate. The generator above is disposed either way,
     // which is what editing a register to `none` has to do.
-    if (dataType === 'none') return 0
+    if (dataType === 'none') return []
 
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
@@ -535,7 +536,7 @@ export class ModbusServer {
         })
       })
       this._setServerData(uuid, unitId, serverData)
-      return serverData[registerType][address] ?? 0
+      return registers
     }
 
     // Otherwise, add a value generator for this register
@@ -560,8 +561,9 @@ export class ModbusServer {
     )
 
     // `ValueGenerator` writes its first value from its own constructor, so this
-    // reads what it just put there rather than answering 0 for a minute.
-    return serverData[registerType][address] ?? 0
+    // reads what it just put there rather than answering nothing for a minute.
+    const width = registerWidth(dataType, length)
+    return serverData[registerType].slice(address, address + width)
   }
 
   /**

@@ -401,6 +401,8 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       if (!(await serverZustand.addRegister({ uuid, unitId, params }))) {
         // The remove has already happened, so a refusal here would leave the
         // user with neither register and a message about only one of them.
+        // What goes back is what main handed over in the first place, so the
+        // restore is refused only if the schema changed under a running app.
         if (moved) await serverZustand.addRegister({ uuid, unitId, params: moved })
         return undefined
       }

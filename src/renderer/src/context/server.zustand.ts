@@ -20,7 +20,8 @@ import {
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
-  ModbusBaudRate
+  ModbusBaudRate,
+  RegisterValue
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
@@ -299,24 +300,36 @@ export const useServerZustand = create<
         // refuses leaves the grid showing what the server actually holds. The
         // shape is A3's, on the one server channel carrying a whole register.
         //
-        // The answer is the word rather than a yes, because main sends the
-        // `register_value` for a fixed register from inside the same call, and
-        // that event arrives before this one resolves. `setRegisterValue` drops
-        // a value for an address it has no entry for, so a yes would leave
-        // every fixed register reading 0 until something wrote it again.
+        // The answer carries the words rather than a yes, because main sends
+        // the `register_value` for each of them from inside the same call, and
+        // those events arrive before this one resolves. `applyRegisterValue`
+        // drops a word for an address it has no entry for, so a yes would leave
+        // every register reading 0 until something wrote it again.
         //
-        // What this answers goes back out to the caller, because Add & Next
+        // Whether it was taken goes back out to the caller, because Add & Next
         // asks for the next free address and that reads the map written below.
-        const value = await window.api.addReplaceServerRegister({ uuid, unitId, params })
-        if (value === undefined) return false
+        const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
+        if (words === undefined) return false
 
         set((state) => {
           const registers = unitRegisters(state, uuid, unitId)
-          registers[params.registerType][params.address] = { value, params }
+          registers[params.registerType][params.address] = { value: 0, params }
           unitUsedAddresses(state, uuid, unitId)[params.registerType] = getUsedAddresses(
             Object.values(registers[params.registerType]).map((r) => r.params)
           )
         })
+
+        // The entry exists now, so the words go through the merge that turns
+        // them into the value the grid draws.
+        for (const [offset, value] of words.entries()) {
+          applyRegisterValue({
+            uuid,
+            unitId,
+            registerType: params.registerType,
+            address: params.address + offset,
+            value
+          })
+        }
 
         return true
       },
@@ -508,8 +521,15 @@ const delayedRegister = new ServerDelayedSetter<number | bigint, SetRegisterValu
   set: serverZustand.setRegisterValue
 })
 
-// On raw register value result
-onEvent('register_value', (payload) => {
+/**
+ * Folds one word main wrote into the entry that holds the address.
+ *
+ * Two callers: the `register_value` event, and `addRegister`, which replays the
+ * words main answers with. Main sends those events from inside the call the
+ * store is waiting on, so they arrive before the entry exists and are dropped
+ * here for want of one.
+ */
+export const applyRegisterValue = (payload: RegisterValue): void => {
   const serverZustand = useServerZustand.getState()
 
   // Handle coils and discrete inputs
@@ -688,7 +708,9 @@ onEvent('register_value', (payload) => {
   })
 
   delayedRegister.trigger()
-})
+}
+
+onEvent('register_value', applyRegisterValue)
 
 // RTU server status
 onEvent('rtu_server_status', ({ active }) => {

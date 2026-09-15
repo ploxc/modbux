@@ -215,11 +215,18 @@ export async function addRegister(
     if (reg.next) {
       await p.getByTestId('add-reg-next-btn').click()
       // The modal stays open, and the submit waits for main to take the
-      // register before it clears the fields and moves the address on. The
-      // address leaving the one just written is what says that has happened:
-      // filling the next register before it does gets overwritten by the clear.
+      // register before it clears the fields and moves the address on. Filling
+      // the next register before that lands gets overwritten by the clear.
+      //
+      // Two ways it lands: the address moves past the one just written, or
+      // there is nothing free above it and the field keeps that address and is
+      // marked In use. A UTF-8 register at 65524 is the second.
       await expect(addressInput).toBeVisible()
-      await expect(addressInput).not.toHaveValue(String(reg.address))
+      await expect(async () => {
+        const address = await addressInput.inputValue()
+        const inUse = await p.getByTestId('add-reg-address-in-use').isVisible()
+        expect(address !== String(reg.address) || inUse).toBe(true)
+      }).toPass()
     } else {
       await p.getByTestId('add-reg-submit-btn').click()
       // After submit, modal closes
