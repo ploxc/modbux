@@ -200,12 +200,14 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   test('verify data types in grid config view', async ({ mainPage }) => {
     const grid = mainPage.locator('.MuiDataGrid-root')
 
-    // Data types visible in the top portion of the grid
-    await expect(grid).toContainText('UINT16', { timeout: 3000 })
-    await expect(grid).toContainText('INT16')
-    await expect(grid).toContainText('UINT32')
-    await expect(grid).toContainText('INT32')
-    await expect(grid).toContainText('UINT64')
+    // Named by address rather than asked of the whole grid: the rows a grid
+    // holds in the DOM depend on the window, so "somewhere in the grid" is a
+    // question that answers differently per screen.
+    await expectCellContains(mainPage, 40004, 'dataType', 'UINT16', { ignoreCase: true })
+    await expectCellContains(mainPage, 40429, 'dataType', 'INT16', { ignoreCase: true })
+    await expectCellContains(mainPage, 40002, 'dataType', 'UINT32', { ignoreCase: true })
+    await expectCellContains(mainPage, 40005, 'dataType', 'INT32', { ignoreCase: true })
+    await expectCellContains(mainPage, 40550, 'dataType', 'UINT64', { ignoreCase: true })
 
     // Scroll to bitmap rows (50000) to render them
     await scrollToRow(mainPage, 50000)

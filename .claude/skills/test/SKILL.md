@@ -106,6 +106,9 @@ mid-read. Everything that "nobody would do" — someone with a field device does
 - **The number in the filename is the order.** A spec that needs what an earlier
   one built is a spec that breaks when run alone.
 - **The DataGrid virtualises both axes**, so a column far enough right or a row
-  far enough down is not in the DOM. `MODBUX_E2E=1` is set by the fixture for
-  exactly that, and it is never set in a shipped build.
+  far enough down is not in the DOM. `scrollToRow` and `scrollToColumn` in
+  `e2e/fixtures/helpers.ts` bring one into it, and `cell`, `expectCell` and
+  `expectCellContains` scroll to the column themselves. How much fits depends
+  on the window, so a spec that reaches a far column without scrolling passes
+  on one machine and fails on another.
 - **A failure that does not reproduce is reported, not re-run into silence.**

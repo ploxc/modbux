@@ -16,7 +16,7 @@ import {
   GridRowHeightParams,
   GridRowHeightReturnValue
 } from '@mui/x-data-grid/models'
-import { RegisterData, scalableDataTypes } from '@shared'
+import { BITMAP_DATATYPE, RegisterData, scalableDataTypes } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
 import BitMapRow from './BitMapRow/BitMapRow'
@@ -64,21 +64,31 @@ const RegisterGridContent = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   // An expanded bitmap row is taller by whatever its detail panel measures, and
-  // the grid places every row below it from this answer. `null` is the grid's
-  // own word for "use rowHeight".
+  // the grid places every row below it from this answer.
+  //
+  // An address stops being a bitmap while its panel is open: the type cell is
+  // editable, the register type switches, a config loads over it. `BitMapRow`
+  // takes its fast path then and draws no panel, so the height has to go with
+  // it or an empty gap is left where no control remains to close it.
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const detailHeight = useBitMapZustand((z) => z.detailHeight)
+  const expandedBitmap =
+    expandedAddress !== null && registerMapping[expandedAddress]?.dataType === BITMAP_DATATYPE
+      ? expandedAddress
+      : null
+
+  // `null` is the grid's own word for "use rowHeight".
   const getRowHeight = useCallback(
     ({ id, densityFactor }: GridRowHeightParams): GridRowHeightReturnValue =>
-      id === expandedAddress ? ROW_HEIGHT * densityFactor + detailHeight : null,
-    [expandedAddress, detailHeight]
+      id === expandedBitmap ? ROW_HEIGHT * densityFactor + detailHeight : null,
+    [expandedBitmap, detailHeight]
   )
 
   // The grid caches what `getRowHeight` answered, and a new function alone does
   // not tell it to ask again.
   useEffect(() => {
     apiRef.current?.resetRowHeights()
-  }, [apiRef, expandedAddress, detailHeight])
+  }, [apiRef, expandedBitmap, detailHeight])
 
   const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
@@ -131,6 +141,10 @@ const RegisterGridContent = meme((): JSX.Element => {
 
   return (
     <DataGrid
+      // A class rather than a testid: the DataGrid root does not forward one.
+      // The transaction log is a second grid, so a spec reaching for the
+      // register grid's scroller needs to say which.
+      className="register-grid"
       apiRef={apiRef}
       rows={registerData}
       columns={columns}
@@ -149,7 +163,7 @@ const RegisterGridContent = meme((): JSX.Element => {
       getRowClassName={(params) =>
         [
           (params.row as RegisterData).error ? 'register-error-row' : '',
-          params.id === expandedAddress ? 'bitmap-expanded-row' : ''
+          params.id === expandedBitmap ? 'bitmap-expanded-row' : ''
         ]
           .filter(Boolean)
           .join(' ')
