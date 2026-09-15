@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write with a poll or a read running alongside it. A write with nothing
   connected now says so rather than answering "Port Not Open", and an empty coil
   list is refused for FC15 the way it already was for FC5.
+- **The transaction log now shows a unit id scan.** The scan sends a request per
+  unit id and per register type, and the log listed none of them.
 - **A config file Modbux refuses now says which register and which field.** One
   malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
   naming neither the address nor what was wrong with it, and a unit id outside

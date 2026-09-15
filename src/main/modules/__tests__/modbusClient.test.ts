@@ -2407,6 +2407,74 @@ describe('ModbusClient', () => {
       expect(results[0]?.[1].registerTypes).toContain('holding_registers')
       expect(results[0]?.[1].registerTypes).not.toContain('input_registers')
     })
+
+    it('logs the transaction of every probe it made', async () => {
+      await connectClient()
+      mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
+        fileTransaction({ ...createMockTransaction(address, length), nextCode: 1 })
+        return { data: [false], buffer: Buffer.alloc(1) }
+      })
+      setupHoldingRegisterReadMock([0])
+
+      const scanPromise = client.scanUnitIds({
+        range: [5, 6],
+        address: 3,
+        length: 1,
+        registerTypes: ['coils', 'holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      const transactions = getWindowCalls('transaction')
+      expect(transactions.map((call) => call[1].code)).toEqual([1, 3, 1, 3])
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
+    })
+
+    it('logs the transaction of a probe that was refused', async () => {
+      await connectClient()
+      mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
+        fileTransaction(createMockTransaction(address, length))
+        throw Object.assign(new Error('Illegal function'), { modbusCode: 1 })
+      })
+
+      const scanPromise = client.scanUnitIds({
+        range: [5, 5],
+        address: 3,
+        length: 1,
+        registerTypes: ['coils'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      const transactions = getWindowCalls('transaction')
+      expect(transactions.map((call) => call[1].errorMessage)).toEqual(['Illegal function'])
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
+    })
+
+    it('logs every probe on a serial port, where they share one key', async () => {
+      await connectClient()
+      mockModbusRTU._port._transactionIdWrite = undefined
+      setupHoldingRegisterReadMock([0])
+
+      const scanPromise = client.scanUnitIds({
+        range: [5, 6],
+        address: 3,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      const transactions = getWindowCalls('transaction')
+      expect(transactions.map((call) => call[1].id.split('__')[0])).toEqual([
+        'undefined',
+        'undefined'
+      ])
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
+    })
   })
 
   describe('scan registers full flow', () => {
