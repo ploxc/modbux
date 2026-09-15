@@ -1016,13 +1016,17 @@ export class ModbusClient {
         return
       }
 
+      let errorMessage: string | undefined
+      const transactionIdKey = this._nextTransactionIdKey()
       try {
         await this._readers[registerType](address, length)
         result.registerTypes.push(registerType)
       } catch (error) {
-        result.errorMessage[registerType] = (error as Error).message
+        errorMessage = (error as Error).message
+        result.errorMessage[registerType] = errorMessage
         if (isModbusException(error)) result.refusedRegisterTypes.push(registerType)
       }
+      this._logTransaction(transactionIdKey, errorMessage)
 
       await this._sendScanProgress()
     }
