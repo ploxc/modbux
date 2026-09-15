@@ -25,6 +25,7 @@ describe('which data types show a scale', () => {
   })
 
   it('shows nothing for a type no scale multiplies', () => {
+    expect(shownScale({ 0: { dataType: 'unix' } }, 0, 10)).toBe('')
     expect(shownScale({ 0: { dataType: 'datetime' } }, 0, 10)).toBe('')
     expect(shownScale({ 0: { dataType: 'utf8' } }, 0, 10)).toBe('')
     expect(shownScale({ 0: { dataType: 'bitmap' } }, 0, 10)).toBe('')

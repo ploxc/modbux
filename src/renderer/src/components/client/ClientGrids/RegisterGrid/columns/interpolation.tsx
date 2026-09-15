@@ -23,6 +23,7 @@ import {
   ReactElement,
   RefObject,
   useCallback,
+  useMemo,
   useRef,
   useState
 } from 'react'
@@ -184,14 +185,15 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   const dataType = useClientZustand((z) => z.registerMapping[type][address]?.dataType)
   const enabled = dataType && scalableDataTypes.includes(dataType)
   // Setting an interpolation leaves `dataType` alone, so a `getState()` read
-  // here subscribed to nothing that moved. The colour came out right anyway
-  // because the two writers both re-render this component by another route:
-  // the modal's `setOpen(false)` is state this component holds, and a config
-  // load turns read configuration off and takes the row with it. The selector
-  // answers a boolean, so zustand compares it by value.
-  const isDefault = useClientZustand((z) =>
-    isDefaultInterpolation(z.registerMapping[type][address]?.interpolate)
-  )
+  // here subscribed to nothing that moved. It answered right anyway: three
+  // spec runs against that read, with the modal open, after it closed, and
+  // across a config load, all showed the colour the store held, so something
+  // else re-renders this cell either way. The selector takes the reference and
+  // the `useMemo` does the comparing, because zustand runs a selector on every
+  // store flush and `isDefaultInterpolation` inside one is a `deepEqual` per
+  // mounted row per poll.
+  const interpolate = useClientZustand((z) => z.registerMapping[type][address]?.interpolate)
+  const isDefault = useMemo(() => isDefaultInterpolation(interpolate), [interpolate])
 
   return (
     <>

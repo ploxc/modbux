@@ -163,12 +163,15 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
         await field.fill(reg.interpolate[key])
       }
 
+      // The button is dim at 0.2 while the interpolation is the identity and
+      // opaque once it is not. Nothing asserted that before. Both moments,
+      // because neither went red against the unsubscribed read this replaced
+      // and the pair says which one was tried. The one register this config
+      // interpolates maps 0..32767 onto 0.8..1.
+      await expect(interpolationButton).toHaveCSS('opacity', '1')
+
       await p.keyboard.press('Escape')
       await expect(modal).not.toBeVisible()
-
-      // The button is dim at 0.2 while the interpolation is the identity and
-      // opaque once it is not. Nothing asserted that before. The one register
-      // this config interpolates maps 0..32767 onto 0.8..1.
       await expect(interpolationButton).toHaveCSS('opacity', '1')
     }
   })
