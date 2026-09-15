@@ -39,7 +39,7 @@ export type ValuedDataType = Exclude<DataType, 'none'>
  * button is live. `unix`, `datetime` and `bitmap` hold a number the grid does
  * not show as one, and `utf8` and `none` hold no number at all.
  */
-export const scalableDataTypes: DataType[] = [
+export const scalableDataTypes: readonly DataType[] = [
   'int16',
   'uint16',
   'int32',
