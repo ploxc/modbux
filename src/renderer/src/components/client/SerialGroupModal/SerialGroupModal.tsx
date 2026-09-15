@@ -245,13 +245,9 @@ const SerialGroupModal = meme(({ active }: SerialGroupModalProps): JSX.Element |
     if (!active) return
     let cancelled = false
 
-    const ask = async (): Promise<void> => {
-      const opened = await useSerialGroupZustand.getState().check()
-      // Switching back to TCP while the answer was in flight should not land
-      // a serial question on the TCP tab.
-      if (opened && cancelled) useSerialGroupZustand.getState().setOpen(false)
-    }
-    ask()
+    // Switching back to TCP while the answer was in flight should not land a
+    // serial question on the TCP tab.
+    useSerialGroupZustand.getState().check({ isStale: () => cancelled })
 
     return (): void => {
       cancelled = true
