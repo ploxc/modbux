@@ -323,6 +323,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
           dataType === 'utf8' ? Number(registerLength) || 10 : undefined
         )
 
+        let found = false
         for (let address = startFrom ?? 0; address <= 65535 - (size - 1); address++) {
           const needed = Array.from({ length: size }, (_, i) => address + i)
           if (needed.every((a) => !usedAddresses.includes(a))) {
@@ -330,8 +331,20 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
             state.addressInUse = false
             state.addressFitError = false
             state.valid.address = true
+            found = true
             break
           }
+        }
+
+        // Nothing free from `startFrom` on, so the field keeps the address it
+        // has, which after an Add & Next is the one just written. Writing only
+        // inside the loop left that address unmarked with Add still live, and
+        // the next press replaced the register and lost its comment.
+        if (!found) {
+          const result = validateAddress(state.address, dataType, registerType, registerLength)
+          state.addressInUse = result.addressInUse
+          state.addressFitError = result.addressFitError
+          state.valid.address = result.addressValid
         }
       }),
 
