@@ -240,6 +240,30 @@ export class ModbusClient {
   }
 
   /**
+   * Whether the port is open, with the message a caller that finds it shut gets.
+   *
+   * Three callers ask it, `_read`, `write` and either scan, and the state they
+   * find is one to correct rather than to report around: `connected` over a
+   * closed port leaves the view reading connected until something says
+   * otherwise, and `_setDisconnected` is what says it.
+   *
+   * A poll's own read is the one caller with nobody to answer, and it is the
+   * one that passes `quiet`: the close that ended it has already spoken.
+   */
+  private _requireConnected = (verb: string, quiet = false): boolean => {
+    if (this._clientState.connectState === 'connected' && this._client.isOpen) return true
+    if (!quiet) {
+      this._emitMessage({
+        message: `Cannot ${verb}, not connected`,
+        variant: 'warning',
+        error: null
+      })
+    }
+    this._setDisconnected()
+    return false
+  }
+
+  /**
    * The read loop that owns the client, named, or nothing.
    *
    * One request at a time is what this class can promise, and each of the
@@ -531,17 +555,7 @@ export class ModbusClient {
   }
 
   private _read = async (): Promise<void> => {
-    if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
-      if (!this._clientState.polling) {
-        this._emitMessage({
-          message: 'Cannot read, not connected',
-          variant: 'warning',
-          error: null
-        })
-      }
-      this._setDisconnected()
-      return
-    }
+    if (!this._requireConnected('read', this._clientState.polling)) return
 
     // Set unit id before reading (in case of TCP)
     const { unitId } = this._appState.connectionConfig
@@ -788,10 +802,7 @@ export class ModbusClient {
     // `writeFC5`, `writeFC6`, `writeFC15` and `writeFC16` answer a closed port
     // with a `PortNotOpenError` before they file a transaction, so a write down
     // a closed port has nothing of its own to log.
-    if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
-      this._emitMessage({ message: 'Cannot write, not connected', variant: 'warning', error: null })
-      return
-    }
+    if (!this._requireConnected('write')) return
 
     const owner = this._readLoopOwner()
     if (owner) {
@@ -950,23 +961,10 @@ export class ModbusClient {
   // Polling and scanning are two read loops over one port, so starting a scan
   // stops the poll. That is a consequence of scanning rather than something the
   // user asked for, so it is taken here and neither dialog does it.
-  /**
-   * Whether a scan may start, with the message a refused one gets.
-   *
-   * A scan does not go through `_read`, so it asks here what `_read` asks
-   * before it reads.
-   */
-  private _canScan = (): boolean => {
-    if (this._clientState.connectState === 'connected' && this._client.isOpen) return true
-    this._emitMessage({ message: 'Cannot scan, not connected', variant: 'warning', error: null })
-    return false
-  }
-
-  //
   //
   // Scan Unit ID
   public scanUnitIds = async (params: ScanUnitIDParameters): Promise<void> => {
-    if (!this._canScan()) return
+    if (!this._requireConnected('scan')) return
     this.stopPolling()
 
     this._client.setTimeout(params.timeout)
@@ -1046,7 +1044,7 @@ export class ModbusClient {
   //
   // Scan Registers
   public scanRegisters = async (params: ScanRegistersParameters): Promise<void> => {
-    if (!this._canScan()) return
+    if (!this._requireConnected('scan')) return
     this.stopPolling()
 
     const { unitId } = this._appState.connectionConfig

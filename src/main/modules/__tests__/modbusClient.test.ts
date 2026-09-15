@@ -1037,6 +1037,71 @@ describe('ModbusClient', () => {
     })
   })
 
+  describe('a port that closed under a connected state', () => {
+    /** Connected as far as the state knows, and shut underneath. */
+    const closedUnderneath = async (): Promise<void> => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      mockModbusRTU.isOpen = false
+    }
+
+    it('a refused write reports the disconnect', async () => {
+      await closedUnderneath()
+
+      await client.write({ address: 5, type: 'coils', value: [true], single: true })
+
+      expect(client.state.connectState).toBe('disconnected')
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    it('a refused register scan reports the disconnect', async () => {
+      await closedUnderneath()
+
+      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+
+      expect(client.state.connectState).toBe('disconnected')
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    it('a refused unit id scan reports the disconnect', async () => {
+      await closedUnderneath()
+
+      await client.scanUnitIds({
+        range: [1, 3],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+
+      expect(client.state.connectState).toBe('disconnected')
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    // A poll asked for one read and gets one message per read otherwise, and
+    // the close that shut the port has already said what happened.
+    it('a poll reports the disconnect without saying it cannot read', async () => {
+      await closedUnderneath()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(100)
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot read, not connected')).toBe(false)
+      expect(client.state.polling).toBe(false)
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    it('a read the user asked for says it cannot read', async () => {
+      await closedUnderneath()
+
+      await client.read()
+
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'Cannot read, not connected')).toBe(true)
+    })
+  })
+
   describe('read with data', () => {
     it('reads holding registers and sends data', async () => {
       await connectClient()
