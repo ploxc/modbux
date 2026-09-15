@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Protocol } from '@shared'
+import type { Protocol, RawTransaction } from '@shared'
 import type { Windows } from '../../windows'
 import { AppState } from '../../state'
 
@@ -99,6 +99,10 @@ const createMockModbusRTU = () => ({
   writeFC15: vi.fn(),
   writeFC16: vi.fn(),
   _transactions: {} as Record<string, unknown>,
+  // The port modbus-serial files transactions against. A TCP port counts from
+  // 1, and `RTUBufferedPort` defines no such field, which is why every serial
+  // transaction files under the string "undefined".
+  _port: { _transactionIdWrite: 1 } as { _transactionIdWrite: number | undefined },
   isDebugEnabled: false
 })
 
@@ -237,13 +241,31 @@ describe('ModbusClient', () => {
     responses: [Buffer.from([0x01, 0x03, length * 2, 0x00, 0x64])]
   })
 
+  /**
+   * File a transaction the way modbus-serial does.
+   *
+   * `writeFCx` files under the port's current write id and the port increments
+   * it once the buffer is out, so a request filed here takes the key the client
+   * read before the call. The increment is skipped on a serial port, which has
+   * no id to increment.
+   */
+  const fileTransaction = (transaction: RawTransaction = createMockTransaction()): string => {
+    const key = String(mockModbusRTU._port._transactionIdWrite)
+    mockModbusRTU._transactions = { ...mockModbusRTU._transactions, [key]: transaction }
+    const { _transactionIdWrite } = mockModbusRTU._port
+    if (_transactionIdWrite !== undefined) {
+      mockModbusRTU._port._transactionIdWrite = _transactionIdWrite + 1
+    }
+    return key
+  }
+
   // Helper: setup read mocks that return valid data and populate _transactions
   const setupHoldingRegisterReadMock = (data: number[] = [100]) => {
     const buf = Buffer.alloc(data.length * 2)
     data.forEach((v, i) => buf.writeUInt16BE(v, i * 2))
     mockModbusRTU.readHoldingRegisters.mockImplementation(
       async (address: number, length: number) => {
-        mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
+        fileTransaction(createMockTransaction(address, length))
         return { data, buffer: buf }
       }
     )
@@ -1326,18 +1348,17 @@ describe('ModbusClient', () => {
   describe('_logTransaction', () => {
     it('formats and sends transaction data after read', async () => {
       await connectClient()
+      mockModbusRTU._port._transactionIdWrite = 42
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        mockModbusRTU._transactions = {
-          '42': {
-            nextAddress: 1,
-            nextDataAddress: 0,
-            nextCode: 3,
-            nextLength: 10,
-            _timeoutFired: false,
-            request: Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x0a]),
-            responses: [Buffer.from([0x01, 0x03, 0x14])]
-          }
-        }
+        fileTransaction({
+          nextAddress: 1,
+          nextDataAddress: 0,
+          nextCode: 3,
+          nextLength: 10,
+          _timeoutFired: false,
+          request: Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x0a]),
+          responses: [Buffer.from([0x01, 0x03, 0x14])]
+        })
         return { data: new Array(10).fill(0), buffer: Buffer.alloc(20) }
       })
 
@@ -1374,7 +1395,7 @@ describe('ModbusClient', () => {
         callCount++
         // Only the first read leaves a transaction behind, so a second call
         // that logged the same one again would show up as two.
-        if (callCount === 1) mockModbusRTU._transactions = { '1': createMockTransaction() }
+        if (callCount === 1) fileTransaction()
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1386,14 +1407,12 @@ describe('ModbusClient', () => {
 
     it('leaves a transaction it did not log alone', async () => {
       await connectClient()
+      // Key 1 is a request still in flight, key 2 the one this read finishes.
+      // modbus-serial drops a response whose entry is gone, so taking 1 out
+      // with 2 times that request out instead of answering it.
+      fileTransaction(createMockTransaction(50))
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        // Key 1 is a request still in flight, key 2 the one this read
-        // finished. modbus-serial drops a response whose entry is gone, so
-        // taking 1 out with 2 times that request out instead of answering it.
-        mockModbusRTU._transactions = {
-          '1': createMockTransaction(50),
-          '2': createMockTransaction(0)
-        }
+        fileTransaction(createMockTransaction(0))
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1420,7 +1439,7 @@ describe('ModbusClient', () => {
     it('includes error message in transaction on read failure', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        mockModbusRTU._transactions = { '1': createMockTransaction() }
+        fileTransaction()
         throw new Error('Timed out')
       })
 
@@ -1436,15 +1455,13 @@ describe('ModbusClient', () => {
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
         // What modbus-serial leaves behind when the write never stashed a
         // copy: the bookkeeping fields, and nothing else.
-        mockModbusRTU._transactions = {
-          undefined: {
-            nextAddress: 1,
-            nextDataAddress: 0,
-            nextCode: 3,
-            nextLength: 10,
-            _timeoutFired: false
-          }
-        }
+        fileTransaction({
+          nextAddress: 1,
+          nextDataAddress: 0,
+          nextCode: 3,
+          nextLength: 10,
+          _timeoutFired: false
+        })
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1458,10 +1475,11 @@ describe('ModbusClient', () => {
 
     it('keeps the serial transaction key, which is not a number', async () => {
       await connectClient()
+      // RTU has no transaction ids, so modbus-serial files every serial
+      // transaction under this one key.
+      mockModbusRTU._port._transactionIdWrite = undefined
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        // RTU has no transaction ids, so modbus-serial files every serial
-        // transaction under this one key.
-        mockModbusRTU._transactions = { undefined: createMockTransaction() }
+        fileTransaction()
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1491,7 +1509,7 @@ describe('ModbusClient', () => {
       let callCount = 0
       mockModbusRTU.readHoldingRegisters.mockImplementation(async (address: number) => {
         callCount++
-        mockModbusRTU._transactions = { [String(callCount)]: createMockTransaction(address) }
+        fileTransaction(createMockTransaction(address))
         if (failFirst && callCount === 1) throw new Error('read timeout')
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
@@ -1519,9 +1537,7 @@ describe('ModbusClient', () => {
     it('records timeout flag from transaction', async () => {
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
-        mockModbusRTU._transactions = {
-          '1': { ...createMockTransaction(), _timeoutFired: true }
-        }
+        fileTransaction({ ...createMockTransaction(), _timeoutFired: true })
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
@@ -1755,7 +1771,7 @@ describe('ModbusClient', () => {
        */
       const aReadInFlight = () => {
         gateTheReads()
-        mockModbusRTU._transactions = { '1': createMockTransaction() }
+        fileTransaction()
       }
 
       it('logs nothing when the coil list is empty', async () => {
@@ -1764,6 +1780,21 @@ describe('ModbusClient', () => {
 
         await client.write({ address: 5, type: 'coils', value: [], single: true })
 
+        expect(getWindowCalls('transaction')).toHaveLength(0)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      it('logs nothing when FC15 is asked for an empty coil list', async () => {
+        await connectClient()
+        aReadInFlight()
+
+        writeCoilsLikeTheLibrary(null)
+
+        await client.write({ address: 5, type: 'coils', value: [], single: false })
+
+        expect(mockModbusRTU.writeFC15).not.toHaveBeenCalled()
+        const messages = getWindowCalls('backend_message')
+        expect(messages.some((m) => m[1].message === 'No coil value to write')).toBe(true)
         expect(getWindowCalls('transaction')).toHaveLength(0)
         expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       })
@@ -1801,35 +1832,35 @@ describe('ModbusClient', () => {
       })
 
       /**
-       * `writeFC5` the way the library writes it. `index.js` answers a closed
-       * port with a `PortNotOpenError` and returns, and otherwise files the
-       * transaction before the buffer goes to the port, so a write that reaches
-       * the port leaves one behind whether the device answers or not.
+       * FC5 and FC15 the way the library writes them. `index.js` answers a
+       * closed port with a `PortNotOpenError` and returns, and otherwise files
+       * the transaction before the buffer goes to the port, so a write that
+       * reaches the port leaves one behind whether the device answers or not.
        */
-      const writeCoilLikeTheLibrary = (error: Error | null) => {
-        mockModbusRTU.writeFC5.mockImplementation(
-          (
-            _unitId: number,
-            address: number,
-            _value: boolean,
-            callback: (err: Error | null) => void
-          ) => {
-            if (mockModbusRTU.isOpen !== true) {
-              callback(new Error('Port Not Open'))
-              return
+      const writeCoilsLikeTheLibrary = (error: Error | null) => {
+        const write = (code: number) =>
+          vi.fn(
+            (
+              _unitId: number,
+              address: number,
+              _value: boolean | boolean[],
+              callback: (err: Error | null) => void
+            ) => {
+              if (mockModbusRTU.isOpen !== true) {
+                callback(new Error('Port Not Open'))
+                return
+              }
+              fileTransaction({ ...createMockTransaction(address), nextCode: code })
+              callback(error)
             }
-            mockModbusRTU._transactions = {
-              ...mockModbusRTU._transactions,
-              '2': { ...createMockTransaction(address), nextCode: 5 }
-            }
-            callback(error)
-          }
-        )
+          )
+        mockModbusRTU.writeFC5.mockImplementation(write(5))
+        mockModbusRTU.writeFC15.mockImplementation(write(15))
       }
 
       it('refuses a write while not connected', async () => {
         aReadInFlight()
-        writeCoilLikeTheLibrary(null)
+        writeCoilsLikeTheLibrary(null)
 
         await client.write({ address: 5, type: 'coils', value: [true], single: true })
 
@@ -1846,7 +1877,7 @@ describe('ModbusClient', () => {
       it('logs the transaction a write of its own filed', async () => {
         await connectClient()
         aReadInFlight()
-        writeCoilLikeTheLibrary(null)
+        writeCoilsLikeTheLibrary(null)
 
         await client.write({ address: 5, type: 'coils', value: [true], single: true })
 
@@ -1857,10 +1888,55 @@ describe('ModbusClient', () => {
         expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       })
 
+      // Nothing refuses a poll the user starts while a write is on the wire,
+      // so two requests are filed and only one of them is this write's.
+      it('logs its own while a read it did not start is in flight', async () => {
+        await connectClient()
+        const finishers: Array<() => void> = []
+        mockModbusRTU.writeFC5.mockImplementation(
+          (_unitId: number, address: number, _value: boolean, callback: (err: null) => void) => {
+            fileTransaction({ ...createMockTransaction(address), nextCode: 5 })
+            finishers.push(() => callback(null))
+          }
+        )
+        // The poll's read files its transaction and then waits for an answer
+        // that never comes, which is where the write finds it.
+        mockModbusRTU.readHoldingRegisters.mockImplementation(
+          (address: number) =>
+            new Promise(() => {
+              fileTransaction(createMockTransaction(address))
+            })
+        )
+
+        const writePromise = client.write({
+          address: 5,
+          type: 'coils',
+          value: [true],
+          single: true
+        })
+        await vi.advanceTimersByTimeAsync(0)
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        const [finishWrite] = finishers
+        if (!finishWrite) throw new Error('writeFC5 was never called')
+        finishWrite()
+        await writePromise
+
+        const transactions = getWindowCalls('transaction')
+        expect(transactions).toHaveLength(1)
+        expect(transactions[0]?.[1].id).toContain('1__')
+        expect(transactions[0]?.[1].code).toBe(5)
+        // The read's entry, which `_onReceive` delivers its answer into.
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['2'])
+
+        client.stopPolling()
+      })
+
       it('logs the transaction of a write the device refused', async () => {
         await connectClient()
         aReadInFlight()
-        writeCoilLikeTheLibrary(new Error('Modbus exception 2: Illegal data address'))
+        writeCoilsLikeTheLibrary(new Error('Modbus exception 2: Illegal data address'))
 
         await client.write({ address: 5, type: 'coils', value: [true], single: true })
 
@@ -2334,6 +2410,23 @@ describe('ModbusClient', () => {
   })
 
   describe('scan registers full flow', () => {
+    it('logs the transaction of every read it made', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await scanPromise
+
+      const transactions = getWindowCalls('transaction')
+      expect(transactions.map((call) => call[1].address)).toEqual([50, 60])
+      expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
+    })
+
     it('sets unit ID before scanning', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])

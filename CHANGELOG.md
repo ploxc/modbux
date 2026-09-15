@@ -16,12 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range the format carries, which is 2000 through 2127. A date past 2127 used to
   be written with the year wrapped, so a register set to 2200 read back as 2072;
   it now stops at the end of 2127.
-- **A write Modbux refuses no longer logs the request before it.** Writing a
-  value Modbux cannot send, a UTF-8 register through FC16, still put a row in
-  the transaction log: the last request that did go out, listed as that write.
-  A request still waiting for its answer lost the entry that answer is delivered
-  into, so it timed out. A write with nothing connected is refused by Modbux
-  now, where it used to reach the library and come back as "Port Not Open".
+- **A write no longer logs another request as its own.** The transaction log
+  took the last request that went out, listed it as the write and took its entry
+  away, so a read still waiting for an answer timed out. That happened after a
+  write Modbux refuses, such as a UTF-8 register through FC16, and after any
+  write with a poll or a read running alongside it. A write with nothing
+  connected now says so rather than answering "Port Not Open", and an empty coil
+  list is refused for FC15 the way it already was for FC5.
 - **A config file Modbux refuses now says which register and which field.** One
   malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
   naming neither the address nor what was wrong with it, and a unit id outside
