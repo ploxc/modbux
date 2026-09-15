@@ -4,6 +4,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { findAvailablePort, MAIN_SERVER_UUID } from '@shared'
 import { useCallback } from 'react'
+import { useSnackbar } from 'notistack'
 import { v4 } from 'uuid'
 import ButtonGroup from '@mui/material/ButtonGroup'
 import Box from '@mui/material/Box'
@@ -24,14 +25,23 @@ const SelectServer = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
   const serverUuids = useServerZustand((z) => z.uuids)
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
-  const addDisabled = useServerZustand((z) => Object.keys(z.uuids).length >= 10)
+  const addDisabled = useServerZustand((z) => z.uuids.length >= 10)
+  const { enqueueSnackbar } = useSnackbar()
 
-  const addServer = useCallback(async () => {
+  const addServer = useCallback(() => {
     const serverZustand = useServerZustand.getState()
     const newPort = findAvailablePort(Object.values(serverZustand.port).map((v) => Number(v)))
-    if (!newPort) throw new Error('No available port')
-    serverZustand.createServer({ port: newPort, uuid: v4() })
-  }, [])
+
+    // `findAvailablePort` walks 502 to 10502 and the button is off at ten
+    // servers, so this answers for a range that cannot run out today. A throw
+    // out of a click handler is an unhandled rejection the user never sees.
+    if (!newPort) {
+      enqueueSnackbar({ message: 'No free port between 502 and 10502', variant: 'error' })
+      return
+    }
+
+    void serverZustand.createServer({ port: newPort, uuid: v4() })
+  }, [enqueueSnackbar])
 
   const deleteServer = useCallback(() => {
     const serverZustand = useServerZustand.getState()
