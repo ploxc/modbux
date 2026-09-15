@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list is refused for FC15 the way it already was for FC5.
 - **The transaction log now shows a unit id scan.** The scan sends a request per
   unit id and per register type, and the log listed none of them.
+- **A write or a scan refused for a lost connection now reports it.** Both said
+  they could not reach the device and left the app showing it as connected. A
+  read already corrected the state, so which one you pressed decided whether the
+  app noticed.
 - **Two bit toggles in a row now both land.** A bit in the server's bitmap panel
   is set by writing the whole word back, and the panel read that word from
   before the toggle before it, so a second toggle in quick succession cleared
