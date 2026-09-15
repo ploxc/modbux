@@ -61,3 +61,52 @@ describe('a server config stored with a register outside the map', () => {
     expect(useServerZustand.getState().configReset).toBeUndefined()
   })
 })
+
+/** A generated register at `address` firing every millisecond. */
+const generator = (address: number): Record<string, unknown> => ({
+  value: 1,
+  params: {
+    address,
+    registerType: 'holding_registers',
+    dataType: 'uint16',
+    comment: '',
+    min: 0,
+    max: 10,
+    interval: 1
+  }
+})
+
+// `usedAddresses` is the map `isAddressInUse` refuses an address against, so
+// this is where the drop is either finished or half done.
+describe('a server config stored with a generator the interval floor refuses', () => {
+  it('leaves the address it stood on free', async () => {
+    localStorage.setItem(
+      'server.zustand',
+      JSON.stringify({
+        state: {
+          selectedUuid: 'u',
+          uuids: ['u'],
+          port: { u: '502' },
+          unitId: { u: '1' },
+          littleEndian: { u: false },
+          usedAddresses: { u: { '1': { input_registers: [], holding_registers: [200] } } },
+          serverRegisters: {
+            u: {
+              '1': {
+                coils: {},
+                discrete_inputs: {},
+                input_registers: {},
+                holding_registers: { '200': generator(200) }
+              }
+            }
+          }
+        },
+        version: 5
+      })
+    )
+
+    const { useServerZustand } = await import('../server.zustand')
+
+    expect(useServerZustand.getState().usedAddresses.u?.['1']?.holding_registers).toEqual([])
+  })
+})

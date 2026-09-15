@@ -2,6 +2,7 @@ import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterParamsSchema } from '../types/server'
 import { ParitySchema } from '../types'
+import { getUsedAddresses } from '../utils'
 
 /**
  * Replace a stored parity that `ParitySchema` no longer names, at `path` from
@@ -30,9 +31,26 @@ export function repairPersistedParity(state: Record<string, unknown>, ...path: s
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+/** The object entries of `value`, and nothing at all when it is not an object. */
+const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
+  isRecord(value)
+    ? Object.entries(value).filter((entry): entry is [string, Record<string, unknown>] =>
+        isRecord(entry[1])
+      )
+    : []
+
 /** The object values of `value`, and nothing at all when it is not an object. */
 export const objectValues = (value: unknown): Record<string, unknown>[] =>
-  isRecord(value) ? Object.values(value).filter(isRecord) : []
+  recordEntries(value).map(([, entry]) => entry)
+
+/** The object at `parent[key]`, made empty when there is not one there. */
+const recordAt = (parent: Record<string, unknown>, key: string): Record<string, unknown> => {
+  const existing = parent[key]
+  if (isRecord(existing)) return existing
+  const made: Record<string, unknown> = {}
+  parent[key] = made
+  return made
+}
 
 /**
  * A register map is keyed by address, and a register entry repeats its whole
@@ -46,6 +64,20 @@ const isServable = (address: string, entry: Record<string, unknown>): boolean =>
   return RegisterParamsSchema.safeParse(params).success
 }
 
+/** The addresses one unit's surviving registers occupy, by register type. */
+const usedAddressesOfUnit = (
+  registersByType: Record<string, unknown>
+): Record<string, number[]> => {
+  const used: Record<string, number[]> = {}
+  for (const registerType of ['input_registers', 'holding_registers'] as const) {
+    const params = objectValues(registersByType[registerType])
+      .map((entry) => RegisterParamsSchema.safeParse(entry.params))
+      .flatMap((parsed) => (parsed.success ? [parsed.data] : []))
+    used[registerType] = getUsedAddresses(params)
+  }
+  return used
+}
+
 /**
  * Drop persisted registers the current `RegisterParamsSchema` no longer names.
  *
@@ -55,16 +87,30 @@ const isServable = (address: string, entry: Record<string, unknown>): boolean =>
  * could carry a generator that fires every millisecond. `repairPersisted`
  * works a top level field at a time, and without this one such register costs
  * every register on every server and every unit.
+ *
+ * A unit the drop touched gets its `usedAddresses` rewritten, because that map
+ * is persisted beside the registers and the only thing recomputing it on launch
+ * is `syncUuidToBackend`, for a unit that still holds something. What survived
+ * without this was a unit the drop emptied, which `extractUnitIdsWithData`
+ * skips, and every unit of a server whose port `createServer` refuses. Measured
+ * on a v4 blob: a generator at 200 the interval floor refuses left
+ * `holding_registers: [200]` standing in both, and `isAddressInUse` is what
+ * reads that map.
  */
 export function dropUnservableRegisters(state: Record<string, unknown>): void {
-  for (const registersPerUnit of objectValues(state.serverRegisters)) {
-    for (const registersByType of objectValues(registersPerUnit)) {
+  for (const [uuid, registersPerUnit] of recordEntries(state.serverRegisters)) {
+    for (const [unitId, registersByType] of recordEntries(registersPerUnit)) {
+      let dropped = false
       for (const entriesByAddress of objectValues(registersByType)) {
         for (const [address, entry] of Object.entries(entriesByAddress)) {
           if (isRecord(entry) && isServable(address, entry)) continue
           delete entriesByAddress[address]
+          dropped = true
         }
       }
+      if (!dropped) continue
+      recordAt(recordAt(state, 'usedAddresses'), uuid)[unitId] =
+        usedAddressesOfUnit(registersByType)
     }
   }
 }

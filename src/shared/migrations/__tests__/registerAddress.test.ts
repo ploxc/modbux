@@ -283,6 +283,85 @@ describe('a persisted generator the interval floor refuses', () => {
   })
 })
 
+describe('the used addresses of a unit the drop touched', () => {
+  /** A generator at `address` firing every millisecond, which the floor refuses. */
+  const refusedGenerator = (address: number): Record<string, unknown> => ({
+    address,
+    registerType: 'holding_registers',
+    dataType: 'uint16',
+    comment: '',
+    min: 0,
+    max: 10,
+    interval: 1
+  })
+
+  /** A register at `address` occupying two addresses, which the drop keeps. */
+  const wideRegister = (address: number): Record<string, unknown> => ({
+    ...params(address),
+    dataType: 'float'
+  })
+
+  const persisted = (): Record<string, unknown> => ({
+    usedAddresses: {
+      u: {
+        '1': { input_registers: [], holding_registers: [100, 101, 200] },
+        '2': { input_registers: [], holding_registers: [300] }
+      }
+    },
+    serverRegisters: {
+      u: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: {
+            '100': { value: 1, params: wideRegister(100) },
+            '200': { value: 1, params: refusedGenerator(200) }
+          }
+        },
+        '2': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: { '300': { value: 1, params: params(300) } }
+        }
+      }
+    }
+  })
+
+  const usedHolding = (state: Record<string, unknown>, unitId: string): unknown => {
+    const perUuid = state.usedAddresses as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.[unitId] as Record<string, unknown>
+    return unit.holding_registers
+  }
+
+  // 101 is the second half of the float at 100, so the rewrite reads the
+  // width rather than the key it is stored under.
+  it('drops the addresses of the register that went and keeps the span of the one that stayed', () => {
+    const state = persisted()
+    dropUnservableRegisters(state)
+
+    expect(usedHolding(state, '1')).toEqual([100, 101])
+  })
+
+  it('leaves a unit it dropped nothing from alone', () => {
+    const state = persisted()
+    dropUnservableRegisters(state)
+
+    expect(usedHolding(state, '2')).toEqual([300])
+  })
+
+  // `usedAddresses` is absent from a blob written before the field existed, and
+  // reading a unit off a missing map throws rather than failing a schema.
+  it('writes the map a blob carries no field for', () => {
+    const state = persisted()
+    delete state.usedAddresses
+    dropUnservableRegisters(state)
+
+    expect(usedHolding(state, '1')).toEqual([100, 101])
+  })
+})
+
 describe('a persisted mapping entry outside the map', () => {
   /** The last client store version whose blobs can carry any numeric key. */
   const LAST_VERSION_ACCEPTING_ANY_KEY = 3
