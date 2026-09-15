@@ -493,7 +493,11 @@ export class ModbusClient {
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
 
-      // ? Don't know what to do here, I think when there's an error we are not connected anymore
+      // The promise above takes `resolve` alone, so nothing rejects it and this
+      // runs only if `ModbusRTU.close` throws where it stands. That leaves a
+      // client whose close never started, which is a disconnect whatever the
+      // port went on to do: the state it would otherwise keep is `connected`,
+      // over a client nothing here can close.
       this._setDisconnected()
     }
   }
