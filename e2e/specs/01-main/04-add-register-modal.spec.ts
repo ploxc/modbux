@@ -389,6 +389,41 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
   })
 
+  test('Add & Next with nothing free above marks the address it is left on', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('add-holding_registers-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    await selectDataType(mainPage, 'UINT16')
+    const addressInput = mainPage.getByTestId('add-reg-address-input').locator('input')
+    await addressInput.fill('65535')
+    await mainPage.getByTestId('add-reg-comment-input').locator('input').fill('keepme')
+    await mainPage.waitForTimeout(200)
+
+    await mainPage.getByTestId('add-reg-next-btn').click()
+    await mainPage.waitForTimeout(300)
+
+    // There is no address above 65535, so the form stays on the one it just
+    // wrote. Unmarked, with Add still live, the next press replaced that
+    // register and lost its comment.
+    expect(await addressInput.inputValue()).toBe('65535')
+    await expect(mainPage.getByText('In use')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.waitForTimeout(300)
+
+    // The comment proves which register survived.
+    await mainPage.getByTestId('server-edit-reg-holding_registers-65535').click()
+    await mainPage.waitForTimeout(500)
+    expect(await mainPage.getByTestId('add-reg-comment-input').locator('input').inputValue()).toBe(
+      'keepme'
+    )
+    await mainPage.getByTestId('add-reg-remove-btn').click()
+    await mainPage.waitForTimeout(500)
+  })
+
   test('submit disabled when address is empty', async ({ mainPage }) => {
     await mainPage.getByTestId('add-holding_registers-btn').click()
     await mainPage.waitForTimeout(300)

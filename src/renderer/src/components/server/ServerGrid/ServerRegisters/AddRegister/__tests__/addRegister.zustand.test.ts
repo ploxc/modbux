@@ -112,3 +112,40 @@ describe('what the dialog opened with', () => {
     expect(useAddRegisterZustand.getState().pristine).toBeUndefined()
   })
 })
+
+describe('initNextUnusedAddress', () => {
+  beforeEach(() => {
+    serverState.usedAddresses = {}
+    useAddRegisterZustand.getState().resetToDefaults()
+  })
+
+  it('moves to the first free address above the one just used', () => {
+    serverState.usedAddresses = { main: { '0': { holding_registers: [10] } } }
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setRegisterType('holding_registers')
+    addRegisterZustand.setAddress('10', true)
+
+    addRegisterZustand.initNextUnusedAddress(11)
+
+    const state = useAddRegisterZustand.getState()
+    expect(state.address).toBe('11')
+    expect(state.addressInUse).toBe(false)
+    expect(state.valid.address).toBe(true)
+  })
+
+  it('marks the address it is left on when nothing above it is free', () => {
+    const addRegisterZustand = useAddRegisterZustand.getState()
+    addRegisterZustand.setRegisterType('holding_registers')
+    addRegisterZustand.setAddress('65535', true)
+    // What Add & Next does before it asks for the next address: the register
+    // is written, so the address the field still shows is now taken.
+    serverState.usedAddresses = { main: { '0': { holding_registers: [65535] } } }
+
+    addRegisterZustand.initNextUnusedAddress(65536)
+
+    const state = useAddRegisterZustand.getState()
+    expect(state.address).toBe('65535')
+    expect(state.addressInUse).toBe(true)
+    expect(state.valid.address).toBe(false)
+  })
+})
