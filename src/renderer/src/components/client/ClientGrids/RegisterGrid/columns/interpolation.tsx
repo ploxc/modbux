@@ -15,7 +15,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
-import { DataType, RegisterData, RegisterLinearInterpolation, RegisterType } from '@shared'
+import { RegisterData, RegisterLinearInterpolation, RegisterType, scalableDataTypes } from '@shared'
 import { deepEqual } from 'fast-equals'
 import {
   ElementType,
@@ -181,19 +181,8 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
-  const enabledDatatypes: DataType[] = [
-    'double',
-    'float',
-    'int16',
-    'int32',
-    'int64',
-    'uint16',
-    'uint32',
-    'uint64'
-  ]
-
   const dataType = useClientZustand((z) => z.registerMapping[type][address]?.dataType)
-  const enabled = dataType && enabledDatatypes.includes(dataType)
+  const enabled = dataType && scalableDataTypes.includes(dataType)
   // Setting an interpolation leaves `dataType` alone, so a `getState()` read
   // here subscribed to nothing that moved. The colour came out right anyway
   // because the two writers both re-render this component by another route:
