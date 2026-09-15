@@ -3,6 +3,7 @@ import FileOpen from '@mui/icons-material/FileOpen'
 import Save from '@mui/icons-material/Save'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
+import { downloadJson } from '@renderer/components/shared/downloadJson'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -149,18 +150,7 @@ const useSave: UseSaveHook = () => {
       littleEndian: littleEndian[selectedUuid] ?? false,
       serverRegistersPerUnit
     }
-    const configJson = JSON.stringify(config, null, 2)
-
-    const element = document.createElement('a')
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(configJson))
-
-    const filename = `modbux_server_${snakeCase(name)}.json`
-
-    element.setAttribute('download', filename)
-    element.style.display = 'none'
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
+    downloadJson(`modbux_server_${snakeCase(name)}.json`, JSON.stringify(config, null, 2))
   }, [])
 
   return { save }
