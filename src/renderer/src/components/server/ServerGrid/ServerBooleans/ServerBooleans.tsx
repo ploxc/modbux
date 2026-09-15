@@ -7,8 +7,7 @@ import TextField from '@mui/material/TextField'
 import { alpha } from '@mui/material/styles'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters, ServerBoolEntry } from '@shared'
-import { deepEqual } from 'fast-equals'
-import { ElementType, useCallback, useEffect, useRef, useState } from 'react'
+import { ElementType, useCallback, useEffect, useMemo, useState } from 'react'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import useServerGridZustand from '../serverGrid.zustand'
@@ -109,16 +108,26 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
 // ─── Bool list ────────────────────────────────────────────────────────────────
 
 const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
-  const addressesRef = useRef<number[]>([])
-  const addresses = useServerZustand((z) => {
+  // Zustand runs a selector on every store change to compare, not only during
+  // render, so the ref this used to cache the sorted keys in was written
+  // outside React's render phase. `ServerRegisterRows` next door selects the
+  // map and derives from it in a `useMemo`, which runs when React says so.
+  // Mutative gives the map a new identity on every value written into it, so
+  // this list re-renders per toggle where the ref stopped that. The register
+  // list already pays that against generators writing on an interval, and each
+  // row is `meme`'d on props that do not move.
+  const boolMap = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    const keys = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? {}).map(Number)
-    keys.sort((a, b) => a - b)
-    if (deepEqual(addressesRef.current, keys)) return addressesRef.current
-    addressesRef.current = keys
-    return keys
+    return z.serverRegisters[uuid]?.[unitId]?.[type]
   })
+  const addresses = useMemo(
+    () =>
+      Object.keys(boolMap ?? {})
+        .map(Number)
+        .sort((a, b) => a - b),
+    [boolMap]
+  )
 
   return addresses.map((address) => (
     <ServerBoolRow key={`${type}_${address}`} address={address} type={type} />

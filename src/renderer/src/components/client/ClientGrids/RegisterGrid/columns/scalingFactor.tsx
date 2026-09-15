@@ -1,12 +1,8 @@
 import { GridColDef } from '@mui/x-data-grid/models'
-import { useClientZustand } from '@renderer/context/client.zustand'
-import { DataType, RegisterData, RegisterMapObject, RegisterType } from '@shared'
+import { DataType, RegisterData, RegisterMapObject } from '@shared'
 import { ReactNode } from 'react'
 
-export const scalingFactorColumn = (
-  registerMap: RegisterMapObject,
-  type: RegisterType
-): GridColDef<RegisterData> => ({
+export const scalingFactorColumn = (registerMap: RegisterMapObject): GridColDef<RegisterData> => ({
   field: 'scalingFactor',
   headerName: 'Scale',
   width: 60,
@@ -30,11 +26,9 @@ export const scalingFactorColumn = (
       'uint64'
     ]
 
-    const dataType = useClientZustand.getState().registerMapping[type][row.id]?.dataType
-    const enabled = dataType && enabledDatatypes.includes(dataType)
-
-    return registerMap[row.id]?.dataType && registerMap[row.id]?.dataType !== 'none' && enabled
-      ? value
-      : ''
+    // `registerMap` is the map the column was built from, so the store read
+    // this replaced answered the same thing one render later at best.
+    const dataType = registerMap[row.id]?.dataType
+    return dataType && enabledDatatypes.includes(dataType) ? value : ''
   }
 })
