@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over it. Add & Next left the picker showing the current time over a field it
   had cleared, so the next Add wrote 1970/01/01 for a UNIX register and
   2000/01/01 for a DATETIME.
+- **The bottom of the register list is reachable with a bitmap row open.** The
+  client grid reserved the same height for every row, so the bit panel that
+  opens below a bitmap register pushed everything after it down by a height the
+  grid did not know about, and the last rows ended below the furthest it would
+  scroll. The row now takes the height the panel needs, at any window width.
 - **Add & Next no longer replaces the register it just added.** With no free
   address left above the one you added, the dialog stayed on that address
   without marking it, and Add was still live: pressing it wrote over the

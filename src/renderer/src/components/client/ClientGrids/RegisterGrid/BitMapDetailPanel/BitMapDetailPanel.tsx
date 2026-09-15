@@ -148,6 +148,4 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
   )
 })
 
-export const BITMAP_DETAIL_HEIGHT = 220 // 4 rows × ~52px card + container padding + border
-
 export default BitMapDetailPanel

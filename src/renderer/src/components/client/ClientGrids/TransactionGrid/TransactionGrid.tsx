@@ -89,7 +89,6 @@ const TransactionGridContent = meme(() => {
       apiRef={api}
       rows={transactions}
       columns={columns}
-      disableVirtualization={window.api.isE2e}
       autoHeight={false}
       density="compact"
       rowHeight={40}
