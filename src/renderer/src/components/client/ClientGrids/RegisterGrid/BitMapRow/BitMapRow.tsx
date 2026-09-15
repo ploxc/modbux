@@ -51,8 +51,11 @@ const BitMapRow = meme((props: GridRowProps): JSX.Element => {
     return <GridRow {...props} />
   }
 
+  // No style on the wrapper: `renderRow` in @mui/x-virtualizer hands the row
+  // slot none, so `props.style` is undefined and reading it here only suggests
+  // the wrapper carries the scroller's geometry.
   return (
-    <div style={props.style} data-id={address}>
+    <div data-id={address}>
       {/* The row is held at its own height by the expanded-row rule in
           RegisterGrid's sx: MUI writes min-height, max-height and --height
           from what getRowHeight answered, over anything passed in style. */}

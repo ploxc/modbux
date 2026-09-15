@@ -40,6 +40,68 @@ export function cellLocator(p: Page, rowId: number, field: string): Locator {
 }
 
 /**
+ * Scroll the DataGrid sideways until the thing named is in the DOM.
+ *
+ * The grid virtualises both axes. How far right a column has to be before it
+ * leaves the DOM depends on the window, and the window depends on the screen,
+ * so a spec that names a far column without this passes on one machine and
+ * fails on another. CI is the case that matters: nothing pins the size there.
+ *
+ * With a row id it waits for that row's cell rather than the column header,
+ * because the header of a column can be rendered while its cells are not.
+ * Starts from the left each time, so a scroll a previous call left behind
+ * cannot hide the target. Returns at once when it is already there, which is
+ * every call on a window wide enough.
+ */
+export async function scrollToColumn(p: Page, field: string, rowId?: number): Promise<void> {
+  const grid = p.locator('.register-grid')
+  const target =
+    rowId === undefined
+      ? grid.locator(`.MuiDataGrid-columnHeader[data-field="${field}"]`)
+      : grid.locator(`.MuiDataGrid-row[data-id="${rowId}"] [data-field="${field}"]`)
+  if ((await target.count()) > 0) return
+
+  const scroller = grid.locator('.MuiDataGrid-virtualScroller')
+  if ((await scroller.count()) === 0) return
+
+  const scrollWidth = await scroller.evaluate((el: HTMLElement) => el.scrollWidth)
+  const step = 150
+  for (let pos = 0; pos <= scrollWidth; pos += step) {
+    await scroller.evaluate((el: HTMLElement, x: number) => (el.scrollLeft = x), pos)
+    await p.waitForTimeout(80)
+    if ((await target.count()) > 0) return
+  }
+}
+
+/**
+ * Assert a register grid column is there, or is not, having looked the whole
+ * width over first.
+ *
+ * Presence rather than visibility: `scrollToColumn` stops as soon as the header
+ * is in the DOM, which is a buffer's width before it is on screen. A column
+ * virtualisation drops is absent for the same reason a column that was never
+ * added is, so the absent case needs the full walk as much as the present one.
+ */
+export async function expectColumn(p: Page, field: string, present: boolean): Promise<void> {
+  await scrollToColumn(p, field)
+  await expect(
+    p.locator(`.register-grid .MuiDataGrid-columnHeader[data-field="${field}"]`)
+  ).toHaveCount(present ? 1 : 0)
+}
+
+/**
+ * Bring a cell into the DOM on both axes, the row first.
+ *
+ * Every reader below goes through this, because how many rows and columns fit
+ * depends on the window and CI pins no size. A Windows runner with a smaller
+ * screen renders fewer of both than this machine does.
+ */
+export async function scrollToCell(p: Page, rowId: number, field: string): Promise<void> {
+  await scrollToRow(p, rowId)
+  await scrollToColumn(p, field, rowId)
+}
+
+/**
  * Read a cell's current text — a single snapshot, no retry.
  *
  * Only use this when the test genuinely wants a point-in-time sample, e.g.
@@ -49,6 +111,7 @@ export function cellLocator(p: Page, rowId: number, field: string): Locator {
  * snapshot has no second chance.
  */
 export async function cell(p: Page, rowId: number, field: string): Promise<string> {
+  await scrollToCell(p, rowId, field)
   return ((await cellLocator(p, rowId, field).textContent()) ?? '').trim()
 }
 
@@ -72,6 +135,7 @@ export async function expectCell(
   field: string,
   expected: string | RegExp
 ): Promise<void> {
+  await scrollToCell(p, rowId, field)
   await expect(cellLocator(p, rowId, field)).toHaveText(expected)
 }
 
@@ -83,6 +147,7 @@ export async function expectCellContains(
   expected: string,
   options?: { ignoreCase?: boolean }
 ): Promise<void> {
+  await scrollToCell(p, rowId, field)
   await expect(cellLocator(p, rowId, field)).toContainText(expected, options)
 }
 
@@ -524,10 +589,19 @@ export const disableClientRawMode = (p: Page): Promise<void> => setClientRawMode
 
 // ─── Shared helpers extracted from specs ───────────────────────────
 
-/** Scroll the DataGrid virtual scroller so a specific row is visible */
+/**
+ * Scroll the DataGrid virtual scroller so a specific row is visible.
+ *
+ * Scoped to the register grid where there is one: the transaction log is a
+ * second DataGrid, and an unscoped scroller is a strict-mode failure whenever
+ * the log is open.
+ */
 export async function scrollToRow(p: Page, rowId: number): Promise<void> {
-  const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
-  const scroller = p.locator('.MuiDataGrid-virtualScroller')
+  const registerGrid = p.locator('.register-grid')
+  const grid =
+    (await registerGrid.count()) > 0 ? registerGrid : p.locator('.MuiDataGrid-root').first()
+  const row = grid.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
+  const scroller = grid.locator('.MuiDataGrid-virtualScroller')
 
   // If already visible, nothing to do
   if ((await row.count()) > 0 && (await row.isVisible())) return
@@ -542,7 +616,7 @@ export async function scrollToRow(p: Page, rowId: number): Promise<void> {
   }
 }
 
-/** Read a cell value, scrolling to the row if needed */
+/** Read a cell value, scrolling to its row and its column if needed */
 export async function scrollCell(p: Page, rowId: number, field: string): Promise<string> {
   await scrollToRow(p, rowId)
   return cell(p, rowId, field)
@@ -570,6 +644,9 @@ export async function writeRegister(
   fc: 'fc6' | 'fc16',
   dataType?: string
 ): Promise<void> {
+  // The write button lives in the rightmost column, which column
+  // virtualisation drops on a window narrow enough.
+  await scrollToColumn(p, 'actions', address)
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId('write-value-input')).toBeVisible()
 
@@ -588,6 +665,9 @@ export async function writeRegister(
 
 /** Write a coil state via the write dialog */
 export async function writeCoil(p: Page, address: number, state: boolean): Promise<void> {
+  // The write button lives in the rightmost column, which column
+  // virtualisation drops on a window narrow enough.
+  await scrollToColumn(p, 'actions', address)
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 
@@ -619,6 +699,9 @@ export async function writeCoilsFc15(
   address: number,
   states: Record<number, boolean>
 ): Promise<void> {
+  // The write button lives in the rightmost column, which column
+  // virtualisation drops on a window narrow enough.
+  await scrollToColumn(p, 'actions', address)
   await p.getByTestId(`write-action-${address}`).click()
   await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 

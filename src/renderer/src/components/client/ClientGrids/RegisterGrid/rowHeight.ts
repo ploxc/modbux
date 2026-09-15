@@ -14,9 +14,14 @@
  */
 export const ROW_HEIGHT = 40
 
+/** What `density="compact"` scales by, and what `getRowHeight` is handed. */
+const COMPACT_DENSITY_FACTOR = 0.7
+
 /**
  * The same figure the CSS rule needs, where no `densityFactor` is in hand.
  * It holds the row at its own height while the slot around it carries the
- * panel too.
+ * panel too. Floored the way `useGridVirtualizer` floors its own base, so the
+ * two cannot land half a pixel apart at a `rowHeight` the factor does not
+ * divide.
  */
-export const COMPACT_ROW_HEIGHT = ROW_HEIGHT * 0.7
+export const COMPACT_ROW_HEIGHT = Math.floor(ROW_HEIGHT * COMPACT_DENSITY_FACTOR)

@@ -183,7 +183,9 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
     await loadDummyData(mainPage, '0', '60')
 
     const outer = mainPage.locator('div[data-id="0"]').first()
-    const scroller = mainPage.locator('.MuiDataGrid-virtualScroller')
+    // Scoped to the register grid: the transaction log is a second DataGrid,
+    // and an unscoped locator is a strict-mode failure whenever it is open.
+    const scroller = mainPage.locator('.register-grid .MuiDataGrid-virtualScroller')
     const collapsedHeight = (await outer.boundingBox())?.height ?? 0
     const collapsedScroll = await scroller.evaluate((el: HTMLElement) => el.scrollHeight)
 
@@ -199,6 +201,26 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
     // rowHeight that the panel's height reached in no way, so this used to be
     // zero and the last row ended below the furthest the grid would scroll.
     expect(expandedScroll - collapsedScroll).toBeGreaterThanOrEqual(grew)
+
+    // An address stops being a bitmap while its panel is open: the type cell is
+    // editable and nothing collapses the row on the way out. The panel goes,
+    // and the height reserved for it has to go too or a gap is left with no
+    // control to close it.
+    const typeCell = mainPage.locator('.MuiDataGrid-row[data-id="0"] [data-field="dataType"]')
+    await typeCell.dblclick()
+    await mainPage.getByRole('option', { name: 'UINT16', exact: true }).click()
+    await mainPage.keyboard.press('Enter')
+    await mainPage.waitForTimeout(500)
+
+    // The scroller's model, not the rendered row: the row draws its own height
+    // from its content either way, and what the grid reserved for it is where
+    // the gap would be.
+    expect(await scroller.evaluate((el: HTMLElement) => el.scrollHeight)).toBe(collapsedScroll)
+
+    await typeCell.dblclick()
+    await mainPage.getByRole('option', { name: 'BITMAP', exact: true }).click()
+    await mainPage.keyboard.press('Enter')
+    await mainPage.waitForTimeout(500)
 
     // Back to the one configured register, expanded, which is what the test
     // below collapses.

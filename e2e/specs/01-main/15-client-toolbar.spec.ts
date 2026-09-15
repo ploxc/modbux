@@ -12,6 +12,7 @@ import {
   cleanServerState,
   loadServerConfig,
   expectCell,
+  expectColumn,
   openColumnMenu
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
@@ -59,10 +60,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
     await mainPage.keyboard.press('Escape')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
-    await expect(header.locator('[data-field="word_uint16"]')).not.toBeVisible()
-    await expect(header.locator('[data-field="word_float"]')).not.toBeVisible()
+    await expectColumn(mainPage, 'word_int16', false)
+    await expectColumn(mainPage, 'word_uint16', false)
+    await expectColumn(mainPage, 'word_float', false)
   })
 
   test('enabling advanced mode shows value columns', async ({ mainPage }) => {
@@ -84,15 +84,14 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
     await mainPage.keyboard.press('Escape')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="word_int16"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_uint16"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_int32"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_uint32"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_float"]')).toBeVisible()
+    await expectColumn(mainPage, 'word_int16', true)
+    await expectColumn(mainPage, 'word_uint16', true)
+    await expectColumn(mainPage, 'word_int32', true)
+    await expectColumn(mainPage, 'word_uint32', true)
+    await expectColumn(mainPage, 'word_float', true)
 
-    // 64-bit columns should not be visible (explicitly disabled above)
-    await expect(header.locator('[data-field="word_int64"]')).not.toBeVisible()
+    // 64-bit columns should not be there (explicitly disabled above)
+    await expectColumn(mainPage, 'word_int64', false)
   })
 
   test('enabling 64-bit shows int64, uint64, double columns', async ({ mainPage }) => {
@@ -102,10 +101,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.waitForTimeout(200)
     await mainPage.keyboard.press('Escape')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="word_int64"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_uint64"]')).toBeVisible()
-    await expect(header.locator('[data-field="word_double"]')).toBeVisible()
+    await expectColumn(mainPage, 'word_int64', true)
+    await expectColumn(mainPage, 'word_uint64', true)
+    await expectColumn(mainPage, 'word_double', true)
   })
 
   test('disabling advanced mode hides all value columns', async ({ mainPage }) => {
@@ -117,10 +115,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.waitForTimeout(200)
     await mainPage.keyboard.press('Escape')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="word_int16"]')).not.toBeVisible()
-    await expect(header.locator('[data-field="word_float"]')).not.toBeVisible()
-    await expect(header.locator('[data-field="word_int64"]')).not.toBeVisible()
+    await expectColumn(mainPage, 'word_int16', false)
+    await expectColumn(mainPage, 'word_float', false)
+    await expectColumn(mainPage, 'word_int64', false)
   })
 
   test('re-enable advanced mode with 64-bit for remaining tests', async ({ mainPage }) => {
@@ -336,10 +333,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     test(`[${regType}] grid shows bit column, no dataType column`, async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
 
-      const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-      await expect(header.locator('[data-field="bit"]')).toBeVisible()
-      await expect(header.locator('[data-field="dataType"]')).not.toBeVisible()
-      await expect(header.locator('[data-field="hex"]')).not.toBeVisible()
+      await expectColumn(mainPage, 'bit', true)
+      await expectColumn(mainPage, 'dataType', false)
+      await expectColumn(mainPage, 'hex', false)
     })
   }
 
@@ -347,16 +343,14 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await selectRegisterType(mainPage, 'Coils')
     await readRegisters(mainPage, '0', '8')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="actions"]')).toBeVisible()
+    await expectColumn(mainPage, 'actions', true)
   })
 
   test('[Discrete Inputs] no write action column (read-only)', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Discrete Inputs')
     await readRegisters(mainPage, '0', '8')
 
-    const header = mainPage.locator('.MuiDataGrid-columnHeaders')
-    await expect(header.locator('[data-field="actions"]')).not.toBeVisible()
+    await expectColumn(mainPage, 'actions', false)
   })
 
   // Verify 16-bit register features are back after switching
