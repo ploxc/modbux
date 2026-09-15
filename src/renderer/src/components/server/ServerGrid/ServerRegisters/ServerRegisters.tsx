@@ -14,7 +14,7 @@ import {
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { gridSurface } from '@renderer/theme'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
 import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
@@ -53,17 +53,12 @@ const getDisplayValue = (register: ServerRegister[number]): string | number => {
   return register.value
 }
 
+// The value was held in state behind a 10 ms timer. `ServerDelayedSetter`
+// already batches every register write on a 50 ms timer, so the second delay
+// debounced nothing, and `register` is a fresh object per write, which re-ran
+// the effect on its own whatever else was in the list.
 const ServerRegisterValue = meme(({ register }: RowProps): JSX.Element => {
-  const [displayValue, setDisplayValue] = useState(() => getDisplayValue(register))
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setDisplayValue(getDisplayValue(register))
-    }, 10)
-    return (): void => {
-      clearTimeout(handle)
-    }
-  }, [register.value, register.params.stringValue, register])
+  const displayValue = getDisplayValue(register)
 
   return (
     <Box
