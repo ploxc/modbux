@@ -39,14 +39,16 @@ const disconnected: ClientState = {
   connectState: 'disconnected',
   polling: false,
   scanningUnitIds: false,
-  scanningRegisters: false
+  scanningRegisters: false,
+  reading: false
 }
 
 const connectedAndPolling: ClientState = {
   connectState: 'connected',
   polling: true,
   scanningUnitIds: false,
-  scanningRegisters: false
+  scanningRegisters: false,
+  reading: false
 }
 
 const pushClientState = (clientState: ClientState): void => {
