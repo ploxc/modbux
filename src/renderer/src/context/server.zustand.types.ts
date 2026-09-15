@@ -73,6 +73,8 @@ export type ServerZustand = {
   setSelectedUuid: (uuid: string) => void
   createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
+  /** Empties a uuid on both sides: main's data and generators, then `clean`. */
+  resetServer: (uuid: string) => Promise<void>
   init: (uuid?: string) => Promise<void>
   addBool: (type: BooleanRegisters, address: number) => void
   removeBool: (type: BooleanRegisters, address: number) => void

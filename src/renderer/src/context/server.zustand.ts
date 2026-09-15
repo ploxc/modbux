@@ -133,6 +133,10 @@ export const useServerZustand = create<
         })
         get().cleanOrphanedServerState()
       },
+      resetServer: async (uuid) => {
+        await window.api.resetServer(uuid)
+        get().clean(uuid)
+      },
       init: async (uuid) => {
         set((state) => {
           if (uuid) state.ready[uuid] = false
