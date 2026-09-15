@@ -40,8 +40,12 @@ export const AddressField = meme(() => {
           }
         }}
       />
-      {addressInUse && <FormHelperText>In use</FormHelperText>}
-      {addressFitError && <FormHelperText>Data type does not fit at this address</FormHelperText>}
+      {addressInUse && <FormHelperText data-testid="add-reg-address-in-use">In use</FormHelperText>}
+      {addressFitError && (
+        <FormHelperText data-testid="add-reg-address-fit-error">
+          Data type does not fit at this address
+        </FormHelperText>
+      )}
     </FormControl>
   )
 })
