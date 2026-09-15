@@ -196,8 +196,10 @@ describe('the drop on its own', () => {
     }
     dropUnservableRegisters(state)
 
-    expect(state).toEqual({
-      serverRegisters: { u: null, v: { '1': null }, w: { '1': { coils: null } } }
+    expect(state.serverRegisters).toEqual({
+      u: null,
+      v: { '1': null },
+      w: { '1': { coils: null } }
     })
   })
 
@@ -283,7 +285,7 @@ describe('a persisted generator the interval floor refuses', () => {
   })
 })
 
-describe('the used addresses of a unit the drop touched', () => {
+describe('the used addresses the drop writes back', () => {
   /** A generator at `address` firing every millisecond, which the floor refuses. */
   const refusedGenerator = (address: number): Record<string, unknown> => ({
     address,
@@ -305,7 +307,7 @@ describe('the used addresses of a unit the drop touched', () => {
     usedAddresses: {
       u: {
         '1': { input_registers: [], holding_registers: [100, 101, 200] },
-        '2': { input_registers: [], holding_registers: [300] }
+        '2': { input_registers: [], holding_registers: [300, 400] }
       }
     },
     serverRegisters: {
@@ -344,7 +346,10 @@ describe('the used addresses of a unit the drop touched', () => {
     expect(usedHolding(state, '1')).toEqual([100, 101])
   })
 
-  it('leaves a unit it dropped nothing from alone', () => {
+  // The step is gated on the store version, so a blob the drop has already run
+  // over never reaches it twice. Unit 2 is that blob: the register it claims
+  // 400 for is gone, and nothing is left to drop.
+  it('corrects a unit nothing was dropped from', () => {
     const state = persisted()
     dropUnservableRegisters(state)
 
@@ -359,6 +364,29 @@ describe('the used addresses of a unit the drop touched', () => {
     dropUnservableRegisters(state)
 
     expect(usedHolding(state, '1')).toEqual([100, 101])
+  })
+
+  // `repairPersisted` reads the field whole and names it in what the user is
+  // told, and it cannot name a value that was replaced before it looked.
+  it('leaves a map that is not an object for the repair to name', () => {
+    const state = persisted()
+    state.usedAddresses = 'nonsense'
+    dropUnservableRegisters(state)
+
+    expect(state.usedAddresses).toBe('nonsense')
+  })
+
+  // The map is one persisted field, so a key its schema refuses costs every
+  // unit in it. The same key costs `serverRegisters` alone.
+  it('writes nothing for a unit id outside the map', () => {
+    const state = persisted()
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const registers = perUuid.u as Record<string, unknown>
+    registers['300'] = registers['2']
+    dropUnservableRegisters(state)
+
+    const used = state.usedAddresses as Record<string, Record<string, unknown>>
+    expect(Object.keys(used.u ?? {})).toEqual(['1', '2'])
   })
 })
 

@@ -1,7 +1,7 @@
 import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterParamsSchema } from '../types/server'
-import { ParitySchema } from '../types'
+import { NumberRegistersSchema, ParitySchema, UnitIdStringSchema } from '../types'
 import { getUsedAddresses } from '../utils'
 
 /**
@@ -43,10 +43,21 @@ const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
 export const objectValues = (value: unknown): Record<string, unknown>[] =>
   recordEntries(value).map(([, entry]) => entry)
 
-/** The object at `parent[key]`, made empty when there is not one there. */
-const recordAt = (parent: Record<string, unknown>, key: string): Record<string, unknown> => {
+/**
+ * The object at `parent[key]`, made empty when the key holds nothing.
+ *
+ * A key holding something that is not an object answers `undefined` and is left
+ * where it is. `repairPersisted` reads a persisted field whole, resets the ones
+ * that fail and names them through `FIELD_LABELS`, so a bad value replaced here
+ * is one it never sees and never tells the user about.
+ */
+const recordAt = (
+  parent: Record<string, unknown>,
+  key: string
+): Record<string, unknown> | undefined => {
   const existing = parent[key]
   if (isRecord(existing)) return existing
+  if (existing !== undefined) return undefined
   const made: Record<string, unknown> = {}
   parent[key] = made
   return made
@@ -69,7 +80,7 @@ const usedAddressesOfUnit = (
   registersByType: Record<string, unknown>
 ): Record<string, number[]> => {
   const used: Record<string, number[]> = {}
-  for (const registerType of ['input_registers', 'holding_registers'] as const) {
+  for (const registerType of NumberRegistersSchema.options) {
     const params = objectValues(registersByType[registerType])
       .map((entry) => RegisterParamsSchema.safeParse(entry.params))
       .flatMap((parsed) => (parsed.success ? [parsed.data] : []))
@@ -79,7 +90,8 @@ const usedAddressesOfUnit = (
 }
 
 /**
- * Drop persisted registers the current `RegisterParamsSchema` no longer names.
+ * Drop persisted registers the current `RegisterParamsSchema` no longer names,
+ * and rewrite the used addresses of every unit walked.
  *
  * Two rules arrived after registers had already been persisted against looser
  * ones. `RegisterParamsBasePartSchema.address` was a bare number, so a config
@@ -88,29 +100,37 @@ const usedAddressesOfUnit = (
  * works a top level field at a time, and without this one such register costs
  * every register on every server and every unit.
  *
- * A unit the drop touched gets its `usedAddresses` rewritten, because that map
- * is persisted beside the registers and the only thing recomputing it on launch
- * is `syncUuidToBackend`, for a unit that still holds something. What survived
- * without this was a unit the drop emptied, which `extractUnitIdsWithData`
- * skips, and every unit of a server whose port `createServer` refuses. Measured
- * on a v4 blob: a generator at 200 the interval floor refuses left
- * `holding_registers: [200]` standing in both, and `isAddressInUse` is what
- * reads that map.
+ * `usedAddresses` is persisted beside the registers, `isAddressInUse` refuses an
+ * address against it, and the only thing recomputing it on launch is
+ * `syncUuidToBackend`, for a unit that still holds something. So a unit the drop
+ * emptied kept its addresses marked, because `extractUnitIdsWithData` skips it,
+ * and so did every unit of a server whose port `createServer` refuses.
+ *
+ * Every unit walked, rather than the ones something went from, because a blob
+ * can arrive with the register gone and the address still marked: store version
+ * 5 ran the address drop and not the interval one, between `5fc739d` and
+ * `5211399`, and sits below this step's gate.
+ *
+ * A unit id `UnitIdStringSchema` refuses is skipped, because the whole map is
+ * one persisted field: writing `'300'` into it would cost the addresses of every
+ * unit beside it, where the same key costs `serverRegisters` alone today.
  */
 export function dropUnservableRegisters(state: Record<string, unknown>): void {
   for (const [uuid, registersPerUnit] of recordEntries(state.serverRegisters)) {
+    const usedAddresses = recordAt(state, 'usedAddresses')
+    const usedPerUnit = usedAddresses && recordAt(usedAddresses, uuid)
+
     for (const [unitId, registersByType] of recordEntries(registersPerUnit)) {
-      let dropped = false
       for (const entriesByAddress of objectValues(registersByType)) {
         for (const [address, entry] of Object.entries(entriesByAddress)) {
           if (isRecord(entry) && isServable(address, entry)) continue
           delete entriesByAddress[address]
-          dropped = true
         }
       }
-      if (!dropped) continue
-      recordAt(recordAt(state, 'usedAddresses'), uuid)[unitId] =
-        usedAddressesOfUnit(registersByType)
+
+      if (!usedPerUnit) continue
+      if (!UnitIdStringSchema.safeParse(unitId).success) continue
+      usedPerUnit[unitId] = usedAddressesOfUnit(registersByType)
     }
   }
 }
