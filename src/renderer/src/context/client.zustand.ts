@@ -74,6 +74,22 @@ const clearRegisterDataWhenIdle = (): void => {
 }
 
 /**
+ * Ask main for a read, unless it is in no position to answer.
+ *
+ * `read` refuses and says so in a snackbar when a poll, either scan or a read
+ * already in flight owns the port, and again when nothing is connected, so a
+ * caller that asks anyway costs the user a warning it did not ask for. The four
+ * states are `_readLoopOwner` in `modbusClient`.
+ */
+const readWhenMainCan = (): void => {
+  const { connectState, polling, scanningUnitIds, scanningRegisters, reading } =
+    useClientZustand.getState().clientState
+  if (connectState !== 'connected') return
+  if (polling || scanningUnitIds || scanningRegisters || reading) return
+  window.api.read()
+}
+
+/**
  * Whether a `client_state` push has landed since the module was evaluated.
  *
  * `init` asks main what the client is doing, because main pushes on a change
@@ -416,20 +432,24 @@ export const useClientZustand = create<
 
         // The rows on screen were read in the other word order, and the
         // conversion happens where the reading does, so they stay that way
-        // until the next read. Ask for one, unless something else is about
-        // to: polling reads on its own, and a scan is filling the list.
-        const { connectState, polling, scanningRegisters } = get().clientState
-        const hasRows = useDataZustand.getState().registerData.length > 0
-        if (connectState === 'connected' && !polling && !scanningRegisters && hasRows) {
-          window.api.read()
-        }
+        // until the next read. An empty grid has nothing to put right.
+        if (useDataZustand.getState().registerData.length > 0) readWhenMainCan()
       },
-      setReadConfiguration: (readConfiguration) =>
+      setReadConfiguration: (readConfiguration) => {
+        if (!get().ready) return
         set((state) => {
-          if (!get().ready) return
           state.readConfiguration = readConfiguration
-          window.api.setReadConfiguration(readConfiguration)
-        }),
+        })
+        window.api.setReadConfiguration(readConfiguration)
+
+        // Turning it on puts the mapping in the grid through `showMapping`,
+        // which gives every row `dummyWords`, and that reads `uint16: 0`. A
+        // connected user was left looking at zeros nothing had asked a device
+        // for. Main holds what the read needs by then: `ReadConfiguration`
+        // flushes the mapping before it calls this, and the flag goes out on
+        // the line above.
+        if (readConfiguration) readWhenMainCan()
+      },
       // Reading
       setPollRate: async (pollRate) => {
         if (!get().ready) return

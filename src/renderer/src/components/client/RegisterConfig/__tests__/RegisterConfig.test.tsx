@@ -15,7 +15,7 @@ vi.hoisted(() => {
 
 import { render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterType } from '@shared'
+import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
 
 // Read configuration reads the addresses a data type was set on. What the
@@ -35,8 +35,15 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
   } as never)
 }
 
+// The stub above answers `undefined` to every channel, `get_client_state`
+// included, and `init` writes that answer into the store. The button reads the
+// client state, so it gets one here.
 beforeEach(() => {
-  useClientZustand.setState({ ready: true, readConfiguration: false } as never)
+  useClientZustand.setState({
+    ready: true,
+    readConfiguration: false,
+    clientState: { ...defaultClientState }
+  } as never)
 })
 
 describe('RegisterConfig read configuration', () => {
@@ -78,5 +85,39 @@ describe('RegisterConfig read configuration', () => {
     render(<RegisterConfig />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
+  })
+
+  // Pressing it asks main for a read, and main refuses one while a read is in
+  // flight. The button says so instead of taking the press.
+  it('refuses while a read is in flight, and offers again after it', () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    useClientZustand.setState({
+      clientState: { ...defaultClientState, connectState: 'connected', reading: true }
+    } as never)
+
+    const { rerender } = render(<RegisterConfig />)
+    expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
+
+    useClientZustand.setState({
+      clientState: { ...defaultClientState, connectState: 'connected', reading: false }
+    } as never)
+    rerender(<RegisterConfig />)
+
+    expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
+  })
+
+  // A mapping with nothing to read turns read configuration off. A read in
+  // flight greys the same button and must not, or the grid empties while the
+  // read that is about to fill it is still on the wire.
+  it('leaves read configuration on while a read is in flight', () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    useClientZustand.setState({
+      readConfiguration: true,
+      clientState: { ...defaultClientState, connectState: 'connected', reading: true }
+    } as never)
+
+    render(<RegisterConfig />)
+
+    expect(useClientZustand.getState().readConfiguration).toBe(true)
   })
 })
