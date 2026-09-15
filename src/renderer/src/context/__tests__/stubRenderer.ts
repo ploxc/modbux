@@ -1,12 +1,17 @@
-import { ClientState, ConnectionConfigSchema, RegisterConfigSchema } from '@shared'
+import {
+  AddRegisterParamsSchema,
+  ClientState,
+  ConnectionConfigSchema,
+  RegisterConfigSchema
+} from '@shared'
 
 /**
  * The `window` a store finds when it is imported, answering like the boundary.
  *
  * The stores call IPC at module scope and from every setter, so a blanket
- * `undefined` here is a mock that lies: the config setters write only when main
- * accepts, and under that stub none of them would ever write. These two parse
- * with the schemas `main/ipc.ts` guards the channels with, and answer what
+ * `undefined` here is a mock that lies: a setter that writes only when main
+ * accepts writes nothing under that stub. Every channel answering this way
+ * parses with the schema `main/ipc.ts` guards it with, and answers what
  * `createIpcHandle` answers.
  */
 const answerConfig = (schema: {
@@ -34,6 +39,9 @@ const disconnected: ClientState = {
 const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   updateConnectionConfig: answerConfig(ConnectionConfigSchema.deepPartial()),
   updateRegisterConfig: answerConfig(RegisterConfigSchema.deepPartial()),
+  // The word main answers with, which for a payload it refuses is nothing.
+  addReplaceServerRegister: (payload: unknown): Promise<number | undefined> =>
+    Promise.resolve(AddRegisterParamsSchema.safeParse(payload).success ? 0 : undefined),
   getClientState: () => Promise.resolve(disconnected),
   getAppVersion: () => Promise.resolve('0.0.0-test'),
   listSerialPorts: () => Promise.resolve([])

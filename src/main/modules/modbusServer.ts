@@ -469,8 +469,14 @@ export class ModbusServer {
    * Adds a register or value generator for a given server and unitId.
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
+   *
+   * Answers the word now held at `address`, which is 0 for a generator and for
+   * `none`, because neither has written one yet. The renderer's store waits for
+   * this answer before it writes, and the `register_value` events below go out
+   * before the answer does, so the value would otherwise reach a store with no
+   * entry to put it in and be dropped.
    */
-  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): void => {
+  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number => {
     const littleEndian = this._littleEndian.get(uuid) ?? false
     const {
       address,
@@ -508,7 +514,7 @@ export class ModbusServer {
     // `none` is an address held open with nothing in it, so there is nothing to
     // write and nothing to generate. The generator above is disposed either way,
     // which is what editing a register to `none` has to do.
-    if (dataType === 'none') return
+    if (dataType === 'none') return 0
 
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
@@ -529,7 +535,7 @@ export class ModbusServer {
         })
       })
       this._setServerData(uuid, unitId, serverData)
-      return
+      return serverData[registerType][address] ?? 0
     }
 
     // Otherwise, add a value generator for this register
@@ -552,6 +558,8 @@ export class ModbusServer {
         length
       })
     )
+
+    return 0
   }
 
   /**

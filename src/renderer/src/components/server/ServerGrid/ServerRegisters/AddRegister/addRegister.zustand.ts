@@ -158,9 +158,11 @@ interface AddRegisterZustand {
   /**
    * Writes what the dialog holds to the server, and answers where it landed.
    *
-   * Undefined when there is no register type, which means nothing was written.
+   * Undefined when nothing was written: no register type, or a payload main
+   * refused. Everything the buttons do afterwards reads the store this wrote,
+   * so they wait on it.
    */
-  submit: (isEdit: boolean) => { address: number; dataType: BaseDataType } | undefined
+  submit: (isEdit: boolean) => Promise<{ address: number; dataType: BaseDataType } | undefined>
   /**
    * Removes the register the dialog was opened on, and nothing outside edit
    * mode.
@@ -354,7 +356,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
      * The translation itself is pure and lives in the helpers, where its unit
      * conversions are tested.
      */
-    submit: (isEdit) => {
+    submit: async (isEdit) => {
       const form = getState()
       const { registerType, serverRegisterEdit } = form
       if (!registerType) return undefined
@@ -392,7 +394,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         }
       }
 
-      serverZustand.addRegister({ uuid, unitId, params })
+      if (!(await serverZustand.addRegister({ uuid, unitId, params }))) return undefined
 
       return { address: params.address, dataType: form.dataType }
     },

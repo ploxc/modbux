@@ -69,6 +69,67 @@ describe('a server that was just created', () => {
     expect(state.serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value).toBe(0)
     expect(state.usedAddresses[NEW_UUID]?.['0']?.['holding_registers']).toEqual([10])
   })
+
+  // Main encodes the register and sends its `register_value` before it answers
+  // this call, so the event reaches a store with no entry yet and is dropped.
+  // The word comes back with the answer instead.
+  it('holds the word main answered with', async () => {
+    stubCreateServer(5020)
+    const { useServerZustand } = await import('../server.zustand')
+    await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
+
+    const boundary = window.api as unknown as Record<string, unknown>
+    window.api = new Proxy(boundary, {
+      get: (target, method: string): unknown =>
+        method === 'addReplaceServerRegister'
+          ? (): Promise<number> => Promise.resolve(7)
+          : Reflect.get(target, method)
+    }) as never
+
+    await useServerZustand.getState().addRegister({
+      uuid: NEW_UUID,
+      unitId: '0',
+      params: {
+        address: 10,
+        registerType: 'holding_registers',
+        dataType: 'uint16',
+        comment: '',
+        value: 7,
+        min: undefined,
+        max: undefined,
+        interval: undefined
+      }
+    })
+
+    const state = useServerZustand.getState()
+    expect(state.serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value).toBe(7)
+  })
+
+  // A grid drawing a register the server does not serve is what this avoids.
+  // `RegisterAddressSchema` refuses 70000, so `add_replace_server_register`
+  // answers undefined and the store has nothing to show.
+  it('keeps no register main refused', async () => {
+    stubCreateServer(5020)
+    const { useServerZustand } = await import('../server.zustand')
+    await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
+
+    await useServerZustand.getState().addRegister({
+      uuid: NEW_UUID,
+      unitId: '0',
+      params: {
+        address: 70000,
+        registerType: 'holding_registers',
+        dataType: 'uint16',
+        comment: '',
+        value: 7,
+        min: undefined,
+        max: undefined,
+        interval: undefined
+      }
+    })
+
+    expect(useServerZustand.getState().serverRegisters[NEW_UUID]).toEqual({})
+  })
 })
 
 describe('what clean writes', () => {

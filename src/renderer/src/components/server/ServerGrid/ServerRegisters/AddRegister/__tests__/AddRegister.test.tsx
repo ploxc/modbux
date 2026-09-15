@@ -17,7 +17,9 @@ const serverState = {
   serverRegisters: {},
   littleEndian: {},
   removeRegister: mockRemoveRegister,
-  addRegister: vi.fn()
+  // The real action answers whether main took the register, and everything the
+  // buttons do after a submit is behind that answer.
+  addRegister: vi.fn((): Promise<boolean> => Promise.resolve(true))
 }
 
 vi.mock('@renderer/context/server.zustand', () => ({
