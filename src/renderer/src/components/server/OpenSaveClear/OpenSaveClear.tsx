@@ -64,7 +64,6 @@ const useOpen: UseOpenHook = () => {
           const hasConfig = checkHasConfig(serverRegisters)
           if (!hasConfig) continue
           serverZustand.replaceServerRegisters(unitId, serverRegisters)
-          await new Promise((r) => setTimeout(r, 1))
         }
 
         // Show success notification
