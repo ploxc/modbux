@@ -44,12 +44,14 @@ type ScanUnitIdFn = ({
 /**
  * What a write did with the port.
  *
- * A write refused before it goes out creates no transaction, and
- * `_logTransaction` takes the last entry in `_transactions` whether or not this
- * write put it there. Refused and written are two answers, so a writer says
- * which of the two it is rather than folding both into `undefined`.
+ * A write refused before it goes out files no transaction, so refused and
+ * written are two answers rather than one `undefined`. A write that did go out
+ * names the transaction it filed, because the table holds the requests of
+ * everyone else too.
  */
-type WriteAttempt = { sent: false } | { sent: true; errorMessage: string | undefined }
+type WriteAttempt =
+  | { sent: false }
+  | { sent: true; transactionIdKey: string; errorMessage: string | undefined }
 
 /**
  * An exception reply rather than silence.
@@ -81,6 +83,18 @@ const toHexString = (bytes: Uint8Array | undefined): string =>
  */
 interface ModbusRTUEmitter extends ModbusRTU {
   removeAllListeners(): void
+}
+
+/**
+ * The two internals the transaction log reads.
+ *
+ * `ModbusRTU.d.ts` declares neither, so both arrive untyped and the shape is
+ * written here. `_transactions` is the table every request is filed in, and
+ * `_port._transactionIdWrite` is the key the next one files under.
+ */
+interface ModbusRTUInternals extends ModbusRTU {
+  _transactions: Record<string, RawTransaction | undefined>
+  _port: { _transactionIdWrite?: number } | undefined
 }
 
 export interface ClientParams {
@@ -551,6 +565,7 @@ export class ModbusClient {
       // Per group: `_logTransaction` below runs whether the group threw or not,
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
+      const transactionIdKey = this._nextTransactionIdKey()
       try {
         const rows = await this._readers[type](groupAddress, groupLength)
         rows.forEach((row) => {
@@ -594,7 +609,7 @@ export class ModbusClient {
           })
         }
       }
-      this._logTransaction(errorMessage)
+      this._logTransaction(transactionIdKey, errorMessage)
       if (this._clientState.connectState !== 'connected') break
     }
 
@@ -626,21 +641,36 @@ export class ModbusClient {
   // The key is a transaction id on TCP and UDP, and nothing at all on a
   // serial port: RTU has no transaction ids, so every serial transaction is
   // filed under the string "undefined". It is a map key, not a number.
-  private _logTransaction = (errorMessage: string | undefined): void => {
-    const rawTransactions = Object.entries(this._client['_transactions']) as [
-      string,
-      RawTransaction
-    ][]
-    const lastTransaction = rawTransactions.at(-1)
-    if (!lastTransaction) return
+  private _internals = (): ModbusRTUInternals => this._client as ModbusRTUInternals
 
-    const [transactionIdKey, rawTransaction] = lastTransaction
+  /**
+   * The key modbus-serial files the next request under.
+   *
+   * A `writeFCx` reads `_port._transactionIdWrite` to file its transaction and
+   * the port increments it once the buffer is out, so this is the key of the
+   * request that goes next. Read it immediately before the call: nothing awaits
+   * in between, so nothing else can file first.
+   */
+  private _nextTransactionIdKey = (): string => String(this._internals()._port?._transactionIdWrite)
+
+  /**
+   * Log the request filed under `transactionIdKey`, and only that one.
+   *
+   * The caller names its own request because the table holds everyone else's.
+   * A write and a read loop overlap: `write` files its transaction, the poll
+   * the user then starts files a second, and taking the last entry logged the
+   * read as the write and took the read's entry with it.
+   */
+  private _logTransaction = (transactionIdKey: string, errorMessage: string | undefined): void => {
+    const rawTransactions = this._internals()._transactions
+    const rawTransaction = rawTransactions[transactionIdKey]
+    if (!rawTransaction) return
 
     // Only the entry being logged, so the same one is not logged again on the
     // next call. Emptying the table takes entries for requests still in flight
     // with it, and `_onReceive` drops a response whose entry is gone, so the
     // request times out rather than resolving.
-    delete this._client['_transactions'][transactionIdKey]
+    delete rawTransactions[transactionIdKey]
 
     const transaction: Transaction = {
       id: `${transactionIdKey}__${v4()}`,
@@ -782,10 +812,8 @@ export class ModbusClient {
         break
     }
 
-    // Log the write transaction, and only the write's own: a refused write
-    // would take the last transaction in the table, which belongs to whoever
-    // did reach the port.
-    if (attempt.sent) this._logTransaction(attempt.errorMessage)
+    // Log the write transaction, and only the write's own.
+    if (attempt.sent) this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
 
     // Read back what the device now holds, unless a loop started during the
     // write and is reading anyway.
@@ -799,20 +827,24 @@ export class ModbusClient {
   ): Promise<WriteAttempt> => {
     const { unitId } = this._appState.connectionConfig
 
+    // The schema accepts an empty list, and neither function code can carry
+    // one. FC5 writes the first coil, which would be `undefined` on the wire.
+    // FC15 writes `array.length` into the frame as the quantity of coils, so
+    // an empty list asks a device to write none.
+    const [first] = value
+    if (first === undefined) {
+      this._emitMessage({
+        message: 'No coil value to write',
+        variant: 'warning',
+        error: undefined
+      })
+      return { sent: false }
+    }
+
+    const transactionIdKey = this._nextTransactionIdKey()
+
     try {
       if (single) {
-        // FC5 writes the first coil of the list, and the schema accepts an
-        // empty one, which would put `undefined` on the wire.
-        const [first] = value
-        if (first === undefined) {
-          this._emitMessage({
-            message: 'No coil value to write',
-            variant: 'warning',
-            error: undefined
-          })
-          return { sent: false }
-        }
-
         // Wrtie single coil
         await new Promise<WriteCoilResult>((resolve, reject) =>
           this._client.writeFC5(unitId, address, first, (err, data) => {
@@ -823,7 +855,7 @@ export class ModbusClient {
             resolve(data)
           })
         )
-        return { sent: true, errorMessage: undefined }
+        return { sent: true, transactionIdKey, errorMessage: undefined }
       }
       // Write multiple coils
       await new Promise<WriteMultipleResult>((resolve, reject) =>
@@ -837,10 +869,10 @@ export class ModbusClient {
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error })
-      return { sent: true, errorMessage: (error as Error).message }
+      return { sent: true, transactionIdKey, errorMessage: (error as Error).message }
     }
 
-    return { sent: true, errorMessage: undefined }
+    return { sent: true, transactionIdKey, errorMessage: undefined }
   }
 
   private _writeRegister = async (
@@ -874,6 +906,7 @@ export class ModbusClient {
 
     const { unitId } = this._appState.connectionConfig
     const registers = createRegisters(dataType, value, littleEndian)
+    const transactionIdKey = this._nextTransactionIdKey()
 
     try {
       if (single) {
@@ -887,7 +920,7 @@ export class ModbusClient {
             resolve(data)
           })
         )
-        return { sent: true, errorMessage: undefined }
+        return { sent: true, transactionIdKey, errorMessage: undefined }
       }
       // Write multiple registers
       await new Promise<WriteMultipleResult>((resolve, reject) =>
@@ -901,9 +934,9 @@ export class ModbusClient {
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
-      return { sent: true, errorMessage: (error as Error).message }
+      return { sent: true, transactionIdKey, errorMessage: (error as Error).message }
     }
-    return { sent: true, errorMessage: undefined }
+    return { sent: true, transactionIdKey, errorMessage: undefined }
   }
 
   //
@@ -1040,6 +1073,7 @@ export class ModbusClient {
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined
 
+    const transactionIdKey = this._nextTransactionIdKey()
     try {
       data = await this._readers[type](address, length)
     } catch (error) {
@@ -1048,7 +1082,7 @@ export class ModbusClient {
       this._emitMessage({ message: errorMessage, variant: 'error', error })
     }
 
-    this._logTransaction(errorMessage)
+    this._logTransaction(transactionIdKey, errorMessage)
 
     if (!data) return
     data = data.filter((row) =>
