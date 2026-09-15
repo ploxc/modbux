@@ -191,7 +191,7 @@ describe('ModbusServer', () => {
   const unitIdNumber = Number(unitId)
 
   /** A register the unit hosts, which is what makes the server answer for it at all. */
-  const hostUnit = (): void =>
+  const hostUnit = (): number =>
     server.addRegister({
       uuid,
       unitId,
@@ -270,6 +270,49 @@ describe('ModbusServer', () => {
           value: 1234
         })
       )
+    })
+
+    // The `register_value` above goes out before this answer does, so the
+    // renderer's store has no entry to put it in and drops it. The answer is
+    // what that store writes.
+    it('answers the word it wrote at the address', () => {
+      const answer = server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: 'test register',
+          value: 1234,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      expect(answer).toBe(1234)
+    })
+
+    // A generator has written nothing yet, and it sends its first value as an
+    // event like any other.
+    it('answers 0 for a register it generates', () => {
+      const answer = server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: 'test register',
+          value: undefined,
+          min: 0,
+          max: 10,
+          interval: 5000
+        }
+      })
+
+      expect(answer).toBe(0)
     })
 
     // `none` reaches a register map only from a config file. It holds its
@@ -2070,7 +2113,7 @@ describe('ModbusServer', () => {
       options: { ...defaultSerialPortOptions }
     }
 
-    const hostUnit = (id: UnitIdString, address: number, value: number): void =>
+    const hostUnit = (id: UnitIdString, address: number, value: number): number =>
       server.addRegister({
         uuid,
         unitId: id,

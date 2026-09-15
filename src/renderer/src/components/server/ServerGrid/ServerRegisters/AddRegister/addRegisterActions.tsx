@@ -25,16 +25,16 @@ export const AddButtons = meme(() => {
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval
   })
 
-  const handleAddAndClose = useCallback(() => {
-    const result = useAddRegisterZustand.getState().submit(edit)
+  const handleAddAndClose = useCallback(async () => {
+    const result = await useAddRegisterZustand.getState().submit(edit)
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.resetToDefaults()
     addRegisterZustand.setRegisterType(undefined)
   }, [edit])
 
-  const handleAddAndNext = useCallback(() => {
-    const result = useAddRegisterZustand.getState().submit(false)
+  const handleAddAndNext = useCallback(async () => {
+    const result = await useAddRegisterZustand.getState().submit(false)
     if (!result) return
     const { address, dataType } = result
     const addRegisterZustand = useAddRegisterZustand.getState()
@@ -52,8 +52,8 @@ export const AddButtons = meme(() => {
     addRegisterZustand.initNextUnusedAddress(address + size)
   }, [])
 
-  const handleEditSubmit = useCallback(() => {
-    const result = useAddRegisterZustand.getState().submit(true)
+  const handleEditSubmit = useCallback(async () => {
+    const result = await useAddRegisterZustand.getState().submit(true)
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.setRegisterType(undefined)

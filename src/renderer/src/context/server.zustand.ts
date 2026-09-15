@@ -295,15 +295,30 @@ export const useServerZustand = create<
       addRegister: async (addParams) => {
         const { uuid, unitId, params } = addParams
 
+        // Main answers before the store writes, so a register the schema
+        // refuses leaves the grid showing what the server actually holds. The
+        // shape is A3's, on the one server channel carrying a whole register.
+        //
+        // The answer is the word rather than a yes, because main sends the
+        // `register_value` for a fixed register from inside the same call, and
+        // that event arrives before this one resolves. `setRegisterValue` drops
+        // a value for an address it has no entry for, so a yes would leave
+        // every fixed register reading 0 until something wrote it again.
+        //
+        // What this answers goes back out to the caller, because Add & Next
+        // asks for the next free address and that reads the map written below.
+        const value = await window.api.addReplaceServerRegister({ uuid, unitId, params })
+        if (value === undefined) return false
+
         set((state) => {
           const registers = unitRegisters(state, uuid, unitId)
-          registers[params.registerType][params.address] = { value: 0, params }
+          registers[params.registerType][params.address] = { value, params }
           unitUsedAddresses(state, uuid, unitId)[params.registerType] = getUsedAddresses(
             Object.values(registers[params.registerType]).map((r) => r.params)
           )
         })
 
-        await window.api.addReplaceServerRegister({ uuid, unitId, params })
+        return true
       },
       removeRegister: (removeParams) => {
         const { uuid, unitId, registerType, address } = removeParams
