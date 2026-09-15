@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list is refused for FC15 the way it already was for FC5.
 - **The transaction log now shows a unit id scan.** The scan sends a request per
   unit id and per register type, and the log listed none of them.
+- **Two bit toggles in a row now both land.** A bit in the server's bitmap panel
+  is set by writing the whole word back, and the panel read that word from
+  before the toggle before it, so a second toggle in quick succession cleared
+  the bit the first had set. A double click on one bit left it on.
 - **A config file Modbux refuses now says which register and which field.** One
   malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
   naming neither the address nor what was wrong with it, and a unit id outside

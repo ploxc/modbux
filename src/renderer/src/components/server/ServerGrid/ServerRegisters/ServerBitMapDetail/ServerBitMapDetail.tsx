@@ -1,8 +1,8 @@
 import Box from '@mui/material/Box'
 import { ServerRegisterEntry, BitMapConfig, getBit } from '@shared'
-import { useServerZustand } from '@renderer/context/server.zustand'
+import { pendingRegisterValue, useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import ServerBit from '../../shared/ServerBit'
 
 interface ServerBitMapDetailProps {
@@ -18,21 +18,39 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
   const uuid = useServerZustand((z) => z.selectedUuid)
   const unitId = useServerZustand((z) => z.getUnitId(z.selectedUuid))
 
+  // A toggle sends the word before it with one bit moved, and the store does
+  // not hold the word a toggle wrote until main has answered it. So a toggle
+  // that arrives inside that round trip reads this instead.
+  const wordInFlight = useRef<number | undefined>(undefined)
+
   const handleToggle = useCallback(
-    (bitIndex: number) => {
+    async (bitIndex: number) => {
       const serverZustand = useServerZustand.getState()
-      const currentValue = register.value
+      const currentValue = wordInFlight.current ?? pendingRegisterValue(uuid, unitId, register)
       const newValue = getBit(currentValue, bitIndex)
         ? currentValue & ~(1 << bitIndex)
         : currentValue | (1 << bitIndex)
 
-      serverZustand.addRegister({
-        uuid,
-        unitId,
-        params: { ...params, value: newValue, min: undefined, max: undefined, interval: undefined }
-      })
+      wordInFlight.current = newValue
+      try {
+        await serverZustand.addRegister({
+          uuid,
+          unitId,
+          params: {
+            ...params,
+            value: newValue,
+            min: undefined,
+            max: undefined,
+            interval: undefined
+          }
+        })
+      } finally {
+        // Only the last toggle clears it. An earlier one clearing would hand
+        // the next toggle a word that is a toggle behind.
+        if (wordInFlight.current === newValue) wordInFlight.current = undefined
+      }
     },
-    [register.value, params, uuid, unitId]
+    [register, params, uuid, unitId]
   )
 
   const handleCommentChange = useCallback(
@@ -89,7 +107,7 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
             bitIndex={bitIndex}
             active={getBit(register.value, bitIndex)}
             comment={bitConfig?.[String(bitIndex)]?.comment}
-            onToggle={() => handleToggle(bitIndex)}
+            onToggle={() => void handleToggle(bitIndex)}
             onCommentChange={(c) => handleCommentChange(bitIndex, c)}
           />
         ))}
