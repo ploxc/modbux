@@ -6,8 +6,29 @@ import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 import Delete from '@mui/icons-material/Delete'
-import { registerWidth } from '@shared'
+import { BaseDataType, registerWidth } from '@shared'
 import { FIELD_DEFAULTS, isFormDirty, isTimestampType } from './addRegister.zustand.helpers'
+
+type SubmitResult = { address: number; dataType: BaseDataType } | undefined
+
+/**
+ * Runs a submit with the buttons off, and turns them back on whatever it does.
+ *
+ * `invoke` rejects when a main handler throws, and a refusal is the only thing
+ * it answers rather than throws. Without the `finally` such a throw left every
+ * button off until the dialog was closed and opened again.
+ */
+const withSubmitting = async (
+  setSubmitting: (submitting: boolean) => void,
+  submit: () => Promise<SubmitResult>
+): Promise<SubmitResult> => {
+  setSubmitting(true)
+  try {
+    return await submit()
+  } finally {
+    setSubmitting(false)
+  }
+}
 
 export const AddButtons = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -31,9 +52,9 @@ export const AddButtons = meme(() => {
   const [submitting, setSubmitting] = useState(false)
 
   const handleAddAndClose = useCallback(async () => {
-    setSubmitting(true)
-    const result = await useAddRegisterZustand.getState().submit(edit)
-    setSubmitting(false)
+    const result = await withSubmitting(setSubmitting, () =>
+      useAddRegisterZustand.getState().submit(edit)
+    )
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.resetToDefaults()
@@ -41,9 +62,9 @@ export const AddButtons = meme(() => {
   }, [edit])
 
   const handleAddAndNext = useCallback(async () => {
-    setSubmitting(true)
-    const result = await useAddRegisterZustand.getState().submit(false)
-    setSubmitting(false)
+    const result = await withSubmitting(setSubmitting, () =>
+      useAddRegisterZustand.getState().submit(false)
+    )
     if (!result) return
     const { address, dataType } = result
     const addRegisterZustand = useAddRegisterZustand.getState()
@@ -62,9 +83,9 @@ export const AddButtons = meme(() => {
   }, [])
 
   const handleEditSubmit = useCallback(async () => {
-    setSubmitting(true)
-    const result = await useAddRegisterZustand.getState().submit(true)
-    setSubmitting(false)
+    const result = await withSubmitting(setSubmitting, () =>
+      useAddRegisterZustand.getState().submit(true)
+    )
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.setRegisterType(undefined)

@@ -110,11 +110,12 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     expect(await intervalInput.inputValue()).toBe('5')
 
     // Comment reset to empty
-    expect(await commentInput.inputValue()).toBe('')
+    await expect(commentInput).toHaveValue('')
 
-    // Close modal
+    // Close modal, and leave it closed: the next test opens it again, and a
+    // backdrop still up swallows that click.
     await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await expect(mainPage.getByTestId('add-reg-address-input')).not.toBeVisible()
   })
 
   test('Add & Next for UTF-8: string reset, address advances by register length', async ({

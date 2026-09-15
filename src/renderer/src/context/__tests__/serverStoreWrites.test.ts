@@ -70,10 +70,11 @@ describe('a server that was just created', () => {
     expect(state.usedAddresses[NEW_UUID]?.['0']?.['holding_registers']).toEqual([10])
   })
 
-  // Main encodes the register and sends its `register_value` before it answers
-  // this call, so the event reaches a store with no entry yet and is dropped.
-  // The word comes back with the answer instead.
-  it('holds the word main answered with', async () => {
+  // Main encodes the register and sends its `register_value` words before it
+  // answers this call, so they reach a store with no entry yet and are dropped.
+  // They come back with the answer instead, and go through the same merge and
+  // the same 50 ms batcher the event feeds.
+  it('holds what main answered with, decoded', async () => {
     stubCreateServer(5020)
     const { useServerZustand } = await import('../server.zustand')
     await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
@@ -82,7 +83,7 @@ describe('a server that was just created', () => {
     window.api = new Proxy(boundary, {
       get: (target, method: string): unknown =>
         method === 'addReplaceServerRegister'
-          ? (): Promise<number> => Promise.resolve(7)
+          ? (): Promise<number[]> => Promise.resolve([0xffff])
           : Reflect.get(target, method)
     }) as never
 
@@ -92,17 +93,20 @@ describe('a server that was just created', () => {
       params: {
         address: 10,
         registerType: 'holding_registers',
-        dataType: 'uint16',
+        dataType: 'int16',
         comment: '',
-        value: 7,
+        value: -1,
         min: undefined,
         max: undefined,
         interval: undefined
       }
     })
 
-    const state = useServerZustand.getState()
-    expect(state.serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value).toBe(7)
+    await vi.waitFor(() =>
+      expect(
+        useServerZustand.getState().serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value
+      ).toBe(-1)
+    )
   })
 
   // A grid drawing a register the server does not serve is what this avoids.

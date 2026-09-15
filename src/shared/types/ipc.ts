@@ -205,12 +205,12 @@ export interface IpcHandlerSpec {
   }
 
   /**
-   * Add or replace a server register, and answer the word now held at its
-   * address. Undefined means the payload was refused and nothing changed.
+   * Add or replace a server register, and answer the words now held from its
+   * address on. Undefined means the payload was refused and nothing changed.
    */
   ['add_replace_server_register']: {
     args: [AddRegisterParams]
-    return: number | undefined
+    return: number[] | undefined
   }
 
   /** Remove a register value on the server */

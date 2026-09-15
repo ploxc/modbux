@@ -191,7 +191,7 @@ describe('ModbusServer', () => {
   const unitIdNumber = Number(unitId)
 
   /** A register the unit hosts, which is what makes the server answer for it at all. */
-  const hostUnit = (): number =>
+  const hostUnit = (): number[] =>
     server.addRegister({
       uuid,
       unitId,
@@ -272,32 +272,32 @@ describe('ModbusServer', () => {
       )
     })
 
-    // The `register_value` above goes out before this answer does, so the
-    // renderer's store has no entry to put it in and drops it. The answer is
-    // what that store writes.
-    it('answers the word it wrote at the address', () => {
+    // The `register_value` events above go out before this answer does, so the
+    // renderer's store has no entry to put them in and drops them. The answer
+    // is what that store folds instead.
+    it('answers the words it wrote from the address on', () => {
       const answer = server.addRegister({
         uuid,
         unitId,
         params: {
           address: 0,
           registerType: 'holding_registers',
-          dataType: 'uint16',
+          dataType: 'int32',
           comment: 'test register',
-          value: 1234,
+          value: 70000,
           min: undefined,
           max: undefined,
           interval: undefined
         }
       })
 
-      expect(answer).toBe(1234)
+      expect(answer).toEqual([1, 4464])
     })
 
     // `ValueGenerator` writes its first value from its constructor and sends it
     // as an event, which the renderer's store drops for want of an entry. The
-    // range excludes 0, so answering 0 cannot pass by luck.
-    it('answers the first word a generator wrote', () => {
+    // range excludes 0, so answering an empty register cannot pass by luck.
+    it('answers the first words a generator wrote', () => {
       const answer = server.addRegister({
         uuid,
         unitId,
@@ -313,13 +313,14 @@ describe('ModbusServer', () => {
         }
       })
 
-      expect(answer).toBeGreaterThanOrEqual(100)
-      expect(answer).toBeLessThanOrEqual(200)
+      expect(answer).toHaveLength(1)
+      expect(answer[0]).toBeGreaterThanOrEqual(100)
+      expect(answer[0]).toBeLessThanOrEqual(200)
     })
 
     // `none` holds its address open and writes nothing, so there is no word to
     // answer with.
-    it('answers 0 for a register with no data type', () => {
+    it('answers no words for a register with no data type', () => {
       const answer = server.addRegister({
         uuid,
         unitId,
@@ -335,7 +336,7 @@ describe('ModbusServer', () => {
         }
       })
 
-      expect(answer).toBe(0)
+      expect(answer).toEqual([])
     })
 
     // `none` reaches a register map only from a config file. It holds its
@@ -2136,7 +2137,7 @@ describe('ModbusServer', () => {
       options: { ...defaultSerialPortOptions }
     }
 
-    const hostUnit = (id: UnitIdString, address: number, value: number): number =>
+    const hostUnit = (id: UnitIdString, address: number, value: number): number[] =>
       server.addRegister({
         uuid,
         unitId: id,
