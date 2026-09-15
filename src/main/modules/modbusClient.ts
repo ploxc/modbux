@@ -42,6 +42,16 @@ type ScanUnitIdFn = ({
 }: Omit<ScanUnitIDParameters, 'range' | 'timeout'> & { id: number }) => Promise<void>
 
 /**
+ * What a write did with the port.
+ *
+ * A write refused before it goes out creates no transaction, and
+ * `_logTransaction` takes the last entry in `_transactions` whether or not this
+ * write put it there. Refused and written are two answers, so a writer says
+ * which of the two it is rather than folding both into `undefined`.
+ */
+type WriteAttempt = { sent: false } | { sent: true; errorMessage: string | undefined }
+
+/**
  * An exception reply rather than silence.
  *
  * modbus-serial hangs `modbusCode` on the error it builds from an exception
@@ -741,6 +751,14 @@ export class ModbusClient {
   //
   // Write
   public write = async (writeParameters: WriteParameters): Promise<void> => {
+    // `writeFC5`, `writeFC6`, `writeFC15` and `writeFC16` answer a closed port
+    // with a `PortNotOpenError` before they file a transaction, so a write down
+    // a closed port has nothing of its own to log.
+    if (this._clientState.connectState !== 'connected' || !this._client.isOpen) {
+      this._emitMessage({ message: 'Cannot write, not connected', variant: 'warning', error: null })
+      return
+    }
+
     const owner = this._readLoopOwner()
     if (owner) {
       this._emitMessage({
@@ -753,19 +771,21 @@ export class ModbusClient {
 
     const { address, type, value, dataType, single } = writeParameters
 
-    let errorMessage: string | undefined
+    let attempt: WriteAttempt
 
     switch (type) {
       case 'coils':
-        errorMessage = await this._writeCoil(address, value, single)
+        attempt = await this._writeCoil(address, value, single)
         break
       case 'holding_registers':
-        errorMessage = await this._writeRegister(address, value, dataType, single)
+        attempt = await this._writeRegister(address, value, dataType, single)
         break
     }
 
-    // Log the write transaction.
-    this._logTransaction(errorMessage)
+    // Log the write transaction, and only the write's own: a refused write
+    // would take the last transaction in the table, which belongs to whoever
+    // did reach the port.
+    if (attempt.sent) this._logTransaction(attempt.errorMessage)
 
     // Read back what the device now holds, unless a loop started during the
     // write and is reading anyway.
@@ -776,7 +796,7 @@ export class ModbusClient {
     address: number,
     value: boolean[],
     single: boolean
-  ): Promise<string | undefined> => {
+  ): Promise<WriteAttempt> => {
     const { unitId } = this._appState.connectionConfig
 
     try {
@@ -790,7 +810,7 @@ export class ModbusClient {
             variant: 'warning',
             error: undefined
           })
-          return
+          return { sent: false }
         }
 
         // Wrtie single coil
@@ -803,7 +823,7 @@ export class ModbusClient {
             resolve(data)
           })
         )
-        return
+        return { sent: true, errorMessage: undefined }
       }
       // Write multiple coils
       await new Promise<WriteMultipleResult>((resolve, reject) =>
@@ -817,10 +837,10 @@ export class ModbusClient {
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error })
-      return (error as Error).message
+      return { sent: true, errorMessage: (error as Error).message }
     }
 
-    return undefined
+    return { sent: true, errorMessage: undefined }
   }
 
   private _writeRegister = async (
@@ -828,7 +848,7 @@ export class ModbusClient {
     value: number,
     dataType: BaseDataType,
     single: boolean
-  ): Promise<string | undefined> => {
+  ): Promise<WriteAttempt> => {
     const { littleEndian } = this._appState.registerConfig
 
     if (single && !['int16', 'uint16'].includes(dataType)) {
@@ -837,7 +857,7 @@ export class ModbusClient {
         variant: 'warning',
         error: undefined
       })
-      return
+      return { sent: false }
     }
 
     // The dialog offers UTF-8 in the same list as the numbers, and a string is
@@ -849,7 +869,7 @@ export class ModbusClient {
         variant: 'warning',
         error: undefined
       })
-      return
+      return { sent: false }
     }
 
     const { unitId } = this._appState.connectionConfig
@@ -867,7 +887,7 @@ export class ModbusClient {
             resolve(data)
           })
         )
-        return
+        return { sent: true, errorMessage: undefined }
       }
       // Write multiple registers
       await new Promise<WriteMultipleResult>((resolve, reject) =>
@@ -881,9 +901,9 @@ export class ModbusClient {
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
-      return (error as Error).message
+      return { sent: true, errorMessage: (error as Error).message }
     }
-    return undefined
+    return { sent: true, errorMessage: undefined }
   }
 
   //

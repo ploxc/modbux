@@ -1742,6 +1742,135 @@ describe('ModbusClient', () => {
       })
     })
 
+    // What `_logTransaction` takes is the last entry in `_transactions`, and it
+    // deletes the entry it logs. So a write that files no transaction of its
+    // own logs somebody else's and takes it out of the table, and `_onReceive`
+    // drops a response whose entry is gone.
+    describe('the transaction a write logs', () => {
+      /**
+       * A read in flight, which is the entry the table holds when a write
+       * arrives. The read is gated so it stays in flight for the whole test:
+       * the read after a write would otherwise answer and log an entry of its
+       * own.
+       */
+      const aReadInFlight = () => {
+        gateTheReads()
+        mockModbusRTU._transactions = { '1': createMockTransaction() }
+      }
+
+      it('logs nothing when the coil list is empty', async () => {
+        await connectClient()
+        aReadInFlight()
+
+        await client.write({ address: 5, type: 'coils', value: [], single: true })
+
+        expect(getWindowCalls('transaction')).toHaveLength(0)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      it('logs nothing when a single register is asked for a 32 bit value', async () => {
+        await connectClient()
+        aReadInFlight()
+
+        await client.write({
+          address: 0,
+          type: 'holding_registers',
+          value: 70000,
+          dataType: 'int32',
+          single: true
+        })
+
+        expect(getWindowCalls('transaction')).toHaveLength(0)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      it('logs nothing when the data type is one Modbux cannot write', async () => {
+        await connectClient()
+        aReadInFlight()
+
+        await client.write({
+          address: 0,
+          type: 'holding_registers',
+          value: 100,
+          dataType: 'utf8',
+          single: false
+        })
+
+        expect(getWindowCalls('transaction')).toHaveLength(0)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      /**
+       * `writeFC5` the way the library writes it. `index.js` answers a closed
+       * port with a `PortNotOpenError` and returns, and otherwise files the
+       * transaction before the buffer goes to the port, so a write that reaches
+       * the port leaves one behind whether the device answers or not.
+       */
+      const writeCoilLikeTheLibrary = (error: Error | null) => {
+        mockModbusRTU.writeFC5.mockImplementation(
+          (
+            _unitId: number,
+            address: number,
+            _value: boolean,
+            callback: (err: Error | null) => void
+          ) => {
+            if (mockModbusRTU.isOpen !== true) {
+              callback(new Error('Port Not Open'))
+              return
+            }
+            mockModbusRTU._transactions = {
+              ...mockModbusRTU._transactions,
+              '2': { ...createMockTransaction(address), nextCode: 5 }
+            }
+            callback(error)
+          }
+        )
+      }
+
+      it('refuses a write while not connected', async () => {
+        aReadInFlight()
+        writeCoilLikeTheLibrary(null)
+
+        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+
+        expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
+        const messages = getWindowCalls('backend_message')
+        expect(messages.at(-1)?.[1]).toMatchObject({
+          message: 'Cannot write, not connected',
+          variant: 'warning'
+        })
+        expect(getWindowCalls('transaction')).toHaveLength(0)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      it('logs the transaction a write of its own filed', async () => {
+        await connectClient()
+        aReadInFlight()
+        writeCoilLikeTheLibrary(null)
+
+        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+
+        const transactions = getWindowCalls('transaction')
+        expect(transactions).toHaveLength(1)
+        expect(transactions[0]?.[1].id).toContain('2__')
+        expect(transactions[0]?.[1].code).toBe(5)
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
+      })
+
+      it('logs the transaction of a write the device refused', async () => {
+        await connectClient()
+        aReadInFlight()
+        writeCoilLikeTheLibrary(new Error('Modbus exception 2: Illegal data address'))
+
+        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+
+        const transactions = getWindowCalls('transaction')
+        expect(transactions).toHaveLength(1)
+        expect(transactions[0]?.[1].id).toContain('2__')
+        expect(transactions[0]?.[1].errorMessage).toBe('Modbus exception 2: Illegal data address')
+      })
+    })
+
     it('refuses a write during a poll', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
