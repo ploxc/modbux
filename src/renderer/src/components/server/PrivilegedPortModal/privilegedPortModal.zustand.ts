@@ -34,10 +34,13 @@ interface PrivilegedPortZustand {
    * The stored dismissal is read here too: the one place that decides whether
    * to ask is the one place that asks.
    *
-   * Resolves true when it opened, so a caller whose reason for asking is gone
-   * by then can close it again.
+   * `isStale` is asked once, after the answer is in and before anything is
+   * written. A caller whose reason for asking went away while the round trip
+   * was out says so there: opening and then closing again is a flash on
+   * screen, and an older call closing what a newer one opened would leave the
+   * question unasked for the rest of the session.
    */
-  check: () => Promise<boolean>
+  check: (isStale?: () => boolean) => Promise<void>
   /** Closes, writing the dismissal when the box is ticked. */
   close: () => void
 }
@@ -72,26 +75,22 @@ export const usePrivilegedPortZustand = create<
       set((state) => {
         state.mode = mode
       }),
-    check: async () => {
-      if (localStorage.getItem(DISMISS_KEY) === 'true') return false
+    check: async (isStale) => {
+      if (localStorage.getItem(DISMISS_KEY) === 'true') return
       const { setStatus, setOpen } = get()
       try {
         // Always ask about 502 rather than the port in use. By the time the
         // view renders, an unbindable 502 has already become 1024, and asking
         // about 1024 would report no problem at all.
         const result = await window.api.getPrivilegedPortStatus(UNPRIVILEGED_PORT_START_TARGET)
-        if (!result.needsElevation) {
-          // Close rather than return: the store outlives a remount, so a stale
-          // open would otherwise keep an answered question on screen.
-          setOpen(false)
-          return false
-        }
+        if (isStale?.()) return
+        // Close rather than return: the store outlives a remount, so a stale
+        // open would otherwise keep an answered question on screen.
+        if (!result.needsElevation) return setOpen(false)
         setStatus(result)
         setOpen(true)
-        return true
       } catch {
         // Detection is a convenience. Never let it break the server view.
-        return false
       }
     },
     close: () => {

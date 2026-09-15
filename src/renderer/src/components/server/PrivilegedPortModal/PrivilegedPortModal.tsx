@@ -239,14 +239,9 @@ const PrivilegedPortModal = meme((): JSX.Element | null => {
     // from Home is in from the start.
     if (!ready) return
     let cancelled = false
-
-    const ask = async (): Promise<void> => {
-      const opened = await usePrivilegedPortZustand.getState().check()
-      // The server going back to not-ready while the answer was in flight
-      // should not land the question on a view that is rebuilding.
-      if (opened && cancelled) usePrivilegedPortZustand.getState().setOpen(false)
-    }
-    ask()
+    // The server going back to not-ready while the answer was in flight should
+    // not land the question on a view that is rebuilding.
+    usePrivilegedPortZustand.getState().check(() => cancelled)
 
     return (): void => {
       cancelled = true

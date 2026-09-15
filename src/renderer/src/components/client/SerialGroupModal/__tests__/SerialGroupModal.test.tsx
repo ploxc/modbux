@@ -254,7 +254,7 @@ describe('SerialGroupModal', () => {
     await waitFor(() => expect(screen.queryByTestId('serial-group-modal')).not.toBeInTheDocument())
 
     // What the Connect button does before it tries the port.
-    const opened = await useSerialGroupZustand.getState().check(true)
+    const opened = await useSerialGroupZustand.getState().check({ force: true })
 
     expect(opened).toBe(true)
     expect(await screen.findByTestId('serial-group-modal')).toBeInTheDocument()

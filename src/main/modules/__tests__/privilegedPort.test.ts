@@ -44,7 +44,8 @@ import {
   detectSandbox,
   findPkexec,
   getPrivilegedPortStatus,
-  readUnprivilegedPortStart
+  readUnprivilegedPortStart,
+  UNPRIVILEGED_PORT_START_PATH
 } from '../privilegedPort'
 import {
   privilegedPortCommandArgs,
@@ -233,9 +234,15 @@ describe('applyPrivilegedPortFix', () => {
     expect(execFileCalls[0]?.args).toEqual(privilegedPortCommandArgs('session'))
   })
 
-  it('runs the persist command when asked to', async () => {
-    await applyPrivilegedPortFix('persist')
+  it('runs the persist command when asked to and says the floor will survive a reboot', async () => {
+    procContent = '1024'
+    const pending = applyPrivilegedPortFix('persist')
+    procContent = '502'
+    const result = await pending
+
     expect(execFileCalls[0]?.args).toEqual(privilegedPortCommandArgs('persist'))
+    expect(result.ok).toBe(true)
+    expect(result.message).toContain('after a reboot')
   })
 
   it('refuses a zero exit that left the floor where it was', async () => {
@@ -254,16 +261,18 @@ describe('applyPrivilegedPortFix', () => {
     const result = await applyPrivilegedPortFix('session')
 
     expect(result).toMatchObject({ ok: false, reason: 'failed' })
+    expect(result.message).toContain(UNPRIVILEGED_PORT_START_PATH)
     expect(result.unprivilegedPortStart).toBeUndefined()
   })
 
   it('accepts a floor below the target as well as one on it', async () => {
     procContent = '1024'
-    const pending = applyPrivilegedPortFix('persist')
+    const pending = applyPrivilegedPortFix('session')
     procContent = '80'
     const result = await pending
 
     expect(result.ok).toBe(true)
+    expect(result.message).toContain('until the next reboot')
   })
 
   it('says so when the user dismisses the PolicyKit prompt', async () => {

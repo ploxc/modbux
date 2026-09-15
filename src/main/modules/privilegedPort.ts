@@ -159,14 +159,19 @@ export const applyPrivilegedPortFix = async (
   // snackbar and a server that still could not bind 502.
   const unprivilegedPortStart = await readUnprivilegedPortStart()
 
-  if (
-    unprivilegedPortStart === undefined ||
-    unprivilegedPortStart > UNPRIVILEGED_PORT_START_TARGET
-  ) {
+  if (unprivilegedPortStart === undefined) {
     return {
       ok: false,
       reason: 'failed',
-      message: `The command reported success, but the lowest bindable port is still ${unprivilegedPortStart ?? 'unreadable'}. Run it in a terminal to see why.`,
+      message: `The command reported success, but ${UNPRIVILEGED_PORT_START_PATH} could not be read back. Run it in a terminal to see why.`
+    }
+  }
+
+  if (unprivilegedPortStart > UNPRIVILEGED_PORT_START_TARGET) {
+    return {
+      ok: false,
+      reason: 'failed',
+      message: `The command reported success, but the lowest bindable port is still ${unprivilegedPortStart}. Run it in a terminal to see why.`,
       unprivilegedPortStart
     }
   }

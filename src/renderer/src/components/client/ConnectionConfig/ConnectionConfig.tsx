@@ -91,7 +91,7 @@ const ConnectButton = meme(() => {
       // On RTU the port can be there and still refuse to open. Ask first and
       // say why, rather than let the connect fail on a permission error.
       if (useClientZustand.getState().connectionConfig.protocol === 'ModbusRtu') {
-        const blocked = await useSerialGroupZustand.getState().check(true)
+        const blocked = await useSerialGroupZustand.getState().check({ force: true })
         if (blocked) return
       }
       window.api.connect()

@@ -25,8 +25,14 @@ interface SerialGroupZustand {
    * Resolves true when it opened, so Connect can hold off rather than fail on
    * a permission error. `force` is for that press: a no said to an unprompted
    * question should not silence the answer to something you just asked for.
+   *
+   * `isStale` is asked once, after the answer is in and before anything is
+   * written. A caller whose reason for asking went away while the round trip
+   * was out says so there: opening and then closing again is a flash on
+   * screen, and an older call closing what a newer one opened would leave the
+   * question unasked for the rest of the session.
    */
-  check: (force?: boolean) => Promise<boolean>
+  check: (options?: { force?: boolean; isStale?: () => boolean }) => Promise<boolean>
 }
 
 export const useSerialGroupZustand = create<SerialGroupZustand, [['zustand/mutative', never]]>(
@@ -56,11 +62,12 @@ export const useSerialGroupZustand = create<SerialGroupZustand, [['zustand/mutat
       set((state) => {
         state.declined = declined
       }),
-    check: async (force = false) => {
+    check: async ({ force = false, isStale } = {}) => {
       const { declined, setStatus, setDone, setOpen } = get()
       if (declined && !force) return false
       try {
         const result = await window.api.getSerialGroupStatus()
+        if (isStale?.()) return false
         if (!result.needsMembership && !result.pendingLogin) {
           // Close rather than return: the store outlives a remount, so a stale
           // open would otherwise keep an answered question on screen.
