@@ -176,7 +176,8 @@ export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),
   scanningUnitIds: z.boolean(),
-  scanningRegisters: z.boolean()
+  scanningRegisters: z.boolean(),
+  reading: z.boolean()
 })
 export type ClientState = z.infer<typeof ClientStateSchema>
 

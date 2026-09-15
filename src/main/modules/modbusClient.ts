@@ -87,7 +87,8 @@ export class ModbusClient {
     connectState: 'disconnected',
     polling: false,
     scanningUnitIds: false,
-    scanningRegisters: false
+    scanningRegisters: false,
+    reading: false
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
@@ -227,6 +228,7 @@ export class ModbusClient {
     if (this._clientState.polling) return 'a poll'
     if (this._clientState.scanningUnitIds) return 'a unit id scan'
     if (this._clientState.scanningRegisters) return 'a register scan'
+    if (this._clientState.reading) return 'another read'
     return undefined
   }
 
@@ -472,6 +474,17 @@ export class ModbusClient {
     }
   }
 
+  /**
+   * One read, and nothing else on the port until it has answered.
+   *
+   * `_read` puts one request per group on the line and waits for each, so two
+   * of them running at once is two masters on one bus. The read loops own the
+   * port through `_readLoopOwner`, and this makes a read in flight the fourth
+   * owner: the state goes out before the first request and comes back after the
+   * last, and the caller that finds it set is refused the way a caller during a
+   * poll is. The loops do not go through here, so a poll blocks a read without
+   * a read ever blocking a poll.
+   */
   public read = async (): Promise<void> => {
     const owner = this._readLoopOwner()
     if (owner) {
@@ -479,7 +492,14 @@ export class ModbusClient {
       return
     }
 
-    await this._read()
+    this._clientState.reading = true
+    this._sendClientState()
+    try {
+      await this._read()
+    } finally {
+      this._clientState.reading = false
+      this._sendClientState()
+    }
   }
 
   private _read = async (): Promise<void> => {

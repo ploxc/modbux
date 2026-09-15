@@ -185,6 +185,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handed to the serial library in a place it does not read, so every serial
   server opened at 8 data bits and 1 stop bit whatever the panel showed. Baud
   rate and parity always arrived, and the client was never affected.
+- **Nothing else goes out in the middle of a read.** Modbux waited for a poll
+  and for both scans before it read or wrote, and not for a read of its own, so
+  anything asked for while a long read was still on the wire put a second
+  request on the line. Measured over RTU with two reads: the registers the first
+  one was fetching came back empty. Read is now off for as long as a read runs,
+  and a write asked for in that moment is refused with a message rather than
+  sent.
 - **Cancelling a connect to a serial port now cancels it.** The Connect button
   turns into a Cancel while the port is opening. Pressing it used to change
   nothing: a moment later the app reported "Connected over Modbus RTU" and sat

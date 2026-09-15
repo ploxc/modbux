@@ -50,7 +50,8 @@ export const defaultClientState: ClientState = {
   connectState: 'disconnected',
   polling: false,
   scanningUnitIds: false,
-  scanningRegisters: false
+  scanningRegisters: false,
+  reading: false
 }
 
 export const dummyWords: RegisterDataWords = {

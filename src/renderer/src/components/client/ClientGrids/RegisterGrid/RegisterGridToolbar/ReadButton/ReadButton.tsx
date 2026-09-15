@@ -1,27 +1,22 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback } from 'react'
 
 const ReadButton = meme((): JSX.Element => {
-  const disabled = useClientZustand(
-    (z) => z.clientState.connectState !== 'connected' || z.clientState.polling
-  )
+  const connected = useClientZustand((z) => z.clientState.connectState === 'connected')
+  const polling = useClientZustand((z) => z.clientState.polling)
 
-  const [reading, setReading] = useState(false)
-  const readingRef = useRef(false)
+  // Main says a read is running, and refuses a second one while it is. This
+  // used to be a ref here, which held for this button and for nothing else.
+  const reading = useClientZustand((z) => z.clientState.reading)
 
-  // Read registers, prevent sending the command until the read is done
-  const handleRead = useCallback(async () => {
-    if (readingRef.current) return
-    readingRef.current = true
-    setReading(true)
-    await window.api.read()
-    readingRef.current = false
-    setReading(false)
+  const handleRead = useCallback(() => {
+    window.api.read()
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
+  const disabled = !connected || polling || reading
 
   return (
     <Button

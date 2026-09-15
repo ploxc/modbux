@@ -1251,6 +1251,78 @@ describe('ModbusClient', () => {
     })
   })
 
+  // One port, one request at a time. A poll and the two scans were the three
+  // owners `_readLoopOwner` named, and a read in flight was not, so two callers
+  // asking at once put two requests on one line.
+  describe('a read while a read is in flight', () => {
+    it('sends one request and tells the second caller what is running', async () => {
+      await connectClient()
+      const gate = gateTheReads()
+
+      const first = client.read()
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+      const messages = getWindowCalls('backend_message')
+      expect(messages.at(-1)?.[1]).toMatchObject({
+        message: 'Cannot read during another read',
+        variant: 'warning'
+      })
+
+      gate.resolveAll()
+      await first
+    })
+
+    it('says a read is running while it runs, and stops saying so', async () => {
+      await connectClient()
+      const gate = gateTheReads()
+
+      const first = client.read()
+      expect(client.state.reading).toBe(true)
+      expect(getLastClientState().reading).toBe(true)
+
+      gate.resolveAll()
+      await first
+
+      expect(client.state.reading).toBe(false)
+      expect(getLastClientState().reading).toBe(false)
+    })
+
+    it('reads again once the first has answered', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(2)
+    })
+
+    it('refuses a write while it runs, which shares the port', async () => {
+      await connectClient()
+      const gate = gateTheReads()
+
+      const first = client.read()
+      await client.write({
+        address: 0,
+        type: 'holding_registers',
+        value: 1,
+        dataType: 'uint16',
+        single: true
+      })
+
+      expect(mockModbusRTU.writeFC6).not.toHaveBeenCalled()
+      const messages = getWindowCalls('backend_message')
+      expect(messages.at(-1)?.[1]).toMatchObject({
+        message: 'Cannot write during another read',
+        variant: 'warning'
+      })
+
+      gate.resolveAll()
+      await first
+    })
+  })
+
   describe('_logTransaction', () => {
     it('formats and sends transaction data after read', async () => {
       await connectClient()

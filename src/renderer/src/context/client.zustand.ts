@@ -187,7 +187,8 @@ export const useClientZustand = create<
         connectState: 'disconnected',
         polling: false,
         scanningUnitIds: false,
-        scanningRegisters: false
+        scanningRegisters: false,
+        reading: false
       },
       setClientState: (clientState) =>
         set((state) => {
