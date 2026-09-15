@@ -1,5 +1,6 @@
 import Save from '@mui/icons-material/Save'
 import IconButton from '@mui/material/IconButton'
+import { downloadJson } from '@renderer/components/shared/downloadJson'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
@@ -33,28 +34,14 @@ const SaveButton = meme(() => {
       registerMapping
     }
 
-    const registerMappingJson = JSON.stringify(registerMapConfig, null, 2)
-
-    const element = document.createElement('a')
-    element.setAttribute(
-      'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(registerMappingJson)
-    )
-
     const {
       connectionConfig: { unitId }
     } = useClientZustand.getState()
 
-    const idText = `_id${unitId}`
-
-    const filename = `modbux_client_${snakeCase(name)}${idText}.json`
-
-    element.setAttribute('download', filename)
-
-    element.style.display = 'none'
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
+    downloadJson(
+      `modbux_client_${snakeCase(name)}_id${unitId}.json`,
+      JSON.stringify(registerMapConfig, null, 2)
+    )
   }, [])
 
   return (
