@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over it. Add & Next left the picker showing the current time over a field it
   had cleared, so the next Add wrote 1970/01/01 for a UNIX register and
   2000/01/01 for a DATETIME.
+- **Add & Next no longer replaces the register it just added.** With no free
+  address left above the one you added, the dialog stayed on that address
+  without marking it, and Add was still live: pressing it wrote over the
+  register you had just made and lost its comment. The address is now marked In
+  use and Add goes off.
 - **The date picker no longer takes a date the register cannot carry.** A
   DATETIME runs out at the end of 2127 and a UNIX timestamp on 2106/02/07, and
   the picker took any year it could show: a UNIX register set to 2200 read back

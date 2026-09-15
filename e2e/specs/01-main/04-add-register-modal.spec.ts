@@ -408,7 +408,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     // wrote. Unmarked, with Add still live, the next press replaced that
     // register and lost its comment.
     expect(await addressInput.inputValue()).toBe('65535')
-    await expect(mainPage.getByText('In use')).toBeVisible()
+    await expect(mainPage.getByTestId('add-reg-address-in-use')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
     await mainPage.keyboard.press('Escape')
