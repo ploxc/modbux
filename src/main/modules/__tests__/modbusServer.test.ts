@@ -294,9 +294,10 @@ describe('ModbusServer', () => {
       expect(answer).toBe(1234)
     })
 
-    // A generator has written nothing yet, and it sends its first value as an
-    // event like any other.
-    it('answers 0 for a register it generates', () => {
+    // `ValueGenerator` writes its first value from its constructor and sends it
+    // as an event, which the renderer's store drops for want of an entry. The
+    // range excludes 0, so answering 0 cannot pass by luck.
+    it('answers the first word a generator wrote', () => {
       const answer = server.addRegister({
         uuid,
         unitId,
@@ -306,9 +307,31 @@ describe('ModbusServer', () => {
           dataType: 'uint16',
           comment: 'test register',
           value: undefined,
-          min: 0,
-          max: 10,
+          min: 100,
+          max: 200,
           interval: 5000
+        }
+      })
+
+      expect(answer).toBeGreaterThanOrEqual(100)
+      expect(answer).toBeLessThanOrEqual(200)
+    })
+
+    // `none` holds its address open and writes nothing, so there is no word to
+    // answer with.
+    it('answers 0 for a register with no data type', () => {
+      const answer = server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 300,
+          registerType: 'holding_registers',
+          dataType: 'none',
+          comment: 'test register',
+          value: 0,
+          min: undefined,
+          max: undefined,
+          interval: undefined
         }
       })
 

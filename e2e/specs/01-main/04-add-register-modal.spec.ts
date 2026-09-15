@@ -92,8 +92,10 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     // Modal should still be open
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeVisible()
 
-    // Address advanced from 100 (UINT32 = 2 regs) to 102
-    expect(await addressInput.inputValue()).toBe('102')
+    // Address advanced from 100 (UINT32 = 2 regs) to 102. The submit waits for
+    // main to take the register, so a snapshot of the field gets no second
+    // chance at it.
+    await expect(addressInput).toHaveValue('102')
 
     // Generator mode preserved
     await expect(mainPage.getByTestId('add-reg-generator-btn')).toHaveClass(/Mui-selected/)
@@ -137,7 +139,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await mainPage.waitForTimeout(300)
 
     // Address advanced from 200 by 5 registers to 205
-    expect(await addressInput.inputValue()).toBe('205')
+    await expect(addressInput).toHaveValue('205')
     // UTF-8 type preserved
     await expect(mainPage.getByTestId('add-reg-type-select')).toContainText('UTF-8')
     // Register length preserved
@@ -407,7 +409,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     // There is no address above 65535, so the form stays on the one it just
     // wrote. Unmarked, with Add still live, the next press replaced that
     // register and lost its comment.
-    expect(await addressInput.inputValue()).toBe('65535')
+    await expect(addressInput).toHaveValue('65535')
     await expect(mainPage.getByTestId('add-reg-address-in-use')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
