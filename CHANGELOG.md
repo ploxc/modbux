@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   range the format carries, which is 2000 through 2127. A date past 2127 used to
   be written with the year wrapped, so a register set to 2200 read back as 2072;
   it now stops at the end of 2127.
+- **An address freed on load is offered again.** A saved setup comes back
+  without a register Modbux cannot serve, and the addresses that register stood
+  on stayed marked In use, so the Add dialog refused an address the grid showed
+  nothing at.
 - **A write no longer logs another request as its own.** The transaction log
   took the last request that went out, listed it as the write and took its entry
   away, so a read still waiting for an answer timed out. That happened after a
