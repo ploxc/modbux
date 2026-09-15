@@ -7,7 +7,12 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { checkHasConfig, migrateServerConfig } from '@shared'
-import { ServerConfig, ServerRegistersPerUnit, UnitIdStringSchema } from '@shared'
+import {
+  CURRENT_SERVER_CONFIG_VERSION,
+  ServerConfig,
+  ServerRegistersPerUnit,
+  UnitIdStringSchema
+} from '@shared'
 import { snakeCase } from 'lodash'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
@@ -139,7 +144,7 @@ const useSave: UseSaveHook = () => {
     const modbuxVersion = useLayoutZustand.getState().version
 
     const config: ServerConfig = {
-      version: 2,
+      version: CURRENT_SERVER_CONFIG_VERSION,
       modbuxVersion,
       name,
       littleEndian: littleEndian[selectedUuid] ?? false,

@@ -2,6 +2,13 @@ import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../
 import { MigrationResult, Migration } from '../types'
 import { formatZodError, renameLegacyRegisterTypeKeys } from '../shared'
 
+/**
+ * The version the Save button writes into a client config file.
+ *
+ * A migration step keeps its own target as a literal rather than reading this:
+ * the loop below counts the steps and this number only says where to stop, so
+ * v1 to v2 writes 2 whatever this becomes.
+ */
 export const CURRENT_CLIENT_CONFIG_VERSION = 2
 
 interface V1ClientConfig {

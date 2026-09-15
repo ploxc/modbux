@@ -3,7 +3,7 @@ import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterMapConfig, RegisterType } from '@shared'
+import { CURRENT_CLIENT_CONFIG_VERSION, RegisterMapConfig, RegisterType } from '@shared'
 import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
@@ -26,7 +26,7 @@ const SaveButton = meme(() => {
     const modbuxVersion = useLayoutZustand.getState().version
 
     const registerMapConfig: RegisterMapConfig = {
-      version: 2,
+      version: CURRENT_CLIENT_CONFIG_VERSION,
       modbuxVersion,
       name,
       littleEndian: clientZustand.registerConfig.littleEndian,
