@@ -68,11 +68,9 @@ const ServerPartTitleName = meme(
   ({ name, registerType }: ServerPartTitleNameProps): JSX.Element => {
     const amount = useServerZustand((z) => {
       const uuid = z.selectedUuid
-      const unitId = z.unitId[uuid]
-      if (!unitId) return 0
+      const unitId = z.getUnitId(uuid)
 
-      const amount = Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
-      return amount
+      return Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
     })
 
     const handleClick = useCallback((): void => {
