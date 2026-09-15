@@ -11,7 +11,7 @@ import { useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
 import { GridFilterModel, GridLogicOperator } from '@mui/x-data-grid/models'
-import { DataType, RegisterData } from '@shared'
+import { RegisterData, scalableDataTypes } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
 import BitMapRow from './BitMapRow/BitMapRow'
@@ -128,19 +128,9 @@ const RegisterGridContent = meme((): JSX.Element => {
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (scanning) return false
         if (field === 'comment') return true
-        const scalingEnabledDataTypes: DataType[] = [
-          'double',
-          'float',
-          'int16',
-          'int32',
-          'int64',
-          'uint16',
-          'uint32',
-          'uint64'
-        ]
         const dataType = registerMapping[id]?.dataType ?? 'none'
 
-        if (field === 'scalingFactor' && !scalingEnabledDataTypes.includes(dataType)) {
+        if (field === 'scalingFactor' && !scalableDataTypes.includes(dataType)) {
           return false
         }
 

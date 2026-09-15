@@ -32,6 +32,25 @@ export type DataType = z.infer<typeof DataTypeSchema>
 export type ValuedDataType = Exclude<DataType, 'none'>
 
 /**
+ * The types a scaling factor and a linear interpolation apply to.
+ *
+ * Three places in the register grid ask this and have to agree: whether the
+ * Scale cell can be edited, whether its value is shown, and whether the Σ
+ * button is live. `unix`, `datetime` and `bitmap` hold a number the grid does
+ * not show as one, and `utf8` and `none` hold no number at all.
+ */
+export const scalableDataTypes: DataType[] = [
+  'int16',
+  'uint16',
+  'int32',
+  'uint32',
+  'int64',
+  'uint64',
+  'float',
+  'double'
+]
+
+/**
  * What `createRegisters` encodes.
  *
  * A string is the other writer, `createStringRegisters`, because its width is
