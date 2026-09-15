@@ -198,6 +198,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   there holding the port. The cancelled connect now closes the port it opened
   and says nothing. Pressing Connect again before it has let that port go says
   so rather than opening a second one. Over TCP the cancel always worked.
+- **Read configuration now reads.** Turning it on while connected showed your
+  configured registers with a value of 0 in every one of them until you pressed
+  Read, and a 0 you have not read looks exactly like a 0 the device holds. The
+  values are now there as soon as the rows are. Disconnected it still shows the
+  mapping alone, and it asks for nothing while a poll or a scan is running.
 
 ### Changed
 

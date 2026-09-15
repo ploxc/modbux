@@ -56,3 +56,30 @@ export const stubRenderer = (): void => {
     }
   )
 }
+
+export type ApiCall = { method: string; payload: unknown }
+
+/**
+ * Every `window.api` call a test drives, in order, still answered underneath.
+ *
+ * A store calls main from module scope and from most setters, and the order it
+ * calls in is the thing under test where one call has to hold before the next
+ * goes out. Wraps whatever `stubRenderer` left on `window.api`, so it is called
+ * after it and not instead of it.
+ */
+export const recordApiCalls = (calls: ApiCall[]): void => {
+  const answers = window.api as unknown as Record<string, unknown>
+  window.api = new Proxy(
+    {},
+    {
+      get: (_target, method: string): ((payload: unknown) => unknown) => {
+        const answer = answers[method]
+        if (typeof answer !== 'function') throw new Error(`stubRenderer answers no ${method}`)
+        return (payload: unknown): unknown => {
+          calls.push({ method, payload })
+          return (answer as (payload: unknown) => unknown)(payload)
+        }
+      }
+    }
+  ) as never
+}

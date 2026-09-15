@@ -121,17 +121,26 @@ const ReadConfiguration = meme(() => {
   // emptied the grid and disabled the address and length fields. A bit type
   // reaches that first, because the grid mounts the data type column for input
   // and holding registers alone and a comment is all it writes into a coil.
-  const disabled = useClientZustand((z) =>
+  const nothingConfigured = useClientZustand((z) =>
     Object.values(z.registerMapping[z.registerConfig.type]).every(
       (entry) => !entry?.dataType || entry.dataType === 'none'
     )
   )
 
+  // Turning it on asks main to read, and main refuses a read while one is in
+  // flight. The toggle goes off for as long as that lasts, rather than taking a
+  // press that answers with a warning.
+  const reading = useClientZustand((z) => z.clientState.reading)
+  const disabled = nothingConfigured || reading
+
+  // A mapping with nothing to read turns it off. A read in flight does not:
+  // that greys the button for a moment, and turning it off would empty the grid
+  // the read is about to fill.
   useEffect(() => {
-    if (!disabled) return
+    if (!nothingConfigured) return
     const clientZustand = useClientZustand.getState()
-    if (disabled && clientZustand.readConfiguration) clientZustand.setReadConfiguration(false)
-  }, [disabled])
+    if (clientZustand.readConfiguration) clientZustand.setReadConfiguration(false)
+  }, [nothingConfigured])
 
   return (
     <ToggleButtonGroup

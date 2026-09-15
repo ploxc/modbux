@@ -6,29 +6,9 @@
 // grouping its reads out of the mapping the renderer had thrown away.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegisterMapping } from '@shared'
-import { stubRenderer } from './stubRenderer'
+import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
 
-type Call = { method: string; payload: unknown }
-
-const calls: Call[] = []
-
-/** Every `window.api` call in order, still answered by the stub underneath. */
-const recordCalls = (): void => {
-  const answers = window.api as unknown as Record<string, unknown>
-  window.api = new Proxy(
-    {},
-    {
-      get: (_target, method: string): ((payload: unknown) => unknown) => {
-        const answer = answers[method]
-        if (typeof answer !== 'function') throw new Error(`stubRenderer answers no ${method}`)
-        return (payload: unknown): unknown => {
-          calls.push({ method, payload })
-          return (answer as (payload: unknown) => unknown)(payload)
-        }
-      }
-    }
-  ) as never
-}
+const calls: ApiCall[] = []
 
 const methods = (): string[] => calls.map((call) => call.method)
 
@@ -64,7 +44,7 @@ beforeEach(() => {
   localStorage.clear()
   calls.length = 0
   stubRenderer()
-  recordCalls()
+  recordApiCalls(calls)
 })
 
 describe('a mapping that replaces the whole of the previous one', () => {
