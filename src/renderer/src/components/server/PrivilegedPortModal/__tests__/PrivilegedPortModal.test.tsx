@@ -245,4 +245,17 @@ describe('PrivilegedPortModal', () => {
 
     expect(localStorage.getItem('privilegedPortPromptDismissed')).toBe('true')
   })
+
+  it('remembers the dismissal when the command runs rather than the cancel', async () => {
+    // A session-mode fix is gone after a reboot, so the question comes back to
+    // a user who already answered it. The success path closed without writing.
+    const user = userEvent.setup()
+    render(<PrivilegedPortModal />)
+    await screen.findByTestId('privileged-port-modal')
+
+    await user.click(screen.getByTestId('privileged-port-dont-ask'))
+    await user.click(screen.getByTestId('privileged-port-allow-btn'))
+
+    await waitFor(() => expect(localStorage.getItem('privilegedPortPromptDismissed')).toBe('true'))
+  })
 })

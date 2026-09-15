@@ -10,11 +10,11 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
+import { blockedReason, reportFixResult } from '@renderer/components/shared/linuxFix'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   PrivilegedPortFixMode,
-  PrivilegedPortStatus,
   privilegedPortCommandDisplay,
   UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
@@ -36,28 +36,8 @@ import { usePrivilegedPortZustand } from './privilegedPortModal.zustand'
  * boundary. That is the user's call to make, not ours to make quietly.
  */
 
-/** Remembered across restarts — a user who says no once should not be nagged. */
-const DISMISS_KEY = 'privilegedPortPromptDismissed'
-
-/** Why Modbux cannot run the command itself, or null when it can. */
-const blockedReason = (status: PrivilegedPortStatus | null): string | null => {
-  if (!status) return null
-  if (status.sandbox) {
-    const name = status.sandbox === 'flatpak' ? 'Flatpak' : 'Snap'
-    return `Modbux is running inside ${name}, so it cannot change system settings itself.`
-  }
-  if (!status.canElevate) {
-    return 'pkexec is not installed, so Modbux cannot ask for permission itself.'
-  }
-  return null
-}
-
-/** Closes, remembering the answer when asked to. Not a hook: nothing subscribes. */
-const close = (): void => {
-  const { dontAsk, setOpen } = usePrivilegedPortZustand.getState()
-  if (dontAsk) localStorage.setItem(DISMISS_KEY, 'true')
-  setOpen(false)
-}
+/** What the two modals differ in, filling "so it cannot change ... itself". */
+const WHAT_IT_CHANGES = 'system settings'
 
 //
 //
@@ -125,7 +105,7 @@ const ModeToggle = meme((): JSX.Element => {
 // The command, which follows the toggle so the two cannot drift apart
 const Command = meme((): JSX.Element => {
   const mode = usePrivilegedPortZustand((z) => z.mode)
-  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status, WHAT_IT_CHANGES))
 
   // With no button to press, the terminal instructions are the lasting fix.
   return (
@@ -167,7 +147,7 @@ const DontAskCheckbox = meme((): JSX.Element => {
 //
 // Body
 const Body = meme((): JSX.Element => {
-  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status, WHAT_IT_CHANGES))
 
   return (
     <>
@@ -201,6 +181,7 @@ const Body = meme((): JSX.Element => {
 // Buttons
 const CancelButton = meme((): JSX.Element => {
   const busy = usePrivilegedPortZustand((z) => z.busy)
+  const close = usePrivilegedPortZustand.getState().close
   return (
     <Button onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
       Not now
@@ -210,25 +191,22 @@ const CancelButton = meme((): JSX.Element => {
 
 const RunCommandButton = meme((): JSX.Element | null => {
   const busy = usePrivilegedPortZustand((z) => z.busy)
-  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status))
+  const blocked = usePrivilegedPortZustand((z) => blockedReason(z.status, WHAT_IT_CHANGES))
   const { enqueueSnackbar } = useSnackbar()
 
   const apply = useCallback(async (): Promise<void> => {
-    const { setBusy, setOpen, mode } = usePrivilegedPortZustand.getState()
+    const { setBusy, close, mode } = usePrivilegedPortZustand.getState()
     setBusy(true)
     try {
       const result = await window.api.applyPrivilegedPortFix(mode)
-      // undefined means the payload was refused at the boundary, which already
-      // sent its own message. Saying so twice helps nobody.
-      if (!result) return
-
-      enqueueSnackbar({ message: result.message, variant: result.ok ? 'success' : 'warning' })
-
-      if (!result.ok) return
+      if (!reportFixResult(result, enqueueSnackbar)) return
 
       // Move the server onto the port it could not bind a moment ago.
       await useServerZustand.getState().setPort(String(UNPRIVILEGED_PORT_START_TARGET))
-      setOpen(false)
+      // `close` rather than `setOpen(false)`: a user who ticked the box and
+      // then ran the command said no to being asked again, and a session-mode
+      // fix is back after a reboot to ask them.
+      close()
     } catch {
       enqueueSnackbar({ message: 'Could not change the port setting', variant: 'error' })
     } finally {
@@ -259,33 +237,23 @@ const PrivilegedPortModal = meme((): JSX.Element | null => {
     // exists, so this is mounted once. Asking only the main window left the
     // question unasked in split view, which is the state a user who splits
     // from Home is in from the start.
-    if (localStorage.getItem(DISMISS_KEY) === 'true') return
     if (!ready) return
-
     let cancelled = false
-    const check = async (): Promise<void> => {
-      const { setStatus, setOpen } = usePrivilegedPortZustand.getState()
-      try {
-        // Always ask about 502 rather than the port in use. By the time the
-        // view renders, an unbindable 502 has already become 1024, and asking
-        // about 1024 would report no problem at all.
-        const result = await window.api.getPrivilegedPortStatus(UNPRIVILEGED_PORT_START_TARGET)
-        if (cancelled) return
-        // Close rather than return: the store outlives a remount, so a stale
-        // open would otherwise keep an answered question on screen.
-        if (!result.needsElevation) return setOpen(false)
-        setStatus(result)
-        setOpen(true)
-      } catch {
-        // Detection is a convenience — never let it break the server view.
-      }
+
+    const ask = async (): Promise<void> => {
+      const opened = await usePrivilegedPortZustand.getState().check()
+      // The server going back to not-ready while the answer was in flight
+      // should not land the question on a view that is rebuilding.
+      if (opened && cancelled) usePrivilegedPortZustand.getState().setOpen(false)
     }
-    check()
+    ask()
 
     return (): void => {
       cancelled = true
     }
   }, [ready])
+
+  const close = usePrivilegedPortZustand.getState().close
 
   if (!hasStatus) return null
 
