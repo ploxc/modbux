@@ -15,6 +15,13 @@ import {
 } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 
+/**
+ * The version the Save button writes into a server config file.
+ *
+ * A migration step keeps its own target as a literal rather than reading this:
+ * the loop below counts the steps and this number only says where to stop, so
+ * v1 to v2 writes 2 whatever this becomes.
+ */
 export const CURRENT_SERVER_CONFIG_VERSION = 2
 
 const SERVER_CONFIG_MIGRATIONS: Record<number, Migration<ServerConfig>> = {
