@@ -18,7 +18,6 @@ import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
 import { ScanCloseButton, ScanProgress, ScanTimeoutField } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
 
 //
 //
@@ -291,33 +290,6 @@ const ScanResultGrid = meme(() => {
         noRowsLabel: 'No scan results yet'
       }}
     />
-  )
-})
-
-//
-//
-// Scan unit ids button
-export const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
-
-  // Close the menu behind it, the way scanning registers does. Otherwise it is
-  // still hanging there when you close the dialog again.
-  const handleOpen = useCallback(() => {
-    useScanUnitIdZustand.getState().setOpen(true)
-    setAnchor(null)
-  }, [setAnchor])
-
-  return (
-    <Button
-      disabled={disabled}
-      sx={{ my: 1 }}
-      size="small"
-      variant="outlined"
-      onClick={handleOpen}
-      data-testid="scan-unitids-btn"
-    >
-      Scan Unit ID{`'`}s
-    </Button>
   )
 })
 

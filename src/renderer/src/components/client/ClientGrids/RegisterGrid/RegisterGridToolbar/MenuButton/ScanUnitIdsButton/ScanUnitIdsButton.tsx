@@ -1,21 +1,20 @@
 import Button from '@mui/material/Button'
-import { useScanRegistersZustand } from '@renderer/components/client/ScanRegisters/scanRegisters.zustand'
+import { useScanUnitIdZustand } from '@renderer/components/client/ScanUnitIds/scanUnitIds.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 import type { SetAnchorProps } from '../MenuButton'
 
-const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
+const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
-  const type = useClientZustand((z) => z.registerConfig.type)
-  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
 
+  // Close the menu behind it, the way scanning registers does. Otherwise it is
+  // still hanging there when you close the dialog again.
   const handleOpen = useCallback(() => {
-    useScanRegistersZustand.getState().setOpen(true)
+    useScanUnitIdZustand.getState().setOpen(true)
     setAnchor(null)
   }, [setAnchor])
 
-  const text = registers16Bit ? 'Scan Registers' : 'Scan TRUE Bits'
   return (
     <Button
       disabled={disabled}
@@ -23,11 +22,11 @@ const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
       size="small"
       variant="outlined"
       onClick={handleOpen}
-      data-testid="scan-registers-btn"
+      data-testid="scan-unitids-btn"
     >
-      {text}
+      Scan Unit ID{`'`}s
     </Button>
   )
 })
 
-export default ScanRegistersButton
+export default ScanUnitIdsButton

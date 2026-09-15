@@ -3,7 +3,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterData, getDummyRegisterData } from '@shared'
 import { useCallback } from 'react'
-import { SetAnchorProps } from '../ScanRegistersButton/ScanRegistersButton'
+import type { SetAnchorProps } from '../MenuButton'
 import Button from '@mui/material/Button'
 
 const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {

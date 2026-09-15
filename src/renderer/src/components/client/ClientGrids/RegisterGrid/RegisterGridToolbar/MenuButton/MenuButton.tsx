@@ -1,15 +1,20 @@
-import { useScanRegistersZustand } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/scanRegisters.zustand'
+import { useScanRegistersZustand } from '@renderer/components/client/ScanRegisters/scanRegisters.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRef, useState } from 'react'
 import LoadDummyDataButton from './LoadDummyDataButton/LoadDummyDataButton'
 import MenuConnectionOptions from './MenuConnectionOptions/MenuConnectionOptions'
 import MenuRegisterOptions from './MenuRegisterOptions/MenuRegisterOptions'
-import ScanRegistersButton, { SetAnchorProps } from './ScanRegistersButton/ScanRegistersButton'
-import { ScanUnitIdsButton } from './ScanUnitIds/ScanUnitIds'
+import ScanRegistersButton from './ScanRegistersButton/ScanRegistersButton'
+import ScanUnitIdsButton from './ScanUnitIdsButton/ScanUnitIdsButton'
 import FormGroup from '@mui/material/FormGroup'
 import Button from '@mui/material/Button'
 import Settings from '@mui/icons-material/Settings'
 import Popover from '@mui/material/Popover'
+
+/** What a menu entry needs to close the menu it was pressed in. */
+export interface SetAnchorProps {
+  setAnchor: (anchor: HTMLDivElement | null) => void
+}
 
 const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (

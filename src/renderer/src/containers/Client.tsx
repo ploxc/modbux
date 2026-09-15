@@ -6,8 +6,8 @@ import HomeButton from '@renderer/components/shared/HomeButton'
 import RegisterConfig from '../components/client/RegisterConfig/RegisterConfig'
 import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
-import ScanRegisters from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanRegistersButton/ScanRegisters/ScanRegisters'
-import ScanUnitIds from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/MenuButton/ScanUnitIds/ScanUnitIds'
+import ScanRegisters from '@renderer/components/client/ScanRegisters/ScanRegisters'
+import ScanUnitIds from '@renderer/components/client/ScanUnitIds/ScanUnitIds'
 import { useClientZustand } from '@renderer/context/client.zustand'
 
 const Client = meme(() => {
