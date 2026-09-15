@@ -10,11 +10,18 @@ import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
-import { GridFilterModel, GridLogicOperator } from '@mui/x-data-grid/models'
+import {
+  GridFilterModel,
+  GridLogicOperator,
+  GridRowHeightParams,
+  GridRowHeightReturnValue
+} from '@mui/x-data-grid/models'
 import { RegisterData, scalableDataTypes } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
 import BitMapRow from './BitMapRow/BitMapRow'
+import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
+import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 //
 //
 //
@@ -55,6 +62,24 @@ const RegisterGridContent = meme((): JSX.Element => {
   // a cell put into edit mode or a column menu opened over data that is still
   // arriving is a fight nobody wins. Scrolling and paging stay.
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+
+  // An expanded bitmap row is taller by whatever its detail panel measures, and
+  // the grid places every row below it from this answer. `null` is the grid's
+  // own word for "use rowHeight".
+  const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
+  const detailHeight = useBitMapZustand((z) => z.detailHeight)
+  const getRowHeight = useCallback(
+    ({ id, densityFactor }: GridRowHeightParams): GridRowHeightReturnValue =>
+      id === expandedAddress ? ROW_HEIGHT * densityFactor + detailHeight : null,
+    [expandedAddress, detailHeight]
+  )
+
+  // The grid caches what `getRowHeight` answered, and a new function alone does
+  // not tell it to ask again.
+  useEffect(() => {
+    apiRef.current?.resetRowHeights()
+  }, [apiRef, expandedAddress, detailHeight])
+
   const prevReadConfigRef = useRef(readConfiguration)
   useEffect(() => {
     const filterModel: GridFilterModel = {
@@ -109,9 +134,6 @@ const RegisterGridContent = meme((): JSX.Element => {
       apiRef={apiRef}
       rows={registerData}
       columns={columns}
-      // Off under e2e only, so a spec asserts on the column it named rather
-      // than on whether that column happened to be in the rendered band.
-      disableVirtualization={window.api.isE2e}
       // Read configuration owns the filter model while it is on. Leaving the
       // column menus open would let a filter of the user's fight it, and the
       // data type filter below could be edited or deleted from the menu, which
@@ -120,10 +142,18 @@ const RegisterGridContent = meme((): JSX.Element => {
       disableColumnFilter={readConfiguration}
       autoHeight={false}
       density="compact"
-      rowHeight={40}
+      rowHeight={ROW_HEIGHT}
+      getRowHeight={getRowHeight}
       columnHeaderHeight={48}
       hideFooterPagination
-      getRowClassName={(params) => ((params.row as RegisterData).error ? 'register-error-row' : '')}
+      getRowClassName={(params) =>
+        [
+          (params.row as RegisterData).error ? 'register-error-row' : '',
+          params.id === expandedAddress ? 'bitmap-expanded-row' : ''
+        ]
+          .filter(Boolean)
+          .join(' ')
+      }
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (scanning) return false
@@ -151,6 +181,16 @@ const RegisterGridContent = meme((): JSX.Element => {
           minHeight: 36,
           height: 36,
           overflow: 'hidden'
+        },
+        // `getRowHeight` answers for the row and its panel together, and MUI
+        // writes that height onto the row element itself, over anything passed
+        // in its style. The panel is a sibling of the row inside the slot, so
+        // without this it is counted twice and the slot comes out that much
+        // too tall.
+        '& .bitmap-expanded-row': {
+          minHeight: `${COMPACT_ROW_HEIGHT}px !important`,
+          maxHeight: `${COMPACT_ROW_HEIGHT}px !important`,
+          '--height': `${COMPACT_ROW_HEIGHT}px !important`
         },
         '& .register-error-row': {
           backgroundColor: alpha(theme.palette.error.main, 0.08),

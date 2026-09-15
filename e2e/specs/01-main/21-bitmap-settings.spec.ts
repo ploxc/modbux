@@ -164,6 +164,52 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
     await fs.unlink(savePath).catch(() => {})
   })
 
+  // The grid places every row below this one from what `getRowHeight` answers,
+  // so a panel whose height reaches nothing leaves the rows under it sitting
+  // where the ones above them already are, and the last of them out of scroll
+  // reach by exactly the panel's height. Measured before the fix, with
+  // virtualisation forced on and 100 rows loaded: the last row's bottom sat at
+  // 1044 against a scroller ending at 911.
+  test('an expanded bitmap row is as tall as the panel inside it', async ({ mainPage }) => {
+    // The scroller only has a scroll model to be wrong about once the rows
+    // outgrow it, so this one reads more than the configured register. The
+    // mapping keeps the bitmap type with read configuration off.
+    const expandButton = mainPage.getByTestId('bitmap-expand-0')
+    if (await mainPage.getByTestId('bit-indicator-0').isVisible()) {
+      await expandButton.click()
+      await mainPage.waitForTimeout(300)
+    }
+    await disableReadConfiguration(mainPage)
+    await loadDummyData(mainPage, '0', '60')
+
+    const outer = mainPage.locator('div[data-id="0"]').first()
+    const scroller = mainPage.locator('.MuiDataGrid-virtualScroller')
+    const collapsedHeight = (await outer.boundingBox())?.height ?? 0
+    const collapsedScroll = await scroller.evaluate((el: HTMLElement) => el.scrollHeight)
+
+    await expandButton.click()
+    await mainPage.waitForTimeout(500)
+
+    const expandedHeight = (await outer.boundingBox())?.height ?? 0
+    const expandedScroll = await scroller.evaluate((el: HTMLElement) => el.scrollHeight)
+    const grew = expandedHeight - collapsedHeight
+
+    expect(grew).toBeGreaterThan(0)
+    // The scroller's own model, not the rendered row. It came from a fixed
+    // rowHeight that the panel's height reached in no way, so this used to be
+    // zero and the last row ended below the furthest the grid would scroll.
+    expect(expandedScroll - collapsedScroll).toBeGreaterThanOrEqual(grew)
+
+    // Back to the one configured register, expanded, which is what the test
+    // below collapses.
+    await expandButton.click()
+    await mainPage.waitForTimeout(300)
+    await loadDummyData(mainPage, '0', '1')
+    await enableReadConfiguration(mainPage)
+    await expandButton.click()
+    await mainPage.waitForTimeout(300)
+  })
+
   test('collapse bitmap row', async ({ mainPage }) => {
     const expandBtn = mainPage.getByTestId('bitmap-expand-0')
     await expandBtn.click()

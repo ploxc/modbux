@@ -3,13 +3,19 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { BITMAP_DATATYPE } from '@shared'
+import { useEffect, useRef } from 'react'
 import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BitMapRow – used as `slots.row` in the DataGrid.
-// Normal rows render as GridRow unchanged.
-// Bitmap rows wrap GridRow + BitMapDetailPanel in an outer div that owns
-// the virtual-scroller height slot when expanded.
+// BitMapRow, used as `slots.row` in the DataGrid.
+//
+// Normal rows render as GridRow unchanged. A bitmap row wraps GridRow and the
+// detail panel in one div, and reports what the panel measures so the grid can
+// give the row a height that holds it. Before that, the grid's row positions
+// were multiples of its fixed rowHeight and the panel's height reached none of
+// them: with virtualisation on, the rows below the expanded one sat under the
+// ones above them, and the last of them was out of scroll reach by exactly the
+// panel's height.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BitMapRow = meme((props: GridRowProps): JSX.Element => {
@@ -22,30 +28,38 @@ const BitMapRow = meme((props: GridRowProps): JSX.Element => {
     useClientZustand((z) => z.registerMapping[z.registerConfig.type][address]?.dataType) ===
     BITMAP_DATATYPE
 
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // The panel is four rows of bit cards above 560px of container width and
+  // eight below, so its height is a measurement rather than a constant. The
+  // observer keeps it true across a window resize as well as a first render.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      useBitMapZustand.getState().setDetailHeight(entry.contentRect.height)
+    })
+    observer.observe(panel)
+
+    return (): void => observer.disconnect()
+  }, [isBitmap, isExpanded])
+
   if (!isBitmap) {
-    // Fast path: render as normal row, no overhead
+    // Fast path: render as a normal row, no overhead.
     return <GridRow {...props} />
   }
 
-  // For bitmap rows the outer div owns the height slot from the virtual scroller.
-  // We strip the position style from GridRow so it renders naturally (at rowHeight)
-  // inside the outer div instead of repositioning itself absolutely.
-  const { style, ...rowProps } = props
-
   return (
-    <div
-      // Forward virtual-scroller positioning (position, top, left, width, height).
-      // height = BITMAP_ROW_HEIGHT when collapsed,
-      //          BITMAP_ROW_HEIGHT + BITMAP_DETAIL_HEIGHT when expanded.
-      style={style}
-      data-id={address}
-    >
-      {/* Override --height CSS var + min/max-height so MUI class rules don't stretch the row */}
-      <GridRow {...rowProps} />
+    <div style={props.style} data-id={address}>
+      {/* The row is held at its own height by the expanded-row rule in
+          RegisterGrid's sx: MUI writes min-height, max-height and --height
+          from what getRowHeight answered, over anything passed in style. */}
+      <GridRow {...props} />
 
-      {/* Detail panel in the space below the row cells */}
-      {isBitmap && isExpanded && (
-        <div style={{ overflow: 'hidden' }}>
+      {isExpanded && (
+        <div ref={panelRef} style={{ overflow: 'hidden' }}>
           <BitMapDetailPanel address={address} />
         </div>
       )}
