@@ -118,6 +118,36 @@ describe('a config written before the unit map was left empty', () => {
   })
 })
 
+describe('resetServer', () => {
+  it('asks main first and empties the store after', async () => {
+    const { useServerZustand } = await import('../server.zustand')
+    // What the store still held when main was asked. `clean` running first
+    // would make this an empty list, and main would be resetting a uuid the
+    // renderer has already forgotten.
+    const unitsAtAskTime: string[][] = []
+    const w = window as unknown as { api: Record<string, unknown> }
+    const boundary = w.api
+    w.api = new Proxy(boundary, {
+      get: (target, method: string): unknown =>
+        method === 'resetServer'
+          ? (uuid: string): Promise<void> => {
+              const units = useServerZustand.getState().serverRegisters[uuid] ?? {}
+              unitsAtAskTime.push(Object.keys(units))
+              return Promise.resolve()
+            }
+          : Reflect.get(target, method)
+    })
+    useServerZustand.getState().clean(MAIN_SERVER_UUID)
+    useServerZustand.getState().addBool('coils', 3)
+
+    await useServerZustand.getState().resetServer(MAIN_SERVER_UUID)
+
+    expect(unitsAtAskTime).toEqual([['0']])
+    expect(useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]).toEqual({})
+    expect(useServerZustand.getState().usedAddresses[MAIN_SERVER_UUID]).toEqual({})
+  })
+})
+
 describe('getUnitId', () => {
   it('answers 0 for a uuid it has never seen and writes nothing', async () => {
     const { useServerZustand } = await import('../server.zustand')

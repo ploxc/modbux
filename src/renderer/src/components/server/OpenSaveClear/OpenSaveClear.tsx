@@ -36,15 +36,10 @@ const useOpen: UseOpenHook = () => {
 
       const serverZustand = useServerZustand.getState()
 
-      // Reset the server before opening a new configuration
-      // This way we can ensure that the server is in a clean state
-      // When unitId's are configured which are not present in the file
-      // there would be remaining registers in the server because
-      // they are now overwritten
-      await window.api.resetServer(serverZustand.selectedUuid)
-      // Also clean the zustand state
-      // to ensure that the state is in a clean state
-      serverZustand.clean(serverZustand.selectedUuid)
+      // A unit the file does not name is not written over on the way in, so
+      // whatever the previous config left on it would answer a master after
+      // this one is loaded. Reset takes both sides down to nothing first.
+      await serverZustand.resetServer(serverZustand.selectedUuid)
 
       const content = await file.text()
 
@@ -177,15 +172,7 @@ const OpenSaveClear = meme(() => {
   const clear = useCallback(async () => {
     const serverZustand = useServerZustand.getState()
     serverZustand.setName('')
-    // Reset the server before opening a new configuration
-    // This way we can ensure that the server is in a clean state
-    // When unitId's are configured which are not present in the file
-    // there would be remaining registers in the server because
-    // they are now overwritten
-    await window.api.resetServer(serverZustand.selectedUuid)
-    // Also clean the zustand state
-    // to ensure that the state is in a clean state
-    serverZustand.clean(serverZustand.selectedUuid)
+    await serverZustand.resetServer(serverZustand.selectedUuid)
   }, [])
 
   return (
