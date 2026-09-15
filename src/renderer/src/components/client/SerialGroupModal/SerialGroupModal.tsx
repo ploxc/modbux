@@ -6,9 +6,10 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Typography from '@mui/material/Typography'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
+import { blockedReason, reportFixResult } from '@renderer/components/shared/linuxFix'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { SerialGroupStatus, serialGroupCommandDisplay } from '@shared'
+import { serialGroupCommandDisplay } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
 import { useSerialGroupZustand } from './serialGroupModal.zustand'
@@ -35,18 +36,8 @@ import { useSerialGroupZustand } from './serialGroupModal.zustand'
  * at install time.
  */
 
-/** Why Modbux cannot run the command itself, or null when it can. */
-const blockedReason = (status: SerialGroupStatus | null): string | null => {
-  if (!status) return null
-  if (status.sandbox) {
-    const name = status.sandbox === 'flatpak' ? 'Flatpak' : 'Snap'
-    return `Modbux is running inside ${name}, so it cannot change your groups itself.`
-  }
-  if (!status.canElevate) {
-    return 'pkexec is not installed, so Modbux cannot ask for permission itself.'
-  }
-  return null
-}
+/** What the two modals differ in, filling "so it cannot change ... itself". */
+const WHAT_IT_CHANGES = 'your groups'
 
 /** A no, kept for as long as the window lives. Not a hook: nothing subscribes. */
 const decline = (): void => {
@@ -100,7 +91,7 @@ const Explanation = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
   const username = useSerialGroupZustand((z) => z.status?.username)
   // A string or null, so it compares by value like any other primitive.
-  const blocked = useSerialGroupZustand((z) => blockedReason(z.status))
+  const blocked = useSerialGroupZustand((z) => blockedReason(z.status, WHAT_IT_CHANGES))
 
   return (
     <>
@@ -146,7 +137,7 @@ const NotNowButton = meme((): JSX.Element => {
 
 const RunCommandButton = meme((): JSX.Element | null => {
   const busy = useSerialGroupZustand((z) => z.busy)
-  const blocked = useSerialGroupZustand((z) => blockedReason(z.status))
+  const blocked = useSerialGroupZustand((z) => blockedReason(z.status, WHAT_IT_CHANGES))
   const { enqueueSnackbar } = useSnackbar()
 
   const apply = useCallback(async (): Promise<void> => {
@@ -154,8 +145,7 @@ const RunCommandButton = meme((): JSX.Element | null => {
     setBusy(true)
     try {
       const result = await window.api.applySerialGroupFix()
-      enqueueSnackbar({ message: result.message, variant: result.ok ? 'success' : 'warning' })
-      if (result.ok) setDone(true)
+      if (reportFixResult(result, enqueueSnackbar)) setDone(true)
     } catch {
       enqueueSnackbar({ message: 'Could not change your groups', variant: 'error' })
     } finally {

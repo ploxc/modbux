@@ -6,7 +6,8 @@ import {
   PrivilegedPortFixResult,
   PrivilegedPortSandbox,
   PrivilegedPortStatus,
-  privilegedPortCommandArgs
+  privilegedPortCommandArgs,
+  UNPRIVILEGED_PORT_START_TARGET
 } from '@shared'
 
 /**
@@ -154,7 +155,21 @@ export const applyPrivilegedPortFix = async (
   }
 
   // Trust the kernel over the exit code: re-read what is actually in effect.
+  // A pkexec that exits 0 without lowering the floor used to produce a green
+  // snackbar and a server that still could not bind 502.
   const unprivilegedPortStart = await readUnprivilegedPortStart()
+
+  if (
+    unprivilegedPortStart === undefined ||
+    unprivilegedPortStart > UNPRIVILEGED_PORT_START_TARGET
+  ) {
+    return {
+      ok: false,
+      reason: 'failed',
+      message: `The command reported success, but the lowest bindable port is still ${unprivilegedPortStart ?? 'unreadable'}. Run it in a terminal to see why.`,
+      unprivilegedPortStart
+    }
+  }
 
   return {
     ok: true,

@@ -238,6 +238,34 @@ describe('applyPrivilegedPortFix', () => {
     expect(execFileCalls[0]?.args).toEqual(privilegedPortCommandArgs('persist'))
   })
 
+  it('refuses a zero exit that left the floor where it was', async () => {
+    // pkexec can exit 0 without the sysctl taking, and the green snackbar then
+    // promised a port the server still cannot bind.
+    procContent = '1024'
+    const result = await applyPrivilegedPortFix('session')
+
+    expect(result).toMatchObject({ ok: false, reason: 'failed' })
+    expect(result.message).toContain('1024')
+    expect(result.unprivilegedPortStart).toBe(1024)
+  })
+
+  it('refuses a zero exit it cannot read the floor back after', async () => {
+    procContent = new Error('ENOENT')
+    const result = await applyPrivilegedPortFix('session')
+
+    expect(result).toMatchObject({ ok: false, reason: 'failed' })
+    expect(result.unprivilegedPortStart).toBeUndefined()
+  })
+
+  it('accepts a floor below the target as well as one on it', async () => {
+    procContent = '1024'
+    const pending = applyPrivilegedPortFix('persist')
+    procContent = '80'
+    const result = await pending
+
+    expect(result.ok).toBe(true)
+  })
+
   it('says so when the user dismisses the PolicyKit prompt', async () => {
     execExitCode = 126
     const result = await applyPrivilegedPortFix('session')
