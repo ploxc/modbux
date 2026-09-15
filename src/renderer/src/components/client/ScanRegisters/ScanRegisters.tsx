@@ -18,7 +18,7 @@ import {
   ScanGridToggle,
   ScanProgress,
   ScanTimeoutField
-} from '../../ScanProgress/ScanProgress'
+} from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
 
