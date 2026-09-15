@@ -25,8 +25,15 @@ export const AddButtons = meme(() => {
     return z.valid.address && z.valid.min && z.valid.max && z.valid.interval
   })
 
+  // A submit waits for main to take the register, and the buttons stay under
+  // the pointer while it does. Two presses would both read the dialog before
+  // the first answer came back and write the same address twice.
+  const [submitting, setSubmitting] = useState(false)
+
   const handleAddAndClose = useCallback(async () => {
+    setSubmitting(true)
     const result = await useAddRegisterZustand.getState().submit(edit)
+    setSubmitting(false)
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.resetToDefaults()
@@ -34,7 +41,9 @@ export const AddButtons = meme(() => {
   }, [edit])
 
   const handleAddAndNext = useCallback(async () => {
+    setSubmitting(true)
     const result = await useAddRegisterZustand.getState().submit(false)
+    setSubmitting(false)
     if (!result) return
     const { address, dataType } = result
     const addRegisterZustand = useAddRegisterZustand.getState()
@@ -53,7 +62,9 @@ export const AddButtons = meme(() => {
   }, [])
 
   const handleEditSubmit = useCallback(async () => {
+    setSubmitting(true)
     const result = await useAddRegisterZustand.getState().submit(true)
+    setSubmitting(false)
     if (!result) return
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.setRegisterType(undefined)
@@ -65,7 +76,7 @@ export const AddButtons = meme(() => {
       <Button
         data-testid="add-reg-submit-btn"
         sx={{ flex: 1, flexBasis: 0 }}
-        disabled={!valid || !dirty}
+        disabled={!valid || !dirty || submitting}
         variant="contained"
         color="primary"
         onClick={handleEditSubmit}
@@ -80,7 +91,7 @@ export const AddButtons = meme(() => {
       <Button
         data-testid="add-reg-submit-btn"
         sx={{ flex: 1, flexBasis: 0 }}
-        disabled={!valid}
+        disabled={!valid || submitting}
         variant="contained"
         color="primary"
         onClick={handleAddAndClose}
@@ -90,7 +101,7 @@ export const AddButtons = meme(() => {
       <Button
         data-testid="add-reg-next-btn"
         sx={{ flex: 1, flexBasis: 0 }}
-        disabled={!valid}
+        disabled={!valid || submitting}
         variant="outlined"
         color="primary"
         onClick={handleAddAndNext}

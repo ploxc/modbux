@@ -379,22 +379,31 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         registerLength: form.registerLength
       })
 
-      // Moving an existing register means the old address has to go first
-      if (isEdit && serverRegisterEdit) {
-        const oldAddress = serverRegisterEdit.params.address
-        if (oldAddress !== params.address) {
-          serverZustand.removeRegister({
-            uuid,
-            unitId,
-            address: oldAddress,
-            registerType,
-            dataType: serverRegisterEdit.params.dataType,
-            length: serverRegisterEdit.params.length
-          })
-        }
+      // Moving an existing register means the old address has to go first: the
+      // two spans can overlap, and `removeRegister` erases everything the old
+      // one occupied, so removing after the write would erase part of it.
+      const moved =
+        isEdit && serverRegisterEdit && serverRegisterEdit.params.address !== params.address
+          ? serverRegisterEdit.params
+          : undefined
+
+      if (moved) {
+        serverZustand.removeRegister({
+          uuid,
+          unitId,
+          address: moved.address,
+          registerType,
+          dataType: moved.dataType,
+          length: moved.length
+        })
       }
 
-      if (!(await serverZustand.addRegister({ uuid, unitId, params }))) return undefined
+      if (!(await serverZustand.addRegister({ uuid, unitId, params }))) {
+        // The remove has already happened, so a refusal here would leave the
+        // user with neither register and a message about only one of them.
+        if (moved) await serverZustand.addRegister({ uuid, unitId, params: moved })
+        return undefined
+      }
 
       return { address: params.address, dataType: form.dataType }
     },

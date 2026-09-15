@@ -470,11 +470,11 @@ export class ModbusServer {
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
    *
-   * Answers the word now held at `address`, which is 0 for a generator and for
-   * `none`, because neither has written one yet. The renderer's store waits for
-   * this answer before it writes, and the `register_value` events below go out
-   * before the answer does, so the value would otherwise reach a store with no
-   * entry to put it in and be dropped.
+   * Answers the word now held at `address`, which is 0 for `none` because that
+   * writes nothing. The renderer's store waits for this answer before it
+   * writes, and every `register_value` below goes out before the answer does,
+   * so the value would otherwise reach a store with no entry to put it in and
+   * be dropped.
    */
   public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number => {
     const littleEndian = this._littleEndian.get(uuid) ?? false
@@ -559,7 +559,9 @@ export class ModbusServer {
       })
     )
 
-    return 0
+    // `ValueGenerator` writes its first value from its own constructor, so this
+    // reads what it just put there rather than answering 0 for a minute.
+    return serverData[registerType][address] ?? 0
   }
 
   /**
