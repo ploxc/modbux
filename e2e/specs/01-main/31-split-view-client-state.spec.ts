@@ -8,6 +8,7 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   cleanServerState,
+  clearData,
   loadServerConfig,
   loadClientConfig,
   selectRegisterType,
@@ -65,6 +66,12 @@ test.describe.serial('Read configuration survives the split out server window', 
     await navigateToHome(mainPage)
     serverPage = await splitOutServerWindow(electronApp, mainPage)
     await expect(serverPage.getByTestId('section-holding_registers')).toBeVisible()
+
+    // The rows the previous test read already satisfy the assertion below, and
+    // the read that would empty them lands after it. Clear them first, so the
+    // grid has to be filled again rather than left alone.
+    await clearData(mainPage)
+    await expect(mainPage.locator('.MuiDataGrid-row[data-id="50"]')).toHaveCount(0)
 
     await mainPage.getByTestId('read-btn').click()
 

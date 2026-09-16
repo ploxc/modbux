@@ -699,6 +699,83 @@ describe('the lists that name a channel agree', () => {
 })
 
 //
+// ─── Every channel that reaches main's client is placed ──────────────────────
+//
+// `main/index.ts` constructs one `ModbusClient`, and no client channel carries
+// an addressee, so any window can aim one at it. `CLIENT_CHANNELS` in
+// `main/ipc.ts` is the list `createIpcHandle` refuses from a window that is not
+// `windows.main`, and it is hand written. A channel added later is three lines,
+// a name, a spec entry and a handler, and every one of the rules above stays
+// green while it escapes the guard, which is the defect this list was added to
+// close.
+//
+// The signal is the handler's own body: a listener naming `client` or `state`
+// reaches what one window owns. Everything else drives a server, which is
+// addressed by uuid, or asks `app` or a Linux helper.
+
+describe('every channel that reaches main’s client is placed', () => {
+  /**
+   * The channels that reach the client and are deliberately not refused.
+   *
+   * The two serial ones enumerate hardware rather than touch the client, and
+   * `server.zustand.ts refreshSerialPorts` calls the first of the two for the
+   * RTU server's COM field. `get_client_state` answers a `ClientState` rather
+   * than `undefined`, so a refusal has nothing to hand back, and reading what
+   * main is doing changes nothing about it.
+   */
+  const ALLOWED_FROM_EITHER_WINDOW = [
+    'list_serial_ports',
+    'validate_serial_port',
+    'get_client_state'
+  ]
+
+  const ipc = parse(join(repoRoot, 'src/main/ipc.ts'))
+
+  /** Every channel whose listener body names `client` or `state`. */
+  const reachesTheClient = new Set<string>()
+  eachNode(ipc, (node) => {
+    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return
+    if (node.expression.text !== 'ipcHandle') return
+    const [channel, listener] = node.arguments
+    if (!channel || !ts.isStringLiteral(channel) || !listener) return
+    if (/\b(client|state)\./.test(listener.getText(ipc))) reachesTheClient.add(channel.text)
+  })
+
+  /** The names `CLIENT_CHANNELS` holds. */
+  const refused = new Set<string>()
+  eachNode(ipc, (node) => {
+    if (!ts.isVariableDeclaration(node)) return
+    if (node.name.getText(ipc) !== 'CLIENT_CHANNELS') return
+    eachNode(node as unknown as ts.SourceFile, (child) => {
+      if (ts.isStringLiteral(child)) refused.add(child.text)
+    })
+  })
+
+  it('finds channels to check', () => {
+    expect(reachesTheClient.size).toBeGreaterThan(10)
+    expect(refused.size).toBeGreaterThan(10)
+  })
+
+  it('refuses every one of them from the server window, or says why not', () => {
+    const unplaced = [...reachesTheClient]
+      .filter((channel) => !refused.has(channel))
+      .filter((channel) => !ALLOWED_FROM_EITHER_WINDOW.includes(channel))
+      .sort()
+    expect(unplaced).toEqual([])
+  })
+
+  it('names no channel the handlers do not reach the client through', () => {
+    const stale = [...refused].filter((channel) => !reachesTheClient.has(channel)).sort()
+    expect(stale).toEqual([])
+  })
+
+  it('allows only channels that are there', () => {
+    const gone = ALLOWED_FROM_EITHER_WINDOW.filter((channel) => !reachesTheClient.has(channel))
+    expect(gone).toEqual([])
+  })
+})
+
+//
 // ─── Every channel carrying an object declares a schema ──────────────────────
 //
 // TypeScript covers the shape of a bare primitive, and sixteen channels take no
