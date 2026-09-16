@@ -26,7 +26,7 @@ Split by what the code shares, not by directory size. One area per run.
 
 Read `CLAUDE.md`, `CONTRIBUTING.md` and `src/__tests__/conformance.test.ts`.
 
-The suite already asserts nine conventions. **Do not report what it asserts** —
+The suite already asserts twelve conventions. **Do not report what it asserts** —
 it is green, so those are closed. Audit what a test cannot see.
 
 ## The eight criteria
