@@ -316,7 +316,9 @@ describe('the edit dialog buttons', () => {
     expect(Number(useAddRegisterZustand.getState().value)).toBeGreaterThanOrEqual(openedAt)
   })
 
-  // `RegisterParamsSchema` bounds no value, so this arrives from a config file.
+  // `getValueRangeError` leaves `datetime` alone, because
+  // `encodeIEC870DateTime` clamps rather than throws, so this arrives from a
+  // config file and the field is where it is said.
   it('marks a stored datetime outside the window wrong before anything is typed', () => {
     renderEditing(timestampAt100('datetime', Date.UTC(2200, 0, 1)))
 

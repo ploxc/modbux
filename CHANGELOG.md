@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A server register the encoder cannot serve is now refused by name.** A
+  config file could put a fixed value outside the range of its own data type, a
+  string wider than the register map, a register running past the last address,
+  or a generator whose interval was so long it fired every millisecond instead.
+  Opening it left the server view blank for that launch and every launch after
+  it, with no message and nothing on screen to clear it with. The file is now
+  refused with the register and the field named, and one already saved is
+  dropped on the next launch with the rest of the setup kept.
 - **Splitting the server into its own window no longer turns Read
   Configuration off.** The toggle stayed on while the reading went back to the
   address and length in the toolbar, so every configured register above the

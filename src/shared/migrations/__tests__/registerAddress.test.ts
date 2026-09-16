@@ -390,6 +390,86 @@ describe('the used addresses the drop writes back', () => {
   })
 })
 
+describe('a persisted register the encoder cannot serve', () => {
+  /** A fixed register at `address`, with `params` over the defaults. */
+  const register = (
+    address: number,
+    overrides: Record<string, unknown>
+  ): Record<string, unknown> => ({
+    value: 1,
+    params: { ...params(address), ...overrides }
+  })
+
+  const persisted = (
+    registers: Record<string, Record<string, unknown>>
+  ): Record<string, unknown> => ({
+    serverRegisters: {
+      u: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: registers
+        }
+      }
+    }
+  })
+
+  const holding = (state: Record<string, unknown>): Record<string, unknown> => {
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    return unit.holding_registers as Record<string, unknown>
+  }
+
+  // `Buffer.alloc(2e12)` answers ERR_OUT_OF_RANGE and `getUsedAddresses` loops
+  // the same number, so the register that went is the one that hung the launch.
+  it('drops a string wider than the map and keeps its neighbours', () => {
+    const state = persisted({
+      '0': register(0, { dataType: 'utf8', length: 10, stringValue: 'x', value: 0 }),
+      '20': register(20, { dataType: 'utf8', length: 1e12, stringValue: 'x', value: 0 }),
+      '40': register(40, {})
+    })
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(holding(state))).toEqual(['0', '40'])
+  })
+
+  it('drops a fixed value its data type cannot encode', () => {
+    const state = persisted({
+      '0': register(0, { value: 70000 }),
+      '10': register(10, { dataType: 'int64', value: 1.5 }),
+      '20': register(20, { value: 65535 })
+    })
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(holding(state))).toEqual(['20'])
+  })
+
+  it('drops a register that runs past address 65535', () => {
+    const state = persisted({
+      '65534': register(65534, { dataType: 'uint64', value: 1 }),
+      '65532': register(65532, { dataType: 'uint64', value: 1 })
+    })
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(holding(state))).toEqual(['65532'])
+  })
+
+  // The drop on its own is not the store's behaviour; the step in `migrate` is.
+  it('is dropped by the migration a v6 blob runs', () => {
+    const state = migrateServerState(
+      persisted({ '0': register(0, { value: 70000 }), '10': register(10, {}) }),
+      6
+    )
+
+    expect(Object.keys(holding(state))).toEqual(['10'])
+  })
+
+  it('is behind a version the store has moved past', () => {
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(6)
+  })
+})
+
 describe('a persisted mapping entry outside the map', () => {
   /** The last client store version whose blobs can carry any numeric key. */
   const LAST_VERSION_ACCEPTING_ANY_KEY = 3
