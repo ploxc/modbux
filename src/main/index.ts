@@ -153,7 +153,10 @@ onIpcEvent('open_server_window', () => {
     windows.server.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  windows.server.on('close', () => {
+  // `closed`, not `close`. The handle going null is what tells the main window
+  // to re-read the key this window has been writing, and on `close` this
+  // renderer is still running and can persist once more after that read.
+  windows.server.on('closed', () => {
     windows.server = null
   })
 })

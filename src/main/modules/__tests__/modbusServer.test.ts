@@ -1558,6 +1558,19 @@ describe('ModbusServer', () => {
       expect(getAddressees('rtu_server_status')).toEqual(['serverView', 'serverView'])
     })
 
+    // `rtu_server_status` fires on a change, so a window that was not the one
+    // showing the server at the last change has this to ask instead.
+    it('answers whether the RTU server is up', async () => {
+      expect(server.rtuActive).toBe(false)
+
+      await server.startRtuServer({ uuid, serialConfig })
+      lastInstance(ServerSerial)._handlers['initialized']()
+      expect(server.rtuActive).toBe(true)
+
+      await server.stopRtuServer()
+      expect(server.rtuActive).toBe(false)
+    })
+
     it('emits error status on socketError event', async () => {
       await server.startRtuServer({ uuid, serialConfig })
 
