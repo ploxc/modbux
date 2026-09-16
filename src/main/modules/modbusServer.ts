@@ -17,7 +17,8 @@ import {
   RegisterType,
   RegisterValue,
   DataBits,
-  StopBits
+  StopBits,
+  ValuedDataType
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { ServerEndianness } from '@shared'
@@ -455,6 +456,37 @@ export class ModbusServer {
     this._littleEndian.set(uuid, littleEndian)
   }
 
+  /**
+   * The words a fixed register holds, or nothing at all when it cannot be
+   * encoded.
+   *
+   * `RegisterParamsSchema` bounds the pair of `dataType` and `value` at the IPC
+   * boundary, and `getValueRangeError` there reads the same table this asks
+   * about. This is the class answering for its own input: `addRegister` is
+   * public, and a caller inside main reaches it without crossing that boundary.
+   */
+  private _encode = ({
+    dataType,
+    value,
+    littleEndian,
+    stringValue,
+    length
+  }: {
+    dataType: ValuedDataType
+    value: number
+    littleEndian: boolean
+    stringValue?: string
+    length?: number
+  }): number[] | undefined => {
+    try {
+      return dataType === 'utf8'
+        ? createStringRegisters(stringValue ?? '', length ?? DEFAULT_UTF8_LENGTH)
+        : createRegisters(dataType, value, littleEndian)
+    } catch {
+      return undefined
+    }
+  }
+
   private _unitData = (uuid: string, unitId: UnitIdString): ServerData => {
     const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
     const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
@@ -467,14 +499,26 @@ export class ModbusServer {
    * If a generator already exists at the address, it is disposed and replaced.
    * If a fixed value is provided, sets the register directly.
    *
-   * Answers the words now held from `address` on, which is nothing for `none`
-   * because that writes none. The renderer's store waits for this answer before
-   * it writes, and every `register_value` below goes out before the answer
-   * does, so those words would otherwise reach a store with no entry to put
-   * them in and be dropped. The store folds what comes back through the same
+   * Answers the words now held from `address` on, which is an empty list for
+   * `none` because that writes none. The renderer's store waits for this answer
+   * before it writes, and every `register_value` below goes out before the
+   * answer does, so those words would otherwise reach a store with no entry to
+   * put them in and be dropped. The store folds what comes back through the same
    * merge the event feeds, which is where a word becomes a value.
+   *
+   * `undefined` is the refusal, which is what the store already reads as
+   * nothing changed. An encoder that cannot take the register used to throw
+   * straight out of here: `createIpcHandle` puts no try around a listener, so
+   * the invoke rejected rather than answering, and `syncServerRegisters` adds
+   * in a bare loop, so the throw took every register after it in that unit
+   * with it. One register is refused now and the rest of the unit stands.
+   *
+   * The generator branch cannot be answered for here. `ValueGenerator` encodes
+   * inside an unawaited async tick, so a range its data type cannot take writes
+   * nothing and warns once per interval instead of throwing, which is `M-02`
+   * and is a change to that class.
    */
-  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number[] => {
+  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number[] | undefined => {
     const littleEndian = this._littleEndian.get(uuid) ?? false
     const {
       address,
@@ -517,10 +561,15 @@ export class ModbusServer {
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
     if (fixedValue) {
-      const registers =
-        dataType === 'utf8'
-          ? createStringRegisters(stringValue ?? '', length ?? DEFAULT_UTF8_LENGTH)
-          : createRegisters(dataType, value, littleEndian)
+      const registers = this._encode({ dataType, value, littleEndian, stringValue, length })
+      if (!registers) {
+        this._emitMessage({
+          message: `The ${dataType} register at ${address} was not added: main cannot encode that value`,
+          variant: 'error'
+        })
+        return undefined
+      }
+
       registers.forEach((register, index) => {
         const registerAddress = address + index
         serverData[registerType][registerAddress] = register
