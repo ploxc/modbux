@@ -19,7 +19,7 @@ import {
 import { BITMAP_DATATYPE, RegisterData, scalableDataTypes } from '@shared'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/data.zustand'
-import BitMapRow from './BitMapRow/BitMapRow'
+import BitMapRow from './BitMapRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 //

@@ -167,7 +167,9 @@ concerns.
 
 **A component that owns something gets a folder.** Its store, its helpers, its
 subcomponents and their tests go in with it, and the folder takes its name. A
-component that owns nothing stays a file: `SliderComponent.tsx` and
+`__tests__` of its own is enough, because the alternative is its test sitting in
+the parent's folder among the tests of everything beside it. A component that
+owns nothing stays a file: `SliderComponent.tsx` and
 `HomeButton.tsx` are leaves, `columns/` and `shared/inputs/` are collections of
 them, and neither wants a folder each. Where the line falls is a judgement, so
 no test draws it.

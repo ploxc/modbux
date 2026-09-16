@@ -16,7 +16,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { gridSurface } from '@renderer/theme'
 import { useCallback, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
-import ServerPartTitle from '../ServerPartTitle/ServerPartTitle'
+import ServerPartTitle from '../ServerPartTitle'
 import useServerGridZustand from '../serverGrid.zustand'
 import ServerBitMapDetail from './ServerBitMapDetail/ServerBitMapDetail'
 

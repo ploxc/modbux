@@ -15,8 +15,8 @@ vi.hoisted(() => {
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import MenuRegisterOptions from '../MenuRegisterOptions/MenuRegisterOptions'
-import MenuConnectionOptions from '../MenuConnectionOptions/MenuConnectionOptions'
+import MenuRegisterOptions from '../MenuRegisterOptions'
+import MenuConnectionOptions from '../MenuConnectionOptions'
 
 // The options menu groups register options / connection options / actions,
 // each section carrying its own trailing divider so empty sections never
