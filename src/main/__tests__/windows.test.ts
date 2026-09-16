@@ -110,7 +110,7 @@ describe('Windows', () => {
     })
   })
 
-  describe('sendTo', () => {
+  describe('an addressed send', () => {
     const message = { message: 'refused', variant: 'error', error: null } as never
 
     it('reaches the contents it was handed and nothing else', () => {
@@ -121,7 +121,7 @@ describe('Windows', () => {
       mainWindow.webContents.send.mockClear()
       serverWindow.webContents.send.mockClear()
 
-      windows.sendTo(mainWindow.webContents as never, 'backend_message', message)
+      windows.send('backend_message', message, mainWindow.webContents as never)
 
       expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
       expect(serverWindow.webContents.send).not.toHaveBeenCalled()
@@ -135,7 +135,7 @@ describe('Windows', () => {
       mainWindow.webContents.send.mockClear()
       serverWindow.webContents.send.mockClear()
 
-      windows.sendTo('main', 'backend_message', message)
+      windows.send('backend_message', message, 'main')
 
       expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
       expect(serverWindow.webContents.send).not.toHaveBeenCalled()
@@ -149,7 +149,7 @@ describe('Windows', () => {
       mainWindow.webContents.send.mockClear()
       serverWindow.webContents.send.mockClear()
 
-      windows.sendTo('serverView', 'backend_message', message)
+      windows.send('backend_message', message, 'serverView')
 
       expect(serverWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
       expect(mainWindow.webContents.send).not.toHaveBeenCalled()
@@ -161,13 +161,13 @@ describe('Windows', () => {
       windows.main = mainWindow as never
       mainWindow.webContents.send.mockClear()
 
-      windows.sendTo('serverView', 'backend_message', message)
+      windows.send('backend_message', message, 'serverView')
 
       expect(mainWindow.webContents.send).toHaveBeenCalledWith('backend_message', message)
     })
 
     it('says nothing when the addressee has no window', () => {
-      expect(() => windows.sendTo('serverView', 'backend_message', message)).not.toThrow()
+      expect(() => windows.send('backend_message', message, 'serverView')).not.toThrow()
     })
 
     it('skips destroyed contents', () => {
@@ -176,7 +176,7 @@ describe('Windows', () => {
       mainWindow.webContents.send.mockClear()
       mainWindow.webContents.isDestroyed.mockReturnValue(true)
 
-      windows.sendTo('main', 'backend_message', message)
+      windows.send('backend_message', message, 'main')
 
       expect(mainWindow.webContents.send).not.toHaveBeenCalled()
     })
@@ -188,7 +188,7 @@ describe('Windows', () => {
         throw new Error('Object has been destroyed')
       })
 
-      expect(() => windows.sendTo('main', 'backend_message', message)).not.toThrow()
+      expect(() => windows.send('backend_message', message, 'main')).not.toThrow()
     })
   })
 

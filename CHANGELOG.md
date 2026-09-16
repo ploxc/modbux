@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is set by writing the whole word back, and the panel read that word from
   before the toggle before it, so a second toggle in quick succession cleared
   the bit the first had set. A double click on one bit left it on.
+- **A register added in the split out server window now survives a restart.**
+  Each window kept its own copy of the server setup and both wrote it to the
+  same place, so the window you were not looking at wrote its copy over what you
+  had just added. One generator was enough to keep that happening, and closing
+  the split window left the stale copy as the only one.
 - **A config file Modbux refuses now says which register and which field.** One
   malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
   naming neither the address nor what was wrong with it, and a unit id outside

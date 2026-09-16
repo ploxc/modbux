@@ -30,7 +30,7 @@ import {
 import type { Windows } from '../windows'
 import { createIpcHandle, initIpc } from '../ipc'
 
-/** The addressee `sendTo` was given, beside the message it carried. */
+/** The addressee `send` was given, beside the message it carried. */
 interface SentMessage {
   to: unknown
   message: BackendMessage
@@ -39,8 +39,8 @@ interface SentMessage {
 const createWindows = (): { windows: Windows; sent: SentMessage[] } => {
   const sent: SentMessage[] = []
   const windows = {
-    send: (_event: string, message: BackendMessage) => sent.push({ to: 'all', message }),
-    sendTo: (to: unknown, _event: string, message: BackendMessage) => sent.push({ to, message })
+    send: (_event: string, message: BackendMessage, to: unknown = 'all') =>
+      sent.push({ to, message })
   } as unknown as Windows
   return { windows, sent }
 }

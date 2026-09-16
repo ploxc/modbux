@@ -152,15 +152,11 @@ let addressedTo: any[][] = []
 
 const createMockWindows = (): Windows =>
   ({
-    send: vi.fn((event: string, ...args: unknown[]) => {
-      sentToWindows.push([event, ...args.map((arg) => structuredClone(arg))])
-    }),
-    // `sendTo` puts the addressee first and the event second, and a test that
-    // reads the payload wants the same shape either way. The addressee is
-    // recorded beside it, because who a message reached is its own question.
-    sendTo: vi.fn((target: unknown, event: string, ...args: unknown[]) => {
-      sentToWindows.push([event, ...args.map((arg) => structuredClone(arg))])
-      addressedTo.push([target, event])
+    // The addressee is recorded apart from the payload, because who a message
+    // reached is its own question. `undefined` there is every window.
+    send: vi.fn((event: string, payload: unknown, to?: unknown) => {
+      sentToWindows.push([event, structuredClone(payload)])
+      addressedTo.push([to, event])
     })
   }) as unknown as Windows
 

@@ -48,11 +48,32 @@ const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   listSerialPorts: () => Promise.resolve([])
 }
 
+/**
+ * The listeners the stores registered, so a test can deliver an event.
+ *
+ * `stubRenderer` empties it, and `fireEvent` calls what is in it. A store
+ * registers at module scope, so the import has to come after the stub.
+ */
+const listeners = new Map<string, Array<(...args: unknown[]) => void>>()
+
+/** Delivers `event` to every listener a store registered for it. */
+export const fireEvent = (event: string, ...args: unknown[]): void => {
+  for (const listener of listeners.get(event) ?? []) listener(...args)
+}
+
 export const stubRenderer = (): void => {
+  listeners.clear()
   const w = window as unknown as { electron: unknown; api: unknown }
   w.electron = {
     ipcRenderer: {
-      on: (): (() => void) => (): void => {},
+      on: (event: string, listener: (...args: unknown[]) => void): (() => void) => {
+        const forEvent = listeners.get(event) ?? []
+        // The preload hands a listener the Electron event first, and a store
+        // reads its payload off the second argument.
+        forEvent.push((...args) => listener(undefined, ...args))
+        listeners.set(event, forEvent)
+        return (): void => {}
+      },
       send: (): void => {},
       invoke: async (): Promise<undefined> => undefined
     }
@@ -60,8 +81,12 @@ export const stubRenderer = (): void => {
   w.api = new Proxy(
     {},
     {
-      get: (_target, method: string): ((payload: unknown) => Promise<unknown>) =>
-        answers[method] ?? ((): Promise<undefined> => Promise.resolve(undefined))
+      // A boolean the preload exposes, not a channel: a function here is truthy
+      // and would make every window look like the server window.
+      get: (_target, method: string): unknown =>
+        method === 'isServerWindow'
+          ? false
+          : (answers[method] ?? ((): Promise<undefined> => Promise.resolve(undefined)))
     }
   )
 }
@@ -81,9 +106,11 @@ export const recordApiCalls = (calls: ApiCall[]): void => {
   window.api = new Proxy(
     {},
     {
-      get: (_target, method: string): ((payload: unknown) => unknown) => {
+      get: (_target, method: string): unknown => {
         const answer = answers[method]
-        if (typeof answer !== 'function') throw new Error(`stubRenderer answers no ${method}`)
+        // `isServerWindow` is a boolean the preload exposes rather than a
+        // channel, so there is no call to record.
+        if (typeof answer !== 'function') return answer
         return (payload: unknown): unknown => {
           calls.push({ method, payload })
           return (answer as (payload: unknown) => unknown)(payload)
