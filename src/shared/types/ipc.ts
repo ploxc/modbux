@@ -102,7 +102,9 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
 /**
  * IpcHandlerMap associates each IpcChannel with:
  * - args: the argument types that the renderer needs to pass
- * - return: the type that the handler in the main/backend returns
+ * - return: the value the handler answers, never the promise around it.
+ *   Every call crosses the boundary, so every one of them is async, and
+ *   `IpcListener` takes `Promise<R> | R` while the preload wraps the lot.
  *
  * ! NOTE: The keys below MUST exactly match IpcChannel.
  * ! If you add a channel to IPC_CHANNELS, add it here.
@@ -259,13 +261,13 @@ export interface IpcHandlerSpec {
   /** Set the server port */
   ['set_server_port']: {
     args: [CreateServerParams]
-    return: Promise<number | undefined>
+    return: number | undefined
   }
 
   /** Create a new server */
   ['create_server']: {
     args: [CreateServerParams]
-    return: Promise<number | undefined>
+    return: number | undefined
   }
 
   /** Delete an existing server (UUID) */
@@ -343,7 +345,7 @@ export interface IpcHandlerSpec {
   /** Lower the Linux unprivileged-port floor via pkexec */
   ['apply_privileged_port_fix']: {
     args: [PrivilegedPortFixMode]
-    return: Promise<PrivilegedPortFixResult | undefined>
+    return: PrivilegedPortFixResult | undefined
   }
 
   /** Report whether this user may open a serial port on Linux */

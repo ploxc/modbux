@@ -32,12 +32,6 @@ export const withoutUndefined = <T>(value: T): T => {
   return kept as T
 }
 
-export interface State {
-  connectionConfig: ConnectionConfig
-  registerConfig: RegisterConfig
-  registerMapping?: RegisterMapping
-}
-
 export class AppState {
   // Copies, because a field initialiser that names an export makes main's state
   // that export, until the first update replaces the tree.

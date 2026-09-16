@@ -2,10 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { CamelCase, IPC_CHANNELS, IpcHandlerMap, snakeToCamel } from '@shared'
 
-const passedArgs = process.argv.slice(2)
-const isServerWindow = passedArgs.includes('is-server-window')
+const isServerWindow = process.argv.includes('--is-server-window')
 
-export const ipcInvoke = <C extends keyof IpcHandlerMap>(
+const ipcInvoke = <C extends keyof IpcHandlerMap>(
   channel: C,
   ...args: IpcHandlerMap[C]['args']
 ): Promise<IpcHandlerMap[C]['return']> => {
@@ -74,19 +73,11 @@ const api = {
   ...handlers
 } as Api
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
+// Every window this app opens sets `contextIsolation: true`, so there is no
+// branch here for the case where it is off.
+try {
+  contextBridge.exposeInMainWorld('electron', electronAPI)
+  contextBridge.exposeInMainWorld('api', api)
+} catch (error) {
+  console.error(error)
 }

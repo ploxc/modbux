@@ -32,15 +32,6 @@ const addressColumn: GridColDef<Transaction, number> = {
   maxWidth: 60
 }
 
-// const lengthColumn: GridColDef<Transaction, number> = {
-//   field: 'responseLength',
-//   headerName: 'Length',
-//   sortable: false,
-//   disableColumnMenu: true,
-//   minWidth: 60,
-//   maxWidth: 60
-// }
-
 const functionColumn: GridColDef<Transaction, number> = {
   field: 'code',
   headerName: 'Fn',
@@ -100,7 +91,6 @@ const useTransactionGridColumns = (): GridColDef<Transaction>[] => {
       timestampColumn,
       unitIdColumn,
       addressColumn,
-      // lengthColumn,
       functionColumn,
       requestColumn,
       responseColumn,

@@ -217,7 +217,7 @@ export const useClientZustand = create<
       valid: {
         host: true,
         com: true,
-        lenght: true
+        length: true
       },
       //
       //
@@ -399,7 +399,7 @@ export const useClientZustand = create<
         // kept here and never sent.
         if (!valid) {
           set((state) => {
-            state.valid.lenght = false
+            state.valid.length = false
             state.registerConfig.length = newLength
           })
           return
@@ -408,7 +408,7 @@ export const useClientZustand = create<
         if (!(await window.api.updateRegisterConfig({ length: newLength }))) return
 
         set((state) => {
-          state.valid.lenght = true
+          state.valid.length = true
           state.registerConfig.length = newLength
         })
         clearRegisterDataWhenIdle()
@@ -490,7 +490,6 @@ export const useClientZustand = create<
         set((state) => {
           state.scanProgress = scanProgress
         }),
-      version: '-',
 
       // Serial port discovery
       serialPorts: [],

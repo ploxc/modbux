@@ -22,7 +22,7 @@ import z from 'zod'
 interface Valid {
   host: boolean
   com: boolean
-  lenght: boolean
+  length: boolean
 }
 
 export const PersistedClientZustandSchema = z.object({

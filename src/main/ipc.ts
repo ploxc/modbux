@@ -249,10 +249,3 @@ export function onIpcEvent<E extends IpcEvent>(
     listener(ev, ...(args as IpcEventPayloadMap[E]))
   })
 }
-
-/**
- * Remove all listeners for a specific IPC event on the main process.
- */
-export function offIpcEvent<E extends IpcEvent>(event: E): void {
-  ipcMain.removeAllListeners(event)
-}

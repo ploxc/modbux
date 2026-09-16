@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography'
 import { SxProps } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
@@ -94,30 +94,6 @@ const ServerButton = meme((): JSX.Element => {
   )
 })
 
-//
-//
-// Listens to the shift key
-const useShiftKeyListener = (): void => {
-  const keyDownListener = useCallback((event: KeyboardEvent): void => {
-    const layoutZustand = useLayoutZustand.getState()
-    if (event.key === 'Shift') layoutZustand.setHomeShiftKeyDown(true)
-  }, [])
-
-  const keyUpListener = useCallback((event: KeyboardEvent): void => {
-    const layoutZustand = useLayoutZustand.getState()
-    if (event.key === 'Shift') layoutZustand.setHomeShiftKeyDown(false)
-  }, [])
-
-  useEffect(() => {
-    window.addEventListener('keydown', keyDownListener)
-    window.addEventListener('keyup', keyUpListener)
-    return (): void => {
-      window.removeEventListener('keydown', keyDownListener)
-      window.removeEventListener('keyup', keyUpListener)
-    }
-  }, [keyDownListener, keyUpListener])
-}
-
 const bottomElementsCommonSx: SxProps = {
   position: 'fixed',
   bottom: 12,
@@ -173,8 +149,6 @@ const Version = meme((): JSX.Element => {
 //
 // MAIN
 const Home = meme(() => {
-  useShiftKeyListener()
-
   return (
     <Fade in={true} timeout={500}>
       <Box

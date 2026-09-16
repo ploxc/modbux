@@ -869,7 +869,6 @@ export class ModbusClient {
 
     try {
       if (single) {
-        // Wrtie single coil
         await new Promise<WriteCoilResult>((resolve, reject) =>
           this._client.writeFC5(unitId, address, first, (err, data) => {
             if (err) {
