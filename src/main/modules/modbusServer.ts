@@ -144,6 +144,11 @@ export class ModbusServer {
   private _rtuServer: ServerSerial | null = null
   private _rtuUuid: string | null = null
   private _rtuActive: boolean = false
+
+  /** Whether the RTU server is running, for a window that has to ask. */
+  public get rtuActive(): boolean {
+    return this._rtuActive
+  }
   private _rtuGeneration: number = 0
   private _broadcastWarningSent: boolean = false
   private _windows: Windows

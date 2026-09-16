@@ -745,7 +745,22 @@ onEvent('rtu_server_status', ({ active }) => {
   useServerZustand.setState({ rtuServerActive: active })
 })
 
-/** Whether the split out server window is the one main has been writing to. */
+/**
+ * Ask main whether the RTU server is up.
+ *
+ * `rtu_server_status` fires on a change and goes to the window showing the
+ * server, so a window that was not that window at the last change never heard
+ * it. Both moments where that leaves a wrong dot ask here: a window coming up,
+ * and the main window taking the view back from the split out one.
+ */
+const readRtuServerStatus = async (): Promise<void> => {
+  const active = await window.api.getRtuServerStatus()
+  useServerZustand.setState({ rtuServerActive: active })
+}
+
+readRtuServerStatus()
+
+/** Whether a split out server window has been the one writing the key. */
 let serverWindowOwnsTheKey = false
 
 /**
@@ -767,4 +782,5 @@ onEvent('window_update', ({ server }) => {
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
   useServerZustand.persist.rehydrate()
+  readRtuServerStatus()
 })

@@ -18,6 +18,9 @@ let app: ElectronApplication
 let page: Page
 
 async function launchApp(clearStorage: boolean): Promise<void> {
+  // Cleared first, so the search below has to find this launch's own window
+  // rather than passing on the one the previous launch left here.
+  page = undefined as unknown as Page
   app = await electron.launch(launchOptions())
   keepOutput(app)
   if (clearStorage) {

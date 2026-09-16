@@ -45,6 +45,7 @@ const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
     Promise.resolve(AddRegisterParamsSchema.safeParse(payload).success ? [] : undefined),
   getClientState: () => Promise.resolve(disconnected),
   getAppVersion: () => Promise.resolve('0.0.0-test'),
+  getRtuServerStatus: () => Promise.resolve(false),
   listSerialPorts: () => Promise.resolve([])
 }
 
@@ -107,10 +108,11 @@ export const recordApiCalls = (calls: ApiCall[]): void => {
     {},
     {
       get: (_target, method: string): unknown => {
-        const answer = answers[method]
         // `isServerWindow` is a boolean the preload exposes rather than a
         // channel, so there is no call to record.
-        if (typeof answer !== 'function') return answer
+        if (method === 'isServerWindow') return answers[method]
+        const answer = answers[method]
+        if (typeof answer !== 'function') throw new Error(`stubRenderer answers no ${method}`)
         return (payload: unknown): unknown => {
           calls.push({ method, payload })
           return (answer as (payload: unknown) => unknown)(payload)

@@ -211,6 +211,7 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
     StartRtuServerParamsSchema
   )
   ipcHandle('stop_rtu_server', () => server.stopRtuServer())
+  ipcHandle('get_rtu_server_status', () => server.rtuActive)
   ipcHandle('stop_all_tcp_servers', () => server.stopAllTcpServers())
 
   // App Version

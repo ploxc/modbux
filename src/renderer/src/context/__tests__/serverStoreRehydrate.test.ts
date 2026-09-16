@@ -6,7 +6,7 @@
 // come back to a copy that has not moved since load.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CURRENT_SERVER_ZUSTAND_VERSION, SERVER_ZUSTAND_STORAGE_KEY } from '@shared'
-import { fireEvent, stubRenderer } from './stubRenderer'
+import { type ApiCall, fireEvent, recordApiCalls, stubRenderer } from './stubRenderer'
 
 const register = (address: number): Record<string, unknown> => ({
   value: 1,
@@ -82,5 +82,21 @@ describe('the server window closing', () => {
     fireEvent('window_update', { main: true, server: false })
 
     expect(await held()).toEqual(['0'])
+  })
+
+  // `rtuServerActive` is not persisted, so re-reading the key leaves it where
+  // it was, and the split out window is the one that heard the last change.
+  it('asks main for the RTU status, at load and at the close', async () => {
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+    await import('../server.zustand')
+
+    const asked = (): number => calls.filter((c) => c.method === 'getRtuServerStatus').length
+    expect(asked()).toBe(1)
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+
+    expect(asked()).toBe(2)
   })
 })

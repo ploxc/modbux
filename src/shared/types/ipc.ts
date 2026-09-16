@@ -88,6 +88,7 @@ export const IPC_CHANNELS = [
   'set_read_configuration',
   'start_rtu_server',
   'stop_rtu_server',
+  'get_rtu_server_status',
   'stop_all_tcp_servers',
   'get_privileged_port_status',
   'apply_privileged_port_fix',
@@ -313,6 +314,18 @@ export interface IpcHandlerSpec {
   ['stop_rtu_server']: {
     args: []
     return: void
+  }
+
+  /**
+   * Whether the RTU server is running right now.
+   *
+   * `rtu_server_status` is addressed to the window showing the server, so a
+   * window that was not that window when the last one went out has nothing to
+   * catch up on. This is how it asks, the same shape as `get_client_state`.
+   */
+  ['get_rtu_server_status']: {
+    args: []
+    return: boolean
   }
 
   /** Stop all running TCP servers (cleanup before RTU switch) */
