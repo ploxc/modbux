@@ -3,7 +3,7 @@ import { useScanUnitIdZustand } from '@renderer/components/client/ScanUnitIds/sc
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
-import type { SetAnchorProps } from '../MenuButton'
+import type { SetAnchorProps } from './MenuButton'
 
 const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')

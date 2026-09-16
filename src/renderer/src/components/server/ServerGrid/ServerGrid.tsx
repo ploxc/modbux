@@ -1,4 +1,4 @@
-import ServerBooleans from './ServerBooleans/ServerBooleans'
+import ServerBooleans from './ServerBooleans'
 import ServerRegisters from './ServerRegisters/ServerRegisters'
 import AddRegister from './ServerRegisters/AddRegister/AddRegister'
 import Box from '@mui/material/Box'

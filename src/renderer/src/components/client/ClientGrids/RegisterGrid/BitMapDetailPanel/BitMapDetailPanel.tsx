@@ -4,7 +4,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import { BitColor, BitMapConfig } from '@shared'
-import BitIndicator from './BitIndicator/BitIndicator'
+import BitIndicator from './BitIndicator'
 
 interface BitMapDetailPanelProps {
   address: number

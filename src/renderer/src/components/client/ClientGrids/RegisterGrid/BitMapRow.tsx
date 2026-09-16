@@ -4,7 +4,7 @@ import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { BITMAP_DATATYPE } from '@shared'
 import { useEffect, useRef } from 'react'
-import BitMapDetailPanel from '../BitMapDetailPanel/BitMapDetailPanel'
+import BitMapDetailPanel from './BitMapDetailPanel/BitMapDetailPanel'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BitMapRow, used as `slots.row` in the DataGrid.
