@@ -191,31 +191,40 @@ export class ModbusClient {
   }
 
   // Events
-  /** The client view never leaves the main window, so its messages go there. */
+  /**
+   * Every client event goes to the main window, the only window that draws the
+   * client view.
+   *
+   * Both windows load the same renderer, so the split out server window holds
+   * `client.zustand` too, frozen at what it loaded, and persist writes the
+   * whole partialized state on every `setState`. One write there put a read
+   * length of 10 over the 7 the main window had just stored, and the next
+   * launch read 10.
+   */
   private _emitMessage = (message: BackendMessage): void => {
     this._windows.send('backend_message', message, 'main')
   }
   private _sendClientState = (): void => {
-    this._windows.send('client_state', this._clientState)
+    this._windows.send('client_state', this._clientState, 'main')
   }
   private _sendData = (data: RegisterData[]): void => {
-    this._windows.send('register_data', data)
+    this._windows.send('register_data', data, 'main')
   }
   private _sendTransaction = (transaction: Transaction): void => {
-    this._windows.send('transaction', transaction)
+    this._windows.send('transaction', transaction, 'main')
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
-    this._windows.send('scan_unit_id_result', result)
+    this._windows.send('scan_unit_id_result', result, 'main')
   }
 
   private _sendGroups = (groups: AddressGroup[]): void => {
-    this._windows.send('address_groups', groups)
+    this._windows.send('address_groups', groups, 'main')
   }
 
   private _sendScanProgress = async (): Promise<void> => {
     this._scansDone++
     const progress = round((this._scansDone / this._totalScans) * 100, 2)
-    this._windows.send('scan_progress', progress)
+    this._windows.send('scan_progress', progress, 'main')
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 

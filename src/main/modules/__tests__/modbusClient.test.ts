@@ -563,6 +563,50 @@ describe('ModbusClient', () => {
     })
   })
 
+  /**
+   * Both windows load the same renderer, so the split out server window holds
+   * `client.zustand` too and persists it to the same key. An event delivered
+   * there writes its frozen copy over what the main window stored.
+   */
+  describe('the window a client event reaches', () => {
+    it('addresses every one of them to the main window', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100, 200])
+      await client.read()
+
+      const unitIdScan = client.scanUnitIds({
+        range: [5, 6],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await unitIdScan
+
+      const registerScan = client.scanRegisters({
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await registerScan
+
+      expect(new Set(addressedTo.map(([, event]) => event))).toEqual(
+        new Set([
+          'backend_message',
+          'client_state',
+          'register_data',
+          'transaction',
+          'scan_unit_id_result',
+          'address_groups',
+          'scan_progress'
+        ])
+      )
+      expect(new Set(addressedTo.map(([to]) => to))).toEqual(new Set(['main']))
+    })
+  })
+
   describe('disconnect', () => {
     it('transitions through disconnecting to disconnected', async () => {
       await connectClient()
