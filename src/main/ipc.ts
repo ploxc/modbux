@@ -51,6 +51,47 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
     ? ZodType<IpcHandlerMap[C]['args'][0]>
     : never
 
+/** A channel a refusal has an answer for, which is the same rule as above. */
+type RefusableChannel = {
+  [C in keyof IpcHandlerMap]: undefined extends Awaited<IpcHandlerMap[C]['return']> ? C : never
+}[keyof IpcHandlerMap]
+
+/**
+ * The channels that drive main's one Modbus client, answered for `windows.main`
+ * alone.
+ *
+ * `main/index.ts` constructs one `ModbusClient`, and not one of these channels
+ * carries an addressee, so any window could aim them at it. Both windows load
+ * the same renderer bundle, so both hold the client store; the near-term cost
+ * was its module scope calling `set_read_configuration` and
+ * `stop_scanning_unit_ids` from the split out server window, which
+ * `client.zustand.ts` now gates on `isServerWindow`. This side is the rule
+ * rather than the instance: a caller added to that module later, or a client
+ * component mounted in the server window, reaches the same single client.
+ *
+ * `list_serial_ports` and `validate_serial_port` are not here. They enumerate
+ * hardware rather than touch the client, and `server.zustand.ts:467` calls the
+ * first of the two for the RTU server's COM field. `get_client_state` is not
+ * here either: it answers a `ClientState` rather than `undefined`, and reading
+ * what main is doing changes nothing about it.
+ */
+const CLIENT_CHANNELS: readonly RefusableChannel[] = [
+  'connect',
+  'disconnect',
+  'read',
+  'start_polling',
+  'stop_polling',
+  'write',
+  'scan_unit_ids',
+  'stop_scanning_unit_ids',
+  'scan_registers',
+  'stop_scanning_registers',
+  'update_connection_config',
+  'update_register_config',
+  'set_register_mapping',
+  'set_read_configuration'
+]
+
 /**
  * Builds the `ipcHandle` used below, bound to the windows it reports through.
  *
@@ -67,6 +108,10 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
  * windows were listening, which in split view was the main one, so a payload
  * refused on a channel the server window owns reported into a window the user
  * was not looking at.
+ *
+ * A channel in `CLIENT_CHANNELS` is refused the same way when it comes from a
+ * window that is not `windows.main`, and that question is asked before the
+ * schema, because the payload is beside the point once the asker is wrong.
  */
 export const createIpcHandle =
   (windows: Windows) =>
@@ -75,12 +120,24 @@ export const createIpcHandle =
     listener: IpcListener<C>,
     schema?: PayloadSchema<C>
   ): void => {
-    if (!schema) {
-      ipcMain.handle(channel, listener)
-      return
-    }
+    const drivesTheClient = (CLIENT_CHANNELS as readonly string[]).includes(channel)
 
     ipcMain.handle(channel, (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+      if (drivesTheClient && !windows.isMain(event.sender)) {
+        windows.send(
+          'backend_message',
+          {
+            message: 'The Modbus client is driven from the main window',
+            variant: 'error',
+            error: `${channel}: refused, the asking window is not the main one`
+          },
+          event.sender
+        )
+        return undefined
+      }
+
+      if (!schema) return listener(event, ...(args as IpcHandlerMap[C]['args']))
+
       const result = schema.safeParse(args[0])
 
       if (!result.success) {

@@ -528,6 +528,25 @@ export const useClientZustand = create<
 
 const clientZustand = useClientZustand.getState()
 
+/**
+ * The window this module may call main from, the question its two siblings ask.
+ *
+ * `App.tsx` imports `containers/Client` statically and `Client.tsx:11` imports
+ * this file, so `out/renderer/assets/` holds one js file and both windows
+ * evaluate this module scope. Without the guard, opening the split out server
+ * window ran `init`, which hands main the config this window loaded and calls
+ * `setReadConfiguration(false)`. `modbusClient.ts:586` reads that flag, and off
+ * it polls one flat `[address, length]` block instead of the configured groups,
+ * while the main window's toggle still reads on. `init`'s own `set` writes
+ * `CLIENT_ZUSTAND_STORAGE_KEY` as well, because persist wraps `setState`, so
+ * the split window overwrote the shared key on every open.
+ *
+ * The version fetch below stays outside it. `get_app_version` asks `app` rather
+ * than the client, and `containers/Home.tsx` is the only reader of what it
+ * answers, which `App.tsx` does not draw in this window.
+ */
+const isServerWindow = window.api.isServerWindow
+
 // Keep the fields that parsed and default the rest, then say which went.
 const repair = repairPersistedStore(useClientZustand, PersistedClientZustandSchema, {
   storageKey: CLIENT_ZUSTAND_STORAGE_KEY,
@@ -538,7 +557,7 @@ const repair = repairPersistedStore(useClientZustand, PersistedClientZustandSche
 if (repair) useClientZustand.setState({ ...repair.state, configReset: repair.reset })
 
 // Sync the main process state with the front end
-clientZustand.init()
+if (!isServerWindow) clientZustand.init()
 
 //
 //
@@ -575,7 +594,7 @@ onEvent('scan_progress', (scanProgress) => {
 //
 // Stop scanning when reloaded, shouldn't be a problem with the build app,
 // but just in case and for development, stop scanning when the frontend is reloaded
-window.api.stopScanningUnitIds()
+if (!isServerWindow) window.api.stopScanningUnitIds()
 
 window.api.getAppVersion().then((version) => {
   useLayoutZustand.getState().setVersion(version)

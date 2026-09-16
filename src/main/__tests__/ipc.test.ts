@@ -36,17 +36,24 @@ interface SentMessage {
   message: BackendMessage
 }
 
+/** Stands in for the `WebContents` that `ipcMain.handle` hands every listener. */
+const SENDER = { id: 'the window that asked' }
+
+/**
+ * `windows`, with `SENDER` standing in for the main window's contents.
+ *
+ * `isMain` is what the client channels are refused on, so a stub answering
+ * false for everything would refuse the fourteen of them in every test here.
+ */
 const createWindows = (): { windows: Windows; sent: SentMessage[] } => {
   const sent: SentMessage[] = []
   const windows = {
     send: (_event: string, message: BackendMessage, to: unknown = 'all') =>
-      sent.push({ to, message })
+      sent.push({ to, message }),
+    isMain: (contents: unknown) => contents === SENDER
   } as unknown as Windows
   return { windows, sent }
 }
-
-/** Stands in for the `WebContents` that `ipcMain.handle` hands every listener. */
-const SENDER = { id: 'the window that asked' }
 
 /** Invokes the listener that was registered for `channel`. */
 const invoke = async (
@@ -170,6 +177,67 @@ describe('createIpcHandle', () => {
     // about undefined, so there is nothing to hand back for a rejected payload.
     // @ts-expect-error a schema needs undefined to be an honest answer
     ipcHandle('get_privileged_port_status', vi.fn(), PortSchema)
+  })
+
+  // `main/index.ts:23` constructs one `ModbusClient` and none of these channels
+  // carries an addressee, so before this any window could aim them at it. The
+  // split out server window did, from `client.zustand`'s module scope.
+  it('refuses a client channel from a window that is not the main one', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const listener = vi.fn()
+    const serverWindow = { id: 'the split out server window' }
+
+    ipcHandle('set_read_configuration', listener)
+    const returned = await invoke('set_read_configuration', false, serverWindow)
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(returned).toBeUndefined()
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.to).toBe(serverWindow)
+    expect(String(sent[0]?.message.error)).toContain('set_read_configuration')
+  })
+
+  it('refuses a guarded client channel before it reads the payload', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const listener = vi.fn()
+
+    ipcHandle('scan_unit_ids', listener, ScanUnitIDParametersSchema)
+    await invoke(
+      'scan_unit_ids',
+      { range: [1, 5], address: 0, length: 2, registerTypes: ['holding_registers'], timeout: 500 },
+      { id: 'the split out server window' }
+    )
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(String(sent[0]?.message.error)).toContain('not the main one')
+  })
+
+  it('takes the same channel from the main window', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const listener = vi.fn()
+
+    ipcHandle('set_read_configuration', listener)
+    await invoke('set_read_configuration', true)
+
+    expect(listener).toHaveBeenCalledWith({ sender: SENDER }, true)
+    expect(sent).toEqual([])
+  })
+
+  // The RTU server's COM field reads the port list from the server window, so a
+  // rule over every channel main's client happens to own would break it.
+  it('takes serial discovery from either window', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const listener = vi.fn()
+
+    ipcHandle('list_serial_ports', listener)
+    await invoke('list_serial_ports', undefined, { id: 'the split out server window' })
+
+    expect(listener).toHaveBeenCalledOnce()
+    expect(sent).toEqual([])
   })
 
   it('accepts one where the answer admits undefined', () => {

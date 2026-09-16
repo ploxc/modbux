@@ -62,7 +62,17 @@ export const fireEvent = (event: string, ...args: unknown[]): void => {
   for (const listener of listeners.get(event) ?? []) listener(...args)
 }
 
-export const stubRenderer = (): void => {
+/**
+ * Which window the stub answers as.
+ *
+ * `isServerWindow` is the flag three stores read at module scope to decide what
+ * they may do, so a test about the split out window has to be able to say so.
+ */
+export interface StubOptions {
+  isServerWindow?: boolean
+}
+
+export const stubRenderer = ({ isServerWindow = false }: StubOptions = {}): void => {
   listeners.clear()
   const w = window as unknown as { electron: unknown; api: unknown }
   w.electron = {
@@ -86,7 +96,7 @@ export const stubRenderer = (): void => {
       // and would make every window look like the server window.
       get: (_target, method: string): unknown =>
         method === 'isServerWindow'
-          ? false
+          ? isServerWindow
           : (answers[method] ?? ((): Promise<undefined> => Promise.resolve(undefined)))
     }
   )
