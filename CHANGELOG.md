@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Splitting the server into its own window no longer turns Read
+  Configuration off.** The toggle stayed on while the reading went back to the
+  address and length in the toolbar, so every configured register above the
+  tenth stopped being read and its value left the grid. The split out window now
+  leaves the client alone.
 - **A DATETIME write now carries the date you typed.** The write dialog took a
   value field whose range was stated in seconds while the register is encoded
   from milliseconds, so every value it accepted fell before the year 2000 and

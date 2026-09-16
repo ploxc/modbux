@@ -72,6 +72,15 @@ export class Windows {
     return [to]
   }
 
+  /**
+   * Whether `contents` is the main window's, which is where client work happens.
+   *
+   * Reuses the same liveness question `send` asks, so a main window that is
+   * gone or destroyed answers false rather than throwing on `webContents`.
+   */
+  public isMain = (contents: WebContents): boolean =>
+    this._liveContents(this._windows.main).includes(contents)
+
   private _liveContents(window: BrowserWindow | null): WebContents[] {
     if (!window || window.isDestroyed() || !window.webContents) return []
     return [window.webContents]
