@@ -198,20 +198,34 @@ describe('createIpcHandle', () => {
     expect(String(sent[0]?.message.error)).toContain('set_read_configuration')
   })
 
+  // A payload the schema also refuses is the input the two orders answer
+  // differently on: schema first reports the Zod failure and says nothing about
+  // the window. The asker is the question worth answering, so it goes first.
   it('refuses a guarded client channel before it reads the payload', async () => {
     const { windows, sent } = createWindows()
     const ipcHandle = createIpcHandle(windows)
     const listener = vi.fn()
 
     ipcHandle('scan_unit_ids', listener, ScanUnitIDParametersSchema)
-    await invoke(
-      'scan_unit_ids',
-      { range: [1, 5], address: 0, length: 2, registerTypes: ['holding_registers'], timeout: 500 },
-      { id: 'the split out server window' }
-    )
+    await invoke('scan_unit_ids', 'not a payload', { id: 'the split out server window' })
 
     expect(listener).not.toHaveBeenCalled()
+    expect(sent).toHaveLength(1)
     expect(String(sent[0]?.message.error)).toContain('not the main one')
+    expect(String(sent[0]?.message.error)).not.toContain('Expected')
+  })
+
+  it('reads the payload of a guarded client channel from the main window', async () => {
+    const { windows, sent } = createWindows()
+    const ipcHandle = createIpcHandle(windows)
+    const listener = vi.fn()
+
+    ipcHandle('scan_unit_ids', listener, ScanUnitIDParametersSchema)
+    await invoke('scan_unit_ids', 'not a payload')
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(String(sent[0]?.message.error)).toContain('scan_unit_ids')
+    expect(String(sent[0]?.message.error)).not.toContain('not the main one')
   })
 
   it('takes the same channel from the main window', async () => {

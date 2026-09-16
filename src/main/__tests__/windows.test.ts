@@ -242,6 +242,37 @@ describe('Windows', () => {
     })
   })
 
+  // `createIpcHandle` refuses the fourteen channels that drive main's one
+  // Modbus client on this answer, so a window it cannot place has to answer
+  // false rather than throw.
+  describe('isMain', () => {
+    it('answers for the main window and for no other', () => {
+      const mainWindow = createMockWindow()
+      const serverWindow = createMockWindow()
+      windows.main = mainWindow as never
+      windows.server = serverWindow as never
+
+      expect(windows.isMain(mainWindow.webContents as never)).toBe(true)
+      expect(windows.isMain(serverWindow.webContents as never)).toBe(false)
+    })
+
+    it('answers false with no main window', () => {
+      const orphan = createMockWindow()
+
+      expect(windows.isMain(orphan.webContents as never)).toBe(false)
+    })
+
+    // On macos the app outlives its windows, so a destroyed main window is a
+    // state the handle reaches rather than a hypothetical.
+    it('answers false for a destroyed main window', () => {
+      const mainWindow = createMockWindow()
+      windows.main = mainWindow as never
+      mainWindow.isDestroyed.mockReturnValue(true)
+
+      expect(windows.isMain(mainWindow.webContents as never)).toBe(false)
+    })
+  })
+
   describe('main getter/setter', () => {
     // ! Coverage-only: trivial initial state
     it('returns null initially', () => {

@@ -145,6 +145,21 @@ like a guard. The caller has to be in `src/renderer`, because a channel only the
 e2e suite drives is one the app does not use, and that is a decision to take
 rather than to let happen.
 
+**Every channel that reaches main's client is placed.** `main/index.ts`
+constructs one `ModbusClient` and no client channel carries an addressee, so any
+window can aim one at it, and both windows load the same renderer bundle.
+`CLIENT_CHANNELS` in `main/ipc.ts` is the list `createIpcHandle` refuses from a
+window that is not `windows.main`, and it is written by hand. A channel added
+later is a name, a spec entry and a handler, and every other rule here stays
+green while it escapes that list. The signal the test reads is the handler's own
+body: a listener naming `client` or `state` reaches what one window owns.
+Everything else drives a server, which is addressed by uuid, or asks `app` or a
+Linux helper. Three reach the client and are deliberately not refused, and the
+test names them with the reason: `list_serial_ports` and `validate_serial_port`
+enumerate hardware and the RTU server's COM field asks for the first of the two
+from the server window, and `get_client_state` answers a value rather than
+`undefined`, so a refusal would have nothing to hand back.
+
 **Every configured path alias is imported through.** `@renderer/*` and `@shared`
 are the two, in the tsconfigs and in `electron.vite.config.ts` alike. An alias
 nobody imports through resolves whatever it points at, including a directory
