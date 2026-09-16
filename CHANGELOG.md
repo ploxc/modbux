@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same place, so the window you were not looking at wrote its copy over what you
   had just added. One generator was enough to keep that happening, and closing
   the split window left the stale copy as the only one.
+- **The RTU status light is right in a window that just opened.** It is set from
+  a message the server sends when it starts or stops, so a window opened after
+  that showed the server as stopped while it was running. The window now asks.
 - **A config file Modbux refuses now says which register and which field.** One
   malformed register was reported as `serverRegistersPerUnit.1: Invalid input`,
   naming neither the address nor what was wrong with it, and a unit id outside
