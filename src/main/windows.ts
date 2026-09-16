@@ -6,6 +6,9 @@ interface WindowsObject {
   server: BrowserWindow | null
 }
 
+/** Who an addressed event goes to. `send` without one reaches every window. */
+export type IpcEventTarget = WebContents | 'main' | 'serverView'
+
 export class Windows {
   private _windows: WindowsObject
 
@@ -17,33 +20,15 @@ export class Windows {
   }
 
   /**
-   * Send an event to every open window.
+   * Send an event to every open window, or to the one `to` names.
    *
-   * The guard is per window rather than around the loop, because a throw on one
-   * window costs every window after it the event. `Object.values` puts `main`
-   * first, so without it a stale main handle is what the server window's
-   * `window_update` goes missing behind.
-   */
-  public send = <E extends IpcEvent>(event: E, ...args: IpcEventPayloadMap[E]): void => {
-    try {
-      Object.values(this._windows).forEach((w) => {
-        if (w && !w.isDestroyed() && w.webContents && !w.webContents.isDestroyed()) {
-          w.webContents.send(event, ...args)
-        }
-      })
-    } catch (error) {
-      /**
-       * A window that passes the guard can still be gone by the time the send
-       * lands, and on macos the app outlives its windows, so this is where that
-       * shows up.
-       */
-    }
-  }
-
-  /**
-   * Send an event to one addressee.
+   * Both windows load the same renderer, so both hold the client store and the
+   * server store, and the listeners those stores install run in both. An event
+   * that changes a store only one view draws leaves the other window writing
+   * its own copy over the same key, and the copy that writes last is the one on
+   * disk. That is what `to` is for.
    *
-   * A `WebContents` is the window that asked: `ipcMain.handle` hands the
+   * A `WebContents` is the window that asked. `ipcMain.handle` hands the
    * invoking contents to every handler, so a refused payload reports where it
    * came from rather than everywhere.
    *
@@ -52,29 +37,44 @@ export class Windows {
    * one while it exists and the main window otherwise, the same question
    * `PrivilegedPortModal` answers by where it is mounted.
    *
-   * Both windows render `MessageReceiver`, so without an addressee a message
-   * about one view snackbars in the other as well.
+   * The guard is per window rather than around the loop, because a throw on one
+   * window costs every window after it the event. `Object.values` puts `main`
+   * first, so without it a stale main handle is what the server window's
+   * `window_update` goes missing behind.
    */
-  public sendTo = <E extends IpcEvent>(
-    target: WebContents | 'main' | 'serverView',
+  public send = <E extends IpcEvent>(
     event: E,
-    ...args: IpcEventPayloadMap[E]
+    payload: IpcEventPayloadMap[E][0],
+    to?: IpcEventTarget
   ): void => {
-    const contents = this._contentsFor(target)
-    try {
-      if (contents && !contents.isDestroyed()) contents.send(event, ...args)
-    } catch (error) {
-      // Gone between the guard and the send, the same way `send` describes.
+    for (const contents of this._contentsFor(to)) {
+      try {
+        if (!contents.isDestroyed()) contents.send(event, payload)
+      } catch (error) {
+        /**
+         * A window that passes the guard can still be gone by the time the send
+         * lands, and on macos the app outlives its windows, so this is where
+         * that shows up.
+         */
+      }
     }
   }
 
-  private _contentsFor(target: WebContents | 'main' | 'serverView'): WebContents | null {
-    if (target === 'main') return this._windows.main?.webContents ?? null
-    if (target === 'serverView') {
-      const window = this._windows.server ?? this._windows.main
-      return window?.webContents ?? null
+  /** The contents an event goes to, with the windows that are gone left out. */
+  private _contentsFor(to?: IpcEventTarget): WebContents[] {
+    if (to === undefined) {
+      return Object.values(this._windows).flatMap((window) => this._liveContents(window))
     }
-    return target
+    if (to === 'main') return this._liveContents(this._windows.main)
+    if (to === 'serverView') {
+      return this._liveContents(this._windows.server ?? this._windows.main)
+    }
+    return [to]
+  }
+
+  private _liveContents(window: BrowserWindow | null): WebContents[] {
+    if (!window || window.isDestroyed() || !window.webContents) return []
+    return [window.webContents]
   }
 
   // Main window access

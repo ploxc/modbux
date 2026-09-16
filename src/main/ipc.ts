@@ -84,11 +84,15 @@ export const createIpcHandle =
       const result = schema.safeParse(args[0])
 
       if (!result.success) {
-        windows.sendTo(event.sender, 'backend_message', {
-          message: 'Invalid request, nothing was changed',
-          variant: 'error',
-          error: `${channel}: ${formatZodError(result.error)}`
-        })
+        windows.send(
+          'backend_message',
+          {
+            message: 'Invalid request, nothing was changed',
+            variant: 'error',
+            error: `${channel}: ${formatZodError(result.error)}`
+          },
+          event.sender
+        )
         return undefined
       }
 

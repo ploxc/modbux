@@ -287,7 +287,7 @@ export class ModbusServer {
     variant: 'default' | 'error' | 'success' | 'warning' | 'info'
     error?: Error
   }): void {
-    this._windows.sendTo('serverView', 'backend_message', { message, variant, error })
+    this._windows.send('backend_message', { message, variant, error }, 'serverView')
   }
 
   /**
@@ -527,13 +527,17 @@ export class ModbusServer {
       registers.forEach((register, index) => {
         const registerAddress = address + index
         serverData[registerType][registerAddress] = register
-        this._windows.send('register_value', {
-          uuid,
-          unitId,
-          registerType,
-          address: registerAddress,
-          value: register
-        })
+        this._windows.send(
+          'register_value',
+          {
+            uuid,
+            unitId,
+            registerType,
+            address: registerAddress,
+            value: register
+          },
+          'serverView'
+        )
       })
       this._setServerData(uuid, unitId, serverData)
       return registers
@@ -653,7 +657,11 @@ export class ModbusServer {
     const serverData = this._unitData(uuid, unitId)
     serverData[registerType][address] = state
     this._setServerData(uuid, unitId, serverData)
-    this._windows.send('register_value', { uuid, unitId, registerType, address, value: state })
+    this._windows.send(
+      'register_value',
+      { uuid, unitId, registerType, address, value: state },
+      'serverView'
+    )
   }
 
   /**
@@ -691,7 +699,7 @@ export class ModbusServer {
     if (generation !== this._rtuGeneration) return
     this._rtuActive = false
     this._emitMessage({ message, variant: 'error', error })
-    this._windows.send('rtu_server_status', { active: false })
+    this._windows.send('rtu_server_status', { active: false }, 'serverView')
   }
 
   /**
@@ -761,7 +769,7 @@ export class ModbusServer {
           message: `RTU server started on ${serialConfig.com}`,
           variant: 'success'
         })
-        this._windows.send('rtu_server_status', { active: true })
+        this._windows.send('rtu_server_status', { active: true }, 'serverView')
         this._warnBroadcastUnit(uuid)
       })
 
@@ -793,7 +801,7 @@ export class ModbusServer {
     this._rtuActive = false
     this._rtuGeneration++
     this._broadcastWarningSent = false
-    this._windows.send('rtu_server_status', { active: false })
+    this._windows.send('rtu_server_status', { active: false }, 'serverView')
     if (wasActive) {
       this._emitMessage({ message: 'RTU server stopped', variant: 'warning' })
     }
@@ -922,13 +930,17 @@ export class ModbusServer {
     if (!serverData) return
     serverData[registerType][address] = value
 
-    this._windows.send('register_value', {
-      uuid,
-      unitId,
-      registerType,
-      address,
-      value
-    } as RegisterValue)
+    this._windows.send(
+      'register_value',
+      {
+        uuid,
+        unitId,
+        registerType,
+        address,
+        value
+      } as RegisterValue,
+      'serverView'
+    )
   }
 
   /**

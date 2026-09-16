@@ -193,7 +193,7 @@ export class ModbusClient {
   // Events
   /** The client view never leaves the main window, so its messages go there. */
   private _emitMessage = (message: BackendMessage): void => {
-    this._windows.sendTo('main', 'backend_message', message)
+    this._windows.send('backend_message', message, 'main')
   }
   private _sendClientState = (): void => {
     this._windows.send('client_state', this._clientState)

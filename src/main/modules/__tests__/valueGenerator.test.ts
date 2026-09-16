@@ -49,7 +49,8 @@ describe('ValueGenerator', () => {
         unitId: '1',
         registerType: 'holding_registers',
         address: 0
-      })
+      }),
+      'serverView'
     )
 
     gen.dispose()

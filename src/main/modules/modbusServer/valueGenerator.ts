@@ -112,13 +112,17 @@ export class ValueGenerator implements RegisterValueGenerator {
     registers.forEach((register, index) => {
       const registerAddress = this._address + index
       this._serverData[this._registerType][registerAddress] = register
-      this._windows.send('register_value', {
-        uuid: this._uuid,
-        unitId: this._unitId,
-        registerType: this._registerType,
-        address: registerAddress,
-        value: register
-      })
+      this._windows.send(
+        'register_value',
+        {
+          uuid: this._uuid,
+          unitId: this._unitId,
+          registerType: this._registerType,
+          address: registerAddress,
+          value: register
+        },
+        'serverView'
+      )
     })
   }
 

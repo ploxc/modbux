@@ -744,3 +744,27 @@ onEvent('register_value', applyRegisterValue)
 onEvent('rtu_server_status', ({ active }) => {
   useServerZustand.setState({ rtuServerActive: active })
 })
+
+/** Whether the split out server window is the one main has been writing to. */
+let serverWindowOwnsTheKey = false
+
+/**
+ * Re-read the key the split out window has been writing.
+ *
+ * Both windows hold this store and both persist it, and main addresses the two
+ * events that change it to the window showing the server. So while the split is
+ * up this copy hears nothing, and the moment that window closes the events come
+ * back here and write what this copy has held since load. Measured 16 Sep 2026
+ * without this: a register added in the split out window stood in the key at
+ * the close and was gone from it three seconds later.
+ */
+onEvent('window_update', ({ server }) => {
+  if (window.api.isServerWindow) return
+  if (server) {
+    serverWindowOwnsTheKey = true
+    return
+  }
+  if (!serverWindowOwnsTheKey) return
+  serverWindowOwnsTheKey = false
+  useServerZustand.persist.rehydrate()
+})
