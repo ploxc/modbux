@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { AppType, LayoutZustand } from './layout.zustand.types'
-import { onEvent, sendEvent } from '@renderer/events'
+import { onEvent } from '@renderer/events'
 
 const isServerWindow = window.api.isServerWindow
 
@@ -14,7 +14,6 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
       set((state) => {
         state.version = version
       }),
-    homeShiftKeyDown: false,
     hideHomeButton: isServerWindow,
     showClientRawValues: false,
     showGridWhileScanning: true,
@@ -25,11 +24,6 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
     toggleShowClientRawValues: () =>
       set((state) => {
         state.showClientRawValues = !get().showClientRawValues
-      }),
-
-    setHomeShiftKeyDown: (down) =>
-      set((state) => {
-        state.homeShiftKeyDown = down
       }),
 
     setHideHomeButton: (hide) =>
@@ -52,14 +46,6 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
       })
   }))
 )
-
-const layoutZustand = useLayoutZustand.getState()
-
-// When opening the window and the windows were split, open the windows again
-// Will only happen with macos
-if (layoutZustand.hideHomeButton && !isServerWindow) {
-  sendEvent('open_server_window')
-}
 
 // Listen to main process events
 onEvent('window_update', (windows) => {

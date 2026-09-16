@@ -139,7 +139,7 @@ onIpcEvent('open_server_window', () => {
       sandbox: false,
       nodeIntegration: false,
       contextIsolation: true,
-      additionalArguments: ['is-server-window']
+      additionalArguments: ['--is-server-window']
     },
     title: 'Server',
     backgroundColor: '#181818'

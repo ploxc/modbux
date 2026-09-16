@@ -12,11 +12,6 @@ export const useBitMapZustand = create<BitMapZustand, [['zustand/mutative', neve
         state.expandedAddress = state.expandedAddress === address ? null : address
       }),
 
-    collapse: (): void =>
-      set((state) => {
-        state.expandedAddress = null
-      }),
-
     detailHeight: 0,
     setDetailHeight: (height): void =>
       set((state) => {

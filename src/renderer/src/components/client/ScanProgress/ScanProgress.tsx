@@ -45,8 +45,8 @@ export const ScanProgress = meme(() => {
  * behind it. Typing 500 into an empty field gave 10000. Leaving the field is
  * late enough to correct it.
  */
-export const SCAN_TIMEOUT_MIN = 100
-export const SCAN_TIMEOUT_MAX = 10000
+const SCAN_TIMEOUT_MIN = 100
+const SCAN_TIMEOUT_MAX = 10000
 
 export const clampScanTimeout = (timeout: number): number =>
   Math.min(SCAN_TIMEOUT_MAX, Math.max(SCAN_TIMEOUT_MIN, timeout))

@@ -99,6 +99,6 @@ describe('a value the field marks invalid', () => {
 
     await useClientZustand.getState().setLength('', false)
 
-    expect(useClientZustand.getState().valid.lenght).toBe(false)
+    expect(useClientZustand.getState().valid.length).toBe(false)
   })
 })

@@ -40,7 +40,7 @@ const UpdateBanner = meme((): JSX.Element | null => {
 
         const release: GitHubRelease = await response.json()
         const latestTag = release.tag_name.replace(/^v/, '') // Remove 'v' prefix if present
-        // Asked for directly rather than read off the root store, so the
+        // Asked for directly rather than read off the layout store, so the
         // banner stays testable on its own. The version cannot change while
         // the app runs, so a second read costs nothing.
         const currentVersion = await window.api.getAppVersion()

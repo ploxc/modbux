@@ -91,7 +91,6 @@ const TransactionGridContent = meme(() => {
       columns={columns}
       autoHeight={false}
       density="compact"
-      rowHeight={40}
       columnHeaderHeight={48}
       initialState={{ pagination: { paginationModel: { pageSize: 20, page: 0 } } }}
       getRowHeight={() => 'auto'}

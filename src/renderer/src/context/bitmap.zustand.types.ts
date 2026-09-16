@@ -2,7 +2,6 @@ export interface BitMapZustand {
   /** Address of the currently expanded bitmap row, null if none. */
   expandedAddress: number | null
   toggleExpanded: (address: number) => void
-  collapse: () => void
   /**
    * How tall the expanded detail panel renders, measured rather than assumed.
    *

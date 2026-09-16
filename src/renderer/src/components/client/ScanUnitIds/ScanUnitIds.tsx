@@ -258,7 +258,6 @@ const ScanResultGrid = meme(() => {
       columns={columns}
       autoHeight={false}
       density="compact"
-      rowHeight={40}
       columnHeaderHeight={48}
       getRowHeight={() => 'auto'}
       // Results are listed per unit ID and that is the order you look them up

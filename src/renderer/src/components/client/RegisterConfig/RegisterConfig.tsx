@@ -75,7 +75,7 @@ const Address = meme(() => {
 // Length
 const Length = meme(() => {
   const length = useClientZustand((z) => String(z.registerConfig.length))
-  const lengthValid = useClientZustand((z) => z.valid.lenght)
+  const lengthValid = useClientZustand((z) => z.valid.length)
   const address = useClientZustand((z) => z.registerConfig.address)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
 

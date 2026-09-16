@@ -44,15 +44,15 @@ const getDefaultServerData = (): {
   holding_registers: new Array(65536).fill(0)
 })
 
-export const ILLEGAL_FUNCTION = 1
+/**
+ * The three Modbus exception codes this server sends.
+ *
+ * The other seven of the protocol's table stood here as exported constants
+ * nothing named. Keeping them costs a lint disable, which is a worse comment
+ * than none. `modbusServer.test.ts` asserts on all three of these.
+ */
 export const ILLEGAL_DATA_ADDRESS = 2
-export const ILLEGAL_DATA_VALUE = 3
 export const SERVER_DEVICE_FAILURE = 4
-export const ACKNOWLEDGE = 5
-export const SERVER_DEVICE_BUSY = 6
-export const NEGATIVE_ACKNOWLEDGE = 7
-export const MEMORY_PARITY_ERROR = 8
-export const GATEWAY_PATH_UNAVAILABLE = 10
 export const GATEWAY_TARGET_FAILED = 11
 export const DEFAULT_MOBUS_PORT = 502
 
@@ -347,14 +347,6 @@ export class ModbusServer {
     port: number
   ): Promise<{ ok: boolean; errorCode?: string }> {
     const server = new ServerTCP(this._getVector(uuid, 'tcp'), { host: '0.0.0.0', port })
-
-    // // !Debug: Simulate connection loss by destroying incoming sockets after a delay.
-    // // - Short delay (e.g. 3000ms): triggers burst detection (reconnects fail within the 10s stability window)
-    // // - Long delay (e.g. 15000ms): allows stable connection, so the reconnect counter resets between drops
-    // const netServer = server['_server'] as net.Server
-    // netServer.on('connection', (sock) => {
-    //   setTimeout(() => sock.destroy(), 15000)
-    // })
 
     const result = await new Promise<{ ok: boolean; errorCode?: string }>((resolve) => {
       const timer = setTimeout(

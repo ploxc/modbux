@@ -11,9 +11,9 @@ import Box from '@mui/material/Box'
  * talking, and it answered this particular question with no; nothing coming
  * back at all means there is no unit at that address. Both used to be red.
  */
-export type ScanOutcome = 'answered' | 'refused' | 'silent' | 'unasked'
+type ScanOutcome = 'answered' | 'refused' | 'silent' | 'unasked'
 
-export const outcomeOf = (row: ScanUnitIDResult, type: RegisterType): ScanOutcome =>
+const outcomeOf = (row: ScanUnitIDResult, type: RegisterType): ScanOutcome =>
   row.registerTypes.includes(type)
     ? 'answered'
     : row.refusedRegisterTypes.includes(type)
@@ -30,7 +30,7 @@ const OUTCOME_LABEL: Record<ScanOutcome, string> = {
 }
 
 /** The class the grid paints the cell with. Styled where the grid is built. */
-export const outcomeClass = (outcome: ScanOutcome): string =>
+const outcomeClass = (outcome: ScanOutcome): string =>
   outcome === 'unasked' ? '' : `scan-${outcome}`
 
 const unitIdColumn: GridColDef<ScanUnitIDResult, number, number> = {

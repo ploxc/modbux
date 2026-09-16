@@ -8,7 +8,6 @@ interface WordLedDisplayProps {
 }
 
 const WordLedDisplay = meme(({ value = 0 }: WordLedDisplayProps): JSX.Element => {
-  // Zorg dat we exact 16 bits hebben
   const bits = value
     .toString(2)
     .padStart(16, '0')
@@ -44,7 +43,7 @@ const WordLedDisplay = meme(({ value = 0 }: WordLedDisplayProps): JSX.Element =>
                 width: 7,
                 aspectRatio: 1,
                 borderRadius: '50%',
-                backgroundColor: on ? theme.palette.primary.main : theme.palette.background.default // groen of grijs
+                backgroundColor: on ? theme.palette.primary.main : theme.palette.background.default
               })}
             />
           ))}
