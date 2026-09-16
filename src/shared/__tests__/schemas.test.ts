@@ -309,8 +309,16 @@ describe('Server RegisterParamsSchema — generator', () => {
     expect(RegisterParamsSchema.safeParse({ ...generator, min: 0, max: 0 }).success).toBe(true)
   })
 
-  it.each([0, -5, 500, 1000.5])('refuses interval %s', (interval) => {
+  // Above 2147483647 `setInterval` warns `TimeoutOverflowWarning` and sets the
+  // duration to 1, so 1e12 fires every millisecond: the ceiling is Node's.
+  it.each([0, -5, 500, 1000.5, 2147483648, 1e12])('refuses interval %s', (interval) => {
     expect(RegisterParamsSchema.safeParse({ ...generator, interval }).success).toBe(false)
+  })
+
+  it('accepts the highest interval setInterval holds', () => {
+    expect(RegisterParamsSchema.safeParse({ ...generator, interval: 2147483647 }).success).toBe(
+      true
+    )
   })
 
   // The dialog lets one through and the generator covers the same range either
@@ -330,6 +338,81 @@ describe('Server RegisterParamsSchema — generator', () => {
       value: 42
     }
     expect(RegisterParamsSchema.safeParse(fixed).success).toBe(true)
+  })
+})
+
+// `RegisterParamsSchema` bounded the address and left `length` and `value`
+// bare, so a config file reached the code that cannot take them:
+// `createStringRegisters` is `Buffer.alloc(length * 2)`, and `addRegister`'s
+// fixed branch hands the value straight to `createRegisters`.
+describe('Server RegisterParamsSchema — the width and the value', () => {
+  const fixed = (params: Record<string, unknown>): unknown => ({
+    address: 0,
+    registerType: 'holding_registers',
+    comment: '',
+    ...params
+  })
+
+  it.each([0, -1, 10.5, 1e9, 1e12])('refuses a string of length %s', (length) => {
+    expect(
+      RegisterParamsSchema.safeParse(
+        fixed({ dataType: 'utf8', length, stringValue: 'x', value: 0 })
+      ).success
+    ).toBe(false)
+  })
+
+  it('accepts a string that fills the map from address 0', () => {
+    expect(
+      RegisterParamsSchema.safeParse(
+        fixed({ dataType: 'utf8', length: 65536, stringValue: 'x', value: 0 })
+      ).success
+    ).toBe(true)
+  })
+
+  it('refuses a register that runs past address 65535', () => {
+    expect(
+      RegisterParamsSchema.safeParse(fixed({ address: 65534, dataType: 'uint64', value: 1 }))
+        .success
+    ).toBe(false)
+    expect(
+      RegisterParamsSchema.safeParse(fixed({ address: 65532, dataType: 'uint64', value: 1 }))
+        .success
+    ).toBe(true)
+  })
+
+  // `writeUInt16BE(70000)`, `writeInt16BE(40000)` and `BigInt(1.5)` all throw,
+  // and each of the three passed this schema.
+  it.each([
+    ['uint16', 70000],
+    ['uint16', -1],
+    ['int16', 40000],
+    ['int32', 2147483648],
+    ['uint32', -1],
+    ['int64', 1.5],
+    ['uint64', -1],
+    ['bitmap', 65536]
+  ])('refuses %s value %s', (dataType, value) => {
+    expect(RegisterParamsSchema.safeParse(fixed({ dataType, value })).success).toBe(false)
+  })
+
+  // The encoder takes these, so a rule refusing them would cost a working
+  // config. `float` and `double` write anything, `unix` goes through
+  // `value >>> 0` and `datetime` through the clamp in `encodeIEC870DateTime`.
+  it.each([
+    ['float', 1e300],
+    ['double', -1e300],
+    ['unix', -1],
+    ['datetime', 0],
+    ['uint16', 65535],
+    ['int16', -32768]
+  ])('accepts %s value %s', (dataType, value) => {
+    expect(RegisterParamsSchema.safeParse(fixed({ dataType, value })).success).toBe(true)
+  })
+
+  it('names the field it refused', () => {
+    const result = RegisterParamsSchema.safeParse(fixed({ dataType: 'uint16', value: 70000 }))
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(['value'])
   })
 })
 

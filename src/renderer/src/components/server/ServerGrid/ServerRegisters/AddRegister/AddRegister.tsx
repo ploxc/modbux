@@ -78,9 +78,10 @@ const AddRegister = meme(() => {
       addRegisterZustand.setValue(FIELD_DEFAULTS.value, true)
     } else if (value !== undefined && isTimestampType(dataType)) {
       // The picker works in milliseconds and a unix register stores seconds.
-      // `RegisterParamsSchema` bounds no value, so a config file can hold one
-      // outside the window, and the field says so rather than the picker having
-      // to be touched first.
+      // `getValueRangeError` leaves `unix` and `datetime` alone, because one
+      // goes through `value >>> 0` and the other through a clamp rather than
+      // throwing, so a config file can hold one outside the window and the
+      // field says so rather than the picker having to be touched first.
       const milliseconds = dataType === 'unix' ? Number(value) * 1000 : Number(value)
       addRegisterZustand.setValue(String(milliseconds), inTimestampWindow(dataType, milliseconds))
     } else if (value !== undefined) {

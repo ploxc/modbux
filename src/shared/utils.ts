@@ -210,6 +210,54 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
 }
 
 /**
+ * The types `createRegisters` throws on for a value outside their range.
+ *
+ * Measured against the writers it calls. `writeUInt16BE(1.5)` and
+ * `writeInt32BE(1.5)` truncate, `writeFloatBE(1e300)` and `writeDoubleBE` take
+ * anything, `unix` is written through `value >>> 0` and `datetime` through
+ * `encodeIEC870DateTime`, which clamps to the format's own window. What is left
+ * is the seven below, where `writeUInt32BE(-1)` and
+ * `writeBigUInt64BE(2n ** 64n)` both answer ERR_OUT_OF_RANGE. `none` and `utf8`
+ * are not `EncodableDataType` and never reach the encoder at all.
+ */
+const RANGE_CHECKED_TYPES: readonly DataType[] = [
+  'int16',
+  'uint16',
+  'bitmap',
+  'int32',
+  'uint32',
+  'int64',
+  'uint64'
+]
+
+/**
+ * Why `createRegisters` cannot encode `value` as `dataType`, or nothing.
+ *
+ * `RegisterParamsSchema` bounded the address and left the value bare, so a
+ * config file carrying `{ dataType: 'uint16', value: 70000 }` reached
+ * `writeUInt16BE` and threw out of `addRegister`. The ranges are
+ * `getMinMaxValues`, which the add dialog's mask already reads, so the file and
+ * the field now answer the same question.
+ *
+ * A 64 bit value also has to be a whole number, because `BigInt(1.5)` throws
+ * where `writeUInt16BE(1.5)` truncates.
+ */
+export const getValueRangeError = (dataType: DataType, value: number): string | undefined => {
+  if (!RANGE_CHECKED_TYPES.includes(dataType)) return undefined
+
+  if ((dataType === 'int64' || dataType === 'uint64') && !Number.isInteger(value)) {
+    return `A ${dataType} value has to be a whole number`
+  }
+
+  const { min, max } = getMinMaxValues(dataType)
+  if (value < min || value > max) {
+    return `A ${dataType} value has to be between ${min} and ${max}`
+  }
+
+  return undefined
+}
+
+/**
  * Whether the mask has taken anything a number could be made of.
  *
  * A lone `'-'` is a sign with no digits behind it. `.replace('-', '')` takes the

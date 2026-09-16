@@ -93,12 +93,17 @@ const usedAddressesOfUnit = (
  * Drop persisted registers the current `RegisterParamsSchema` no longer names,
  * and rewrite the used addresses of every unit walked.
  *
- * Two rules arrived after registers had already been persisted against looser
- * ones. `RegisterParamsBasePartSchema.address` was a bare number, so a config
- * file could put a register at 70000. `interval` was a bare number, so one
- * could carry a generator that fires every millisecond. `repairPersisted`
- * works a top level field at a time, and without this one such register costs
- * every register on every server and every unit.
+ * Every rule here arrived after registers had already been persisted against a
+ * looser one. `address` was a bare number, so a config file could put a
+ * register at 70000. `interval` had no floor, so one could carry a generator
+ * that fires every millisecond, and then no ceiling, where `setInterval` sets
+ * the duration to 1 and does the same thing. `length` was bare, so a string
+ * could ask for `Buffer.alloc(2e12)`, and a fixed `value` was bare, so a
+ * `uint16` could carry 70000 and throw out of `createRegisters`. A register
+ * running past address 65535 is the pair of `address` and `length` and was
+ * refused by neither. `repairPersisted` works a top level field at a time, and
+ * without this one such register costs every register on every server and every
+ * unit.
  *
  * `usedAddresses` is persisted beside the registers, `isAddressInUse` refuses an
  * address against it, and the only thing recomputing it on launch is

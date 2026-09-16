@@ -4,6 +4,7 @@ import { BitMapConfigSchema } from './bitmap'
 import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { SerialPortOptionsSchema } from './serial'
 import { UnitIdString, UnitIdStringSchema } from './unitid'
+import { getAddressFitError, getValueRangeError } from '../utils'
 import {
   BooleanRegisters,
   BooleanRegistersSchema,
@@ -45,8 +46,10 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
  * stored in milliseconds, so anything below a second reaches this only from a
  * config file. An interval of 0 is the one that costs: `valueGenerator` hands
  * it to `setInterval`, and an interval of 0 fired 78 times in 100 ms when
- * measured. The ceiling is the mask's rather than the generator's, so it is
- * not stated here.
+ * measured. The ceiling is Node's rather than the mask's: above 2147483647 it
+ * warns `TimeoutOverflowWarning` and sets the duration to 1, so an interval of
+ * 1e12 fires every millisecond, which is the flood the floor was written to
+ * prevent.
  *
  * `min` and `max` are each a bare number and stay one. The dialog lets a min
  * above a max through, and `Math.random() * (max - min) + min` covers the same
@@ -57,7 +60,7 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
 const RegisterParamsGeneratorPartSchema = z.object({
   min: z.number(),
   max: z.number(),
-  interval: z.number().int().min(1000),
+  interval: z.number().int().min(1000).max(2147483647),
   value: z.undefined() // Explicitly forbid 'value'
 })
 export type RegisterParamsGeneratorPart = z.infer<typeof RegisterParamsGeneratorPartSchema>
@@ -88,22 +91,59 @@ export type RegisterValue<K extends RegisterType = RegisterType> = {
  * `sync_server_register` take. `remove_server_register` takes
  * `RegisterAddressSchema`, so while this field was a bare number an address
  * outside the map went in and could not come back out.
+ *
+ * `length` is the width of a string, and it is the one field the width of the
+ * register is read off. Left bare, `length: 1e12` passed here and reached
+ * `createStringRegisters`, which is `Buffer.alloc(2e12)`: inside Electron 43
+ * that answers ERR_OUT_OF_RANGE, and `length: 1e9` allocates and then builds a
+ * billion words instead. `getUsedAddresses` loops the same number.
  */
 export const RegisterParamsBasePartSchema = z.object({
   address: RegisterAddressSchema,
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
   comment: z.string(),
-  length: z.number().optional(),
+  length: z.number().int().min(1).optional(),
   stringValue: z.string().optional(),
   bitMap: BitMapConfigSchema.optional()
 })
 export type RegisterParamsBasePart = z.infer<typeof RegisterParamsBasePartSchema>
 
-// Final RegisterValueParameters schema with conditional fields
+/**
+ * Two rules over fields that bound each other, which is why they sit here
+ * rather than beside the fields.
+ *
+ * The register has to fit the map. `address` is 16 bit and `length` is bounded
+ * above, and a register can still run off the end: the add dialog refuses that
+ * with `getAddressFitError`, and a config file did not ask.
+ *
+ * A fixed value has to be one its own `dataType` can encode, which is
+ * `getValueRangeError`. The pair is the rule, not the field: 70000 is a
+ * `uint32` and not a `uint16`, and `addRegister`'s fixed branch hands whatever
+ * arrives straight to `createRegisters`.
+ *
+ * Both are stated where the add dialog states them, so the file and the field
+ * answer the same question. `interval`, `min` and `max` are the generator's and
+ * are bounded above.
+ */
 export const RegisterParamsSchema = RegisterParamsBasePartSchema.and(
   z.union([RegisterParamsGeneratorPartSchema, RegisterParamsStaticPartSchema])
-)
+).superRefine((params, ctx) => {
+  if (getAddressFitError(params.dataType, params.address, params.length)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [params.length === undefined ? 'address' : 'length'],
+      message: `A ${params.dataType} register at ${params.address} runs past address 65535`
+    })
+  }
+
+  if (params.value === undefined) return
+
+  const rangeError = getValueRangeError(params.dataType, params.value)
+  if (rangeError) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['value'], message: rangeError })
+  }
+})
 export type RegisterParams = z.infer<typeof RegisterParamsSchema>
 
 // Schema for a single boolean entry with optional comment

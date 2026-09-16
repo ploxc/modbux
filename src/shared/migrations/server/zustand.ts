@@ -1,7 +1,7 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
 import { dropUnservableRegisters, migrateBoolShapeForUnit, repairPersistedParity } from '../shared'
 
-export const CURRENT_SERVER_ZUSTAND_VERSION = 6
+export const CURRENT_SERVER_ZUSTAND_VERSION = 7
 
 /** Where the server store keeps its state. */
 export const SERVER_ZUSTAND_STORAGE_KEY = 'server.zustand'
@@ -145,7 +145,9 @@ export function migrateServerState(
 
   // v4→v5: registers at an address outside the 16 bit map
   // v5→v6: and generators the interval floor now refuses
-  if (version < 6) {
+  // v6→v7: and a string width, a fixed value or an interval outside what the
+  //        encoder, the map or `setInterval` can take
+  if (version < 7) {
     dropUnservableRegisters(state)
   }
 
