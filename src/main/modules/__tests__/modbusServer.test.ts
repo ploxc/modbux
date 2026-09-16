@@ -183,6 +183,17 @@ const lastSerialPortOptions = (): unknown => {
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
+/**
+ * The words `addRegister` answered, or a failure naming the refusal.
+ *
+ * `addRegister` answers `undefined` for a register it cannot encode, and a
+ * helper passing that on fails at whatever reads it next with nothing to say.
+ */
+const addedOrThrow = (words: number[] | undefined): number[] => {
+  if (!words) throw new Error('addRegister refused the register')
+  return words
+}
+
 describe('ModbusServer', () => {
   let server: ModbusServer
   let windows: Windows
@@ -190,22 +201,28 @@ describe('ModbusServer', () => {
   const unitId: UnitIdString = '1'
   const unitIdNumber = Number(unitId)
 
-  /** A register the unit hosts, which is what makes the server answer for it at all. */
+  /**
+   * A register the unit hosts, which is what makes the server answer for it at
+   * all. Throws by name on a refusal, because a helper answering `undefined`
+   * here fails somewhere else with nothing to say.
+   */
   const hostUnit = (): number[] =>
-    server.addRegister({
-      uuid,
-      unitId,
-      params: {
-        address: 100,
-        registerType: 'holding_registers',
-        dataType: 'uint16',
-        comment: '',
-        value: 1,
-        min: undefined,
-        max: undefined,
-        interval: undefined
-      }
-    })
+    addedOrThrow(
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 100,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 1,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+    )
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -263,6 +280,41 @@ describe('ModbusServer', () => {
       )
     })
 
+    // `undefined` is what the store reads as nothing changed, so the refusal
+    // reuses the answer a refused payload already has. It used to throw, and
+    // `createIpcHandle` puts no try around a listener.
+    it('refuses a value its data type cannot encode and writes nothing', () => {
+      const answer = server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 70000,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      expect(answer).toBeUndefined()
+      expect(windows.send).not.toHaveBeenCalledWith(
+        'register_value',
+        expect.anything(),
+        expect.anything()
+      )
+      expect(windows.send).toHaveBeenCalledWith(
+        'backend_message',
+        expect.objectContaining({
+          variant: 'error',
+          message: 'The uint16 register at 0 was not added: main cannot encode that value'
+        }),
+        'serverView'
+      )
+    })
+
     // The `register_value` events above go out before this answer does, so the
     // renderer's store has no entry to put them in and drops them. The answer
     // is what that store folds instead.
@@ -305,8 +357,8 @@ describe('ModbusServer', () => {
       })
 
       expect(answer).toHaveLength(1)
-      expect(answer[0]).toBeGreaterThanOrEqual(100)
-      expect(answer[0]).toBeLessThanOrEqual(200)
+      expect(answer?.[0]).toBeGreaterThanOrEqual(100)
+      expect(answer?.[0]).toBeLessThanOrEqual(200)
     })
 
     // `none` holds its address open and writes nothing, so there is no word to
@@ -999,6 +1051,51 @@ describe('ModbusServer', () => {
           address: 10,
           value: 200
         }),
+        'serverView'
+      )
+    })
+
+    // `createRegisters` threw straight out of `addRegister`, and this loop is a
+    // bare `for`, so one register the encoder refused took every register after
+    // it in the unit with it and rejected the invoke the renderer's `init`
+    // awaits. `RegisterParamsSchema` refuses the payload before it gets here
+    // now, so this is the class answering for its own input.
+    it('keeps the registers after one the encoder refuses', () => {
+      server.syncServerRegisters({
+        uuid,
+        unitId,
+        registerValues: [
+          {
+            address: 0,
+            registerType: 'holding_registers',
+            dataType: 'uint16',
+            comment: '',
+            value: -1,
+            min: undefined,
+            max: undefined,
+            interval: undefined
+          },
+          {
+            address: 5,
+            registerType: 'holding_registers',
+            dataType: 'uint16',
+            comment: '',
+            value: 7,
+            min: undefined,
+            max: undefined,
+            interval: undefined
+          }
+        ]
+      })
+
+      expect(windows.send).toHaveBeenCalledWith(
+        'register_value',
+        expect.objectContaining({ address: 5, value: 7 }),
+        'serverView'
+      )
+      expect(windows.send).toHaveBeenCalledWith(
+        'backend_message',
+        expect.objectContaining({ variant: 'error' }),
         'serverView'
       )
     })
@@ -2185,20 +2282,22 @@ describe('ModbusServer', () => {
     }
 
     const hostUnit = (id: UnitIdString, address: number, value: number): number[] =>
-      server.addRegister({
-        uuid,
-        unitId: id,
-        params: {
-          address,
-          registerType: 'holding_registers',
-          dataType: 'uint16',
-          comment: '',
-          value,
-          min: undefined,
-          max: undefined,
-          interval: undefined
-        }
-      })
+      addedOrThrow(
+        server.addRegister({
+          uuid,
+          unitId: id,
+          params: {
+            address,
+            registerType: 'holding_registers',
+            dataType: 'uint16',
+            comment: '',
+            value,
+            min: undefined,
+            max: undefined,
+            interval: undefined
+          }
+        })
+      )
 
     const tcpVector = async (): Promise<ServerVector> => {
       await server.createServer({ uuid, port: 5020 })
