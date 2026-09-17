@@ -47,7 +47,7 @@ const useOpen: UseOpenHook = () => {
 
         // Use migration framework to handle all config versions
         const migrationResult = migrateServerConfig(content)
-        const { config, migrated, warning, wasMixedEndianness, reset } = migrationResult
+        const { config, migrated, wasMixedEndianness, futureVersion } = migrationResult
 
         // A unit the file does not name is not written over on the way in, so
         // whatever the previous config left on it would answer a master after
@@ -99,11 +99,15 @@ const useOpen: UseOpenHook = () => {
         // A config from a newer Modbux is parsed against the current schema and
         // keeps what matches, so the warning says which fields did not come
         // across rather than that some feature may not work.
-        if (warning === 'FUTURE_VERSION' && reset) {
+        if (futureVersion) {
           enqueueSnackbar({
             variant: 'warning',
-            message: resetMessage('Server', reset),
-            persist: true
+            message: resetMessage('Server', futureVersion),
+            // A notice that everything came across is not one the user has to
+            // dismiss, and it sits on top of "Configuration opened
+            // successfully" either way.
+            persist: futureVersion.fields.length > 0,
+            autoHideDuration: 8000
           })
         }
       } catch (error) {

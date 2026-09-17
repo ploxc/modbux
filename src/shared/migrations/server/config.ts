@@ -11,6 +11,7 @@ import {
   formatZodError,
   migrateBoolShapeForUnit,
   objectValues,
+  dropUnservableConfigRegisters,
   parseConfigFile,
   renameLegacyRegisterTypeKeys
 } from '../shared'
@@ -146,6 +147,12 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
   // looked at. `repairPersisted` is the same answer a persisted store already
   // gets, and `reset` is what the warning now says.
   if (detectedVersion > CURRENT_SERVER_CONFIG_VERSION) {
+    // Register by register first, because `repairPersisted` reads a field
+    // whole and `serverRegistersPerUnit` is the one field a server config is
+    // about: one register with a data type this version does not name would
+    // cost every register on every unit.
+    dropUnservableConfigRegisters(parsed)
+
     const repair = repairPersisted(
       ServerConfigSchema,
       parsed,
@@ -163,8 +170,7 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
       config: repair.state,
       migrated: false,
       fromVersion: detectedVersion,
-      warning: 'FUTURE_VERSION',
-      reset: repair.reset
+      futureVersion: repair.reset
     }
   }
 

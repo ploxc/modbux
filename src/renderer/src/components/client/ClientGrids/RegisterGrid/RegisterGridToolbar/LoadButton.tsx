@@ -28,7 +28,7 @@ const LoadButton = meme((): JSX.Element => {
       try {
         // Use migration framework to handle all config versions
         const migrationResult = migrateClientConfig(content)
-        const { config, migrated, warning, reset } = migrationResult
+        const { config, migrated, futureVersion } = migrationResult
 
         // Set name, endianness and register mapping
         if (config.name) clientZustand.setName(config.name)
@@ -52,11 +52,15 @@ const LoadButton = meme((): JSX.Element => {
         // A config from a newer Modbux is parsed against the current schema
         // and keeps what matches, so the warning says which fields did not come
         // across rather than that some feature may not work.
-        if (warning === 'FUTURE_VERSION' && reset) {
+        if (futureVersion) {
           enqueueSnackbar({
             variant: 'warning',
-            message: resetMessage('Client', reset),
-            persist: true
+            message: resetMessage('Client', futureVersion),
+            // A notice that everything came across is not one the user has to
+            // dismiss, and it sits on top of "Configuration opened
+            // successfully" either way.
+            persist: futureVersion.fields.length > 0,
+            autoHideDuration: 8000
           })
         }
       } catch (error) {

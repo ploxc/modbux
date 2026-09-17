@@ -72,8 +72,7 @@ export function repairPersisted<Shape extends z.ZodRawShape>(
  */
 const FIELD_LABELS: Record<string, string> = {
   serverRegistersPerUnit: 'the registers',
-  version: 'the config version',
-  modbuxVersion: 'the Modbux version it was saved by',
+  modbuxVersion: 'the version it was saved by',
   connectionConfig: 'the connection settings',
   registerConfig: 'the register settings',
   registerMapping: 'the register mapping',
@@ -115,9 +114,9 @@ export function resetMessage(store: 'Client' | 'Server', reset: ConfigReset): st
     return `${store} configuration was saved by a newer version of Modbux and was read in full.`
   }
 
-  return `${store} configuration was saved by a newer version of Modbux. ${listFields(
+  return `${store} configuration was saved by a newer version of Modbux, and ${listFields(
     reset.fields
-  )} did not come across and ${reset.fields.length === 1 ? 'was' : 'were'} reset. ${kept}`
+  )} did not come across. ${kept}`
 }
 
 /**

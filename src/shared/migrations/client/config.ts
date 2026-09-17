@@ -2,7 +2,12 @@ import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../
 import { emptyRegisterMapping } from '../../default'
 import { repairPersisted } from '../../repairPersisted'
 import { MigrationResult, Migration } from '../types'
-import { formatZodError, parseConfigFile, renameLegacyRegisterTypeKeys } from '../shared'
+import {
+  dropUnreadableConfigMapping,
+  formatZodError,
+  parseConfigFile,
+  renameLegacyRegisterTypeKeys
+} from '../shared'
 
 /**
  * The version the Save button writes into a client config file.
@@ -69,6 +74,11 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
   // store and flushed to main. The same answer a persisted store gets, and
   // `reset` is what the warning now says.
   if (detectedVersion > CURRENT_CLIENT_CONFIG_VERSION) {
+    // Entry by entry first. `registerMapping` is one field, and it is the one
+    // thing in the client store built by hand, so one address this version
+    // cannot read would cost the whole mapping.
+    dropUnreadableConfigMapping(parsed)
+
     const repair = repairPersisted(
       RegisterMapConfigSchema,
       parsed,
@@ -86,8 +96,7 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
       config: repair.state,
       migrated: false,
       fromVersion: detectedVersion,
-      warning: 'FUTURE_VERSION',
-      reset: repair.reset
+      futureVersion: repair.reset
     }
   }
 
