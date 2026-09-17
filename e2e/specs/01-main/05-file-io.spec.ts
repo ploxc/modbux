@@ -168,7 +168,10 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
     const content = await fs.readFile(savePath, 'utf-8')
     const config = JSON.parse(content)
 
-    expect(config.version).toBe(2)
+    // `CURRENT_SERVER_CONFIG_VERSION`, written out because importing `@shared`
+    // here pulls the barrel and with it modules that need Electron. It moved to
+    // 3 when a 64 bit value became a decimal string.
+    expect(config.version).toBe(3)
     expect(config.name).toBe('Main Server')
     expect(config.littleEndian).toBe(false)
     expect(config.serverRegistersPerUnit).toBeDefined()
