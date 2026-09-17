@@ -45,6 +45,26 @@ const store = (addresses: number[]): string =>
     version: CURRENT_SERVER_ZUSTAND_VERSION
   })
 
+/** The same blob with a second server in it, as the split out window writes it. */
+const withSecondServer = (raw: string, uuid: string): string => {
+  const blob = JSON.parse(raw)
+  const { state } = blob
+  state.uuids.push(uuid)
+  state.selectedUuid = uuid
+  state.port[uuid] = '503'
+  state.unitId[uuid] = '0'
+  state.littleEndian[uuid] = false
+  state.serverRegisters[uuid] = {}
+  return JSON.stringify(blob)
+}
+
+/** Waits out the rehydrate, which persist answers with a promise. */
+const settle = async (): Promise<void> => {
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 const held = async (): Promise<string[]> => {
   const { useServerZustand } = await import('../server.zustand')
   return Object.keys(useServerZustand.getState().serverRegisters.u?.['0']?.holding_registers ?? {})
@@ -82,6 +102,31 @@ describe('the server window closing', () => {
     fireEvent('window_update', { main: true, server: false })
 
     expect(await held()).toEqual(['0'])
+  })
+
+  // `ready` is not persisted either, so the rehydrate brought a uuid back with
+  // no entry, and `setPort`, `setUnitId` and `setLittleEndian` each refuse on
+  // that with no message. The window that made the server ran `createServer`
+  // for it, so main does know it.
+  it('marks a server the split out window made as one main knows', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0]))
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    localStorage.setItem(
+      SERVER_ZUSTAND_STORAGE_KEY,
+      withSecondServer(store([0]), 'made-in-the-split-window')
+    )
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+    await settle()
+
+    expect(useServerZustand.getState().uuids).toContain('made-in-the-split-window')
+    expect(useServerZustand.getState().ready['made-in-the-split-window']).toBe(true)
+
+    useServerZustand.getState().setUnitId('7')
+    expect(useServerZustand.getState().unitId['made-in-the-split-window']).toBe('7')
   })
 
   // `rtuServerActive` is not persisted, so re-reading the key leaves it where
