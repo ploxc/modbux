@@ -18,8 +18,6 @@ export interface ServerBitProps {
   dimUnmapped?: boolean
   /** Show hover background on this row (default: true) */
   hoverHighlight?: boolean
-  /** Disable toggle & comment editing (default: false) */
-  readOnly?: boolean
 }
 
 const ServerBit = meme(
@@ -32,8 +30,7 @@ const ServerBit = meme(
     testIdPrefix = 'server-bit',
     padDigits = 2,
     dimUnmapped = true,
-    hoverHighlight = true,
-    readOnly = false
+    hoverHighlight = true
   }: ServerBitProps): JSX.Element => {
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState(comment ?? '')
@@ -75,19 +72,17 @@ const ServerBit = meme(
           // On and off differ only in background and shadow, so the circle
           // renders identically to a test either way. This is the state itself.
           data-active={active}
-          onClick={readOnly ? undefined : onToggle}
+          onClick={onToggle}
           sx={(theme) => ({
             width: 12,
             height: 12,
             borderRadius: '50%',
             flexShrink: 0,
-            cursor: readOnly ? 'default' : 'pointer',
+            cursor: 'pointer',
             background: active ? theme.palette.success.main : theme.palette.action.disabled,
             boxShadow: active ? `0 0 5px ${theme.palette.success.main}` : 'none',
             transition: 'background 0.15s, box-shadow 0.15s',
-            ...(!readOnly && {
-              '&:hover': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 1 }
-            })
+            '&:hover': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 1 }
           })}
         />
 
@@ -107,7 +102,7 @@ const ServerBit = meme(
         </Typography>
 
         {/* Comment — inline editable */}
-        {!readOnly && editing ? (
+        {editing ? (
           <TextField
             data-testid={`${testIdPrefix}-comment-${bitIndex}`}
             variant="standard"
@@ -141,20 +136,16 @@ const ServerBit = meme(
             variant="caption"
             noWrap
             title={comment}
-            onClick={
-              readOnly
-                ? undefined
-                : (): void => {
-                    setDraft(comment ?? '')
-                    setEditing(true)
-                  }
-            }
+            onClick={(): void => {
+              setDraft(comment ?? '')
+              setEditing(true)
+            }}
             sx={{
               flexGrow: 1,
               minWidth: 0,
               lineHeight: '18px',
-              cursor: readOnly ? 'default' : 'text',
-              ...(!readOnly && { '&:hover': { textDecoration: 'underline dotted' } })
+              cursor: 'text',
+              '&:hover': { textDecoration: 'underline dotted' }
             }}
           >
             {hasMapped ? comment : '...'}

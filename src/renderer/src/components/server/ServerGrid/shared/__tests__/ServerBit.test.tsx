@@ -38,15 +38,6 @@ describe('the toggle circle', () => {
 
     expect(onToggle).toHaveBeenCalledOnce()
   })
-
-  it('does not toggle when the row is read only', async () => {
-    const onToggle = vi.fn()
-    renderBit({ onToggle, readOnly: true })
-
-    await userEvent.click(screen.getByTestId('server-bit-circle-3'))
-
-    expect(onToggle).not.toHaveBeenCalled()
-  })
 })
 
 describe('the comment', () => {
@@ -59,14 +50,5 @@ describe('the comment', () => {
     await userEvent.type(screen.getByRole('textbox'), 'motor running{Enter}')
 
     expect(onCommentChange).toHaveBeenCalledWith('motor running')
-  })
-
-  it('is not editable when the row is read only', async () => {
-    const onCommentChange = vi.fn()
-    renderBit({ comment: 'run', onCommentChange, readOnly: true })
-
-    await userEvent.click(screen.getByTestId('server-bit-comment-3'))
-
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 })
