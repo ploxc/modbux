@@ -31,6 +31,44 @@ export function repairPersistedParity(state: Record<string, unknown>, ...path: s
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+/**
+ * What a config file has to be, and the version it claims, for either migration.
+ *
+ * Both opened with `JSON.parse(raw)` and then `parsed.version ?? 1`. On a
+ * number, a string, a boolean or an array that is `undefined`, so 1, so the v1
+ * to v2 step ran, and every field the server migration needs sits behind a
+ * `??`, so `5`, `[]`, `"hello"` and `true` each came out a valid empty v2
+ * config and the user was told the configuration had been updated from an older
+ * format. `null` reached them as
+ * `Cannot read properties of null (reading 'version')` instead. The client
+ * migration refuses the same input, but only because `migrateClientV1toV2`
+ * feeds the whole blob into `registerMapping` and the final `safeParse` catches
+ * it, which is an accident of that one field rather than a rule.
+ *
+ * An array is refused with the rest: `Array.isArray` is the half `typeof` does
+ * not cover, and a config is a map of named fields either way.
+ *
+ * The version is checked here too. `JSON.parse` answers `any`, so nothing had
+ * asked what was in that field, and a `version` of `"3"` or `true` took the v1
+ * path with the rest.
+ */
+export function parseConfigFile(raw: string): {
+  parsed: Record<string, unknown>
+  detectedVersion: number
+} {
+  const parsed: unknown = JSON.parse(raw)
+  if (!isRecord(parsed) || Array.isArray(parsed)) {
+    throw new Error('This file does not hold a Modbux configuration')
+  }
+
+  const version = parsed.version
+  if (version !== undefined && (typeof version !== 'number' || !Number.isInteger(version))) {
+    throw new Error(`This file claims version ${JSON.stringify(version)}, which is not a version`)
+  }
+
+  return { parsed, detectedVersion: version ?? 1 }
+}
+
 /** The object entries of `value`, and nothing at all when it is not an object. */
 const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
   isRecord(value)

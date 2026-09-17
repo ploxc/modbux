@@ -1,6 +1,6 @@
 import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../../types/client'
 import { MigrationResult, Migration } from '../types'
-import { formatZodError, renameLegacyRegisterTypeKeys } from '../shared'
+import { formatZodError, parseConfigFile, renameLegacyRegisterTypeKeys } from '../shared'
 
 /**
  * The version the Save button writes into a client config file.
@@ -42,8 +42,7 @@ function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
  * Migrate client config to current version
  */
 export function migrateClientConfig(raw: string): MigrationResult<RegisterMapConfig> {
-  const parsed = JSON.parse(raw)
-  const detectedVersion = parsed.version ?? 1
+  const { parsed, detectedVersion } = parseConfigFile(raw)
 
   // Current version - no migration needed
   if (detectedVersion === CURRENT_CLIENT_CONFIG_VERSION) {

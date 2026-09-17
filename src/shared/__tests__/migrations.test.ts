@@ -197,6 +197,34 @@ describe('configMigration', () => {
       })
     })
 
+    // `parsed.version ?? 1` on any of these is `undefined`, so 1, so the v1 to
+    // v2 step ran, and every field the migration needs sits behind a `??`. Each
+    // came out a valid empty v2 config, reported as updated from an older
+    // format, and `useOpen` had already emptied the server by then.
+    describe('A file that is not a configuration', () => {
+      it.each(['5', '[]', '"hello"', 'true', 'null'])('refuses %s', (raw) => {
+        expect(() => migrateServerConfig(raw)).toThrow(
+          'This file does not hold a Modbux configuration'
+        )
+        expect(() => migrateClientConfig(raw)).toThrow(
+          'This file does not hold a Modbux configuration'
+        )
+      })
+
+      // `JSON.parse` answers `any`, so nothing asked what was in this field and
+      // a version that is not one took the v1 path with the rest.
+      it.each(['"3"', 'true', '2.5', 'null'])('refuses a version of %s', (version) => {
+        const raw = `{"version": ${version}, "serverRegistersPerUnit": {}}`
+        expect(() => migrateServerConfig(raw)).toThrow('which is not a version')
+      })
+
+      it('still takes a file with no version at all', () => {
+        const result = migrateServerConfig(JSON.stringify({ name: 'v1', coils: {} }))
+        expect(result.fromVersion).toBe(1)
+        expect(result.migrated).toBe(true)
+      })
+    })
+
     // A refused file is refused whole, so the message is the only thing that
     // says which register to go and fix.
     describe('What a refused config names', () => {
