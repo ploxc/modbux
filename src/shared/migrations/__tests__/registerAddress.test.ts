@@ -515,6 +515,18 @@ describe('a persisted 64 bit value', () => {
     expect(heldValue(state)).toBe(1234)
   })
 
+  // `toExact64Bits` answers nothing for a value no composite can be read out
+  // of, and `applyRegisterValue` then leaves the entry where it is, so the grid
+  // would show that value for every write from then on while main served the
+  // new one. `String(0.5)` is `"0.5"` and `String(1e21)` is `"1e+21"`, and the
+  // schema takes either as a number and neither as a string, so neither can be
+  // written back as it is.
+  it.each([0.5, 1e21, -0.25])('repairs a value of %p that no composite reads', (value) => {
+    const state = migrateServerState(persisted('uint64', value), 7)
+
+    expect(heldValue(state)).toBe('0')
+  })
+
   it('leaves a value already stored as a string alone', () => {
     const state = migrateServerState(persisted('uint64', '18446744073709551615'), 7)
 

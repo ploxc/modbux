@@ -252,16 +252,24 @@ export function stringifyExact64BitValues(state: Record<string, unknown>): void 
           const dataType = params.dataType
           if (typeof dataType !== 'string') continue
           if (!holdsExact64Bits(dataType as DataType)) continue
-          // Only where `String` gives digits the schema takes. `String(0.5)`
-          // is `"0.5"` and `String(1e21)` is `"1e+21"`, and the union takes
-          // either as a number and neither as a string, so rewriting one would
-          // turn a blob that parsed into one that does not, and
+
+          // The digits, or `'0'` where there are none. `String(0.5)` is
+          // `"0.5"` and `String(1e21)` is `"1e+21"`, and the union takes
+          // either as a number and neither as a string, so writing one back
+          // would turn a blob that parsed into one that does not, and
           // `repairPersisted` reads `serverRegisters` whole: every server,
           // every unit. An integer above 2 ** 53 is the case this step is for,
           // so the test is the digits rather than `Number.isSafeInteger`.
+          //
+          // `'0'` rather than left alone, because `toExact64Bits` answers
+          // nothing for a value no composite can be read out of, and
+          // `applyRegisterValue` then leaves the entry where it is: the grid
+          // would show that value for every write from then on while main
+          // served the new one. Zero is what a register the server has not
+          // written holds, and a fraction on a 64 bit type is not a value any
+          // device wrote.
           const asString = String(entry.value)
-          if (!/^-?\d+$/.test(asString)) continue
-          entry.value = asString
+          entry.value = /^-?\d+$/.test(asString) ? asString : '0'
         }
       }
     }

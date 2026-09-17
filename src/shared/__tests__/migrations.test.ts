@@ -153,6 +153,44 @@ describe('configMigration', () => {
         expect(result.warning).toBeUndefined()
       })
 
+      // The persisted store's own step is gated on the store version and does
+      // not run on a config load, so without this the first single word write
+      // after opening a v3 file folds from the rounded value.
+      it('rewrites a 64 bit value a file of the current version holds as a number', () => {
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: CURRENT_SERVER_CONFIG_VERSION,
+            modbuxVersion: '3.0.0',
+            name: 'hand edited',
+            littleEndian: false,
+            serverRegistersPerUnit: {
+              '1': {
+                coils: {},
+                discrete_inputs: {},
+                input_registers: {},
+                holding_registers: {
+                  '0': {
+                    value: 72623859790382850,
+                    params: {
+                      address: 0,
+                      registerType: 'holding_registers',
+                      dataType: 'uint64',
+                      comment: '',
+                      value: 0
+                    }
+                  }
+                }
+              }
+            }
+          })
+        )
+
+        expect(result.migrated).toBe(false)
+        expect(result.config.serverRegistersPerUnit['1']?.holding_registers['0']?.value).toBe(
+          '72623859790382850'
+        )
+      })
+
       it('rewrites a 64 bit value a v2 file holds as a number', () => {
         const register = (dataType: string, value: number): unknown => ({
           value,
