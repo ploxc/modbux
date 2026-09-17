@@ -7,8 +7,6 @@ import CloseIcon from '@mui/icons-material/Close'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useEffect, useState } from 'react'
 
-const FORCE_SHOW_BANNER = false // Set to true for testing
-
 interface GitHubRelease {
   tag_name: string
   html_url: string
@@ -22,9 +20,14 @@ const UpdateBanner = meme((): JSX.Element | null => {
   useEffect(() => {
     const checkForUpdates = async (): Promise<void> => {
       try {
+        // The split out window loads the same bundle, so it asked GitHub for the
+        // same release and drew the same banner. `setWindowOpenHandler` is on the
+        // main window alone, so the release link opened inside Electron there.
+        if (window.api.isServerWindow) return
+
         // Check if banner was dismissed in this session
         const dismissed = sessionStorage.getItem('updateBannerDismissed')
-        if (dismissed && !FORCE_SHOW_BANNER) return
+        if (dismissed) return
 
         // Fetch latest release from GitHub API
         const response = await fetch('https://api.github.com/repos/ploxc/modbux/releases/latest', {
@@ -46,7 +49,7 @@ const UpdateBanner = meme((): JSX.Element | null => {
         const currentVersion = await window.api.getAppVersion()
 
         // Compare versions
-        if (FORCE_SHOW_BANNER || isNewerVersion(latestTag, currentVersion)) {
+        if (isNewerVersion(latestTag, currentVersion)) {
           setLatestVersion(latestTag)
           setReleaseUrl(release.html_url)
           setShowBanner(true)

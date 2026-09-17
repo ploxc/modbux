@@ -295,6 +295,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that no port was available and leave the field alone. A server that was
   already running keeps the port it had, rather than losing the one it was on to
   a search that found nothing.
+- **The update notice no longer opens GitHub in a Modbux window.** The split out
+  server window showed the same notice as the main one, and its Download latest
+  release link opened the release page in a second Modbux window rather than in
+  the browser. The notice is the main window's alone now, and a link from either
+  window opens in the browser.
 
 ### Changed
 

@@ -145,6 +145,13 @@ onIpcEvent('open_server_window', () => {
     backgroundColor: '#181818'
   })
 
+  // The same handler the main window has. Both windows load the same bundle, so
+  // a link that opens in the browser from one of them has to from the other.
+  windows.server.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

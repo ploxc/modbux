@@ -7,10 +7,11 @@ import UpdateBanner from '../UpdateBanner'
 
 // Mock window.api
 const mockGetAppVersion = vi.fn()
-// @ts-expect-error - Mocking window.api for tests
-global.window.api = {
-  getAppVersion: mockGetAppVersion
+const asServerWindow = (isServerWindow: boolean): void => {
+  // @ts-expect-error - Mocking window.api for tests
+  global.window.api = { getAppVersion: mockGetAppVersion, isServerWindow }
 }
+asServerWindow(false)
 
 // Mock fetch
 const mockFetch = vi.fn() as ReturnType<typeof vi.fn>
@@ -20,6 +21,7 @@ describe('UpdateBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     sessionStorage.clear()
+    asServerWindow(false)
   })
 
   afterEach(() => {
@@ -209,6 +211,26 @@ describe('UpdateBanner', () => {
     expect(consoleSpy).toHaveBeenCalledWith('Failed to check for updates:', expect.any(Error))
 
     consoleSpy.mockRestore()
+  })
+
+  // `setWindowOpenHandler` is on the main window alone, so the release link
+  // opened inside Electron in the split out one. Both windows load the same
+  // bundle, so both asked GitHub for the latest release as well.
+  it('asks nothing and shows nothing in the split out window', async () => {
+    asServerWindow(true)
+    mockGetAppVersion.mockResolvedValue('1.4.0')
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tag_name: 'v1.5.0',
+        html_url: 'https://github.com/ploxc/modbux/releases/tag/v1.5.0'
+      })
+    })
+
+    render(<UpdateBanner />)
+
+    await waitFor(() => expect(mockFetch).not.toHaveBeenCalled())
+    expect(screen.queryByTestId('update-banner')).not.toBeInTheDocument()
   })
 
   it('should open link in new tab with security attributes', async () => {
