@@ -15,6 +15,7 @@ import {
   renameLegacyRegisterTypeKeys
 } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
+import { repairPersisted } from '../../repairPersisted'
 
 /**
  * The version the Save button writes into a server config file.
@@ -137,13 +138,33 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
     }
   }
 
-  // Future version
+  // A config from a newer Modbux keeps the fields it still shares with this
+  // one. The branch cast the parsed JSON straight to `ServerConfig` and
+  // returned it, so `{ version: 9, serverRegistersPerUnit: 'not a unit' }` went
+  // into the store with the snackbar reading "Some features may not work
+  // correctly", which is a compatibility notice for something no schema had
+  // looked at. `repairPersisted` is the same answer a persisted store already
+  // gets, and `reset` is what the warning now says.
   if (detectedVersion > CURRENT_SERVER_CONFIG_VERSION) {
+    const repair = repairPersisted(
+      ServerConfigSchema,
+      parsed,
+      {
+        version: detectedVersion,
+        modbuxVersion: '',
+        name: '',
+        littleEndian: false,
+        serverRegistersPerUnit: {}
+      } satisfies ServerConfig,
+      true
+    )
+
     return {
-      config: parsed as ServerConfig,
+      config: repair.state,
       migrated: false,
       fromVersion: detectedVersion,
-      warning: 'FUTURE_VERSION'
+      warning: 'FUTURE_VERSION',
+      reset: repair.reset
     }
   }
 

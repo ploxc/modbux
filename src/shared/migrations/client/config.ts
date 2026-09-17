@@ -1,4 +1,6 @@
 import { RegisterMapConfigSchema, RegisterMapConfig, RegisterMapping } from '../../types/client'
+import { emptyRegisterMapping } from '../../default'
+import { repairPersisted } from '../../repairPersisted'
 import { MigrationResult, Migration } from '../types'
 import { formatZodError, parseConfigFile, renameLegacyRegisterTypeKeys } from '../shared'
 
@@ -59,13 +61,33 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
     }
   }
 
-  // Future version
+  // A config from a newer Modbux keeps the fields it still shares with this
+  // one. The branch cast the parsed JSON straight to `RegisterMapConfig` and
+  // returned it, and `LoadButton` calls
+  // `replaceRegisterMapping(config.registerMapping)` with no gate at all, so
+  // `{ version: 9, registerMapping: 'nope' }` was written into the persisted
+  // store and flushed to main. The same answer a persisted store gets, and
+  // `reset` is what the warning now says.
   if (detectedVersion > CURRENT_CLIENT_CONFIG_VERSION) {
+    const repair = repairPersisted(
+      RegisterMapConfigSchema,
+      parsed,
+      {
+        version: detectedVersion,
+        modbuxVersion: '',
+        name: undefined,
+        littleEndian: false,
+        registerMapping: emptyRegisterMapping()
+      } satisfies RegisterMapConfig,
+      true
+    )
+
     return {
-      config: parsed as RegisterMapConfig,
+      config: repair.state,
       migrated: false,
       fromVersion: detectedVersion,
-      warning: 'FUTURE_VERSION'
+      warning: 'FUTURE_VERSION',
+      reset: repair.reset
     }
   }
 

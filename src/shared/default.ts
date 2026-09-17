@@ -4,6 +4,7 @@ import {
   RegisterConfig,
   RegisterData,
   RegisterDataWords,
+  RegisterMapping,
   SerialPortOptions
 } from './types'
 
@@ -45,6 +46,20 @@ export const defaultRegisterConfig: RegisterConfig = {
   show64BitValues: false,
   addressBase: '0'
 }
+
+/**
+ * A mapping with nothing configured, one empty record per register type.
+ *
+ * Built fresh at each call, because the store writes into it. Two callers: the
+ * client store's Clear, and the repair a config from a newer Modbux goes
+ * through, which needs something to default the field to when it fails.
+ */
+export const emptyRegisterMapping = (): RegisterMapping => ({
+  coils: {},
+  discrete_inputs: {},
+  holding_registers: {},
+  input_registers: {}
+})
 
 export const defaultClientState: ClientState = {
   connectState: 'disconnected',

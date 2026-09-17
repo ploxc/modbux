@@ -7,7 +7,7 @@ import { downloadJson } from '@renderer/components/shared/downloadJson'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import { checkHasConfig, migrateServerConfig } from '@shared'
+import { checkHasConfig, migrateServerConfig, resetMessage } from '@shared'
 import {
   CURRENT_SERVER_CONFIG_VERSION,
   ServerConfig,
@@ -47,7 +47,7 @@ const useOpen: UseOpenHook = () => {
 
         // Use migration framework to handle all config versions
         const migrationResult = migrateServerConfig(content)
-        const { config, migrated, warning, wasMixedEndianness } = migrationResult
+        const { config, migrated, warning, wasMixedEndianness, reset } = migrationResult
 
         // A unit the file does not name is not written over on the way in, so
         // whatever the previous config left on it would answer a master after
@@ -96,12 +96,13 @@ const useOpen: UseOpenHook = () => {
           })
         }
 
-        // Show warning for future version
-        if (warning === 'FUTURE_VERSION') {
+        // A config from a newer Modbux is parsed against the current schema and
+        // keeps what matches, so the warning says which fields did not come
+        // across rather than that some feature may not work.
+        if (warning === 'FUTURE_VERSION' && reset) {
           enqueueSnackbar({
             variant: 'warning',
-            message:
-              'This config was created with a newer version of Modbux. Some features may not work correctly.',
+            message: resetMessage('Server', reset),
             persist: true
           })
         }
