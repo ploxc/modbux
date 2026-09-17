@@ -48,6 +48,36 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
     await mainPage.waitForTimeout(300)
   })
 
+  // ─── A file the server cannot read ────────────────────────────────────
+
+  // `useOpen` awaited `resetServer` above its `try`, and `resetServer` reaches
+  // main and then clears the store. `migrateServerConfig` throws on both shapes
+  // a user picks by accident, a client config file and malformed JSON, and the
+  // `catch` only enqueues a snackbar, so the configuration on screen was gone
+  // before anything had read the file.
+  test('opening a client config into the server says so and keeps the config', async ({
+    mainPage
+  }) => {
+    const fileInput = mainPage.getByTestId('server-open-file-input')
+    await fileInput.setInputFiles(CONFIG_FILES.clientBasic)
+
+    await expect(mainPage.locator('.notistack-SnackbarContainer')).toContainText(
+      'Failed to load config',
+      { timeout: 5000 }
+    )
+
+    await expect(mainPage.getByTestId('server-name-input').locator('input')).toHaveValue(
+      'Basic Server'
+    )
+    await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(2)')
+    await expect(mainPage.getByTestId('section-input_registers')).toContainText('(1)')
+  })
+
+  test('the buttons come back after a file it could not read', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('server-clear-btn')).toBeEnabled()
+    await expect(mainPage.getByTestId('server-save-btn')).toBeEnabled()
+  })
+
   // ─── Server config clear ──────────────────────────────────────────────
 
   test('clear server config — verify all sections show (0)', async ({ mainPage }) => {
