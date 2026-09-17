@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The server view no longer comes up blank and stays that way.** One thing main
+  refused while the setup was being handed over left the whole view faded out,
+  on that launch and on every launch after it, with no message and nothing on
+  screen to clear the configuration with. A refusal now costs the one server it
+  belonged to.
+- **A server added in the split out window can be changed when that window
+  closes.** Its port, unit id and byte order each refused every change with no
+  message until Modbux was restarted.
 - **A server register the encoder cannot serve is now refused by name.** A
   config file could put a fixed value outside the range of its own data type, a
   string wider than the register map, a register running past the last address,

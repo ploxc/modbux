@@ -61,6 +61,7 @@ export const useServerZustand = create<
           state.configReset = undefined
         }),
       ready: { [MAIN_SERVER_UUID]: false },
+      initialized: false,
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [MAIN_SERVER_UUID],
       port: { [MAIN_SERVER_UUID]: '502' },
@@ -139,70 +140,93 @@ export const useServerZustand = create<
         await window.api.resetServer(uuid)
         get().clean(uuid)
       },
+      /**
+       * Hands main what the store holds, and marks the store initialized
+       * whatever came of that.
+       *
+       * `containers/Server.tsx` draws nothing until the flag is set, so a
+       * rejected invoke below used to cost the whole server view rather than
+       * the one uuid it belonged to, on that launch and on every one after it.
+       * The uuid keeps `ready` false, which is what its three setters refuse
+       * on, and that is the whole cost now.
+       *
+       * The `catch` is empty because this runs from module scope with nothing
+       * awaiting it, and a rejection there is an unhandled one. Main reports
+       * its own failures through `backend_message`; a rejected invoke carries
+       * the channel name and nothing the user can act on.
+       */
       init: async (uuid) => {
-        set((state) => {
-          if (uuid) state.ready[uuid] = false
-          else for (const u of state.uuids) state.ready[u] = false
-        })
-        const state = get()
-        const mode = state.serverMode ?? 'tcp'
-
-        // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
-        set((state) => {
-          for (const uuid of state.uuids) {
-            if (state.unitId[uuid] === undefined) {
-              state.unitId[uuid] = '0'
-            }
-            if (state.littleEndian[uuid] === undefined) {
-              state.littleEndian[uuid] = false // Default to Big-Endian
-            }
-          }
-        })
-
-        if (mode === 'rtu') {
-          // RTU serves the main server's registers, so that is the only uuid
-          // there is anything to open for.
-          const serialConfig = state.serialConfig ?? getDefaultSerialConfig()
-
-          // Only start if COM port is configured
-          if (serialConfig.com.trim()) {
-            try {
-              await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
-            } catch {
-              // Error is reported via backend_message event
-            }
-          }
-
-          await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
-
+        try {
           set((state) => {
-            state.selectedUuid = MAIN_SERVER_UUID
+            if (uuid) state.ready[uuid] = false
+            else for (const u of state.uuids) state.ready[u] = false
           })
-        } else {
-          // TCP mode: existing flow
-          const uuidsToSync = uuid ? [uuid] : state.uuids
+          const state = get()
+          const mode = state.serverMode ?? 'tcp'
 
-          for (const syncUuid of uuidsToSync) {
-            const port = Number(state.port[syncUuid])
-            const actualPort = await window.api.createServer({ uuid: syncUuid, port })
-            if (actualPort === undefined) continue
+          // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
+          set((state) => {
+            for (const uuid of state.uuids) {
+              if (state.unitId[uuid] === undefined) {
+                state.unitId[uuid] = '0'
+              }
+              if (state.littleEndian[uuid] === undefined) {
+                state.littleEndian[uuid] = false // Default to Big-Endian
+              }
+            }
+          })
+
+          if (mode === 'rtu') {
+            // RTU serves the main server's registers, so that is the only uuid
+            // there is anything to open for.
+            const serialConfig = state.serialConfig ?? getDefaultSerialConfig()
+
+            // Only start if COM port is configured
+            if (serialConfig.com.trim()) {
+              try {
+                await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+              } catch {
+                // Error is reported via backend_message event
+              }
+            }
+
+            await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
 
             set((state) => {
-              state.port[syncUuid] = String(actualPort)
+              state.selectedUuid = MAIN_SERVER_UUID
             })
+          } else {
+            // TCP mode: existing flow
+            const uuidsToSync = uuid ? [uuid] : state.uuids
 
-            await syncUuidToBackend(set, get, syncUuid)
+            for (const syncUuid of uuidsToSync) {
+              const port = Number(state.port[syncUuid])
+              const actualPort = await window.api.createServer({ uuid: syncUuid, port })
+              if (actualPort === undefined) continue
+
+              set((state) => {
+                state.port[syncUuid] = String(actualPort)
+              })
+
+              await syncUuidToBackend(set, get, syncUuid)
+            }
+
+            if (state.uuids.length === 0) {
+              state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+              set((state) => {
+                state.ready[MAIN_SERVER_UUID] = true
+              })
+            }
           }
 
-          if (state.uuids.length === 0) {
-            state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
-            set((state) => {
-              state.ready[MAIN_SERVER_UUID] = true
-            })
-          }
+          get().cleanOrphanedServerState()
+        } catch {
+          // Reported by main, and unawaited here. See the note above.
+        } finally {
+          set((state) => {
+            state.initialized = true
+          })
         }
-
-        get().cleanOrphanedServerState()
       },
       setSelectedUuid: (uuid) =>
         set((state) => {
@@ -764,6 +788,24 @@ readRtuServerStatus()
 let serverWindowOwnsTheKey = false
 
 /**
+ * Mark every uuid the rehydrate brought back as one main knows.
+ *
+ * `ready` is not in `partialize`, so a rehydrate brings back `uuids`, `port`
+ * and `selectedUuid` and leaves this window's own `ready` where `init` left it.
+ * A server made in the split out window therefore came back with no entry, and
+ * `setPort`, `setUnitId` and `setLittleEndian` each refuse on that with no
+ * message, until a restart. The window that made it ran `createServer` for it,
+ * so main does know it.
+ */
+const markRehydratedUuidsReady = (): void => {
+  const { uuids, ready } = useServerZustand.getState()
+  if (uuids.every((uuid) => ready[uuid])) return
+  useServerZustand.setState({
+    ready: Object.fromEntries(uuids.map((uuid) => [uuid, true]))
+  })
+}
+
+/**
  * Re-read the key the split out window has been writing.
  *
  * Both windows hold this store and both persist it, and main addresses the two
@@ -781,6 +823,6 @@ onEvent('window_update', ({ server }) => {
   }
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
-  useServerZustand.persist.rehydrate()
+  void Promise.resolve(useServerZustand.persist.rehydrate()).then(markRehydratedUuidsReady)
   readRtuServerStatus()
 })

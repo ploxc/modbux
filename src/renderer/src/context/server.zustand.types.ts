@@ -63,7 +63,28 @@ export type ServerZustand = {
   configReset: ConfigReset | undefined
   /** Called once the reset has been reported, so it is reported once. */
   acknowledgeConfigReset: () => void
+  /**
+   * Whether main knows this uuid, which is what `setPort`, `setUnitId` and
+   * `setLittleEndian` refuse on: a port main has not bound is a port nothing
+   * can be changed about.
+   *
+   * Written by `syncUuidToBackend`, by `createServer`, and by the
+   * `window_update` rehydrate for a uuid the split out window made and synced
+   * itself. `init` sets every uuid false before its loop, so a sync that fails
+   * leaves that one uuid refusing its three setters and no other.
+   */
   ready: { [uuid: string]: boolean }
+  /**
+   * Whether `init` has run to its end, whatever it managed.
+   *
+   * `containers/Server.tsx` fades the whole server view in on this. It used to
+   * read `ready`, which is per uuid and written only on a sync that got
+   * through, so a rejected invoke anywhere in `init`'s loop left the view blank
+   * on that launch and on every one after it, with nothing on screen to clear
+   * the config with. The two questions are separate: this one is about the
+   * store, `ready` is about a server.
+   */
+  initialized: boolean
   clean: (uuid: string) => void
   /**
    * Remove all state entries for uuids that are not present in the uuids array.

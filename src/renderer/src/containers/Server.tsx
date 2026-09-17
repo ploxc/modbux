@@ -35,9 +35,12 @@ const ServerName = meme(() => {
 })
 
 const Server = meme(() => {
-  const ready = useServerZustand((z) => Object.values(z.ready).some((ready) => ready))
+  // `initialized` rather than `ready`, which is per uuid and written only on a
+  // sync that got through: one rejected invoke in `init`'s loop left this view
+  // blank on that launch and every one after it.
+  const initialized = useServerZustand((z) => z.initialized)
   return (
-    <Fade in={ready} timeout={500}>
+    <Fade in={initialized} timeout={500}>
       <Box
         sx={{
           p: 3,
