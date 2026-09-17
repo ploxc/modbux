@@ -1414,6 +1414,40 @@ describe('ModbusServer', () => {
       expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
     })
 
+    // The listener that was up is closed before the walk starts, so a walk that
+    // finds nothing leaves the uuid with none. `setPort` puts the old one back
+    // and this is the same situation.
+    it('puts the listener back on the port it had when the walk finds nothing', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      clearWindowCalls()
+      portAvailableResults = [false]
+
+      const port = await server.createServer({ uuid, port: 65535 })
+
+      expect(port).toBe(5020)
+      expect(ServerTCP).toHaveBeenLastCalledWith(expect.any(Object), {
+        host: '0.0.0.0',
+        port: 5020
+      })
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
+    })
+
+    it('says so when the listener cannot go back on the port it had', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      clearWindowCalls()
+      portAvailableResults = [false]
+      bindResults = ['EADDRINUSE']
+
+      const port = await server.createServer({ uuid, port: 65535 })
+
+      expect(port).toBeUndefined()
+      const messages = getWindowCalls('backend_message')
+      expect(
+        messages.some((m) => m[1].message === 'The server could not be restarted on port 5020')
+      ).toBe(true)
+    })
+
     // `net.createServer().listen(65536, '0.0.0.0')` throws `ERR_SOCKET_BAD_PORT`
     // from inside `_isPortAvailable`'s executor, which rejects the invoke rather
     // than answering it. The walk ends on the port range instead.

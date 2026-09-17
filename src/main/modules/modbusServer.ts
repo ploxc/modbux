@@ -395,6 +395,8 @@ export class ModbusServer {
 
     if (this._servers.has(uuid) && this._port.get(uuid) === actualPort) return actualPort
 
+    // Read before the close, because that is what forgets it.
+    const previousPort = this._port.get(uuid)
     await this._closeAndForget(uuid)
 
     for (let i = 0; i < maxAttempts; i++) {
@@ -414,6 +416,18 @@ export class ModbusServer {
       message: 'No available port found',
       variant: 'error',
       error: undefined
+    })
+
+    // The listener that was up was closed before the walk, so put it back
+    // rather than leave the uuid with none. `setPort` answers the same way.
+    if (previousPort === undefined) return undefined
+
+    const restored = await this._bindServer(uuid, previousPort)
+    if (restored.ok) return previousPort
+
+    this._emitMessage({
+      message: `The server could not be restarted on port ${previousPort}`,
+      variant: 'error'
     })
     return undefined
   }

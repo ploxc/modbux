@@ -292,7 +292,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a port nothing was listening on. A server configured on 65535 with that
   port taken was worse: the search stepped to 65536, which is not a port, and
   the server came up neither working nor reporting anything. Both now report
-  that no port was available and leave the field alone.
+  that no port was available and leave the field alone. A server that was
+  already running keeps the port it had, rather than losing the one it was on to
+  a search that found nothing.
 
 ### Changed
 
