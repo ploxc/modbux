@@ -1,5 +1,5 @@
 import { RegisterType, RegisterTypeSchema } from './register'
-import { RegisterAddressSchema, UnitIdSchema } from './ranges'
+import { maxReadQuantity, RegisterAddressSchema, UnitIdSchema } from './ranges'
 import z from 'zod'
 
 // Scan Registers
@@ -13,13 +13,32 @@ export type ScanRegistersParameters = z.infer<typeof ScanRegistersParametersSche
 //
 //
 // Scan Unit ID parameters
-export const ScanUnitIDParametersSchema = z.object({
-  range: z.tuple([UnitIdSchema, UnitIdSchema]),
-  address: RegisterAddressSchema,
-  length: z.number().int().positive(),
-  registerTypes: z.array(RegisterTypeSchema).min(1),
-  timeout: z.number().int().positive()
-})
+/**
+ * What a unit id scan asks each unit for.
+ *
+ * `length` and `registerTypes` bound each other, so the rule is the pair: one
+ * length goes out for every type selected, and the strictest of them is the one
+ * the request has to fit. Bare, `length` reached
+ * `this._readers[registerType](address, length)` unchanged and `modbus-serial`
+ * wrote it into the quantity field with nothing between.
+ */
+export const ScanUnitIDParametersSchema = z
+  .object({
+    range: z.tuple([UnitIdSchema, UnitIdSchema]),
+    address: RegisterAddressSchema,
+    length: z.number().int().positive(),
+    registerTypes: z.array(RegisterTypeSchema).min(1),
+    timeout: z.number().int().positive()
+  })
+  .superRefine((parameters, ctx) => {
+    const ceiling = maxReadQuantity(parameters.registerTypes)
+    if (parameters.length <= ceiling) return
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['length'],
+      message: `One read of these register types answers at most ${ceiling}`
+    })
+  })
 export type ScanUnitIDParameters = z.infer<typeof ScanUnitIDParametersSchema>
 
 const ScanUnitIdErrorMessageSchema = z.object({

@@ -9,6 +9,9 @@ import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/
 import { RegisterParamsSchema, RemoveRegisterParamsSchema } from '../types/server'
 import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
 import { MAX_UTF8_LENGTH } from '../utils'
+import { ScanUnitIDParametersSchema } from '../types/scan'
+import { MAX_READ_BITS, MAX_READ_REGISTERS, maxReadQuantity } from '../types/ranges'
+import type { RegisterType } from '../types/register'
 
 describe('RegisterMapObjectSchema', () => {
   it('accepts numeric string keys', () => {
@@ -488,6 +491,70 @@ describe('Server RegisterParamsSchema — what a generator draws between', () =>
       RegisterParamsSchema.safeParse(generator({ dataType: 'float', min: -1e300, max: 1e300 }))
         .success
     ).toBe(true)
+  })
+})
+
+// Nothing between the keyboard and the wire clamped: `LengthField` passed no
+// `max`, `UintInput` defaults to 65535, `setLength` stores the number as given,
+// `length` was `z.number().int().positive()`, and `_scanUnitIds` hands it to
+// `this._readers[registerType](address, length)`, which writes it into the
+// quantity field. A device answers illegal-data-value or says nothing, and the
+// answer the user reads is about the request rather than about the bus.
+describe('ScanUnitIDParametersSchema — the quantity that reaches the wire', () => {
+  const parameters = (over: Record<string, unknown>): unknown => ({
+    range: [1, 5],
+    address: 0,
+    length: 2,
+    registerTypes: ['holding_registers'],
+    timeout: 500,
+    ...over
+  })
+
+  const takes = (over: Record<string, unknown>): boolean =>
+    ScanUnitIDParametersSchema.safeParse(parameters(over)).success
+
+  it('refuses more registers than one read answers', () => {
+    expect(takes({ length: 126 })).toBe(false)
+    expect(takes({ length: 65535 })).toBe(false)
+    expect(takes({ length: MAX_READ_REGISTERS })).toBe(true)
+  })
+
+  it('refuses more bits than one read answers', () => {
+    expect(takes({ registerTypes: ['coils'], length: 2001 })).toBe(false)
+    expect(takes({ registerTypes: ['coils'], length: MAX_READ_BITS })).toBe(true)
+  })
+
+  // One length goes out for every type selected, so the strictest of them is
+  // the one the request has to fit.
+  it('holds a mixed selection to the stricter of the two', () => {
+    expect(takes({ registerTypes: ['coils', 'holding_registers'], length: 2000 })).toBe(false)
+    expect(takes({ registerTypes: ['coils', 'holding_registers'], length: 125 })).toBe(true)
+  })
+
+  it('names the length', () => {
+    const result = ScanUnitIDParametersSchema.safeParse(parameters({ length: 65535 }))
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(['length'])
+  })
+})
+
+describe('maxReadQuantity', () => {
+  // MODBUS Application Protocol Specification V1.1b3 section 6: FC01 and FC02
+  // answer at most 2000 bits, FC03 and FC04 at most 125 registers.
+  it.each([
+    [['coils'], MAX_READ_BITS],
+    [['discrete_inputs'], MAX_READ_BITS],
+    [['coils', 'discrete_inputs'], MAX_READ_BITS],
+    [['input_registers'], MAX_READ_REGISTERS],
+    [['holding_registers'], MAX_READ_REGISTERS],
+    [['coils', 'holding_registers'], MAX_READ_REGISTERS]
+  ] as [RegisterType[], number][])('answers %j with %i', (registerTypes, expected) => {
+    expect(maxReadQuantity(registerTypes)).toBe(expected)
+  })
+
+  it('states the protocol rather than a habit', () => {
+    expect(MAX_READ_BITS).toBe(2000)
+    expect(MAX_READ_REGISTERS).toBe(125)
   })
 })
 

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The unit ID scan no longer asks for more than a device can answer.** Its
+  Length field took anything up to 65535 and sent it as the quantity, which is
+  past what the protocol allows. Every device on the bus then refused the
+  request or said nothing, so what the scan told you was about the request
+  rather than about the device. The field now stops at 125 registers, or 2000
+  bits when only bit types are selected.
 - **A 64-bit server register now shows the value a master wrote.** A master
   writing an INT64, UINT64 or DATETIME register sends four words, and the server
   folded them through a number that carries 53 bits, so anything above that came

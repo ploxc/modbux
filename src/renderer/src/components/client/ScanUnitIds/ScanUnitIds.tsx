@@ -12,7 +12,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterType } from '@shared'
+import { maxReadQuantity, RegisterType } from '@shared'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -102,6 +102,13 @@ const LengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => String(z.length))
 
+  // The field passed no `max`, so `UintInput`'s default of 65535 was typeable
+  // and went to the socket as the quantity. `maxReadQuantity` is the protocol's
+  // own pair, and it reads the types selected because one length goes out for
+  // every one of them.
+  const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
+  const max = maxReadQuantity(registerTypes)
+
   const setLength = useScanUnitIdZustand.getState().setLength
 
   return (
@@ -116,7 +123,7 @@ const LengthField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength })
+          inputProps: maskInputProps({ set: setLength, max })
         }
       }}
     />
@@ -213,9 +220,14 @@ const ScanButton = meme((): JSX.Element => {
 
     const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
+    // Clamped where the request is built rather than left to the boundary. The
+    // field masks to the same ceiling, and a length typed under one set of
+    // register types stays in the store when another is selected, so this is
+    // the moment the pair is finally known. The boundary refuses what it is
+    // given and the results are already cleared by then.
     window.api.scanUnitIds({
       address,
-      length,
+      length: Math.min(length, maxReadQuantity(registerTypes)),
       range: [startUnitId, startUnitId + count - 1],
       registerTypes,
       timeout
