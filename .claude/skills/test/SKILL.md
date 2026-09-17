@@ -76,7 +76,10 @@ git status --porcelain <file>             # empty, or the restore did not take
 - **Edit by line number or by a unique string, not by the first match.** `sed`,
   `replace(old, new, 1)` and a first-hit search all take the first one, and a
   codebase repeats lines. If a mutation reports _no tests_ rather than a failure,
-  it broke the file: that is your quoting, not the code.
+  it broke the file: that is your quoting, not the code. **A mutation that never
+  applied reports every test green**, which reads exactly like a mutant that
+  survived, and the wrong answer to that is to write a second test. Diff the file
+  against the copy before believing a green run.
 - **Assert what the code did, not what it said.** The value in the store, the
   cell in the grid, the bytes on the wire. Not that a handler was called.
 - **Assert what must appear, not what must be absent.** A thing never produced
