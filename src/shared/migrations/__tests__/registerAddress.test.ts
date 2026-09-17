@@ -470,6 +470,62 @@ describe('a persisted register the encoder cannot serve', () => {
   })
 })
 
+// `ServerRegisterEntrySchema.value` was `z.number()`, so every blob on disk
+// carries a number for the three types whose composite fills 64 bits as an
+// integer. The first word write after a launch reads that value, and a number
+// carries 53 bits.
+describe('a persisted 64 bit value', () => {
+  const persisted = (dataType: string, value: unknown): Record<string, unknown> => ({
+    serverRegisters: {
+      u: {
+        '1': {
+          holding_registers: {
+            '10': {
+              value,
+              params: {
+                address: 10,
+                registerType: 'holding_registers',
+                dataType,
+                comment: '',
+                value: 0
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  const heldValue = (state: Record<string, unknown>): unknown => {
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const holding = unit.holding_registers as Record<string, Record<string, unknown>>
+    return holding['10']?.value
+  }
+
+  it.each(['uint64', 'int64', 'datetime'])('becomes a string for %s', (dataType) => {
+    const state = migrateServerState(persisted(dataType, 72623859790382850), 7)
+
+    expect(heldValue(state)).toBe('72623859790382850')
+  })
+
+  it.each(['uint16', 'int32', 'double', 'float', 'unix'])('stays a number for %s', (dataType) => {
+    const state = migrateServerState(persisted(dataType, 1234), 7)
+
+    expect(heldValue(state)).toBe(1234)
+  })
+
+  it('leaves a value already stored as a string alone', () => {
+    const state = migrateServerState(persisted('uint64', '18446744073709551615'), 7)
+
+    expect(heldValue(state)).toBe('18446744073709551615')
+  })
+
+  it('is behind a version the store has moved past', () => {
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(7)
+  })
+})
+
 describe('a persisted mapping entry outside the map', () => {
   /** The last client store version whose blobs can carry any numeric key. */
   const LAST_VERSION_ACCEPTING_ANY_KEY = 3

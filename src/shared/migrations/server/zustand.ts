@@ -1,7 +1,12 @@
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
-import { dropUnservableRegisters, migrateBoolShapeForUnit, repairPersistedParity } from '../shared'
+import {
+  dropUnservableRegisters,
+  migrateBoolShapeForUnit,
+  repairPersistedParity,
+  stringifyExact64BitValues
+} from '../shared'
 
-export const CURRENT_SERVER_ZUSTAND_VERSION = 7
+export const CURRENT_SERVER_ZUSTAND_VERSION = 8
 
 /** Where the server store keeps its state. */
 export const SERVER_ZUSTAND_STORAGE_KEY = 'server.zustand'
@@ -149,6 +154,12 @@ export function migrateServerState(
   //        encoder, the map or `setInterval` can take
   if (version < 7) {
     dropUnservableRegisters(state)
+  }
+
+  // v7→v8: a 64 bit composite is a decimal string, so the first word write
+  //        after a launch reads it exactly rather than rounded
+  if (version < 8) {
+    stringifyExact64BitValues(state)
   }
 
   return state

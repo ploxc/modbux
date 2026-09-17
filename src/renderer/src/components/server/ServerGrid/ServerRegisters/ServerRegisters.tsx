@@ -9,6 +9,7 @@ import {
   formatUnixSeconds,
   NumberRegisters,
   parseIEC870DateTimeValue,
+  toExact64Bits,
   ServerRegister
 } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -46,10 +47,12 @@ const RowEdit = meme(({ register }: RowProps) => {
 const getDisplayValue = (register: ServerRegister[number]): string | number => {
   const { dataType } = register.params
   if (dataType === 'utf8') return register.params.stringValue ?? ''
-  if (dataType === 'unix') return formatUnixSeconds(register.value)
+  // A `unix` register is a uint32, so its composite is a number. The three
+  // types that hold a string are read through `toExact64Bits`.
+  if (dataType === 'unix') return formatUnixSeconds(Number(register.value))
   // The shared decoder answers '' for a register no date can be read out of,
   // which is what a register the server has not written yet holds.
-  if (dataType === 'datetime') return parseIEC870DateTimeValue(register.value) || '—'
+  if (dataType === 'datetime') return parseIEC870DateTimeValue(toExact64Bits(register.value)) || '—'
   return register.value
 }
 

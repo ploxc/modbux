@@ -22,7 +22,10 @@ import {
   registerWidth,
   ModbusBaudRate,
   RegisterType,
-  RegisterValue
+  RegisterValue,
+  ServerRegisterValue,
+  holdsExact64Bits,
+  toExact64Bits
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
@@ -702,11 +705,11 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
         view.setFloat32(0, Number(currentValue) || 0, littleEndian)
         break
       case 'int64':
-        view.setBigInt64(0, BigInt(currentValue) || 0n, littleEndian)
+        view.setBigInt64(0, toExact64Bits(currentValue), littleEndian)
         break
       case 'uint64':
       case 'datetime':
-        view.setBigUint64(0, BigInt(currentValue) || 0n, littleEndian)
+        view.setBigUint64(0, toExact64Bits(currentValue), littleEndian)
         break
       case 'double':
         view.setFloat64(0, Number(currentValue) || 0, littleEndian)
@@ -766,7 +769,17 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
     return
   }
 
-  const value = round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
+  // A decimal string where the composite fills 64 bits as an integer, because
+  // `Number` carries 53 of them: four words of 0xFFFF came out
+  // 18446744073709552000 rather than 18446744073709551615, and the next single
+  // word write read that back through `BigInt`, which `setBigUint64` took
+  // modulo 2 ** 64, leaving the entry holding the low word alone.
+  //
+  // The cache above held the exact composite already, so the loss only showed
+  // after a flush cleared it and the fallback was the entry.
+  const value: ServerRegisterValue = holdsExact64Bits(dataType)
+    ? newComposite.toString()
+    : round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
 
   delayedRegister.setValue(cacheKey, newComposite)
 

@@ -70,20 +70,22 @@ export const parseIEC870DateTime = (buf: Buffer): string => {
 }
 
 /**
- * The same datetime, read off the composite number the server store keeps.
+ * The same datetime, read off the composite the server store keeps.
  *
  * The store folds the four registers into one `value`, so the row had its own
  * copy of the layout above, without the invalid flag and without the range gate.
- * The number carries all 64 bits up to `Number.MAX_SAFE_INTEGER` and no further:
- * the encoding of 2099/12/31 23:59:59.999 rounds up by one millisecond on the
- * way through `Number`, and the year offset is what pushes it that far.
+ *
+ * A `bigint` because the composite fills all 64 bits and a JS number carries 53
+ * of them. Through `Number` the encoding of 2099/12/31 23:59:59.999 rounded up
+ * by one millisecond, and the all-0xFFFF sentinel came out as 2 ** 64, which is
+ * out of range rather than the sentinel.
  */
-export const parseIEC870DateTimeValue = (packed: number): string =>
+export const parseIEC870DateTimeValue = (packed: bigint): string =>
   parseIEC870Words(
-    Math.floor(packed / 2 ** 48) & 0xffff,
-    Math.floor(packed / 2 ** 32) & 0xffff,
-    Math.floor(packed / 2 ** 16) & 0xffff,
-    packed & 0xffff
+    Number((packed >> 48n) & 0xffffn),
+    Number((packed >> 32n) & 0xffffn),
+    Number((packed >> 16n) & 0xffffn),
+    Number(packed & 0xffffn)
   )
 
 /** The `yyyy/MM/dd HH:mm:ss` a unix register's seconds stand for. */

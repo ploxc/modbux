@@ -142,7 +142,10 @@ describe('parseIEC870DateTimeValue', () => {
     words.forEach((word, i) => buf.writeUInt16BE(word, i * 2))
     return buf
   }
-  const composite = words.reduce((total, word, i) => total + word * 2 ** (48 - i * 16), 0)
+  const composite = words.reduce(
+    (total, word, i) => total + BigInt(word) * 2n ** BigInt(48 - i * 16),
+    0n
+  )
 
   it('reads the same date out of the composite as out of the buffer', () => {
     expect(parseIEC870DateTimeValue(composite)).toBe(parseIEC870DateTime(buffer()))
@@ -150,14 +153,31 @@ describe('parseIEC870DateTimeValue', () => {
   })
 
   it('returns empty string for a composite of zero', () => {
-    expect(parseIEC870DateTimeValue(0)).toBe('')
+    expect(parseIEC870DateTimeValue(0n)).toBe('')
   })
 
-  // The all-0xFFFF sentinel is 2 ** 64 - 1, which no Number holds: the store
-  // narrows the composite with Number() and it arrives here as 2 ** 64. The
-  // sentinel branch is unreachable from this side, and the range gate answers.
-  it('returns empty string for the sentinel the store rounded past 64 bits', () => {
-    expect(parseIEC870DateTimeValue(2 ** 64)).toBe('')
+  // The all-0xFFFF sentinel is 2 ** 64 - 1, which no Number holds. The store
+  // kept the composite as one and it arrived here as 2 ** 64, so the sentinel
+  // branch was unreachable from this side and the range gate answered instead.
+  // A bigint reaches it.
+  it('reads the sentinel as the sentinel', () => {
+    expect(parseIEC870DateTimeValue(2n ** 64n - 1n)).toBe('')
+  })
+
+  // The end of the window the format carries, which is what rounded up by one
+  // millisecond through `Number`.
+  it('reads the last millisecond the format holds', () => {
+    const buf = Buffer.alloc(8)
+    buf.writeUInt16BE(99, 0)
+    buf.writeUInt16BE((12 << 8) | 31, 2)
+    buf.writeUInt16BE((23 << 8) | 59, 4)
+    buf.writeUInt16BE(59999, 6)
+    const exact = buf.readBigUInt64BE(0)
+
+    expect(parseIEC870DateTimeValue(exact)).toBe(parseIEC870DateTime(buf))
+    expect(parseIEC870DateTimeValue(BigInt(Number(exact)))).not.toBe(
+      parseIEC870DateTimeValue(exact)
+    )
   })
 })
 

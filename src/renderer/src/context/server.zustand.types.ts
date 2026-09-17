@@ -16,7 +16,8 @@ import {
   Parity,
   ConfigReset,
   DataBits,
-  StopBits
+  StopBits,
+  ServerRegisterValue
 } from '@shared'
 import { AsyncMaskSetFn, MaskSetFn } from './client.zustand.types'
 import { z } from 'zod'
@@ -53,7 +54,7 @@ export interface SetBoolParameters {
 export interface SetRegisterValueParameters {
   registerType: NumberRegisters
   address: number
-  value: number
+  value: ServerRegisterValue
   optionalUuid?: string
   optionalUnitId?: UnitIdString
 }

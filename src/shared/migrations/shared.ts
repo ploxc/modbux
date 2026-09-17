@@ -2,8 +2,8 @@ import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterMapValueSchema } from '../types/client'
 import { RegisterParamsSchema } from '../types/server'
-import { NumberRegistersSchema, ParitySchema, UnitIdStringSchema } from '../types'
-import { getUsedAddresses } from '../utils'
+import { DataType, NumberRegistersSchema, ParitySchema, UnitIdStringSchema } from '../types'
+import { getUsedAddresses, holdsExact64Bits } from '../utils'
 
 /**
  * Replace a stored parity that `ParitySchema` no longer names, at `path` from
@@ -225,6 +225,36 @@ export function dropUnreadableConfigMapping(parsed: Record<string, unknown>): vo
         if (RegisterMapValueSchema.safeParse(entry).success) continue
       }
       delete entriesByAddress[address]
+    }
+  }
+}
+
+/**
+ * Rewrite a persisted 64 bit register value as the decimal string it is now.
+ *
+ * `ServerRegisterEntrySchema.value` was `z.number()`, so every blob on disk
+ * carries a number for the three types whose composite fills 64 bits as an
+ * integer. The schema takes a string as well now, and a number still parses,
+ * so nothing is dropped by leaving them: this is so the first word write after
+ * a launch reads an exact value rather than the rounded one. A value already
+ * past 2 ** 53 cannot be recovered, and the string says what was stored rather
+ * than what the device holds.
+ */
+export function stringifyExact64BitValues(state: Record<string, unknown>): void {
+  for (const [, registersPerUnit] of recordEntries(state.serverRegisters)) {
+    for (const [, registersByType] of recordEntries(registersPerUnit)) {
+      for (const entriesByAddress of objectValues(registersByType)) {
+        for (const entry of Object.values(entriesByAddress)) {
+          if (!isRecord(entry)) continue
+          if (typeof entry.value !== 'number') continue
+          const params = entry.params
+          if (!isRecord(params)) continue
+          const dataType = params.dataType
+          if (typeof dataType !== 'string') continue
+          if (!holdsExact64Bits(dataType as DataType)) continue
+          entry.value = String(entry.value)
+        }
+      }
     }
   }
 }

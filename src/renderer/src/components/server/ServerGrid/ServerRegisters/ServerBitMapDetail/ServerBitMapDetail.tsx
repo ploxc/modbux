@@ -105,7 +105,7 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
           <ServerBit
             key={bitIndex}
             bitIndex={bitIndex}
-            active={getBit(register.value, bitIndex)}
+            active={getBit(Number(register.value), bitIndex)}
             comment={bitConfig?.[String(bitIndex)]?.comment}
             onToggle={() => void handleToggle(bitIndex)}
             onCommentChange={(c) => handleCommentChange(bitIndex, c)}
