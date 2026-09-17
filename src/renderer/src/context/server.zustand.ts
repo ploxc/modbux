@@ -704,13 +704,24 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
       case 'float':
         view.setFloat32(0, Number(currentValue) || 0, littleEndian)
         break
-      case 'int64':
-        view.setBigInt64(0, toExact64Bits(currentValue), littleEndian)
+      // `undefined` is a stored value no composite can be read out of, which a
+      // hand-edited config reaches because `ServerRegisterEntrySchema` takes a
+      // fractional number for these types. Aborting leaves the entry alone;
+      // merging the one word into a composite of zero would cost the other
+      // three registers.
+      case 'int64': {
+        const composite = toExact64Bits(currentValue)
+        if (composite === undefined) return
+        view.setBigInt64(0, composite, littleEndian)
         break
+      }
       case 'uint64':
-      case 'datetime':
-        view.setBigUint64(0, toExact64Bits(currentValue), littleEndian)
+      case 'datetime': {
+        const composite = toExact64Bits(currentValue)
+        if (composite === undefined) return
+        view.setBigUint64(0, composite, littleEndian)
         break
+      }
       case 'double':
         view.setFloat64(0, Number(currentValue) || 0, littleEndian)
         break

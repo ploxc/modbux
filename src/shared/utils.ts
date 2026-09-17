@@ -255,18 +255,23 @@ export const holdsExact64Bits = (dataType: DataType): boolean =>
   dataType === 'int64' || dataType === 'uint64' || dataType === 'datetime'
 
 /**
- * The exact composite a stored value stands for, for a 64 bit integer type.
+ * The exact composite a stored value stands for, or nothing when it stands for
+ * none.
  *
  * Takes a `bigint` as well, because `ServerDelayedSetter` holds the composite
  * it last folded and that is the value the next word write reads first.
+ *
+ * `undefined` rather than `0n`, so a caller merging one word into a composite
+ * aborts rather than rebuilding it from zero: the other three registers are
+ * what zero would cost. `BigInt` throws on a fraction and on anything that is
+ * not digits, and `ServerRegisterEntrySchema` takes a fractional number for a
+ * 64 bit type, so a hand-edited config reaches this.
  */
-export const toExact64Bits = (value: ServerRegisterValue | bigint): bigint => {
+export const toExact64Bits = (value: ServerRegisterValue | bigint): bigint | undefined => {
   try {
     return BigInt(value)
   } catch {
-    // A blob a hand edit left there, or the empty string. `dropUnservableRegisters`
-    // reads `params` rather than `value`, so this is the one that has no meter.
-    return 0n
+    return undefined
   }
 }
 

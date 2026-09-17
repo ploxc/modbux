@@ -13,7 +13,8 @@ import {
   objectValues,
   dropUnservableConfigRegisters,
   parseConfigFile,
-  renameLegacyRegisterTypeKeys
+  renameLegacyRegisterTypeKeys,
+  stringifyExact64BitValues
 } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
 import { repairPersisted } from '../../repairPersisted'
@@ -25,11 +26,12 @@ import { repairPersisted } from '../../repairPersisted'
  * the loop below counts the steps and this number only says where to stop, so
  * v1 to v2 writes 2 whatever this becomes.
  */
-export const CURRENT_SERVER_CONFIG_VERSION = 2
+export const CURRENT_SERVER_CONFIG_VERSION = 3
 
 const SERVER_CONFIG_MIGRATIONS: Record<number, Migration<ServerConfig>> = {
-  1: migrateServerV1toV2
-  // Future: 2: migrateServerV2toV3
+  1: migrateServerV1toV2,
+  2: migrateServerV2toV3
+  // Future: 3: migrateServerV3toV4
 }
 
 /**
@@ -105,6 +107,30 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   }
 
   return v2Config
+}
+
+/**
+ * Migrate server config from v2 to v3: a 64 bit value is a decimal string.
+ *
+ * The three types whose composite fills 64 bits as an integer held a number,
+ * and a number carries 53 bits. The version moves because the file shape moved:
+ * without it a config this build writes still claims v2, and v2.3.0 takes the
+ * `detectedVersion === CURRENT` branch, fails `ServerConfigSchema` on
+ * `z.number()`, and refuses the whole file rather than the one register.
+ *
+ * `stringifyExact64BitValues` walks a persisted store, `serverRegisters[uuid]`,
+ * and a config is keyed one level up, so the blob is wrapped in the shape that
+ * helper reads. That is the same difference `migrateBoolShapeForUnit` carries.
+ *
+ * The bool shape goes with it. `migrateBoolShapeInConfig` ran on the
+ * `detectedVersion === CURRENT` branch alone, and a v2 file carrying the old
+ * `boolean` entries now takes this step instead of that branch.
+ */
+function migrateServerV2toV3(v2Config: unknown): ServerConfig {
+  const config = v2Config as ServerConfig & Record<string, unknown>
+  migrateBoolShapeInConfig(config)
+  stringifyExact64BitValues({ serverRegisters: { config: config.serverRegistersPerUnit } })
+  return { ...config, version: 3 }
 }
 
 /**

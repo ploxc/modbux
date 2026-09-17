@@ -53,7 +53,6 @@ describe('the text a config carries', () => {
   it.each(legacyNames)('keeps a server config named after %s', (name) => {
     const result = migrateServerConfig(serverConfigNamed(`${name} bank A`))
 
-    expect(result.migrated).toBe(false)
     expect(result.config.name).toBe(`${name} bank A`)
   })
 

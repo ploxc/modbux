@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { migrateServerConfig } from '../migrations/server/config'
+import { CURRENT_SERVER_CONFIG_VERSION, migrateServerConfig } from '../migrations/server/config'
 import { migrateClientConfig } from '../migrations/client/config'
 import { resetMessage } from '../repairPersisted'
 import { migrateServerRegistersState, migrateBoolShape } from '../migrations/server/zustand'
@@ -20,7 +20,7 @@ describe('configMigration', () => {
 
         expect(result.migrated).toBe(true)
         expect(result.fromVersion).toBe(1)
-        expect(result.config.version).toBe(2)
+        expect(result.config.version).toBe(CURRENT_SERVER_CONFIG_VERSION)
         expect(result.config.littleEndian).toBe(false)
         expect(result.config.name).toBe('Test Server Big Endian')
         expect(result.warning).toBeUndefined()
@@ -137,33 +137,67 @@ describe('configMigration', () => {
       })
     })
 
-    describe('v2 pass-through', () => {
-      it('does not migrate v2 config (pass-through)', () => {
+    // The v2 fixture is a migration now: a 64 bit value is a decimal string,
+    // and a file this build writes has to say so, or v2.3.0 takes the
+    // `detectedVersion === CURRENT` branch and refuses the whole file on
+    // `z.number()` rather than the one register.
+    describe('v2 to v3 migration', () => {
+      it('migrates a v2 config to the current version', () => {
         const v2Config = loadFixture('server-config-v2-current.json')
         const result = migrateServerConfig(v2Config)
 
-        expect(result.migrated).toBe(false)
+        expect(result.migrated).toBe(true)
         expect(result.fromVersion).toBe(2)
-        expect(result.config.version).toBe(2)
+        expect(result.config.version).toBe(CURRENT_SERVER_CONFIG_VERSION)
         expect(result.config.littleEndian).toBe(false)
         expect(result.warning).toBeUndefined()
+      })
+
+      it('rewrites a 64 bit value a v2 file holds as a number', () => {
+        const register = (dataType: string, value: number): unknown => ({
+          value,
+          params: { address: 0, registerType: 'holding_registers', dataType, comment: '', value: 0 }
+        })
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: 2,
+            modbuxVersion: '2.3.0',
+            name: 'v2',
+            littleEndian: false,
+            serverRegistersPerUnit: {
+              '1': {
+                coils: {},
+                discrete_inputs: {},
+                input_registers: {},
+                holding_registers: {
+                  '0': register('uint64', 72623859790382850),
+                  '10': register('uint16', 7)
+                }
+              }
+            }
+          })
+        )
+
+        const holding = result.config.serverRegistersPerUnit['1']?.holding_registers
+        expect(holding?.['0']?.value).toBe('72623859790382850')
+        expect(holding?.['10']?.value).toBe(7)
       })
     })
 
     describe('Future version handling', () => {
-      it('handles future version (v3) with warning', () => {
-        const v3Config = JSON.stringify({
-          version: 3,
-          modbuxVersion: '2.0.0',
+      it('handles a future version with warning', () => {
+        const futureConfig = JSON.stringify({
+          version: 9,
+          modbuxVersion: '9.0.0',
           name: 'Future',
           littleEndian: false,
           newField: 'something',
           serverRegistersPerUnit: {}
         })
-        const result = migrateServerConfig(v3Config)
+        const result = migrateServerConfig(futureConfig)
 
         expect(result.migrated).toBe(false)
-        expect(result.fromVersion).toBe(3)
+        expect(result.fromVersion).toBe(9)
         expect(result.futureVersion).toBeDefined()
         expect(result.futureVersion?.savedByNewerVersion).toBe(true)
         expect(result.futureVersion?.fields).toEqual([])
