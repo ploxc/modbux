@@ -128,8 +128,12 @@ export class ValueGenerator implements RegisterValueGenerator {
 
   /**
    * Generates a new value and updates the server data.
+   *
+   * Synchronous: the constructor and `setInterval` both call this without
+   * awaiting it, so an `async` one turns a throw into a rejection nothing
+   * holds.
    */
-  private _updateValue = async (): Promise<void> => {
+  private _updateValue = (): void => {
     switch (this._dataType) {
       case 'unix': {
         // Generator: current system time (seconds since epoch)

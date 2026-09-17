@@ -953,6 +953,11 @@ export class ModbusServer {
   /**
    * Returns the value of a register type for a given address and unitId.
    * Calls the callback with the value or a Modbus error.
+   *
+   * Synchronous, like `_set`: `servertcp_handler.js` calls a three-argument
+   * accessor inside try/catch and discards what it returns, so a throw from
+   * here is answered exception 4. An `async` accessor throws into a rejection
+   * nothing holds, and the client waits out its timeout instead.
    */
   private _get: <K extends keyof ServerData>(
     registerType: K,
@@ -960,7 +965,7 @@ export class ModbusServer {
     transport: ServerTransport,
     fallback: ServerData[K][number]
   ) => IServiceVectorGet<ServerData[K][number]> =
-    (registerType, uuid, transport, fallback) => async (address, unitIdNumber, cb) => {
+    (registerType, uuid, transport, fallback) => (address, unitIdNumber, cb) => {
       const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, fallback)
       // A broadcast is never acknowledged, so there is nothing to read from one.
@@ -1009,7 +1014,7 @@ export class ModbusServer {
     uuid: string,
     transport: ServerTransport
   ) => IServiceVectorSet<ServerData[K][number]> =
-    (registerType, uuid, transport) => async (address, value, unitIdNumber, cb) => {
+    (registerType, uuid, transport) => (address, value, unitIdNumber, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
       const unitId = unitIdSafe.data
