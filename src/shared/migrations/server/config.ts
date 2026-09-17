@@ -11,6 +11,7 @@ import {
   formatZodError,
   migrateBoolShapeForUnit,
   objectValues,
+  parseConfigFile,
   renameLegacyRegisterTypeKeys
 } from '../shared'
 import { V1ServerConfig, extractGlobalEndianness } from './shared'
@@ -118,8 +119,7 @@ function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
  * Migrate server config to current version
  */
 export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> {
-  const parsed = JSON.parse(raw)
-  const detectedVersion = parsed.version ?? 1
+  const { parsed, detectedVersion } = parseConfigFile(raw)
 
   // Current version - migrate bool shape if needed, then validate
   if (detectedVersion === CURRENT_SERVER_CONFIG_VERSION) {
@@ -166,11 +166,16 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
     throw new Error(`Migration produced invalid config: ${formatZodError(result.error)}`)
   }
 
+  // `migrateServerV1toV2` sets this flag, and `parseConfigFile` types the blob
+  // it reads as a record of `unknown` rather than the `any` `JSON.parse` gave,
+  // so the flag has to be read as the boolean it is.
+  const wasMixedEndianness = config.wasMixedEndianness === true
+
   return {
     config: result.data,
     migrated: true,
     fromVersion: detectedVersion,
-    warning: config.wasMixedEndianness ? 'MIXED_ENDIANNESS' : undefined,
-    wasMixedEndianness: config.wasMixedEndianness
+    warning: wasMixedEndianness ? 'MIXED_ENDIANNESS' : undefined,
+    wasMixedEndianness
   }
 }

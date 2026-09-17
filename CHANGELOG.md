@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A file that is not a configuration is now refused instead of opened.**
+  Picking a JSON file holding a number, a string, a list or nothing at all
+  emptied the server and reported that the configuration had been updated from
+  an older format. A file claiming a version that is not a number took the same
+  path.
 - **Opening the wrong file no longer empties the server.** Picking a client
   config, or any file Modbux cannot read as a server config, cleared the setup
   that was on screen before anything had read the file, and then reported the
