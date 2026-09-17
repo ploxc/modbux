@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The transaction log now shows the address of a coil read and of a write.**
+  The Addr column was blank for every coil read, every discrete input read and
+  every write Modbux sends, so a log of coil traffic said nothing about which
+  address each request went to.
 - **The unit ID scan no longer asks for more than a device can answer.** Its
   Length field took anything up to 65535 and sent it as the quantity, which is
   past what the protocol allows. Every device on the bus then refused the

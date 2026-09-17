@@ -681,6 +681,28 @@ export class ModbusClient {
   private _nextTransactionIdKey = (): string => String(this._internals()._port?._transactionIdWrite)
 
   /**
+   * The data address the request asked for.
+   *
+   * Read off the request frame, not off `nextDataAddress`. modbus-serial files
+   * that field on two of its twelve transaction records, inside `writeFC4` and
+   * `writeFC6`, and `writeFC1` delegates to `writeFC2` while `writeFC3`
+   * delegates to `writeFC4`. So FC3, FC4 and FC6 carry one and FC1, FC2, FC5,
+   * FC15 and FC16 do not, and the Addr column was blank for every coil read,
+   * every discrete input read and every write Modbux sends.
+   *
+   * Every `writeFCx` builds its frame as unit id, function code, then the data
+   * address at offset 2 as a big-endian word: measured over FC2, FC4, FC5, FC6,
+   * FC15 and FC16, which is every code Modbux sends. `request` is stashed by
+   * `_writeBufferToPort` while debug mode is on, and `modbusClient` sets
+   * `isDebugEnabled` at construction, so a frame that went out has one.
+   */
+  private _requestedAddress = (rawTransaction: RawTransaction): number | undefined => {
+    const request = rawTransaction.request
+    if (request && request.length >= 4) return request.readUInt16BE(2)
+    return rawTransaction.nextDataAddress
+  }
+
+  /**
    * Log the request filed under `transactionIdKey`, and only that one.
    *
    * The caller names its own request because the table holds everyone else's.
@@ -703,7 +725,7 @@ export class ModbusClient {
       id: `${transactionIdKey}__${v4()}`,
       timestamp: DateTime.now().toMillis(),
       unitId: rawTransaction.nextAddress,
-      address: rawTransaction.nextDataAddress,
+      address: this._requestedAddress(rawTransaction),
       code: rawTransaction.nextCode,
       responseLength: rawTransaction.nextLength,
       timeout: rawTransaction._timeoutFired,

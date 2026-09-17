@@ -64,7 +64,17 @@ export const TransactionSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
   unitId: UnitIdSchema,
-  address: RegisterAddressSchema,
+  /**
+   * The data address the request asked for, and undefined where it cannot be
+   * read.
+   *
+   * `_requestedAddress` takes it off bytes 2 and 3 of the request frame, which
+   * every function code Modbux sends puts it at, and falls back on
+   * `nextDataAddress`, which modbus-serial files for three of them. Both are
+   * gone only for a frame that never went out, and `_columns.tsx` binds
+   * `field: 'address'` with no formatter, so the cell is blank there.
+   */
+  address: RegisterAddressSchema.optional(),
   code: z.number(),
   responseLength: z.number(),
   timeout: z.boolean(),
@@ -247,7 +257,17 @@ export interface RegisterDataWords {
 
 export interface RawTransaction {
   nextAddress: number
-  nextDataAddress: number
+  /**
+   * The data address, filed by two of modbus-serial's twelve transaction
+   * records.
+   *
+   * `writeFC4` at index.js:880 and `writeFC6` at 983 set it, and `writeFC1`
+   * delegates to `writeFC2` and `writeFC3` to `writeFC4`, so FC3, FC4 and FC6
+   * carry one and FC1, FC2, FC5, FC15 and FC16 do not. This said `number` and
+   * `_logTransaction` read it, so the Addr cell was blank for every coil read,
+   * every discrete input read and every write Modbux sends.
+   */
+  nextDataAddress?: number
   nextCode: number
   nextLength: number
   // next: [Function: cb],

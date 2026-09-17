@@ -255,6 +255,29 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(logPanel).not.toBeVisible()
   })
 
+  // modbus-serial files `nextDataAddress` on two of its twelve transaction
+  // records, so FC3, FC4 and FC6 carried an address and FC1, FC2, FC5, FC15 and
+  // FC16 did not: the Addr cell was blank for every coil read, every discrete
+  // input read and every write Modbux sends.
+  test('the log shows the address of a coil read, which FC1 files none for', async ({
+    mainPage
+  }) => {
+    await selectRegisterType(mainPage, 'Coils')
+    await mainPage.getByTestId('show-log-btn').click()
+
+    await readRegisters(mainPage, '4', '2')
+
+    const logPanel = mainPage.getByTestId('transaction-log-panel')
+    const addressCell = logPanel
+      .locator('.MuiDataGrid-row')
+      .first()
+      .locator('[data-field="address"]')
+    await expect(addressCell).toHaveText('4', { timeout: 5000 })
+
+    await mainPage.getByTestId('show-log-btn').click()
+    await selectRegisterType(mainPage, 'Holding Registers')
+  })
+
   // ─── Register read config toggle ──────────────────────────────────
 
   for (const regType of ['Holding Registers', 'Input Registers']) {
