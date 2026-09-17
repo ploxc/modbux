@@ -16,10 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read against what this version understands, what matches is kept, and the
   message says which parts did not come across.
 - **A file that is not a configuration is now refused instead of opened.**
-  Picking a JSON file holding a number, a string, a list or nothing at all
-  emptied the server and reported that the configuration had been updated from
-  an older format. A file claiming a version that is not a number took the same
-  path.
+  Picking a JSON file holding a number, a string or a list emptied the server
+  and reported that the configuration had been updated from an older format. A
+  file holding nothing at all emptied it too and then failed with a message
+  about a property of null. A file claiming a version that is not a number got
+  one of those or the newer-version warning, depending on the value.
 - **Opening the wrong file no longer empties the server.** Picking a client
   config, or any file Modbux cannot read as a server config, cleared the setup
   that was on screen before anything had read the file, and then reported the

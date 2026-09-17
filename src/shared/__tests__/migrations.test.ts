@@ -255,12 +255,23 @@ describe('configMigration', () => {
         )
       })
 
-      // `JSON.parse` answers `any`, so nothing asked what was in this field and
-      // a version that is not one took the v1 path with the rest.
+      // `JSON.parse` answers `any`, so nothing asked what was in this field,
+      // and a relational operator coerces: `"3" > 2` and `2.5 > 2` are both
+      // true, so those two took the future version branch and came back
+      // `migrated: false` with the newer-version warning, while `true` and
+      // `null` compared false against both and took the v1 path.
       it.each(['"3"', 'true', '2.5', 'null'])('refuses a version of %s', (version) => {
         const raw = `{"version": ${version}, "serverRegistersPerUnit": {}}`
         expect(() => migrateServerConfig(raw)).toThrow('which is not a version')
       })
+
+      it.each(['"3"', 'true', '2.5', 'null'])(
+        'refuses a client config claiming version %s',
+        (version) => {
+          const raw = `{"version": ${version}, "registerMapping": {}}`
+          expect(() => migrateClientConfig(raw)).toThrow('which is not a version')
+        }
+      )
 
       it('still takes a file with no version at all', () => {
         const result = migrateServerConfig(JSON.stringify({ name: 'v1', coils: {} }))

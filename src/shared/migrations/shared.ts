@@ -49,8 +49,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * not cover, and a config is a map of named fields either way.
  *
  * The version is checked here too. `JSON.parse` answers `any`, so nothing had
- * asked what was in that field, and a `version` of `"3"` or `true` took the v1
- * path with the rest.
+ * asked what was in that field, and a relational operator coerces: `"3" > 2`
+ * and `2.5 > 2` are both true, so those two took the future version branch and
+ * came back with `migrated: false` and the newer-version warning, while `true`
+ * and `null` compared false against both and took the v1 path. Four values,
+ * three outcomes, none of them the one the file asked for.
  */
 export function parseConfigFile(raw: string): {
   parsed: Record<string, unknown>
