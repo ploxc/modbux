@@ -315,6 +315,50 @@ describe('ModbusServer', () => {
       )
     })
 
+    // The replacement was taken apart before the encode was tried, so a
+    // refusal left the address zeroed and its generator gone while the store,
+    // reading `undefined` as nothing changed, went on drawing it.
+    it('leaves the register it was replacing running when it refuses', () => {
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: undefined,
+          min: 300,
+          max: 300,
+          interval: 5000
+        }
+      })
+
+      const answer = server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 70000,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+      expect(answer).toBeUndefined()
+
+      const sent = (windows.send as ReturnType<typeof vi.fn>).mock.calls.length
+      vi.advanceTimersByTime(6000)
+      const stillGenerating = (windows.send as ReturnType<typeof vi.fn>).mock.calls
+        .slice(sent)
+        .filter((call) => call[0] === 'register_value')
+      expect(stillGenerating.length).toBeGreaterThan(0)
+      expect(stillGenerating[0]?.[1]).toMatchObject({ address: 0, value: 300 })
+    })
+
     // The `register_value` events above go out before this answer does, so the
     // renderer's store has no entry to put them in and drops them. The answer
     // is what that store folds instead.

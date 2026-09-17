@@ -11,7 +11,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { forwardRef } from 'react'
 import { IMask, IMaskInput } from 'react-imask'
-import { notEmpty, registerWidth } from '@shared'
+import { MAX_UTF8_LENGTH, notEmpty, registerWidth } from '@shared'
 import { useMinMaxInteger } from '@renderer/hooks'
 
 const AddressInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
@@ -159,7 +159,7 @@ const RegisterLengthForward = forwardRef<HTMLInputElement, MaskInputProps>((prop
       {...other}
       {...integerMask}
       min={1}
-      max={124}
+      max={MAX_UTF8_LENGTH}
       autofix
       inputRef={ref}
       onAccept={(value) => set(value, notEmpty(value))}
