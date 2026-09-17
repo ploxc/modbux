@@ -19,7 +19,7 @@ const serverState = {
 
 /** Answers the entry's own value, which is what the real one does with an empty batcher. */
 const mockPendingRegisterValue = vi.fn(
-  (_uuid: string, _unitId: string, entry: ServerRegisterEntry): number => entry.value
+  (_uuid: string, _unitId: string, entry: ServerRegisterEntry): number => Number(entry.value)
 )
 
 vi.mock('@renderer/context/server.zustand', () => ({
@@ -64,7 +64,7 @@ const writtenParams = (call = 0): ServerRegisterEntry['params'] => {
 beforeEach(() => {
   mockAddRegister.mockReset()
   mockPendingRegisterValue.mockReset()
-  mockPendingRegisterValue.mockImplementation((_uuid, _unitId, entry) => entry.value)
+  mockPendingRegisterValue.mockImplementation((_uuid, _unitId, entry) => Number(entry.value))
 })
 
 describe('which bits the panel shows as on', () => {

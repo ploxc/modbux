@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A 64-bit server register now shows the value a master wrote.** A master
+  writing an INT64, UINT64 or DATETIME register sends four words, and the server
+  folded them through a number that carries 53 bits, so anything above that came
+  back rounded. Writing one more word to that register afterwards collapsed it
+  to the last word alone. A DATETIME at the far end of the range read back one
+  millisecond late for the same reason.
 - **A configuration from a newer Modbux is now checked before it is loaded.** It
   was the one file that went in unread: the fields were taken as they came, so a
   register map a newer version writes differently was written straight into the

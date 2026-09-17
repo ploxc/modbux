@@ -229,6 +229,48 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
 }
 
 /**
+ * What a server register entry holds, which is not always a number.
+ *
+ * A decimal string for the three types whose composite fills 64 bits as an
+ * integer. It was `z.number()` for all of them: `applyRegisterValue` read the
+ * composite back with `getBigUint64` and stored `Number(...)`, so four words of
+ * 0xFFFF came out 18446744073709552000 rather than 18446744073709551615, and
+ * `setBigUint64` takes its argument modulo 2 ** 64 rather than throwing, so the
+ * next single word write on that entry collapsed it to the low word alone.
+ * Measured: one more word after the flush left the entry holding 1.
+ *
+ * A string rather than a `bigint` because the store is persisted through
+ * `JSON.stringify`, which refuses a bigint outright.
+ */
+export type ServerRegisterValue = number | string
+
+/**
+ * The types whose composite fills 64 bits as an integer.
+ *
+ * `applyRegisterValue` reads these three back with `getBigInt64` or
+ * `getBigUint64`. `double` is the fourth type four registers wide and is not
+ * here: its composite is a float64, which is exactly what a JS number is.
+ */
+export const holdsExact64Bits = (dataType: DataType): boolean =>
+  dataType === 'int64' || dataType === 'uint64' || dataType === 'datetime'
+
+/**
+ * The exact composite a stored value stands for, for a 64 bit integer type.
+ *
+ * Takes a `bigint` as well, because `ServerDelayedSetter` holds the composite
+ * it last folded and that is the value the next word write reads first.
+ */
+export const toExact64Bits = (value: ServerRegisterValue | bigint): bigint => {
+  try {
+    return BigInt(value)
+  } catch {
+    // A blob a hand edit left there, or the empty string. `dropUnservableRegisters`
+    // reads `params` rather than `value`, so this is the one that has no meter.
+    return 0n
+  }
+}
+
+/**
  * The types `createRegisters` throws on for a value outside their range.
  *
  * Measured against the writers it calls. `writeUInt16BE(1.5)` and

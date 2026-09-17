@@ -180,9 +180,16 @@ export type ServerBoolEntry = z.infer<typeof ServerBoolEntrySchema>
 export const ServerBoolSchema = z.record(RegisterAddressKeySchema, ServerBoolEntrySchema)
 export type ServerBool = z.infer<typeof ServerBoolSchema>
 
-// Schema for a single register entry
+/**
+ * One register entry: what it holds, and the parameters that say what it is.
+ *
+ * `value` takes a string as well as a number, for the three types whose
+ * composite fills 64 bits as an integer. See `ServerRegisterValue`. A string
+ * that is not a decimal integer is refused here, so `toExact64Bits` has a
+ * number or digits to read.
+ */
 export const ServerRegisterEntrySchema = z.object({
-  value: z.number(),
+  value: z.union([z.number(), z.string().regex(/^-?\d+$/)]),
   params: RegisterParamsSchema
 })
 export type ServerRegisterEntry = z.infer<typeof ServerRegisterEntrySchema>
