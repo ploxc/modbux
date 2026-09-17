@@ -164,9 +164,9 @@ describe('configMigration', () => {
 
         expect(result.migrated).toBe(false)
         expect(result.fromVersion).toBe(3)
-        expect(result.warning).toBe('FUTURE_VERSION')
-        expect(result.reset?.savedByNewerVersion).toBe(true)
-        expect(result.reset?.fields).toEqual([])
+        expect(result.futureVersion).toBeDefined()
+        expect(result.futureVersion?.savedByNewerVersion).toBe(true)
+        expect(result.futureVersion?.fields).toEqual([])
       })
 
       // The branch cast the parsed JSON straight to `ServerConfig` and returned
@@ -185,11 +185,55 @@ describe('configMigration', () => {
           })
         )
 
-        expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.futureVersion).toBeDefined()
         expect(result.config.name).toBe('Future')
         expect(result.config.littleEndian).toBe(true)
         expect(result.config.serverRegistersPerUnit).toEqual({})
-        expect(result.reset?.fields).toEqual(['serverRegistersPerUnit'])
+        expect(result.futureVersion?.fields).toEqual(['serverRegistersPerUnit'])
+      })
+
+      // `repairPersisted` reads a field whole, and `serverRegistersPerUnit` is
+      // the one field a server config is about. `DataTypeSchema` is a closed
+      // enum, so one register with a type this version does not name failed the
+      // field and cost every register on every unit, after `useOpen` had
+      // already emptied the store and main. That is the cost
+      // `dropUnservableRegisters` exists to avoid on the persisted side.
+      it('keeps the registers a future config shares and drops the one it does not', () => {
+        const register = (address: number, dataType: string): unknown => ({
+          value: 1,
+          params: {
+            address,
+            registerType: 'holding_registers',
+            dataType,
+            comment: '',
+            value: 1
+          }
+        })
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            name: 'Future',
+            littleEndian: false,
+            serverRegistersPerUnit: {
+              '1': {
+                coils: {},
+                discrete_inputs: {},
+                input_registers: {},
+                holding_registers: {
+                  '0': register(0, 'uint16'),
+                  '10': register(10, 'a_type_from_3_0'),
+                  '20': register(20, 'int32')
+                }
+              }
+            }
+          })
+        )
+
+        expect(
+          Object.keys(result.config.serverRegistersPerUnit['1']?.holding_registers ?? {})
+        ).toEqual(['0', '20'])
+        expect(result.futureVersion?.fields).toEqual([])
       })
 
       it('says so in a sentence naming the field', () => {
@@ -202,11 +246,11 @@ describe('configMigration', () => {
             serverRegistersPerUnit: 'not a unit'
           })
         )
-        const reset = result.reset
+        const reset = result.futureVersion
         if (!reset) throw new Error('a future config always answers a reset')
 
         expect(resetMessage('Server', reset)).toBe(
-          'Server configuration was saved by a newer version of Modbux. the registers did not come across and was reset. Everything else was kept.'
+          'Server configuration was saved by a newer version of Modbux, and the registers did not come across. Everything else was kept.'
         )
       })
     })
@@ -443,12 +487,38 @@ describe('configMigration', () => {
         const result = migrateClientConfig(v3Config)
 
         expect(result.fromVersion).toBe(3)
-        expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.futureVersion).toBeDefined()
       })
 
       // `LoadButton` calls `replaceRegisterMapping(config.registerMapping)`
       // with no gate at all, so `'nope'` went into the persisted store and was
       // flushed to main.
+      // `registerMapping` is one field too, and it is the one thing in the
+      // client store built by hand, so one address this version cannot read
+      // cost the whole mapping. `LoadButton` then flushed that nothing to main.
+      it('keeps the mapping entries a future config shares and drops the one it does not', () => {
+        const result = migrateClientConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            littleEndian: false,
+            registerMapping: {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: {
+                '0': { dataType: 'uint16', comment: 'kept' },
+                '10': { dataType: 'a_type_from_3_0' },
+                '20': { dataType: 'int32' }
+              }
+            }
+          })
+        )
+
+        expect(Object.keys(result.config.registerMapping.holding_registers)).toEqual(['0', '20'])
+        expect(result.futureVersion?.fields).toEqual([])
+      })
+
       it('keeps the fields a future config still shares and names the rest', () => {
         const result = migrateClientConfig(
           JSON.stringify({
@@ -460,7 +530,7 @@ describe('configMigration', () => {
           })
         )
 
-        expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.futureVersion).toBeDefined()
         expect(result.config.name).toBe('Future')
         expect(result.config.littleEndian).toBe(true)
         expect(result.config.registerMapping).toEqual({
@@ -469,7 +539,7 @@ describe('configMigration', () => {
           holding_registers: {},
           input_registers: {}
         })
-        expect(result.reset?.fields).toEqual(['registerMapping'])
+        expect(result.futureVersion?.fields).toEqual(['registerMapping'])
       })
     })
   })

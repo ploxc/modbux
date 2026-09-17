@@ -1,5 +1,6 @@
 import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
+import { RegisterMapValueSchema } from '../types/client'
 import { RegisterParamsSchema } from '../types/server'
 import { NumberRegistersSchema, ParitySchema, UnitIdStringSchema } from '../types'
 import { getUsedAddresses } from '../utils'
@@ -104,18 +105,6 @@ const recordAt = (
   return made
 }
 
-/**
- * A register map is keyed by address, and a register entry repeats its whole
- * parameter set, so both have to hold for the entry to be servable. A boolean
- * entry carries the key alone.
- */
-const isServable = (address: string, entry: Record<string, unknown>): boolean => {
-  if (!RegisterAddressKeySchema.safeParse(address).success) return false
-  const params = entry.params
-  if (!isRecord(params)) return true
-  return RegisterParamsSchema.safeParse(params).success
-}
-
 /** The addresses one unit's surviving registers occupy, by register type. */
 const usedAddressesOfUnit = (
   registersByType: Record<string, unknown>
@@ -177,6 +166,65 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
       if (!usedPerUnit) continue
       if (!UnitIdStringSchema.safeParse(unitId).success) continue
       usedPerUnit[unitId] = usedAddressesOfUnit(registersByType)
+    }
+  }
+}
+
+/**
+ * A register map is keyed by address, and a register entry repeats its whole
+ * parameter set, so both have to hold for the entry to be servable. A boolean
+ * entry carries the key alone.
+ */
+const isServable = (address: string, entry: Record<string, unknown>): boolean => {
+  if (!RegisterAddressKeySchema.safeParse(address).success) return false
+  const params = entry.params
+  if (!isRecord(params)) return true
+  return RegisterParamsSchema.safeParse(params).success
+}
+
+/**
+ * Drop the registers a config file from a newer Modbux carries that this one
+ * cannot serve, so the ones it can survive.
+ *
+ * `repairPersisted` reads a field whole, and `serverRegistersPerUnit` is the
+ * one field a server config is about, so without this a single register with a
+ * data type this version does not name cost every register on every unit. That
+ * is the cost `dropUnservableRegisters` exists to avoid on the persisted store,
+ * and a config from a newer version is where a register the enum does not name
+ * actually comes from.
+ *
+ * Walks `serverRegistersPerUnit[unit]` where the store walks
+ * `serverRegisters[uuid][unit]`, which is the same difference
+ * `migrateBoolShapeForUnit` already carries.
+ */
+export function dropUnservableConfigRegisters(parsed: Record<string, unknown>): void {
+  for (const [, registersByType] of recordEntries(parsed.serverRegistersPerUnit)) {
+    for (const entriesByAddress of objectValues(registersByType)) {
+      for (const [address, entry] of Object.entries(entriesByAddress)) {
+        if (isRecord(entry) && isServable(address, entry)) continue
+        delete entriesByAddress[address]
+      }
+    }
+  }
+}
+
+/**
+ * Drop the mapping entries a client config from a newer Modbux carries that
+ * this one cannot read.
+ *
+ * `registerMapping` is one field too, and it is the one thing in the client
+ * store built by hand, which is the reason `dropUnmappableRegisters` gives for
+ * doing the same on the persisted side. `LoadButton` calls
+ * `replaceRegisterMapping` on whatever comes back and flushes it to main, so a
+ * mapping of thousands of rows was replaced by nothing on account of one entry.
+ */
+export function dropUnreadableConfigMapping(parsed: Record<string, unknown>): void {
+  for (const entriesByAddress of objectValues(parsed.registerMapping)) {
+    for (const [address, entry] of Object.entries(entriesByAddress)) {
+      if (RegisterAddressKeySchema.safeParse(address).success) {
+        if (RegisterMapValueSchema.safeParse(entry).success) continue
+      }
+      delete entriesByAddress[address]
     }
   }
 }
