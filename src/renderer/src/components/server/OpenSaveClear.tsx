@@ -42,17 +42,23 @@ const useOpen: UseOpenHook = () => {
 
       const serverZustand = useServerZustand.getState()
 
-      // A unit the file does not name is not written over on the way in, so
-      // whatever the previous config left on it would answer a master after
-      // this one is loaded. Reset takes both sides down to nothing first.
-      await serverZustand.resetServer(serverZustand.selectedUuid)
-
-      const content = await file.text()
-
       try {
+        const content = await file.text()
+
         // Use migration framework to handle all config versions
         const migrationResult = migrateServerConfig(content)
         const { config, migrated, warning, wasMixedEndianness } = migrationResult
+
+        // A unit the file does not name is not written over on the way in, so
+        // whatever the previous config left on it would answer a master after
+        // this one is loaded. Reset takes both sides down to nothing first.
+        //
+        // After the migration rather than before it, because `migrateServerConfig`
+        // needs nothing from the store and throws on both shapes a user picks by
+        // accident, a client config file and malformed JSON. Reset first, and the
+        // configuration on screen was gone in main and in the store before
+        // anything had read the file.
+        await serverZustand.resetServer(serverZustand.selectedUuid)
 
         // Set name and littleEndian
         serverZustand.setName(config.name)
@@ -103,13 +109,18 @@ const useOpen: UseOpenHook = () => {
         const tError = error as Error
         enqueueSnackbar({ variant: 'error', message: `Failed to load config: ${tError.message}` })
         console.error('Config load error:', error)
+      } finally {
+        // In the `finally` because `file.text()` is inside the `try` now, and a
+        // file that is gone by the time it is read left `opening` true and
+        // every server button disabled until the app was restarted.
+        //
+        // `init` runs either way: on a refused file it hands main the
+        // configuration that is still there, which is the one on screen.
+        await serverZustand.init(serverZustand.selectedUuid)
+
+        openingRef.current = false
+        setOpening(false)
       }
-
-      // Synchronize only the selected server after opening the configuration
-      await serverZustand.init(serverZustand.selectedUuid)
-
-      openingRef.current = false
-      setOpening(false)
     },
     [enqueueSnackbar]
   )

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opening the wrong file no longer empties the server.** Picking a client
+  config, or any file Modbux cannot read as a server config, cleared the setup
+  that was on screen before anything had read the file, and then reported the
+  failure. The file is read first now, and a refused one costs nothing.
 - **The server view no longer comes up blank and stays that way.** One thing main
   refused while the setup was being handed over left the whole view faded out,
   on that launch and on every launch after it, with no message and nothing on
