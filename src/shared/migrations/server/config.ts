@@ -152,6 +152,13 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
   // Current version - migrate bool shape if needed, then validate
   if (detectedVersion === CURRENT_SERVER_CONFIG_VERSION) {
     migrateBoolShapeInConfig(parsed)
+    // A file this version writes carries a decimal string for a 64 bit value,
+    // and a hand-edited one can carry the number: `ServerConfigSchema` takes
+    // either. The persisted store's own step is gated on the store version and
+    // does not run on a config load, so without this the first single word
+    // write after opening such a file folds from the rounded value, which is
+    // the defect the v2 to v3 step removes for a v2 file.
+    stringifyExact64BitValues({ serverRegisters: { config: parsed.serverRegistersPerUnit } })
     const result = ServerConfigSchema.safeParse(parsed)
     if (!result.success) {
       throw new Error(

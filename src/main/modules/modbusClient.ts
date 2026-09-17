@@ -693,8 +693,10 @@ export class ModbusClient {
    * Every `writeFCx` builds its frame as unit id, function code, then the data
    * address at offset 2 as a big-endian word: measured over FC2, FC4, FC5, FC6,
    * FC15 and FC16, which is every code Modbux sends. `request` is stashed by
-   * `_writeBufferToPort` while debug mode is on, and `modbusClient` sets
-   * `isDebugEnabled` at construction, so a frame that went out has one.
+   * `_writeBufferToPort` while debug mode is on, and `connect` sets
+   * `isDebugEnabled` on every client it opens, including the replacement the
+   * disconnect timeout builds, so a frame that went out over a connection this
+   * file made has one. `nextDataAddress` is the fallback either way.
    */
   private _requestedAddress = (rawTransaction: RawTransaction): number | undefined => {
     const request = rawTransaction.request

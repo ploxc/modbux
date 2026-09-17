@@ -53,8 +53,6 @@ const getDisplayValue = (register: ServerRegister[number]): string | number => {
   // The shared decoder answers '' for a register no date can be read out of,
   // which is what a register the server has not written yet holds.
   if (dataType === 'datetime') {
-    // Nothing to read a date out of is the same answer as a register the
-    // server has not written yet.
     const packed = toExact64Bits(register.value)
     return (packed !== undefined && parseIEC870DateTimeValue(packed)) || '—'
   }
