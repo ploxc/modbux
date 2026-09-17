@@ -129,6 +129,23 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().unitId['made-in-the-split-window']).toBe('7')
   })
 
+  // A uuid this window's own `init` wrote `false` for is one main refused, and
+  // writing `true` over it hands the three setters back for a server main has
+  // no listener for.
+  it('leaves a uuid this window already knows about alone', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0]))
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    useServerZustand.setState({ ready: { u: false } })
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+    await settle()
+
+    expect(useServerZustand.getState().ready.u).toBe(false)
+  })
+
   // `rtuServerActive` is not persisted, so re-reading the key leaves it where
   // it was, and the split out window is the one that heard the last change.
   it('asks main for the RTU status, at load and at the close', async () => {

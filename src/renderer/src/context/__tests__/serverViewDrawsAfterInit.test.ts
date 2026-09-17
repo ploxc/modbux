@@ -118,3 +118,56 @@ describe('the flag the server view draws on', () => {
     expect(useServerZustand.getState().initialized).toBe(true)
   })
 })
+
+// The `try` stood around the whole loop, so a refusal for the first uuid threw
+// out of it and `createServer` was never called for the second: no listener on
+// its port, none of its registers in main, and `ready` false with no message.
+describe('one server main refuses', () => {
+  const SECOND = 'a-second-server'
+
+  /** Records which uuids reached `createServer`, and refuses the first one. */
+  const refuseTheFirstSync = (created: string[]): void => {
+    const boundary = window.api as unknown as Record<string, unknown>
+    window.api = new Proxy(
+      {},
+      {
+        get: (_target, method: string): unknown => {
+          if (method === 'isServerWindow') return boundary[method]
+          if (method === 'createServer') {
+            return (params: { uuid: string; port: number }): Promise<number> => {
+              created.push(params.uuid)
+              return Promise.resolve(params.port)
+            }
+          }
+          if (method === 'setServerEndianness') {
+            return (params: { uuid: string }): Promise<void> =>
+              params.uuid === MAIN_SERVER_UUID
+                ? Promise.reject(new Error('setServerEndianness threw'))
+                : Promise.resolve()
+          }
+          return boundary[method]
+        }
+      }
+    ) as never
+  }
+
+  it('costs that server and no other', async () => {
+    const blob = JSON.parse(persisted())
+    blob.state.uuids.push(SECOND)
+    blob.state.port[SECOND] = '503'
+    blob.state.unitId[SECOND] = '0'
+    blob.state.littleEndian[SECOND] = false
+    blob.state.serverRegisters[SECOND] = {}
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(blob))
+
+    const created: string[] = []
+    refuseTheFirstSync(created)
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    expect(created).toEqual([MAIN_SERVER_UUID, SECOND])
+    expect(useServerZustand.getState().ready[MAIN_SERVER_UUID]).toBe(false)
+    expect(useServerZustand.getState().ready[SECOND]).toBe(true)
+    expect(useServerZustand.getState().initialized).toBe(true)
+  })
+})
