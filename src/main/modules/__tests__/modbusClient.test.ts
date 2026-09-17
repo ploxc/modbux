@@ -1484,6 +1484,54 @@ describe('ModbusClient', () => {
       expect(tx.errorMessage).toBeUndefined()
     })
 
+    // modbus-serial files `nextDataAddress` on two of its twelve transaction
+    // records, inside `writeFC4` and `writeFC6`, and `writeFC1` delegates to
+    // `writeFC2` while `writeFC3` delegates to `writeFC4`. So FC3, FC4 and FC6
+    // carry one and FC1, FC2, FC5, FC15 and FC16 do not, and the Addr column
+    // was blank for every coil read, every discrete input read and every write.
+    // Every `writeFCx` puts the address at bytes 2 and 3 of the frame.
+    it('reads the address off the request frame when the library files none', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'coils', address: 300, length: 4 })
+      mockModbusRTU.readCoils.mockImplementation(async () => {
+        fileTransaction({
+          nextAddress: 1,
+          nextCode: 1,
+          nextLength: 6,
+          _timeoutFired: false,
+          // Unit id, function code, then the data address as a big-endian word.
+          request: Buffer.from([0x01, 0x01, 0x01, 0x2c, 0x00, 0x04]),
+          responses: [Buffer.from([0x01, 0x01, 0x01, 0x00])]
+        })
+        return { data: [false, false, false, false], buffer: Buffer.from([0x00]) }
+      })
+
+      await client.read()
+
+      const tx = getWindowCalls('transaction')[0]?.[1]
+      expect(tx.code).toBe(1)
+      expect(tx.address).toBe(300)
+    })
+
+    // A frame that never went out has neither, and the cell is blank rather
+    // than reading 0, which is an address.
+    it('answers no address for a request that carries neither', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        fileTransaction({
+          nextAddress: 1,
+          nextCode: 3,
+          nextLength: 10,
+          _timeoutFired: false
+        })
+        return { data: new Array(10).fill(0), buffer: Buffer.alloc(20) }
+      })
+
+      await client.read()
+
+      expect(getWindowCalls('transaction')[0]?.[1].address).toBeUndefined()
+    })
+
     it('removes the transaction it logged', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([0])
