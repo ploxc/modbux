@@ -145,8 +145,9 @@ onIpcEvent('open_server_window', () => {
     backgroundColor: '#181818'
   })
 
-  // The same handler the main window has. Both windows load the same bundle, so
-  // a link that opens in the browser from one of them has to from the other.
+  // The handler the main window has. Nothing in the server view opens a link
+  // today, and a window without one answers `window.open` with a Modbux window
+  // on whatever the link points at.
   windows.server.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }

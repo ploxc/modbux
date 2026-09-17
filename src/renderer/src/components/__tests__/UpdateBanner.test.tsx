@@ -213,9 +213,8 @@ describe('UpdateBanner', () => {
     consoleSpy.mockRestore()
   })
 
-  // `setWindowOpenHandler` is on the main window alone, so the release link
-  // opened inside Electron in the split out one. Both windows load the same
-  // bundle, so both asked GitHub for the latest release as well.
+  // Both windows load the same bundle, so both asked GitHub for the latest
+  // release and both drew the banner.
   it('asks nothing and shows nothing in the split out window', async () => {
     asServerWindow(true)
     mockGetAppVersion.mockResolvedValue('1.4.0')

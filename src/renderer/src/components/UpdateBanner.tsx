@@ -20,9 +20,9 @@ const UpdateBanner = meme((): JSX.Element | null => {
   useEffect(() => {
     const checkForUpdates = async (): Promise<void> => {
       try {
-        // The split out window loads the same bundle, so it asked GitHub for the
-        // same release and drew the same banner. `setWindowOpenHandler` is on the
-        // main window alone, so the release link opened inside Electron there.
+        // The split out window loads the same bundle, so it asked GitHub for
+        // the same release and drew a second copy of the same banner. One
+        // notice per launch, in the window Modbux opened with.
         if (window.api.isServerWindow) return
 
         // Check if banner was dismissed in this session
