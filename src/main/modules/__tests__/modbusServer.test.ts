@@ -2334,6 +2334,9 @@ describe('ModbusServer', () => {
     // and discards what it returns, so a throw out of one is answered exception
     // 4, slave device failure. A throw out of an `async` accessor is a rejection
     // that try/catch never sees, and the client waits out its timeout instead.
+    //
+    // What throws in both is the callback the library hands the accessor, which
+    // is where FC3's answer runs `responseBuffer.writeUInt16BE(value, ...)`.
     describe('a throw out of a vector method', () => {
       it('hands a throw out of getHoldingRegister to the caller', () => {
         hostUnit()
@@ -2347,11 +2350,11 @@ describe('ModbusServer', () => {
 
       it('hands a throw out of setRegister to the caller', () => {
         hostUnit()
-        vi.mocked(windows.send).mockImplementationOnce(() => {
-          throw new Error('the window is gone')
+        const cb = vi.fn(() => {
+          throw new Error('the frame could not be written')
         })
-        expect(() => vector.setRegister(100, 7, unitIdNumber, vi.fn())).toThrow(
-          'the window is gone'
+        expect(() => vector.setRegister(100, 7, unitIdNumber, cb)).toThrow(
+          'the frame could not be written'
         )
       })
     })
@@ -2538,11 +2541,11 @@ describe('ModbusServer', () => {
         const rtu = await rtuVector()
         const tcp = await tcpVector()
 
-        await rtu.setRegister(0, 500, 5, vi.fn())
+        rtu.setRegister(0, 500, 5, vi.fn())
 
         // The same uuid over TCP is the only way to ask whether unit 5 now exists.
         const cb = vi.fn()
-        await tcp.getHoldingRegister(0, 5, cb)
+        tcp.getHoldingRegister(0, 5, cb)
         expect(cb).toHaveBeenCalledWith(
           expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
           0

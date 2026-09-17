@@ -521,10 +521,12 @@ export class ModbusServer {
    * in a bare loop, so the throw took every register after it in that unit
    * with it. One register is refused now and the rest of the unit stands.
    *
-   * The generator branch cannot be answered for here. `ValueGenerator` encodes
-   * inside an unawaited async tick, so a range its data type cannot take writes
-   * nothing and warns once per interval instead of throwing, which is `M-02`
-   * and is a change to that class.
+   * The generator branch throws the same way and gets no guard.
+   * `ValueGenerator` writes its first value from its own constructor, and since
+   * `_updateValue` stopped being `async` that throw leaves this method rather
+   * than becoming a rejection. `RegisterParamsSchema` holds `min` and `max` to
+   * their own data type, so no payload reaches it, and a branch here would be
+   * one no input turns red.
    */
   public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number[] | undefined => {
     const littleEndian = this._littleEndian.get(uuid) ?? false

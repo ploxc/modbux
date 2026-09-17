@@ -452,9 +452,9 @@ describe('Server RegisterParamsSchema — the width and the value', () => {
 })
 
 // The generator draws between `min` and `max` and hands the draw to
-// `createRegisters`, inside an `async` tick nobody awaits, so a range the data
-// type cannot take answers 0 for as long as the generator runs and warns once
-// per interval. The dialog masks both fields to `getMinMaxValues(dataType)`
+// `createRegisters`, which throws on a value its type cannot hold. The draw
+// runs in the constructor, so a range the data type cannot take throws out of
+// `addRegister`. The dialog masks both fields to `getMinMaxValues(dataType)`
 // already, so the rule refuses nothing the Add button sends.
 describe('Server RegisterParamsSchema — what a generator draws between', () => {
   const generator = (overrides: Record<string, unknown>): unknown => ({

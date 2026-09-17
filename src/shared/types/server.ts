@@ -53,11 +53,12 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
  *
  * `min` and `max` are each held to their own data type, in the refine below,
  * because the generator draws between them and hands the draw to
- * `createRegisters`. `ValueGenerator._updateValue` is `async` and nobody awaits
- * it, so a draw the type cannot encode is not a throw the caller sees: the
- * register answers 0 for as long as the generator runs and main takes an
- * unhandled rejection every interval. Electron 43 stays alive through that,
- * which is why it is quiet rather than loud.
+ * `createRegisters`, which throws on a value its type cannot hold.
+ * `ValueGenerator` writes its first value from its own constructor and
+ * `_updateValue` is synchronous, so that throw leaves `addRegister` and takes
+ * every register after it in the unit `syncServerRegisters` was restoring. The
+ * draws after the first are `setInterval`'s, where the same throw is an
+ * uncaught exception in main.
  *
  * The reason they were bare was that a rule here would refuse what the Add
  * button sends and cost the whole persisted register map, and both halves were

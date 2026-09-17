@@ -349,46 +349,32 @@ describe('ValueGenerator', () => {
   })
   // `_updateValue` is called by the constructor and by `setInterval`, and
   // neither awaits it. An `async` one turns a throw into a rejection with no
-  // handler, so the generator keeps ticking and nothing says what went wrong.
+  // handler, so the caller is told nothing and the generator keeps ticking.
+  //
+  // `createRegisters` is what throws: `createRegisters('uint16', 70000, false)`
+  // answers `The value of "value" is out of range. It must be >= 0 and <= 65535.
+  // Received 70000`. `RegisterParamsSchema` refuses that range at the boundary,
+  // so this is reached by constructing the generator directly.
   describe('a throw out of an update', () => {
-    const failingWindows = (): Windows =>
-      ({
-        send: vi.fn(() => {
-          throw new Error('the window is gone')
-        })
-      }) as unknown as Windows
-
     type Params = ConstructorParameters<typeof ValueGenerator>[0]
 
-    const params = (windows: Windows): Params => ({
+    const unencodable = (): Params => ({
       uuid: 'test-uuid',
       unitId: '1' as UnitIdString,
-      windows,
+      windows: createMockWindows(),
       serverData: createServerData(),
       registerType: 'holding_registers' as const,
       address: 0,
       dataType: 'uint16' as const,
-      min: 1,
-      max: 1,
+      min: 70000,
+      max: 70000,
       littleEndian: false,
       interval: 1000,
       comment: ''
     })
 
     it('leaves the constructor by throwing', () => {
-      expect(() => new ValueGenerator(params(failingWindows()))).toThrow('the window is gone')
-    })
-
-    it('leaves the tick by throwing', () => {
-      const windows = createMockWindows()
-      const gen = new ValueGenerator(params(windows))
-      vi.mocked(windows.send).mockImplementationOnce(() => {
-        throw new Error('the window is gone')
-      })
-
-      expect(() => vi.advanceTimersByTime(1000)).toThrow('the window is gone')
-
-      gen.dispose()
+      expect(() => new ValueGenerator(unencodable())).toThrow('out of range')
     })
   })
 })
