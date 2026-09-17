@@ -6,8 +6,9 @@ import {
 } from '../types/client'
 import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
-import { RegisterParamsSchema } from '../types/server'
+import { RegisterParamsSchema, RemoveRegisterParamsSchema } from '../types/server'
 import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
+import { MAX_UTF8_LENGTH } from '../utils'
 
 describe('RegisterMapObjectSchema', () => {
   it('accepts numeric string keys', () => {
@@ -361,10 +362,10 @@ describe('Server RegisterParamsSchema — the width and the value', () => {
     ).toBe(false)
   })
 
-  it('accepts a string that fills the map from address 0', () => {
+  it('accepts the widest string the dialog offers', () => {
     expect(
       RegisterParamsSchema.safeParse(
-        fixed({ dataType: 'utf8', length: 65536, stringValue: 'x', value: 0 })
+        fixed({ dataType: 'utf8', length: MAX_UTF8_LENGTH, stringValue: 'x', value: 0 })
       ).success
     ).toBe(true)
   })
@@ -413,6 +414,80 @@ describe('Server RegisterParamsSchema — the width and the value', () => {
     const result = RegisterParamsSchema.safeParse(fixed({ dataType: 'uint16', value: 70000 }))
     expect(result.success).toBe(false)
     expect(result.error?.issues[0]?.path).toEqual(['value'])
+  })
+
+  // `registerWidth` reads `length` for `utf8` alone, so naming it for a
+  // `uint64` that still carries one from an earlier edit points at a field with
+  // no bearing on the width.
+  it('names the address when the width is not the length', () => {
+    const result = RegisterParamsSchema.safeParse(
+      fixed({ address: 65534, dataType: 'uint64', value: 1, length: 4 })
+    )
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(['address'])
+  })
+
+  // `removeRegister` loops `registerWidth(dataType, length)` times writing into
+  // the register array, so the remove channel needs the bound add and sync have.
+  it('holds a string to the same width on add, sync and remove', () => {
+    const tooWide = { dataType: 'utf8', length: 125, stringValue: 'x', value: 0 }
+    expect(RegisterParamsSchema.safeParse(fixed(tooWide)).success).toBe(false)
+    expect(
+      RemoveRegisterParamsSchema.safeParse({
+        uuid: 'u',
+        unitId: '1',
+        registerType: 'holding_registers',
+        address: 0,
+        dataType: 'utf8',
+        length: 125
+      }).success
+    ).toBe(false)
+    expect(
+      RegisterParamsSchema.safeParse(fixed({ ...tooWide, length: MAX_UTF8_LENGTH })).success
+    ).toBe(true)
+  })
+})
+
+// The generator draws between `min` and `max` and hands the draw to
+// `createRegisters`, inside an `async` tick nobody awaits, so a range the data
+// type cannot take answers 0 for as long as the generator runs and warns once
+// per interval. The dialog masks both fields to `getMinMaxValues(dataType)`
+// already, so the rule refuses nothing the Add button sends.
+describe('Server RegisterParamsSchema — what a generator draws between', () => {
+  const generator = (overrides: Record<string, unknown>): unknown => ({
+    address: 10,
+    registerType: 'holding_registers',
+    dataType: 'uint16',
+    comment: '',
+    min: 0,
+    max: 100,
+    interval: 1000,
+    ...overrides
+  })
+
+  it.each([
+    ['max', 1e9],
+    ['max', 65536],
+    ['min', -1]
+  ])('refuses %s of %s on a uint16', (field, bound) => {
+    const result = RegisterParamsSchema.safeParse(generator({ [field]: bound }))
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual([field])
+  })
+
+  it('takes a range the data type holds', () => {
+    expect(RegisterParamsSchema.safeParse(generator({ min: 0, max: 65535 })).success).toBe(true)
+    expect(
+      RegisterParamsSchema.safeParse(generator({ dataType: 'uint32', max: 1e9 })).success
+    ).toBe(true)
+  })
+
+  // `float` and `double` write anything, so the pair stays open there.
+  it('leaves a float generator alone', () => {
+    expect(
+      RegisterParamsSchema.safeParse(generator({ dataType: 'float', min: -1e300, max: 1e300 }))
+        .success
+    ).toBe(true)
   })
 })
 

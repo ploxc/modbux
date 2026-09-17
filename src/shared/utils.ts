@@ -1,4 +1,10 @@
-import { CamelCase, DataType, EncodableDataType, RegisterParams, ServerRegisters } from './types'
+// `types/server.ts` imports `getAddressFitError` and `getValueRangeError` from
+// here, so this reads the barrel no longer: it would be a cycle through
+// `types/index.ts`, and one that costs nothing only while every name below is a
+// type the compiler erases. `import type` says which of the two these are.
+import type { CamelCase } from './types/utils'
+import type { DataType, EncodableDataType } from './types/datatype'
+import type { RegisterParams, ServerRegisters } from './types/server'
 
 /**
  * Whether bit `bit` of `word` is set.
@@ -12,6 +18,19 @@ export const getBit = (word: number, bit: number): boolean => Math.floor(word / 
 
 /** The width the add dialog offers for a string when the field is left alone. */
 export const DEFAULT_UTF8_LENGTH = 10
+
+/**
+ * The widest string a register map holds, which is the add dialog's own mask.
+ *
+ * The protocol puts a ceiling under it either way: FC3 and FC4 answer at most
+ * 125 registers, so a string wider than that cannot be read in one request.
+ * The number here is the one `RegisterLengthInput` has always masked to, and
+ * `RegisterParamsBasePartSchema` states it too, because a config file is the
+ * other door and the map is the only thing that bounded it there: one string of
+ * 65536 made `addRegister` send 65536 `register_value` messages in one
+ * synchronous loop.
+ */
+export const MAX_UTF8_LENGTH = 124
 
 /**
  * How many registers a value of this type occupies.

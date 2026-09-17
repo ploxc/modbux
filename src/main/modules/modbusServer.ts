@@ -545,22 +545,31 @@ export class ModbusServer {
     }
 
     const generators = serverGenerators[registerType]
-    const generator = generators.get(address)
-    generator?.dispose()
-    generators?.delete(address)
 
-    // Ensure server data map for this server and unitId
-    const serverData = this._unitData(uuid, unitId)
-    this._setServerData(uuid, unitId, serverData)
+    /** Frees the register this call is replacing, and answers its data map. */
+    const takeTheAddress = (): ServerData => {
+      generators.get(address)?.dispose()
+      generators.delete(address)
+      const serverData = this._unitData(uuid, unitId)
+      this._setServerData(uuid, unitId, serverData)
+      return serverData
+    }
 
     // `none` is an address held open with nothing in it, so there is nothing to
-    // write and nothing to generate. The generator above is disposed either way,
+    // write and nothing to generate. The generator is disposed either way,
     // which is what editing a register to `none` has to do.
-    if (dataType === 'none') return []
+    if (dataType === 'none') {
+      takeTheAddress()
+      return []
+    }
 
     // If a fixed value is provided, set the register directly
     const fixedValue = !interval && value !== undefined
     if (fixedValue) {
+      // Encoded before the address is taken, because a refusal answers
+      // `undefined` and the store reads that as nothing changed. Disposing
+      // first zeroed the words of the generator being replaced and dropped it,
+      // so the grid went on drawing a generator that no longer ran.
       const registers = this._encode({ dataType, value, littleEndian, stringValue, length })
       if (!registers) {
         this._emitMessage({
@@ -570,6 +579,7 @@ export class ModbusServer {
         return undefined
       }
 
+      const serverData = takeTheAddress()
       registers.forEach((register, index) => {
         const registerAddress = address + index
         serverData[registerType][registerAddress] = register
@@ -590,6 +600,7 @@ export class ModbusServer {
     }
 
     // Otherwise, add a value generator for this register
+    const serverData = takeTheAddress()
     generators.set(
       address,
       new ValueGenerator({

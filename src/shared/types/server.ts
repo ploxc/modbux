@@ -4,7 +4,7 @@ import { BitMapConfigSchema } from './bitmap'
 import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { SerialPortOptionsSchema } from './serial'
 import { UnitIdString, UnitIdStringSchema } from './unitid'
-import { getAddressFitError, getValueRangeError } from '../utils'
+import { getAddressFitError, getValueRangeError, MAX_UTF8_LENGTH } from '../utils'
 import {
   BooleanRegisters,
   BooleanRegistersSchema,
@@ -51,11 +51,25 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
  * 1e12 fires every millisecond, which is the flood the floor was written to
  * prevent.
  *
- * `min` and `max` are each a bare number and stay one. The dialog lets a min
- * above a max through, and `Math.random() * (max - min) + min` covers the same
- * range either way: ten thousand draws of min 100 max 10 ran 10 to 100, the
- * same as min 10 max 100. A rule here would refuse a payload the Add button
- * sends and cost the whole persisted register map on the next launch.
+ * `min` and `max` are each held to their own data type, in the refine below,
+ * because the generator draws between them and hands the draw to
+ * `createRegisters`. `ValueGenerator._updateValue` is `async` and nobody awaits
+ * it, so a draw the type cannot encode is not a throw the caller sees: the
+ * register answers 0 for as long as the generator runs and main takes an
+ * unhandled rejection every interval. Electron 43 stays alive through that,
+ * which is why it is quiet rather than loud.
+ *
+ * The reason they were bare was that a rule here would refuse what the Add
+ * button sends and cost the whole persisted register map, and both halves were
+ * measured false. `useMinMaxInteger` already masks both fields to
+ * `getMinMaxValues(dataType)` over the same seven types, so switching a
+ * generator from `uint32` to `uint16` rewrites a max of 100000 to 65535 and
+ * reports it valid. And one register the schema refuses costs that register
+ * now, because store version 7 drops it and keeps the rest.
+ *
+ * A min above a max is not a rule here. The dialog lets one through, and
+ * `Math.random() * (max - min) + min` covers the same range either way: ten
+ * thousand draws of min 100 max 10 ran 10 to 100, the same as min 10 max 100.
  */
 const RegisterParamsGeneratorPartSchema = z.object({
   min: z.number(),
@@ -96,14 +110,15 @@ export type RegisterValue<K extends RegisterType = RegisterType> = {
  * register is read off. Left bare, `length: 1e12` passed here and reached
  * `createStringRegisters`, which is `Buffer.alloc(2e12)`: inside Electron 43
  * that answers ERR_OUT_OF_RANGE, and `length: 1e9` allocates and then builds a
- * billion words instead. `getUsedAddresses` loops the same number.
+ * billion words instead. `getUsedAddresses` loops the same number. The ceiling
+ * is `MAX_UTF8_LENGTH`, which `RegisterLengthInput` masks to.
  */
 export const RegisterParamsBasePartSchema = z.object({
   address: RegisterAddressSchema,
   registerType: NumberRegistersSchema,
   dataType: BaseDataTypeSchema,
   comment: z.string(),
-  length: z.number().int().min(1).optional(),
+  length: z.number().int().min(1).max(MAX_UTF8_LENGTH).optional(),
   stringValue: z.string().optional(),
   bitMap: BitMapConfigSchema.optional()
 })
@@ -122,26 +137,34 @@ export type RegisterParamsBasePart = z.infer<typeof RegisterParamsBasePartSchema
  * `uint32` and not a `uint16`, and `addRegister`'s fixed branch hands whatever
  * arrives straight to `createRegisters`.
  *
- * Both are stated where the add dialog states them, so the file and the field
- * answer the same question. `interval`, `min` and `max` are the generator's and
- * are bounded above.
+ * A generator's `min` and `max` go through the same rule as a fixed value, for
+ * the reason `RegisterParamsGeneratorPartSchema` states: the draw between them
+ * is what reaches the encoder.
+ *
+ * All three are stated where the add dialog states them, so the file and the
+ * field answer the same question.
  */
 export const RegisterParamsSchema = RegisterParamsBasePartSchema.and(
   z.union([RegisterParamsGeneratorPartSchema, RegisterParamsStaticPartSchema])
 ).superRefine((params, ctx) => {
   if (getAddressFitError(params.dataType, params.address, params.length)) {
+    // `registerWidth` reads `length` for `utf8` alone, so naming it for any
+    // other type points at a field with no bearing on the width. A `uint64`
+    // that still carries a `length` from an earlier edit is one of those.
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: [params.length === undefined ? 'address' : 'length'],
+      path: [params.dataType === 'utf8' ? 'length' : 'address'],
       message: `A ${params.dataType} register at ${params.address} runs past address 65535`
     })
   }
 
-  if (params.value === undefined) return
-
-  const rangeError = getValueRangeError(params.dataType, params.value)
-  if (rangeError) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['value'], message: rangeError })
+  for (const field of ['value', 'min', 'max'] as const) {
+    const bound = params[field]
+    if (bound === undefined) continue
+    const rangeError = getValueRangeError(params.dataType, bound)
+    if (rangeError) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: rangeError })
+    }
   }
 })
 export type RegisterParams = z.infer<typeof RegisterParamsSchema>
@@ -227,7 +250,9 @@ export const RemoveRegisterParamsSchema = z.object({
   dataType: BaseDataTypeSchema,
   // Only a string has a width the user chose, and without it the server has to
   // guess how much of the map the register occupied and erases the guess.
-  length: z.number().optional()
+  // Bounded the way add and sync bound it: `removeRegister` loops
+  // `registerWidth(dataType, length)` times writing into the register array.
+  length: z.number().int().min(1).max(MAX_UTF8_LENGTH).optional()
 })
 export type RemoveRegisterParams = z.infer<typeof RemoveRegisterParamsSchema>
 
