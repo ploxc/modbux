@@ -92,9 +92,16 @@ with nothing to read.
 
 **Every component is wrapped in `meme`.** Props or not, one rule with no
 exception to remember. A declaration counts as a component when it is rendered
-as JSX somewhere or exported as its file's default. React's bare `memo` does not
-satisfy it: `meme` is `memo` with `deepEqual`, and the shallow comparator is what
-a mutated row defeats.
+as JSX somewhere, exported as its file's default, or handed to MUI as a slot.
+React's bare `memo` does not satisfy it: `meme` is `memo` with `deepEqual`, and
+the shallow comparator is what a mutated row defeats.
+
+A component handed over as a prop carries no JSX tag and need not be a default
+export, so the first two alone would leave it unchecked. Three spellings count:
+`slots={{ footer: X }}`, `inputComponent: X` nested inside `slotProps`, and
+`inputComponent={X}` straight on the element. The shorthand of the first names
+its local for the slot, which is lowercase, and the rule takes capitalised
+declarations only.
 
 **A local store is named after its component.** `<name>.zustand.ts`, matching
 the global stores in `context/`, and named after the component rather than the

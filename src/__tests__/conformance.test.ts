@@ -71,7 +71,122 @@ const importedFrom = (node: ts.Node): string | null =>
 //
 // A component handed over as a prop carries no JSX tag and need not be a default
 // export, so the first two sets alone leave it unchecked. MUI spells that two
-// ways and both are read below, `slots={{ footer: X }}` and `inputComponent: X`.
+// ways, `slots` and `inputComponent`, and each of those has a long form and a
+// short one. `slottedComponents` reads all four, and its own tests below are
+// where a fifth spelling would be caught.
+
+/**
+ * The components a source file hands to MUI as a prop, by the prop that took it.
+ *
+ * Three spellings, because the rule's claim is that it has no exception to
+ * remember and a spelling it cannot see is one:
+ *
+ *     slots={{ footer: CustomFooter }}
+ *     inputComponent: PortInput
+ *     inputComponent={PortInput}
+ *
+ * The shorthand of either, `slots={{ footer }}`, is not read and needs no
+ * branch: its local is named for the slot, so it is lowercase, and the
+ * population below takes capitalised declarations only.
+ *
+ * The value is read past the casts MUI's own typings need, and the key inside
+ * `slots` is not read at all: every value in that object is a component by the
+ * prop's contract. `inputComponent` is matched wherever it appears rather than
+ * by its path, because it sits a level or two inside `slotProps` and the nesting
+ * is MUI's to change.
+ */
+export const slottedComponents = (
+  source: ts.SourceFile
+): { slots: Set<string>; inputComponent: Set<string> } => {
+  const slots = new Set<string>()
+  const inputComponent = new Set<string>()
+
+  const named = (expression: ts.Expression): string | null => {
+    let node: ts.Expression = expression
+    while (ts.isAsExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
+    return ts.isIdentifier(node) ? node.text : null
+  }
+
+  /** The expression a JSX attribute carries, or null for a bare or string one. */
+  const attributeValue = (node: ts.JsxAttribute): ts.Expression | null =>
+    node.initializer && ts.isJsxExpression(node.initializer) && node.initializer.expression
+      ? node.initializer.expression
+      : null
+
+  eachNode(source, (node) => {
+    if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name)) {
+      const value = attributeValue(node)
+      if (node.name.text === 'slots' && value && ts.isObjectLiteralExpression(value)) {
+        for (const property of value.properties) {
+          if (!ts.isPropertyAssignment(property)) continue
+          const name = named(property.initializer)
+          if (name) slots.add(name)
+        }
+      }
+      if (node.name.text === 'inputComponent' && value) {
+        const name = named(value)
+        if (name) inputComponent.add(name)
+      }
+    }
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'inputComponent'
+    ) {
+      const name = named(node.initializer)
+      if (name) inputComponent.add(name)
+    }
+  })
+
+  return { slots, inputComponent }
+}
+
+// The collector's own population, because the renderer uses two of the three
+// spellings and the third would otherwise be a branch nothing exercises. These
+// read synthetic sources, so a spelling that stops being read goes red here
+// whatever the renderer happens to be written in that week.
+
+describe('slottedComponents reads every spelling', () => {
+  const read = (text: string): { slots: string[]; inputComponent: string[] } => {
+    const source = ts.createSourceFile(
+      'probe.tsx',
+      text,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX
+    )
+    const found = slottedComponents(source)
+    return { slots: [...found.slots].sort(), inputComponent: [...found.inputComponent].sort() }
+  }
+
+  it('reads a component out of a slots object', () => {
+    expect(read('<Grid slots={{ footer: CustomFooter, row: BitMapRow }} />').slots).toEqual([
+      'BitMapRow',
+      'CustomFooter'
+    ])
+  })
+
+  it('reads inputComponent as a nested property, past its casts', () => {
+    expect(
+      read(
+        '<Field slotProps={{ input: { inputComponent: PortInput as unknown as ElementType } }} />'
+      ).inputComponent
+    ).toEqual(['PortInput'])
+  })
+
+  it('reads inputComponent handed straight to an element', () => {
+    expect(read('<InputBase inputComponent={PortInput} />').inputComponent).toEqual(['PortInput'])
+  })
+
+  it('reads nothing out of a slot whose value is not a name', () => {
+    expect(
+      read('<Grid slots={{ footer: () => null }} slotProps={{ footer: { sx: {} } }} />')
+    ).toEqual({
+      slots: [],
+      inputComponent: []
+    })
+  })
+})
 
 describe('every component is wrapped in meme', () => {
   const files = sourceFiles(rendererRoot)
@@ -84,13 +199,6 @@ describe('every component is wrapped in meme', () => {
   // count.
   const handedToSlots = new Set<string>()
   const handedToInputComponent = new Set<string>()
-
-  /** The identifier behind a slot's value, past the casts MUI's typings need. */
-  const slottedName = (expression: ts.Expression): string | null => {
-    let node: ts.Expression = expression
-    while (ts.isAsExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
-    return ts.isIdentifier(node) ? node.text : null
-  }
 
   for (const { source } of parsed) {
     eachNode(source, (node) => {
@@ -109,36 +217,10 @@ describe('every component is wrapped in meme', () => {
       ) {
         defaultExported.add(node.name.text)
       }
-      // `slots={{ footer: CustomFooter }}`. Every value in that object literal
-      // is a component by the prop's own contract, so the key is not read.
-      if (
-        ts.isJsxAttribute(node) &&
-        ts.isIdentifier(node.name) &&
-        node.name.text === 'slots' &&
-        node.initializer &&
-        ts.isJsxExpression(node.initializer) &&
-        node.initializer.expression &&
-        ts.isObjectLiteralExpression(node.initializer.expression)
-      ) {
-        for (const property of node.initializer.expression.properties) {
-          if (!ts.isPropertyAssignment(property)) continue
-          const name = slottedName(property.initializer)
-          if (name) handedToSlots.add(name)
-        }
-      }
-      // `inputComponent: PortInput as unknown as ElementType<...>`, which sits
-      // inside `slotProps` a level or two down. The key is read here rather
-      // than the path, because `inputComponent` names a component wherever it
-      // appears and the nesting is MUI's to change.
-      if (
-        ts.isPropertyAssignment(node) &&
-        ts.isIdentifier(node.name) &&
-        node.name.text === 'inputComponent'
-      ) {
-        const name = slottedName(node.initializer)
-        if (name) handedToInputComponent.add(name)
-      }
     })
+    const slotted = slottedComponents(source)
+    for (const name of slotted.slots) handedToSlots.add(name)
+    for (const name of slotted.inputComponent) handedToInputComponent.add(name)
   }
 
   /** Peel the wrappers a component declaration can sit under. */
