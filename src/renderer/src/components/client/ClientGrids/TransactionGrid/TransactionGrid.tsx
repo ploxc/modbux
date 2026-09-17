@@ -62,7 +62,7 @@ const ClearButton = meme((): JSX.Element => {
 //
 //
 // Custom footer with export and clear buttons
-const CustomFooter = (): JSX.Element => {
+const CustomFooter = meme((): JSX.Element => {
   return (
     <GridFooterContainer sx={{ px: 0.5, gap: 0.5 }}>
       <Box sx={{ flex: 1 }} />
@@ -71,7 +71,7 @@ const CustomFooter = (): JSX.Element => {
       <ClearButton />
     </GridFooterContainer>
   )
-}
+})
 
 //
 //

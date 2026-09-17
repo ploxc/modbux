@@ -154,7 +154,7 @@ const UnitId = meme(() => {
   )
 })
 
-const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
+const PortInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
   const portFromStore = useServerZustand((z) => z.port[z.selectedUuid] ?? '')
   const [localPort, setLocalPort] = useState(portFromStore)
@@ -187,7 +187,9 @@ const PortInput = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   )
 })
 
-PortInput.displayName = 'PortInput'
+PortInputForward.displayName = 'PortInput'
+
+const PortInput = meme(PortInputForward)
 
 //
 //

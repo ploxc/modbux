@@ -65,8 +65,13 @@ const importedFrom = (node: ts.Node): string | null =>
 // ─── Every component is wrapped in meme ──────────────────────────────────────
 //
 // The rule the checkpoint settled: every component, props or not. A declaration
-// counts as a component when it is rendered as JSX somewhere in the renderer or
-// exported as its file's default, which is what makes the count reproducible.
+// counts as a component when it is rendered as JSX somewhere in the renderer,
+// exported as its file's default, or handed to MUI as a slot, which is what
+// makes the count reproducible.
+//
+// A component handed over as a prop carries no JSX tag and need not be a default
+// export, so the first two sets alone leave it unchecked. MUI spells that two
+// ways and both are read below, `slots={{ footer: X }}` and `inputComponent: X`.
 
 describe('every component is wrapped in meme', () => {
   const files = sourceFiles(rendererRoot)
@@ -74,6 +79,18 @@ describe('every component is wrapped in meme', () => {
 
   const renderedAsJsx = new Set<string>()
   const defaultExported = new Set<string>()
+  // Two sets rather than one, because each is asserted to have found something.
+  // Merged, a walk that stopped matching one spelling would pass on the other's
+  // count.
+  const handedToSlots = new Set<string>()
+  const handedToInputComponent = new Set<string>()
+
+  /** The identifier behind a slot's value, past the casts MUI's typings need. */
+  const slottedName = (expression: ts.Expression): string | null => {
+    let node: ts.Expression = expression
+    while (ts.isAsExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
+    return ts.isIdentifier(node) ? node.text : null
+  }
 
   for (const { source } of parsed) {
     eachNode(source, (node) => {
@@ -91,6 +108,35 @@ describe('every component is wrapped in meme', () => {
         node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword)
       ) {
         defaultExported.add(node.name.text)
+      }
+      // `slots={{ footer: CustomFooter }}`. Every value in that object literal
+      // is a component by the prop's own contract, so the key is not read.
+      if (
+        ts.isJsxAttribute(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === 'slots' &&
+        node.initializer &&
+        ts.isJsxExpression(node.initializer) &&
+        node.initializer.expression &&
+        ts.isObjectLiteralExpression(node.initializer.expression)
+      ) {
+        for (const property of node.initializer.expression.properties) {
+          if (!ts.isPropertyAssignment(property)) continue
+          const name = slottedName(property.initializer)
+          if (name) handedToSlots.add(name)
+        }
+      }
+      // `inputComponent: PortInput as unknown as ElementType<...>`, which sits
+      // inside `slotProps` a level or two down. The key is read here rather
+      // than the path, because `inputComponent` names a component wherever it
+      // appears and the nesting is MUI's to change.
+      if (
+        ts.isPropertyAssignment(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === 'inputComponent'
+      ) {
+        const name = slottedName(node.initializer)
+        if (name) handedToInputComponent.add(name)
       }
     })
   }
@@ -156,7 +202,13 @@ describe('every component is wrapped in meme', () => {
         if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
         const name = declaration.name.text
         if (!/^[A-Z]/.test(name)) continue
-        if (!renderedAsJsx.has(name) && !defaultExported.has(name)) continue
+        if (
+          !renderedAsJsx.has(name) &&
+          !defaultExported.has(name) &&
+          !handedToSlots.has(name) &&
+          !handedToInputComponent.has(name)
+        )
+          continue
         const { isComponent, wrapped } = classify(declaration.initializer)
         if (isComponent) components.push({ name, file: at(file), wrapped })
       }
@@ -165,6 +217,27 @@ describe('every component is wrapped in meme', () => {
 
   it('finds components to check', () => {
     expect(components.length).toBeGreaterThan(150)
+  })
+
+  // Each spelling is asserted on the names only it reaches, so a walk that
+  // stopped matching reads as a rule with nothing to check rather than as a
+  // green one.
+  const onlyFrom = (found: Set<string>): string[] =>
+    components
+      .filter(
+        (component) =>
+          found.has(component.name) &&
+          !renderedAsJsx.has(component.name) &&
+          !defaultExported.has(component.name)
+      )
+      .map((component) => component.name)
+
+  it('finds a component handed to a slots prop', () => {
+    expect(onlyFrom(handedToSlots).length).toBeGreaterThan(0)
+  })
+
+  it('finds components handed as an inputComponent', () => {
+    expect(onlyFrom(handedToInputComponent).length).toBeGreaterThan(5)
   })
 
   it('leaves none of them bare', () => {
