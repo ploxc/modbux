@@ -13,7 +13,7 @@ vi.hoisted(() => {
   w.api = new Proxy({}, { get: () => () => Promise.resolve(undefined) })
 })
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
@@ -119,5 +119,46 @@ describe('RegisterConfig read configuration', () => {
     render(<RegisterConfig />)
 
     expect(useClientZustand.getState().readConfiguration).toBe(true)
+  })
+})
+
+// Turning it on hands main the mapping and then asks it to read out of that
+// mapping, so a refused mapping would read out of the one before it.
+describe('RegisterConfig turning read configuration on', () => {
+  // The stub above is a Proxy with a `get` trap and no keys, so spreading it
+  // answers nothing: every channel it does not name would be gone.
+  const answerWith = (answer: true | undefined): void => {
+    const stubbed = window.api as unknown as Record<string, unknown>
+    const named: Record<string, unknown> = {
+      setRegisterMapping: vi.fn(() => Promise.resolve(answer)),
+      setReadConfiguration: vi.fn(),
+      read: vi.fn()
+    }
+    window.api = new Proxy(
+      {},
+      { get: (_target, method: string) => named[method] ?? stubbed[method] }
+    ) as never
+  }
+
+  it('turns on once main has the mapping', async () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    answerWith(true)
+
+    render(<RegisterConfig />)
+    fireEvent.click(screen.getByTestId('reg-read-config-btn'))
+
+    await waitFor(() => expect(useClientZustand.getState().readConfiguration).toBe(true))
+  })
+
+  it('stays off when main refuses the mapping', async () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    answerWith(undefined)
+
+    render(<RegisterConfig />)
+    fireEvent.click(screen.getByTestId('reg-read-config-btn'))
+
+    await waitFor(() => expect(window.api.setRegisterMapping).toHaveBeenCalled())
+    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(window.api.setReadConfiguration).not.toHaveBeenCalled()
   })
 })

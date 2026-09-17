@@ -33,7 +33,7 @@ const LoadButton = meme((): JSX.Element => {
         // Set name, endianness and register mapping
         if (config.name) clientZustand.setName(config.name)
         clientZustand.setLittleEndian(config.littleEndian)
-        clientZustand.replaceRegisterMapping(config.registerMapping)
+        await clientZustand.replaceRegisterMapping(config.registerMapping)
 
         // Show success notification
         if (migrated) {

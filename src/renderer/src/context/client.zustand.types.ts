@@ -49,8 +49,9 @@ export type ClientZustand = {
     key: K,
     value: V
   ) => void
-  replaceRegisterMapping: (registerMapping: RegisterMapping) => void
-  clearRegisterMapping: () => void
+  /** Answers once main has the mapping, because the store writes it after that. */
+  replaceRegisterMapping: (registerMapping: RegisterMapping) => Promise<void>
+  clearRegisterMapping: () => Promise<void>
   /** What the persisted config lost on the way in, or undefined when it lost nothing. */
   configReset: ConfigReset | undefined
   /** Called once the reset has been reported, so it is reported once. */

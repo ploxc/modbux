@@ -808,7 +808,7 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
 onEvent('register_value', applyRegisterValue)
 
 // RTU server status
-onEvent('rtu_server_status', ({ active }) => {
+onEvent('rtu_server_status', (active) => {
   useServerZustand.setState({ rtuServerActive: active })
 })
 

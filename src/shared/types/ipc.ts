@@ -141,10 +141,10 @@ export interface IpcHandlerSpec {
     return: ClientState
   }
 
-  /** Set the RegisterMapping */
+  /** Set the RegisterMapping, and say whether it was taken. */
   ['set_register_mapping']: {
     args: [RegisterMapping]
-    return: void
+    return: true | undefined
   }
 
   /** Connect the Modbus client */
@@ -159,7 +159,7 @@ export interface IpcHandlerSpec {
     return: void
   }
 
-  /** Read registers (returns RegisterData[] or undefined) */
+  /** Read the configured registers. The rows come back as a `register_data` event. */
   ['read']: {
     args: []
     return: void
@@ -323,7 +323,8 @@ export interface IpcHandlerSpec {
    *
    * `rtu_server_status` is addressed to the window showing the server, so a
    * window that was not that window when the last one went out has nothing to
-   * catch up on. This is how it asks, the same shape as `get_client_state`.
+   * catch up on. This is how it asks, and it answers what that event carries,
+   * the way `get_client_state` answers what `client_state` carries.
    */
   ['get_rtu_server_status']: {
     args: []
@@ -401,7 +402,7 @@ export interface IpcEventPayloadMap {
   ['window_update']: [WindowsOpen]
   ['open_server_window']: []
   ['address_groups']: [AddressGroup[]]
-  ['rtu_server_status']: [{ active: boolean }]
+  ['rtu_server_status']: [boolean]
 }
 
 export interface BackendMessage {

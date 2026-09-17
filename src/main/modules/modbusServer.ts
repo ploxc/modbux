@@ -780,7 +780,7 @@ export class ModbusServer {
     if (generation !== this._rtuGeneration) return
     this._rtuActive = false
     this._emitMessage({ message, variant: 'error', error })
-    this._windows.send('rtu_server_status', { active: false }, 'serverView')
+    this._windows.send('rtu_server_status', false, 'serverView')
   }
 
   /**
@@ -850,7 +850,7 @@ export class ModbusServer {
           message: `RTU server started on ${serialConfig.com}`,
           variant: 'success'
         })
-        this._windows.send('rtu_server_status', { active: true }, 'serverView')
+        this._windows.send('rtu_server_status', true, 'serverView')
         this._warnBroadcastUnit(uuid)
       })
 
@@ -882,7 +882,7 @@ export class ModbusServer {
     this._rtuActive = false
     this._rtuGeneration++
     this._broadcastWarningSent = false
-    this._windows.send('rtu_server_status', { active: false }, 'serverView')
+    this._windows.send('rtu_server_status', false, 'serverView')
     if (wasActive) {
       this._emitMessage({ message: 'RTU server stopped', variant: 'warning' })
     }

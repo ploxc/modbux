@@ -103,13 +103,15 @@ const Length = meme(() => {
 
 const ReadConfiguration = meme(() => {
   const readConfiguration = useClientZustand((z) => !!z.readConfiguration)
-  const handleChange = useCallback((_: React.MouseEvent, v: boolean | null) => {
+  const handleChange = useCallback(async (_: React.MouseEvent, v: boolean | null) => {
     const toggleState = !!v
 
-    // When read configuration is enabled, send the configuration to the backend API
-    // and immediately show the configured registers in the grid
+    // Turning it on hands main the mapping and then asks it to read out of that
+    // mapping, so a refusal here would read out of the one before it. Turning it
+    // off asks main for nothing.
     if (toggleState) {
-      flushRegisterMappingToMain()
+      const { registerMapping } = useClientZustand.getState()
+      if (!(await flushRegisterMappingToMain(registerMapping))) return
       showMapping()
     }
     useClientZustand.getState().setReadConfiguration(toggleState)

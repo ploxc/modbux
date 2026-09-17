@@ -586,6 +586,19 @@ describe('each guarded channel got its own schema', () => {
     expect(guarded.sort()).toEqual(Object.keys(validPayloads).sort())
   })
 
+  // The convention `update_connection_config`'s doc comment states: a channel
+  // whose payload can be refused says whether it took it, so the store can read
+  // the refusal rather than diverge from main in silence.
+  it.each(['update_connection_config', 'update_register_config', 'set_register_mapping'])(
+    '%s answers true for a payload it took and undefined for one it refused',
+    async (channel) => {
+      start()
+
+      expect(await invoke(channel, validPayloads[channel])).toBe(true)
+      expect(await invoke(channel, undefined)).toBeUndefined()
+    }
+  )
+
   it.each(Object.keys(validPayloads))('lets a valid %s payload through', async (channel) => {
     const { sent } = start()
     await invoke(channel, validPayloads[channel])

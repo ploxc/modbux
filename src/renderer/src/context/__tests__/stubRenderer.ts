@@ -2,7 +2,8 @@ import {
   AddRegisterParamsSchema,
   ClientState,
   ConnectionConfigSchema,
-  RegisterConfigSchema
+  RegisterConfigSchema,
+  RegisterMappingSchema
 } from '@shared'
 
 /**
@@ -39,6 +40,7 @@ const disconnected: ClientState = {
 const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   updateConnectionConfig: answerConfig(ConnectionConfigSchema.deepPartial()),
   updateRegisterConfig: answerConfig(RegisterConfigSchema.deepPartial()),
+  setRegisterMapping: answerConfig(RegisterMappingSchema),
   // The words main answers with, which for a payload it refuses is nothing at
   // all rather than an empty list.
   addReplaceServerRegister: (payload: unknown): Promise<number[] | undefined> =>

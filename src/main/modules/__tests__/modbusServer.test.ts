@@ -1727,7 +1727,7 @@ describe('ModbusServer', () => {
       instance._handlers['initialized']()
 
       const statusCalls = getWindowCalls('rtu_server_status')
-      expect(statusCalls.some((c) => c[1].active === true)).toBe(true)
+      expect(statusCalls).toContainEqual(['rtu_server_status', true, 'serverView'])
 
       const messageCalls = getWindowCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message.includes('/dev/ttyUSB0'))).toBe(true)
@@ -1768,7 +1768,7 @@ describe('ModbusServer', () => {
       instance._handlers['socketError'](new Error('port gone'))
 
       const statusCalls = getWindowCalls('rtu_server_status')
-      expect(statusCalls.some((c) => c[1].active === false)).toBe(true)
+      expect(statusCalls).toContainEqual(['rtu_server_status', false, 'serverView'])
 
       const messageCalls = getWindowCalls('backend_message')
       expect(messageCalls.some((c) => c[1].message.includes('port gone'))).toBe(true)
@@ -1780,7 +1780,7 @@ describe('ModbusServer', () => {
 
       fireOpenCallback(new Error('cannot open /dev/ttyUSB0'))
 
-      expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
+      expect(getWindowCalls('rtu_server_status').at(-1)?.[1]).toBe(false)
       expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server error: cannot open /dev/ttyUSB0'
       ])
@@ -1795,7 +1795,7 @@ describe('ModbusServer', () => {
       const instance = lastInstance(ServerSerial)
       instance._handlers['initialized']()
 
-      expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([true])
+      expect(getWindowCalls('rtu_server_status').map((c) => c[1])).toEqual([true])
       expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server started on /dev/ttyUSB0'
       ])
@@ -1853,7 +1853,7 @@ describe('ModbusServer', () => {
 
       fireSerialPathEvent(instance, 'close', new Error('Disconnected'))
 
-      expect(getWindowCalls('rtu_server_status').at(-1)?.[1].active).toBe(false)
+      expect(getWindowCalls('rtu_server_status').at(-1)?.[1]).toBe(false)
       const messageCalls = getWindowCalls('backend_message')
       expect(
         messageCalls.some((c) => c[1].message === 'RTU server disconnected from /dev/ttyUSB0')
@@ -1934,7 +1934,7 @@ describe('ModbusServer', () => {
       expect(getWindowCalls('backend_message').map((c) => c[1].message)).toEqual([
         'RTU server started on /dev/ttyUSB0'
       ])
-      expect(getWindowCalls('rtu_server_status').map((c) => c[1].active)).toEqual([false, true])
+      expect(getWindowCalls('rtu_server_status').map((c) => c[1])).toEqual([false, true])
     })
 
     it('a stopped server does not report its failed open', async () => {
@@ -1986,7 +1986,7 @@ describe('ModbusServer', () => {
       expect(instance.close).toHaveBeenCalled()
 
       const statusCalls = getWindowCalls('rtu_server_status')
-      expect(statusCalls.at(-1)?.[1].active).toBe(false)
+      expect(statusCalls.at(-1)?.[1]).toBe(false)
     })
 
     it('emits warning message only when server was active', async () => {

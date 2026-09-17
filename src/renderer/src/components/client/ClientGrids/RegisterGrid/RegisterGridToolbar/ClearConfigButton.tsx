@@ -10,7 +10,7 @@ const ClearConfigButton = meme((): JSX.Element => {
 
   const handleClick = useCallback(() => {
     useClientZustand.getState().setName('')
-    useClientZustand.getState().clearRegisterMapping()
+    void useClientZustand.getState().clearRegisterMapping()
   }, [])
 
   return (

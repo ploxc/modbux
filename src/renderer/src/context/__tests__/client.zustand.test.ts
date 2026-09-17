@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { ClientState } from '@shared'
+import type { ClientState, RegisterMapping } from '@shared'
 
 /**
  * The store registers its IPC listeners and calls `init()` at import time, so
@@ -136,5 +136,47 @@ describe('the client_state listener', () => {
     pushClientState(connectedAndPolling)
 
     expect(useClientZustand.getState().clientState).toEqual(connectedAndPolling)
+  })
+})
+
+describe('replacing the register mapping', () => {
+  const mapping = (comment: string): RegisterMapping => ({
+    coils: {},
+    discrete_inputs: {},
+    input_registers: {},
+    holding_registers: { 0: { comment } }
+  })
+
+  const answerWith = (answer: true | undefined): ReturnType<typeof vi.fn> => {
+    const setRegisterMapping = vi.fn(() => Promise.resolve(answer))
+    window.api = { ...window.api, setRegisterMapping } as never
+    return setRegisterMapping
+  }
+
+  beforeEach(() => {
+    useClientZustand.setState({ registerMapping: mapping('the one it had') } as never)
+  })
+
+  it('writes the new one when main took it', async () => {
+    answerWith(true)
+
+    await useClientZustand.getState().replaceRegisterMapping(mapping('the new one'))
+
+    expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
+      'the new one'
+    )
+  })
+
+  // Main keeps the mapping it had when it refuses one, so writing here would
+  // leave the two reading different registers with nothing to say so.
+  it('keeps the one it had when main refused the new one', async () => {
+    const setRegisterMapping = answerWith(undefined)
+
+    await useClientZustand.getState().replaceRegisterMapping(mapping('the new one'))
+
+    expect(setRegisterMapping).toHaveBeenCalled()
+    expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
+      'the one it had'
+    )
   })
 })

@@ -194,7 +194,10 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   // Register mapping
   ipcHandle(
     'set_register_mapping',
-    (_, mapping) => state.setRegisterMapping(mapping),
+    (_, mapping) => {
+      state.setRegisterMapping(mapping)
+      return true
+    },
     RegisterMappingSchema
   )
 

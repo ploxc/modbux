@@ -51,7 +51,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
   it('reaches main, types the current one included and not', async () => {
     const { useClientZustand } = await loadStore()
 
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
 
     expect(lastPayload('setRegisterMapping')).toEqual(loaded)
   })
@@ -60,7 +60,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
     vi.useFakeTimers()
     const { useClientZustand } = await loadStore()
 
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
 
     expect(methods()).toContain('setRegisterMapping')
   })
@@ -70,7 +70,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
     useClientZustand.getState().setReadConfiguration(true)
     calls.length = 0
 
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
 
     expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
     expect(lastPayload('setReadConfiguration')).toBe(false)
@@ -80,7 +80,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
   it('is what the store holds', async () => {
     const { useClientZustand } = await loadStore()
 
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
 
     expect(useClientZustand.getState().registerMapping).toEqual(loaded)
   })
@@ -89,10 +89,10 @@ describe('a mapping that replaces the whole of the previous one', () => {
 describe('a cleared mapping', () => {
   it('reaches main empty, for all four types', async () => {
     const { useClientZustand } = await loadStore()
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
     calls.length = 0
 
-    useClientZustand.getState().clearRegisterMapping()
+    await useClientZustand.getState().clearRegisterMapping()
 
     expect(lastPayload('setRegisterMapping')).toEqual({
       coils: {},
@@ -104,11 +104,11 @@ describe('a cleared mapping', () => {
 
   it('turns read configuration off first', async () => {
     const { useClientZustand } = await loadStore()
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
     useClientZustand.getState().setReadConfiguration(true)
     calls.length = 0
 
-    useClientZustand.getState().clearRegisterMapping()
+    await useClientZustand.getState().clearRegisterMapping()
 
     expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
     expect(useClientZustand.getState().readConfiguration).toBe(false)
@@ -116,9 +116,9 @@ describe('a cleared mapping', () => {
 
   it('leaves the store holding four empty records', async () => {
     const { useClientZustand } = await loadStore()
-    useClientZustand.getState().replaceRegisterMapping(loaded)
+    await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    useClientZustand.getState().clearRegisterMapping()
+    await useClientZustand.getState().clearRegisterMapping()
 
     expect(useClientZustand.getState().registerMapping).toEqual({
       coils: {},

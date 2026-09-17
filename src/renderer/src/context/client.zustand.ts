@@ -15,7 +15,8 @@ import {
   migrateClientState,
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
-  emptyRegisterMapping
+  emptyRegisterMapping,
+  RegisterMapping
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
@@ -35,21 +36,31 @@ let _ipcTimer: ReturnType<typeof setTimeout> | null = null
 function syncRegisterMappingToMain(): void {
   if (_ipcTimer) clearTimeout(_ipcTimer)
   _ipcTimer = setTimeout(() => {
-    window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
+    _ipcTimer = null
+    // Nothing waits on a cell edit reaching main, so the answer has nobody to
+    // stop. A refusal reports itself as a `backend_message` and costs main the
+    // edit, and the next edit sends the whole mapping again.
+    void window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
   }, 150)
 }
 
 /**
- * Sends the mapping now instead of in 150 ms.
+ * Sends `registerMapping` now instead of in 150 ms, and answers whether main
+ * took it.
  *
  * For a caller that needs the backend to hold the mapping before its next
  * request. Turning on read configuration reads straight afterwards, and the
  * debounce would let that read go out against the mapping from before.
+ *
+ * It takes the mapping rather than reading the store, because a caller that
+ * writes only once main has it has nothing in the store to send yet.
  */
-export const flushRegisterMappingToMain = (): void => {
+export const flushRegisterMappingToMain = async (
+  registerMapping: RegisterMapping
+): Promise<boolean> => {
   if (_ipcTimer) clearTimeout(_ipcTimer)
   _ipcTimer = null
-  window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
+  return (await window.api.setRegisterMapping(registerMapping)) ?? false
 }
 
 /**
@@ -167,16 +178,20 @@ export const useClientZustand = create<
 
         syncRegisterMappingToMain()
       },
-      replaceRegisterMapping: (registerMapping) => {
+      replaceRegisterMapping: async (registerMapping) => {
         // Read configuration is the one thing that makes main read the mapping,
         // so turning it off first leaves no read answering out of the mapping
         // this call throws away. `syncRegisterMappingToMain` debounces for
         // rapid cell edits, and a whole new mapping is not one.
         get().setReadConfiguration(false)
+
+        // Main keeps the mapping it had when it refuses one, so a write here
+        // would leave the grid showing registers main is not holding.
+        if (!(await flushRegisterMappingToMain(registerMapping))) return
+
         set((state) => {
           state.registerMapping = registerMapping
         })
-        flushRegisterMappingToMain()
       },
       clearRegisterMapping: () => get().replaceRegisterMapping(emptyRegisterMapping()),
       transactions: [],
