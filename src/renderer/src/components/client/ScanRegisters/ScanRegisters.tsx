@@ -20,6 +20,7 @@ import {
   ScanTimeoutField
 } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { maxReadQuantity } from '@shared'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
 
 //
@@ -105,8 +106,9 @@ const ChunkSizeField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
   const type = useClientZustand((z) => z.registerConfig.type)
-  const isCoilType = ['coils', 'discrete_inputs'].includes(type)
-  const max = isCoilType ? 2000 : 125
+  // The protocol's pair, stated once in `ranges.ts`: this field computed it by
+  // hand and the unit id scan's Length field computed nothing at all.
+  const max = maxReadQuantity([type])
 
   const setChunkSize = useScanRegistersZustand.getState().setChunkSize
 

@@ -95,6 +95,46 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(input).toHaveValue('500')
   })
 
+  // ─── Length field ──────────────────────────────────────────────────
+
+  // The field passed no `max`, so `UintInput`'s default of 65535 was typeable
+  // and `modbus-serial` wrote it into the quantity field. A device answers
+  // illegal-data-value or says nothing, and the answer reads as a fact about
+  // the bus rather than about the request. FC03 answers at most 125 registers.
+  test('the length field stops at what one read of a register answers', async ({ mainPage }) => {
+    const input = mainPage.getByTestId('scan-unitid-length-input').locator('input')
+    await input.click()
+    await input.selectText()
+    await input.pressSequentially('65535')
+    await input.blur()
+
+    await expect(input).toHaveValue('125')
+  })
+
+  // FC01 answers 2000 bits, so selecting a bit type widens the same field.
+  test('and at 2000 once a bit type is selected on its own', async ({ mainPage }) => {
+    const modal = mainPage.locator('.MuiModal-root')
+    await modal.getByTestId('scan-unitid-type-coils').click()
+    await modal.getByTestId('scan-unitid-type-holding-registers').click()
+
+    const input = mainPage.getByTestId('scan-unitid-length-input').locator('input')
+    await input.click()
+    await input.selectText()
+    await input.pressSequentially('65535')
+    await input.blur()
+
+    await expect(input).toHaveValue('2000')
+
+    // Back to the defaults the tests below read.
+    await modal.getByTestId('scan-unitid-type-holding-registers').click()
+    await modal.getByTestId('scan-unitid-type-coils').click()
+    await input.click()
+    await input.selectText()
+    await input.pressSequentially('2')
+    await input.blur()
+    await expect(input).toHaveValue('2')
+  })
+
   // ─── Register type toggle buttons ──────────────────────────────────
 
   test('Holding Registers is selected by default', async ({ mainPage }) => {

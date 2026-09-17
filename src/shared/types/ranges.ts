@@ -1,4 +1,5 @@
 import z from 'zod'
+import { NumberRegistersSchema, RegisterType } from './register'
 
 /**
  * Ranges the protocol and the socket fix, so a schema states them once.
@@ -19,6 +20,37 @@ import z from 'zod'
 export const RegisterAddressSchema = z.number().int().min(0).max(65535)
 export const UnitIdSchema = z.number().int().min(0).max(255)
 export const PortSchema = z.number().int().min(0).max(65535)
+
+/**
+ * The most a single read can ask for, by what it is reading.
+ *
+ * MODBUS Application Protocol Specification V1.1b3, section 6: FC01 and FC02
+ * answer at most 2000 bits, FC03 and FC04 at most 125 registers. The PDU is 253
+ * bytes, and a read response is the function code, a byte count and the data,
+ * so 251 bytes are left: 125 registers of two bytes, and 250 bytes of bits.
+ *
+ * A write is a different pair, 1968 bits and 123 registers, because the request
+ * carries the data as well as the address and the quantity. Nothing reads that
+ * here, because every field these bound builds a read.
+ */
+export const MAX_READ_BITS = 2000
+export const MAX_READ_REGISTERS = 125
+
+/**
+ * The ceiling one read of these register types has.
+ *
+ * A unit id scan asks for several types with one length, so the strictest of
+ * them is the one the request has to fit. `ScanRegisters.tsx ChunkSizeField`
+ * computed this pair by hand; the scan's own Length field computed nothing, so
+ * `UintInput`'s default of 65535 was typeable and `modbus-serial` wrote it
+ * into the quantity field unchecked. A device answers illegal-data-value or
+ * says nothing, and the answer the user reads is about the request rather than
+ * about the bus.
+ */
+export const maxReadQuantity = (registerTypes: readonly RegisterType[]): number =>
+  registerTypes.some((registerType) => NumberRegistersSchema.safeParse(registerType).success)
+    ? MAX_READ_REGISTERS
+    : MAX_READ_BITS
 
 /**
  * The same range for a register map keyed by address.
