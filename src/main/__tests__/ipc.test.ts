@@ -589,13 +589,16 @@ describe('each guarded channel got its own schema', () => {
   // The convention `update_connection_config`'s doc comment states: a channel
   // whose payload can be refused says whether it took it, so the store can read
   // the refusal rather than diverge from main in silence.
+  //
+  // Written by hand, because what a channel answers for a payload it took is
+  // its own decision and not something the handler list tells apart. The
+  // refusal half of the same rule is read from the handlers below.
   it.each(['update_connection_config', 'update_register_config', 'set_register_mapping'])(
-    '%s answers true for a payload it took and undefined for one it refused',
+    '%s answers true for a payload it took',
     async (channel) => {
       start()
 
       expect(await invoke(channel, validPayloads[channel])).toBe(true)
-      expect(await invoke(channel, undefined)).toBeUndefined()
     }
   )
 
@@ -607,11 +610,16 @@ describe('each guarded channel got its own schema', () => {
 
   // `undefined` is the payload every schema here refuses. A string used to be,
   // until `delete_server` and `reset_server` took one.
+  //
+  // A refused payload answers `undefined` whatever the channel answers when it
+  // takes one, which is the rule `PayloadSchema` holds a channel to. Read here
+  // rather than from a list, so a channel that starts answering a value is held
+  // to it without anyone adding it anywhere.
   it.each(Object.keys(validPayloads))(
     'guards %s against a payload that is not one',
     async (channel) => {
       const { sent } = start()
-      await invoke(channel, undefined)
+      expect(await invoke(channel, undefined)).toBeUndefined()
       expect(sent.map(({ message }) => String(message.error).split(':')[0])).toEqual([channel])
     }
   )

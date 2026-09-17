@@ -153,8 +153,15 @@ describe('replacing the register mapping', () => {
     return setRegisterMapping
   }
 
+  // `ready` is what `setReadConfiguration` returns on, and the action turns read
+  // configuration off before it asks. False here would leave that half of it out
+  // of both tests.
   beforeEach(() => {
-    useClientZustand.setState({ registerMapping: mapping('the one it had') } as never)
+    useClientZustand.setState({
+      ready: true,
+      readConfiguration: true,
+      registerMapping: mapping('the one it had')
+    } as never)
   })
 
   it('writes the new one when main took it', async () => {
@@ -165,6 +172,7 @@ describe('replacing the register mapping', () => {
     expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
       'the new one'
     )
+    expect(useClientZustand.getState().readConfiguration).toBe(false)
   })
 
   // Main keeps the mapping it had when it refuses one, so writing here would
@@ -178,5 +186,8 @@ describe('replacing the register mapping', () => {
     expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
       'the one it had'
     )
+    // What the refusal costs: main and the store both hold the mapping from
+    // before, and read configuration is off.
+    expect(useClientZustand.getState().readConfiguration).toBe(false)
   })
 })

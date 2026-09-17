@@ -150,6 +150,37 @@ describe('RegisterConfig turning read configuration on', () => {
     await waitFor(() => expect(useClientZustand.getState().readConfiguration).toBe(true))
   })
 
+  // The store is written after the round trip, so a second press inside it
+  // still reads the toggle as off and would flush, draw and read a second time.
+  it('takes one press while the first is still in flight', async () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    let take: (answer: true) => void = () => {}
+    const setRegisterMapping = vi.fn(
+      () =>
+        new Promise<true>((resolve) => {
+          take = resolve
+        })
+    )
+    const stubbed = window.api as unknown as Record<string, unknown>
+    const named: Record<string, unknown> = {
+      setRegisterMapping,
+      setReadConfiguration: vi.fn(),
+      read: vi.fn()
+    }
+    window.api = new Proxy(
+      {},
+      { get: (_target, method: string) => named[method] ?? stubbed[method] }
+    ) as never
+
+    render(<RegisterConfig />)
+    fireEvent.click(screen.getByTestId('reg-read-config-btn'))
+    fireEvent.click(screen.getByTestId('reg-read-config-btn'))
+    take(true)
+
+    await waitFor(() => expect(useClientZustand.getState().readConfiguration).toBe(true))
+    expect(setRegisterMapping).toHaveBeenCalledTimes(1)
+  })
+
   it('stays off when main refuses the mapping', async () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
     answerWith(undefined)

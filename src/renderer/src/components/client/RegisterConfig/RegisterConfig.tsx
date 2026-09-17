@@ -16,7 +16,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { flushRegisterMappingToMain, useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterType } from '@shared'
 import { showMapping } from '@renderer/context/data.zustand'
-import { ElementType, useCallback, useEffect } from 'react'
+import { ElementType, useCallback, useEffect, useRef } from 'react'
 
 // Protocol
 const TypeSelect = meme(() => {
@@ -103,6 +103,12 @@ const Length = meme(() => {
 
 const ReadConfiguration = meme(() => {
   const readConfiguration = useClientZustand((z) => !!z.readConfiguration)
+
+  // The store is written once main has the mapping, so between the press and
+  // that answer the toggle still reads off and a second press arrives as one
+  // more turn-on: a second flush, a second `showMapping` and a second read.
+  const handingOver = useRef(false)
+
   const handleChange = useCallback(async (_: React.MouseEvent, v: boolean | null) => {
     const toggleState = !!v
 
@@ -110,9 +116,15 @@ const ReadConfiguration = meme(() => {
     // mapping, so a refusal here would read out of the one before it. Turning it
     // off asks main for nothing.
     if (toggleState) {
-      const { registerMapping } = useClientZustand.getState()
-      if (!(await flushRegisterMappingToMain(registerMapping))) return
-      showMapping()
+      if (handingOver.current) return
+      handingOver.current = true
+      try {
+        const { registerMapping } = useClientZustand.getState()
+        if (!(await flushRegisterMappingToMain(registerMapping))) return
+        showMapping()
+      } finally {
+        handingOver.current = false
+      }
     }
     useClientZustand.getState().setReadConfiguration(toggleState)
   }, [])

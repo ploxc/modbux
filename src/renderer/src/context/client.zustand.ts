@@ -186,7 +186,10 @@ export const useClientZustand = create<
         get().setReadConfiguration(false)
 
         // Main keeps the mapping it had when it refuses one, so a write here
-        // would leave the grid showing registers main is not holding.
+        // would leave the grid showing registers main is not holding. What a
+        // refusal costs is read configuration, which is off by the line above
+        // and stays off: both sides hold the mapping from before, and the
+        // message main sends names the channel.
         if (!(await flushRegisterMappingToMain(registerMapping))) return
 
         set((state) => {
