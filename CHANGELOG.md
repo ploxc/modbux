@@ -286,6 +286,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Read, and a 0 you have not read looks exactly like a 0 the device holds. The
   values are now there as soon as the rows are. Disconnected it still shows the
   mapping alone, and it asks for nothing while a poll or a scan is running.
+- **A server that gets no port now says so instead of showing one it never
+  bound.** A server whose port is taken moves up to the next free one and the
+  port field follows it. When the search ran out the field filled in anyway,
+  with a port nothing was listening on. A server configured on 65535 with that
+  port taken was worse: the search stepped to 65536, which is not a port, and
+  the server came up neither working nor reporting anything. Both now report
+  that no port was available and leave the field alone.
 
 ### Changed
 

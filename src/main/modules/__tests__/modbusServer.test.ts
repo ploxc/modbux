@@ -1406,10 +1406,23 @@ describe('ModbusServer', () => {
       expect(await pending).toBe(5021)
     })
 
-    it('emits error and returns port when no port available after max attempts', async () => {
+    it('emits error and answers nothing when no port is available after max attempts', async () => {
       portAvailableResults = new Array(10000).fill(false)
       const port = await server.createServer({ uuid, port: 5020 })
-      expect(port).toBe(15020) // 5020 + 10000
+      expect(port).toBeUndefined()
+      const messages = getWindowCalls('backend_message')
+      expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
+    })
+
+    // `net.createServer().listen(65536, '0.0.0.0')` throws `ERR_SOCKET_BAD_PORT`
+    // from inside `_isPortAvailable`'s executor, which rejects the invoke rather
+    // than answering it. The walk ends on the port range instead.
+    it('stops at 65535 rather than walking past it', async () => {
+      portAvailableResults = [false]
+      const port = await server.createServer({ uuid, port: 65535 })
+
+      expect(port).toBeUndefined()
+      expect(ServerTCP).not.toHaveBeenCalled()
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'No available port found')).toBe(true)
     })

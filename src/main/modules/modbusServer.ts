@@ -383,8 +383,11 @@ export class ModbusServer {
    * built, so nothing about the register data needs a fresh listener, and a
    * port change is `setPort`'s job. Rebinding drops every connected master, so
    * it happens only where it buys something.
+   *
+   * `undefined` is "no listener, and a message is on its way". The walk ends on
+   * either bound, and the far one is ten thousand consecutive busy ports.
    */
-  public createServer = async ({ uuid, port }: CreateServerParams): Promise<number> => {
+  public createServer = async ({ uuid, port }: CreateServerParams): Promise<number | undefined> => {
     // A stored 0 from before this was refused would send the server to a port
     // nobody can name, so it starts where it would have started without one.
     let actualPort = port !== undefined && isPort(port) ? port : DEFAULT_MOBUS_PORT
@@ -395,6 +398,11 @@ export class ModbusServer {
     await this._closeAndForget(uuid)
 
     for (let i = 0; i < maxAttempts; i++) {
+      // 65535 taken increments to 65536, where `listen` throws
+      // `ERR_SOCKET_BAD_PORT` inside `_isPortAvailable`'s executor and the
+      // invoke rejects instead of answering.
+      if (!isPort(actualPort)) break
+
       const result = await this._isPortAvailable(actualPort)
       if (result.available) {
         const bind = await this._bindServer(uuid, actualPort)
@@ -407,7 +415,7 @@ export class ModbusServer {
       variant: 'error',
       error: undefined
     })
-    return actualPort
+    return undefined
   }
 
   /**
