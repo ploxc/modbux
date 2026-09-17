@@ -141,92 +141,111 @@ export const useServerZustand = create<
         get().clean(uuid)
       },
       /**
-       * Hands main what the store holds, and marks the store initialized
-       * whatever came of that.
+       * Hands main what the store holds, one server at a time, and marks the
+       * store initialized once it has been through them all.
        *
        * `containers/Server.tsx` draws nothing until the flag is set, so a
-       * rejected invoke below used to cost the whole server view rather than
-       * the one uuid it belonged to, on that launch and on every one after it.
-       * The uuid keeps `ready` false, which is what its three setters refuse
-       * on, and that is the whole cost now.
-       *
-       * The `catch` is empty because this runs from module scope with nothing
-       * awaiting it, and a rejection there is an unhandled one. Main reports
-       * its own failures through `backend_message`; a rejected invoke carries
-       * the channel name and nothing the user can act on.
+       * rejected invoke used to cost the whole server view rather than the one
+       * uuid it belonged to, on that launch and on every one after it. The uuid
+       * keeps `ready` false, which is what its three setters refuse on, and
+       * that is the whole cost now. `openServer` is where the catch sits, so
+       * the servers after it still get opened.
        */
       init: async (uuid) => {
-        try {
-          set((state) => {
-            if (uuid) state.ready[uuid] = false
-            else for (const u of state.uuids) state.ready[u] = false
-          })
-          const state = get()
-          const mode = state.serverMode ?? 'tcp'
+        set((state) => {
+          if (uuid) state.ready[uuid] = false
+          else for (const u of state.uuids) state.ready[u] = false
+        })
+        const state = get()
+        const mode = state.serverMode ?? 'tcp'
 
-          // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
-          set((state) => {
-            for (const uuid of state.uuids) {
-              if (state.unitId[uuid] === undefined) {
-                state.unitId[uuid] = '0'
-              }
-              if (state.littleEndian[uuid] === undefined) {
-                state.littleEndian[uuid] = false // Default to Big-Endian
-              }
+        // Ensure every uuid has a unitId and littleEndian entry (for backward compatibility)
+        set((state) => {
+          for (const uuid of state.uuids) {
+            if (state.unitId[uuid] === undefined) {
+              state.unitId[uuid] = '0'
             }
-          })
-
-          if (mode === 'rtu') {
-            // RTU serves the main server's registers, so that is the only uuid
-            // there is anything to open for.
-            const serialConfig = state.serialConfig ?? getDefaultSerialConfig()
-
-            // Only start if COM port is configured
-            if (serialConfig.com.trim()) {
-              try {
-                await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
-              } catch {
-                // Error is reported via backend_message event
-              }
+            if (state.littleEndian[uuid] === undefined) {
+              state.littleEndian[uuid] = false // Default to Big-Endian
             }
+          }
+        })
 
-            await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
+        /**
+         * Opens one server and hands main what it holds, and answers whether
+         * that got through.
+         *
+         * The `catch` is per uuid, because that is the unit of the cost: it
+         * stood around the loop, and a refusal for the first uuid then meant
+         * `createServer` was never called for the second at all, so it had no
+         * listener on its port, none of its registers in main, and `ready`
+         * false with no message.
+         *
+         * Empty, because this runs from module scope with nothing awaiting it
+         * and a rejection there is an unhandled one. Main reports its own
+         * failures through `backend_message`; a rejected invoke carries the
+         * channel name and nothing the user can act on. `console.error` is what
+         * says the other kind happened, a throw out of the store's own recipes.
+         */
+        const openServer = async (syncUuid: string, port: number): Promise<void> => {
+          try {
+            const actualPort = await window.api.createServer({ uuid: syncUuid, port })
+            if (actualPort === undefined) return
 
             set((state) => {
-              state.selectedUuid = MAIN_SERVER_UUID
+              state.port[syncUuid] = String(actualPort)
             })
-          } else {
-            // TCP mode: existing flow
-            const uuidsToSync = uuid ? [uuid] : state.uuids
 
-            for (const syncUuid of uuidsToSync) {
-              const port = Number(state.port[syncUuid])
-              const actualPort = await window.api.createServer({ uuid: syncUuid, port })
-              if (actualPort === undefined) continue
+            await syncUuidToBackend(set, get, syncUuid)
+          } catch (error) {
+            console.error(`Server ${syncUuid} was not opened:`, error)
+          }
+        }
 
-              set((state) => {
-                state.port[syncUuid] = String(actualPort)
-              })
+        if (mode === 'rtu') {
+          // RTU serves the main server's registers, so that is the only uuid
+          // there is anything to open for.
+          const serialConfig = state.serialConfig ?? getDefaultSerialConfig()
 
-              await syncUuidToBackend(set, get, syncUuid)
-            }
-
-            if (state.uuids.length === 0) {
-              state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
-              set((state) => {
-                state.ready[MAIN_SERVER_UUID] = true
-              })
+          // Only start if COM port is configured
+          if (serialConfig.com.trim()) {
+            try {
+              await window.api.startRtuServer({ uuid: MAIN_SERVER_UUID, serialConfig })
+            } catch {
+              // Error is reported via backend_message event
             }
           }
 
-          get().cleanOrphanedServerState()
-        } catch {
-          // Reported by main, and unawaited here. See the note above.
-        } finally {
+          try {
+            await syncUuidToBackend(set, get, MAIN_SERVER_UUID)
+          } catch (error) {
+            console.error(`Server ${MAIN_SERVER_UUID} was not opened:`, error)
+          }
+
           set((state) => {
-            state.initialized = true
+            state.selectedUuid = MAIN_SERVER_UUID
           })
+        } else {
+          // TCP mode: existing flow
+          const uuidsToSync = uuid ? [uuid] : state.uuids
+
+          for (const syncUuid of uuidsToSync) {
+            await openServer(syncUuid, Number(state.port[syncUuid]))
+          }
+
+          if (state.uuids.length === 0) {
+            state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+            set((state) => {
+              state.ready[MAIN_SERVER_UUID] = true
+            })
+          }
         }
+
+        get().cleanOrphanedServerState()
+
+        set((state) => {
+          state.initialized = true
+        })
       },
       setSelectedUuid: (uuid) =>
         set((state) => {
@@ -788,7 +807,7 @@ readRtuServerStatus()
 let serverWindowOwnsTheKey = false
 
 /**
- * Mark every uuid the rehydrate brought back as one main knows.
+ * Mark the uuids the rehydrate introduced as ones main knows.
  *
  * `ready` is not in `partialize`, so a rehydrate brings back `uuids`, `port`
  * and `selectedUuid` and leaves this window's own `ready` where `init` left it.
@@ -796,12 +815,18 @@ let serverWindowOwnsTheKey = false
  * `setPort`, `setUnitId` and `setLittleEndian` each refuse on that with no
  * message, until a restart. The window that made it ran `createServer` for it,
  * so main does know it.
+ *
+ * Only where the entry is missing. A uuid this window's own `init` wrote
+ * `false` for is one main refused, and writing `true` over that would hand the
+ * three setters back for a server main has no listener for, and flip the flag
+ * `PrivilegedPortModal` runs its check on.
  */
 const markRehydratedUuidsReady = (): void => {
   const { uuids, ready } = useServerZustand.getState()
-  if (uuids.every((uuid) => ready[uuid])) return
+  const introduced = uuids.filter((uuid) => ready[uuid] === undefined)
+  if (introduced.length === 0) return
   useServerZustand.setState({
-    ready: Object.fromEntries(uuids.map((uuid) => [uuid, true]))
+    ready: { ...ready, ...Object.fromEntries(introduced.map((uuid) => [uuid, true])) }
   })
 }
 
@@ -823,6 +848,11 @@ onEvent('window_update', ({ server }) => {
   }
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
-  void Promise.resolve(useServerZustand.persist.rehydrate()).then(markRehydratedUuidsReady)
+  void Promise.resolve(useServerZustand.persist.rehydrate())
+    .then(markRehydratedUuidsReady)
+    // `rehydrate` reads the key and runs `migrateServerState` over what it
+    // finds, and either can throw on a blob a hand edit left there. Unhandled,
+    // that is the window's only sign that the re-read did not happen.
+    .catch((error) => console.error('Re-reading the server store failed:', error))
   readRtuServerStatus()
 })
