@@ -28,8 +28,17 @@ interface ServerBoolRowProps {
   type: BooleanRegisters
 }
 
+/**
+ * One coil or discrete input, with its comment and its remove button.
+ *
+ * It read `collapse` and passed it on as `readOnly`, and `ServerBooleans`
+ * renders this list only under `{!collapse && ...}`. Both read the same store
+ * and React renders the parent first, so no committed render carried
+ * `readOnly: true`, and the hover styles and the remove button were guarded on
+ * the same unreachable half. Two tests in `ServerBit.test.tsx` asserted
+ * behaviour nothing in the app reached.
+ */
 const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
-  const collapse = useServerGridZustand((z) => z.collapse[type])
   const entry = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
@@ -63,11 +72,9 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
         alignItems: 'center',
         borderRadius: 1,
         transition: 'background-color 0.15s',
-        ...(!collapse && {
-          '&:hover .remove-btn': { opacity: 1 },
-          '&:hover': { backgroundColor: alpha(theme.palette.primary.dark, 0.1) },
-          '&:has(.remove-btn:hover)': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
-        })
+        '&:hover .remove-btn': { opacity: 1 },
+        '&:hover': { backgroundColor: alpha(theme.palette.primary.dark, 0.1) },
+        '&:has(.remove-btn:hover)': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
       })}
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -81,26 +88,23 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
           padDigits={5}
           dimUnmapped={false}
           hoverHighlight={false}
-          readOnly={collapse}
         />
       </Box>
-      {!collapse && (
-        <IconButton
-          className="remove-btn"
-          data-testid={`remove-bool-${type}-${address}`}
-          size="small"
-          onClick={handleRemove}
-          sx={(theme) => ({
-            opacity: 0,
-            transition: 'opacity 0.15s',
-            p: 0.25,
-            color: theme.palette.text.secondary,
-            '&:hover': { color: theme.palette.error.main }
-          })}
-        >
-          <DeleteFilled style={{ fontSize: 12 }} />
-        </IconButton>
-      )}
+      <IconButton
+        className="remove-btn"
+        data-testid={`remove-bool-${type}-${address}`}
+        size="small"
+        onClick={handleRemove}
+        sx={(theme) => ({
+          opacity: 0,
+          transition: 'opacity 0.15s',
+          p: 0.25,
+          color: theme.palette.text.secondary,
+          '&:hover': { color: theme.palette.error.main }
+        })}
+      >
+        <DeleteFilled style={{ fontSize: 12 }} />
+      </IconButton>
     </Box>
   )
 })
