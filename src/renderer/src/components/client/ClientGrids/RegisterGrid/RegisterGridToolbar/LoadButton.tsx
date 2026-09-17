@@ -2,7 +2,7 @@ import FileOpen from '@mui/icons-material/FileOpen'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { migrateClientConfig } from '@shared'
+import { migrateClientConfig, resetMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 import { showMapping } from '@renderer/context/data.zustand'
@@ -28,7 +28,7 @@ const LoadButton = meme((): JSX.Element => {
       try {
         // Use migration framework to handle all config versions
         const migrationResult = migrateClientConfig(content)
-        const { config, migrated, warning } = migrationResult
+        const { config, migrated, warning, reset } = migrationResult
 
         // Set name, endianness and register mapping
         if (config.name) clientZustand.setName(config.name)
@@ -49,12 +49,13 @@ const LoadButton = meme((): JSX.Element => {
           })
         }
 
-        // Show warning for future version
-        if (warning === 'FUTURE_VERSION') {
+        // A config from a newer Modbux is parsed against the current schema
+        // and keeps what matches, so the warning says which fields did not come
+        // across rather than that some feature may not work.
+        if (warning === 'FUTURE_VERSION' && reset) {
           enqueueSnackbar({
             variant: 'warning',
-            message:
-              'This config was created with a newer version of Modbux. Some features may not work correctly.',
+            message: resetMessage('Client', reset),
             persist: true
           })
         }

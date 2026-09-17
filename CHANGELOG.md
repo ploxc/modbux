@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A configuration from a newer Modbux is now checked before it is loaded.** It
+  was the one file that went in unread: the fields were taken as they came, so a
+  register map a newer version writes differently was written straight into the
+  app. The warning said some features may not work correctly. The file is now
+  read against what this version understands, what matches is kept, and the
+  message says which parts did not come across.
 - **A file that is not a configuration is now refused instead of opened.**
   Picking a JSON file holding a number, a string, a list or nothing at all
   emptied the server and reported that the configuration had been updated from

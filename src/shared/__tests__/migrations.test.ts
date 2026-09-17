@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { migrateServerConfig } from '../migrations/server/config'
 import { migrateClientConfig } from '../migrations/client/config'
+import { resetMessage } from '../repairPersisted'
 import { migrateServerRegistersState, migrateBoolShape } from '../migrations/server/zustand'
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -164,6 +165,49 @@ describe('configMigration', () => {
         expect(result.migrated).toBe(false)
         expect(result.fromVersion).toBe(3)
         expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.reset?.savedByNewerVersion).toBe(true)
+        expect(result.reset?.fields).toEqual([])
+      })
+
+      // The branch cast the parsed JSON straight to `ServerConfig` and returned
+      // it, so this was the one door into the app no schema stood in, and the
+      // snackbar read as a compatibility notice rather than "this was not
+      // checked". Both fixtures the suite had were well formed, so it was green
+      // on the half that works.
+      it('keeps the fields a future config still shares and names the rest', () => {
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            name: 'Future',
+            littleEndian: true,
+            serverRegistersPerUnit: 'not a unit'
+          })
+        )
+
+        expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.config.name).toBe('Future')
+        expect(result.config.littleEndian).toBe(true)
+        expect(result.config.serverRegistersPerUnit).toEqual({})
+        expect(result.reset?.fields).toEqual(['serverRegistersPerUnit'])
+      })
+
+      it('says so in a sentence naming the field', () => {
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            name: 'Future',
+            littleEndian: false,
+            serverRegistersPerUnit: 'not a unit'
+          })
+        )
+        const reset = result.reset
+        if (!reset) throw new Error('a future config always answers a reset')
+
+        expect(resetMessage('Server', reset)).toBe(
+          'Server configuration was saved by a newer version of Modbux. the registers did not come across and was reset. Everything else was kept.'
+        )
       })
     })
 
@@ -389,6 +433,32 @@ describe('configMigration', () => {
 
         expect(result.fromVersion).toBe(3)
         expect(result.warning).toBe('FUTURE_VERSION')
+      })
+
+      // `LoadButton` calls `replaceRegisterMapping(config.registerMapping)`
+      // with no gate at all, so `'nope'` went into the persisted store and was
+      // flushed to main.
+      it('keeps the fields a future config still shares and names the rest', () => {
+        const result = migrateClientConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            name: 'Future',
+            littleEndian: true,
+            registerMapping: 'nope'
+          })
+        )
+
+        expect(result.warning).toBe('FUTURE_VERSION')
+        expect(result.config.name).toBe('Future')
+        expect(result.config.littleEndian).toBe(true)
+        expect(result.config.registerMapping).toEqual({
+          coils: {},
+          discrete_inputs: {},
+          holding_registers: {},
+          input_registers: {}
+        })
+        expect(result.reset?.fields).toEqual(['registerMapping'])
       })
     })
   })
