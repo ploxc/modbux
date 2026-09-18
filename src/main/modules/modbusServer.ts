@@ -3,8 +3,6 @@ import {
   SetBooleanParameters,
   SyncBoolsParameters,
   SyncRegisterValueParams,
-  createRegisters,
-  createStringRegisters,
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
@@ -17,15 +15,15 @@ import {
   RegisterType,
   RegisterValue,
   DataBits,
-  StopBits,
-  ValuedDataType
+  StopBits
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { ServerEndianness } from '@shared'
 import { Windows } from '../windows'
 import { ValueGenerator } from './modbusServer/valueGenerator'
+import { encodeRegisters, writeRegisters } from './modbusServer/registers'
 import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
-import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
+import { registerWidth } from '@shared'
 import net from 'net'
 
 const getDefaultGenerators = (): ValueGenerators => ({
@@ -486,23 +484,9 @@ export class ModbusServer {
    * about. This is the class answering for its own input: `addRegister` is
    * public, and a caller inside main reaches it without crossing that boundary.
    */
-  private _encode = ({
-    dataType,
-    value,
-    littleEndian,
-    stringValue,
-    length
-  }: {
-    dataType: ValuedDataType
-    value: number
-    littleEndian: boolean
-    stringValue?: string
-    length?: number
-  }): number[] | undefined => {
+  private _encode = (params: Parameters<typeof encodeRegisters>[0]): number[] | undefined => {
     try {
-      return dataType === 'utf8'
-        ? createStringRegisters(stringValue ?? '', length ?? DEFAULT_UTF8_LENGTH)
-        : createRegisters(dataType, value, littleEndian)
+      return encodeRegisters(params)
     } catch {
       return undefined
     }
@@ -603,20 +587,14 @@ export class ModbusServer {
       }
 
       const serverData = takeTheAddress()
-      registers.forEach((register, index) => {
-        const registerAddress = address + index
-        serverData[registerType][registerAddress] = register
-        this._windows.send(
-          'register_value',
-          {
-            uuid,
-            unitId,
-            registerType,
-            address: registerAddress,
-            value: register
-          },
-          'serverView'
-        )
+      writeRegisters({
+        windows: this._windows,
+        serverData,
+        uuid,
+        unitId,
+        registerType,
+        address,
+        registers
       })
       this._setServerData(uuid, unitId, serverData)
       return registers
@@ -685,23 +663,17 @@ export class ModbusServer {
   /**
    * Synchronizes all register values for a given server and unitId.
    * Resets all holding and input registers, then adds all provided registers.
+   *
+   * `resetRegisters` disposes the generators of one register type and clears
+   * their map before it replaces the data array, so the two calls below reach
+   * every generator this unit has. This opened by doing that dispose and clear
+   * for both types first, which left the calls below nothing to dispose.
    */
   public syncServerRegisters = ({
     uuid,
     unitId,
     registerValues
   }: SyncRegisterValueParams): void => {
-    // Cleanup generators only for this unitId
-    const unitIdGenerators = this._generatorMap.get(uuid)
-    if (unitIdGenerators) {
-      const generators = unitIdGenerators.get(unitId)
-      if (generators) {
-        generators.holding_registers.forEach((g) => g.dispose())
-        generators.input_registers.forEach((g) => g.dispose())
-        generators.holding_registers.clear()
-        generators.input_registers.clear()
-      }
-    }
     this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
     this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
     for (const params of registerValues) this.addRegister({ uuid, unitId, params })
@@ -908,19 +880,14 @@ export class ModbusServer {
   /**
    * Stops all running TCP servers. Does NOT clear server data or generators
    * so registers are preserved for restore when switching back to TCP.
+   *
+   * `_closeAndForget` per uuid, which is the same close and the same message,
+   * and it deletes both maps' entry rather than clearing the maps at the end.
+   * The key sets cannot differ: `_bindServer` writes `_servers` and `_port` on
+   * consecutive lines and nothing else writes either.
    */
   public stopAllTcpServers = async (): Promise<void> => {
-    for (const [, server] of this._servers) {
-      await new Promise<void>((resolve) => {
-        server.close((err) => {
-          if (err)
-            this._emitMessage({ message: 'Error closing server', variant: 'error', error: err })
-          resolve()
-        })
-      })
-    }
-    this._servers.clear()
-    this._port.clear()
+    for (const uuid of [...this._servers.keys()]) await this._closeAndForget(uuid)
   }
 
   /**

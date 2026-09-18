@@ -1,6 +1,5 @@
 import {
-  createRegisters,
-  createStringRegisters,
+  DEFAULT_UTF8_LENGTH,
   NumberRegisters,
   RegisterParamsGeneratorPart,
   RegisterParamsBasePart,
@@ -12,6 +11,7 @@ import {
   ValuedDataType
 } from '@shared'
 import { Windows } from '../../windows'
+import { encodeRegisters, writeRegisters } from './registers'
 import { round } from 'lodash'
 
 type ValueGeneratorParams = {
@@ -80,7 +80,7 @@ export class ValueGenerator implements RegisterValueGenerator {
     this._interval = interval
     this._comment = comment
     this._stringValue = stringValue ?? ''
-    this._length = length ?? 10
+    this._length = length ?? DEFAULT_UTF8_LENGTH
 
     // Set initial value and start periodic updates
     this._updateValue()
@@ -104,25 +104,20 @@ export class ValueGenerator implements RegisterValueGenerator {
    * Updates the value in the server data and notifies the frontend.
    */
   private _updateServerData = (value: number): void => {
-    const registers =
-      this._dataType === 'utf8'
-        ? createStringRegisters(this._stringValue, this._length)
-        : createRegisters(this._dataType, value, this._littleEndian)
-
-    registers.forEach((register, index) => {
-      const registerAddress = this._address + index
-      this._serverData[this._registerType][registerAddress] = register
-      this._windows.send(
-        'register_value',
-        {
-          uuid: this._uuid,
-          unitId: this._unitId,
-          registerType: this._registerType,
-          address: registerAddress,
-          value: register
-        },
-        'serverView'
-      )
+    writeRegisters({
+      windows: this._windows,
+      serverData: this._serverData,
+      uuid: this._uuid,
+      unitId: this._unitId,
+      registerType: this._registerType,
+      address: this._address,
+      registers: encodeRegisters({
+        dataType: this._dataType,
+        value,
+        littleEndian: this._littleEndian,
+        stringValue: this._stringValue,
+        length: this._length
+      })
     })
   }
 

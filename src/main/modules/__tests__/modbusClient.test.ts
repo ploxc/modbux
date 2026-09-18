@@ -99,10 +99,10 @@ const createMockModbusRTU = () => ({
   writeFC15: vi.fn(),
   writeFC16: vi.fn(),
   _transactions: {} as Record<string, unknown>,
-  // The port modbus-serial files transactions against. A TCP port counts from
-  // 1, and `RTUBufferedPort` defines no such field, which is why every serial
-  // transaction files under the string "undefined".
-  _port: { _transactionIdWrite: 1 } as { _transactionIdWrite: number | undefined },
+  // The port modbus-serial files transactions against. `open` sets this to 1
+  // on every transport; only a TCP or UDP port increments it, which is what
+  // `serialPort()` below switches off.
+  _port: { _transactionIdWrite: 1 },
   isDebugEnabled: false
 })
 
@@ -177,6 +177,7 @@ describe('ModbusClient', () => {
     ;(ModbusRTU as any).getPorts.mockResolvedValue([])
     sentToWindows = []
     addressedTo = []
+    portIncrementsKey = true
     windows = createMockWindows()
     appState = new AppState()
     client = new ModbusClient({ appState, windows })
@@ -237,21 +238,32 @@ describe('ModbusClient', () => {
     responses: [Buffer.from([0x01, 0x03, length * 2, 0x00, 0x64])]
   })
 
+  /** False once a test asks for a serial port, which does not move the key. */
+  let portIncrementsKey = true
+
+  /**
+   * Make the port a serial one, which is only ever the key standing still.
+   *
+   * `open` sets `_transactionIdWrite` to 1 for every transport, so the mock
+   * starts where a serial port stays. Only `tcpport.js`,
+   * `tcprtubufferedport.js` and `udpport.js` go on to increment it, and
+   * `rtubufferedport.js` never names the field.
+   */
+  const serialPort = (): void => {
+    portIncrementsKey = false
+  }
+
   /**
    * File a transaction the way modbus-serial does.
    *
    * `writeFCx` files under the port's current write id and the port increments
    * it once the buffer is out, so a request filed here takes the key the client
-   * read before the call. The increment is skipped on a serial port, which has
-   * no id to increment.
+   * read before the call.
    */
   const fileTransaction = (transaction: RawTransaction = createMockTransaction()): string => {
     const key = String(mockModbusRTU._port._transactionIdWrite)
     mockModbusRTU._transactions = { ...mockModbusRTU._transactions, [key]: transaction }
-    const { _transactionIdWrite } = mockModbusRTU._port
-    if (_transactionIdWrite !== undefined) {
-      mockModbusRTU._port._transactionIdWrite = _transactionIdWrite + 1
-    }
+    if (portIncrementsKey) mockModbusRTU._port._transactionIdWrite += 1
     return key
   }
 
@@ -1626,21 +1638,19 @@ describe('ModbusClient', () => {
       expect(txCalls[0]?.[1].responses).toEqual([])
     })
 
-    it('keeps the serial transaction key, which is not a number', async () => {
+    it('logs two serial reads under the one key that never moves', async () => {
       await connectClient()
-      // RTU has no transaction ids, so modbus-serial files every serial
-      // transaction under this one key.
-      mockModbusRTU._port._transactionIdWrite = undefined
+      serialPort()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
         fileTransaction()
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
       await client.read()
+      await client.read()
 
       const txCalls = getWindowCalls('transaction')
-      expect(txCalls[0]?.[1].id).toContain('undefined__')
-      expect(txCalls[0]?.[1].id).not.toContain('NaN')
+      expect(txCalls.map((call) => call[1].id.split('__')[0])).toEqual(['1', '1'])
     })
 
     // The two below discriminate a per-group error message from one that
@@ -2608,7 +2618,7 @@ describe('ModbusClient', () => {
 
     it('logs every probe on a serial port, where they share one key', async () => {
       await connectClient()
-      mockModbusRTU._port._transactionIdWrite = undefined
+      serialPort()
       setupHoldingRegisterReadMock([0])
 
       const scanPromise = client.scanUnitIds({
@@ -2622,10 +2632,7 @@ describe('ModbusClient', () => {
       await scanPromise
 
       const transactions = getWindowCalls('transaction')
-      expect(transactions.map((call) => call[1].id.split('__')[0])).toEqual([
-        'undefined',
-        'undefined'
-      ])
+      expect(transactions.map((call) => call[1].id.split('__')[0])).toEqual(['1', '1'])
       expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
     })
   })

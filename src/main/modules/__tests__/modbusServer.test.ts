@@ -1191,8 +1191,8 @@ describe('ModbusServer', () => {
       expect(newRegisterCalls.length).toBe(0)
     })
 
-    // ! Coverage-only: exercises FALSE branch of if (unitIdGenerators) in syncServerRegisters
-    it('skips generator cleanup when no generators exist for the uuid', () => {
+    // ! Coverage-only: exercises FALSE branch of if (serverGenerators) in resetRegisters
+    it('syncs a uuid that has no generators yet', () => {
       // Call syncServerRegisters without any prior addRegister
       server.syncServerRegisters({
         uuid: 'fresh-uuid',
@@ -1219,8 +1219,9 @@ describe('ModbusServer', () => {
       )
     })
 
-    // ! Coverage-only: exercises FALSE branch of if (generators) in syncServerRegisters
-    it('skips generator cleanup when unitId has no generators', () => {
+    // ! Coverage-only: the same FALSE branch, reached with the uuid's map there
+    // and the unit id's missing.
+    it('syncs a unit id that has no generators yet', () => {
       // Add a generator for unitId '1'
       server.addRegister({
         uuid,

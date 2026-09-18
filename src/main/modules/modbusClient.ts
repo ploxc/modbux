@@ -22,6 +22,7 @@ import {
 } from '@shared'
 import { Windows } from '../windows'
 import {
+  NodeStyleCallback,
   ReadCoilResult,
   ReadRegisterResult,
   WriteCoilResult,
@@ -91,6 +92,11 @@ interface ModbusRTUEmitter extends ModbusRTU {
  * `ModbusRTU.d.ts` declares neither, so both arrive untyped and the shape is
  * written here. `_transactions` is the table every request is filed in, and
  * `_port._transactionIdWrite` is the key the next one files under.
+ *
+ * Both optionals describe modbus-serial rather than guarding anything here. A
+ * client built but not connected has no `_port` at all, and a serial port has
+ * no `_transactionIdWrite` until `open` sets it. `_nextTransactionIdKey` runs
+ * behind `_requireConnected`, so it meets neither state.
  */
 interface ModbusRTUInternals extends ModbusRTU {
   _transactions: Record<string, RawTransaction | undefined>
@@ -665,9 +671,12 @@ export class ModbusClient {
   // The library checks for them before using them; this used to not, and a
   // scan that met one crashed the handler it ran in.
   //
-  // The key is a transaction id on TCP and UDP, and nothing at all on a
-  // serial port: RTU has no transaction ids, so every serial transaction is
-  // filed under the string "undefined". It is a map key, not a number.
+  // The key is a transaction id on TCP and UDP, whose ports write it into the
+  // MBAP header and increment it per request. A serial port has none: RTU
+  // frames carry no transaction id, and `rtubufferedport.js` never names
+  // `_transactionIdWrite`. `open` sets it to 1 for every transport
+  // (`index.js:679`), so every serial request files under the key 1 and the
+  // next one lands on top of the last. It is a map key, not a number.
   private _internals = (): ModbusRTUInternals => this._client as ModbusRTUInternals
 
   /**
@@ -868,6 +877,27 @@ export class ModbusClient {
     if (!this._readLoopOwner()) this.read()
   }
 
+  /**
+   * A `writeFCx` as a promise.
+   *
+   * `ModbusRTU.d.ts` gives FC5, FC6, FC15 and FC16 one signature apart from the
+   * value: unit id, data address, the value, and a `NodeStyleCallback`. This
+   * conversion was written out once per code, and the four copies differed in
+   * the method name, the type argument and the value they passed. The caller
+   * hands over a call with the callback still open, so `this._client` stays
+   * bound and the method and its arguments stay where the reader is.
+   */
+  private _awaitWrite = <R>(write: (next: NodeStyleCallback<R>) => void): Promise<R> =>
+    new Promise<R>((resolve, reject) =>
+      write((error, data) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(data)
+      })
+    )
+
   private _writeCoil = async (
     address: number,
     value: boolean[],
@@ -893,26 +923,14 @@ export class ModbusClient {
 
     try {
       if (single) {
-        await new Promise<WriteCoilResult>((resolve, reject) =>
-          this._client.writeFC5(unitId, address, first, (err, data) => {
-            if (err) {
-              reject(err)
-              return
-            }
-            resolve(data)
-          })
+        await this._awaitWrite<WriteCoilResult>((next) =>
+          this._client.writeFC5(unitId, address, first, next)
         )
         return { sent: true, transactionIdKey, errorMessage: undefined }
       }
       // Write multiple coils
-      await new Promise<WriteMultipleResult>((resolve, reject) =>
-        this._client.writeFC15(unitId, address, value, (err, data) => {
-          if (err) {
-            reject(err)
-            return
-          }
-          resolve(data)
-        })
+      await this._awaitWrite<WriteMultipleResult>((next) =>
+        this._client.writeFC15(unitId, address, value, next)
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error })
@@ -958,26 +976,14 @@ export class ModbusClient {
     try {
       if (single) {
         // Write single register
-        await new Promise<WriteRegisterResult>((resolve, reject) =>
-          this._client.writeFC6(unitId, address, registers[0], (err, data) => {
-            if (err) {
-              reject(err)
-              return
-            }
-            resolve(data)
-          })
+        await this._awaitWrite<WriteRegisterResult>((next) =>
+          this._client.writeFC6(unitId, address, registers[0], next)
         )
         return { sent: true, transactionIdKey, errorMessage: undefined }
       }
       // Write multiple registers
-      await new Promise<WriteMultipleResult>((resolve, reject) =>
-        this._client.writeFC16(unitId, address, registers, (err, data) => {
-          if (err) {
-            reject(err)
-            return
-          }
-          resolve(data)
-        })
+      await this._awaitWrite<WriteMultipleResult>((next) =>
+        this._client.writeFC16(unitId, address, registers, next)
       )
     } catch (error) {
       this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
