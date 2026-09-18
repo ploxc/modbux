@@ -46,10 +46,15 @@ import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 
 /**
- * The version the blob on disk carried, set by `migrate` and read once below.
+ * The version the blob on disk carried, set by `migrate` and read by
+ * `repairFromTheKey`.
  *
  * persist calls `migrate` for any version that is not the current one, the ones
- * above it included, and that call is the only place the number is offered.
+ * above it included, and that call is the only place the number is offered. A
+ * key at the current version therefore leaves this where it was, which is why
+ * the rehydrate clears it before re-reading: a launch off a newer blob leaves a
+ * higher number here, the store re-persists at the current version, and
+ * `repairPersisted` answers a reset on `savedByNewerVersion` alone.
  */
 let persistedVersion: number | undefined
 
@@ -540,9 +545,7 @@ const serverZustand = useServerZustand.getState()
  * Keep the fields that parsed and default the rest, then say which went.
  *
  * Called at load and again after the `window_update` rehydrate, which is the
- * store's second way in: `persist.rehydrate()` runs `migrate` and merges, and
- * `migrate` writes `persistedVersion`, so each call reads the version the key
- * it is checking carried. `MessageReceiver` selects `configReset`, so a reset
+ * store's second way in. `MessageReceiver` selects `configReset`, so a reset
  * found at the close is told the same way one found at load is.
  */
 const repairFromTheKey = (): void => {
@@ -862,6 +865,7 @@ onEvent('window_update', ({ server }) => {
   }
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
+  persistedVersion = undefined
   void Promise.resolve(useServerZustand.persist.rehydrate())
     .then(() => {
       repairFromTheKey()

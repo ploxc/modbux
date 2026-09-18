@@ -167,6 +167,29 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().port).toEqual(useServerZustand.getInitialState().port)
   })
 
+  // `persist` runs `migrate` only where the blob's version differs from the
+  // store's, so a re-read of a key already at the current version leaves
+  // `persistedVersion` holding whatever the launch put there. A launch off a
+  // newer blob puts a higher number there, and `repairPersisted` answers a
+  // reset on that alone.
+  it('does not report a newer version twice for a key at this one', async () => {
+    const fromNewer = JSON.parse(store([0]))
+    fromNewer.version = CURRENT_SERVER_ZUSTAND_VERSION + 1
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(fromNewer))
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+    expect(useServerZustand.getState().configReset?.savedByNewerVersion).toBe(true)
+
+    useServerZustand.getState().acknowledgeConfigReset()
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0, 77]))
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+    await settle()
+
+    expect(useServerZustand.getState().configReset).toBeUndefined()
+  })
+
   it('says nothing when the re-read key parses', async () => {
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0]))
     const { useServerZustand } = await import('../server.zustand')

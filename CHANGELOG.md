@@ -317,10 +317,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the read stopped with `Attempt to access memory outside buffer bounds`
   rather than showing the registers that did come through. The trailing byte is
   dropped now.
-- **Modbux keeps one copy of a configuration it could not read, rather than one
-  per launch.** Every launch that had to repair the saved setup left a copy of
-  the unreadable one beside it, and nothing read a copy or removed one. The copy
-  is the whole saved configuration, register mapping included.
 - **A serial error Modbux does not recognise now names the port it came from.**
   The port was in front of the two messages Modbux writes itself and missing
   from the one that hands the driver's own text through, which is the message a

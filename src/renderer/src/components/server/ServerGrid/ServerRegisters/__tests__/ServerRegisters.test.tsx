@@ -161,4 +161,22 @@ describe('what order the server rows come out in', () => {
   it('sorts by address where every key is one', () => {
     expect(renderedAddresses({ 2: registerAt(2), 10: registerAt(10) })).toEqual([2, 10])
   })
+
+  // '7' and '007' both pass `RegisterAddressKeySchema` and both entries carry
+  // address 7, so a row key built from the address alone is the same string
+  // twice. Both rows draw today and React says the behaviour is unsupported:
+  // "Encountered two children with the same key,
+  // `server_register_holding_registers_7`." The map key is unique by
+  // construction, so keying on it is the answer that cannot go either way.
+  it('gives a row per entry a key of its own where two keys name one address', () => {
+    const warnings: unknown[] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      warnings.push(args[0])
+    })
+
+    expect(renderedAddresses({ '007': registerAt(7), '7': registerAt(7) })).toEqual([7, 7])
+
+    spy.mockRestore()
+    expect(warnings.filter((w) => String(w).includes('same key'))).toEqual([])
+  })
 })
