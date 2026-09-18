@@ -174,6 +174,22 @@ describe('BitMapConfigSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  // Both writers spell the key `String(bitIndex)` over 0 to 15, and
+  // `ServerBitMapDetail` and `BitMapDetailPanel` read it back the same way, so
+  // each of these is a key a hand edit put there and nothing shows.
+  it.each(['', ' ', '1.5', '1e1', '0x0', '+1', '\n'])(
+    'rejects the bit index %j, which no reader asks for',
+    (key) => {
+      expect(BitMapConfigSchema.safeParse({ [key]: { comment: 'unreachable' } }).success).toBe(
+        false
+      )
+    }
+  )
+
+  it.each(['0', '9', '10', '15'])('accepts the bit index %j', (key) => {
+    expect(BitMapConfigSchema.safeParse({ [key]: { comment: 'read' } }).success).toBe(true)
+  })
+
   it('accepts empty config', () => {
     expect(BitMapConfigSchema.safeParse({}).success).toBe(true)
   })

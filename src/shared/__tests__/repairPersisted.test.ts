@@ -151,15 +151,29 @@ describe('keepCorrupt', () => {
   it('copies the blob under a key nothing reads', () => {
     const store = storage({ 'client.zustand': '{"broken":true}' })
 
-    keepCorrupt(store, 'client.zustand', () => 1756800000000)
+    keepCorrupt(store, 'client.zustand')
 
-    expect(store.held['client.zustand.corrupt-1756800000000']).toBe('{"broken":true}')
+    expect(store.held['client.zustand.corrupt']).toBe('{"broken":true}')
+  })
+
+  it('keeps one copy per key, whatever a launch before it left', () => {
+    const store = storage({
+      'client.zustand': '{"broken":"second"}',
+      'client.zustand.corrupt': '{"broken":"first"}'
+    })
+
+    keepCorrupt(store, 'client.zustand')
+
+    expect(Object.keys(store.held).filter((key) => key.includes('.corrupt'))).toEqual([
+      'client.zustand.corrupt'
+    ])
+    expect(store.held['client.zustand.corrupt']).toBe('{"broken":"second"}')
   })
 
   it('leaves the original where it is', () => {
     const store = storage({ 'client.zustand': '{"broken":true}' })
 
-    keepCorrupt(store, 'client.zustand', () => 1)
+    keepCorrupt(store, 'client.zustand')
 
     expect(store.held['client.zustand']).toBe('{"broken":true}')
   })
@@ -167,7 +181,7 @@ describe('keepCorrupt', () => {
   it('writes nothing when there is no blob', () => {
     const store = storage()
 
-    keepCorrupt(store, 'client.zustand', () => 1)
+    keepCorrupt(store, 'client.zustand')
 
     expect(Object.keys(store.held)).toEqual([])
   })

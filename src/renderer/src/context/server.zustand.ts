@@ -536,14 +536,25 @@ export const useServerZustand = create<
 
 const serverZustand = useServerZustand.getState()
 
-// Keep the fields that parsed and default the rest, then say which went.
-const repair = repairPersistedStore(useServerZustand, PersistedServerZustandSchema, {
-  storageKey: SERVER_ZUSTAND_STORAGE_KEY,
-  persistedVersion,
-  currentVersion: CURRENT_SERVER_ZUSTAND_VERSION
-})
+/**
+ * Keep the fields that parsed and default the rest, then say which went.
+ *
+ * Called at load and again after the `window_update` rehydrate, which is the
+ * store's second way in: `persist.rehydrate()` runs `migrate` and merges, and
+ * `migrate` writes `persistedVersion`, so each call reads the version the key
+ * it is checking carried. `MessageReceiver` selects `configReset`, so a reset
+ * found at the close is told the same way one found at load is.
+ */
+const repairFromTheKey = (): void => {
+  const repair = repairPersistedStore(useServerZustand, PersistedServerZustandSchema, {
+    storageKey: SERVER_ZUSTAND_STORAGE_KEY,
+    persistedVersion,
+    currentVersion: CURRENT_SERVER_ZUSTAND_VERSION
+  })
+  if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.reset })
+}
 
-if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.reset })
+repairFromTheKey()
 
 // Init server
 useServerZustand.getState().init()
@@ -852,7 +863,10 @@ onEvent('window_update', ({ server }) => {
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
   void Promise.resolve(useServerZustand.persist.rehydrate())
-    .then(markRehydratedUuidsReady)
+    .then(() => {
+      repairFromTheKey()
+      markRehydratedUuidsReady()
+    })
     // `rehydrate` reads the key and runs `migrateServerState` over what it
     // finds, and either can throw on a blob a hand edit left there. Unhandled,
     // that is the window's only sign that the re-read did not happen.

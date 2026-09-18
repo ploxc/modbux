@@ -311,6 +311,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields stopped at two, so an endpoint of 0.0625 went in as 0.06 and every row
   scaled through it read 4% low. They take seven now, which is what the value,
   min and max fields on the server side have always taken.
+- **A read no longer fails on a device whose answer carries half a register.**
+  The reply declares how many bytes it holds, and a device declaring an odd
+  number leaves a byte no register is made of. Modbux read past the end of it
+  and the read stopped with `Attempt to access memory outside buffer bounds`
+  rather than showing the registers that did come through. The trailing byte is
+  dropped now.
+- **Modbux keeps one copy of a configuration it could not read, rather than one
+  per launch.** Every launch that had to repair the saved setup left a copy of
+  the unreadable one beside it, and nothing read a copy or removed one. The copy
+  is the whole saved configuration, register mapping included.
+- **A serial error Modbux does not recognise now names the port it came from.**
+  The port was in front of the two messages Modbux writes itself and missing
+  from the one that hands the driver's own text through, which is the message a
+  bug report gets written about.
 
 ### Changed
 

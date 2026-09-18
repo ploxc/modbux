@@ -122,3 +122,43 @@ describe('what the server row shows for a timestamp', () => {
     expect(cell).toHaveTextContent('—')
   })
 })
+
+describe('what order the server rows come out in', () => {
+  /** A `uint16` register at `address`, which is what the panel draws a row per. */
+  const registerAt = (address: number): ServerRegisterEntry => ({
+    value: address,
+    params: {
+      address,
+      registerType: 'holding_registers',
+      dataType: 'uint16',
+      comment: '',
+      value: 0,
+      min: undefined,
+      max: undefined,
+      interval: undefined
+    }
+  })
+
+  /** The addresses the rendered rows carry, top to bottom. */
+  const renderedAddresses = (map: ServerRegister): number[] => {
+    registers.holding_registers = map
+    const { container } = render(
+      <ServerRegisters name="Holding Registers" type="holding_registers" />
+    )
+    return Array.from(container.querySelectorAll('[data-testid^="server-reg-value-"]')).map(
+      (cell) => Number(cell.getAttribute('data-testid')?.split('-').pop())
+    )
+  }
+
+  // `RegisterAddressKeySchema` is `/^\d+$/` refined to 65535, so a hand-edited
+  // config carrying '007' is accepted. A key that is not a canonical numeric
+  // string is not an integer index, so the language enumerates it after every
+  // key that is, in insertion order.
+  it('sorts by address where a key is not an integer index', () => {
+    expect(renderedAddresses({ '007': registerAt(7), '9': registerAt(9) })).toEqual([7, 9])
+  })
+
+  it('sorts by address where every key is one', () => {
+    expect(renderedAddresses({ 2: registerAt(2), 10: registerAt(10) })).toEqual([2, 10])
+  })
+})

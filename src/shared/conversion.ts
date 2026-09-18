@@ -105,8 +105,12 @@ export const convertRegisterData = (
   const { buffer } = result
   const registerData: RegisterData[] = []
 
-  // A register contains 16 bits, so we handle 2 bytes at a time
-  const registers = result.buffer.byteLength / 2
+  // A register contains 16 bits, so we handle 2 bytes at a time. The floor is
+  // for the odd buffer: modbus-serial slices this at the byte count the
+  // response declares and never compares that field with the frame length it
+  // checked, so a device that declares an odd one leaves a trailing byte no
+  // register is made of.
+  const registers = Math.floor(buffer.byteLength / 2)
 
   for (let i = 0; i < registers; i++) {
     const offset = i * 2 // Register (16 bits) = 2 bytes

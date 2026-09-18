@@ -146,6 +146,41 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().ready.u).toBe(false)
   })
 
+  // The load path reads the key back through `PersistedServerZustandSchema`
+  // and this one ran `migrateServerState` alone, so a key hand-edited between
+  // that window opening and closing was installed unvalidated.
+  it('reads the re-read key back through the schema', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0]))
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+    expect(useServerZustand.getState().configReset).toBeUndefined()
+
+    const edited = JSON.parse(store([0]))
+    edited.state.port = 'nope'
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+    await settle()
+
+    expect(useServerZustand.getState().configReset?.fields).toContain('port')
+    expect(useServerZustand.getState().port).toEqual(useServerZustand.getInitialState().port)
+  })
+
+  it('says nothing when the re-read key parses', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0]))
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, store([0, 77]))
+
+    fireEvent('window_update', { main: true, server: true })
+    fireEvent('window_update', { main: true, server: false })
+    await settle()
+
+    expect(useServerZustand.getState().configReset).toBeUndefined()
+  })
+
   // `rtuServerActive` is not persisted, so re-reading the key leaves it where
   // it was, and the split out window is the one that heard the last change.
   it('asks main for the RTU status, at load and at the close', async () => {

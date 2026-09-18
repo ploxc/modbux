@@ -124,16 +124,18 @@ export function resetMessage(store: 'Client' | 'Server', reset: ConfigReset): st
  *
  * The reset is what makes the app usable again, and it is also what destroys
  * the evidence. A copy under a key nothing reads costs the bytes it holds.
+ *
+ * One copy per key, overwritten. The key carried a timestamp, so every launch
+ * that repaired anything left another whole blob in the store's own
+ * localStorage budget, and nothing read one or deleted one. The blob worth
+ * having is the one that failed most recently, and a fixed key is one
+ * something could offer to export.
  */
-export function keepCorrupt(
-  storage: Pick<Storage, 'getItem' | 'setItem'>,
-  key: string,
-  now: () => number = Date.now
-): void {
+export function keepCorrupt(storage: Pick<Storage, 'getItem' | 'setItem'>, key: string): void {
   try {
     const blob = storage.getItem(key)
     if (blob === null) return
-    storage.setItem(`${key}.corrupt-${now()}`, blob)
+    storage.setItem(`${key}.corrupt`, blob)
   } catch {
     // Storage that cannot be read holds nothing worth keeping either.
   }

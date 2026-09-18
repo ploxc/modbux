@@ -518,9 +518,14 @@ describe('humanizeSerialError', () => {
     expect(humanizeSerialError(err)).toBe('Connection timeout')
   })
 
-  it('returns original message for unknown errors even with port', () => {
+  it('prepends port name for an error it does not recognise', () => {
     const err = new Error('Something went wrong')
-    expect(humanizeSerialError(err, 'COM5')).toBe('Something went wrong')
+    expect(humanizeSerialError(err, 'COM5')).toBe('COM5: Something went wrong')
+  })
+
+  it('prepends port name for an error with no message', () => {
+    const err = Object.assign(new Error(''), { code: 'EBUSY' })
+    expect(humanizeSerialError(err, 'COM5')).toBe('COM5: Connection failed (EBUSY)')
   })
 })
 

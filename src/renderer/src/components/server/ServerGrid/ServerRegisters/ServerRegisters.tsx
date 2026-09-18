@@ -141,11 +141,17 @@ const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
     const unitId = z.getUnitId(uuid)
     return z.serverRegisters[uuid]?.[unitId]?.[type]
   })
-  const registers = useMemo(() => Object.values(registerMap ?? {}), [registerMap])
+  // Sorted by the address the row draws, the way `ServerBoolList` sorts its
+  // keys. `Object.values` is ascending only over integer-index keys, and
+  // `RegisterAddressKeySchema` accepts '007', which is not one.
+  const registers = useMemo(
+    () => Object.values(registerMap ?? {}).sort((a, b) => a.params.address - b.params.address),
+    [registerMap]
+  )
 
   return registers.map((register) => (
     <ServerRegisterRow
-      key={`server_register_${register.params.registerType.replace(/ /gm, '_')}_${register.params.address}`}
+      key={`server_register_${register.params.registerType}_${register.params.address}`}
       register={register}
     />
   ))

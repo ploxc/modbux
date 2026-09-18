@@ -202,6 +202,19 @@ describe('convertRegisterData', () => {
     expect(convertRegisterData(null as never, 0, false, false)).toEqual([])
   })
 
+  it('reads the whole registers of an odd buffer and stops', () => {
+    // Three bytes is what a device declaring a byte count of 3 hands over.
+    // Without a floor the register count is 1.5, `inRange32` is 0 < 0.5, and
+    // `readInt32BE(0)` on three bytes is "Attempt to access memory outside
+    // buffer bounds".
+    const result = { data: [1], buffer: Buffer.from([0x00, 0x01, 0x02]) }
+
+    const data = convertRegisterData(result, 0, false, false)
+
+    expect(data).toHaveLength(1)
+    expect(data[0]?.words?.uint16).toBe(1)
+  })
+
   it('converts a single register (uint16)', () => {
     const result = makeResult([1234])
     const data = convertRegisterData(result, 100, false, false)
