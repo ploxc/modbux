@@ -716,10 +716,16 @@ export class ModbusClient {
   /**
    * Log the request filed under `transactionIdKey`, and only that one.
    *
-   * The caller names its own request because the table holds everyone else's.
-   * A write and a read loop overlap: `write` files its transaction, the poll
-   * the user then starts files a second, and taking the last entry logged the
-   * read as the write and took the read's entry with it.
+   * The caller names its own request because the table holds whatever earlier
+   * requests were never logged out of it. Taking the last entry instead logged
+   * one caller's frame as another's and deleted the entry that caller was
+   * still waiting on.
+   *
+   * On a serial port that key is 1 for every request, so naming it
+   * discriminates nothing and the delete below would take an entry still in
+   * flight. What keeps them apart there is that there is only ever one:
+   * `write` and `read` are both refused while `_readLoopOwner` answers, and a
+   * poll awaits each request before it sends the next.
    */
   private _logTransaction = (transactionIdKey: string, errorMessage: string | undefined): void => {
     const rawTransactions = this._internals()._transactions

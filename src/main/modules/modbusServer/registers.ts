@@ -10,7 +10,8 @@ import {
 import { Windows } from '../../windows'
 
 /**
- * The words a value of this type occupies.
+ * The words a value encodes to, which is not the same question as how many.
+ * `registerWidth` answers that one.
  *
  * Two writers reach it: `ModbusServer.addRegister` for a fixed register, and
  * `ValueGenerator` on every tick. Both used to spell the pair of encoders out,
