@@ -30,7 +30,12 @@ import type {
   SerialGroupStatus,
   SerialGroupFixResult
 } from '@shared'
-import { SharedProps } from 'notistack'
+// `import type`, because shared is the one module all three processes compile
+// against and notistack is a renderer dependency. `variant` below is the only
+// thing taken from it, in a type position. esbuild dropped the import either
+// way: `grep -c notistack out/main/index.js out/preload/index.js` answers 0 for
+// both, before and after this line changed.
+import type { SharedProps } from 'notistack'
 
 /**
  * Which windows are open, as `window_update` carries it.

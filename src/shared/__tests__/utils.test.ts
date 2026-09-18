@@ -405,8 +405,9 @@ describe('getMinMaxValues', () => {
     expect(max).toBe(Number.POSITIVE_INFINITY)
   })
 
-  it('returns { min: 0, max: 0 } for unknown types', () => {
+  it('returns { min: 0, max: 0 } for the two types that hold no number', () => {
     expect(getMinMaxValues('none')).toEqual({ min: 0, max: 0 })
+    expect(getMinMaxValues('utf8')).toEqual({ min: 0, max: 0 })
   })
 
   it('states the unix range in the seconds createRegisters writes', () => {

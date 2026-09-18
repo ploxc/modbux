@@ -14,6 +14,5 @@ export interface LayoutZustand {
   setHideHomeButton: (hide: boolean) => void
   toggleShowLog: () => void
   toggleShowGridWhileScanning: () => void
-  setShowLog: (show: boolean) => void
   setAppType: (appType: AppType | undefined) => void
 }

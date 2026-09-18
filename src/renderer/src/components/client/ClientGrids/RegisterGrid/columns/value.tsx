@@ -5,20 +5,16 @@ import { DataType, RegisterData, RegisterDataWords } from '@shared'
 const registerValueToString = (
   value: number | bigint
 ): { numberString: string; irrelevant: boolean } => {
-  let numberString: string = '0'
-  numberString = value.toString(10)
+  const numberString = value.toString(10)
 
-  const irrelevant = numberString === '0'
-
-  return { numberString, irrelevant }
+  return { numberString, irrelevant: numberString === '0' }
 }
 
 export const valueColumn = (
   key: DataType,
-  width: number,
-  type?: GridColDef['type']
+  width: number
 ): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
-  type: type ?? 'number',
+  type: 'number',
   field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,

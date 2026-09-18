@@ -57,7 +57,7 @@ export const ScanUnitIDResultSchema = z.object({
    * is there and talking, which is the opposite of the silence a unit ID that
    * is not on the bus gives back.
    */
-  refusedRegisterTypes: z.array(RegisterTypeSchema).default([]),
+  refusedRegisterTypes: z.array(RegisterTypeSchema),
   requestedRegisterTypes: z.array(RegisterTypeSchema),
   errorMessage: ScanUnitIdErrorMessageSchema
 })

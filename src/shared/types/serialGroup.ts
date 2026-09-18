@@ -1,3 +1,5 @@
+import type { PkexecFixResult } from './pkexec'
+
 /**
  * Linux serial group types
  *
@@ -49,16 +51,7 @@ export interface SerialGroupStatus {
   sandbox?: 'flatpak' | 'snap'
 }
 
-/** Why an attempt did not go through. */
-export type SerialGroupFixFailure = 'cancelled' | 'unavailable' | 'failed' | 'unsupported'
-
-export interface SerialGroupFixResult {
-  ok: boolean
-  /** Absent when `ok` is true. */
-  reason?: SerialGroupFixFailure
-  /** Human-readable outcome, safe to drop straight into a snackbar. */
-  message: string
-}
+export type SerialGroupFixResult = PkexecFixResult
 
 /**
  * The argv passed to pkexec. An array, so the main process never builds a

@@ -32,7 +32,7 @@ type GetAddressInUseFn = (
   length?: number
 ) => boolean
 
-export const getAddressInUse: GetAddressInUseFn = (
+const getAddressInUse: GetAddressInUseFn = (
   uuid,
   unitId,
   registerType,

@@ -28,20 +28,3 @@ export const onEvent = <E extends IpcEvent>(
   }
   return window.electron.ipcRenderer.on(event, wrapped)
 }
-
-/**
- * Register a one-time listener for an IPC event.
- * - E must be one of the keys in IpcEvent.
- * - listener receives the payload tuple defined in IpcEventPayloadMap[E].
- *
- * Returns a function that removes this listener if it hasn’t fired yet.
- */
-export const onceEvent = <E extends IpcEvent>(
-  event: E,
-  listener: (...args: IpcEventPayloadMap[E]) => void
-): (() => void) => {
-  const wrapped: IpcRendererListener = (_ev, ...args) => {
-    listener(...(args as IpcEventPayloadMap[E]))
-  }
-  return window.electron.ipcRenderer.once(event, wrapped)
-}

@@ -97,7 +97,7 @@ interface ModbusRTUInternals extends ModbusRTU {
   _port: { _transactionIdWrite?: number } | undefined
 }
 
-export interface ClientParams {
+interface ClientParams {
   appState: AppState
   windows: Windows
 }

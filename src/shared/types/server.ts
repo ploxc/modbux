@@ -86,7 +86,6 @@ const RegisterParamsStaticPartSchema = z.object({
   max: z.undefined(),
   interval: z.undefined()
 })
-export type RegisterParamsStaticPart = z.infer<typeof RegisterParamsStaticPartSchema>
 
 export type RegisterValue<K extends RegisterType = RegisterType> = {
   [P in K]: {
@@ -322,11 +321,6 @@ export const CreateServerParamsSchema = z.object({
   port: PortSchema
 })
 export type CreateServerParams = z.infer<typeof CreateServerParamsSchema>
-
-export interface SetUnitIdParams {
-  uuid: string
-  unitID: UnitIdString
-}
 
 export type ServerData = { [K in RegisterType]: K extends BooleanRegisters ? boolean[] : number[] }
 

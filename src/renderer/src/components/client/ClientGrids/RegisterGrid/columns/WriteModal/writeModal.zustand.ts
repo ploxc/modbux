@@ -5,7 +5,7 @@ import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 
 /** What the dialog writes with when the address does not name a type. */
-export const DEFAULT_WRITE_DATA_TYPE: BaseDataType = 'int16'
+const DEFAULT_WRITE_DATA_TYPE: BaseDataType = 'int16'
 
 /**
  * The data type the dialog opens with for an address.

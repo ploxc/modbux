@@ -1,4 +1,5 @@
 import z from 'zod'
+import type { PkexecFixResult } from './pkexec'
 /**
  * Linux privileged port types
  *
@@ -45,15 +46,7 @@ export interface PrivilegedPortStatus {
   sandbox?: PrivilegedPortSandbox
 }
 
-/** Why a fix attempt did not go through. */
-export type PrivilegedPortFixFailure = 'cancelled' | 'unavailable' | 'failed' | 'unsupported'
-
-export interface PrivilegedPortFixResult {
-  ok: boolean
-  /** Absent when `ok` is true. */
-  reason?: PrivilegedPortFixFailure
-  /** Human-readable outcome, safe to drop straight into a snackbar. */
-  message: string
+export interface PrivilegedPortFixResult extends PkexecFixResult {
   /** The value in effect after the command ran, re-read from the kernel. */
   unprivilegedPortStart?: number
 }

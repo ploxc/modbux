@@ -9,7 +9,6 @@ export const BitMapEntrySchema = z.object({
   color: BitColorSchema.optional(),
   invert: z.boolean().optional()
 })
-export type BitMapEntry = z.infer<typeof BitMapEntrySchema>
 
 /** Record keyed by bit-index string ("0" – "15"). */
 export const BitMapConfigSchema = z.record(

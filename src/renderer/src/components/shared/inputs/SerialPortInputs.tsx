@@ -19,7 +19,7 @@ import {
 } from '@shared'
 import React, { useMemo } from 'react'
 
-export const measureTextWidth = (
+const measureTextWidth = (
   text: string,
   font: string = '400 0.85rem Roboto, sans-serif'
 ): number => {

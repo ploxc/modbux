@@ -35,10 +35,6 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
         const currentState = get()
         state.showLog = !currentState.showLog
       }),
-    setShowLog: (show: boolean) =>
-      set((state) => {
-        state.showLog = show
-      }),
     appType: isServerWindow ? 'server' : undefined,
     setAppType: (appType: AppType | undefined) =>
       set((state) => {

@@ -62,14 +62,13 @@ export const DEFAULT_MOBUS_PORT = 502
  * request for a unit id this server does not host cannot get the same answer on
  * both.
  */
-export type ServerTransport = 'tcp' | 'rtu'
+type ServerTransport = 'tcp' | 'rtu'
 
 /** Unit 0 addresses every device on an RTU bus at once. */
-export const BROADCAST_UNIT_ID: UnitIdString = '0'
+const BROADCAST_UNIT_ID: UnitIdString = '0'
 
 /** 0 is a port number the way "any" is a name: the kernel picks, and it listens. */
-export const isPort = (port: number): boolean =>
-  Number.isInteger(port) && port >= 1 && port <= 65535
+const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 && port <= 65535
 
 /**
  * How long a bind may take before the listener is treated as failed.
@@ -131,7 +130,7 @@ type ServerSerialConstructor = new (
   ...args: [...ConstructorParameters<typeof ServerSerial>, ServerSerialPortOptions]
 ) => ServerSerial
 
-export interface ServerParams {
+interface ServerParams {
   windows: Windows
 }
 

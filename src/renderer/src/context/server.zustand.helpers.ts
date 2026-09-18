@@ -25,7 +25,7 @@ export const extractUnitIdsWithData = (serverRegisters: DefinedServerRegisters):
   return unitIdsWithData
 }
 
-export const syncBoolsWithBackend = async (
+const syncBoolsWithBackend = async (
   serverRegisters: DefinedServerRegisters,
   unitId: UnitIdString,
   syncUuid: string

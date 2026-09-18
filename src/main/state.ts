@@ -40,10 +40,6 @@ export class AppState {
   private _registerMapping?: RegisterMapping
   private _readConfiguration = false
 
-  constructor() {
-    /** No Construction */
-  }
-
   public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
     this._connectionConfig = merge<ConnectionConfig, DeepPartial<ConnectionConfig>>(
       this._connectionConfig,

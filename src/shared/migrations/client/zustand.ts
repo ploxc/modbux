@@ -18,9 +18,9 @@ export function migrateClientState(
 ): Record<string, unknown> {
   const state = persistedState as Record<string, unknown>
 
-  if (version < 2) {
-    // v1→v2: (reserved for future migrations)
-  }
+  // No v1→v2 step: it wrote `readLocalTime` into `registerConfig`, and
+  // `79fa174` took that field out of the client, so a v1 store has nothing to
+  // carry. `grep -rn readLocalTime src e2e` returns nothing.
 
   // v2→v3: the RTU parity the serial binding refuses
   if (version < 3) {

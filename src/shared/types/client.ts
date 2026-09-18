@@ -119,13 +119,11 @@ export const ConnectionConfigTcpSchema = z.object({
   host: z.string(),
   options: TcpPortOptionsSchema
 })
-export type ConnectionConfigTcp = z.infer<typeof ConnectionConfigTcpSchema>
 
 export const ConnectionConfigRtuSchema = z.object({
   com: z.string(),
   options: SerialPortOptionsSchema
 })
-export type ConnectionConfigRtu = z.infer<typeof ConnectionConfigRtuSchema>
 
 /**
  * The unit id and the port the client sends, on the range the protocol fixes.
@@ -180,7 +178,6 @@ export const ConnectStateSchema = z.enum([
   'connecting',
   'disconnecting'
 ])
-export type ConnectState = z.infer<typeof ConnectStateSchema>
 
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,

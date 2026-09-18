@@ -65,7 +65,7 @@ const TimeoutInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props,
 })
 
 TimeoutInputForward.displayName = 'TimeoutInput'
-export const TimeoutInput = meme(TimeoutInputForward)
+const TimeoutInput = meme(TimeoutInputForward)
 
 interface TimeoutFieldProps {
   disabled: boolean

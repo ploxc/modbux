@@ -163,8 +163,8 @@ export const createRegisters = (
  * the mask and `encodeIEC870DateTime` clamps to them, and a mask wider than the
  * clamp accepts a date the register does not get.
  */
-export const IEC870_MIN_MS = Date.UTC(2000, 0, 1)
-export const IEC870_MAX_MS = Date.UTC(2127, 11, 31, 23, 59, 59, 999)
+const IEC870_MIN_MS = Date.UTC(2000, 0, 1)
+const IEC870_MAX_MS = Date.UTC(2127, 11, 31, 23, 59, 59, 999)
 
 /**
  * Encode a timestamp (milliseconds) to IEC 870-5 datetime format (8 bytes / 4 registers).
@@ -221,10 +221,9 @@ export const getMinMaxValues = (dataType: DataType): { min: number; max: number 
       // Milliseconds, which is the unit `createRegisters` hands the encoder.
       // Stated in seconds, the whole range encoded to the clamp floor.
       return { min: IEC870_MIN_MS, max: IEC870_MAX_MS }
+    case 'none':
     case 'utf8':
-      return { min: 0, max: 0 } // N/A for strings
-    default:
-      return { min: 0, max: 0 }
+      return { min: 0, max: 0 } // Neither holds a number
   }
 }
 
