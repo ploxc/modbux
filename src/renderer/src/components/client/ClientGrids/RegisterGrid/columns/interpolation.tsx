@@ -27,7 +27,8 @@ import {
   useRef,
   useState
 } from 'react'
-import { IMask, IMaskInput } from 'react-imask'
+import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
+import { IMaskInput } from 'react-imask'
 
 const defaultInterpolation: RegisterLinearInterpolation = { x1: '0', x2: '1', y1: '0', y2: '1' }
 
@@ -41,12 +42,7 @@ const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, r
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
-      {...{
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
+      {...decimalMask(false)}
       inputRef={ref}
       onAccept={(value) => {
         set(value, true)

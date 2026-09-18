@@ -6,11 +6,12 @@
  * than spread through the dialog.
  */
 import { useAddRegisterZustand } from './addRegister.zustand'
+import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
 import { integerMask } from '@renderer/components/shared/inputs/integerMask'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { forwardRef } from 'react'
-import { IMask, IMaskInput } from 'react-imask'
+import { IMaskInput } from 'react-imask'
 import { MAX_UTF8_LENGTH, notEmpty, registerWidth } from '@shared'
 import { useMinMaxInteger } from '@renderer/hooks'
 
@@ -47,16 +48,10 @@ const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, r
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...decimalMask(integer)}
       min={min}
       max={max}
       autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
       inputRef={ref}
       onAccept={(value) => {
         set(value, notEmpty(value))
@@ -78,16 +73,10 @@ const MinInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...decimalMask(integer)}
       min={min}
       max={max}
       autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
       inputRef={ref}
       onAccept={(value) => set(value, notEmpty(value))}
     />
@@ -107,16 +96,10 @@ const MaxInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...decimalMask(integer)}
       min={min}
       max={max}
       autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
       inputRef={ref}
       onAccept={(value) => set(value, notEmpty(value))}
     />

@@ -16,7 +16,8 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
-import { IMaskInput, IMask } from 'react-imask'
+import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
+import { IMaskInput } from 'react-imask'
 import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
@@ -27,16 +28,10 @@ const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, r
   return (
     <IMaskInput
       {...other}
-      mask={IMask.MaskedNumber}
+      {...decimalMask(integer)}
       min={min}
       max={max}
       autofix
-      {...{
-        scale: integer ? 0 : 7,
-        thousandsSeparator: '',
-        radix: '.', // fractional delimiter
-        mapToRadix: ['.', ','] // symbols to process as radix
-      }}
       inputRef={ref}
       onAccept={(value) => {
         set(value, notEmpty(value))
