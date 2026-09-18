@@ -8,6 +8,7 @@ import {
   migrateServerModeState
 } from '../migrations/server/zustand'
 import { defaultSerialPortOptions } from '../default'
+import type { SerialPortOptions } from '../types/serial'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -854,6 +855,24 @@ describe('configMigration', () => {
       expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit\.1\.coils/)
     })
 
+    // A list is left out: `isRecord` takes one, so `[]` loads as an empty unit
+    // the way it did before, and widening that guard reaches seven other
+    // callers.
+    it.each([5, true, 'ab'])('refuses a v1 unit holding %o', (unit) => {
+      const v1Config = JSON.stringify({
+        name: 'Not A Unit',
+        serverRegistersPerUnit: { '1': unit }
+      })
+
+      expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit\.1/)
+    })
+
+    it('refuses a v1 serverRegistersPerUnit that is a string', () => {
+      const v1Config = JSON.stringify({ name: 'Not Units', serverRegistersPerUnit: 'ab' })
+
+      expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit/)
+    })
+
     it.each([5, true, 'ab'])('refuses a v1 discrete_inputs holding %o', (discreteInputs) => {
       const v1Config = JSON.stringify({
         name: 'Not A Record',
@@ -872,6 +891,12 @@ describe('configMigration', () => {
 
       expect(migrated.serverMode).toBe('tcp')
       expect(migrated.serialConfig).toEqual({ com: '', options: defaultSerialPortOptions })
+
+      // `default.ts` states the copy: a store writing one option has to leave
+      // the other's alone, which handing the object itself over would break.
+      // `toEqual` above passes either way, so the identity is its own half.
+      const serialConfig = migrated.serialConfig as { options: SerialPortOptions }
+      expect(serialConfig.options).not.toBe(defaultSerialPortOptions)
     })
   })
 })

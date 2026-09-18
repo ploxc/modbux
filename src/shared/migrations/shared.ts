@@ -35,7 +35,7 @@ export function repairPersistedParity(state: Record<string, unknown>, ...path: s
   serialOptions.parity = 'none'
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
 /**

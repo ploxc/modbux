@@ -1,5 +1,5 @@
 import z from 'zod'
-import { NumberRegistersSchema, RegisterType } from './register'
+import { isNumberRegister, RegisterType } from './register'
 
 /**
  * Ranges the protocol and the socket fix, so a schema states them once.
@@ -48,9 +48,7 @@ export const MAX_READ_REGISTERS = 125
  * about the bus.
  */
 export const maxReadQuantity = (registerTypes: readonly RegisterType[]): number =>
-  registerTypes.some((registerType) => NumberRegistersSchema.safeParse(registerType).success)
-    ? MAX_READ_REGISTERS
-    : MAX_READ_BITS
+  registerTypes.some(isNumberRegister) ? MAX_READ_REGISTERS : MAX_READ_BITS
 
 /**
  * The same range for a register map keyed by address.

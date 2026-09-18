@@ -31,11 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   app. The warning said some features may not work correctly. The file is now
   read against what this version understands, what matches is kept, and the
   message says which parts did not come across.
-- **An old configuration whose bits are not bits is now refused instead of half
-  opened.** A v1 server config whose coils or discrete inputs key held a number
-  or a true instead of the addresses under it loaded with those bits gone, and
-  reported that it had been updated from an older format. It is refused by name
-  now, the way every other unreadable file already is.
+- **An old configuration that is not shaped like one is now refused instead of
+  half opened.** A v1 server config whose unit held a number or a piece of text,
+  or whose coils or discrete inputs key held one instead of the addresses under
+  it, opened with those parts silently empty and reported that it had been
+  updated from an older format. A file whose whole register section was a piece
+  of text opened as two empty units. Each of those is refused by name now, the
+  way every other unreadable file already is.
 - **A file that is not a configuration is now refused instead of opened.**
   Picking a JSON file holding a number, a string or a list emptied the server
   and reported that the configuration had been updated from an older format. A

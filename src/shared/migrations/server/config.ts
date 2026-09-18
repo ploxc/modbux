@@ -11,11 +11,12 @@ import {
   migrateBoolShapeForUnit,
   objectValues,
   dropUnservableConfigRegisters,
+  isRecord,
   parseConfigFile,
   renameLegacyRegisterTypeKeys,
   stringifyExact64BitValues
 } from '../shared'
-import { V1ServerConfig, extractGlobalEndianness } from './shared'
+import { V1ServerConfig, V1ServerRegisters, extractGlobalEndianness } from './shared'
 import { repairPersisted } from '../../repairPersisted'
 
 /**
@@ -54,8 +55,20 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 
   const migratedRegisters: ServerRegistersPerUnit = {}
 
-  for (const [unitId, serverRegisters] of Object.entries(v1Registers)) {
-    if (!serverRegisters) continue
+  // Each unit is read as `unknown` and named after the check, because the V1
+  // types describe a file that parsed rather than one that was validated.
+  for (const [unitId, unit] of Object.entries<unknown>(v1Registers)) {
+    if (unit === undefined) continue
+
+    // A unit that is not an object read `coils` off itself, got `undefined` and
+    // loaded as an empty unit, which is the half-open door the bool records had
+    // one level down. `serverRegistersPerUnit` holding the string 'ab' opened
+    // two of them, keyed 0 and 1. It reaches the final `safeParse` whole now.
+    if (!isRecord(unit)) {
+      migratedRegisters[unitId] = unit as ServerRegisters
+      continue
+    }
+    const serverRegisters = unit as V1ServerRegisters
 
     const migratedServerRegisters: ServerRegisters = {
       coils: serverRegisters.coils ?? {},
