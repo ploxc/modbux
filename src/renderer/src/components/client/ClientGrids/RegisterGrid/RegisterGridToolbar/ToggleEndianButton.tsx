@@ -5,6 +5,7 @@ import EndianTable from '@renderer/components/shared/inputs/EndianTable'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
+import { isNumberRegister } from '@shared'
 
 const ToggleEndianButton = meme((): JSX.Element | null => {
   const type = useClientZustand((z) => z.registerConfig.type)
@@ -16,7 +17,7 @@ const ToggleEndianButton = meme((): JSX.Element | null => {
     clientZustand.setLittleEndian(value)
   }, [])
 
-  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
+  const registers16Bit = isNumberRegister(type)
   if (!registers16Bit) return null
 
   return (

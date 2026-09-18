@@ -3,6 +3,14 @@ import { create } from 'zustand'
 import { DataZustand } from './data.zustand.types'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
+// This import closes a cycle: `client.zustand.ts` imports `useDataZustand` and
+// reads it in `clearRegisterDataWhenIdle` and `setLittleEndian`. Both sides
+// hold because every use on both sides sits inside a function body, which runs
+// after both modules have evaluated. A module-scope read is the way to break
+// it: `useClientZustand.getState()` beside the `create` call below threw
+// "Cannot read properties of undefined (reading 'getState')" before
+// `client.zustand.test.ts` ran a single case, and at startup there is no React
+// render behind that to catch it.
 import { useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
 import { RegisterData, dummyWords } from '@shared'

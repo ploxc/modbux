@@ -4,6 +4,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { ChangeEvent, useCallback } from 'react'
+import { isNumberRegister } from '@shared'
 
 const MenuRegisterOptions = meme((): JSX.Element | null => {
   const type = useClientZustand((z) => z.registerConfig.type)
@@ -21,7 +22,7 @@ const MenuRegisterOptions = meme((): JSX.Element | null => {
     clientZustand.setShow64BitValues(event.target.checked)
   }, [])
 
-  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
+  const registers16Bit = isNumberRegister(type)
   if (!registers16Bit) return null
 
   return (

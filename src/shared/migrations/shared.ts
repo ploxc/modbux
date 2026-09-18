@@ -2,7 +2,13 @@ import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterMapValueSchema } from '../types/client'
 import { RegisterParamsSchema } from '../types/server'
-import { DataType, NumberRegistersSchema, ParitySchema, UnitIdStringSchema } from '../types'
+import {
+  BooleanRegistersSchema,
+  DataType,
+  NumberRegistersSchema,
+  ParitySchema,
+  UnitIdStringSchema
+} from '../types'
 import { getUsedAddresses, holdsExact64Bits } from '../utils'
 
 /**
@@ -305,7 +311,7 @@ export function dropUnmappableRegisters(state: Record<string, unknown>): void {
 export function migrateBoolShapeForUnit(unitRegisters: unknown): void {
   if (!isRecord(unitRegisters)) return
 
-  for (const boolType of ['coils', 'discrete_inputs'] as const) {
+  for (const boolType of BooleanRegistersSchema.options) {
     const boolRecord = unitRegisters[boolType]
     if (!isRecord(boolRecord)) continue
 

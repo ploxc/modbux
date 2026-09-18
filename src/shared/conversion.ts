@@ -151,8 +151,16 @@ export const convertRegisterData = (
         uint64: buf64 ? buf64.readBigUInt64BE(0) : BigInt(0),
         double: buf64 ? round(buf64.readDoubleBE(0), 10) : 0,
         datetime: buf64 ? parseIEC870DateTime(buf64) : '',
-        // Replace null values with spaces — start from current register offset
-        // so character indexing aligns with register positions
+        // Replace null values with spaces, starting from this register's
+        // offset so character indexing aligns with register positions.
+        //
+        // The rest of the read, with no ceiling of its own, because the
+        // protocol is the ceiling: FC03 and FC04 answer at most 125 registers,
+        // so the widest tail here is 250 bytes. Holding it to
+        // `MAX_UTF8_READ_REGISTERS` instead took a 125 register conversion
+        // from 2.88 ms to 2.58 ms, median of 40, and cut what the grid draws
+        // for a string read with read configuration off from 250 characters to
+        // 48.
         utf8: Buffer.from(buffer.subarray(offset).map((b) => (b === 0 ? 32 : b))).toString('utf-8')
       },
       bit: false,

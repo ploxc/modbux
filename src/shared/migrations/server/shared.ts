@@ -1,4 +1,4 @@
-import { RegisterParams } from '../../types/server'
+import { RegisterParams, ServerBoolEntry } from '../../types/server'
 
 //
 // V1 types — describe the old config format for type-safe migration
@@ -15,9 +15,14 @@ export interface V1ServerRegisterEntry {
 
 export type V1ServerRegister = Record<string, V1ServerRegisterEntry>
 
+/**
+ * The two bool records hold the entry, not the bare `boolean` a v1 file does,
+ * because `migrateServerV1toV2` runs `migrateBoolShapeInConfig` over the units
+ * before it reads them.
+ */
 export interface V1ServerRegisters {
-  coils?: Record<string, boolean>
-  discrete_inputs?: Record<string, boolean>
+  coils?: Record<string, ServerBoolEntry>
+  discrete_inputs?: Record<string, ServerBoolEntry>
   input_registers?: V1ServerRegister
   holding_registers?: V1ServerRegister
 }

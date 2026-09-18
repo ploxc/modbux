@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { CURRENT_SERVER_CONFIG_VERSION, migrateServerConfig } from '../migrations/server/config'
 import { migrateClientConfig } from '../migrations/client/config'
 import { resetMessage } from '../repairPersisted'
-import { migrateServerRegistersState, migrateBoolShape } from '../migrations/server/zustand'
+import {
+  migrateServerRegistersState,
+  migrateBoolShape,
+  migrateServerModeState
+} from '../migrations/server/zustand'
+import { defaultSerialPortOptions } from '../default'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -835,6 +840,38 @@ describe('configMigration', () => {
       if (!unit) throw new Error('the migrated config has no unit 0')
       expect(unit.coils['0']).toEqual({ value: true })
       expect(unit.coils['1']).toEqual({ value: false })
+    })
+
+    // The step is `migrateBoolShapeForUnit`, which leaves a bool record that is
+    // not an object where it found it. The copy this file used to hold built a
+    // new record per bool type, so `coils: 5` became `{}` and loaded.
+    it.each([5, true, 'ab'])('refuses a v1 coils holding %o', (coils) => {
+      const v1Config = JSON.stringify({
+        name: 'Not A Record',
+        serverRegistersPerUnit: { '1': { coils, discrete_inputs: {} } }
+      })
+
+      expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit\.1\.coils/)
+    })
+
+    it.each([5, true, 'ab'])('refuses a v1 discrete_inputs holding %o', (discreteInputs) => {
+      const v1Config = JSON.stringify({
+        name: 'Not A Record',
+        serverRegistersPerUnit: { '1': { coils: {}, discrete_inputs: discreteInputs } }
+      })
+
+      expect(() => migrateServerConfig(v1Config)).toThrow(
+        /serverRegistersPerUnit\.1\.discrete_inputs/
+      )
+    })
+  })
+
+  describe('Server Zustand Migration - Serial Defaults', () => {
+    it('writes the serial options the rest of the app defaults to', () => {
+      const migrated = migrateServerModeState({})
+
+      expect(migrated.serverMode).toBe('tcp')
+      expect(migrated.serialConfig).toEqual({ com: '', options: defaultSerialPortOptions })
     })
   })
 })

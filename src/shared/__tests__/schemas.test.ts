@@ -11,7 +11,12 @@ import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../type
 import { MAX_UTF8_LENGTH } from '../utils'
 import { ScanUnitIDParametersSchema } from '../types/scan'
 import { MAX_READ_BITS, MAX_READ_REGISTERS, maxReadQuantity } from '../types/ranges'
-import type { RegisterType } from '../types/register'
+import {
+  isBooleanRegister,
+  isNumberRegister,
+  RegisterTypeSchema,
+  type RegisterType
+} from '../types/register'
 
 describe('RegisterMapObjectSchema', () => {
   it('accepts numeric string keys', () => {
@@ -590,5 +595,20 @@ describe('SerialPortOptionsSchema', () => {
   it('offers exactly what the selects list', () => {
     expect(DataBitsSchema.options.map((option) => option.value)).toEqual([8, 7, 6, 5])
     expect(StopBitsSchema.options.map((option) => option.value)).toEqual([1, 2])
+  })
+})
+
+describe('isNumberRegister and isBooleanRegister', () => {
+  // Seven sites wrote one of the two pairs out by hand, and a list written out
+  // does not grow when the enum does. Both predicates read `.options`, so this
+  // asks the question that answer settles: every register type is one or the
+  // other, and neither predicate takes something that is not a register type.
+  it.each(RegisterTypeSchema.options)('sorts %s into exactly one of the two', (registerType) => {
+    expect(isNumberRegister(registerType)).toBe(!isBooleanRegister(registerType))
+  })
+
+  it.each(['', 'holding', 'Coils', 'input_register'])('refuses %o', (notARegisterType) => {
+    expect(isNumberRegister(notARegisterType)).toBe(false)
+    expect(isBooleanRegister(notARegisterType)).toBe(false)
   })
 })

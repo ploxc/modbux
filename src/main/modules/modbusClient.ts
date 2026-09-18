@@ -10,6 +10,7 @@ import {
   createRegisters,
   groupAddressInfos,
   humanizeSerialError,
+  isBooleanRegister,
   PROTOCOL_LABELS,
   RawTransaction,
   RegisterData,
@@ -1135,9 +1136,7 @@ export class ModbusClient {
     this._logTransaction(transactionIdKey, errorMessage)
 
     if (!data) return
-    data = data.filter((row) =>
-      ['coils', 'discrete_inputs'].includes(type) ? row.bit : row.hex !== '0000'
-    )
+    data = data.filter((row) => (isBooleanRegister(type) ? row.bit : row.hex !== '0000'))
     this._sendData(data)
   }
 

@@ -4,6 +4,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
+import { isNumberRegister } from '@shared'
 
 const RawButton = meme((): JSX.Element | null => {
   const type = useClientZustand((z) => z.registerConfig.type)
@@ -14,7 +15,7 @@ const RawButton = meme((): JSX.Element | null => {
     layoutZustand.toggleShowClientRawValues()
   }, [])
 
-  if (!['input_registers', 'holding_registers'].includes(type)) return null
+  if (!isNumberRegister(type)) return null
 
   const variant: ButtonProps['variant'] = showRawValues ? 'contained' : 'outlined'
   const color: ButtonProps['color'] = showRawValues ? 'warning' : 'primary'

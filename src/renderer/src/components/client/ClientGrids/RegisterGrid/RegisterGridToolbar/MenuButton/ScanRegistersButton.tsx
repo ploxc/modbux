@@ -3,12 +3,13 @@ import { useScanRegistersZustand } from '@renderer/components/client/ScanRegiste
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
+import { isNumberRegister } from '@shared'
 import type { SetAnchorProps } from './MenuButton'
 
 const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
   const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
   const type = useClientZustand((z) => z.registerConfig.type)
-  const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
+  const registers16Bit = isNumberRegister(type)
 
   const handleOpen = useCallback(() => {
     useScanRegistersZustand.getState().setOpen(true)

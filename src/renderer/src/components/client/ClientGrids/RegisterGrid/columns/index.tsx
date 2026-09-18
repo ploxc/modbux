@@ -1,6 +1,6 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterData } from '@shared'
+import { RegisterData, isNumberRegister } from '@shared'
 import { useMemo } from 'react'
 import { addressColumn } from './address'
 import { bitColumn } from './bit'
@@ -32,7 +32,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   const showRaw = useLayoutZustand((z) => z.showClientRawValues)
 
   return useMemo(() => {
-    const registers16Bit = ['input_registers', 'holding_registers'].includes(type)
+    const registers16Bit = isNumberRegister(type)
 
     const columns: GridColDef<RegisterData>[] = [addressColumn(addressBase)]
 

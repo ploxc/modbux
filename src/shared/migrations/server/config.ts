@@ -1,7 +1,6 @@
 import {
   ServerConfigSchema,
   ServerConfig,
-  ServerBoolEntry,
   RegisterParams,
   ServerRegistersPerUnit,
   ServerRegisters
@@ -45,6 +44,12 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   renameLegacyRegisterTypeKeys(v1Config)
   const config = v1Config as V1ServerConfig
   const v1Registers = config.serverRegistersPerUnit ?? {}
+  // `V1ServerRegisters` declares the bool records as the entries this leaves,
+  // because the loop below reads them after it. The step was written out a
+  // third time here, and the copy differed: it built a new record per bool
+  // type, so a `coils` holding a number became an empty one and passed, where
+  // the helper leaves the number for `ServerConfigSchema` to refuse.
+  migrateBoolShapeInConfig(v1Registers)
   const { endianness, wasMixed } = extractGlobalEndianness(v1Registers)
 
   const migratedRegisters: ServerRegistersPerUnit = {}
@@ -52,20 +57,9 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   for (const [unitId, serverRegisters] of Object.entries(v1Registers)) {
     if (!serverRegisters) continue
 
-    // Convert old boolean shape to { value: boolean } entries
-    const migratedCoils: Record<string, ServerBoolEntry> = {}
-    for (const [address, value] of Object.entries(serverRegisters.coils ?? {})) {
-      migratedCoils[address] = typeof value === 'boolean' ? { value } : (value as ServerBoolEntry)
-    }
-    const migratedDiscreteInputs: Record<string, ServerBoolEntry> = {}
-    for (const [address, value] of Object.entries(serverRegisters.discrete_inputs ?? {})) {
-      migratedDiscreteInputs[address] =
-        typeof value === 'boolean' ? { value } : (value as ServerBoolEntry)
-    }
-
     const migratedServerRegisters: ServerRegisters = {
-      coils: migratedCoils,
-      discrete_inputs: migratedDiscreteInputs,
+      coils: serverRegisters.coils ?? {},
+      discrete_inputs: serverRegisters.discrete_inputs ?? {},
       input_registers: {},
       holding_registers: {}
     }
@@ -128,17 +122,17 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
  */
 function migrateServerV2toV3(v2Config: unknown): ServerConfig {
   const config = v2Config as ServerConfig & Record<string, unknown>
-  migrateBoolShapeInConfig(config)
+  migrateBoolShapeInConfig(config.serverRegistersPerUnit)
   stringifyExact64BitValues({ serverRegisters: { config: config.serverRegistersPerUnit } })
   return { ...config, version: 3 }
 }
 
 /**
- * Convert old `boolean` bool entries to `{ value: boolean }` in a parsed config
- * object. Mutates in place. Safe to call on already-migrated data.
+ * Convert old `boolean` bool entries to `{ value: boolean }` across every unit
+ * of a parsed config. Mutates in place. Safe to call on already-migrated data.
  */
-function migrateBoolShapeInConfig(config: Record<string, unknown>): void {
-  for (const unitRegisters of objectValues(config.serverRegistersPerUnit)) {
+function migrateBoolShapeInConfig(serverRegistersPerUnit: unknown): void {
+  for (const unitRegisters of objectValues(serverRegistersPerUnit)) {
     migrateBoolShapeForUnit(unitRegisters)
   }
 }
@@ -151,7 +145,7 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
 
   // Current version - migrate bool shape if needed, then validate
   if (detectedVersion === CURRENT_SERVER_CONFIG_VERSION) {
-    migrateBoolShapeInConfig(parsed)
+    migrateBoolShapeInConfig(parsed.serverRegistersPerUnit)
     // A file this version writes carries a decimal string for a 64 bit value,
     // and a hand-edited one can carry the number: `ServerConfigSchema` takes
     // either. The persisted store's own step is gated on the store version and

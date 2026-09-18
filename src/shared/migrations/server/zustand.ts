@@ -1,3 +1,4 @@
+import { defaultSerialPortOptions } from '../../default'
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
 import {
   dropUnservableRegisters,
@@ -48,10 +49,10 @@ export function migrateServerModeState(state: Record<string, unknown>): Record<s
     migrated.serverMode = 'tcp'
   }
   if (!migrated.serialConfig) {
-    migrated.serialConfig = {
-      com: '',
-      options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' }
-    }
+    // The same four options as `getDefaultSerialConfig`, which spreads this
+    // too. They were a literal here, so a store with no serial config was the
+    // one of the three that agreed by coincidence.
+    migrated.serialConfig = { com: '', options: { ...defaultSerialPortOptions } }
   }
   return migrated
 }
