@@ -4,6 +4,7 @@ import { useLayoutZustand } from './layout.zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
+  ClientSet,
   PersistedClientZustand,
   PersistedClientZustandSchema,
   ClientZustand
@@ -16,7 +17,9 @@ import {
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
   emptyRegisterMapping,
-  RegisterMapping
+  RegisterConfig,
+  RegisterMapping,
+  SerialPortOptions
 } from '@shared'
 import { useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
@@ -74,6 +77,52 @@ const clearRegisterDataWhenIdle = (): void => {
   const { clientState, readConfiguration } = useClientZustand.getState()
   if (clientState.polling || readConfiguration) return
   useDataZustand.getState().setRegisterData([])
+}
+
+/**
+ * One serial option, sent and then written where main took it.
+ *
+ * `baudRate`, `parity`, `dataBits` and `stopBits` differ in nothing but the
+ * key. All four describe the line a connect opens, so all four are refused
+ * while one stands. `setCom` is not this shape: it carries a validity flag.
+ */
+const setSerialOption = async <Key extends keyof SerialPortOptions>(
+  set: ClientSet,
+  get: () => ClientZustand,
+  key: Key,
+  value: SerialPortOptions[Key]
+): Promise<void> => {
+  const currentState = get()
+  if (!currentState.ready) return
+  if (currentState.clientState.connectState !== 'disconnected') return
+
+  if (!(await window.api.updateConnectionConfig({ rtu: { options: { [key]: value } } }))) return
+
+  set((state) => {
+    state.connectionConfig.rtu.options[key] = value
+  })
+}
+
+/**
+ * One register config field, sent and then written where main took it.
+ *
+ * `addressBase`, `show64BitValues`, `advancedMode`, `pollRate` and `timeout`
+ * differ in nothing but the key. The four fields that are not here each end on
+ * something more: `address`, `length` and `type` clear the grid, `littleEndian`
+ * reads again, and `length` carries a validity flag as well.
+ */
+const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
+  set: ClientSet,
+  get: () => ClientZustand,
+  key: Key,
+  value: RegisterConfig[Key]
+): Promise<void> => {
+  if (!get().ready) return
+  if (!(await window.api.updateRegisterConfig({ [key]: value }))) return
+
+  set((state) => {
+    state.registerConfig[key] = value
+  })
 }
 
 /**
@@ -239,6 +288,12 @@ export const useClientZustand = create<
       // that wrote it persisted `null` and lost the whole config on the next
       // launch. A round trip is shorter than the gap between two keystrokes, so
       // no field waits on the answer.
+      //
+      // Nine of them differ in nothing but a key under `rtu.options` or under
+      // `registerConfig`, and those are one line each over `setSerialOption`
+      // or `setRegisterConfigField` above. Every setter still written out
+      // below has its own reason: a payload of another shape, a string to
+      // convert, a validity flag, a grid to clear, a read to ask for.
       setProtocol: async (protocol) => {
         const currentState = get()
         if (!currentState.ready) return
@@ -303,77 +358,18 @@ export const useClientZustand = create<
           state.connectionConfig.rtu.com = com
         })
       },
-      setBaudRate: async (baudRate) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
-
-        if (!(await window.api.updateConnectionConfig({ rtu: { options: { baudRate } } }))) return
-
-        set((state) => {
-          state.connectionConfig.rtu.options.baudRate = baudRate
-        })
-      },
-      setParity: async (parity) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
-
-        if (!(await window.api.updateConnectionConfig({ rtu: { options: { parity } } }))) return
-
-        set((state) => {
-          state.connectionConfig.rtu.options.parity = parity
-        })
-      },
-      setDataBits: async (dataBits) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
-
-        if (!(await window.api.updateConnectionConfig({ rtu: { options: { dataBits } } }))) return
-
-        set((state) => {
-          state.connectionConfig.rtu.options.dataBits = dataBits
-        })
-      },
-      setStopBits: async (stopBits) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
-
-        if (!(await window.api.updateConnectionConfig({ rtu: { options: { stopBits } } }))) return
-
-        set((state) => {
-          state.connectionConfig.rtu.options.stopBits = stopBits
-        })
-      },
+      setBaudRate: (baudRate) => setSerialOption(set, get, 'baudRate', baudRate),
+      setParity: (parity) => setSerialOption(set, get, 'parity', parity),
+      setDataBits: (dataBits) => setSerialOption(set, get, 'dataBits', dataBits),
+      setStopBits: (stopBits) => setSerialOption(set, get, 'stopBits', stopBits),
       //
       //
       // Layout configuration settings
-      setAddressBase: async (addressBase) => {
-        if (!get().ready) return
-        if (!(await window.api.updateRegisterConfig({ addressBase }))) return
-
-        set((state) => {
-          state.registerConfig.addressBase = addressBase
-        })
-      },
-      setShow64BitValues: async (show64BitValues) => {
-        if (!get().ready) return
-        if (!(await window.api.updateRegisterConfig({ show64BitValues }))) return
-
-        set((state) => {
-          state.registerConfig.show64BitValues = show64BitValues
-        })
-      },
-      setAdvancedMode: async (advancedMode) => {
-        if (!get().ready) return
-        if (!(await window.api.updateRegisterConfig({ advancedMode }))) return
-
-        set((state) => {
-          state.registerConfig.advancedMode = advancedMode
-        })
-      },
+      setAddressBase: (addressBase) => setRegisterConfigField(set, get, 'addressBase', addressBase),
+      setShow64BitValues: (show64BitValues) =>
+        setRegisterConfigField(set, get, 'show64BitValues', show64BitValues),
+      setAdvancedMode: (advancedMode) =>
+        setRegisterConfigField(set, get, 'advancedMode', advancedMode),
       // Addressing
       setUnitId: async (unitId) => {
         if (!get().ready) return
@@ -461,22 +457,8 @@ export const useClientZustand = create<
         if (readConfiguration) readWhenMainCan()
       },
       // Reading
-      setPollRate: async (pollRate) => {
-        if (!get().ready) return
-        if (!(await window.api.updateRegisterConfig({ pollRate }))) return
-
-        set((state) => {
-          state.registerConfig.pollRate = pollRate
-        })
-      },
-      setTimeout: async (timeout) => {
-        if (!get().ready) return
-        if (!(await window.api.updateRegisterConfig({ timeout }))) return
-
-        set((state) => {
-          state.registerConfig.timeout = timeout
-        })
-      },
+      setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),
+      setTimeout: (timeout) => setRegisterConfigField(set, get, 'timeout', timeout),
       // Transaction
       lastSuccessfulTransactionMillis: null,
       setLastSuccessfulTransactionMillis: (value) =>

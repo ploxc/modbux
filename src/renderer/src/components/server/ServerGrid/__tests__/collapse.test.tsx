@@ -12,11 +12,22 @@ import { describe, it, expect, vi } from 'vitest'
 import type { ServerBool } from '@shared'
 
 const coils: ServerBool = { 0: { value: true, comment: 'run' } }
+const holdingRegisters = {
+  0: {
+    value: 7,
+    params: {
+      address: 0,
+      dataType: 'int16' as const,
+      registerType: 'holding_registers' as const,
+      comment: 'level'
+    }
+  }
+}
 const serverState = {
   selectedUuid: 'main',
   getUnitId: (): string => '0',
   unitId: { main: '0' },
-  serverRegisters: { main: { '0': { coils } } }
+  serverRegisters: { main: { '0': { coils, holding_registers: holdingRegisters } } }
 }
 
 vi.mock('@renderer/context/server.zustand', () => ({
@@ -27,6 +38,7 @@ vi.mock('@renderer/context/server.zustand', () => ({
 }))
 
 import ServerBooleans from '../ServerBooleans'
+import ServerRegisters from '../ServerRegisters/ServerRegisters'
 import useServerGridZustand from '../serverGrid.zustand'
 
 const allOpen = {
@@ -51,5 +63,25 @@ describe('a collapsed boolean section', () => {
 
     expect(screen.queryByTestId('server-bool-coils-circle-0')).toBeNull()
     expect(screen.queryByTestId('server-bool-row-coils-0')).toBeNull()
+  })
+})
+
+// Both sections are one `ServerPanel` now, and the guard that hides the list
+// went with it. `ServerBooleans` was the only caller a test reached.
+describe('a collapsed register section', () => {
+  it('shows its rows while it is open', () => {
+    useServerGridZustand.setState({ collapse: allOpen })
+    render(<ServerRegisters name="Holding Registers" type="holding_registers" />)
+
+    expect(screen.getByTestId('server-reg-value-holding_registers-0')).toBeInTheDocument()
+    expect(screen.getByTestId('server-edit-reg-holding_registers-0')).toBeInTheDocument()
+  })
+
+  it('renders no row at all once collapsed', () => {
+    useServerGridZustand.setState({ collapse: { ...allOpen, holding_registers: true } })
+    render(<ServerRegisters name="Holding Registers" type="holding_registers" />)
+
+    expect(screen.queryByTestId('server-reg-value-holding_registers-0')).toBeNull()
+    expect(screen.queryByTestId('server-edit-reg-holding_registers-0')).toBeNull()
   })
 })

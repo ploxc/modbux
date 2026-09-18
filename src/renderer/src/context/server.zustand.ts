@@ -30,6 +30,7 @@ import {
 import { onEvent } from '@renderer/events'
 import { round } from 'lodash'
 import {
+  boolArraysOf,
   extractUnitIdsWithData,
   serverRegistersOf,
   syncRegistersWithBackend,
@@ -126,7 +127,7 @@ export const useServerZustand = create<
       deleteServer: async (uuid) => {
         await window.api.deleteServer(uuid)
         set((state) => {
-          state.uuids = state.uuids.filter((u) => u !== uuid)
+          state.uuids = state.uuids.filter((existingUuid) => existingUuid !== uuid)
           // The delete button is off for the main server, so the list keeps at
           // least that one and the selection lands on a server that is there.
           const [firstRemaining = MAIN_SERVER_UUID] = state.uuids
@@ -157,7 +158,7 @@ export const useServerZustand = create<
       init: async (uuid) => {
         set((state) => {
           if (uuid) state.ready[uuid] = false
-          else for (const u of state.uuids) state.ready[u] = false
+          else for (const readyUuid of state.uuids) state.ready[readyUuid] = false
         })
         const state = get()
         const mode = state.serverMode ?? 'tcp'
@@ -287,8 +288,8 @@ export const useServerZustand = create<
       setBool: (params) => {
         const written: SetBooleanParameters[] = []
         set((state) => {
-          for (const p of Array.isArray(params) ? params : [params]) {
-            const { registerType, address, boolState, optionalUuid, optionalUnitId } = p
+          for (const parameters of Array.isArray(params) ? params : [params]) {
+            const { registerType, address, boolState, optionalUuid, optionalUnitId } = parameters
             const uuid = optionalUuid ?? get().selectedUuid
             const unitId = optionalUnitId ?? get().getUnitId(uuid)
             const registers = unitRegisters(state, uuid, unitId)
@@ -315,27 +316,16 @@ export const useServerZustand = create<
       resetBools: (registerType) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
-        const currentState = get()
-        const currentCoils = new Array(65536).fill(false)
-        const currentDiscreteInputs = new Array(65536).fill(false)
-        Object.entries(currentState.serverRegisters[uuid]?.[unitId]?.coils ?? {}).forEach(
-          ([k, v]) => {
-            currentCoils[Number(k)] = v.value
-          }
-        )
-        Object.entries(
-          currentState.serverRegisters[uuid]?.[unitId]?.['discrete_inputs'] ?? {}
-        ).forEach(([k, v]) => {
-          currentDiscreteInputs[Number(k)] = v.value
-        })
+        // Read before the store is emptied, because the other type keeps the
+        // values it had and main takes both arrays on every sync.
+        const bools = boolArraysOf(get().serverRegisters[uuid] ?? {}, unitId)
         set((state) => {
           unitRegisters(state, uuid, unitId)[registerType] = {}
         })
         const newBools: SyncBoolsParameters = {
           uuid,
           unitId,
-          coils: currentCoils,
-          discrete_inputs: currentDiscreteInputs,
+          ...bools,
           [registerType]: new Array(65536).fill(false)
         }
         window.api.syncBools(newBools)
@@ -362,7 +352,7 @@ export const useServerZustand = create<
           const registers = unitRegisters(state, uuid, unitId)
           registers[params.registerType][params.address] = { value: 0, params }
           unitUsedAddresses(state, uuid, unitId)[params.registerType] = getUsedAddresses(
-            Object.values(registers[params.registerType]).map((r) => r.params)
+            Object.values(registers[params.registerType]).map((register) => register.params)
           )
         })
 
@@ -387,7 +377,7 @@ export const useServerZustand = create<
           if (registers === undefined) return
           delete registers[registerType][address]
           unitUsedAddresses(state, uuid, unitId)[registerType] = getUsedAddresses(
-            Object.values(registers[registerType]).map((r) => r.params)
+            Object.values(registers[registerType]).map((register) => register.params)
           )
         })
         window.api.removeServerRegister(removeParams)
@@ -395,8 +385,8 @@ export const useServerZustand = create<
       setRegisterValue: (params) => {
         if (!Array.isArray(params)) params = [params]
         set((state) => {
-          for (const p of params) {
-            const { registerType, address, value, optionalUuid, optionalUnitId } = p
+          for (const parameters of params) {
+            const { registerType, address, value, optionalUuid, optionalUnitId } = parameters
             const uuid = optionalUuid ?? get().selectedUuid
             const unitId = optionalUnitId ?? get().getUnitId(uuid)
 
@@ -640,12 +630,13 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
   let serverRegisterEntry: ServerRegisterEntry | undefined
   let entryAddress: number | undefined
 
-  for (let cand = address; cand >= address - 3; cand--) {
-    const maybe = serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[cand]
-    if (!maybe) continue
+  for (let candidateAddress = address; candidateAddress >= address - 3; candidateAddress--) {
+    const candidateEntry =
+      serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[candidateAddress]
+    if (!candidateEntry) continue
     // Found an entry at candidate index—this is our base
-    serverRegisterEntry = maybe
-    entryAddress = cand
+    serverRegisterEntry = candidateEntry
+    entryAddress = candidateAddress
     break
   }
   if (!serverRegisterEntry || entryAddress === undefined) {

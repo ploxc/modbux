@@ -1,6 +1,7 @@
 import {
   BaseDataType,
   DataType,
+  DEFAULT_UTF8_LENGTH,
   getMinMaxValues,
   NumberRegisters,
   RegisterParams,
@@ -82,14 +83,37 @@ export interface RegisterFormValues {
  *
  * The dialog offers both a fixed value and a generator's range, and a register
  * carries one set or the other. Switching to the set it does not carry has to
- * land on something a user can submit.
+ * land on something a user can submit. `registerLength` is here for the same
+ * reason: only a `utf8` register carries one.
  */
 export const FIELD_DEFAULTS = {
   value: '0',
   min: '0',
   max: '1',
-  interval: '1'
+  interval: '1',
+  registerLength: String(DEFAULT_UTF8_LENGTH)
 }
+
+/**
+ * How many registers the length field asks for, which is the width the string
+ * gets.
+ *
+ * The field holds text, and an empty one or a typed `0` both fall back to the
+ * width `registerWidth` already answers for a `utf8` register with no length
+ * of its own.
+ */
+export const utf8RegisterLength = (registerLength: string): number =>
+  registerWidth('utf8', Number(registerLength) || undefined)
+
+/**
+ * The bytes `stringValue` is measured against: two per register.
+ *
+ * Read twice, by the helper text under the field and by the flag that turns it
+ * red, and a disagreement between those two is a field that says a string fits
+ * and refuses it.
+ */
+export const utf8MaxBytes = (registerLength: string): number =>
+  utf8RegisterLength(registerLength) * 2
 
 /**
  * The fields a user can change while the dialog is open. `registerType` is not
@@ -154,7 +178,7 @@ export const toRegisterParams = (form: RegisterFormValues): RegisterParams => {
       ...base,
       value: 0,
       stringValue: form.stringValue,
-      length: Number(form.registerLength) || 10
+      length: utf8RegisterLength(form.registerLength)
     }
   }
 

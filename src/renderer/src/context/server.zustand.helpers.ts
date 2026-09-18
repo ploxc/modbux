@@ -19,10 +19,35 @@ import {
 export const extractUnitIdsWithData = (serverRegisters: DefinedServerRegisters): UnitIdString[] => {
   const unitIds = Object.keys(serverRegisters) as UnitIdString[]
   const unitIdsWithData = unitIds.filter((unitId) => {
-    const reg = serverRegisters[unitId]
-    return checkHasConfig(reg)
+    const registers = serverRegisters[unitId]
+    return checkHasConfig(registers)
   })
   return unitIdsWithData
+}
+
+/**
+ * The two bool arrays main takes, built from what a unit holds.
+ *
+ * Main keeps a coil and a discrete input for every one of the 65536 addresses,
+ * so a sync sends both arrays whole and the store's sparse map decides which
+ * entries are true. Both callers build the pair the same way; `resetBools`
+ * then blanks the one it is clearing.
+ */
+export const boolArraysOf = (
+  serverRegisters: DefinedServerRegisters,
+  unitId: UnitIdString
+): { coils: boolean[]; discrete_inputs: boolean[] } => {
+  const coils: boolean[] = Array(65536).fill(false)
+  const discreteInputs: boolean[] = Array(65536).fill(false)
+
+  Object.entries(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
+    ([address, entry]) => (coils[Number(address)] = entry.value)
+  )
+  Object.entries(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
+    ([address, entry]) => (discreteInputs[Number(address)] = entry.value)
+  )
+
+  return { coils, discrete_inputs: discreteInputs }
 }
 
 const syncBoolsWithBackend = async (
@@ -30,21 +55,10 @@ const syncBoolsWithBackend = async (
   unitId: UnitIdString,
   syncUuid: string
 ): Promise<void> => {
-  const coils: boolean[] = Array(65536).fill(false)
-  const discreteInputs: boolean[] = Array(65536).fill(false)
-
-  Object.entries(serverRegisters[unitId]?.['coils'] ?? {}).forEach(
-    ([addr, entry]) => (coils[Number(addr)] = entry.value)
-  )
-  Object.entries(serverRegisters[unitId]?.['discrete_inputs'] ?? {}).forEach(
-    ([addr, entry]) => (discreteInputs[Number(addr)] = entry.value)
-  )
-
   await window.api.syncBools({
     uuid: syncUuid,
     unitId,
-    coils,
-    discrete_inputs: discreteInputs
+    ...boolArraysOf(serverRegisters, unitId)
   })
 }
 
@@ -58,10 +72,10 @@ export const syncRegistersWithBackend = async (
 }> => {
   const inputRegisterRegisterValues = Object.values(
     serverRegisters[unitId]?.['input_registers'] ?? []
-  ).map((r) => r.params)
+  ).map((register) => register.params)
   const holdingRegisterRegisterValues = Object.values(
     serverRegisters[unitId]?.['holding_registers'] ?? []
-  ).map((r) => r.params)
+  ).map((register) => register.params)
 
   await window.api.syncServerRegister({
     uuid: uuid,

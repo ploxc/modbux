@@ -3,7 +3,6 @@ import ExpandLess from '@mui/icons-material/ExpandLess'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
-import Paper from '@mui/material/Paper'
 import { alpha } from '@mui/material/styles'
 import {
   formatUnixSeconds,
@@ -14,11 +13,9 @@ import {
 } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { gridSurface } from '@renderer/theme'
 import { useCallback, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
-import ServerPartTitle from '../ServerPartTitle'
-import useServerGridZustand from '../serverGrid.zustand'
+import ServerPanel from '../ServerPanel'
 import ServerBitMapDetail from './ServerBitMapDetail/ServerBitMapDetail'
 
 interface RowProps {
@@ -160,52 +157,16 @@ interface ServerRegistersProps {
 }
 
 const ServerRegisters = meme(({ name, type }: ServerRegistersProps) => {
-  const collapse = useServerGridZustand((z) => z.collapse[type])
-  const allOtherCollapsed = useServerGridZustand((z) => {
-    const entries = Object.entries(z.collapse)
-    const filtered = entries.filter(([k]) => k !== type)
-    return filtered.every((entry) => entry[1])
-  })
-
   return (
-    <Box
-      sx={{
-        flex: collapse ? 0 : 1,
-        minWidth: collapse ? 160 : 560,
-        minHeight: collapse ? undefined : allOtherCollapsed ? '80%' : { xs: '30%', md: '48%' }
-      }}
+    <ServerPanel
+      name={name}
+      type={type}
+      openFlex={1}
+      openMinWidth={560}
+      contentSx={{ flex: 1, fontFamily: 'monospace', fontSize: '0.9em' }}
     >
-      <Paper
-        variant="outlined"
-        sx={{
-          flex: 1,
-          width: '100%',
-          height: '100%',
-          backgroundColor: gridSurface,
-          fontSize: '0.95em',
-          position: 'relative'
-        }}
-      >
-        <ServerPartTitle name={name} registerType={type} />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 38,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '0.9em'
-          }}
-        >
-          {!collapse && <ServerRegisterRows type={type} />}
-        </Box>
-      </Paper>
-    </Box>
+      <ServerRegisterRows type={type} />
+    </ServerPanel>
   )
 })
 

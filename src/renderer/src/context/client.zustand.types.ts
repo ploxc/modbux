@@ -107,6 +107,8 @@ export type ClientZustand = {
   validateSerialPort: (portPath: string) => Promise<SerialPortValidationResult>
 } & PersistedClientZustand
 
+export type ClientSet = (recipe: (state: ClientZustand) => void) => void
+
 export type MaskSetFn<V extends string = string> = (value: V, valid?: boolean) => void
 
 /** A masked setter that waits on the backend before the value settles. */

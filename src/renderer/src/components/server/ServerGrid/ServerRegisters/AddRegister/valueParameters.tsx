@@ -10,7 +10,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { inTimestampWindow, timestampWindow } from './addRegister.zustand.helpers'
+import { inTimestampWindow, timestampWindow, utf8MaxBytes } from './addRegister.zustand.helpers'
 import { ChangeEvent, ElementType, useCallback, useEffect, useMemo } from 'react'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
@@ -252,7 +252,7 @@ const DateTimeField = meme(() => {
 
 const StringValueField = meme(() => {
   const stringValue = useAddRegisterZustand((z) => z.stringValue)
-  const maxBytes = useAddRegisterZustand((z) => (Number(z.registerLength) || 10) * 2)
+  const maxBytes = useAddRegisterZustand((z) => utf8MaxBytes(z.registerLength))
   const valid = useAddRegisterZustand((z) => z.valid.stringValue)
 
   const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {

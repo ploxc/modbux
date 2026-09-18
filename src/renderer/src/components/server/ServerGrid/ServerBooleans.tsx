@@ -2,19 +2,16 @@ import { DeleteFilled, PlusCircleOutlined } from '@ant-design/icons'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import { alpha } from '@mui/material/styles'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { BooleanRegisters, ServerBoolEntry } from '@shared'
 import { ElementType, useCallback, useEffect, useMemo, useState } from 'react'
-import ServerPartTitle from './ServerPartTitle'
+import ServerPanel from './ServerPanel'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import useServerGridZustand from './serverGrid.zustand'
 import ServerBit from './shared/ServerBit'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { gridSurface } from '@renderer/theme'
 
 interface ServerBooleanProps {
   name: string
@@ -140,7 +137,7 @@ const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
 
 // ─── Inline Add bar ──────────────────────────────────────────────────────────
 
-const getRegs = (type: BooleanRegisters): Record<string, unknown> => {
+const getBoolMap = (type: BooleanRegisters): Record<string, unknown> => {
   const serverZustand = useServerZustand.getState()
   return (
     serverZustand.serverRegisters[serverZustand.selectedUuid]?.[
@@ -149,14 +146,14 @@ const getRegs = (type: BooleanRegisters): Record<string, unknown> => {
   )
 }
 
-const nextFree = (from: number, regs: Record<string, unknown>): number => {
-  let a = from
-  while (a <= 65535 && a in regs) a++
-  return a
+const nextFree = (from: number, boolMap: Record<string, unknown>): number => {
+  let address = from
+  while (address <= 65535 && address in boolMap) address++
+  return address
 }
 
 const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
-  const [address, setAddress] = useState(() => String(nextFree(0, getRegs(type))))
+  const [address, setAddress] = useState(() => String(nextFree(0, getBoolMap(type))))
 
   // Reset to 0 when all bools are cleared
   const empty = useServerZustand((z) => {
@@ -172,12 +169,12 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
     let nextAddress = Number(address)
     if (isNaN(nextAddress) || nextAddress < 0 || nextAddress > 65535) return
     // If typed address is already taken, snap to next free
-    const regs = getRegs(type)
-    if (nextAddress in regs) nextAddress = nextFree(nextAddress, regs)
+    const boolMap = getBoolMap(type)
+    if (nextAddress in boolMap) nextAddress = nextFree(nextAddress, boolMap)
     if (nextAddress > 65535) return
     useServerZustand.getState().addBool(type, nextAddress)
     // Auto-increment to next free address
-    const next = nextFree(nextAddress + 1, getRegs(type))
+    const next = nextFree(nextAddress + 1, getBoolMap(type))
     if (next <= 65535) setAddress(String(next))
   }, [type, address])
 
@@ -204,7 +201,7 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
           input: {
             inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
             inputProps: maskInputProps({
-              set: (v) => setAddress(String(v))
+              set: (value) => setAddress(String(value))
             })
           }
         }}
@@ -224,64 +221,17 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
 // ─── Main component ──────────────────────────────────────────────────────────
 
 const ServerBooleans = meme(({ name, type }: ServerBooleanProps) => {
-  const collapse = useServerGridZustand((z) => z.collapse[type])
-  const allOtherCollapsed = useServerGridZustand((z) => {
-    const entries = Object.entries(z.collapse)
-    const filtered = entries.filter(([k]) => k !== type)
-    return filtered.every((entry) => entry[1])
-  })
-
   return (
-    <Box
-      sx={{
-        flex: 0,
-        minWidth: collapse ? 160 : 280,
-        minHeight: collapse ? undefined : allOtherCollapsed ? '80%' : { xs: '30%', md: '48%' }
-      }}
+    <ServerPanel
+      name={name}
+      type={type}
+      openFlex={0}
+      openMinWidth={280}
+      contentSx={{ gap: 0, p: 0.5 }}
     >
-      <Paper
-        variant="outlined"
-        sx={{
-          flex: 1,
-          width: '100%',
-          height: '100%',
-          backgroundColor: gridSurface,
-          fontSize: '0.95em',
-          position: 'relative'
-        }}
-      >
-        <ServerPartTitle name={name} registerType={type} />
-        {/*
-          Positioned rather than flexed, the way ServerRegisters does it. A
-          flex child takes its share of a parent that has a height, and this
-          one does not: the Paper asks for 100% of a box that only carries a
-          minHeight. So the list grew instead, and the overflow landed on the
-          view rather than here. Anchored top to bottom, the height comes from
-          the Paper and the scrollbar appears where it belongs.
-        */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 38,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'auto',
-            display: 'flex',
-            gap: 0,
-            flexDirection: 'column',
-            p: 0.5
-          }}
-        >
-          {!collapse && (
-            <>
-              <ServerBoolList type={type} />
-              <AddBoolInline type={type} />
-            </>
-          )}
-        </Box>
-      </Paper>
-    </Box>
+      <ServerBoolList type={type} />
+      <AddBoolInline type={type} />
+    </ServerPanel>
   )
 })
 

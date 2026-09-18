@@ -7,7 +7,7 @@ import { onEvent } from '@renderer/events'
 const isServerWindow = window.api.isServerWindow
 
 export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', never]]>(
-  mutative((set, get) => ({
+  mutative((set) => ({
     showLog: false,
     version: '',
     setVersion: (version) =>
@@ -19,11 +19,11 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
     showGridWhileScanning: true,
     toggleShowGridWhileScanning: () =>
       set((state) => {
-        state.showGridWhileScanning = !get().showGridWhileScanning
+        state.showGridWhileScanning = !state.showGridWhileScanning
       }),
     toggleShowClientRawValues: () =>
       set((state) => {
-        state.showClientRawValues = !get().showClientRawValues
+        state.showClientRawValues = !state.showClientRawValues
       }),
 
     setHideHomeButton: (hide) =>
@@ -32,8 +32,7 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
       }),
     toggleShowLog: () =>
       set((state) => {
-        const currentState = get()
-        state.showLog = !currentState.showLog
+        state.showLog = !state.showLog
       }),
     appType: isServerWindow ? 'server' : undefined,
     setAppType: (appType: AppType | undefined) =>

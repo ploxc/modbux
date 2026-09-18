@@ -4,7 +4,6 @@ import { useServerZustand } from '@renderer/context/server.zustand'
 import {
   BaseDataType,
   DataType,
-  DEFAULT_UTF8_LENGTH,
   getAddressFitError,
   NumberRegisters,
   registerWidth,
@@ -18,7 +17,9 @@ import {
   isAddressInUse,
   RegisterFormSnapshot,
   toFormSnapshot,
-  toRegisterParams
+  toRegisterParams,
+  utf8MaxBytes,
+  utf8RegisterLength
 } from './addRegister.zustand.helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ const validateAddress = (
   const uuid = serverZustand.selectedUuid
   const unitId = serverZustand.getUnitId(uuid)
   const addressNum = Number(address)
-  const length = dataType === 'utf8' ? Number(registerLength) || DEFAULT_UTF8_LENGTH : undefined
+  const length = dataType === 'utf8' ? utf8RegisterLength(registerLength) : undefined
 
   const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum, length)
   const addressFitError = getAddressFitError(dataType, addressNum, length)
@@ -284,7 +285,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
     stringValue: '',
     setStringValue: (value) => {
       const { registerLength } = getState()
-      const maxBytes = (Number(registerLength) || DEFAULT_UTF8_LENGTH) * 2
+      const maxBytes = utf8MaxBytes(registerLength)
       const valid = new TextEncoder().encode(value).length <= maxBytes
       set((state) => {
         state.stringValue = value
@@ -292,7 +293,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
       })
     },
 
-    registerLength: '10',
+    registerLength: FIELD_DEFAULTS.registerLength,
     setRegisterLength: (registerLength, valid) =>
       set((state) => {
         state.registerLength = registerLength
@@ -322,7 +323,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const usedAddresses = serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
         const size = registerWidth(
           dataType,
-          dataType === 'utf8' ? Number(registerLength) || 10 : undefined
+          dataType === 'utf8' ? utf8RegisterLength(registerLength) : undefined
         )
 
         let found = false
@@ -447,7 +448,7 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         state.comment = ''
         state.fixed = true
         state.stringValue = ''
-        state.registerLength = '10'
+        state.registerLength = FIELD_DEFAULTS.registerLength
         state.serverRegisterEdit = undefined
         state.pristine = undefined
         state.addressInUse = false

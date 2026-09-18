@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest'
+import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
 import {
+  FIELD_DEFAULTS,
   isAddressInUse,
   isFormDirty,
   toFormSnapshot,
   toRegisterParams,
+  utf8MaxBytes,
+  utf8RegisterLength,
   type RegisterFormSnapshot,
   type RegisterFormValues
 } from '../addRegister.zustand.helpers'
@@ -251,5 +255,41 @@ describe('toRegisterParams', () => {
     expect(toRegisterParams({ ...form, dataType: 'utf8', registerLength: '' })).toMatchObject({
       length: 10
     })
+  })
+})
+
+// ─── The utf8 width, and the bytes it buys ──────────────────────────
+
+// Five sites wrote the fallback as the literal 10 and three named the
+// constant. The byte ceiling was computed twice, once for the helper text
+// under the field and once for the flag that turns it red, and a disagreement
+// between those two is a field that says a string fits and refuses it.
+
+describe('utf8RegisterLength', () => {
+  it('reads what the field holds', () => {
+    expect(utf8RegisterLength('24')).toBe(24)
+  })
+
+  it('falls back to the default for an empty field and for a typed zero', () => {
+    expect(utf8RegisterLength('')).toBe(DEFAULT_UTF8_LENGTH)
+    expect(utf8RegisterLength('0')).toBe(DEFAULT_UTF8_LENGTH)
+  })
+
+  it('answers what registerWidth answers for the same register', () => {
+    expect(utf8RegisterLength('24')).toBe(registerWidth('utf8', 24))
+    expect(utf8RegisterLength('')).toBe(registerWidth('utf8'))
+  })
+})
+
+describe('utf8MaxBytes', () => {
+  it('is two bytes per register', () => {
+    expect(utf8MaxBytes('24')).toBe(48)
+    expect(utf8MaxBytes('')).toBe(DEFAULT_UTF8_LENGTH * 2)
+  })
+})
+
+describe('FIELD_DEFAULTS', () => {
+  it('holds the length field as the text the default width prints as', () => {
+    expect(FIELD_DEFAULTS.registerLength).toBe(String(DEFAULT_UTF8_LENGTH))
   })
 })

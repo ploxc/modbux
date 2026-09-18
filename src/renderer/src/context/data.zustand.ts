@@ -34,8 +34,8 @@ export const showMapping = (): void => {
   const registerMapping = useClientZustand.getState().registerMapping
   const type = useClientZustand.getState().registerConfig.type
 
-  Object.entries(registerMapping[type]).forEach(([addressString, m]) => {
-    if (!m || m.dataType === 'none' || !m.dataType) return
+  Object.entries(registerMapping[type]).forEach(([addressString, mapValue]) => {
+    if (!mapValue || mapValue.dataType === 'none' || !mapValue.dataType) return
     const address = parseInt(addressString, 10)
 
     const row: RegisterData = {

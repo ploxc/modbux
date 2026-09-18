@@ -9,7 +9,6 @@ import { FixedOrGenerator, ValueParameters } from './valueParameters'
 import { AddressField, DataTypeSelect, CommentField } from './registerFields'
 import { AddButtons, DeleteButton } from './addRegisterActions'
 import { FIELD_DEFAULTS, inTimestampWindow, isTimestampType } from './addRegister.zustand.helpers'
-import { DEFAULT_UTF8_LENGTH } from '@shared'
 
 const AddRegister = meme(() => {
   const edit = useAddRegisterZustand((z) => z.serverRegisterEdit !== undefined)
@@ -74,7 +73,10 @@ const AddRegister = meme(() => {
 
     if (dataType === 'utf8') {
       addRegisterZustand.setStringValue(stringValue ?? '')
-      addRegisterZustand.setRegisterLength(String(length ?? DEFAULT_UTF8_LENGTH), true)
+      addRegisterZustand.setRegisterLength(
+        length === undefined ? FIELD_DEFAULTS.registerLength : String(length),
+        true
+      )
       addRegisterZustand.setValue(FIELD_DEFAULTS.value, true)
     } else if (value !== undefined && isTimestampType(dataType)) {
       // The picker works in milliseconds and a unix register stores seconds.
