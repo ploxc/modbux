@@ -300,6 +300,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release link opened the release page in a second Modbux window rather than in
   the browser. The notice is the main window's alone now, and a link from either
   window opens in the browser.
+- **A Linear Interpolation endpoint no longer loses its decimals.** Its four
+  fields stopped at two, so an endpoint of 0.0625 went in as 0.06 and every row
+  scaled through it read 4% low. They take seven now, which is what the value,
+  min and max fields on the server side have always taken.
 
 ### Changed
 
@@ -309,10 +313,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unit the server hosts, and nothing goes back on the line. Modbux says so once
   while the RTU server is running and unit 0 holds registers. Over TCP there is
   no broadcast and unit 0 stays an ordinary address.
-- **Linear Interpolation takes seven decimals now.** Its four fields stopped at
-  two, so an endpoint of 0.0625 went in as 0.06 and every row scaled through it
-  came out 4% off. They take what the value, min and max fields on the server
-  side have always taken.
 - **The parity list offers none, even and odd.** Mark and space were in it, and
   on macOS and Linux picking either one failed the connection outright, because
   the serial layer Modbux uses has no setting for them on those platforms. A
