@@ -78,4 +78,60 @@ describe('the migration a server store blob runs', () => {
 
     expect(state).toEqual({ serverMode: 'rtu' })
   })
+
+  /**
+   * A blob from a newer Modbux, which persist hands this the same way.
+   *
+   * `repairPersisted` reads it field by field with `savedByNewerVersion` set,
+   * so a newer blob is where a value this build's schemas refuse comes from,
+   * and the steps that save a field from one such value ran for the versions
+   * below this one alone. `migrateServerConfig` has had its own
+   * `detectedVersion > CURRENT` branch since the file migration was written.
+   */
+  describe('a blob claiming a version above this one', () => {
+    const future = (): Record<string, unknown> => ({
+      serialConfig: { options: { parity: 'mark', baudRate: '9600' } },
+      serverRegisters: {
+        'server-1': {
+          '1': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {
+              '0': { value: 1, params: { address: 70000 } },
+              '5': {
+                value: 1,
+                params: {
+                  address: 5,
+                  registerType: 'holding_registers',
+                  dataType: 'uint16',
+                  comment: '',
+                  value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    it('drops the register this build cannot serve and keeps the one beside it', () => {
+      const state = migrateServerState(future(), CURRENT_SERVER_ZUSTAND_VERSION + 5)
+
+      const servers = state.serverRegisters as Record<
+        string,
+        Record<string, Record<string, Record<string, unknown>>>
+      >
+      const holding = servers['server-1']?.['1']?.holding_registers
+      expect(Object.keys(holding ?? {})).toEqual(['5'])
+    })
+
+    it('replaces a parity the serial binding refuses', () => {
+      const state = migrateServerState(future(), CURRENT_SERVER_ZUSTAND_VERSION + 5)
+
+      const serialConfig = state.serialConfig as Record<string, Record<string, unknown>>
+      expect(serialConfig.options?.parity).toBe('none')
+      expect(serialConfig.options?.baudRate).toBe('9600')
+    })
+  })
 })

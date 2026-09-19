@@ -816,4 +816,17 @@ describe('a persisted mapping entry outside the map', () => {
 
     expect(Object.keys(holdingRegisters(state))).toEqual(['100'])
   })
+
+  // persist calls `migrate` for a version above the current one as well, and
+  // a blob from a newer Modbux is where an entry this build's schema refuses
+  // comes from. The step ran for the versions below alone, so one such entry
+  // cost `repairPersisted` the whole mapping.
+  it('is dropped by the migration a blob from a newer Modbux runs', () => {
+    const state = migrateClientState(
+      persistedMapping(['100', '70000']),
+      CURRENT_CLIENT_ZUSTAND_VERSION + 5
+    )
+
+    expect(Object.keys(holdingRegisters(state))).toEqual(['100'])
+  })
 })

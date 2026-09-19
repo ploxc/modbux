@@ -152,7 +152,16 @@ export function migrateServerState(
   // string width, a fixed value or an interval the encoder, the map or
   // `setInterval` cannot take, and a 64 bit composite that has to be a decimal
   // string for the first word write after a launch to read it exactly.
-  if (version < 4) {
+  //
+  // Any version but this one, rather than the ones below it. persist calls
+  // this for every version that is not the current one, and `repairPersisted`
+  // then reads a blob from a newer Modbux field by field with
+  // `savedByNewerVersion` set, so a newer blob is exactly where a parity this
+  // enum does not name and a register this schema refuses come from, and
+  // without these steps one of either costs every register on every server.
+  // `migrateServerConfig` answers the same question with its own
+  // `detectedVersion > CURRENT` branch; the store had none.
+  if (version !== CURRENT_SERVER_ZUSTAND_VERSION) {
     repairPersistedParity(state, 'serialConfig', 'options')
     dropUnservableRegisters(state)
     stringifyExact64BitValues(state)

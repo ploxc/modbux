@@ -29,7 +29,14 @@ export function migrateClientState(
   // v2→v3, one step because 2 is what the last release wrote: the RTU parity
   // the serial binding refuses, and mapping entries at an address outside the
   // 16 bit map.
-  if (version < 3) {
+  //
+  // Any version but this one, rather than the ones below it, which is the
+  // reason `migrateServerState` gives for the same shape: persist calls this
+  // for a version above the current one too, and a blob from a newer Modbux is
+  // where a parity this enum does not name comes from. Without it one such
+  // value costs `repairPersisted` the whole field, and `registerMapping` is
+  // the one thing in this store built by hand.
+  if (version !== CURRENT_CLIENT_ZUSTAND_VERSION) {
     repairPersistedParity(state, 'connectionConfig', 'rtu', 'options')
     dropUnmappableRegisters(state)
   }
