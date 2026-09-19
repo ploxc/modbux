@@ -20,6 +20,7 @@ import {
   CURRENT_SERVER_ZUSTAND_VERSION,
   SERVER_ZUSTAND_STORAGE_KEY,
   registerWidth,
+  MAX_NUMBER_REGISTER_WIDTH,
   ModbusBaudRate,
   RegisterType,
   RegisterValue,
@@ -639,12 +640,17 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
   // Handle input and holding registers
   const { uuid, unitId, registerType, address, value: numberValue } = payload
 
-  // 1) Find the “base entry” in state.serverRegisters[*][*][registerType]
-  //    We look back up to 3 registers because the largest DataType (int64/double) uses 4 registers.
+  // 1) Find the base entry in state.serverRegisters[*][*][registerType] this
+  //    word belongs to. A register covers its own address and the ones after
+  //    it, so the base is within `MAX_NUMBER_REGISTER_WIDTH` addresses back.
   let serverRegisterEntry: ServerRegisterEntry | undefined
   let entryAddress: number | undefined
 
-  for (let candidateAddress = address; candidateAddress >= address - 3; candidateAddress--) {
+  for (
+    let candidateAddress = address;
+    candidateAddress > address - MAX_NUMBER_REGISTER_WIDTH;
+    candidateAddress--
+  ) {
     const candidateEntry =
       serverZustand.serverRegisters[uuid]?.[unitId]?.[registerType]?.[candidateAddress]
     if (!candidateEntry) continue

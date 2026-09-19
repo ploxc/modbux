@@ -1,6 +1,6 @@
 export * from './datatype'
 export * from './server'
-export * from './utils'
+export * from './helpers'
 export * from './ranges'
 export * from './scan'
 export * from './client'

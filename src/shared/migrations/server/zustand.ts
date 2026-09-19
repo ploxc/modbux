@@ -1,5 +1,5 @@
 import { defaultSerialPortOptions } from '../../default'
-import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './shared'
+import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './v1'
 import {
   dropUnservableRegisters,
   migrateBoolShapeForUnit,
@@ -35,11 +35,6 @@ export function migrateBoolShape(
   }
 }
 
-/**
- * Migrate server Zustand state from v1 (littleEndian per register) to v2 (global littleEndian).
- * Also converts old boolean shape to { value: boolean } entries.
- * Used by Zustand persist middleware.
- */
 /**
  * Migrate server Zustand state from v2 to v3: add serverMode and serialConfig defaults.
  */

@@ -53,7 +53,9 @@ const getDefaultServerData = (): {
 export const ILLEGAL_DATA_ADDRESS = 2
 export const SERVER_DEVICE_FAILURE = 4
 export const GATEWAY_TARGET_FAILED = 11
-export const DEFAULT_MOBUS_PORT = 502
+
+/** Modbus TCP's registered port, which the three paths below fall back to. */
+const DEFAULT_MODBUS_PORT = 502
 
 /**
  * The transport a vector answers on. RS-485 is shared and a socket is not, so a
@@ -387,7 +389,7 @@ export class ModbusServer {
   public createServer = async ({ uuid, port }: CreateServerParams): Promise<number | undefined> => {
     // A stored 0 from before this was refused would send the server to a port
     // nobody can name, so it starts where it would have started without one.
-    let actualPort = port !== undefined && isPort(port) ? port : DEFAULT_MOBUS_PORT
+    let actualPort = port !== undefined && isPort(port) ? port : DEFAULT_MODBUS_PORT
     const maxAttempts = 10000
 
     if (this._servers.has(uuid) && this._port.get(uuid) === actualPort) return actualPort
@@ -456,8 +458,13 @@ export class ModbusServer {
    * clears its register data.
    *
    * The vectors read `_serverData` per request, so the cleared data is what a
-   * master gets from the listener that is already up. `createServer` is called
-   * for the case where there is none, such as after a spell in RTU mode.
+   * master gets from the listener that is already up.
+   *
+   * `createServer` rebinds nothing from here. `_bindServer` writes `_port` and
+   * `_servers` on consecutive lines and `_closeAndForget` deletes both, so a
+   * stored port means a listener on that port, which is `createServer`'s first
+   * return. After a spell in RTU mode there is no stored port and the call does
+   * not happen at all.
    */
   public resetServer = async (uuid: string): Promise<void> => {
     const unitIdGenerators = this._generatorMap.get(uuid)
@@ -895,7 +902,7 @@ export class ModbusServer {
    * no auto-increment. Emits error message on failure and returns the current port.
    */
   public setPort = async ({ uuid, port }: CreateServerParams): Promise<number> => {
-    const requestedPort = port ?? DEFAULT_MOBUS_PORT
+    const requestedPort = port ?? DEFAULT_MODBUS_PORT
     const currentPort = this._port.get(uuid) ?? requestedPort
 
     // Port 0 is not a port, it is a request for whichever one is free, and
@@ -903,7 +910,7 @@ export class ModbusServer {
     // name, and the number sent back to the view would be the 0 it asked for.
     if (!isPort(requestedPort)) {
       this._emitMessage({ message: 'A server needs a port between 1 and 65535', variant: 'error' })
-      return this._port.get(uuid) ?? DEFAULT_MOBUS_PORT
+      return this._port.get(uuid) ?? DEFAULT_MODBUS_PORT
     }
 
     const result = await this._isPortAvailable(requestedPort)

@@ -6,7 +6,26 @@ interface WindowsObject {
   server: BrowserWindow | null
 }
 
-/** Who an addressed event goes to. `send` without one reaches every window. */
+/**
+ * Who an addressed event goes to. `send` without one reaches every window.
+ *
+ * A `WebContents` is the window that asked. `ipcMain.handle` hands the invoking
+ * contents to every handler, so a refused payload reports where it came from
+ * rather than everywhere.
+ *
+ * `'main'` is the window the client work happens in, which never moves.
+ * `'serverView'` is the window showing the server, which is the popped out one
+ * while it exists and the main window otherwise, the same question
+ * `PrivilegedPortModal` answers by where it is mounted.
+ *
+ * Which one a caller picks follows from what it knows. A boundary is handed the
+ * sender; a module is not, so it names the view that draws what failed, and
+ * `modbusClient` sends `'main'` where `modbusServer` sends `'serverView'`. The
+ * two rules pick the same window wherever the window that asked is the one
+ * drawing, and `CLIENT_CHANNELS` holds the client half to that. Its refusal is
+ * the deliberate exception: a client channel from any other window is refused
+ * before its handler runs, and that answer goes to the window that asked.
+ */
 export type IpcEventTarget = WebContents | 'main' | 'serverView'
 
 export class Windows {
@@ -26,16 +45,8 @@ export class Windows {
    * server store, and the listeners those stores install run in both. An event
    * that changes a store only one view draws leaves the other window writing
    * its own copy over the same key, and the copy that writes last is the one on
-   * disk. That is what `to` is for.
-   *
-   * A `WebContents` is the window that asked. `ipcMain.handle` hands the
-   * invoking contents to every handler, so a refused payload reports where it
-   * came from rather than everywhere.
-   *
-   * `'main'` is the window the client work happens in, which never moves.
-   * `'serverView'` is the window showing the server, which is the popped out
-   * one while it exists and the main window otherwise, the same question
-   * `PrivilegedPortModal` answers by where it is mounted.
+   * disk. That is what `to` is for, and `IpcEventTarget` says which of the
+   * three a caller names.
    *
    * The guard is per window rather than around the loop, because a throw on one
    * window costs every window after it the event. `Object.values` puts `main`

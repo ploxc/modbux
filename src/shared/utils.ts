@@ -1,9 +1,10 @@
 // `types/server.ts` imports `getAddressFitError` and `getValueRangeError` from
 // here, so this reads the barrel no longer: it would be a cycle through
-// `types/index.ts`, and one that costs nothing only while every name below is a
-// type the compiler erases. `import type` says which of the two these are.
-import type { CamelCase } from './types/utils'
-import type { DataType, EncodableDataType } from './types/datatype'
+// `types/index.ts`. `import type` says which names the compiler erases, and the
+// cycle back through `types/server.ts` is one of them. `DataTypeSchema` is the
+// one value below, out of a module that imports zod and nothing else.
+import type { CamelCase } from './types/helpers'
+import { DataTypeSchema, type DataType, type EncodableDataType } from './types/datatype'
 import type { RegisterParams, ServerRegisters } from './types/server'
 
 /**
@@ -64,12 +65,31 @@ export const registerWidth = (dataType: DataType, length?: number): number => {
   }
 }
 
+/**
+ * The most registers a number spans, which is how far back a word has to look
+ * for the register it belongs to.
+ *
+ * Read off the table above rather than written again, so a wider type is one
+ * edit. `utf8` is left out because its width is the length the user chose, and
+ * a string composes no value out of the words around it.
+ */
+export const MAX_NUMBER_REGISTER_WIDTH = Math.max(
+  ...DataTypeSchema.options
+    .filter((dataType) => dataType !== 'utf8')
+    .map((dataType) => registerWidth(dataType))
+)
+
 // Regular most significant word first (big endian)
 export const bigEndian32 = (buffer: Buffer, offset: number): Buffer => {
   return buffer.subarray(offset, offset + 4)
 }
 
-// Uncommon least significant word first (little endian)
+/**
+ * Uncommon least significant word first (little endian).
+ *
+ * `littleBigEndian.md`, beside this file, puts 0x12345678 through both orders
+ * and gives the SCL that writes either one from a Siemens PLC.
+ */
 export const littleEndian32 = (buffer: Buffer, offset: number): Buffer<ArrayBuffer> => {
   return Buffer.concat([
     buffer.subarray(offset + 2, offset + 4) as Uint8Array,

@@ -32,8 +32,8 @@ const MessageReceiver = meme((): null => {
 
   // A store repairs its persisted config while the module graph is still
   // evaluating, which is before any provider exists to tell. It records what it
-  // had to reset instead, and this says so. Both windows report their own: the
-  // server window runs the server store and no message listener.
+  // had to reset instead, and this says so. Both windows report their own,
+  // because each holds its own copy of both stores.
   //
   // Acknowledged after telling, because this component mounts inside Client and
   // Server rather than at the root: without that, walking Home and back reports

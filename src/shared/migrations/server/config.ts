@@ -16,7 +16,7 @@ import {
   renameLegacyRegisterTypeKeys,
   stringifyExact64BitValues
 } from '../shared'
-import { V1ServerConfig, V1ServerRegisters, extractGlobalEndianness } from './shared'
+import { V1ServerConfig, V1ServerRegisters, extractGlobalEndianness } from './v1'
 import { repairPersisted } from '../../repairPersisted'
 
 /**

@@ -1332,7 +1332,7 @@ describe('ModbusServer', () => {
       })
     })
 
-    // ! Coverage-only: exercises port ?? DEFAULT_MOBUS_PORT branch
+    // ! Coverage-only: exercises port ?? DEFAULT_MODBUS_PORT branch
     it('uses default port (502) when port is not provided', async () => {
       const port = await server.createServer({ uuid, port: undefined as unknown as number })
       expect(port).toBe(502)

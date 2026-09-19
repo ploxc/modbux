@@ -1,3 +1,5 @@
+What `bigEndian32` and `littleEndian32` in `utils.ts` do to a buffer, read from the PLC's side.
+
 A table showing the association between Modbus registers and the SCL variables `W1` (most significant word) and `W0` (least significant word) in both Big-Endian and Little-Endian order. We use the same `int32` value of **305419896** (hexadecimal **0x12345678**).
 
 ### Big-Endian vs Little-Endian Table with SCL Register Assignment:
