@@ -380,14 +380,16 @@ export const getUsedAddresses = (registers: RegisterParams[]): number[] => {
  * `{ value: false }`, so the coil you add and leave off is an entry like any
  * other, and reading the value instead dropped exactly that unit from a saved
  * config.
+ *
+ * One expression, so the first type holding something is where it stops.
+ * `UnitIdMenuItem` asks it inside a selector, which answers again for every
+ * unit id the menu has drawn on every flush of the server store.
  */
-export const checkHasConfig = (reg: ServerRegisters | undefined): boolean => {
-  const hasCoils = Object.keys(reg?.coils ?? {}).length > 0
-  const hasDiscrete = Object.keys(reg?.discrete_inputs ?? {}).length > 0
-  const hasInput = Object.keys(reg?.input_registers ?? {}).length > 0
-  const hasHolding = Object.keys(reg?.holding_registers ?? {}).length > 0
-  return hasCoils || hasDiscrete || hasInput || hasHolding
-}
+export const checkHasConfig = (reg: ServerRegisters | undefined): boolean =>
+  Object.keys(reg?.coils ?? {}).length > 0 ||
+  Object.keys(reg?.discrete_inputs ?? {}).length > 0 ||
+  Object.keys(reg?.input_registers ?? {}).length > 0 ||
+  Object.keys(reg?.holding_registers ?? {}).length > 0
 
 export function getAddressFitError(dataType: DataType, address: number, length?: number): boolean {
   return address + registerWidth(dataType, length) - 1 > 65535
