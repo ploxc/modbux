@@ -51,6 +51,21 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
     ? ZodType<IpcHandlerMap[C]['args'][0]>
     : never
 
+/**
+ * A channel this boundary can carry, which is one taking a single argument or
+ * none.
+ *
+ * `createIpcHandle` parses `args[0]` and calls the listener with
+ * `[result.data]`, and `PayloadSchema<C>` names `args[0]` alone. A second
+ * argument is therefore dropped where a schema guards the channel and reaches
+ * the handler unvalidated where none does. Every spec entry declares `[]` or a
+ * one element tuple today, and a channel declaring two is refused here rather
+ * than losing one of them quietly.
+ */
+type OneArgumentChannel = {
+  [C in keyof IpcHandlerMap]: IpcHandlerMap[C]['args'] extends [] | [unknown] ? C : never
+}[keyof IpcHandlerMap]
+
 /** A channel a refusal has an answer for, which is the same rule as above. */
 type RefusableChannel = {
   [C in keyof IpcHandlerMap]: undefined extends Awaited<IpcHandlerMap[C]['return']> ? C : never
@@ -115,7 +130,7 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
  */
 export const createIpcHandle =
   (windows: Windows) =>
-  <C extends keyof IpcHandlerMap>(
+  <C extends OneArgumentChannel>(
     channel: C,
     listener: IpcListener<C>,
     schema?: PayloadSchema<C>

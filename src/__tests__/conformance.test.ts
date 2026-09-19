@@ -13,6 +13,7 @@
  * line moves on the next edit above it and the symbol does not.
  */
 import { describe, expect, it } from 'vitest'
+import { snakeToCamel } from '@shared'
 import { globSync, readdirSync, readFileSync } from 'fs'
 import { join, relative } from 'path'
 import ts from 'typescript'
@@ -850,6 +851,18 @@ describe('the lists that name a channel agree', () => {
   it('names every channel and event in lowercase segments', () => {
     const odd = [...channels, ...events].filter((name) => !/^[a-z]+(_[a-z]+)*$/.test(name))
     expect(odd).toEqual([])
+  })
+
+  // `src/preload/index.ts` builds `window.api` with `Object.fromEntries` over
+  // the same names and casts the result into the mapped type, so two channels
+  // reaching one method name would drop a method with typecheck green. The rule
+  // above is what makes that impossible rather than unlikely: over lowercase
+  // segments every capital in the method name marks a segment boundary, so the
+  // channel it came from can be read back off it. Asserted here because that is
+  // an argument, and an argument goes stale without a meter.
+  it('gives every channel a method name of its own', () => {
+    const methods = [...channels].map((channel) => snakeToCamel(channel))
+    expect(new Set(methods).size).toBe(channels.size)
   })
 })
 
