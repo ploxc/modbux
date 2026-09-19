@@ -107,6 +107,12 @@ way to tell which is the false claim is to go and run the thing.
 **In a test file, the sentence naming what the test discriminates stays and the
 incident that produced it goes.**
 
+**What the code was is not what it does.** A prop that is gone, a ref that no
+longer exists, a test that was deleted, an alternative nobody is about to retry:
+that is the file's diary, and git holds it. The commit message is where it goes.
+What survives in the comment is the mechanism as it stands, and a past state
+earns a line only where a reader would otherwise undo the change.
+
 ## Then: can this be written with fewer sentences?
 
 Ask of each sentence:
