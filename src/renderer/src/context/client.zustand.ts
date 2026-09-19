@@ -69,9 +69,10 @@ export const flushRegisterMappingToMain = async (
 /**
  * Drop the rows on screen, unless something is about to replace them.
  *
- * Address, length and type each change what a read asks for, so the rows from
- * the last read answer a different question. Polling puts new ones there on its
- * own, and so does read configuration.
+ * Address, length and type each change what a read asks for, and the unit id
+ * changes which device answers it, so the rows from the last read answer a
+ * different question. Polling puts new ones there on its own, and so does read
+ * configuration.
  */
 const clearRegisterDataWhenIdle = (): void => {
   const { clientState, readConfiguration } = useClientZustand.getState()
@@ -374,6 +375,7 @@ export const useClientZustand = create<
         set((state) => {
           state.connectionConfig.unitId = newUnitId
         })
+        clearRegisterDataWhenIdle()
       },
       setAddress: async (address) => {
         const currentState = get()

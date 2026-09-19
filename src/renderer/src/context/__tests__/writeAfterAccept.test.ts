@@ -5,6 +5,7 @@
 // and call main afterwards, `JSON.stringify` turned it into `null`, and the next
 // launch refused the whole persisted config and reset it.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultClientState } from '@shared'
 import type { RegisterData } from '@shared'
 import { stubRenderer } from './stubRenderer'
 
@@ -34,14 +35,16 @@ beforeEach(() => {
 })
 
 describe('a payload the boundary refuses', () => {
-  it('leaves the unit id the store had', async () => {
-    const { clientZustand } = await load()
+  it('leaves the unit id the store had, and the rows that unit answered', async () => {
+    const { clientZustand, dataZustand } = await load()
     const { useClientZustand } = clientZustand
 
     await useClientZustand.getState().setUnitId('7')
+    dataZustand.useDataZustand.getState().setRegisterData(rows)
     await useClientZustand.getState().setUnitId('1,5')
 
     expect(useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
   })
 
   it('leaves the address and the rows read at it', async () => {
@@ -59,12 +62,34 @@ describe('a payload the boundary refuses', () => {
 })
 
 describe('a payload the boundary takes', () => {
-  it('writes the unit id', async () => {
-    const { clientZustand } = await load()
+  // A unit id names which device answers, so the rows the last one answered
+  // are about another device.
+  it('writes the unit id and drops the rows the old one answered', async () => {
+    const { clientZustand, dataZustand } = await load()
+    dataZustand.useDataZustand.getState().setRegisterData(rows)
 
     await clientZustand.useClientZustand.getState().setUnitId('7')
 
     expect(clientZustand.useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(dataZustand.useDataZustand.getState().registerData).toEqual([])
+  })
+
+  // `clearRegisterDataWhenIdle`: a poll is about to put new rows there, and
+  // emptying the grid under it is a flicker rather than an answer.
+  it('keeps the rows while a poll is running', async () => {
+    const { clientZustand, dataZustand } = await load()
+    const { useClientZustand } = clientZustand
+    dataZustand.useDataZustand.getState().setRegisterData(rows)
+    useClientZustand.getState().setClientState({
+      ...defaultClientState,
+      connectState: 'connected',
+      polling: true
+    })
+
+    await useClientZustand.getState().setUnitId('7')
+
+    expect(useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
   })
 
   it('writes the address and drops the rows read at the old one', async () => {

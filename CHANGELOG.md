@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Changing the unit ID now empties the grid the way the address does.** The
+  rows the previous unit answered stayed on screen under a unit ID that had not
+  read them, so two devices' values were one list. The address, the length and
+  the register type already cleared it. A running poll or read configuration
+  fills the grid on its own and is left alone, as before.
 - **A server configuration that puts one register at two addresses is now
   refused.** A register is stored under its address and names that address
   again in its own settings, and a file whose two disagreed opened: the server
