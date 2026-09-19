@@ -194,8 +194,34 @@ export const ServerRegisterEntrySchema = z.object({
 })
 export type ServerRegisterEntry = z.infer<typeof ServerRegisterEntrySchema>
 
-// Schema for a dictionary of register entries keyed by address
-export const ServerRegisterSchema = z.record(RegisterAddressKeySchema, ServerRegisterEntrySchema)
+/**
+ * A dictionary of register entries keyed by address, each naming its address
+ * once.
+ *
+ * The key and `params.address` are one address written twice, and both are
+ * read: `ServerRegisters` draws `params.address` and `syncRegistersWithBackend`
+ * sends it, while `setRegisterValue` and `removeRegister` look the entry up by
+ * key. Where the two disagree the register is served at one address and
+ * answered for at the other, so a generator's words arrive at a key holding
+ * nothing and are dropped, and Delete takes the register out of main and leaves
+ * the row in the grid.
+ *
+ * Compared as strings, because that is how the store spells a lookup. `'007'`
+ * passes `RegisterAddressKeySchema`, and `registers[String(7)]` finds nothing
+ * under it.
+ */
+export const ServerRegisterSchema = z
+  .record(RegisterAddressKeySchema, ServerRegisterEntrySchema)
+  .superRefine((registers, context) => {
+    for (const [address, entry] of Object.entries(registers)) {
+      if (String(entry.params.address) === address) continue
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [address, 'params', 'address'],
+        message: `Register keyed ${address} names address ${entry.params.address}`
+      })
+    }
+  })
 export type ServerRegister = z.infer<typeof ServerRegisterSchema>
 
 // Schema representing all register types for a server

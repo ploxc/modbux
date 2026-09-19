@@ -198,9 +198,11 @@ describe('configMigration', () => {
       })
 
       it('rewrites a 64 bit value a v2 file holds as a number', () => {
-        const register = (dataType: string, value: number): unknown => ({
+        // The key and `params.address` are one address, and `ServerRegisterSchema`
+        // refuses an entry whose two disagree.
+        const register = (address: number, dataType: string, value: number): unknown => ({
           value,
-          params: { address: 0, registerType: 'holding_registers', dataType, comment: '', value: 0 }
+          params: { address, registerType: 'holding_registers', dataType, comment: '', value: 0 }
         })
         const result = migrateServerConfig(
           JSON.stringify({
@@ -214,8 +216,8 @@ describe('configMigration', () => {
                 discrete_inputs: {},
                 input_registers: {},
                 holding_registers: {
-                  '0': register('uint64', 72623859790382850),
-                  '10': register('uint16', 7)
+                  '0': register(0, 'uint64', 72623859790382850),
+                  '10': register(10, 'uint16', 7)
                 }
               }
             }

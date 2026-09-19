@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A server configuration that puts one register at two addresses is now
+  refused.** A register is stored under its address and names that address
+  again in its own settings, and a file whose two disagreed opened: the server
+  answered at one address and the grid drew the other, so a generator's values
+  never reached the row and Delete took the register out of the server and left
+  the row behind. A file like that is refused by name now, and a register like
+  that in a saved session is dropped rather than opened.
 - **A second write no longer goes out while the first is still on the line.**
   Modbux sends one request at a time, and a poll, a scan or a read already
   running refused a second. A write did not: two bit toggles a click apart in

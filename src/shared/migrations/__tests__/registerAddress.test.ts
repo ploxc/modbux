@@ -226,6 +226,78 @@ describe('the drop on its own', () => {
   })
 })
 
+/**
+ * The key and `params.address` are one address written twice.
+ *
+ * `ServerRegisters` draws `params.address` and `syncRegistersWithBackend` sends
+ * it; `setRegisterValue` and `removeRegister` look the entry up by key. A file
+ * or a blob where the two disagree serves the register at one address and
+ * answers the grid at the other.
+ */
+describe('a register whose key and parameters disagree', () => {
+  /** The blob of `persistedWith`, with the entry at `key` naming `address`. */
+  const persistedSaying = (key: string, address: number): Record<string, unknown> => {
+    const state = persistedWith([])
+    migratedHoldingRegisters(state)[key] = { value: 1, params: params(address) }
+    return state
+  }
+
+  it('is refused by name in a config file', () => {
+    const result = ServerConfigSchema.safeParse({
+      version: 2,
+      modbuxVersion: '2.3.0',
+      name: 'bench',
+      littleEndian: false,
+      serverRegistersPerUnit: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: { '5': { value: 1, params: params(9) } }
+        }
+      }
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual([
+      'serverRegistersPerUnit',
+      '1',
+      'holding_registers',
+      '5',
+      'params',
+      'address'
+    ])
+  })
+
+  it('is taken by the config path when the two agree', () => {
+    expect(configAccepts(9)).toBe(true)
+  })
+
+  it('goes from a persisted blob, and the registers beside it stay', () => {
+    const state = persistedWith([100])
+    migratedHoldingRegisters(state)['5'] = { value: 1, params: params(9) }
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(migratedHoldingRegisters(state))).toEqual(['100'])
+  })
+
+  // `RegisterAddressKeySchema` takes a key of digits, and `String(7)` is not
+  // `'007'`, so the lookups the store does find nothing under it.
+  it('goes for a key that is the same number written differently', () => {
+    const state = persistedSaying('007', 7)
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(migratedHoldingRegisters(state))).toEqual([])
+  })
+
+  it('stays when the two say the same address', () => {
+    const state = persistedSaying('7', 7)
+    dropUnservableRegisters(state)
+
+    expect(Object.keys(migratedHoldingRegisters(state))).toEqual(['7'])
+  })
+})
+
 describe('a persisted generator the interval floor refuses', () => {
   /** A generated register firing every `interval` milliseconds, at address 10. */
   const generator = (interval: number): Record<string, unknown> => ({
