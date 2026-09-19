@@ -13,7 +13,8 @@ vi.hoisted(() => {
   w.api = new Proxy({}, { get: () => () => Promise.resolve(undefined) })
 })
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
@@ -119,6 +120,56 @@ describe('RegisterConfig read configuration', () => {
     render(<RegisterConfig />)
 
     expect(useClientZustand.getState().readConfiguration).toBe(true)
+  })
+})
+
+// A read has two ceilings and the field held the wrong one. `LengthInput` was
+// `Math.min(125, max)`, so what the caller passed could only lower it and a
+// coil read stopped at 125 of the 2000 FC01 answers.
+describe('RegisterConfig length field', () => {
+  // The mask is what holds the ceiling, so the field is what this reads. An
+  // emptied field stores 0 and renders it, and the digits land behind it, which
+  // is why the number rather than the string.
+  const typeLength = async (text: string): Promise<number> => {
+    render(<RegisterConfig />)
+    const input = within(screen.getByTestId('reg-length-input')).getByRole('textbox')
+    const user = userEvent.setup()
+    await user.clear(input)
+    await user.type(input, text)
+    return Number((input as HTMLInputElement).value)
+  }
+
+  it('takes 2000 bits of coils', async () => {
+    useClientZustand.setState({
+      registerConfig: { ...useClientZustand.getState().registerConfig, type: 'coils', address: 0 }
+    } as never)
+
+    expect(await typeLength('2000')).toBe(2000)
+  })
+
+  it('holds a register read at 125', async () => {
+    useClientZustand.setState({
+      registerConfig: {
+        ...useClientZustand.getState().registerConfig,
+        type: 'holding_registers',
+        address: 0
+      }
+    } as never)
+
+    expect(await typeLength('2000')).toBe(125)
+  })
+
+  // The other ceiling: how many registers are left from the address.
+  it('holds a read near the end of the range to what is there', async () => {
+    useClientZustand.setState({
+      registerConfig: {
+        ...useClientZustand.getState().registerConfig,
+        type: 'coils',
+        address: 65500
+      }
+    } as never)
+
+    expect(await typeLength('2000')).toBe(36)
   })
 })
 

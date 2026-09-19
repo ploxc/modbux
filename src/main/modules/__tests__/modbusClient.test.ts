@@ -1283,6 +1283,41 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(100, 1)
     })
 
+    // Neither source of a group is bounded by the range it reads from.
+    // `RegisterConfigSchema` takes a length of 65535 at any address, so a
+    // persisted store carries the first one; an int64 is four registers wide
+    // wherever it is mapped, so a config file carries the second.
+    it('stops the toolbar read at the last register', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'holding_registers', address: 65500, length: 125 })
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65500, 36)
+    })
+
+    it('stops a configured group at the last register', async () => {
+      await connectClient()
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {
+          65534: { dataType: 'int64' }
+        }
+      })
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [100],
+        buffer: Buffer.from([0x00, 0x64])
+      })
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65534, 2)
+    })
+
     // The pair for the group above: a data type on a coil address parses,
     // because the mapping schema is one object schema for all four types, and
     // it is the only way a bit mapping gets one.

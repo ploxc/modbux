@@ -54,6 +54,17 @@ export const maxReadQuantity = (registerTypes: readonly RegisterType[]): number 
   registerTypes.some(isNumberRegister) ? MAX_READ_REGISTERS : MAX_READ_BITS
 
 /**
+ * How many registers there are from an address to the end of the range.
+ *
+ * The other half of what a read asks for. `maxReadQuantity` says how much one
+ * response can carry; this says how much is there, and a read takes the
+ * smaller. `_read` had neither, so a mapping with an int64 at 65534 asked a
+ * device for 65534 through 65537, and a length of 65535 at address 65535 asked
+ * for twice the range that exists.
+ */
+export const registersFrom = (address: number): number => MAX_REGISTER_ADDRESS - address + 1
+
+/**
  * The same range for a register map keyed by address.
  *
  * A JSON object key is a string, so the range has to be checked after the

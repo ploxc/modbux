@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A coil read can now ask for the 2000 bits the protocol allows.** The Length
+  field stopped at 125 whatever the type selected, which is the ceiling for
+  holding and input registers, so reading a thousand coils took eight reads
+  rather than one. It now stops at what the selected type answers, and at what
+  is left from the address: a read starting at 65500 offers 36. A read no longer
+  runs off the end of the range either. A 64-bit value mapped at 65534 is four
+  registers wide, and the read that covered it asked for two addresses that do
+  not exist.
 - **A scan that reaches past the last unit ID or register now stops there.** A
   Start of 200 with a Count of 100 asked for unit ID 299, and an address of
   60000 with a Length of 10000 asked for register 69999. Neither exists, so the

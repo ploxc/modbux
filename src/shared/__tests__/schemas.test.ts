@@ -10,7 +10,13 @@ import { RegisterParamsSchema, RemoveRegisterParamsSchema } from '../types/serve
 import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
 import { MAX_UTF8_LENGTH } from '../utils'
 import { ScanUnitIDParametersSchema } from '../types/scan'
-import { MAX_READ_BITS, MAX_READ_REGISTERS, maxReadQuantity } from '../types/ranges'
+import {
+  MAX_READ_BITS,
+  MAX_READ_REGISTERS,
+  MAX_REGISTER_ADDRESS,
+  maxReadQuantity,
+  registersFrom
+} from '../types/ranges'
 import {
   isBooleanRegister,
   isNumberRegister,
@@ -576,6 +582,19 @@ describe('maxReadQuantity', () => {
   it('states the protocol rather than a habit', () => {
     expect(MAX_READ_BITS).toBe(2000)
     expect(MAX_READ_REGISTERS).toBe(125)
+  })
+})
+
+// The other half of what a read asks for: `maxReadQuantity` says how much one
+// response carries, this says how much is there.
+describe('registersFrom', () => {
+  it.each([
+    [0, 65536],
+    [65500, 36],
+    [65534, 2],
+    [MAX_REGISTER_ADDRESS, 1]
+  ])('answers %i with %i', (address, expected) => {
+    expect(registersFrom(address)).toBe(expected)
   })
 })
 

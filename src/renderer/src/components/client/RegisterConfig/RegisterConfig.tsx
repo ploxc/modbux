@@ -14,7 +14,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { flushRegisterMappingToMain, useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterType } from '@shared'
+import { maxReadQuantity, registersFrom, RegisterType } from '@shared'
 import { showMapping } from '@renderer/context/data.zustand'
 import { ElementType, useCallback, useEffect, useRef } from 'react'
 
@@ -77,9 +77,16 @@ const Length = meme(() => {
   const length = useClientZustand((z) => String(z.registerConfig.length))
   const lengthValid = useClientZustand((z) => z.valid.length)
   const address = useClientZustand((z) => z.registerConfig.address)
+  const type = useClientZustand((z) => z.registerConfig.type)
   const readConfiguration = useClientZustand((z) => z.readConfiguration)
 
   const setLength = useClientZustand.getState().setLength
+
+  // Both ceilings a read has: what one response carries, by register type, and
+  // how many registers are left from the address. `LengthInput` held the first
+  // at 125 whatever it was passed, so a coil read stopped at 125 of the 2000
+  // FC01 answers.
+  const max = Math.min(maxReadQuantity([type]), registersFrom(address))
 
   return (
     <TextField
@@ -94,7 +101,7 @@ const Length = meme(() => {
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setLength, max: 65536 - address })
+          inputProps: maskInputProps({ set: setLength, max })
         }
       }}
     />

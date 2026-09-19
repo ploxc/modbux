@@ -3,16 +3,25 @@ import { forwardRef } from 'react'
 import { integerMask } from './integerMask'
 import { meme } from './meme'
 import { MaskInputProps } from './types'
+import { MAX_READ_REGISTERS } from '@shared'
 
+/**
+ * The length of a read, bounded by the caller.
+ *
+ * The ceiling was `Math.min(125, max)`, so the `max` a caller passed could only
+ * lower it and a coil read was held to 125 of the 2000 FC01 answers. What one
+ * read can carry is `maxReadQuantity`, by register type, and how much is there
+ * is `registersFrom`. The caller knows both.
+ */
 const LengthInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
-  const { set, max = 125, ...other } = props
+  const { set, max = MAX_READ_REGISTERS, ...other } = props
   return (
     <IMaskInput
       {...other}
       {...integerMask}
       autofix
       min={0}
-      max={Math.min(125, max)}
+      max={max}
       inputRef={ref}
       onAccept={(value) => set(value, Number(value) > 0)}
     />
