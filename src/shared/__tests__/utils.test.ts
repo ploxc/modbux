@@ -6,6 +6,7 @@ import {
   bigEndian64,
   littleEndian64,
   createRegisters,
+  createStringRegisters,
   encodeIEC870DateTime,
   registerWidth,
   getMinMaxValues,
@@ -587,6 +588,36 @@ describe('getDummyRegisterData', () => {
       datetime: '',
       utf8: ''
     })
+  })
+})
+
+describe('createStringRegisters', () => {
+  it('packs two characters into one register', () => {
+    expect(createStringRegisters('AB', 1)).toEqual([0x4142])
+  })
+
+  it('pads the registers it was given with zeros', () => {
+    expect(createStringRegisters('A', 2)).toEqual([0x4100, 0x0000])
+  })
+
+  it('answers zeros for no text at all', () => {
+    expect(createStringRegisters('', 2)).toEqual([0x0000, 0x0000])
+  })
+
+  it('cuts text longer than the registers it was given', () => {
+    expect(createStringRegisters('ABCD', 1)).toEqual([0x4142])
+  })
+
+  // A register is two bytes and a character need not be: the two bytes of the
+  // `e9` are `c3` and `a9`, and the register boundary falls between them.
+  it('carries a character across a register boundary', () => {
+    expect(createStringRegisters('a\u00e9', 2)).toEqual([0x61c3, 0xa900])
+  })
+
+  // `Buffer.write` writes whole characters only. A character that does not fit
+  // leaves its bytes at zero rather than half of them in the register.
+  it('drops a character that does not fit rather than half of it', () => {
+    expect(createStringRegisters('a\u00e9', 1)).toEqual([0x6100])
   })
 })
 

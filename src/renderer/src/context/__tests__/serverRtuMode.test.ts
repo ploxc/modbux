@@ -236,3 +236,45 @@ describe('a serial option changed in TCP mode', () => {
     expect(methods()).toEqual([])
   })
 })
+
+// The toggle awaits these two and nothing else calls them. Each one takes the
+// transport it is leaving down before it writes the mode, because `init` reads
+// the mode to decide what to open.
+describe('switching the server between the two modes', () => {
+  it('takes every TCP listener down, then opens the serial port', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, persisted('/dev/ttyUSB0'))
+    recordingBoundary()
+    const { useServerZustand } = await import('../server.zustand')
+    useServerZustand.setState({ serverMode: 'tcp' })
+    calls = []
+
+    await useServerZustand.getState().switchToRtu()
+
+    expect(methods()).toEqual([
+      'stopAllTcpServers',
+      'startRtuServer',
+      'setServerEndianness',
+      'syncBools',
+      'syncServerRegister'
+    ])
+    expect(useServerZustand.getState().serverMode).toBe('rtu')
+  })
+
+  it('takes the serial port down, then opens the TCP listener again', async () => {
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, persisted('/dev/ttyUSB0'))
+    recordingBoundary()
+    const { useServerZustand } = await import('../server.zustand')
+    calls = []
+
+    await useServerZustand.getState().switchToTcp()
+
+    expect(methods()).toEqual([
+      'stopRtuServer',
+      'createServer',
+      'setServerEndianness',
+      'syncBools',
+      'syncServerRegister'
+    ])
+    expect(useServerZustand.getState().serverMode).toBe('tcp')
+  })
+})
