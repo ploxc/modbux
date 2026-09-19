@@ -214,12 +214,19 @@ describe('the byte order, which reads through the same rule', () => {
  * the mapping on a change of `readConfiguration` and not of `type`.
  */
 describe('read configuration on, and the question the grid answers changes', () => {
-  /** The mapping with one holding register and one coil configured. */
+  /**
+   * The mapping with a holding register, an input register and a coil.
+   *
+   * The coil carries a data type, which no press can put there: the grid
+   * mounts that column for the two number types alone. A config file can, and
+   * that is the entry `_read` ignores while `showMapping` draws it.
+   */
   const withMapping = async (
     useClientZustand: typeof import('../client.zustand').useClientZustand
   ): Promise<void> => {
     const mapping = emptyRegisterMapping()
     mapping.holding_registers['0'] = { dataType: 'uint16', comment: 'holding' }
+    mapping.input_registers['9'] = { dataType: 'uint16', comment: 'input' }
     mapping.coils['4'] = { dataType: 'uint16', comment: 'coil' }
     await useClientZustand.getState().replaceRegisterMapping(mapping)
     useClientZustand.getState().setReadConfiguration(true)
@@ -244,10 +251,49 @@ describe('read configuration on, and the question the grid answers changes', () 
     await withMapping(useClientZustand)
     calls.length = 0
 
-    await useClientZustand.getState().setType('coils')
+    await useClientZustand.getState().setType('input_registers')
 
     expect(methods()).toEqual(['updateRegisterConfig', 'read'])
+    expect(useDataZustand.getState().registerData.map((data) => data.id)).toEqual([9])
+  })
+
+  /**
+   * A bit type, where main reads the toolbar's block rather than the mapping.
+   *
+   * `_read` groups by data type for the two number types alone, so a read
+   * asked for here comes back as `length` coils from `address` and replaces
+   * the rows `showMapping` just drew. Both fields hold whatever was in them
+   * when read configuration went on, because both are disabled under it.
+   */
+  it('a bit type draws the mapping and asks for nothing', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    calls.length = 0
+
+    await useClientZustand.getState().setType('coils')
+
+    expect(methods()).toEqual(['updateRegisterConfig'])
     expect(useDataZustand.getState().registerData.map((data) => data.id)).toEqual([4])
+  })
+
+  // The same fallback, reached the other way: a groupable type the mapping
+  // configures nothing for. `RegisterConfig`'s `nothingConfigured` effect turns
+  // read configuration off a render later and the grid clears, so a read asked
+  // for here is answered into a grid that is about to go.
+  it('a type the mapping configures nothing for asks for nothing', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    const mapping = emptyRegisterMapping()
+    mapping.holding_registers['0'] = { dataType: 'uint16', comment: 'holding' }
+    await useClientZustand.getState().replaceRegisterMapping(mapping)
+    useClientZustand.getState().setReadConfiguration(true)
+    calls.length = 0
+
+    await useClientZustand.getState().setType('input_registers')
+
+    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(useDataZustand.getState().registerData).toEqual([])
   })
 
   // The refusal rule is the same one, so a state main would refuse costs the

@@ -1,4 +1,12 @@
-import type { AddressGroup, DataType, RegisterMapObject, RegisterMapValue } from './types'
+import type {
+  AddressGroup,
+  DataType,
+  RegisterMapObject,
+  RegisterMapping,
+  RegisterMapValue,
+  RegisterType
+} from './types'
+import { isNumberRegister } from './types'
 import { registerWidth } from './utils'
 
 /** How far a string is read when nothing in the mapping says where it ends. */
@@ -111,3 +119,30 @@ export const groupAddressInfos = (
 
   return groups
 }
+
+/**
+ * The groups a read takes out of the mapping, and nothing at all where a read
+ * takes the toolbar's own group instead.
+ *
+ * `_read` asks three things before it reads a mapping: read configuration is
+ * on, the type is one the mapping configures, and the mapping has a group
+ * under it. Falling through on any of the three is a raw read of the toolbar's
+ * address and length, which is the right answer for a read and the wrong one
+ * for a caller asking whether the mapping is what comes back.
+ *
+ * A bit type is not one the mapping configures: the grid mounts the data type
+ * column for input and holding registers alone, so a comment is all it writes
+ * into a coil, and a data type a config file puts on a coil address is ignored
+ * here the way the toolbar button refuses it.
+ *
+ * Here rather than in `_read`, because the renderer asks the same question.
+ * `clearRegisterDataWhenIdle` redraws the mapping and asks main to fill it,
+ * and where main would answer out of the toolbar group instead, what comes
+ * back is not what was drawn.
+ */
+export const configuredReadGroups = (
+  readConfiguration: boolean,
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined
+): Array<AddressGroup> =>
+  readConfiguration && isNumberRegister(type) ? groupAddressInfos(registerMapping?.[type]) : []

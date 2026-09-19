@@ -16,6 +16,7 @@ import {
   migrateClientState,
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
+  configuredReadGroups,
   emptyRegisterMapping,
   RegisterConfig,
   RegisterMapping,
@@ -92,14 +93,23 @@ export const flushRegisterMappingToMain = async (
  * would trade values a device answered for `showMapping`'s zeros. Both fields
  * are disabled while read configuration is on, so this is the rule rather than
  * a state to reach.
+ *
+ * `configuredReadGroups` is that same fallback asked before the ask. A bit
+ * type configures nothing main will read, and neither does a type with no
+ * group under it, so a read there comes back as the toolbar's block over the
+ * mapping just drawn. The redraw still happens, because the mapping is what
+ * the grid is about; the ask does not.
  */
 const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
-  const { clientState, readConfiguration } = useClientZustand.getState()
+  const { clientState, readConfiguration, registerConfig, registerMapping } =
+    useClientZustand.getState()
   if (clientState.polling) return
   if (readConfiguration) {
     if (!readsTheMapping) return
     showMapping()
-    readWhenMainCan()
+    if (configuredReadGroups(true, registerConfig.type, registerMapping).length > 0) {
+      readWhenMainCan()
+    }
     return
   }
   useDataZustand.getState().setRegisterData([])

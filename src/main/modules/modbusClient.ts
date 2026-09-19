@@ -6,10 +6,10 @@ import {
   BaseDataType,
   ClientState,
   convertBitData,
+  configuredReadGroups,
   convertRegisterData,
   createRegisters,
   defaultClientState,
-  groupAddressInfos,
   humanizeSerialError,
   isBooleanRegister,
   maxReadQuantity,
@@ -615,17 +615,16 @@ export class ModbusClient {
 
     const { type, address, length } = this._appState.registerConfig
 
-    // Read configuration groups by data type, and a bit type carries none: the
-    // grid mounts the data type column for input and holding registers alone,
-    // so a comment is all it writes into a coil. A config file is another
-    // matter, because `RegisterMappingSchema` uses one object schema for all
-    // four types, and a data type it puts on a coil address is ignored here the
-    // way the toolbar button refuses it.
-    const groupable = type === 'input_registers' || type === 'holding_registers'
-    const configGroups =
-      this._appState.readConfiguration && groupable
-        ? groupAddressInfos(this._appState.registerMapping?.[type])
-        : []
+    // Read configuration groups by data type, and a bit type carries none.
+    // `configuredReadGroups` is that question, in `@shared` because the
+    // renderer asks it too: `clearRegisterDataWhenIdle` draws the mapping and
+    // asks for a read, and an empty answer here is the toolbar's group coming
+    // back instead of what it drew.
+    const configGroups = configuredReadGroups(
+      this._appState.readConfiguration,
+      type,
+      this._appState.registerMapping
+    )
     // The toolbar's group is bounded by neither ceiling. `RegisterConfigSchema`
     // takes a length of 65535 at any address, so a persisted store carries a
     // read past the last register there is; and the type and the length are two
