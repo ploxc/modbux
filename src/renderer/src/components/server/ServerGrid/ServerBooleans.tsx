@@ -12,6 +12,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import ServerBit from './shared/ServerBit'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
+import { useSnackbar } from 'notistack'
 
 interface ServerBooleanProps {
   name: string
@@ -159,6 +160,7 @@ const nextFree = (from: number, boolMap: Record<string, unknown>): number => {
 
 const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const [address, setAddress] = useState(() => String(nextFree(0, getBoolMap(type))))
+  const { enqueueSnackbar } = useSnackbar()
 
   // Reset to 0 when all bools are cleared
   const empty = useServerZustand((z) => {
@@ -170,18 +172,36 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
     if (empty) setAddress('0')
   }, [empty])
 
+  // The field is seeded from what one unit holds, and the reset above was the
+  // only write that read the store again, so switching to a unit holding fewer
+  // addresses left the field on the one the last unit ended at. A server is the
+  // other half of which map that is, and two servers can be on the same unit
+  // id, so both are in the list.
+  const uuid = useServerZustand((z) => z.selectedUuid)
+  const unitId = useServerZustand((z) => z.getUnitId(z.selectedUuid))
+  useEffect(() => {
+    setAddress(String(nextFree(0, getBoolMap(type))))
+  }, [type, uuid, unitId])
+
   const handleAdd = useCallback(() => {
     let nextAddress = Number(address)
     if (isNaN(nextAddress) || nextAddress < 0 || nextAddress > 65535) return
     // If typed address is already taken, snap to next free
     const boolMap = getBoolMap(type)
+    const typedAddress = nextAddress
     if (nextAddress in boolMap) nextAddress = nextFree(nextAddress, boolMap)
-    if (nextAddress > 65535) return
+    if (nextAddress > 65535) {
+      enqueueSnackbar({
+        message: `Every address from ${typedAddress} up is taken`,
+        variant: 'error'
+      })
+      return
+    }
     useServerZustand.getState().addBool(type, nextAddress)
     // Auto-increment to next free address
     const next = nextFree(nextAddress + 1, getBoolMap(type))
     if (next <= 65535) setAddress(String(next))
-  }, [type, address])
+  }, [type, address, enqueueSnackbar])
 
   return (
     <Box

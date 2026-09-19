@@ -345,6 +345,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A port another server already holds now says so.** Typing it into a second
   server's Port field put the old number back with nothing said, which reads
   like the field ignored you. The message names the port.
+- **The address on the Add bar follows the unit you are looking at.** It was
+  read once, from whichever unit was selected then, so after switching to a unit
+  holding fewer coils it sat above every address that unit had. Adding an
+  address with nothing free above it now says so as well, instead of leaving the
+  button doing nothing.
 - **A server whose port was lost comes back on one.** When the stored ports
   could not be read, Modbux said so and reset them, and every server but the
   first then came up with no port at all: a blank button in the row at the top,
