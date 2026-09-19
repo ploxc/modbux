@@ -74,6 +74,23 @@ describe('a payload the boundary takes', () => {
     expect(dataZustand.useDataZustand.getState().registerData).toEqual([])
   })
 
+  // A mount of the masked field hands the setter the id the store already
+  // holds, which `integerMask.test.tsx` measures, so this is what keeps opening
+  // the scan dialog or walking to Home and back from emptying the grid.
+  it('keeps the rows when the unit id it is handed is the one it holds', async () => {
+    const { clientZustand, dataZustand } = await load()
+    const { useClientZustand } = clientZustand
+    await useClientZustand.getState().setUnitId('7')
+    dataZustand.useDataZustand.getState().setRegisterData(rows)
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+
+    await useClientZustand.getState().setUnitId('7')
+
+    expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
+    expect(calls).toEqual([])
+  })
+
   // `clearRegisterDataWhenIdle`: a poll is about to put new rows there, and
   // emptying the grid under it is a flicker rather than an answer.
   it('keeps the rows while a poll is running', async () => {
@@ -105,8 +122,9 @@ describe('a payload the boundary takes', () => {
 
 describe('a value the field marks invalid', () => {
   /**
-   * The host and the length are the two the field reads back out of the store,
-   * so they are written without being sent and the input keeps what was typed.
+   * The host, the COM port and the length are the three the field reads back
+   * out of the store, so they are written without being sent and the input
+   * keeps what was typed.
    */
   it('keeps the half-typed host in the store and marks it invalid', async () => {
     const { clientZustand } = await load()
@@ -123,7 +141,7 @@ describe('a value the field marks invalid', () => {
   it('keeps a blank COM port in the store and sends nothing', async () => {
     const { clientZustand } = await load()
     const { useClientZustand } = clientZustand
-    await useClientZustand.getState().setCom('COM3', true)
+    await useClientZustand.getState().setCom('COM9', true)
     const calls: ApiCall[] = []
     recordApiCalls(calls)
 
@@ -140,11 +158,11 @@ describe('a value the field marks invalid', () => {
     const calls: ApiCall[] = []
     recordApiCalls(calls)
 
-    await useClientZustand.getState().setCom('COM3', true)
+    await useClientZustand.getState().setCom('COM9', true)
 
-    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('COM3')
+    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('COM9')
     expect(useClientZustand.getState().valid.com).toBe(true)
-    expect(calls).toEqual([{ method: 'updateConnectionConfig', payload: { rtu: { com: 'COM3' } } }])
+    expect(calls).toEqual([{ method: 'updateConnectionConfig', payload: { rtu: { com: 'COM9' } } }])
   })
 
   it('keeps an empty length in the store and marks it invalid', async () => {

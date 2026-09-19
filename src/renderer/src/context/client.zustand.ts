@@ -71,8 +71,9 @@ export const flushRegisterMappingToMain = async (
  *
  * Address, length and type each change what a read asks for, and the unit id
  * changes which device answers it, so the rows from the last read answer a
- * different question. Polling puts new ones there on its own, and so does read
- * configuration.
+ * different question. A poll puts new ones there on its own. With read
+ * configuration on the grid is drawn from the mapping, so emptying it would
+ * take the configured rows with it.
  */
 const clearRegisterDataWhenIdle = (): void => {
   const { clientState, readConfiguration } = useClientZustand.getState()
@@ -381,9 +382,16 @@ export const useClientZustand = create<
         setRegisterConfigField(set, get, 'advancedMode', advancedMode),
       // Addressing
       setUnitId: async (unitId) => {
-        if (!get().ready) return
+        const currentState = get()
+        if (!currentState.ready) return
 
+        // `UnitIdInput` is an `IMaskInput`, which fires `accept` when the value
+        // it is handed differs from the empty mask it mounts with, so every
+        // mount of the toolbar field and of the scan dialog's calls this with
+        // the id the store already holds. The rows below would go with it.
         const newUnitId = Number(unitId)
+        if (newUnitId === currentState.connectionConfig.unitId) return
+
         if (!(await window.api.updateConnectionConfig({ unitId: newUnitId }))) return
 
         set((state) => {

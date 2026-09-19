@@ -12,12 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A blank COM port is no longer sent to the serial connection.** Clearing the
   COM field wrote an empty port name into the connection, so a connect attempt
   failed on nothing to open. The field keeps what you type and marks it, and the
-  connection keeps the last port you picked, which is what the host field
-  already did.
+  connection keeps the last port you picked for the rest of the session, which
+  is what the host field already did.
 - **Changing the unit ID now empties the grid the way the address does.** The
   rows the previous unit answered stayed on screen under a unit ID that had not
-  read them, so two devices' values were one list. The address, the length and
-  the register type already cleared it. A running poll or read configuration
+  read them, so you were looking at one device's values under another's ID. The
+  address, the length and the register type already cleared it. A running poll
   fills the grid on its own and is left alone, as before.
 - **A server configuration that puts one register at two addresses is now
   refused.** A register is stored under its address and names that address

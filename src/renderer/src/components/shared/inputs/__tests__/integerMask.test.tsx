@@ -8,10 +8,14 @@
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import TextField from '@mui/material/TextField'
+import { InputBaseComponentProps } from '@mui/material/InputBase'
+import { ElementType } from 'react'
 
 import LengthInput from '../LengthInput'
 import UIntInput from '../UintInput'
 import UnitIdInput from '../UnitIdInput'
+import { maskInputProps } from '../types'
 
 const typeInto = async (input: HTMLInputElement, text: string): Promise<void> => {
   const user = userEvent.setup()
@@ -23,6 +27,30 @@ const renderField = (field: JSX.Element): HTMLInputElement => {
   render(field)
   return screen.getByRole('textbox') as HTMLInputElement
 }
+
+// react-imask assigns the value it is handed after it has registered the accept
+// listener, and the mask mounts empty, so the assignment reads as a change.
+// `setUnitId` and `setAddress` both guard on the value they already hold, and a
+// mount of the toolbar field or of the scan dialog's is why.
+describe('a masked field on mount', () => {
+  it('hands the setter the value it was given', () => {
+    const set = vi.fn()
+    renderField(
+      <TextField
+        value="7"
+        slotProps={{
+          input: {
+            // The cast the field's own caller makes, in `ConnectionConfig`.
+            inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+            inputProps: maskInputProps({ set })
+          }
+        }}
+      />
+    )
+
+    expect(set.mock.calls).toEqual([['7', true]])
+  })
+})
 
 describe('an integer field and a decimal separator', () => {
   it('drops the comma from the unit id', async () => {
