@@ -3,6 +3,7 @@ import {
   AddRegisterParamsSchema,
   RemoveRegisterParamsSchema,
   ServerConfigSchema,
+  ServerRegistersSchema,
   SyncRegisterValueParamsSchema
 } from '../../types/server'
 import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
@@ -224,6 +225,103 @@ describe('the drop on its own', () => {
     const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
     const unit = perUuid.u?.['1'] as Record<string, unknown>
     expect(Object.keys(unit.coils as Record<string, unknown>)).toEqual([])
+  })
+
+  // A key of a register type the entry schemas do not name. `ServerRegisters`
+  // is a `z.object`, which strips a key it does not declare, so the field
+  // survives it either way and the drop has nothing to buy here.
+  it('leaves a register type it does not know alone', () => {
+    const state: Record<string, unknown> = {
+      serverRegisters: { u: { '1': { file_records: { '3': { value: 1 } } } } }
+    }
+    dropUnservableRegisters(state)
+
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    expect(Object.keys(unit.file_records as Record<string, unknown>)).toEqual(['3'])
+  })
+})
+
+/**
+ * A number register with no parameters, or none the schema takes.
+ *
+ * `ServerRegisterEntrySchema` requires both `value` and `params`, and the drop
+ * read `params` alone: an entry that carried none was taken for a boolean one
+ * and kept. So the field the drop exists to save was reset for exactly the
+ * register it was walking to save.
+ */
+describe('a persisted number register the entry schema refuses', () => {
+  /** The holding and coil maps of a blob, after the drop has walked it. */
+  const dropped = (
+    holding: Record<string, unknown>,
+    coils: Record<string, unknown> = {}
+  ): { holding: string[]; coils: string[] } => {
+    const state: Record<string, unknown> = {
+      serverRegisters: {
+        u: { '1': { coils, discrete_inputs: {}, input_registers: {}, holding_registers: holding } }
+      }
+    }
+    dropUnservableRegisters(state)
+
+    const unit = migratedHoldingRegisters(state)
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const registers = perUuid.u?.['1'] as Record<string, unknown>
+    return {
+      holding: Object.keys(unit),
+      coils: Object.keys(registers.coils as Record<string, unknown>)
+    }
+  }
+
+  it('goes when it carries no parameters at all', () => {
+    expect(dropped({ '0': { value: 1 }, '1': { value: 1, params: params(1) } }).holding).toEqual([
+      '1'
+    ])
+  })
+
+  it('goes when it carries parameters and no value', () => {
+    expect(
+      dropped({ '0': { params: params(0) }, '1': { value: 1, params: params(1) } }).holding
+    ).toEqual(['1'])
+  })
+
+  it('goes when its value is a string that is not a decimal integer', () => {
+    expect(dropped({ '0': { value: 'a lot', params: params(0) } }).holding).toEqual([])
+  })
+
+  it('keeps a value written as a decimal string, which is how 64 bits is stored', () => {
+    expect(dropped({ '0': { value: '9007199254740993', params: params(0) } }).holding).toEqual([
+      '0'
+    ])
+  })
+
+  // The other half of the same question: a boolean entry is judged by its own
+  // schema, so a coil holding a number is not a coil.
+  it('goes for a coil whose value is not a boolean', () => {
+    expect(dropped({}, { '3': { value: 1 }, '4': { value: true } }).coils).toEqual(['4'])
+  })
+
+  it('keeps a coil carrying a comment beside its value', () => {
+    expect(dropped({}, { '3': { value: true, comment: 'pump' } }).coils).toEqual(['3'])
+  })
+
+  // What the drop is for: the field survives the register.
+  it('leaves a field the schema takes', () => {
+    const state: Record<string, unknown> = {
+      serverRegisters: {
+        u: {
+          '1': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: { '0': { value: 1 }, '1': { value: 1, params: params(1) } }
+          }
+        }
+      }
+    }
+    dropUnservableRegisters(state)
+
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    expect(ServerRegistersSchema.safeParse(perUuid.u?.['1']).success).toBe(true)
   })
 })
 

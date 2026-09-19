@@ -1,7 +1,11 @@
 import type { ZodError, ZodIssue } from 'zod'
 import { RegisterAddressKeySchema } from '../types/ranges'
 import { RegisterMapValueSchema } from '../types/client'
-import { RegisterParamsSchema } from '../types/server'
+import {
+  RegisterParamsSchema,
+  ServerBoolEntrySchema,
+  ServerRegisterEntrySchema
+} from '../types/server'
 import {
   BooleanRegistersSchema,
   DataType,
@@ -163,12 +167,7 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
     const usedPerUnit = usedAddresses && recordAt(usedAddresses, uuid)
 
     for (const [unitId, registersByType] of recordEntries(registersPerUnit)) {
-      for (const entriesByAddress of objectValues(registersByType)) {
-        for (const [address, entry] of Object.entries(entriesByAddress)) {
-          if (isRecord(entry) && isServable(address, entry)) continue
-          delete entriesByAddress[address]
-        }
-      }
+      dropUnservableEntries(registersByType)
 
       if (!usedPerUnit) continue
       if (!UnitIdStringSchema.safeParse(unitId).success) continue
@@ -178,19 +177,56 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
 }
 
 /**
- * A register map is keyed by address, and a register entry repeats its whole
- * parameter set, so both have to hold for the entry to be servable, and they
- * have to name the same address. `ServerRegisterSchema` asks all three of a
- * blob or a file that reaches it, a whole field at a time: what the two callers
- * here buy is the register rather than the field, which is the reason written
- * above each of them. A boolean entry carries the key alone.
+ * Whether one entry can be served under the type and the address it is filed
+ * at.
+ *
+ * The schema that will judge the entry is the schema that answers here, so a
+ * register the drop keeps is a register `ServerRegistersSchema` takes. Reading
+ * `params` alone did not do that: the branch keeping a boolean entry was
+ * `if (!isRecord(params)) return true`, and a holding register of
+ * `{ value: 1 }` took it, so the drop kept an entry `ServerRegisterSchema`
+ * refuses and the whole `serverRegistersPerUnit` field reset for it. An entry
+ * carrying valid `params` and no `value` cost the field the same way.
+ *
+ * A register map is keyed by address and a number entry repeats that address
+ * in its parameters, so the two have to agree. `ServerRegisterSchema` asks
+ * that of a blob or a file a whole field at a time: what the two callers here
+ * buy is the register rather than the field, which is the reason written above
+ * each of them.
+ *
+ * A type neither schema names is left alone. `ServerRegistersSchema` is a
+ * `z.object`, so it strips a key it does not declare, and a fifth register
+ * type from a newer Modbux costs the field nothing.
  */
-const isServable = (address: string, entry: Record<string, unknown>): boolean => {
+const isServable = (registerType: string, address: string, entry: unknown): boolean => {
   if (!RegisterAddressKeySchema.safeParse(address).success) return false
-  const params = entry.params
-  if (!isRecord(params)) return true
-  if (!RegisterParamsSchema.safeParse(params).success) return false
-  return String(params.address) === address
+
+  if (BooleanRegistersSchema.options.some((option) => option === registerType)) {
+    return ServerBoolEntrySchema.safeParse(entry).success
+  }
+  if (!NumberRegistersSchema.options.some((option) => option === registerType)) return true
+
+  const parsed = ServerRegisterEntrySchema.safeParse(entry)
+  return parsed.success && String(parsed.data.params.address) === address
+}
+
+/**
+ * Drop the entries of one unit that cannot be served, register type by
+ * register type.
+ *
+ * Two callers walk to a unit's registers by different routes, a config file
+ * through `serverRegistersPerUnit[unit]` and the persisted store through
+ * `serverRegisters[uuid][unit]`. Only that walk differs, so each caller owns
+ * it and the work below it is here once, the way `migrateBoolShapeForUnit`
+ * already is.
+ */
+const dropUnservableEntries = (registersByType: unknown): void => {
+  for (const [registerType, entriesByAddress] of recordEntries(registersByType)) {
+    for (const [address, entry] of Object.entries(entriesByAddress)) {
+      if (isServable(registerType, address, entry)) continue
+      delete entriesByAddress[address]
+    }
+  }
 }
 
 /**
@@ -210,12 +246,7 @@ const isServable = (address: string, entry: Record<string, unknown>): boolean =>
  */
 export function dropUnservableConfigRegisters(parsed: Record<string, unknown>): void {
   for (const [, registersByType] of recordEntries(parsed.serverRegistersPerUnit)) {
-    for (const entriesByAddress of objectValues(registersByType)) {
-      for (const [address, entry] of Object.entries(entriesByAddress)) {
-        if (isRecord(entry) && isServable(address, entry)) continue
-        delete entriesByAddress[address]
-      }
-    }
+    dropUnservableEntries(registersByType)
   }
 }
 

@@ -315,6 +315,45 @@ describe('configMigration', () => {
         expect(result.futureVersion?.fields).toEqual([])
       })
 
+      // `ServerRegisterEntrySchema` requires `params`, and the drop read
+      // `params` alone: an entry carrying none was taken for a boolean one and
+      // kept, so the field this walk exists to save was reset for it anyway.
+      it('drops a number register carrying no parameters and keeps the field', () => {
+        const result = migrateServerConfig(
+          JSON.stringify({
+            version: 9,
+            modbuxVersion: '9.0.0',
+            name: 'Future',
+            littleEndian: false,
+            serverRegistersPerUnit: {
+              '1': {
+                coils: {},
+                discrete_inputs: {},
+                input_registers: {},
+                holding_registers: {
+                  '0': { value: 1 },
+                  '20': {
+                    value: 1,
+                    params: {
+                      address: 20,
+                      registerType: 'holding_registers',
+                      dataType: 'int32',
+                      comment: '',
+                      value: 1
+                    }
+                  }
+                }
+              }
+            }
+          })
+        )
+
+        expect(
+          Object.keys(result.config.serverRegistersPerUnit['1']?.holding_registers ?? {})
+        ).toEqual(['20'])
+        expect(result.futureVersion?.fields).toEqual([])
+      })
+
       it('says so in a sentence naming the field', () => {
         const result = migrateServerConfig(
           JSON.stringify({
