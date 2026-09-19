@@ -352,6 +352,33 @@ test.describe.serial('Scan Unit IDs', () => {
     await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeEnabled()
   })
 
+  // ─── A range wider than the unit ids there are ────────────────────
+
+  // Start caps at 255 and Count at 256, so the pair named unit id 299 and
+  // `ScanUnitIDParametersSchema` refused the request. The dialog had cleared
+  // its results by then, so the scan turned up nothing and said nothing.
+  test('a count reaching past the last unit id scans up to it', async ({ mainPage }) => {
+    test.setTimeout(60000)
+
+    const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
+    await startUnit.fill('200')
+    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
+    await count.fill('100')
+
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+
+    // The row rather than the button: the button reads Start Scanning both
+    // before main takes the request and after it is done, so a refused request
+    // satisfies it without a scan.
+    const modal = mainPage.locator('.MuiModal-root')
+    await expect(modal.locator('.MuiDataGrid-row[data-id="200"]')).toBeVisible({ timeout: 60000 })
+
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
+      'Start Scanning',
+      { timeout: 60000 }
+    )
+  })
+
   // ─── Address base toggle ──────────────────────────────────────────
 
   test('address base toggle on address field switches between 0 and 1', async ({ mainPage }) => {

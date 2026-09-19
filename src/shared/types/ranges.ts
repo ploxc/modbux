@@ -17,8 +17,11 @@ import { isNumberRegister, RegisterType } from './register'
  * server needs a port between 1 and 65535", which is worth more than the
  * boundary's "Invalid request, nothing was changed".
  */
-export const RegisterAddressSchema = z.number().int().min(0).max(65535)
-export const UnitIdSchema = z.number().int().min(0).max(255)
+export const MAX_REGISTER_ADDRESS = 65535
+export const MAX_UNIT_ID = 255
+
+export const RegisterAddressSchema = z.number().int().min(0).max(MAX_REGISTER_ADDRESS)
+export const UnitIdSchema = z.number().int().min(0).max(MAX_UNIT_ID)
 export const PortSchema = z.number().int().min(0).max(65535)
 
 /**
@@ -60,4 +63,6 @@ export const maxReadQuantity = (registerTypes: readonly RegisterType[]): number 
 export const RegisterAddressKeySchema = z
   .string()
   .regex(/^\d+$/)
-  .refine((key) => Number(key) <= 65535, { message: 'Number must be less than or equal to 65535' })
+  .refine((key) => Number(key) <= MAX_REGISTER_ADDRESS, {
+    message: `Number must be less than or equal to ${MAX_REGISTER_ADDRESS}`
+  })

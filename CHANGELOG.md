@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A scan that reaches past the last unit ID or register now stops there.** A
+  Start of 200 with a Count of 100 asked for unit ID 299, and an address of
+  60000 with a Length of 10000 asked for register 69999. Neither exists, so the
+  scan was refused before it began: the results you had were cleared, the grid
+  was emptied, and nothing said why. Both scans now run up to the last one there
+  is. Clearing the Count, Length or Chunk Size field left a zero behind, which
+  scanned nothing in the same silence, and now goes back to 1 when you leave the
+  field.
 - **The transaction log now shows the address of a coil read and of a write.**
   The Addr column was blank for every coil read, every discrete input read and
   every write Modbux sends, so a log of coil traffic said nothing about which

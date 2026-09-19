@@ -12,7 +12,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { maxReadQuantity, RegisterType } from '@shared'
+import { MAX_UNIT_ID, maxReadQuantity, RegisterType } from '@shared'
 import { ElementType, useCallback, useMemo } from 'react'
 import useScanUnitIdColumns from './_columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -52,10 +52,14 @@ const StartUnitIdField = meme((): JSX.Element => {
 // Count field
 const CountField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
-  const count = useScanUnitIdZustand((z) => String(z.count))
+  const count = useScanUnitIdZustand((z) => z.count)
 
   const setCount = useScanUnitIdZustand.getState().setCount
 
+  // Clearing the field stores `Number('') === 0`, and a count of none scanned
+  // nothing while the dialog flipped scanning on and off. The floor sits on the
+  // blur, where `clampScanTimeout` put the timeout's for a measured reason: a
+  // bound on the mask rewrites what you type.
   return (
     <TextField
       disabled={scanning}
@@ -63,7 +67,8 @@ const CountField = meme((): JSX.Element => {
       variant="outlined"
       size="small"
       sx={{ width: 80 }}
-      value={count}
+      value={String(count)}
+      onBlur={() => setCount(String(Math.max(1, count)))}
       data-testid="scan-unitid-count-input"
       slotProps={{
         input: {
@@ -100,12 +105,13 @@ const AddressField = meme((): JSX.Element => {
 // Length field
 const LengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningUnitIds)
-  const length = useScanUnitIdZustand((z) => String(z.length))
+  const length = useScanUnitIdZustand((z) => z.length)
 
   // The field passed no `max`, so `UintInput`'s default of 65535 was typeable
   // and went to the socket as the quantity. `maxReadQuantity` is the protocol's
   // own pair, and it reads the types selected because one length goes out for
-  // every one of them.
+  // every one of them. The floor is the blur's, the way Count's is:
+  // `ScanUnitIDParametersSchema` takes a positive length.
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
   const max = maxReadQuantity(registerTypes)
 
@@ -118,7 +124,8 @@ const LengthField = meme((): JSX.Element => {
       variant="outlined"
       size="small"
       sx={{ width: 60 }}
-      value={length}
+      value={String(length)}
+      onBlur={() => setLength(String(Math.max(1, length)))}
       data-testid="scan-unitid-length-input"
       slotProps={{
         input: {
@@ -220,15 +227,16 @@ const ScanButton = meme((): JSX.Element => {
 
     const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
-    // Clamped where the request is built rather than left to the boundary. The
-    // field masks to the same ceiling, and a length typed under one set of
-    // register types stays in the store when another is selected, so this is
-    // the moment the pair is finally known. The boundary refuses what it is
-    // given and the results are already cleared by then.
+    // Clamped where the request is built rather than left to the boundary. Each
+    // field masks to its own ceiling and the request is bounded by a pair: a
+    // length typed under one set of register types stays in the store when
+    // another is selected, and Start caps at 255 with Count at 256, so 200 and
+    // 100 name unit id 299. The boundary refuses what it is given and the
+    // results are already cleared by then.
     window.api.scanUnitIds({
       address,
       length: Math.min(length, maxReadQuantity(registerTypes)),
-      range: [startUnitId, startUnitId + count - 1],
+      range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + count - 1)],
       registerTypes,
       timeout
     })

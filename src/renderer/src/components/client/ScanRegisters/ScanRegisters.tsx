@@ -20,7 +20,7 @@ import {
   ScanTimeoutField
 } from '../ScanProgress/ScanProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { maxReadQuantity } from '@shared'
+import { MAX_REGISTER_ADDRESS, maxReadQuantity } from '@shared'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
 
 //
@@ -76,10 +76,14 @@ const AddressField = meme((): JSX.Element => {
 // Scan Length field
 const ScanLengthField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
-  const scanLength = useScanRegistersZustand((z) => String(z.scanLength))
+  const scanLength = useScanRegistersZustand((z) => z.scanLength)
 
   const setScanLength = useScanRegistersZustand.getState().setScanLength
 
+  // Clearing the field stores `Number('') === 0`, and a scan of no addresses
+  // ran its loop zero times while the dialog flipped scanning on and off. The
+  // floor sits on the blur, where `clampScanTimeout` put the timeout's for a
+  // measured reason: a bound on the mask rewrites what you type.
   return (
     <TextField
       disabled={scanning}
@@ -87,7 +91,8 @@ const ScanLengthField = meme((): JSX.Element => {
       variant="outlined"
       size="small"
       sx={{ width: 90 }}
-      value={scanLength}
+      value={String(scanLength)}
+      onBlur={() => setScanLength(String(Math.max(1, scanLength)))}
       data-testid="scan-length-input"
       slotProps={{
         input: {
@@ -104,10 +109,12 @@ const ScanLengthField = meme((): JSX.Element => {
 // Chunk Size field
 const ChunkSizeField = meme((): JSX.Element => {
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
-  const chunkSize = useScanRegistersZustand((z) => String(z.chunkSize))
+  const chunkSize = useScanRegistersZustand((z) => z.chunkSize)
   const type = useClientZustand((z) => z.registerConfig.type)
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
-  // hand and the unit id scan's Length field computed nothing at all.
+  // hand and the unit id scan's Length field computed nothing at all. The floor
+  // is the blur's, the way Length's is: `ScanRegistersParametersSchema` takes a
+  // positive length.
   const max = maxReadQuantity([type])
 
   const setChunkSize = useScanRegistersZustand.getState().setChunkSize
@@ -119,7 +126,8 @@ const ChunkSizeField = meme((): JSX.Element => {
       variant="outlined"
       size="small"
       sx={{ width: 90 }}
-      value={chunkSize}
+      value={String(chunkSize)}
+      onBlur={() => setChunkSize(String(Math.max(1, chunkSize)))}
       data-testid="scan-chunk-size-input"
       slotProps={{
         input: {
@@ -207,8 +215,13 @@ const ScanButton = meme((): JSX.Element => {
 
     const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
+    // Clamped where the request is built rather than left to the boundary.
+    // Address and Length each stop at 65535, so 60000 and 10000 name address
+    // 69999, which `RegisterAddressSchema` refuses. Read configuration is off
+    // and the grid is empty by then, and `advancedMode` is persisted, so that
+    // write outlives the launch.
     await window.api.scanRegisters({
-      addressRange: [address, address + scanLength - 1],
+      addressRange: [address, Math.min(MAX_REGISTER_ADDRESS, address + scanLength - 1)],
       length: chunkSize,
       timeout
     })
