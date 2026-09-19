@@ -345,6 +345,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A port another server already holds now says so.** Typing it into a second
   server's Port field put the old number back with nothing said, which reads
   like the field ignored you. The message names the port.
+- **Clear Config asks before it throws the mapping away.** One click on the
+  button beside Save dropped the data type, scaling factor, comment, group end
+  and bitmap of every mapped register, and the configuration name with them,
+  with nothing to undo it. It now says how many registers carry something, and
+  that read configuration goes off with them, and waits for an answer. With
+  nothing mapped and no name there is nothing to lose, and it still clears at
+  once.
 - **A client configuration that cannot be read no longer costs you the Load
   button.** A file that is moved or deleted between picking it and opening it
   left the button greyed out and the file picker gone, until you walked out to

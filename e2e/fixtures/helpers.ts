@@ -34,6 +34,28 @@ export async function selectRegisterType(p: Page, name: string): Promise<void> {
   await p.waitForTimeout(200)
 }
 
+/**
+ * Clear the client's register configuration.
+ *
+ * `confirms` says whether the dialog is expected, which the caller knows and a
+ * sample after a fixed wait only guesses: the button asks whenever the mapping
+ * or the name holds anything, and clears at once when neither does. Both
+ * answers are asserted, so a configuration that is not in the state the caller
+ * thinks it is fails here rather than several lines later.
+ */
+export async function clearClientConfig(p: Page, confirms = true): Promise<void> {
+  await p.getByTestId('clear-config-btn').click()
+  const confirm = p.getByTestId('clear-config-confirm-btn')
+
+  if (!confirms) {
+    await expect(confirm).toHaveCount(0)
+    return
+  }
+
+  await confirm.click()
+  await expect(confirm).toHaveCount(0)
+}
+
 /** Locate a specific cell in the MUI DataGrid (client side) */
 export function cellLocator(p: Page, rowId: number, field: string): Locator {
   return p.locator(`.MuiDataGrid-row[data-id="${rowId}"] [data-field="${field}"]`)

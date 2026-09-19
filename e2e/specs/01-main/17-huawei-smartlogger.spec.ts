@@ -19,7 +19,8 @@ import {
   navigateToServer,
   expectCellContains,
   expectCell,
-  sectionCount
+  sectionCount,
+  clearClientConfig
 } from '../../fixtures/helpers'
 import { HUAWEI_UNIT_0 } from '../../fixtures/test-data'
 import { resolve } from 'path'
@@ -314,7 +315,7 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   // ─── Cleanup ───────────────────────────────────────────────────────
 
   test('clear client config', async ({ mainPage }) => {
-    await mainPage.getByTestId('clear-config-btn').click()
+    await clearClientConfig(mainPage)
 
     const readConfigBtn = mainPage.getByTestId('reg-read-config-btn')
     await expect(readConfigBtn).toBeDisabled()

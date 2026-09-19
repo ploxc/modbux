@@ -13,7 +13,8 @@ import {
   loadServerConfig,
   expectCell,
   expectColumn,
-  openColumnMenu
+  openColumnMenu,
+  clearClientConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -283,7 +284,20 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   for (const regType of ['Holding Registers', 'Input Registers']) {
     test(`[${regType}] read config: clear config → button disabled`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
-      await mainPage.getByTestId('clear-config-btn').click()
+
+      // The first pass of this loop runs against what `14-client-config-io`
+      // left mapped, and the second against what the first cleared. Keep it
+      // leaves that mapping where it was, which the dialog coming up a second
+      // time is what says.
+      const asks = regType === 'Holding Registers'
+
+      if (asks) {
+        await mainPage.getByTestId('clear-config-btn').click()
+        await mainPage.getByTestId('clear-config-cancel-btn').click()
+        await expect(mainPage.getByTestId('clear-config-confirm-btn')).toHaveCount(0)
+      }
+
+      await clearClientConfig(mainPage, asks)
 
       const btn = mainPage.getByTestId('reg-read-config-btn')
       await expect(btn).toBeDisabled()

@@ -6,7 +6,8 @@ import {
   enableReadConfiguration,
   disableReadConfiguration,
   expectCellContains,
-  expectCell
+  expectCell,
+  clearClientConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -110,7 +111,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   })
 
   test('clear client config — verify mappings removed', async ({ mainPage }) => {
-    await mainPage.getByTestId('clear-config-btn').click()
+    await clearClientConfig(mainPage)
 
     // After clearing, read-config toggle should be disabled (no mappings)
     const readConfigBtn = mainPage.getByTestId('reg-read-config-btn')
