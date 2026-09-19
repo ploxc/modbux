@@ -342,6 +342,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The port was in front of the two messages Modbux writes itself and missing
   from the one that hands the driver's own text through, which is the message a
   bug report gets written about.
+- **A port another server already holds now says so.** Typing it into a second
+  server's Port field put the old number back with nothing said, which reads
+  like the field ignored you. The message names the port.
 
 ### Changed
 

@@ -11,6 +11,9 @@ import {
 import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
 
 test.describe.serial('Server configuration', () => {
+  /** What `add-server-btn` picked, read once the second server is selected. */
+  let secondServerPort = ''
+
   test('navigate to server view', async ({ mainPage }) => {
     await navigateToServer(mainPage)
   })
@@ -403,8 +406,8 @@ test.describe.serial('Server configuration', () => {
 
   test('second server has different port', async ({ mainPage }) => {
     const portInput = mainPage.getByTestId('server-port-input').locator('input')
-    const port = await portInput.inputValue()
-    expect(port).not.toBe('502')
+    secondServerPort = await portInput.inputValue()
+    expect(secondServerPort).not.toBe('502')
   })
 
   test('configure server 2', async ({ mainPage }) => {
@@ -418,6 +421,26 @@ test.describe.serial('Server configuration', () => {
     await mainPage.getByTestId('select-server-502').click()
 
     await expect(mainPage.getByTestId('section-holding_registers')).toContainText('(12)')
+  })
+
+  /**
+   * The store refuses this one before main is called, so there is no
+   * `backend_message` to report and `PortInput`'s blur puts the old port back.
+   * It took two servers to see: with one, every refusal comes from main and
+   * arrives with a message.
+   */
+  test('a port the other server holds is refused with a message', async ({ mainPage }) => {
+    const portInput = mainPage.getByTestId('server-port-input').locator('input')
+    await portInput.click()
+    await portInput.selectText()
+    await portInput.pressSequentially(secondServerPort)
+    await portInput.blur()
+
+    await expect(mainPage.locator('.notistack-SnackbarContainer')).toContainText(
+      `Port ${secondServerPort} is already used by another server`,
+      { timeout: 5000 }
+    )
+    await expect(portInput).toHaveValue('502')
   })
 
   // ─── Delete server ────────────────────────────────────────────────

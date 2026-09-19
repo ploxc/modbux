@@ -29,6 +29,7 @@ import {
   toExact64Bits
 } from '@shared'
 import { onEvent } from '@renderer/events'
+import { enqueueSnackbar } from 'notistack'
 import { round } from 'lodash'
 import {
   boolArraysOf,
@@ -430,19 +431,29 @@ export const useServerZustand = create<
         })
       },
       setPort: async (port) => {
-        const currentState = get()
-        const uuid = currentState.selectedUuid
-        if (!currentState.ready[uuid]) return
+        const uuid = get().selectedUuid
+        if (!get().ready[uuid]) return
 
-        const { port: currentPorts, selectedUuid } = get()
-
+        // Read after the sweep rather than before it: a port only an orphaned
+        // uuid still held is not a port another server holds.
         get().cleanOrphanedServerState()
+        const currentPorts = get().port
 
-        // Port cannot be already used for another server
-        const portAlreadyExists = Object.values(currentPorts).includes(port)
-        const portIsMyPort = port === currentPorts[selectedUuid]
-        if (portAlreadyExists && !portIsMyPort) return
-        if (portIsMyPort) return
+        if (port === currentPorts[uuid]) return
+
+        // The check stays here, because `setPort` has a second caller in
+        // `PrivilegedPortModal` and a rule written in the field is one that
+        // caller does not run. The message goes where the check is: the
+        // standalone `enqueueSnackbar` is what a store can reach, and both
+        // callers are a click, which is after `main.tsx` has built the
+        // provider. `repairPersistedStore` says why module scope cannot.
+        if (Object.values(currentPorts).includes(port)) {
+          enqueueSnackbar({
+            message: `Port ${port} is already used by another server`,
+            variant: 'error'
+          })
+          return
+        }
 
         // Only update port from backend response
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
