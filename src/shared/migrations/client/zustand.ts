@@ -1,6 +1,10 @@
 import { dropUnmappableRegisters, repairPersistedParity } from '../shared'
 
-export const CURRENT_CLIENT_ZUSTAND_VERSION = 4
+/**
+ * One number above what the last release wrote. 2.3.0 shipped 2, under the name
+ * `CURRENT_ROOT_ZUSTAND_VERSION` and the key `root.zustand`.
+ */
+export const CURRENT_CLIENT_ZUSTAND_VERSION = 3
 
 /** Where the client store keeps its state. */
 export const CLIENT_ZUSTAND_STORAGE_KEY = 'client.zustand'
@@ -22,13 +26,11 @@ export function migrateClientState(
   // `79fa174` took that field out of the client, so a v1 store has nothing to
   // carry. `grep -rn readLocalTime src e2e` returns nothing.
 
-  // v2→v3: the RTU parity the serial binding refuses
+  // v2→v3, one step because 2 is what the last release wrote: the RTU parity
+  // the serial binding refuses, and mapping entries at an address outside the
+  // 16 bit map.
   if (version < 3) {
     repairPersistedParity(state, 'connectionConfig', 'rtu', 'options')
-  }
-
-  // v3→v4: mapping entries at an address outside the 16 bit map
-  if (version < 4) {
     dropUnmappableRegisters(state)
   }
 

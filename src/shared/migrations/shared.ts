@@ -148,9 +148,10 @@ const usedAddressesOfUnit = (
  * and so did every unit of a server whose port `createServer` refuses.
  *
  * Every unit walked, rather than the ones something went from, because a blob
- * can arrive with the register gone and the address still marked: store version
- * 5 ran the address drop and not the interval one, between `5fc739d` and
- * `5211399`, and sits below this step's gate.
+ * can arrive with the register gone and the address still marked. The store
+ * versions that did that ran on this branch alone and were collapsed into one
+ * step, so what is left is a hand-edited blob: a register deleted by hand
+ * leaves its addresses behind the same way.
  *
  * A unit id `UnitIdStringSchema` refuses is skipped, because the whole map is
  * one persisted field: writing `'300'` into it would cost the addresses of every

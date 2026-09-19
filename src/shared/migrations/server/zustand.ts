@@ -7,7 +7,14 @@ import {
   stringifyExact64BitValues
 } from '../shared'
 
-export const CURRENT_SERVER_ZUSTAND_VERSION = 8
+/**
+ * One number above what the last release wrote, whatever this branch changes.
+ *
+ * 2.3.0 shipped 3, and nobody outside this branch has a store carrying 4
+ * through 8. A number per change was five migration steps no launch will ever
+ * run, so the steps between are one step from 3.
+ */
+export const CURRENT_SERVER_ZUSTAND_VERSION = 4
 
 /** Where the server store keeps its state. */
 export const SERVER_ZUSTAND_STORAGE_KEY = 'server.zustand'
@@ -139,22 +146,14 @@ export function migrateServerState(
     )
   }
 
-  // v3→v4: the RTU parity the serial binding refuses
+  // v3→v4, which is one step because 3 is what the last release wrote. The
+  // parity the serial binding refuses, registers outside the 16 bit map, a
+  // string width, a fixed value or an interval the encoder, the map or
+  // `setInterval` cannot take, and a 64 bit composite that has to be a decimal
+  // string for the first word write after a launch to read it exactly.
   if (version < 4) {
     repairPersistedParity(state, 'serialConfig', 'options')
-  }
-
-  // v4→v5: registers at an address outside the 16 bit map
-  // v5→v6: and generators the interval floor now refuses
-  // v6→v7: and a string width, a fixed value or an interval outside what the
-  //        encoder, the map or `setInterval` can take
-  if (version < 7) {
     dropUnservableRegisters(state)
-  }
-
-  // v7→v8: a 64 bit composite is a decimal string, so the first word write
-  //        after a launch reads it exactly rather than rounded
-  if (version < 8) {
     stringifyExact64BitValues(state)
   }
 

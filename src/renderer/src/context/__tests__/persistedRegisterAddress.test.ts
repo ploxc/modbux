@@ -48,7 +48,7 @@ describe('a server config stored with a register outside the map', () => {
             }
           }
         },
-        version: 4
+        version: 3
       })
     )
 
@@ -101,7 +101,7 @@ describe('a server config stored with a generator the interval floor refuses', (
             }
           }
         },
-        version: 5
+        version: 3
       })
     )
 

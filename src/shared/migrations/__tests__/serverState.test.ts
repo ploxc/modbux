@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { migrateServerState } from '../server/zustand'
+import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
 
 /**
  * The steps `migrateServerState` runs, asked of the function rather than of the
@@ -74,7 +74,7 @@ describe('the migration a server store blob runs', () => {
 
   // Nothing above runs for a blob already at the current version.
   it('leaves a current blob alone', () => {
-    const state = migrateServerState({ serverMode: 'rtu' }, 6)
+    const state = migrateServerState({ serverMode: 'rtu' }, CURRENT_SERVER_ZUSTAND_VERSION)
 
     expect(state).toEqual({ serverMode: 'rtu' })
   })

@@ -66,7 +66,7 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
  * `getMinMaxValues(dataType)` over the same seven types, so switching a
  * generator from `uint32` to `uint16` rewrites a max of 100000 to 65535 and
  * reports it valid. And one register the schema refuses costs that register
- * now, because store version 7 drops it and keeps the rest.
+ * now, because the store's v3 to v4 step drops it and keeps the rest.
  *
  * A min above a max is not a rule here. The dialog lets one through, and
  * `Math.random() * (max - min) + min` covers the same range either way: ten

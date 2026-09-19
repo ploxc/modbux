@@ -9,11 +9,12 @@ import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zu
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
 import { dropUnmappableRegisters, dropUnservableRegisters } from '../shared'
 
-/** The last store version whose blobs can carry a register outside the map. */
-const LAST_VERSION_ACCEPTING_ANY_ADDRESS = 4
-
-/** The last store version whose blobs can carry a generator interval of 0. */
-const LAST_VERSION_ACCEPTING_ANY_INTERVAL = 5
+/**
+ * What 2.3.0 wrote, and so the highest version a blob off this branch carries.
+ * Every step below runs on it, because the steps between were collapsed into
+ * one and never reached a release.
+ */
+const SHIPPED_SERVER_VERSION = 3
 
 /** A register the add, sync and config paths all take, at `address`. */
 const params = (address: number): Record<string, unknown> => ({
@@ -166,15 +167,12 @@ describe('a persisted register outside the map', () => {
   })
 
   it('is behind a version the store has moved past', () => {
-    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_ADDRESS)
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(SHIPPED_SERVER_VERSION)
   })
 
   // The drop on its own is not the store's behaviour; the step in `migrate` is.
-  it('is dropped by the migration a v4 blob runs', () => {
-    const state = migrateServerState(
-      persistedWith([100, 70000]),
-      LAST_VERSION_ACCEPTING_ANY_ADDRESS
-    )
+  it('is dropped by the migration a shipped blob runs', () => {
+    const state = migrateServerState(persistedWith([100, 70000]), SHIPPED_SERVER_VERSION)
 
     expect(Object.keys(migratedHoldingRegisters(state))).toEqual(['100'])
   })
@@ -281,7 +279,7 @@ describe('a persisted generator the interval floor refuses', () => {
   })
 
   it('is behind a version the store has moved past', () => {
-    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_INTERVAL)
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(SHIPPED_SERVER_VERSION)
   })
 })
 
@@ -456,17 +454,17 @@ describe('a persisted register the encoder cannot serve', () => {
   })
 
   // The drop on its own is not the store's behaviour; the step in `migrate` is.
-  it('is dropped by the migration a v6 blob runs', () => {
+  it('is dropped by the migration a shipped blob runs', () => {
     const state = migrateServerState(
       persisted({ '0': register(0, { value: 70000 }), '10': register(10, {}) }),
-      6
+      SHIPPED_SERVER_VERSION
     )
 
     expect(Object.keys(holding(state))).toEqual(['10'])
   })
 
   it('is behind a version the store has moved past', () => {
-    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(6)
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(SHIPPED_SERVER_VERSION)
   })
 })
 
@@ -504,13 +502,13 @@ describe('a persisted 64 bit value', () => {
   }
 
   it.each(['uint64', 'int64', 'datetime'])('becomes a string for %s', (dataType) => {
-    const state = migrateServerState(persisted(dataType, 72623859790382850), 7)
+    const state = migrateServerState(persisted(dataType, 72623859790382850), SHIPPED_SERVER_VERSION)
 
     expect(heldValue(state)).toBe('72623859790382850')
   })
 
   it.each(['uint16', 'int32', 'double', 'float', 'unix'])('stays a number for %s', (dataType) => {
-    const state = migrateServerState(persisted(dataType, 1234), 7)
+    const state = migrateServerState(persisted(dataType, 1234), SHIPPED_SERVER_VERSION)
 
     expect(heldValue(state)).toBe(1234)
   })
@@ -522,25 +520,28 @@ describe('a persisted 64 bit value', () => {
   // schema takes either as a number and neither as a string, so neither can be
   // written back as it is.
   it.each([0.5, 1e21, -0.25])('repairs a value of %p that no composite reads', (value) => {
-    const state = migrateServerState(persisted('uint64', value), 7)
+    const state = migrateServerState(persisted('uint64', value), SHIPPED_SERVER_VERSION)
 
     expect(heldValue(state)).toBe('0')
   })
 
   it('leaves a value already stored as a string alone', () => {
-    const state = migrateServerState(persisted('uint64', '18446744073709551615'), 7)
+    const state = migrateServerState(
+      persisted('uint64', '18446744073709551615'),
+      SHIPPED_SERVER_VERSION
+    )
 
     expect(heldValue(state)).toBe('18446744073709551615')
   })
 
   it('is behind a version the store has moved past', () => {
-    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(7)
+    expect(CURRENT_SERVER_ZUSTAND_VERSION).toBeGreaterThan(SHIPPED_SERVER_VERSION)
   })
 })
 
 describe('a persisted mapping entry outside the map', () => {
-  /** The last client store version whose blobs can carry any numeric key. */
-  const LAST_VERSION_ACCEPTING_ANY_KEY = 3
+  /** What 2.3.0 wrote, under the name `CURRENT_ROOT_ZUSTAND_VERSION`. */
+  const SHIPPED_CLIENT_VERSION = 2
 
   const persistedMapping = (addresses: string[]): Record<string, unknown> => ({
     registerMapping: {
@@ -581,15 +582,12 @@ describe('a persisted mapping entry outside the map', () => {
   })
 
   it('is behind a version the store has moved past', () => {
-    expect(CURRENT_CLIENT_ZUSTAND_VERSION).toBeGreaterThan(LAST_VERSION_ACCEPTING_ANY_KEY)
+    expect(CURRENT_CLIENT_ZUSTAND_VERSION).toBeGreaterThan(SHIPPED_CLIENT_VERSION)
   })
 
   // The drop on its own is not the store's behaviour; the step in `migrate` is.
-  it('is dropped by the migration a v3 blob runs', () => {
-    const state = migrateClientState(
-      persistedMapping(['100', '70000']),
-      LAST_VERSION_ACCEPTING_ANY_KEY
-    )
+  it('is dropped by the migration a shipped blob runs', () => {
+    const state = migrateClientState(persistedMapping(['100', '70000']), SHIPPED_CLIENT_VERSION)
 
     expect(Object.keys(holdingRegisters(state))).toEqual(['100'])
   })
