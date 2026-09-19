@@ -66,8 +66,8 @@ export const registerWidth = (dataType: DataType, length?: number): number => {
 }
 
 /**
- * The most registers a number spans, which is how far back a word has to look
- * for the register it belongs to.
+ * The most registers a number spans. A word belongs to a register starting at
+ * its own address or at one of the `MAX_NUMBER_REGISTER_WIDTH - 1` before it.
  *
  * Read off the table above rather than written again, so a wider type is one
  * edit. `utf8` is left out because its width is the length the user chose, and

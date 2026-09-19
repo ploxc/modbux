@@ -642,7 +642,8 @@ export const applyRegisterValue = (payload: RegisterValue): void => {
 
   // 1) Find the base entry in state.serverRegisters[*][*][registerType] this
   //    word belongs to. A register covers its own address and the ones after
-  //    it, so the base is within `MAX_NUMBER_REGISTER_WIDTH` addresses back.
+  //    it, so the base is this address or one of the
+  //    `MAX_NUMBER_REGISTER_WIDTH - 1` before it.
   let serverRegisterEntry: ServerRegisterEntry | undefined
   let entryAddress: number | undefined
 
