@@ -60,6 +60,19 @@ describe('ScanUnitIds asks for a range the boundary takes', () => {
     expect(ScanUnitIDParametersSchema.safeParse(payload()).success).toBe(true)
   })
 
+  // Escape closes the dialog and the field unmounts with it, so the blur that
+  // puts a cleared field back never fires and the request carries the zero.
+  it('asks for one of each when a cleared field never got its blur', () => {
+    useScanUnitIdZustand.setState({ startUnitId: 0, count: 0, length: 0 })
+
+    render(<ScanUnitIds />)
+
+    fireEvent.click(screen.getByTestId('scan-unitid-start-stop-btn'))
+
+    expect(payload()).toMatchObject({ range: [0, 0], length: 1 })
+    expect(ScanUnitIDParametersSchema.safeParse(payload()).success).toBe(true)
+  })
+
   it('leaves a range that fits where it is', () => {
     useScanUnitIdZustand.setState({ startUnitId: 1, count: 6 })
 

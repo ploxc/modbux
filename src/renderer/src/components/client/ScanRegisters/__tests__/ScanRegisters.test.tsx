@@ -62,6 +62,19 @@ describe('ScanRegisters asks for a range the boundary takes', () => {
     expect(ScanRegistersParametersSchema.safeParse(await payload()).success).toBe(true)
   })
 
+  // Escape closes the dialog and the field unmounts with it, so the blur that
+  // puts a cleared field back never fires and the request carries the zero.
+  it('asks for one of each when a cleared field never got its blur', async () => {
+    useScanRegistersZustand.setState({ address: 100, scanLength: 0, chunkSize: 0 })
+
+    render(<ScanRegisters />)
+
+    fireEvent.click(screen.getByTestId('scan-start-stop-btn'))
+
+    expect(await payload()).toMatchObject({ addressRange: [100, 100], length: 1 })
+    expect(ScanRegistersParametersSchema.safeParse(await payload()).success).toBe(true)
+  })
+
   it('leaves a range that fits where it is', async () => {
     useScanRegistersZustand.setState({ address: 0, scanLength: 1000 })
 

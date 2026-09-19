@@ -57,9 +57,10 @@ const CountField = meme((): JSX.Element => {
   const setCount = useScanUnitIdZustand.getState().setCount
 
   // Clearing the field stores `Number('') === 0`, and a count of none scanned
-  // nothing while the dialog flipped scanning on and off. The floor sits on the
+  // nothing while the dialog flipped scanning on and off. The floor is on the
   // blur, where `clampScanTimeout` put the timeout's for a measured reason: a
-  // bound on the mask rewrites what you type.
+  // bound on the mask rewrites what you type. `ScanButton` holds the same floor
+  // for the field that never gets a blur.
   return (
     <TextField
       disabled={scanning}
@@ -110,7 +111,7 @@ const LengthField = meme((): JSX.Element => {
   // The field passed no `max`, so `UintInput`'s default of 65535 was typeable
   // and went to the socket as the quantity. `maxReadQuantity` is the protocol's
   // own pair, and it reads the types selected because one length goes out for
-  // every one of them. The floor is the blur's, the way Count's is:
+  // every one of them. The floor is on the blur, the way Count's is:
   // `ScanUnitIDParametersSchema` takes a positive length.
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
   const max = maxReadQuantity(registerTypes)
@@ -227,16 +228,23 @@ const ScanButton = meme((): JSX.Element => {
 
     const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
-    // Clamped where the request is built rather than left to the boundary. Each
-    // field masks to its own ceiling and the request is bounded by a pair: a
-    // length typed under one set of register types stays in the store when
-    // another is selected, and Start caps at 255 with Count at 256, so 200 and
-    // 100 name unit id 299. The boundary refuses what it is given and the
-    // results are already cleared by then.
+    // Clamped where the request is built rather than left to the boundary,
+    // because the boundary refuses what it is given and the results are already
+    // cleared by then.
+    //
+    // Each field masks to its own ceiling and the request is bounded by a pair:
+    // Start caps at 255 and Count at 256, so 200 and 100 name unit id 299. The
+    // length is the mask's, measured: selecting another register type rewrites
+    // the mounted field, and 2000 typed under coils reads 125 under holding
+    // registers. `maxReadQuantity` restates that bound here.
+    //
+    // The floors are here as well as on each field's blur, because Escape
+    // closes the dialog and the field unmounts without one, leaving the
+    // `Number('') === 0` of a cleared field in the store.
     window.api.scanUnitIds({
       address,
-      length: Math.min(length, maxReadQuantity(registerTypes)),
-      range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + count - 1)],
+      length: Math.min(Math.max(1, length), maxReadQuantity(registerTypes)),
+      range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + Math.max(1, count) - 1)],
       registerTypes,
       timeout
     })

@@ -82,8 +82,9 @@ const ScanLengthField = meme((): JSX.Element => {
 
   // Clearing the field stores `Number('') === 0`, and a scan of no addresses
   // ran its loop zero times while the dialog flipped scanning on and off. The
-  // floor sits on the blur, where `clampScanTimeout` put the timeout's for a
-  // measured reason: a bound on the mask rewrites what you type.
+  // floor is on the blur, where `clampScanTimeout` put the timeout's for a
+  // measured reason: a bound on the mask rewrites what you type. `ScanButton`
+  // holds the same floor for the field that never gets a blur.
   return (
     <TextField
       disabled={scanning}
@@ -113,8 +114,8 @@ const ChunkSizeField = meme((): JSX.Element => {
   const type = useClientZustand((z) => z.registerConfig.type)
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
   // hand and the unit id scan's Length field computed nothing at all. The floor
-  // is the blur's, the way Length's is: `ScanRegistersParametersSchema` takes a
-  // positive length.
+  // is on the blur, the way Length's is: `ScanRegistersParametersSchema` takes
+  // a positive length.
   const max = maxReadQuantity([type])
 
   const setChunkSize = useScanRegistersZustand.getState().setChunkSize
@@ -215,14 +216,25 @@ const ScanButton = meme((): JSX.Element => {
 
     const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
-    // Clamped where the request is built rather than left to the boundary.
+    // Clamped where the request is built rather than left to the boundary. Read
+    // configuration is off and the grid is empty by the time the boundary
+    // answers, and `advancedMode` is persisted, so that write outlives the
+    // launch.
+    //
     // Address and Length each stop at 65535, so 60000 and 10000 name address
-    // 69999, which `RegisterAddressSchema` refuses. Read configuration is off
-    // and the grid is empty by then, and `advancedMode` is persisted, so that
-    // write outlives the launch.
+    // 69999, which `RegisterAddressSchema` refuses.
+    //
+    // The floors are here as well as on each field's blur, because Escape
+    // closes the dialog and the field unmounts without one, leaving the
+    // `Number('') === 0` of a cleared field in the store. A length of none
+    // gives a range ending before it starts, which the schema takes and the
+    // scan loop never enters.
     await window.api.scanRegisters({
-      addressRange: [address, Math.min(MAX_REGISTER_ADDRESS, address + scanLength - 1)],
-      length: chunkSize,
+      addressRange: [
+        address,
+        Math.min(MAX_REGISTER_ADDRESS, address + Math.max(1, scanLength) - 1)
+      ],
+      length: Math.max(1, chunkSize),
       timeout
     })
   }, [scanning])
