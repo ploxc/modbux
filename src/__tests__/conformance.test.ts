@@ -860,9 +860,15 @@ describe('the lists that name a channel agree', () => {
   // segments every capital in the method name marks a segment boundary, so the
   // channel it came from can be read back off it. Asserted here because that is
   // an argument, and an argument goes stale without a meter.
+  //
+  // `isServerWindow` is in the count because `api` is `{ isServerWindow,
+  // ...handlers }` with the spread last, so a channel named `is_server_window`
+  // would put a function where three stores read a boolean. Every window would
+  // read as the split out one: the client store skips `init` and the main
+  // window loses its home button.
   it('gives every channel a method name of its own', () => {
     const methods = [...channels].map((channel) => snakeToCamel(channel))
-    expect(new Set(methods).size).toBe(channels.size)
+    expect(new Set([...methods, 'isServerWindow']).size).toBe(channels.size + 1)
   })
 })
 
@@ -1013,10 +1019,7 @@ describe('every channel has a caller', () => {
     if (node.name.getText(spec) !== 'IPC_CHANNELS') return
     eachNode(node as unknown as ts.SourceFile, (child) => {
       if (!ts.isStringLiteral(child)) return
-      methods.set(
-        child.text,
-        child.text.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-      )
+      methods.set(child.text, snakeToCamel(child.text))
     })
   })
 

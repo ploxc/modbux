@@ -52,8 +52,8 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
     : never
 
 /**
- * A channel this boundary can carry, which is one taking a single argument or
- * none.
+ * A channel this boundary can carry, which is one declaring `[]` or a tuple of
+ * exactly one.
  *
  * `createIpcHandle` parses `args[0]` and calls the listener with
  * `[result.data]`, and `PayloadSchema<C>` names `args[0]` alone. A second
@@ -61,6 +61,10 @@ type PayloadSchema<C extends keyof IpcHandlerMap> =
  * the handler unvalidated where none does. Every spec entry declares `[]` or a
  * one element tuple today, and a channel declaring two is refused here rather
  * than losing one of them quietly.
+ *
+ * `[T?]` and `T[]` are refused as well, and deliberately: the arity is what a
+ * reader of `args` counts, so a channel says how many it takes rather than how
+ * many it might.
  */
 type OneArgumentChannel = {
   [C in keyof IpcHandlerMap]: IpcHandlerMap[C]['args'] extends [] | [unknown] ? C : never
