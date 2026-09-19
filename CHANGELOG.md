@@ -345,6 +345,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A port another server already holds now says so.** Typing it into a second
   server's Port field put the old number back with nothing said, which reads
   like the field ignored you. The message names the port.
+- **A client configuration that cannot be read no longer costs you the Load
+  button.** A file that is moved or deleted between picking it and opening it
+  left the button greyed out and the file picker gone, until you walked out to
+  Home and back. It says what went wrong and takes the next file, and a file it
+  refuses no longer empties the grid either. Opening a server configuration was
+  already like this.
 - **The Value column no longer shows the word "undefined".** Rows read as coils
   or discrete inputs carry no register value, and they stay on screen when you
   switch the register type while a read loop is running. Every mapped address

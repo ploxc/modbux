@@ -23,9 +23,9 @@ const LoadButton = meme((): JSX.Element => {
 
       const clientZustand = useClientZustand.getState()
 
-      const content = await file.text()
-
       try {
+        const content = await file.text()
+
         // Use migration framework to handle all config versions
         const migrationResult = migrateClientConfig(content)
         const { config, migrated, futureVersion } = migrationResult
@@ -63,15 +63,20 @@ const LoadButton = meme((): JSX.Element => {
             autoHideDuration: 8000
           })
         }
+        // Inside the `try`, because it draws the grid from the mapping: on a
+        // file that was refused the mapping is the one already there, and the
+        // rows it builds would drop the values a read loop had put in them.
+        showMapping()
       } catch (error) {
         const tError = error as Error
         enqueueSnackbar({ variant: 'error', message: `Failed to load config: ${tError.message}` })
         console.error('Config load error:', error)
+      } finally {
+        // Whatever the read did, the button takes another file. `opening`
+        // renders the input behind `{!opening && ...}` and disables the button.
+        openingRef.current = false
+        setOpening(false)
       }
-
-      openingRef.current = false
-      setOpening(false)
-      showMapping()
     },
     [enqueueSnackbar]
   )
