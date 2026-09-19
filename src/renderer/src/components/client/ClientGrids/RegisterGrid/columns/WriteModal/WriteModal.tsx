@@ -18,6 +18,7 @@ import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
 import { IMaskInput } from 'react-imask'
+import { useSnackbar } from 'notistack'
 import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
@@ -141,6 +142,7 @@ export const WriteRegistersButton = meme(() => {
 })
 
 export const CoilFunctionSelect = meme(() => {
+  const { enqueueSnackbar } = useSnackbar()
   const address = useValueInputZustand((z) => z.address)
   const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
@@ -155,17 +157,26 @@ export const CoilFunctionSelect = meme(() => {
   // FC15 writes from the button you pressed to the end of the window the
   // toolbar read, and that window is 2000 coils wide since the Length field
   // took the ceiling FC01 answers. FC15 stops 32 bits short of it, because the
-  // request carries the data too, so the tail of a full window is cut here
-  // rather than refused by the boundary.
+  // request carries the data too. The tail is cut here rather than refused by
+  // the boundary, and the grid goes on showing coils nothing was written to, so
+  // the cut is worth saying.
   const handleWrite = useCallback(() => {
     const from = address - registerConfigAddress
+    const value = coils.slice(from, from + MAX_WRITE_BITS)
+    const dropped = coils.length - from - value.length
+    if (dropped > 0) {
+      enqueueSnackbar({
+        message: `One request writes ${MAX_WRITE_BITS} coils, so the last ${dropped} were left alone`,
+        variant: 'warning'
+      })
+    }
     window.api.write({
       address,
       type: 'coils',
-      value: coils.slice(from, from + MAX_WRITE_BITS),
+      value,
       single: coilFunction === 5
     })
-  }, [address, coilFunction, coils, registerConfigAddress])
+  }, [address, coilFunction, coils, registerConfigAddress, enqueueSnackbar])
 
   return (
     <Box sx={{ display: 'flex' }}>

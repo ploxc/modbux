@@ -1038,6 +1038,31 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(60, 10)
     })
 
+    // The chunk is the stride, the progress divisor and the quantity of every
+    // request. Clamped in one of the three, a scan asks for 125 and jumps 1000,
+    // reports itself done and leaves seven eighths of the range unread.
+    it('walks the range in chunks one response can carry', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'holding_registers' })
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [0, 999],
+        length: 1000,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      const asked = mockModbusRTU.readHoldingRegisters.mock.calls
+      expect(asked[0]).toEqual([0, 125])
+      expect(asked[1]).toEqual([125, 125])
+      expect(asked.length).toBe(8)
+    })
+
     it('scanUnitIds refuses while disconnected', async () => {
       await client.scanUnitIds({
         range: [1, 3],

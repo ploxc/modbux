@@ -1129,15 +1129,20 @@ export class ModbusClient {
     this._client.setID(unitId)
     this._client.setTimeout(params.timeout)
 
-    this._totalScans = Math.ceil(
-      (params.addressRange[1] - params.addressRange[0] + 1) / params.length
-    )
+    // The chunk is the stride, the divisor of the progress and the quantity of
+    // every request, so it is one number here. `ScanRegistersParametersSchema`
+    // takes any positive chunk size, and `ChunkSizeField`'s mask reads the
+    // register type selected, so a chunk of 2000 typed under coils reaches this
+    // with holding registers selected.
+    const { addressRange } = params
+    const length = Math.min(params.length, maxReadQuantity([this._appState.registerConfig.type]))
+
+    this._totalScans = Math.ceil((addressRange[1] - addressRange[0] + 1) / length)
     this._scansDone = 0
 
     this._clientState.scanningRegisters = true
     this._sendClientState()
 
-    const { addressRange, length } = params
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
       await this._scanRegister(address, length)
       await this._sendScanProgress()
@@ -1155,9 +1160,10 @@ export class ModbusClient {
 
   private _scanRegister = async (address: number, length: number): Promise<void> => {
     const type = this._appState.registerConfig.type
-    // `ScanRegistersParametersSchema` takes any positive chunk size, and the
-    // field that builds it is masked by register type in the renderer alone.
-    length = Math.min(length, maxReadQuantity([type]), registersFrom(address))
+    // The last chunk alone, so the stride its caller walks is untouched. What
+    // one response carries is clamped there, where the same number is the
+    // stride and the progress divisor.
+    length = Math.min(length, registersFrom(address))
 
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined

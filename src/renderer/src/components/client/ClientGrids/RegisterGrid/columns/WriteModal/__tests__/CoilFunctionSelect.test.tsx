@@ -18,6 +18,11 @@ vi.mock('@renderer/context/data.zustand', () => ({
   useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
 }))
 
+const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
+vi.mock('notistack', () => ({
+  useSnackbar: (): { enqueueSnackbar: typeof enqueueSnackbar } => ({ enqueueSnackbar })
+}))
+
 import { CoilFunctionSelect } from '../WriteModal'
 import { useValueInputZustand } from '../writeModal.zustand'
 
@@ -37,6 +42,7 @@ const written = (): boolean[] => {
 describe('the coil write', () => {
   beforeEach(() => {
     mockWrite.mockClear()
+    enqueueSnackbar.mockClear()
     useValueInputZustand.setState({
       address: 0,
       coilFunction: 15,
@@ -53,6 +59,21 @@ describe('the coil write', () => {
     expect(written().length).toBe(MAX_WRITE_BITS)
   })
 
+  // The grid goes on showing what the read left there, so a coil nothing was
+  // written to reads the same as one that was.
+  it('says what it left alone', async () => {
+    const user = userEvent.setup()
+    render(<CoilFunctionSelect />)
+
+    await user.click(screen.getByTestId('write-submit-btn'))
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'One request writes 1968 coils, so the last 32 were left alone'
+      })
+    )
+  })
+
   it('sends a window that fits whole', async () => {
     useValueInputZustand.setState({ coils: new Array<boolean>(125).fill(true) })
     const user = userEvent.setup()
@@ -61,6 +82,7 @@ describe('the coil write', () => {
     await user.click(screen.getByTestId('write-submit-btn'))
 
     expect(written().length).toBe(125)
+    expect(enqueueSnackbar).not.toHaveBeenCalled()
   })
 
   // The button you press is where the write starts, so the tail it can reach is
