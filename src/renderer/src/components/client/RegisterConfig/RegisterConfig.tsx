@@ -156,9 +156,10 @@ const ReadConfiguration = meme(() => {
     )
   )
 
-  // Turning it on asks main to read, and main refuses a read while one is in
-  // flight, and while a write holds the client. The toggle goes off for as long
-  // as that lasts, rather than taking a press that answers with a warning.
+  // Turning it on draws the mapping into the grid and then asks main to read
+  // it, and `readWhenMainCan` drops that ask without a word while a read or a
+  // write owns the client. The press would leave the grid on `showMapping`'s
+  // zeros with no read coming, so the toggle greys for as long as that lasts.
   const reading = useClientZustand((z) => z.clientState.reading)
   const writing = useClientZustand((z) => z.clientState.writing)
   const disabled = nothingConfigured || reading || writing

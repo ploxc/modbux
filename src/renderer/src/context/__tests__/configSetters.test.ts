@@ -6,6 +6,7 @@
 // case here names both halves, the payload that went out and the field that
 // came back.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultClientState } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
 
 const load = async (): Promise<typeof import('../client.zustand')> =>
@@ -51,12 +52,8 @@ describe('the four serial options', () => {
     const { useClientZustand } = await load()
     const before = useClientZustand.getState().connectionConfig.rtu.options.baudRate
     useClientZustand.getState().setClientState({
-      connectState: 'connected',
-      polling: false,
-      scanningUnitIds: false,
-      scanningRegisters: false,
-      reading: false,
-      writing: false
+      ...defaultClientState,
+      connectState: 'connected'
     })
     recordApiCalls(calls)
 

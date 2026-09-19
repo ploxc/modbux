@@ -8,6 +8,7 @@
 // again while nothing is connected, and says so in a snackbar, so neither
 // setter may ask in those states.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultClientState } from '@shared'
 import type { ClientState, RegisterData } from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
 
@@ -15,14 +16,7 @@ const calls: ApiCall[] = []
 
 const methods = (): string[] => calls.map((call) => call.method)
 
-const idle: ClientState = {
-  connectState: 'connected',
-  polling: false,
-  scanningUnitIds: false,
-  scanningRegisters: false,
-  reading: false,
-  writing: false
-}
+const idle: ClientState = { ...defaultClientState, connectState: 'connected' }
 
 const row: RegisterData = {
   id: 0,

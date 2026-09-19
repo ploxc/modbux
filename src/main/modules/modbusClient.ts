@@ -8,6 +8,7 @@ import {
   convertBitData,
   convertRegisterData,
   createRegisters,
+  defaultClientState,
   groupAddressInfos,
   humanizeSerialError,
   isBooleanRegister,
@@ -116,14 +117,7 @@ export class ModbusClient {
   private _appState: AppState
   private _windows: Windows
 
-  private _clientState: ClientState = {
-    connectState: 'disconnected',
-    polling: false,
-    scanningUnitIds: false,
-    scanningRegisters: false,
-    reading: false,
-    writing: false
-  }
+  private _clientState: ClientState = { ...defaultClientState }
 
   private _pollTimeout: NodeJS.Timeout | undefined
   private _pollGeneration = 0
@@ -934,8 +928,11 @@ export class ModbusClient {
           break
       }
 
-      // Log the write transaction, and only the write's own.
-      if (attempt.sent) this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
+      // A refused write has nothing to log and nothing to read back: every
+      // `sent: false` above emitted its own warning and put no request on the
+      // wire, so the device holds what it held.
+      if (!attempt.sent) return
+      this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
 
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this

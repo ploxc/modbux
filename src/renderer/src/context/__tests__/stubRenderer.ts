@@ -1,6 +1,7 @@
 import {
   AddRegisterParamsSchema,
   ClientState,
+  defaultClientState,
   ConnectionConfigSchema,
   RegisterConfigSchema,
   RegisterMappingSchema
@@ -22,14 +23,7 @@ const answerConfig = (schema: {
     Promise.resolve(schema.safeParse(payload).success ? true : undefined)
 }
 
-const disconnected: ClientState = {
-  connectState: 'disconnected',
-  polling: false,
-  scanningUnitIds: false,
-  scanningRegisters: false,
-  reading: false,
-  writing: false
-}
+const disconnected: ClientState = { ...defaultClientState }
 
 /**
  * A channel whose type cannot answer `undefined` answers something here.

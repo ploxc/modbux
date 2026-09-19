@@ -9,6 +9,7 @@ import {
   ClientZustand
 } from './client.zustand.types'
 import {
+  defaultClientState,
   defaultConnectionConfig,
   defaultRegisterConfig,
   CURRENT_CLIENT_ZUSTAND_VERSION,
@@ -257,14 +258,7 @@ export const useClientZustand = create<
         }),
 
       // State
-      clientState: {
-        connectState: 'disconnected',
-        polling: false,
-        scanningUnitIds: false,
-        scanningRegisters: false,
-        reading: false,
-        writing: false
-      },
+      clientState: { ...defaultClientState },
       setClientState: (clientState) =>
         set((state) => {
           state.clientState = clientState

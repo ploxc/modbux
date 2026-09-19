@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { defaultClientState } from '@shared'
 import type { ClientState, RegisterMapping } from '@shared'
 
 /**
@@ -35,22 +36,12 @@ const handlers = vi.hoisted(() => {
 
 import { useClientZustand } from '../client.zustand'
 
-const disconnected: ClientState = {
-  connectState: 'disconnected',
-  polling: false,
-  scanningUnitIds: false,
-  scanningRegisters: false,
-  reading: false,
-  writing: false
-}
+const disconnected: ClientState = { ...defaultClientState }
 
 const connectedAndPolling: ClientState = {
+  ...defaultClientState,
   connectState: 'connected',
-  polling: true,
-  scanningUnitIds: false,
-  scanningRegisters: false,
-  reading: false,
-  writing: false
+  polling: true
 }
 
 const pushClientState = (clientState: ClientState): void => {

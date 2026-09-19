@@ -2283,6 +2283,28 @@ describe('ModbusClient', () => {
       client.stopScanningRegisters()
     })
 
+    // Every `sent: false` branch says why in a snackbar and puts nothing on the
+    // wire, so the device holds what it held and there is nothing to read back.
+    it('reads nothing back when the write never reached the wire', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+
+      await client.write({
+        address: 0,
+        type: 'holding_registers',
+        value: 100,
+        dataType: 'utf8',
+        single: false
+      })
+
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+        message: 'Modbux cannot write a value as UTF-8',
+        variant: 'warning'
+      })
+      expect(client.state.writing).toBe(false)
+    })
+
     it('triggers auto-read after write when not polling', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
