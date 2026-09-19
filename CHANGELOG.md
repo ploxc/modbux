@@ -345,6 +345,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A port another server already holds now says so.** Typing it into a second
   server's Port field put the old number back with nothing said, which reads
   like the field ignored you. The message names the port.
+- **The Value column no longer shows the word "undefined".** Rows read as coils
+  or discrete inputs carry no register value, and they stay on screen when you
+  switch the register type while a read loop is running. Every mapped address
+  then drew `undefined` in the Value column, or `undefine` on a UTF-8 mapping.
+  Those cells are empty now.
 - **The address on the Add bar follows the unit you are looking at.** It was
   read once, from whichever unit was selected then, so after switching to a unit
   holding fewer coils it sat above every address that unit had. Adding an

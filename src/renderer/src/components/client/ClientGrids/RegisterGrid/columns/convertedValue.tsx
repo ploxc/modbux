@@ -76,9 +76,17 @@ export const getConvertedValue = (
   const dataType = registerMap[address]?.dataType
 
   // Get the value for the register datatype, they are all there, the defined datatype
-  // extracts that value and shows it in the value column
-  const value = dataType && dataType !== 'none' ? String(row.words?.[dataType]) : undefined
-  if (!value) return undefined
+  // extracts that value and shows it in the value column.
+  //
+  // The word is read before it is stringified, because `String(undefined)` is
+  // the word "undefined", which is truthy, so a row carrying no words drew that
+  // in the cell. `convertBitData` writes such a row for every coil and discrete
+  // input, and those rows outlive a switch of the register type while a read
+  // loop owns the grid. A UTF-8 register drew the same word cut to the group it
+  // sits in, which is `"undefine"` over four registers.
+  const word = dataType && dataType !== 'none' ? row.words?.[dataType] : undefined
+  if (word === undefined || word === '') return undefined
+  const value = String(word)
 
   // For strings we must calculate the length until the next defined datatype
   let count = 1

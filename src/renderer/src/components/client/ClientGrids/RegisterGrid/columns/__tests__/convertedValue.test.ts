@@ -99,6 +99,27 @@ describe('how much of a string the value column shows', () => {
   })
 })
 
+// `String(undefined)` is the word "undefined" and the guard below it asked
+// whether the string was empty, so a row carrying no words drew that word. The
+// UTF-8 column cut it to the group, which is `"undefine"` over four registers.
+describe('a row that carries no words', () => {
+  // What `convertBitData` writes for a coil or a discrete input.
+  const wordless = (address: number): RegisterData => ({
+    ...rowAt(address, ''),
+    words: undefined
+  })
+
+  it.each(['datetime', 'unix', 'uint16'] as const)('shows nothing for %s', (dataType) => {
+    expect(shownValue({ 0: { dataType } }, wordless(0))).toBe(undefined)
+  })
+
+  it('shows nothing for utf8', () => {
+    dataState.addressGroups = [[0, 4]]
+
+    expect(shownValue({ 0: { dataType: 'utf8' } }, wordless(0))).toBe(undefined)
+  })
+})
+
 describe('the number the value column shows', () => {
   // The rounding takes its precision from the factor, so a factor with one
   // decimal that rounded to none would show 12 for a register holding 123.
