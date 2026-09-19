@@ -18,7 +18,7 @@ import {
   StopBits
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
-import { ServerEndianness } from '@shared'
+import { DEFAULT_MODBUS_PORT, ServerEndianness } from '@shared'
 import { Windows } from '../windows'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import { encodeRegisters, writeRegisters } from './modbusServer/registers'
@@ -53,9 +53,6 @@ const getDefaultServerData = (): {
 export const ILLEGAL_DATA_ADDRESS = 2
 export const SERVER_DEVICE_FAILURE = 4
 export const GATEWAY_TARGET_FAILED = 11
-
-/** Modbus TCP's registered port, which the three paths below fall back to. */
-const DEFAULT_MODBUS_PORT = 502
 
 /**
  * The transport a vector answers on. RS-485 is shared and a socket is not, so a

@@ -10,6 +10,7 @@ import {
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
+  DEFAULT_MODBUS_PORT,
   getUsedAddresses,
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
@@ -40,6 +41,7 @@ import {
   unitRegisters,
   unitUsedAddresses,
   getDefaultSerialConfig,
+  portToOpen,
   restartRtuServer,
   setSerialOption,
   ServerDelayedSetter
@@ -75,7 +77,7 @@ export const useServerZustand = create<
       initialized: false,
       selectedUuid: MAIN_SERVER_UUID,
       uuids: [MAIN_SERVER_UUID],
-      port: { [MAIN_SERVER_UUID]: '502' },
+      port: { [MAIN_SERVER_UUID]: String(DEFAULT_MODBUS_PORT) },
       unitId: { [MAIN_SERVER_UUID]: undefined },
       serverRegisters: { [MAIN_SERVER_UUID]: undefined },
       usedAddresses: { [MAIN_SERVER_UUID]: undefined },
@@ -250,11 +252,11 @@ export const useServerZustand = create<
           const uuidsToSync = uuid ? [uuid] : state.uuids
 
           for (const syncUuid of uuidsToSync) {
-            await openServer(syncUuid, Number(state.port[syncUuid]))
+            await openServer(syncUuid, portToOpen(syncUuid, get().port))
           }
 
           if (state.uuids.length === 0) {
-            state.createServer({ port: 502, uuid: MAIN_SERVER_UUID })
+            state.createServer({ port: DEFAULT_MODBUS_PORT, uuid: MAIN_SERVER_UUID })
             set((state) => {
               state.ready[MAIN_SERVER_UUID] = true
             })

@@ -181,3 +181,56 @@ test.describe.serial('Persistence — a config saved under the former key', () =
     expect(former).not.toBeNull()
   })
 })
+
+//
+// `uuids` and `port` are two records with nothing holding them together, so a
+// key naming a uuid in one and not in the other parses and is kept. `init` then
+// asked main to open that server on `Number(undefined)`, which `PortSchema`
+// refuses, and the toggle button is labelled with the port it has: the server
+// came back as a button with no label and no listener.
+//
+// Only this suite can see that. The unit test covers what `init` asks main for,
+// and what comes back is main's walk for a free port.
+test.describe.serial('Persistence — a server the key holds no port for', () => {
+  test.afterAll(async () => {
+    if (app) await app.close()
+  })
+
+  test('add a second server, then take its port out of the key', async () => {
+    await launchApp(true)
+    await page.getByTestId('home-server-btn').click()
+    await expect(page.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
+
+    await page.getByTestId('add-server-btn').click()
+    await expect(page.locator('[data-testid^="select-server-"]')).toHaveCount(2)
+    await page.waitForTimeout(500) // let zustand persist
+
+    const stripped = await page.evaluate(() => {
+      const saved = localStorage.getItem('server.zustand')
+      if (saved === null) return false
+      const blob = JSON.parse(saved)
+      const [first] = blob.state.uuids
+      blob.state.port = { [first]: blob.state.port[first] }
+      localStorage.setItem('server.zustand', JSON.stringify(blob))
+      return blob.state.uuids.length === 2
+    })
+    expect(stripped).toBe(true)
+  })
+
+  test('close app', async () => {
+    await app.close()
+    await new Promise((r) => setTimeout(r, 1000))
+  })
+
+  test('reopen and find both servers labelled with a port', async () => {
+    await launchApp(false)
+    await page.getByTestId('home-server-btn').click()
+    await expect(page.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
+
+    const toggles = page.locator('[data-testid^="select-server-"]')
+    await expect(toggles).toHaveCount(2)
+
+    const labels = await toggles.allInnerTexts()
+    expect(labels.every((label) => /^\d+$/.test(label))).toBe(true)
+  })
+})

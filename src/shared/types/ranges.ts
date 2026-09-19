@@ -20,6 +20,9 @@ import { isNumberRegister, RegisterType } from './register'
 export const MAX_REGISTER_ADDRESS = 65535
 export const MAX_UNIT_ID = 255
 
+/** Modbus TCP's registered port, which is where a walk for a free one starts. */
+export const DEFAULT_MODBUS_PORT = 502
+
 export const RegisterAddressSchema = z.number().int().min(0).max(MAX_REGISTER_ADDRESS)
 export const UnitIdSchema = z.number().int().min(0).max(MAX_UNIT_ID)
 export const PortSchema = z.number().int().min(0).max(65535)

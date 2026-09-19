@@ -1,8 +1,11 @@
 import {
   checkHasConfig,
+  DEFAULT_MODBUS_PORT,
   defaultSerialPortOptions,
+  findAvailablePort,
   getUsedAddresses,
   MAIN_SERVER_UUID,
+  PortSchema,
   RegisterParams,
   SerialPortOptions,
   ServerRegisters,
@@ -166,6 +169,34 @@ export const syncUuidToBackend = async (
   set((state) => {
     state.ready[syncUuid] = true
   })
+}
+
+/**
+ * The port `init` asks main to open a uuid on.
+ *
+ * `uuids` and `port` are two records with nothing holding them together, so a
+ * uuid can be in the list with no port beside it: a hand-edited key says so
+ * outright, and `repairPersisted` says it by replacing a `port` record it
+ * cannot read with the initial state's one entry. That port read back as
+ * `Number(undefined)`, `PortSchema` refuses a `NaN`, and the server stood in
+ * the toggle group with an empty label, no listener and `ready` false.
+ *
+ * The walk is over what the store has handed out rather than from 502, because
+ * the uuids after this one have no listener yet: main probes sockets, so it
+ * would hand this server the port the next one is about to ask for, and that
+ * one would then be moved on. Nothing free between 502 and 10502 leaves the
+ * registered port and main's own walk, which is a key naming ten thousand
+ * servers.
+ */
+export const portToOpen = (uuid: string, ports: Record<string, string>): number => {
+  const storedPort = Number(ports[uuid])
+  if (PortSchema.safeParse(storedPort).success) return storedPort
+
+  const taken = Object.values(ports)
+    .map(Number)
+    .filter((port) => PortSchema.safeParse(port).success)
+
+  return findAvailablePort(taken) ?? DEFAULT_MODBUS_PORT
 }
 
 export const getDefaultSerialConfig = (): ServerSerialConfig => ({
