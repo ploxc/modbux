@@ -14,10 +14,10 @@ import { Windows } from '../../windows'
  * `registerWidth` answers that one.
  *
  * Two writers reach it: `ModbusServer.addRegister` for a fixed register, and
- * `ValueGenerator` on every tick. Both used to spell the pair of encoders out,
- * and what the copies did with a throw drifted apart: one grew a `try` around
- * it and the other stayed bare. `ModbusServer._encode` is that `try` now. The
- * generator calls this bare on purpose, and `addRegister`'s docblock says why.
+ * `ValueGenerator` on every tick. One function rather than the pair of encoders
+ * spelled out at each, because what two copies do with a throw drifts apart.
+ * `ModbusServer._encode` is the `try` around it; the generator calls this bare
+ * on purpose, and `addRegister`'s docblock says why.
  *
  * A string is written from its characters rather than from `value`, so `utf8`
  * ignores it.

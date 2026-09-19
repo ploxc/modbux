@@ -99,9 +99,8 @@ export const useServerZustand = create<
        *
        * The key set is every record's own keys rather than `port`'s alone: a
        * server whose `createServer` was refused has a name and no port, and
-       * `deleteServer` used to delete the port first, which took the uuid out
-       * of the one list this read. `name` is persisted, so what escaped stayed
-       * in the config file.
+       * `name` is persisted, so an entry that escapes here stays in the config
+       * file.
        */
       cleanOrphanedServerState: () => {
         set((state) => {
@@ -138,8 +137,8 @@ export const useServerZustand = create<
           state.selectedUuid = uuid
         })
         // `clean` writes through a `set` of its own, and a `set` that runs
-        // inside a recipe is discarded when that recipe finalises. It stood
-        // inside this one since 352e4df, so a new server got no unit map.
+        // inside a recipe is discarded when that recipe finalises, so it is
+        // called after this one rather than inside it.
         get().clean(uuid)
         get().cleanOrphanedServerState()
       },
@@ -167,11 +166,11 @@ export const useServerZustand = create<
        * store initialized once it has been through them all.
        *
        * `containers/Server.tsx` draws nothing until the flag is set, so a
-       * rejected invoke used to cost the whole server view rather than the one
-       * uuid it belonged to, on that launch and on every one after it. The uuid
-       * keeps `ready` false, which is what its three setters refuse on, and
-       * that is the whole cost now. `openServer` is where the catch sits, so
-       * the servers after it still get opened.
+       * rejected invoke that escaped here would cost the whole server view
+       * rather than the one uuid it belongs to, on that launch and on every one
+       * after it. The uuid keeps `ready` false, which is what its three setters
+       * refuse on, and that is the whole cost. `openServer` is where the catch
+       * sits, so the servers after it still get opened.
        */
       init: async (uuid) => {
         set((state) => {
@@ -197,11 +196,11 @@ export const useServerZustand = create<
          * Opens one server and hands main what it holds, and answers whether
          * that got through.
          *
-         * The `catch` is per uuid, because that is the unit of the cost: it
-         * stood around the loop, and a refusal for the first uuid then meant
-         * `createServer` was never called for the second at all, so it had no
-         * listener on its port, none of its registers in main, and `ready`
-         * false with no message.
+         * The `catch` is per uuid, because that is the unit of the cost.
+         * Around the loop instead, a refusal for the first uuid would leave
+         * `createServer` uncalled for the second, so it would have no listener
+         * on its port, none of its registers in main, and `ready` false with no
+         * message.
          *
          * Empty, because this runs from module scope with nothing awaiting it
          * and a rejection there is an unhandled one. Main reports its own
@@ -532,10 +531,10 @@ export const useServerZustand = create<
       /**
        * A read, and nothing else.
        *
-       * Two of its callers ask from inside a running recipe, where the `set`
-       * this used to make was discarded and attempted again on the next call.
-       * `init` gives every uuid a unit id and `clean` gives a new one '0', so
-       * there was nothing left for it to repair.
+       * Two of its callers ask from inside a running recipe, where a `set`
+       * made here would be discarded and attempted again on the next call.
+       * `init` gives every uuid a unit id and `clean` gives a new one `'0'`, so
+       * there is nothing left for it to repair.
        */
       getUnitId: (uuid: string): UnitIdString => get().unitId[uuid] ?? '0'
     })),

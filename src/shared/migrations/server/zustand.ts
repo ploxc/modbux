@@ -123,8 +123,9 @@ export function migrateServerRegistersState(
  * Migrate server Zustand state to the current version.
  * Used by Zustand persist middleware.
  *
- * This stood inline in `server.zustand.ts`, where a test could reach every step
- * it calls and none of the calls. Dropping a whole `if` left the suite green.
+ * Here rather than inline in `server.zustand.ts`, where a test reaches every
+ * step it calls and none of the calls: dropping a whole `if` there left the
+ * suite green.
  */
 export function migrateServerState(
   persistedState: unknown,

@@ -159,9 +159,9 @@ test.describe.serial('Write Operations', () => {
       await clearData(mainPage)
     })
 
-    // The value field is milliseconds, and its range used to be stated in
-    // seconds, so everything it accepted fell before the year 2000 the format
-    // starts at and went out as the clamp floor.
+    // The value field is milliseconds. Stated in seconds, its range puts
+    // everything it accepts before the year 2000 the format starts at, and the
+    // write goes out as the clamp floor.
     test('write DATETIME via FC16', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '10')
       await writeRegister(mainPage, 6, '1717245296789', 'fc16', 'DATETIME')

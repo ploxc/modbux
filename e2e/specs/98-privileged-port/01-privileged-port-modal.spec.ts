@@ -171,8 +171,8 @@ test.describe.serial('Privileged port modal (manual, Linux only)', () => {
   /**
    * Splitting from Home is the path where the main window never shows the
    * server view at all, so the window that pops out is the only one that can
-   * ask. The check used to return on `isServerWindow`, which left it unasked in
-   * both windows.
+   * ask. A check that returns on `isServerWindow` leaves it unasked in both
+   * windows.
    */
   test('the split-out server window asks', async () => {
     await closeApp()

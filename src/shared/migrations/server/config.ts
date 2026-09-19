@@ -46,10 +46,10 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   const config = v1Config as V1ServerConfig
   const v1Registers = config.serverRegistersPerUnit ?? {}
   // `V1ServerRegisters` declares the bool records as the entries this leaves,
-  // because the loop below reads them after it. The step was written out a
-  // third time here, and the copy differed: it built a new record per bool
-  // type, so a `coils` holding a number became an empty one and passed, where
-  // the helper leaves the number for `ServerConfigSchema` to refuse.
+  // because the loop below reads them after it. The helper runs here rather
+  // than a third copy of the step: a copy that builds a new record per bool
+  // type turns a `coils` holding a number into an empty one and passes it,
+  // where the helper leaves the number for `ServerConfigSchema` to refuse.
   migrateBoolShapeInConfig(v1Registers)
   const { endianness, wasMixed } = extractGlobalEndianness(v1Registers)
 

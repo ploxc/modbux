@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
 // The mask fields have a radix of ',' and map '.' onto it, so `1,5` typed into
-// the unit id is `NaN` by the time a setter sees it. The store used to write it
-// and call main afterwards, `JSON.stringify` turned it into `null`, and the next
-// launch refused the whole persisted config and reset it.
+// the unit id is `NaN` by the time a setter sees it. A store that wrote it and
+// called main afterwards persisted `null` through `JSON.stringify`, and the
+// next launch refused the whole config and reset it.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import type { RegisterData } from '@shared'

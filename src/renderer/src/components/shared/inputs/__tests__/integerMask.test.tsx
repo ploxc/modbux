@@ -3,8 +3,8 @@
 //
 // `IMask.MaskedNumber` has a scale of 2 and a radix of ',', so a field that
 // takes the defaults accepts a decimal separator. The value reaching the setter
-// is then a string `Number()` answers `NaN` to, and the store used to persist
-// that as `null`.
+// is then a string `Number()` answers `NaN` to, which the store persists as
+// `null`.
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -81,7 +81,7 @@ describe('an integer field and a decimal separator', () => {
     expect(input.value).toBe('15')
   })
 
-  it('drops the dot as well, which the mask used to map onto the comma', async () => {
+  it('drops the dot as well', async () => {
     const set = vi.fn()
     const input = renderField(<UnitIdInput set={set} />)
 

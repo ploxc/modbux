@@ -78,12 +78,12 @@ export type ServerZustand = {
   /**
    * Whether `init` has run to its end, whatever it managed.
    *
-   * `containers/Server.tsx` fades the whole server view in on this. It used to
-   * read `ready`, which is per uuid and written only on a sync that got
-   * through, so a rejected invoke anywhere in `init`'s loop left the view blank
-   * on that launch and on every one after it, with nothing on screen to clear
-   * the config with. The two questions are separate: this one is about the
-   * store, `ready` is about a server.
+   * `containers/Server.tsx` fades the whole server view in on this rather than
+   * on `ready`, which is per uuid and written only on a sync that got through:
+   * a rejected invoke anywhere in `init`'s loop would leave the view blank on
+   * that launch and on every one after it, with nothing on screen to clear the
+   * config with. The two questions are separate: this one is about the store,
+   * `ready` is about a server.
    */
   initialized: boolean
   clean: (uuid: string) => void

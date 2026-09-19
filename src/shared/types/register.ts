@@ -20,9 +20,9 @@ const BOOLEAN_REGISTERS = new Set<string>(BooleanRegistersSchema.options)
 /**
  * Whether `type` is one of the two register types holding 16 bit words.
  *
- * The pair was written out at five sites and the bool pair at two, and a
- * hand-written membership test does not grow when the enum does. Both read
- * `.options`, which is why the enums are here.
+ * One place rather than a membership test per site, because a hand-written one
+ * does not grow when the enum does. Both read `.options`, which is why the
+ * enums are here.
  */
 export const isNumberRegister = (type: string): type is NumberRegisters =>
   NUMBER_REGISTERS.has(type)

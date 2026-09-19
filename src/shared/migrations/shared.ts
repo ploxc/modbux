@@ -310,8 +310,8 @@ export function dropUnmappableRegisters(state: Record<string, unknown>): void {
  *
  * Two callers walk to a unit's registers by different routes: a config file
  * through `serverRegistersPerUnit[unit]`, the persisted store through
- * `serverRegisters[uuid][unit]`. Only that walk differed, and the work below it
- * was written out twice.
+ * `serverRegisters[uuid][unit]`. Only that walk differs, so each caller owns
+ * it and the work below it is here once.
  */
 export function migrateBoolShapeForUnit(unitRegisters: unknown): void {
   if (!isRecord(unitRegisters)) return

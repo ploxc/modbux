@@ -6,12 +6,11 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import RegisterGrid from './RegisterGrid/RegisterGrid'
 
 /**
- * The grid stays up while a scan runs. It used to be unmounted, because the
- * rows arriving one chunk at a time re-rendered the whole list each time and
- * the window stopped answering. The rows are written in batches now, and a
- * scan with the grid on screen costs about as much as one without. The eye in
- * the scan dialog puts it back the old way for anyone who would rather not
- * watch.
+ * The grid stays up while a scan runs, because the rows are written in
+ * batches: a chunk at a time re-renders the whole list, which is what taking
+ * the grid down bought. A scan with the grid on screen costs about as much as
+ * one without. The eye in the scan dialog takes it down for anyone who would
+ * rather not watch.
  */
 const ClientGrids = meme((): JSX.Element | null => {
   const showLog = useLayoutZustand((z) => z.showLog)

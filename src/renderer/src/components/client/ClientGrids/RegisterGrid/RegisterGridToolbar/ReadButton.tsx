@@ -7,10 +7,9 @@ const ReadButton = meme((): JSX.Element => {
   const connected = useClientZustand((z) => z.clientState.connectState === 'connected')
   const polling = useClientZustand((z) => z.clientState.polling)
 
-  // Main says a read is running, and refuses a second one while it is. This
-  // used to be a ref here, which held for this button and for nothing else. A
-  // write holds the client from its own request to the end of the read back,
-  // and main refuses a read for that stretch too.
+  // Main says a read is running and refuses a second one while it is. It
+  // refuses one for the length of a write too, which holds the client from its
+  // own request to the end of the read back.
   const reading = useClientZustand((z) => z.clientState.reading)
   const writing = useClientZustand((z) => z.clientState.writing)
 

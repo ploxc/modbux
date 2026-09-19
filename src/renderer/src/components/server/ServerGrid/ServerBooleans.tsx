@@ -26,16 +26,7 @@ interface ServerBoolRowProps {
   type: BooleanRegisters
 }
 
-/**
- * One coil or discrete input, with its comment and its remove button.
- *
- * It read `collapse` and passed it on as `readOnly`, and `ServerBooleans`
- * renders this list only under `{!collapse && ...}`. Both read the same store
- * and React renders the parent first, so no committed render carried
- * `readOnly: true`, and the hover styles and the remove button were guarded on
- * the same unreachable half. Two tests in `ServerBit.test.tsx` asserted
- * behaviour nothing in the app reached.
- */
+/** One coil or discrete input, with its comment and its remove button. */
 const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
   const entry = useServerZustand((z) => {
     const uuid = z.selectedUuid
@@ -116,13 +107,13 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
 
 const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   // Zustand runs a selector on every store change to compare, not only during
-  // render, so the ref this used to cache the sorted keys in was written
-  // outside React's render phase. `ServerRegisterRows` next door selects the
-  // map and derives from it in a `useMemo`, which runs when React says so.
-  // Mutative gives the map a new identity on every value written into it, so
-  // this list re-renders per toggle where the ref stopped that. The register
-  // list already pays that against generators writing on an interval, and each
-  // row is `meme`'d on props that do not move.
+  // render, so a ref caching the sorted keys here would be written outside
+  // React's render phase. The map is selected and the order derived in a
+  // `useMemo`, which runs when React says so, the way `ServerRegisterRows`
+  // next door does. Mutative gives the map a new identity on every value
+  // written into it, so this list re-renders per toggle. The register list
+  // already pays that against generators writing on an interval, and each row
+  // is `meme`'d on props that do not move.
   const boolMap = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)

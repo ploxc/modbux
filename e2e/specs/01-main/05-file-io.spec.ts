@@ -189,9 +189,9 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
   // ─── Bools that are off are still configuration ───────────────────────
 
   /**
-   * A coil is added off, so a unit holding nothing else used to be dropped from
-   * the file: `checkHasConfig` read the value where it should have counted the
-   * entry, and both the save and the load asked it.
+   * A coil is added off, and both the save and the load ask `checkHasConfig`
+   * whether the unit holds anything. Reading the value rather than counting the
+   * entry drops a unit holding nothing else from the file.
    */
   test('save and reopen a unit whose coils are all off', async ({ electronApp, mainPage }) => {
     await mainPage.getByTestId('server-clear-btn').click()

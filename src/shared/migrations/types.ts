@@ -11,12 +11,12 @@ export interface MigrationResult<T> {
    * what it did not bring across.
    *
    * One field rather than a `warning` of `'FUTURE_VERSION'` beside a `reset`
-   * that is only ever set with it: the pair made the caller ask twice, and the
+   * that is only ever set with it: the pair makes the caller ask twice, and the
    * second question is one no input answers no.
    *
-   * That branch used to cast the parsed JSON straight to the config type, so it
-   * was the one door into the app no schema stood in, and the warning the user
-   * read was a compatibility notice for something that had not been checked.
+   * The branch that sets it parses the file rather than casting it, so what the
+   * user reads names the fields that did not come across instead of promising a
+   * compatibility nothing checked.
    */
   futureVersion?: ConfigReset
 }

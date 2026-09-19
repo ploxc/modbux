@@ -48,8 +48,7 @@ export type StartRtuServerParams = z.infer<typeof StartRtuServerParamsSchema>
  * it to `setInterval`, and an interval of 0 fired 78 times in 100 ms when
  * measured. The ceiling is Node's rather than the mask's: above 2147483647 it
  * warns `TimeoutOverflowWarning` and sets the duration to 1, so an interval of
- * 1e12 fires every millisecond, which is the flood the floor was written to
- * prevent.
+ * 1e12 fires every millisecond, which is the flood the floor prevents.
  *
  * `min` and `max` are each held to their own data type, in the refine below,
  * because the generator draws between them and hands the draw to

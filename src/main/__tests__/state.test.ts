@@ -90,9 +90,9 @@ describe('AppState', () => {
   })
 
   // What a payload carrying an explicit `undefined` does. Zod's deepPartial
-  // keeps the key, structured clone carries it over IPC, and deepmerge used to
-  // copy it over the stored value. The last one separates dropping the key from
-  // dropping the whole update.
+  // keeps the key and structured clone carries it over IPC, so the merge is
+  // what has to drop it rather than copy it over the stored value. The last
+  // case separates dropping the key from dropping the whole update.
   describe('updateConnectionConfig with an undefined field', () => {
     it('keeps the stored host', () => {
       state.updateConnectionConfig({ tcp: { host: '10.0.0.1' } })

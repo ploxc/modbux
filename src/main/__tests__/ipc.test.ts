@@ -579,9 +579,6 @@ describe('each guarded channel got its own schema', () => {
    * `undefined` is the one payload every schema here refuses, so a channel that
    * answers with a message has a schema and one that stays silent has none. A
    * string would not do it: `ServerUuidSchema` takes one.
-   *
-   * The list above was written by hand and covered fourteen of the twenty, so a
-   * channel added with a schema did not join it.
    */
   const guardedChannels = async (): Promise<string[]> => {
     const { sent } = start()
@@ -624,8 +621,8 @@ describe('each guarded channel got its own schema', () => {
     expect(sent.map(({ message }) => message.error)).toEqual([])
   })
 
-  // `undefined` is the payload every schema here refuses. A string used to be,
-  // until `delete_server` and `reset_server` took one.
+  // `undefined` is the payload every schema here refuses. A string is not:
+  // `delete_server` and `reset_server` take one.
   //
   // A refused payload answers `undefined` whatever the channel answers when it
   // takes one, which is the rule `PayloadSchema` holds a channel to. Read here

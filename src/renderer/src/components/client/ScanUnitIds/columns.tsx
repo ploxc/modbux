@@ -9,7 +9,7 @@ import Box from '@mui/material/Box'
  *
  * A refusal is not a silence. An exception reply means the unit is there and
  * talking, and it answered this particular question with no; nothing coming
- * back at all means there is no unit at that address. Both used to be red.
+ * back at all means there is no unit at that address.
  */
 type ScanOutcome = 'answered' | 'refused' | 'silent' | 'unasked'
 

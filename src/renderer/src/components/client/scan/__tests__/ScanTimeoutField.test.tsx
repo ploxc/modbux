@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest'
 import ScanTimeoutField, { clampScanTimeout } from '../ScanTimeoutField'
 
 // Both dialogs keep the timeout as a number, so the harness does too: that
-// round trip is where the field used to rewrite what you typed.
+// round trip is where the field would rewrite what you typed.
 const Harness = (): JSX.Element => {
   const [timeout, setTimeout] = useState(500)
 

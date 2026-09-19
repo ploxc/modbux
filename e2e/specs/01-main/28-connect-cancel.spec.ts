@@ -2,8 +2,8 @@
  * Cancelling a connect
  *
  * The Connect button is a Cancel for as long as the state is 'connecting', and
- * it sends `disconnect`. On RTU the cancelled connect used to finish its open
- * anyway and report "Connected over Modbus RTU" over the cancel, leaving the
+ * it sends `disconnect`. On RTU a cancelled connect that finishes its open
+ * anyway reports "Connected over Modbus RTU" over the cancel, leaving the
  * button on Disconnect and the port held.
  *
  * Both calls go through `window.api` in one tick, which is the window the

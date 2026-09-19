@@ -281,8 +281,9 @@ describe('ModbusServer', () => {
     })
 
     // `undefined` is what the store reads as nothing changed, so the refusal
-    // reuses the answer a refused payload already has. It used to throw, and
-    // `createIpcHandle` puts no try around a listener.
+    // reuses the answer a refused payload already has. A throw would reject the
+    // invoke rather than answer it, because `createIpcHandle` puts no try
+    // around a listener.
     it('refuses a value its data type cannot encode and writes nothing', () => {
       const answer = server.addRegister({
         uuid,
@@ -518,9 +519,9 @@ describe('ModbusServer', () => {
     })
 
     /**
-     * The byte order used to travel with every add and every sync, which was
-     * the same field of the same server read again each time. The server holds
-     * it, and until it is told, a register is big-endian.
+     * The server holds the byte order rather than taking it with every add and
+     * every sync, which is the same field of the same server read again each
+     * time. Until it is told, a register is big-endian.
      */
     it('swaps the words of a 32-bit value once the server is told', () => {
       server.setEndianness({ uuid, littleEndian: true })
@@ -1099,11 +1100,10 @@ describe('ModbusServer', () => {
       )
     })
 
-    // `createRegisters` threw straight out of `addRegister`, and this loop is a
-    // bare `for`, so one register the encoder refused took every register after
-    // it in the unit with it and rejected the invoke the renderer's `init`
-    // awaits. `RegisterParamsSchema` refuses the payload before it gets here
-    // now, so this is the class answering for its own input.
+    // This loop is a bare `for`, so a throw out of `addRegister` would take
+    // every register after it in the unit with it and reject the invoke the
+    // renderer's `init` awaits. `RegisterParamsSchema` refuses such a payload
+    // at the boundary, so this is the class answering for its own input.
     it('keeps the registers after one the encoder refuses', () => {
       server.syncServerRegisters({
         uuid,

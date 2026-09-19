@@ -717,8 +717,9 @@ export class ModbusClient {
   //
   // request and responses are stashed only while debug mode is on, and only
   // by the write that reaches the port, so a transaction can carry neither.
-  // The library checks for them before using them; this used to not, and a
-  // scan that met one crashed the handler it ran in.
+  // The library checks for them before using them, and so does
+  // `_logTransaction`: a transaction carrying neither would otherwise crash the
+  // handler the scan that met it runs in.
   //
   // The key is a transaction id on TCP and UDP, whose ports write it into the
   // MBAP header and increment it per request. A serial port has none: RTU
@@ -948,11 +949,11 @@ export class ModbusClient {
    * A `writeFCx` as a promise.
    *
    * `ModbusRTU.d.ts` gives FC5, FC6, FC15 and FC16 one signature apart from the
-   * value: unit id, data address, the value, and a `NodeStyleCallback`. This
-   * conversion was written out once per code, and the four copies differed in
-   * the method name, the type argument and the value they passed. The caller
-   * hands over a call with the callback still open, so `this._client` stays
-   * bound and the method and its arguments stay where the reader is.
+   * value: unit id, data address, the value, and a `NodeStyleCallback`. One
+   * conversion rather than one per code, where the four copies differ in the
+   * method name, the type argument and the value they pass. The caller hands
+   * over a call with the callback still open, so `this._client` stays bound and
+   * the method and its arguments stay where the reader is.
    */
   private _awaitWrite = <R>(write: (next: NodeStyleCallback<R>) => void): Promise<R> =>
     new Promise<R>((resolve, reject) =>

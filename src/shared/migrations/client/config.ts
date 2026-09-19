@@ -67,12 +67,11 @@ export function migrateClientConfig(raw: string): MigrationResult<RegisterMapCon
   }
 
   // A config from a newer Modbux keeps the fields it still shares with this
-  // one. The branch cast the parsed JSON straight to `RegisterMapConfig` and
-  // returned it, and `LoadButton` calls
+  // one. It is repaired rather than cast: `LoadButton` calls
   // `replaceRegisterMapping(config.registerMapping)` with no gate at all, so
-  // `{ version: 9, registerMapping: 'nope' }` was written into the persisted
-  // store and flushed to main. The same answer a persisted store gets, and
-  // `reset` is what the warning now says.
+  // `{ version: 9, registerMapping: 'nope' }` would reach the persisted store
+  // and main. The same answer a persisted store gets, and `reset` is what the
+  // warning says.
   if (detectedVersion > CURRENT_CLIENT_CONFIG_VERSION) {
     // Entry by entry first. `registerMapping` is one field, and it is the one
     // thing in the client store built by hand, so one address this version

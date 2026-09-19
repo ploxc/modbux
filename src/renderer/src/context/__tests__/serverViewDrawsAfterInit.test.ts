@@ -119,9 +119,10 @@ describe('the flag the server view draws on', () => {
   })
 })
 
-// The `try` stood around the whole loop, so a refusal for the first uuid threw
-// out of it and `createServer` was never called for the second: no listener on
-// its port, none of its registers in main, and `ready` false with no message.
+// The `catch` is per uuid. Around the whole loop, a refusal for the first uuid
+// would throw out of it and leave `createServer` uncalled for the second: no
+// listener on its port, none of its registers in main, and `ready` false with
+// no message.
 describe('one server main refuses', () => {
   const SECOND = 'a-second-server'
 

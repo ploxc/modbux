@@ -177,9 +177,9 @@ export const syncUuidToBackend = async (
  * `uuids` and `port` are two records with nothing holding them together, so a
  * uuid can be in the list with no port beside it: a hand-edited key says so
  * outright, and `repairPersisted` says it by replacing a `port` record it
- * cannot read with the initial state's one entry. That port read back as
- * `Number(undefined)`, `PortSchema` refuses a `NaN`, and the server stood in
- * the toggle group with an empty label, no listener and `ready` false.
+ * cannot read with the initial state's one entry. That port reads back as
+ * `Number(undefined)`, `PortSchema` refuses a `NaN`, and the server would stand
+ * in the toggle group with an empty label, no listener and `ready` false.
  *
  * The walk is over what the store has handed out rather than from 502, because
  * the uuids after this one have no listener yet: main probes sockets, so it

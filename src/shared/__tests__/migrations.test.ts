@@ -249,11 +249,10 @@ describe('configMigration', () => {
         expect(result.futureVersion?.fields).toEqual([])
       })
 
-      // The branch cast the parsed JSON straight to `ServerConfig` and returned
-      // it, so this was the one door into the app no schema stood in, and the
-      // snackbar read as a compatibility notice rather than "this was not
-      // checked". Both fixtures the suite had were well formed, so it was green
-      // on the half that works.
+      // A file claiming a newer version is parsed rather than cast, so the
+      // fields it carries that this version cannot read are named rather than
+      // installed. A well formed future config is the half that works, and it
+      // is the one above.
       it('keeps the fields a future config still shares and names the rest', () => {
         const result = migrateServerConfig(
           JSON.stringify({
@@ -498,7 +497,7 @@ describe('configMigration', () => {
         expect(message.length).toBeLessThan(200)
       })
 
-      // Five lines is the budget, and one register used to spend all of it.
+      // Five lines is the budget, and one unit's registers can fill it.
       it('still reaches the unit id past a unit full of bad registers', () => {
         const message = refusal(
           v2Config({
@@ -846,8 +845,8 @@ describe('configMigration', () => {
     })
 
     // The step is `migrateBoolShapeForUnit`, which leaves a bool record that is
-    // not an object where it found it. The copy this file used to hold built a
-    // new record per bool type, so `coils: 5` became `{}` and loaded.
+    // not an object where it found it. A copy that builds a new record per bool
+    // type instead turns `coils: 5` into `{}`, and the file loads.
     it.each([5, true, 'ab'])('refuses a v1 coils holding %o', (coils) => {
       const v1Config = JSON.stringify({
         name: 'Not A Record',

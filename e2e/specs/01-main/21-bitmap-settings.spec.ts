@@ -197,9 +197,9 @@ test.describe.serial('Bitmap settings — color, invert & config persistence', (
     const grew = expandedHeight - collapsedHeight
 
     expect(grew).toBeGreaterThan(0)
-    // The scroller's own model, not the rendered row. It came from a fixed
-    // rowHeight that the panel's height reached in no way, so this used to be
-    // zero and the last row ended below the furthest the grid would scroll.
+    // The scroller's own model, not the rendered row. A fixed rowHeight the
+    // panel's height reaches in no way leaves this at zero, and the last row
+    // ends below the furthest the grid will scroll.
     expect(expandedScroll - collapsedScroll).toBeGreaterThanOrEqual(grew)
 
     // An address stops being a bitmap while its panel is open: the type cell is

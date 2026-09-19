@@ -70,9 +70,10 @@ test.describe.serial('Split View — Server in separate window', () => {
 
   /**
    * 0 is a port number the way "any" is a name, and `ModbusServer.setPort`
-   * refuses it. The message used to go to every window, and the server window
-   * had no listener, so in split view the field snapped back to its old port
-   * with nothing said in the window the user was looking at.
+   * refuses it. The message is addressed to the window showing the server, and
+   * `MessageReceiver` listens in both: unaddressed it was a snackbar in each,
+   * and the server window returning early instead left the field snapping back
+   * to its old port with nothing said where the user was looking.
    */
   test('a refused port reports in the window showing the server', async () => {
     const portInput = serverPage.getByTestId('server-port-input').locator('input')

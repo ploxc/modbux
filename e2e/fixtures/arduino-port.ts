@@ -17,9 +17,9 @@ export type PortChoice = { port: string; reason?: undefined } | { port?: undefin
 /**
  * The Arduino's serial port, or why there isn't one.
  *
- * Replaces the page.pause() these specs used to open, which needed a person to
- * pick the port by hand and so kept the hardware round out of the unattended
- * suites. The vendor ID is what identifies the board: `manufacturer` reads
+ * The board is found here rather than through a `page.pause()` that waits for
+ * a person to pick the port, which is what keeps the hardware round in the
+ * unattended suites. The vendor ID is what identifies it: `manufacturer` reads
  * "Microsoft" on Windows, where the generic usbser driver claims the device.
  *
  * Returns a reason rather than throwing, so the caller decides between skipping

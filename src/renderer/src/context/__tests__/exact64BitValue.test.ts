@@ -82,8 +82,9 @@ describe('a uint64 register a client writes', () => {
     expect(stored(store)).toBe('18446744073709551615')
   })
 
-  // The flush clears the batcher, so the next word write reads the entry. That
-  // read used to be the rounded number.
+  // The flush clears the batcher, so the next word write reads the entry, and
+  // what it finds there has to be the exact digits rather than the rounded
+  // number.
   it('keeps the other three words when one more word is written after a flush', async () => {
     const store = await seeded('uint64')
     for (const [offset, word] of [0xffff, 0xffff, 0xffff, 0xffff].entries()) {

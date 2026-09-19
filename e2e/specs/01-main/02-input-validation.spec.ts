@@ -276,9 +276,9 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
   })
 
   /**
-   * A comma used to reach the setter, and `Number()` answers `NaN` to it. The
-   * store wrote that, `JSON.stringify` persisted `null`, and the next start
-   * refused the connection config and reset it.
+   * A comma that reaches the setter is a `NaN` from `Number()`. A store that
+   * writes it persists `null` through `JSON.stringify`, and the next start
+   * refuses the connection config and resets it.
    *
    * They run before the two clamping tests, so those still leave the fields as
    * they did for the specs after this one.

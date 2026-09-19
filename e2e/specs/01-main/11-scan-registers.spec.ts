@@ -347,12 +347,12 @@ test.describe.serial('Scan Registers', () => {
 
     // The scan reached something, and stopping stopped it.
     //
-    // This used to assert that address 26, the last holding register on the
-    // server, had not been reached yet. That was a guess about how fast the
-    // machine is: the scan walks one register at a time with a 5ms pause, so
-    // 26 of them take a few hundred milliseconds, which is about what the five
-    // assertions above cost. The fastest runner got there first and the test
-    // failed for being right.
+    // Nothing here asserts how far it got. The scan walks one address at a
+    // time and waits 10 ms per chunk, so the 26 up to the last address this
+    // server answers for take about a quarter of a second, which is about what
+    // the five assertions above cost: an assertion that one of them had not
+    // been reached is a guess about the machine, and the fastest runner gets
+    // there first.
     //
     // What stopping means is that no more rows arrive, so that is what this
     // waits to see.

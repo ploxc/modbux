@@ -10,10 +10,11 @@ interface ScanCloseButtonProps {
 /**
  * The way out of a scan dialog.
  *
- * Clicking beside it used to be it, which threw away the scan you were setting
- * up on the way to anything else on screen. A button rather than a cross, so
- * it carries the same weight as the one beside it, and off while a scan runs
- * for the same reason the backdrop click was ignored then.
+ * A button rather than a cross, so it carries the same weight as the one
+ * beside it. A click beside the dialog is ignored, because reaching for
+ * anything else on screen would throw away the scan you were setting up;
+ * Escape still closes, which both dialogs say where they take it. Off while a
+ * scan runs.
  */
 const ScanCloseButton = meme(
   ({ disabled, close, testId }: ScanCloseButtonProps): JSX.Element => (

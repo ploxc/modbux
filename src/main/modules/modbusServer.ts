@@ -46,9 +46,9 @@ const getDefaultServerData = (): {
 /**
  * The three Modbus exception codes this server sends.
  *
- * The other seven of the protocol's table stood here as exported constants
- * nothing named. Keeping them costs a lint disable, which is a worse comment
- * than none. `modbusServer.test.ts` asserts on all three of these.
+ * The other seven of the protocol's table are not here: an exported constant
+ * nothing names costs a lint disable, which is a worse comment than none.
+ * `modbusServer.test.ts` asserts on all three of these.
  */
 export const ILLEGAL_DATA_ADDRESS = 2
 export const SERVER_DEVICE_FAILURE = 4
@@ -154,9 +154,9 @@ export class ModbusServer {
   /**
    * The byte order each server encodes its registers in, big-endian until told.
    *
-   * The renderer used to send it with every add and every sync, which is the
-   * same field of the same server read again each time. It is set once here
-   * and read where a register is encoded.
+   * It is set once here and read where a register is encoded, rather than
+   * riding along on every add and every sync, which is the same field of the
+   * same server read again each time.
    */
   private _littleEndian: Map<string, boolean> = new Map()
   private _serverData: ServerDataMap = new Map()
@@ -433,8 +433,8 @@ export class ModbusServer {
    *
    * What the uuid holds goes first, whether or not a TCP listener was ever
    * bound. `_serverData` holds every register array of every unit id under the
-   * uuid, and `resetServer` used to be the only place that deleted it, which
-   * the delete button does not go through.
+   * uuid, and the delete button does not go through `resetServer`, which is the
+   * other place that frees it.
    *
    * A uuid with no listener is silence rather than an error: a server whose
    * bind was refused keeps `ready` false in the store and its Delete button,
@@ -523,11 +523,12 @@ export class ModbusServer {
    * merge the event feeds, which is where a word becomes a value.
    *
    * `undefined` is the refusal, which is what the store already reads as
-   * nothing changed. An encoder that cannot take the register used to throw
-   * straight out of here: `createIpcHandle` puts no try around a listener, so
-   * the invoke rejected rather than answering, and `syncServerRegisters` adds
-   * in a bare loop, so the throw took every register after it in that unit
-   * with it. One register is refused now and the rest of the unit stands.
+   * nothing changed. An encoder that cannot take the register answers that
+   * rather than throwing: `createIpcHandle` puts no try around a listener, so
+   * a throw would reject the invoke rather than answer it, and
+   * `syncServerRegisters` adds in a bare loop, so it would take every register
+   * after it in that unit with it. One register is refused and the rest of the
+   * unit stands.
    *
    * The generator branch throws the same way and gets no guard.
    * `ValueGenerator` writes its first value from its own constructor, and since
@@ -586,8 +587,8 @@ export class ModbusServer {
     if (fixedValue) {
       // Encoded before the address is taken, because a refusal answers
       // `undefined` and the store reads that as nothing changed. Disposing
-      // first zeroed the words of the generator being replaced and dropped it,
-      // so the grid went on drawing a generator that no longer ran.
+      // first would zero the words of the generator being replaced and drop it,
+      // leaving the grid drawing a generator that does not run.
       const registers = this._encode({ dataType, value, littleEndian, stringValue, length })
       if (!registers) {
         this._emitMessage({
