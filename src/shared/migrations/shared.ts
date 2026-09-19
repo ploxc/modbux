@@ -9,8 +9,11 @@ import {
 import {
   BooleanRegistersSchema,
   DataType,
+  isBooleanRegister,
   NumberRegistersSchema,
   ParitySchema,
+  RegisterType,
+  RegisterTypeSchema,
   UnitIdStringSchema
 } from '../types'
 import { getUsedAddresses, holdsExact64Bits } from '../utils'
@@ -193,35 +196,45 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
  * that of a blob or a file a whole field at a time: what the two callers here
  * buy is the register rather than the field, which is the reason written above
  * each of them.
- *
- * A type neither schema names is left alone. `ServerRegistersSchema` is a
- * `z.object`, so it strips a key it does not declare, and a fifth register
- * type from a newer Modbux costs the field nothing.
  */
-const isServable = (registerType: string, address: string, entry: unknown): boolean => {
+const isServable = (registerType: RegisterType, address: string, entry: unknown): boolean => {
   if (!RegisterAddressKeySchema.safeParse(address).success) return false
-
-  if (BooleanRegistersSchema.options.some((option) => option === registerType)) {
-    return ServerBoolEntrySchema.safeParse(entry).success
-  }
-  if (!NumberRegistersSchema.options.some((option) => option === registerType)) return true
+  if (isBooleanRegister(registerType)) return ServerBoolEntrySchema.safeParse(entry).success
 
   const parsed = ServerRegisterEntrySchema.safeParse(entry)
   return parsed.success && String(parsed.data.params.address) === address
 }
 
 /**
- * Drop the entries of one unit that cannot be served, register type by
- * register type.
+ * Drop the entries of one unit that cannot be served, and give the unit the
+ * four register types it is missing.
  *
- * Two callers walk to a unit's registers by different routes, a config file
- * through `serverRegistersPerUnit[unit]` and the persisted store through
+ * `ServerRegistersSchema` is a `z.object` naming all four, so a unit carrying
+ * three of them fails the whole `serverRegistersPerUnit` field: measured on a
+ * v9 config whose unit had no `coils` key, which came back with every register
+ * on every unit gone and `serverRegistersPerUnit` named as reset. That is the
+ * cost this walk exists to avoid, so the walk is over the four types rather
+ * than over the keys that happen to be there. `recordAt` writes the empty map
+ * for a key holding nothing and leaves a key holding something else alone,
+ * which is the one shape still able to fail the field.
+ *
+ * Walking the four also leaves a fifth register type from a newer Modbux
+ * untouched, and that key costs nothing: a `z.object` strips what it does not
+ * declare.
+ *
+ * Two callers reach a unit by different routes, a config file through
+ * `serverRegistersPerUnit[unit]` and the persisted store through
  * `serverRegisters[uuid][unit]`. Only that walk differs, so each caller owns
  * it and the work below it is here once, the way `migrateBoolShapeForUnit`
  * already is.
  */
 const dropUnservableEntries = (registersByType: unknown): void => {
-  for (const [registerType, entriesByAddress] of recordEntries(registersByType)) {
+  if (!isRecord(registersByType)) return
+
+  for (const registerType of RegisterTypeSchema.options) {
+    const entriesByAddress = recordAt(registersByType, registerType)
+    if (!entriesByAddress) continue
+
     for (const [address, entry] of Object.entries(entriesByAddress)) {
       if (isServable(registerType, address, entry)) continue
       delete entriesByAddress[address]

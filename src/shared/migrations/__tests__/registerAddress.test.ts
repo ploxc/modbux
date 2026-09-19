@@ -190,6 +190,11 @@ describe('the drop on its own', () => {
 
   // A hand-edited store is where a null in the middle of the walk comes from,
   // and reading a field off it throws rather than failing a schema.
+  //
+  // A unit the walk does reach comes back with the four register types, which
+  // is what keeps one missing key off the whole field. The `coils: null` is
+  // the shape that is left where it is, because replacing it is throwing
+  // something away rather than naming what was never there.
   it('walks past a null where a server, a unit or a register type should be', () => {
     const state: Record<string, unknown> = {
       serverRegisters: { u: null, v: { '1': null }, w: { '1': { coils: null } } }
@@ -199,7 +204,7 @@ describe('the drop on its own', () => {
     expect(state.serverRegisters).toEqual({
       u: null,
       v: { '1': null },
-      w: { '1': { coils: null } }
+      w: { '1': { coils: null, discrete_inputs: {}, input_registers: {}, holding_registers: {} } }
     })
   })
 
@@ -230,15 +235,42 @@ describe('the drop on its own', () => {
   // A key of a register type the entry schemas do not name. `ServerRegisters`
   // is a `z.object`, which strips a key it does not declare, so the field
   // survives it either way and the drop has nothing to buy here.
+  // Every entry under it, whatever the key says. The walk is over the four
+  // types this version names, so a fifth from a newer Modbux is never read,
+  // and `ServerRegistersSchema` strips the key it does not declare.
   it('leaves a register type it does not know alone', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { file_records: { '3': { value: 1 } } } } }
+      serverRegisters: { u: { '1': { file_records: { '3': { value: 1 }, '70000': {} } } } }
     }
     dropUnservableRegisters(state)
 
     const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
     const unit = perUuid.u?.['1'] as Record<string, unknown>
-    expect(Object.keys(unit.file_records as Record<string, unknown>)).toEqual(['3'])
+    expect(Object.keys(unit.file_records as Record<string, unknown>)).toEqual(['3', '70000'])
+  })
+
+  // `ServerRegistersSchema` is a `z.object` naming all four, so a unit that
+  // carries three of them fails the whole `serverRegistersPerUnit` field, and
+  // a walk over the keys that are there never sees the one that is missing.
+  it('gives a unit the register types it is missing', () => {
+    const state: Record<string, unknown> = {
+      serverRegisters: { u: { '1': { holding_registers: {} } } }
+    }
+    dropUnservableRegisters(state)
+
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    expect(ServerRegistersSchema.safeParse(perUuid.u?.['1']).success).toBe(true)
+  })
+
+  it('leaves a register type holding something that is not a map where it is', () => {
+    const state: Record<string, unknown> = {
+      serverRegisters: { u: { '1': { coils: 'not a map' } } }
+    }
+    dropUnservableRegisters(state)
+
+    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
+    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    expect(unit.coils).toBe('not a map')
   })
 })
 
