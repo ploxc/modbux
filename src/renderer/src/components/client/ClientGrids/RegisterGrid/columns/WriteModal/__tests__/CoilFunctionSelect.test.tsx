@@ -74,6 +74,18 @@ describe('the coil write', () => {
     )
   })
 
+  // FC5 writes the first coil and leaves the other 1999, so the count the
+  // message carries is about the request FC15 would have sent.
+  it('says nothing about a tail when it writes one coil', async () => {
+    useValueInputZustand.setState({ coilFunction: 5 })
+    const user = userEvent.setup()
+    render(<CoilFunctionSelect />)
+
+    await user.click(screen.getByTestId('write-submit-btn'))
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled()
+  })
+
   it('sends a window that fits whole', async () => {
     useValueInputZustand.setState({ coils: new Array<boolean>(125).fill(true) })
     const user = userEvent.setup()

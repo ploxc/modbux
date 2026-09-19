@@ -123,6 +123,32 @@ describe('RegisterConfig read configuration', () => {
   })
 })
 
+// A scan reads the register type once for the chunk size one response carries,
+// and again for every chunk. Changing it in between asks a device for 2000
+// holding registers.
+describe('RegisterConfig type select', () => {
+  it('is off while a register scan runs', () => {
+    useClientZustand.setState({
+      clientState: { ...defaultClientState, connectState: 'connected', scanningRegisters: true }
+    } as never)
+
+    render(<RegisterConfig />)
+
+    expect(within(screen.getByTestId('reg-type-select')).getByRole('combobox')).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    )
+  })
+
+  it('is there to press when no scan runs', () => {
+    render(<RegisterConfig />)
+
+    expect(within(screen.getByTestId('reg-type-select')).getByRole('combobox')).not.toHaveAttribute(
+      'aria-disabled'
+    )
+  })
+})
+
 // A read has two ceilings and the field held the wrong one. `LengthInput` was
 // `Math.min(125, max)`, so what the caller passed could only lower it and a
 // coil read stopped at 125 of the 2000 FC01 answers.

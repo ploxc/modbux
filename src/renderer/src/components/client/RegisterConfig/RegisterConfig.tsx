@@ -23,6 +23,13 @@ const TypeSelect = meme(() => {
   const labelId = 'register-type-select'
   const type = useClientZustand((z) => z.registerConfig.type)
 
+  // A register scan reads this field once, for the chunk size one response
+  // carries, and `_scanRegister` reads it again for every chunk. Changing it
+  // between the two asks a device for 2000 holding registers. The scan dialog
+  // disables every field it owns while it runs; this one is the toolbar's, and
+  // what kept it out of reach was the overlay drawn over it.
+  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+
   const handleChange = useCallback((type: RegisterType) => {
     if (!useClientZustand.getState().readConfiguration) {
       useDataZustand.getState().setRegisterData([])
@@ -34,6 +41,7 @@ const TypeSelect = meme(() => {
     <FormControl size="small">
       <InputLabel id={labelId}>Type</InputLabel>
       <Select
+        disabled={scanning}
         size="small"
         labelId={labelId}
         value={type}

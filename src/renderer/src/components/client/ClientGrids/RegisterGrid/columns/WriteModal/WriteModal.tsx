@@ -164,7 +164,10 @@ export const CoilFunctionSelect = meme(() => {
     const from = address - registerConfigAddress
     const value = coils.slice(from, from + MAX_WRITE_BITS)
     const dropped = coils.length - from - value.length
-    if (dropped > 0) {
+    // FC5 writes the first coil and nothing else, so the tail it leaves is the
+    // whole window rather than this remainder, and a count here would be a
+    // lie. One button sends both function codes.
+    if (dropped > 0 && coilFunction === 15) {
       enqueueSnackbar({
         message: `One request writes ${MAX_WRITE_BITS} coils, so the last ${dropped} were left alone`,
         variant: 'warning'
