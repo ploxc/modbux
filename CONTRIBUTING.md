@@ -129,13 +129,23 @@ counts as carrying it.
 
 **The three lists that name a channel agree, and so do the two that name an
 event.** `IPC_CHANNELS`, `IpcHandlerSpec` and the `ipcHandle` calls in
-`main/ipc.ts`; `IPC_EVENTS` and `IpcEventPayloadMap`. Typecheck catches one
-direction only: a channel in `IPC_CHANNELS` and not in the spec fails to index,
+`main/ipc.ts`; `EVENTS_TO_RENDERER` and `EVENTS_TO_MAIN` together against
+`IpcEventPayloadMap`. Typecheck catches one direction only: a channel in
+`IPC_CHANNELS` and not in the spec fails to index,
 while a channel in the spec and not in `IPC_CHANNELS` is dropped by the mapped
 type in silence, and one in both with no handler rejects at runtime instead. A
 channel and an event name is lowercase segments, because that is where
 `snakeToCamel` and `CamelCase` cannot disagree: `set_2wire` would be the method
-`set_2wire` and the type `set2wire`.
+`set_2wire` and the type `set2wire`. Over those segments `snakeToCamel` is
+injective, and the method names are counted against each other and against
+`isServerWindow`, which is the one key on `window.api` that is not a channel's.
+
+**An event is in the list for the direction it travels, and both ends exist.**
+`EVENTS_TO_RENDERER` is what `windows.send` pushes and `onEvent` hears;
+`EVENTS_TO_MAIN` is what `sendEvent` pushes and `onIpcEvent` hears. One list for
+both directions typechecked a send nothing listens for, and left "every event
+has a sender and a listener" nothing to measure. A `send` counts only on
+`windows`, because `send` is a name the platform uses too.
 
 **Every channel that carries an object declares a schema.** TypeScript covers a
 bare primitive, and a channel taking no argument has nothing to guard. The rest
