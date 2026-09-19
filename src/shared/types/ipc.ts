@@ -403,11 +403,8 @@ export const EVENTS_TO_RENDERER = [
 /** The events a window pushes to main. `sendEvent` there, `onIpcEvent` here. */
 export const EVENTS_TO_MAIN = ['open_server_window'] as const
 
-export const IPC_EVENTS = [...EVENTS_TO_RENDERER, ...EVENTS_TO_MAIN] as const
-
 export type EventToRenderer = (typeof EVENTS_TO_RENDERER)[number]
 export type EventToMain = (typeof EVENTS_TO_MAIN)[number]
-export type IpcEvent = (typeof IPC_EVENTS)[number]
 
 export interface IpcEventPayloadMap {
   ['backend_message']: [BackendMessage]

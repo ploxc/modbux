@@ -811,8 +811,7 @@ describe('the lists that name a channel agree', () => {
 
   const channels = literalsOf('IPC_CHANNELS')
   const specced = membersOf('IpcHandlerSpec')
-  // `IPC_EVENTS` is the two direction lists spread into one, so it holds no
-  // string literal of its own to read.
+  // One list per direction, and an event is in exactly one of them.
   const events = new Set([...literalsOf('EVENTS_TO_RENDERER'), ...literalsOf('EVENTS_TO_MAIN')])
   const payloads = membersOf('IpcEventPayloadMap')
 
@@ -892,19 +891,31 @@ describe('the lists that name a channel agree', () => {
 describe('every event has a sender and a listener', () => {
   const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
 
-  /** The string literal first argument of every call to `name`, under `root`. */
-  const firstArgumentsOf = (root: string, name: string): Set<string> => {
+  /**
+   * The string literal first argument of every call to `name`, under `root`.
+   *
+   * `on` says which object the call has to be on, because `send` is a name the
+   * platform uses too: a `socket.send('register_data', ...)` added to main would
+   * otherwise read as the event being pushed to a window. The other three names
+   * are this project's own, so they are matched bare.
+   *
+   * Bare `this` is in the pattern for `Windows._sendUpdate`, which calls its own
+   * `send`. Main's other two senders spell it `this._windows.send`.
+   */
+  const firstArgumentsOf = (root: string, name: string, on?: RegExp): Set<string> => {
     const found = new Set<string>()
     for (const file of sourceFiles(join(repoRoot, root))) {
       const source = parse(file)
       eachNode(source, (node) => {
         if (!ts.isCallExpression(node)) return
-        const callee = ts.isPropertyAccessExpression(node.expression)
-          ? node.expression.name.text
+        const property = ts.isPropertyAccessExpression(node.expression) ? node.expression : null
+        const callee = property
+          ? property.name.text
           : ts.isIdentifier(node.expression)
             ? node.expression.text
             : null
         if (callee !== name) return
+        if (on && !(property && on.test(property.expression.getText(source)))) return
         const first = node.arguments[0]
         if (first && ts.isStringLiteral(first)) found.add(first.text)
       })
@@ -915,7 +926,7 @@ describe('every event has a sender and a listener', () => {
   const toRenderer = literalsIn(spec, 'EVENTS_TO_RENDERER')
   const toMain = literalsIn(spec, 'EVENTS_TO_MAIN')
 
-  const sentByMain = firstArgumentsOf('src/main', 'send')
+  const sentByMain = firstArgumentsOf('src/main', 'send', /^(?:this|(?:this\.)?_?windows)$/i)
   const heardByRenderer = firstArgumentsOf('src/renderer/src', 'onEvent')
   const sentByRenderer = firstArgumentsOf('src/renderer/src', 'sendEvent')
   const heardByMain = firstArgumentsOf('src/main', 'onIpcEvent')
