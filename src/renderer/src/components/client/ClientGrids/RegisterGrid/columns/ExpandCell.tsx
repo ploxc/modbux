@@ -7,10 +7,9 @@ import { useCallback } from 'react'
 
 interface ExpandCellProps {
   address: number
-  isBitmap: boolean
 }
 
-export const ExpandCell = meme(({ address, isBitmap }: ExpandCellProps): JSX.Element => {
+export const ExpandCell = meme(({ address }: ExpandCellProps): JSX.Element => {
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const isExpanded = expandedAddress === address
 
@@ -18,8 +17,6 @@ export const ExpandCell = meme(({ address, isBitmap }: ExpandCellProps): JSX.Ele
     const bitMapZustand = useBitMapZustand.getState()
     bitMapZustand.toggleExpanded(address)
   }, [address])
-
-  if (!isBitmap) return <></>
 
   return (
     <Box

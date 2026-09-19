@@ -8,7 +8,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { BitColor } from '@shared'
 
 interface BitSettingsPopoverProps {
-  anchorEl: HTMLElement | null
+  anchorEl: Element | null
   onClose: () => void
   color: BitColor | undefined
   invert: boolean

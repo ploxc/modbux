@@ -61,7 +61,7 @@ const responseColumn: GridColDef<Transaction, string[], string[]> = {
       // Responses can hold multiple responses, we display them in a formatted way
       // Adding the response number to the response value
       <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-        {(value as string[]).map((v, i) => (
+        {value?.map((v, i) => (
           <Box
             key={`response_${row.id}_${i}`}
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}

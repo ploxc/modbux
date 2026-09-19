@@ -52,7 +52,7 @@ const BitIndicator = meme(
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState(comment ?? '')
     const hasMapped = !!comment?.length
-    const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null)
+    const [settingsAnchor, setSettingsAnchor] = useState<Element | null>(null)
 
     const displayValue = invert ? !value : value
 
@@ -196,7 +196,7 @@ const BitIndicator = meme(
             '&:hover': { opacity: 1 },
             transition: 'opacity 0.15s'
           }}
-          onClick={(e) => setSettingsAnchor(e.currentTarget as unknown as HTMLElement)}
+          onClick={(e) => setSettingsAnchor(e.currentTarget)}
         />
 
         <BitSettingsPopover
