@@ -32,7 +32,7 @@ describe('client.zustand in the split out server window', () => {
     await import('../client.zustand')
     await settle()
 
-    expect(calls.map(({ method }) => method)).toEqual(['getAppVersion'])
+    expect(calls.map(({ method }) => method)).toEqual([])
   })
 
   // persist wraps `setState`, so `init`'s own `set` wrote the whole partialized

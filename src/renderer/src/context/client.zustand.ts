@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
-import { useLayoutZustand } from './layout.zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import {
@@ -533,9 +532,9 @@ const clientZustand = useClientZustand.getState()
  * `CLIENT_ZUSTAND_STORAGE_KEY` as well, because persist wraps `setState`, so
  * the split window overwrote the shared key on every open.
  *
- * The version fetch below stays outside it. `get_app_version` asks `app` rather
- * than the client, and `containers/Home.tsx` is the only reader of what it
- * answers, which `App.tsx` does not draw in this window.
+ * Everything this tail does is inside the guard now. The app version was the
+ * exception, and it is fetched from `layout.zustand` instead, where the field
+ * it fills lives and where both windows reach it.
  */
 const isServerWindow = window.api.isServerWindow
 
@@ -586,8 +585,13 @@ onEvent('scan_progress', (scanProgress) => {
 //
 // Stop scanning when reloaded, shouldn't be a problem with the build app,
 // but just in case and for development, stop scanning when the frontend is reloaded
-if (!isServerWindow) window.api.stopScanningUnitIds()
-
-window.api.getAppVersion().then((version) => {
-  useLayoutZustand.getState().setVersion(version)
-})
+//
+// The catch is what a module tail owes: nothing awaits this call, and a
+// rejection with nothing behind it is an unhandled one. Main reports its own
+// failures through `backend_message`, so a rejected invoke carries the channel
+// name and nothing the user can act on.
+if (!isServerWindow) {
+  window.api
+    .stopScanningUnitIds()
+    .catch((error) => console.error('A running scan was not stopped:', error))
+}
