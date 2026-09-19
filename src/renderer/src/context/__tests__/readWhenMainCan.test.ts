@@ -267,15 +267,52 @@ describe('read configuration on, and the question the grid answers changes', () 
   })
 
   it('a new unit id while a write is in flight redraws and asks for nothing', async () => {
-    const { useClientZustand } = await load()
+    const { useClientZustand, useDataZustand } = await load()
     useClientZustand.getState().setClientState(idle)
     await withMapping(useClientZustand)
     useClientZustand.getState().setClientState({ ...idle, writing: true })
+    useDataZustand.getState().setRegisterData([{ ...row, hex: 'BEEF' }])
     calls.length = 0
 
     await useClientZustand.getState().setUnitId('3')
 
     expect(methods()).toEqual(['updateConnectionConfig'])
+    expect(useDataZustand.getState().registerData.map((data) => data.hex)).toEqual(['0000'])
+  })
+
+  /**
+   * The address and the length are not that question.
+   *
+   * `_read` builds its groups from the mapping and falls back to the toolbar's
+   * group only when the mapping has none, so with read configuration on those
+   * two change nothing about what is read. Redrawing would trade the values a
+   * device answered for `showMapping`'s zeros, and on a disconnected client
+   * `readWhenMainCan` asks for nothing to put back.
+   */
+  it('a new address leaves the rows and asks for nothing', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    useDataZustand.getState().setRegisterData([{ ...row, hex: 'BEEF' }])
+    calls.length = 0
+
+    await useClientZustand.getState().setAddress('7')
+
+    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(useDataZustand.getState().registerData.map((data) => data.hex)).toEqual(['BEEF'])
+  })
+
+  it('a new length leaves the rows and asks for nothing', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    useDataZustand.getState().setRegisterData([{ ...row, hex: 'BEEF' }])
+    calls.length = 0
+
+    await useClientZustand.getState().setLength('7', true)
+
+    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(useDataZustand.getState().registerData.map((data) => data.hex)).toEqual(['BEEF'])
   })
 
   // With read configuration off the grid still empties, which is what the two

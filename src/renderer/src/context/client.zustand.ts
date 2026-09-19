@@ -75,17 +75,29 @@ export const flushRegisterMappingToMain = async (
  *
  * With read configuration on, emptying the grid is the wrong answer, because
  * the grid is drawn from the mapping there and the configured rows would go
- * with it. Leaving it alone was also wrong: the old unit's values sat under
- * the new unit id, and after a type change the rows themselves were the old
- * type's, because `RegisterGrid` redraws the mapping on a change of
- * `readConfiguration` and not of `type`. So the mapping goes in and main is
- * asked to fill it, which is what `setReadConfiguration` does when it is
- * switched on and what `setLittleEndian` does for its own question.
+ * with it. Whether there is a right one depends on the field, which is what
+ * `readsTheMapping` names.
+ *
+ * The unit id and the type change what the mapping is read from, so the rows
+ * are redrawn and main is asked to fill them: leaving them alone left the old
+ * unit's values in the named rows, and after a type change left the rows of
+ * the type before it, because `RegisterGrid` redraws the mapping on a change
+ * of `readConfiguration` and not of `type`. That is what `setReadConfiguration`
+ * does when it is switched on and what `setLittleEndian` does for its own
+ * question.
+ *
+ * The address and the length change nothing there. `_read` builds its groups
+ * from the mapping and falls back to the toolbar's group only when the mapping
+ * has none, so the rows still answer the same question, and redrawing them
+ * would trade values a device answered for `showMapping`'s zeros. Both fields
+ * are disabled while read configuration is on, so this is the rule rather than
+ * a state to reach.
  */
-const clearRegisterDataWhenIdle = (): void => {
+const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
   const { clientState, readConfiguration } = useClientZustand.getState()
   if (clientState.polling) return
   if (readConfiguration) {
+    if (!readsTheMapping) return
     showMapping()
     readWhenMainCan()
     return
@@ -409,7 +421,7 @@ export const useClientZustand = create<
         set((state) => {
           state.connectionConfig.unitId = newUnitId
         })
-        clearRegisterDataWhenIdle()
+        clearRegisterDataWhenIdle(true)
       },
       setAddress: async (address) => {
         const currentState = get()
@@ -423,7 +435,7 @@ export const useClientZustand = create<
         set((state) => {
           state.registerConfig.address = newAddress
         })
-        clearRegisterDataWhenIdle()
+        clearRegisterDataWhenIdle(false)
       },
       setLength: async (length, valid) => {
         const currentState = get()
@@ -447,7 +459,7 @@ export const useClientZustand = create<
           state.valid.length = true
           state.registerConfig.length = newLength
         })
-        clearRegisterDataWhenIdle()
+        clearRegisterDataWhenIdle(false)
       },
       setType: async (type) => {
         if (!get().ready) return
@@ -456,7 +468,7 @@ export const useClientZustand = create<
         set((state) => {
           state.registerConfig.type = type
         })
-        clearRegisterDataWhenIdle()
+        clearRegisterDataWhenIdle(true)
       },
       setLittleEndian: async (littleEndian) => {
         if (!get().ready) return
