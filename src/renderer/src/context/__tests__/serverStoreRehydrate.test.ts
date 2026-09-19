@@ -167,6 +167,24 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().port).toEqual(useServerZustand.getInitialState().port)
   })
 
+  // The drop that salvages a register runs in the step to version 4, so a blob
+  // already at this version reaches `PersistedServerZustandSchema` whole. A key
+  // and a `params.address` that disagree cost the field there, which is what
+  // every other rule on that schema costs.
+  it('resets the registers of a key whose register names another address', async () => {
+    const edited = JSON.parse(store([0]))
+    edited.state.serverRegisters.u['0'].holding_registers = { '5': register(9) }
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
+
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    expect(useServerZustand.getState().configReset?.fields).toContain('serverRegisters')
+    expect(useServerZustand.getState().serverRegisters).toEqual(
+      useServerZustand.getInitialState().serverRegisters
+    )
+  })
+
   // `persist` runs `migrate` only where the blob's version differs from the
   // store's, so a re-read of a key already at the current version leaves
   // `persistedVersion` holding whatever the launch put there. A launch off a

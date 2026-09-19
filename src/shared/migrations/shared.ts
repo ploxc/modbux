@@ -180,10 +180,10 @@ export function dropUnservableRegisters(state: Record<string, unknown>): void {
 /**
  * A register map is keyed by address, and a register entry repeats its whole
  * parameter set, so both have to hold for the entry to be servable, and they
- * have to name the same address. `ServerRegisterSchema` asks that last question
- * of a file this version writes; here it is asked of the two a repair salvages
- * register by register, which never reach that schema. A boolean entry carries
- * the key alone.
+ * have to name the same address. `ServerRegisterSchema` asks all three of a
+ * blob or a file that reaches it, a whole field at a time: what the two callers
+ * here buy is the register rather than the field, which is the reason written
+ * above each of them. A boolean entry carries the key alone.
  */
 const isServable = (address: string, entry: Record<string, unknown>): boolean => {
   if (!RegisterAddressKeySchema.safeParse(address).success) return false

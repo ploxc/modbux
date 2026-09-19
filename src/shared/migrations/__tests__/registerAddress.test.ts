@@ -6,6 +6,7 @@ import {
   SyncRegisterValueParamsSchema
 } from '../../types/server'
 import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
+import { migrateServerConfig } from '../server/config'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
 import { dropUnmappableRegisters, dropUnservableRegisters } from '../shared'
 
@@ -271,6 +272,28 @@ describe('a register whose key and parameters disagree', () => {
 
   it('is taken by the config path when the two agree', () => {
     expect(configAccepts(9)).toBe(true)
+  })
+
+  // The old version branch migrates and then parses, with no drop in between,
+  // so the file is refused rather than salvaged. That is what every other rule
+  // on that branch does with a register this version cannot serve.
+  it('is refused by name in a v2 file the migration walks', () => {
+    const v2 = JSON.stringify({
+      version: 2,
+      modbuxVersion: '2.3.0',
+      name: 'bench',
+      littleEndian: false,
+      serverRegistersPerUnit: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: { '5': { value: 1, params: params(9) } }
+        }
+      }
+    })
+
+    expect(() => migrateServerConfig(v2)).toThrowError(/holding_registers\.5\.params\.address/)
   })
 
   it('goes from a persisted blob, and the registers beside it stay', () => {
