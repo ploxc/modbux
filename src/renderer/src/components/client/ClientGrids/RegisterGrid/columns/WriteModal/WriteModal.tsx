@@ -14,7 +14,7 @@ import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inpu
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
-import { notEmpty, RegisterType } from '@shared'
+import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
 import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
 import { IMaskInput } from 'react-imask'
@@ -140,7 +140,7 @@ export const WriteRegistersButton = meme(() => {
   )
 })
 
-const CoilFunctionSelect = meme(() => {
+export const CoilFunctionSelect = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
@@ -152,11 +152,17 @@ const CoilFunctionSelect = meme(() => {
     valueInputZustand.setCoilFunction(value)
   }, [])
 
+  // FC15 writes from the button you pressed to the end of the window the
+  // toolbar read, and that window is 2000 coils wide since the Length field
+  // took the ceiling FC01 answers. FC15 stops 32 bits short of it, because the
+  // request carries the data too, so the tail of a full window is cut here
+  // rather than refused by the boundary.
   const handleWrite = useCallback(() => {
+    const from = address - registerConfigAddress
     window.api.write({
       address,
       type: 'coils',
-      value: coils.slice(address - registerConfigAddress),
+      value: coils.slice(from, from + MAX_WRITE_BITS),
       single: coilFunction === 5
     })
   }, [address, coilFunction, coils, registerConfigAddress])

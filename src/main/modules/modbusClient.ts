@@ -11,6 +11,7 @@ import {
   groupAddressInfos,
   humanizeSerialError,
   isBooleanRegister,
+  maxReadQuantity,
   PROTOCOL_LABELS,
   RawTransaction,
   RegisterData,
@@ -607,20 +608,22 @@ export class ModbusClient {
       this._appState.readConfiguration && groupable
         ? groupAddressInfos(this._appState.registerMapping?.[type])
         : []
-    // Neither source is bounded by the range it reads from. A group's length is
-    // the data type's width, so an int64 mapped at 65534 asks for 65534 through
-    // 65537, and `RegisterConfigSchema` takes a length of 65535 at any address,
-    // which a persisted store carries into the toolbar's own group. A read
-    // stops at the last register there is, the way `_scanRegister` already
-    // does.
-    const groups = (
-      configGroups.length > 0 ? configGroups : ([[address, length]] as AddressGroup[])
-    ).map(
-      ([groupAddress, groupLength]): AddressGroup => [
-        groupAddress,
-        Math.min(groupLength, registersFrom(groupAddress))
-      ]
-    )
+    // The toolbar's group is bounded by neither ceiling. `RegisterConfigSchema`
+    // takes a length of 65535 at any address, so a persisted store carries a
+    // read past the last register there is; and the type and the length are two
+    // channels, so main holds the old length for one round trip when the type
+    // changes under it, which is how 2000 coils became 2000 holding registers.
+    //
+    // A configured group is left whole on purpose. Its length is the data
+    // type's width, so cutting it reads part of a value: an int64 at 65534 came
+    // back as 2 registers, and `convertRegisterData` answers 0 to a 64 bit type
+    // it has not got the registers for. Refused, the address gets an error row
+    // instead, which is the truth about a mapping that runs off the end.
+    const toolbarGroup: AddressGroup = [
+      address,
+      Math.min(length, maxReadQuantity([type]), registersFrom(address))
+    ]
+    const groups = configGroups.length > 0 ? configGroups : [toolbarGroup]
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
       // Per group: `_logTransaction` below runs whether the group threw or not,
@@ -1152,7 +1155,9 @@ export class ModbusClient {
 
   private _scanRegister = async (address: number, length: number): Promise<void> => {
     const type = this._appState.registerConfig.type
-    length = Math.min(length, registersFrom(address))
+    // `ScanRegistersParametersSchema` takes any positive chunk size, and the
+    // field that builds it is masked by register type in the renderer alone.
+    length = Math.min(length, maxReadQuantity([type]), registersFrom(address))
 
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined

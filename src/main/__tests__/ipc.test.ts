@@ -13,6 +13,7 @@ import {
   AddRegisterParamsSchema,
   ConnectionConfigSchema,
   CreateServerParamsSchema,
+  MAX_WRITE_BITS,
   PortSchema,
   PrivilegedPortFixModeSchema,
   RemoveRegisterParamsSchema,
@@ -285,6 +286,21 @@ describe('write-path schemas', () => {
         dataType: 'uint16'
       }).success
     ).toBe(true)
+  })
+
+  // FC01 answers 2000 bits and FC15 writes 1968, because the request carries
+  // the data as well as the address and the quantity. The dialog writes over
+  // the window the toolbar read, and that window is 2000 wide.
+  it('rejects more coils than one FC15 carries', () => {
+    const coils = (count: number): unknown => ({
+      address: 0,
+      single: false,
+      type: 'coils',
+      value: new Array<boolean>(count).fill(true)
+    })
+
+    expect(WriteParametersSchema.safeParse(coils(MAX_WRITE_BITS)).success).toBe(true)
+    expect(WriteParametersSchema.safeParse(coils(MAX_WRITE_BITS + 1)).success).toBe(false)
   })
 
   it('rejects an address outside the Modbus range', () => {

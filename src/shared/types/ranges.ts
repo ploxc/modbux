@@ -33,11 +33,14 @@ export const PortSchema = z.number().int().min(0).max(65535)
  * so 251 bytes are left: 125 registers of two bytes, and 250 bytes of bits.
  *
  * A write is a different pair, 1968 bits and 123 registers, because the request
- * carries the data as well as the address and the quantity. Nothing reads that
- * here, because every field these bound builds a read.
+ * carries the data as well as the address and the quantity. `WriteModal` sends
+ * one FC15 over the window the toolbar read, and that window is now 2000 wide,
+ * so the bit half has a reader. The register half has none: a register write is
+ * one value of one data type, four registers at the widest.
  */
 export const MAX_READ_BITS = 2000
 export const MAX_READ_REGISTERS = 125
+export const MAX_WRITE_BITS = 1968
 
 /**
  * The ceiling one read of these register types has.

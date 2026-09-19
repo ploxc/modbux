@@ -1283,10 +1283,10 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(100, 1)
     })
 
-    // Neither source of a group is bounded by the range it reads from.
-    // `RegisterConfigSchema` takes a length of 65535 at any address, so a
-    // persisted store carries the first one; an int64 is four registers wide
-    // wherever it is mapped, so a config file carries the second.
+    // The toolbar's group is bounded by neither ceiling here.
+    // `RegisterConfigSchema` takes a length of 65535 at any address, and the
+    // type and the length travel on two channels, so main holds the old length
+    // for one round trip when the type changes under it.
     it('stops the toolbar read at the last register', async () => {
       await connectClient()
       appState.updateRegisterConfig({ type: 'holding_registers', address: 65500, length: 125 })
@@ -1297,7 +1297,21 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65500, 36)
     })
 
-    it('stops a configured group at the last register', async () => {
+    it('stops the toolbar read at what one response carries', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'holding_registers', address: 0, length: 2000 })
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 125)
+    })
+
+    // A configured group is left whole. Its length is the data type's width, so
+    // cutting it reads part of a value and `convertRegisterData` answers 0 to a
+    // 64 bit type it has not got the registers for. Refused, the address gets
+    // an error row, which is the truth about a mapping that runs off the end.
+    it('leaves a configured group that runs off the end whole', async () => {
       await connectClient()
       appState.setReadConfiguration(true)
       appState.setRegisterMapping({
@@ -1315,7 +1329,7 @@ describe('ModbusClient', () => {
 
       await client.read()
 
-      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65534, 2)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65534, 4)
     })
 
     // The pair for the group above: a data type on a coil address parses,

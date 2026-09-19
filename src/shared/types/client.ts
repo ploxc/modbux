@@ -1,7 +1,13 @@
 import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
-import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
+import {
+  MAX_WRITE_BITS,
+  PortSchema,
+  RegisterAddressKeySchema,
+  RegisterAddressSchema,
+  UnitIdSchema
+} from './ranges'
 import { RegisterType, RegisterTypeSchema } from './register'
 import { SerialPortOptionsSchema } from './serial'
 
@@ -157,7 +163,10 @@ export const WriteParametersSchema = z
     z.union([
       z.object({
         type: z.literal('coils'),
-        value: z.array(z.boolean()),
+        // FC15 carries the data as well as the address and the quantity, so it
+        // stops 32 bits short of what FC01 answers. The dialog writes over the
+        // window the toolbar read, and that window is 2000 wide.
+        value: z.array(z.boolean()).max(MAX_WRITE_BITS),
         dataType: z.undefined()
       }),
       z.object({
