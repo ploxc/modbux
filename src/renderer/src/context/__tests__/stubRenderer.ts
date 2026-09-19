@@ -27,7 +27,8 @@ const disconnected: ClientState = {
   polling: false,
   scanningUnitIds: false,
   scanningRegisters: false,
-  reading: false
+  reading: false,
+  writing: false
 }
 
 /**

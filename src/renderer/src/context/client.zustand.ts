@@ -127,16 +127,16 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
 /**
  * Ask main for a read, unless it is in no position to answer.
  *
- * `read` refuses and says so in a snackbar when a poll, either scan or a read
- * already in flight owns the port, and again when nothing is connected, so a
- * caller that asks anyway costs the user a warning it did not ask for. The four
- * states are `_readLoopOwner` in `modbusClient`.
+ * `read` refuses and says so in a snackbar when a poll, either scan, a read
+ * already in flight or a write owns the client, and again when nothing is
+ * connected, so a caller that asks anyway costs the user a warning it did not
+ * ask for. The five states are `_clientOwner` in `modbusClient`.
  */
 const readWhenMainCan = (): void => {
-  const { connectState, polling, scanningUnitIds, scanningRegisters, reading } =
+  const { connectState, polling, scanningUnitIds, scanningRegisters, reading, writing } =
     useClientZustand.getState().clientState
   if (connectState !== 'connected') return
-  if (polling || scanningUnitIds || scanningRegisters || reading) return
+  if (polling || scanningUnitIds || scanningRegisters || reading || writing) return
   window.api.read()
 }
 
@@ -262,7 +262,8 @@ export const useClientZustand = create<
         polling: false,
         scanningUnitIds: false,
         scanningRegisters: false,
-        reading: false
+        reading: false,
+        writing: false
       },
       setClientState: (clientState) =>
         set((state) => {

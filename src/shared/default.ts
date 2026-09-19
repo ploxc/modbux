@@ -66,7 +66,8 @@ export const defaultClientState: ClientState = {
   polling: false,
   scanningUnitIds: false,
   scanningRegisters: false,
-  reading: false
+  reading: false,
+  writing: false
 }
 
 export const dummyWords: RegisterDataWords = {

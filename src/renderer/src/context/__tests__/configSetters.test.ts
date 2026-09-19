@@ -55,7 +55,8 @@ describe('the four serial options', () => {
       polling: false,
       scanningUnitIds: false,
       scanningRegisters: false,
-      reading: false
+      reading: false,
+      writing: false
     })
     recordApiCalls(calls)
 

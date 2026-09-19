@@ -29,7 +29,12 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
   const writable = registerType === 'holding_registers'
   const connectState = useClientZustand((z) => z.clientState.connectState)
   const polling = useClientZustand((z) => z.clientState.polling)
-  const canWrite = writable && connectState === 'connected' && !polling
+
+  // Main refuses a write while one is in flight, and holds it until the read
+  // back is in. Sixteen toggles one click apart are what that refusal is for,
+  // so the bits go inert for that stretch instead.
+  const writing = useClientZustand((z) => z.clientState.writing)
+  const canWrite = writable && connectState === 'connected' && !polling && !writing
 
   const handleToggle = useCallback(
     (bitIndex: number, currentValue: boolean) => {

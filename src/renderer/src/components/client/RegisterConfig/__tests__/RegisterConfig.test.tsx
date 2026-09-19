@@ -107,6 +107,19 @@ describe('RegisterConfig read configuration', () => {
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
   })
 
+  // A write holds the client until it has read the register back, and main
+  // refuses a read for that whole stretch.
+  it('refuses while a write is in flight', () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    useClientZustand.setState({
+      clientState: { ...defaultClientState, connectState: 'connected', writing: true }
+    } as never)
+
+    render(<RegisterConfig />)
+
+    expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
+  })
+
   // A mapping with nothing to read turns read configuration off. A read in
   // flight greys the same button and must not, or the grid empties while the
   // read that is about to fill it is still on the wire.

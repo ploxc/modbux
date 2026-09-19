@@ -193,7 +193,8 @@ export const ClientStateSchema = z.object({
   polling: z.boolean(),
   scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean(),
-  reading: z.boolean()
+  reading: z.boolean(),
+  writing: z.boolean()
 })
 export type ClientState = z.infer<typeof ClientStateSchema>
 

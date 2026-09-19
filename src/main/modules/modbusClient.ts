@@ -121,7 +121,8 @@ export class ModbusClient {
     polling: false,
     scanningUnitIds: false,
     scanningRegisters: false,
-    reading: false
+    reading: false,
+    writing: false
   }
 
   private _pollTimeout: NodeJS.Timeout | undefined
@@ -297,18 +298,29 @@ export class ModbusClient {
   /**
    * The read loop that owns the client, named, or nothing.
    *
-   * One request at a time is what this class can promise, and each of the
-   * three loops puts one on the wire without asking. Before this, `read`
-   * refused a poll and not a scan, and nothing refused a write: the write
-   * action cell and the bitmap panel disable on `polling`, which is a button
-   * rather than an answer.
+   * Each of the three loops puts a request on the wire without asking, and each
+   * decides for itself when it is done. A single read and a single write ask
+   * `_clientOwner` instead, which is this question plus the two of them.
    */
   private _readLoopOwner = (): string | undefined => {
     if (this._clientState.polling) return 'a poll'
     if (this._clientState.scanningUnitIds) return 'a unit id scan'
     if (this._clientState.scanningRegisters) return 'a register scan'
-    if (this._clientState.reading) return 'another read'
     return undefined
+  }
+
+  /**
+   * Whatever owns the client, named, or nothing.
+   *
+   * One request at a time is what this class can promise, and `read` and
+   * `write` are the two callers that ask before they send. A write holds the
+   * client from its own request to the end of the read back, so `writing`
+   * covers a stretch in which `reading` is set too, and a caller arriving in it
+   * is told about the write.
+   */
+  private _clientOwner = (): string | undefined => {
+    if (this._clientState.writing) return 'another write'
+    return this._readLoopOwner() ?? (this._clientState.reading ? 'another read' : undefined)
   }
 
   //
@@ -561,20 +573,32 @@ export class ModbusClient {
    * One read, and nothing else on the port until it has answered.
    *
    * `_read` puts one request per group on the line and waits for each, so two
-   * of them running at once is two masters on one bus. The read loops own the
-   * port through `_readLoopOwner`, and this makes a read in flight the fourth
-   * owner: the state goes out before the first request and comes back after the
+   * of them running at once is two masters on one bus. `_clientOwner` is who
+   * holds it, and a read in flight is one of the five: `_readOwningTheClient`
+   * puts that state out before the first request and takes it back after the
    * last, and the caller that finds it set is refused the way a caller during a
    * poll is. The loops do not go through here, so a poll blocks a read without
    * a read ever blocking a poll.
    */
   public read = async (): Promise<void> => {
-    const owner = this._readLoopOwner()
+    const owner = this._clientOwner()
     if (owner) {
       this._emitMessage({ message: `Cannot read during ${owner}`, variant: 'warning', error: null })
       return
     }
 
+    await this._readOwningTheClient()
+  }
+
+  /**
+   * `_read`, with `reading` around it.
+   *
+   * `read` asks whether it may and this does the owning, because a write reads
+   * back what it wrote and that read is the write's rather than a caller's: it
+   * passed the question once already, and asking again during its own write
+   * would refuse it.
+   */
+  private _readOwningTheClient = async (): Promise<void> => {
     this._clientState.reading = true
     this._sendClientState()
     try {
@@ -755,7 +779,7 @@ export class ModbusClient {
    * On a serial port that key is 1 for every request, so naming it
    * discriminates nothing and the delete below would take an entry still in
    * flight. What keeps them apart there is that there is only ever one:
-   * `write` and `read` are both refused while `_readLoopOwner` answers, and a
+   * `write` and `read` are both refused while `_clientOwner` answers, and a
    * poll awaits each request before it sends the next.
    */
   private _logTransaction = (transactionIdKey: string, errorMessage: string | undefined): void => {
@@ -884,7 +908,7 @@ export class ModbusClient {
     // a closed port has nothing of its own to log.
     if (!this._requireConnected('write')) return
 
-    const owner = this._readLoopOwner()
+    const owner = this._clientOwner()
     if (owner) {
       this._emitMessage({
         message: `Cannot write during ${owner}`,
@@ -896,23 +920,31 @@ export class ModbusClient {
 
     const { address, type, value, dataType, single } = writeParameters
 
-    let attempt: WriteAttempt
+    this._clientState.writing = true
+    this._sendClientState()
+    try {
+      let attempt: WriteAttempt
 
-    switch (type) {
-      case 'coils':
-        attempt = await this._writeCoil(address, value, single)
-        break
-      case 'holding_registers':
-        attempt = await this._writeRegister(address, value, dataType, single)
-        break
+      switch (type) {
+        case 'coils':
+          attempt = await this._writeCoil(address, value, single)
+          break
+        case 'holding_registers':
+          attempt = await this._writeRegister(address, value, dataType, single)
+          break
+      }
+
+      // Log the write transaction, and only the write's own.
+      if (attempt.sent) this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
+
+      // Read back what the device now holds, unless a loop started during the
+      // write and is reading anyway. `reading` is not in that question: this
+      // write owns the client, so nothing else can have set it.
+      if (!this._readLoopOwner()) await this._readOwningTheClient()
+    } finally {
+      this._clientState.writing = false
+      this._sendClientState()
     }
-
-    // Log the write transaction, and only the write's own.
-    if (attempt.sent) this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
-
-    // Read back what the device now holds, unless a loop started during the
-    // write and is reading anyway.
-    if (!this._readLoopOwner()) this.read()
   }
 
   /**

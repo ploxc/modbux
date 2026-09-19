@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Protocol, RawTransaction } from '@shared'
+import type { Protocol, RawTransaction, WriteParameters } from '@shared'
 import type { Windows } from '../../windows'
 import { AppState } from '../../state'
 
@@ -2000,6 +2000,9 @@ describe('ModbusClient', () => {
     // own logs somebody else's and takes it out of the table, and `_onReceive`
     // drops a response whose entry is gone.
     describe('the transaction a write logs', () => {
+      let gatedReads: ReturnType<typeof gateTheReads> | undefined
+      let writeInFlight: Promise<void> | undefined
+
       /**
        * A read in flight, which is the entry the table holds when a write
        * arrives. The read is gated so it stays in flight for the whole test:
@@ -2007,15 +2010,35 @@ describe('ModbusClient', () => {
        * own.
        */
       const aReadInFlight = () => {
-        gateTheReads()
+        gatedReads = gateTheReads()
         fileTransaction()
       }
+
+      /**
+       * A write, run up to the read back it ends on.
+       *
+       * `write` awaits that read back and holds the client until it answers,
+       * and the gate above is what it would answer through, so the write is
+       * still running when this returns. What the write logs it has logged by
+       * then. `afterEach` lets the read answer and waits for the write.
+       */
+      const writeUpToTheReadBack = async (parameters: WriteParameters): Promise<void> => {
+        writeInFlight = client.write(parameters)
+        await vi.advanceTimersByTimeAsync(0)
+      }
+
+      afterEach(async () => {
+        gatedReads?.resolveAll()
+        await writeInFlight
+        gatedReads = undefined
+        writeInFlight = undefined
+      })
 
       it('logs nothing when the coil list is empty', async () => {
         await connectClient()
         aReadInFlight()
 
-        await client.write({ address: 5, type: 'coils', value: [], single: true })
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [], single: true })
 
         expect(getWindowCalls('transaction')).toHaveLength(0)
         expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
@@ -2027,7 +2050,7 @@ describe('ModbusClient', () => {
 
         writeCoilsLikeTheLibrary(null)
 
-        await client.write({ address: 5, type: 'coils', value: [], single: false })
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [], single: false })
 
         expect(mockModbusRTU.writeFC15).not.toHaveBeenCalled()
         const messages = getWindowCalls('backend_message')
@@ -2040,7 +2063,7 @@ describe('ModbusClient', () => {
         await connectClient()
         aReadInFlight()
 
-        await client.write({
+        await writeUpToTheReadBack({
           address: 0,
           type: 'holding_registers',
           value: 70000,
@@ -2056,7 +2079,7 @@ describe('ModbusClient', () => {
         await connectClient()
         aReadInFlight()
 
-        await client.write({
+        await writeUpToTheReadBack({
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -2099,7 +2122,7 @@ describe('ModbusClient', () => {
         aReadInFlight()
         writeCoilsLikeTheLibrary(null)
 
-        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [true], single: true })
 
         expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
         const messages = getWindowCalls('backend_message')
@@ -2116,7 +2139,7 @@ describe('ModbusClient', () => {
         aReadInFlight()
         writeCoilsLikeTheLibrary(null)
 
-        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [true], single: true })
 
         const transactions = getWindowCalls('transaction')
         expect(transactions).toHaveLength(1)
@@ -2175,7 +2198,7 @@ describe('ModbusClient', () => {
         aReadInFlight()
         writeCoilsLikeTheLibrary(new Error('Modbus exception 2: Illegal data address'))
 
-        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [true], single: true })
 
         const transactions = getWindowCalls('transaction')
         expect(transactions).toHaveLength(1)
@@ -2273,6 +2296,134 @@ describe('ModbusClient', () => {
 
       // A read was triggered (readHoldingRegisters was called from the auto-read)
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
+    })
+
+    describe('a write while a write is in flight', () => {
+      /**
+       * FC6, held open. The callback is what the library answers through, so
+       * the write is on the wire until a finisher runs.
+       */
+      const gateTheRegisterWrites = () => {
+        const gates: Array<() => void> = []
+        mockModbusRTU.writeFC6.mockImplementation(
+          (_unitId: number, address: number, _value: number, callback: (error: null) => void) => {
+            fileTransaction({ ...createMockTransaction(address), nextCode: 6 })
+            gates.push(() => callback(null))
+          }
+        )
+        return {
+          resolveAll: (): void => {
+            gates.forEach((gate) => gate())
+          }
+        }
+      }
+
+      const aRegisterWrite = {
+        address: 0,
+        type: 'holding_registers',
+        value: 1,
+        dataType: 'uint16',
+        single: true
+      } as const
+
+      it('sends one request and tells the second caller what is running', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        const gate = gateTheRegisterWrites()
+
+        const first = client.write(aRegisterWrite)
+        await vi.advanceTimersByTimeAsync(0)
+        await client.write({ ...aRegisterWrite, value: 2 })
+
+        expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(1)
+        expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+          message: 'Cannot write during another write',
+          variant: 'warning'
+        })
+
+        gate.resolveAll()
+        await first
+      })
+
+      it('says a write is running while it runs, and stops saying so', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        const gate = gateTheRegisterWrites()
+
+        const first = client.write(aRegisterWrite)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(client.state.writing).toBe(true)
+        expect(getLastClientState()?.writing).toBe(true)
+
+        gate.resolveAll()
+        await first
+
+        expect(client.state.writing).toBe(false)
+        expect(getLastClientState()?.writing).toBe(false)
+      })
+
+      it('refuses a read while it runs, which shares the client', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        const gate = gateTheRegisterWrites()
+
+        const first = client.write(aRegisterWrite)
+        await vi.advanceTimersByTimeAsync(0)
+        await client.read()
+
+        expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+        expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+          message: 'Cannot read during another write',
+          variant: 'warning'
+        })
+
+        gate.resolveAll()
+        await first
+      })
+
+      /**
+       * The read back is the second half of the write, and the sequence the
+       * flag covers is write, wait, read back, wait, free. A second write
+       * arriving between the device's answer and the read back's is what a
+       * double click on the write cell or a second bit toggle is.
+       */
+      it('is still running while its read back is', async () => {
+        await connectClient()
+        const reads = gateTheReads()
+        const writes = gateTheRegisterWrites()
+
+        const first = client.write(aRegisterWrite)
+        await vi.advanceTimersByTimeAsync(0)
+        writes.resolveAll()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(client.state.reading).toBe(true)
+        expect(client.state.writing).toBe(true)
+        await client.write({ ...aRegisterWrite, value: 2 })
+        expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(1)
+        expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+          message: 'Cannot write during another write',
+          variant: 'warning'
+        })
+
+        reads.resolveAll()
+        await first
+        expect(client.state.writing).toBe(false)
+      })
+
+      it('writes again once the first has answered', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        mockModbusRTU.writeFC6.mockImplementation(
+          (_unitId: number, _address: number, _value: number, callback: (error: null) => void) =>
+            callback(null)
+        )
+
+        await client.write(aRegisterWrite)
+        await client.write({ ...aRegisterWrite, value: 2 })
+
+        expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(2)
+      })
     })
   })
 

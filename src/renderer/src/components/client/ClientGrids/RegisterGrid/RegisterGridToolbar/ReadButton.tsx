@@ -8,15 +8,18 @@ const ReadButton = meme((): JSX.Element => {
   const polling = useClientZustand((z) => z.clientState.polling)
 
   // Main says a read is running, and refuses a second one while it is. This
-  // used to be a ref here, which held for this button and for nothing else.
+  // used to be a ref here, which held for this button and for nothing else. A
+  // write holds the client from its own request to the end of the read back,
+  // and main refuses a read for that stretch too.
   const reading = useClientZustand((z) => z.clientState.reading)
+  const writing = useClientZustand((z) => z.clientState.writing)
 
   const handleRead = useCallback(() => {
     window.api.read()
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
-  const disabled = !connected || polling || reading
+  const disabled = !connected || polling || reading || writing
 
   return (
     <Button

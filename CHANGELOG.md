@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A second write no longer goes out while the first is still on the line.**
+  Modbux sends one request at a time, and a poll, a scan or a read already
+  running refused a second. A write did not: two bit toggles a click apart in
+  the client's bitmap panel put two requests on one connection, and the second
+  carried the word from before the first. A write now holds the connection until
+  the register has been read back, the bits stop taking a click for that moment,
+  and the Read button and the Read Configuration toggle grey out with them.
 - **A coil read can now ask for the 2000 bits the protocol allows.** The Length
   field stopped at 125 whatever the type selected, which is the ceiling for
   holding and input registers, so reading a thousand coils took eight reads
