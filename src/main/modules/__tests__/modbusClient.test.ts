@@ -1995,6 +1995,80 @@ describe('ModbusClient', () => {
       })
     })
 
+    /**
+     * `setTimeout` is client state, not request state.
+     *
+     * `_read` calls it with `registerConfig.timeout` and both scans call it
+     * with their own, and the write path called neither, so FC5, FC6, FC15 and
+     * FC16 went out under whatever ran last: the scan field's floor is 100 ms
+     * where the toolbar's is 1000, and a connect opens on 3000.
+     *
+     * Asserted against the order the write went out in rather than against the
+     * last call, because a write ends on a read back and that read calls
+     * `setTimeout` with the right value on its way: both tests here passed
+     * with the write setting nothing at all.
+     */
+    describe('the timeout a write gives the device', () => {
+      /**
+       * The timeout the client was left on when `writeFC6` was called.
+       *
+       * `invocationCallOrder` is one counter across every mock of a run, so the
+       * `setTimeout` calls before the write are the ones that decided what it
+       * went out under, and the last of those is the one in force.
+       */
+      const timeoutWhenWritten = (): unknown => {
+        const [writeOrder] = mockModbusRTU.writeFC6.mock.invocationCallOrder
+        if (writeOrder === undefined) throw new Error('writeFC6 was never called')
+
+        const calls: unknown[] = mockModbusRTU.setTimeout.mock.calls.map(
+          (call: unknown[]) => call[0]
+        )
+        const order: number[] = mockModbusRTU.setTimeout.mock.invocationCallOrder
+        return calls.filter((_, index) => (order[index] ?? 0) < writeOrder).at(-1)
+      }
+
+      const writeOne = async (): Promise<void> => {
+        mockModbusRTU.writeFC6.mockImplementation(
+          (_uid: number, _addr: number, _val: number, cb: (err: null) => void) => cb(null)
+        )
+        await client.write({
+          address: 0,
+          type: 'holding_registers',
+          value: 1,
+          dataType: 'uint16',
+          single: true
+        })
+      }
+
+      it('is the register config timeout after a scan set its own', async () => {
+        await connectClient()
+        mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+          data: [0],
+          buffer: Buffer.alloc(2)
+        })
+
+        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 100 })
+        await vi.advanceTimersByTimeAsync(1000)
+        await scan
+        expect(mockModbusRTU.setTimeout).toHaveBeenLastCalledWith(100)
+
+        await writeOne()
+
+        expect(timeoutWhenWritten()).toBe(appState.registerConfig.timeout)
+      })
+
+      // `_connect` opens on 3000, which is the state a write arriving before
+      // any read finds.
+      it('is the register config timeout on the first write after a connect', async () => {
+        await connectClient()
+        expect(mockModbusRTU.setTimeout).toHaveBeenLastCalledWith(3000)
+
+        await writeOne()
+
+        expect(timeoutWhenWritten()).toBe(appState.registerConfig.timeout)
+      })
+    })
+
     // What `_logTransaction` takes is the last entry in `_transactions`, and it
     // deletes the entry it logs. So a write that files no transaction of its
     // own logs somebody else's and takes it out of the table, and `_onReceive`

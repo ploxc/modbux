@@ -915,6 +915,14 @@ export class ModbusClient {
 
     const { address, type, value, dataType, single } = writeParameters
 
+    // The timeout the user set, the way `_read` does it. Nothing on this path
+    // called `setTimeout`, so a write inherited whatever ran last on the
+    // client: a register scan at the scan field's floor of 100 ms left FC6 a
+    // tenth of the 1000 ms the toolbar's own floor promises, and a write with
+    // no read since the connect got the 3000 ms `_connect` opens with. The
+    // read back at the end corrects it, which is one request too late.
+    this._client.setTimeout(this._appState.registerConfig.timeout)
+
     this._clientState.writing = true
     this._sendClientState()
     try {
