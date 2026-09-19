@@ -3,7 +3,7 @@ import {
   ScanRegistersParameters,
   ConnectionConfigSchema,
   IpcHandlerMap,
-  IpcEvent,
+  EventToMain,
   IpcEventPayloadMap,
   formatZodError,
   WriteParametersSchema,
@@ -317,10 +317,10 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
 
 /**
  * Register a listener for an IPC event on the main process:
- * - E must be one of the keys in IpcEvent.
+ * - E must be one of `EVENTS_TO_MAIN`, which is the direction this hears.
  * - listener receives the IpcMainEvent plus the payload tuple defined in IpcEventPayloadMap[E].
  */
-export function onIpcEvent<E extends IpcEvent>(
+export function onIpcEvent<E extends EventToMain>(
   event: E,
   listener: (event: IpcMainEvent, ...args: IpcEventPayloadMap[E]) => void
 ): void {

@@ -56,6 +56,19 @@ const eachNode = (source: ts.SourceFile, visit: (node: ts.Node) => void): void =
   walk(source)
 }
 
+/** The string literals of a `const` array declared in `source`. */
+const literalsIn = (source: ts.SourceFile, declaration: string): Set<string> => {
+  const names = new Set<string>()
+  eachNode(source, (node) => {
+    if (!ts.isVariableDeclaration(node)) return
+    if (node.name.getText(source) !== declaration) return
+    eachNode(node as unknown as ts.SourceFile, (child) => {
+      if (ts.isStringLiteral(child)) names.add(child.text)
+    })
+  })
+  return names
+}
+
 /** The module specifier of an import, or null for anything that is not one. */
 const importedFrom = (node: ts.Node): string | null =>
   ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)
@@ -781,18 +794,7 @@ describe('every configured path alias is used', () => {
 describe('the lists that name a channel agree', () => {
   const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
 
-  /** The string literals of a `const` array declared in `ipc.ts`. */
-  const literalsOf = (declaration: string): Set<string> => {
-    const names = new Set<string>()
-    eachNode(spec, (node) => {
-      if (!ts.isVariableDeclaration(node)) return
-      if (node.name.getText(spec) !== declaration) return
-      eachNode(node as unknown as ts.SourceFile, (child) => {
-        if (ts.isStringLiteral(child)) names.add(child.text)
-      })
-    })
-    return names
-  }
+  const literalsOf = (declaration: string): Set<string> => literalsIn(spec, declaration)
 
   /** The member names of an interface declared in `ipc.ts`. */
   const membersOf = (declaration: string): Set<string> => {
@@ -809,7 +811,9 @@ describe('the lists that name a channel agree', () => {
 
   const channels = literalsOf('IPC_CHANNELS')
   const specced = membersOf('IpcHandlerSpec')
-  const events = literalsOf('IPC_EVENTS')
+  // `IPC_EVENTS` is the two direction lists spread into one, so it holds no
+  // string literal of its own to read.
+  const events = new Set([...literalsOf('EVENTS_TO_RENDERER'), ...literalsOf('EVENTS_TO_MAIN')])
   const payloads = membersOf('IpcEventPayloadMap')
 
   /** Every channel `initIpc` registered a handler for. */
@@ -869,6 +873,71 @@ describe('the lists that name a channel agree', () => {
   it('gives every channel a method name of its own', () => {
     const methods = [...channels].map((channel) => snakeToCamel(channel))
     expect(new Set([...methods, 'isServerWindow']).size).toBe(channels.size + 1)
+  })
+})
+
+//
+// ─── Every event has a sender and a listener ─────────────────────────────────
+//
+// One list held both directions, so `windows.send('open_server_window')` and
+// `onEvent('open_server_window', ...)` both typechecked with nothing at the far
+// end of either. `EVENTS_TO_RENDERER` and `EVENTS_TO_MAIN` are what the four
+// helpers take now, and the split is what gives this rule two populations to
+// read instead of one list it cannot tell apart.
+//
+// An event is read by the name of the call it appears in rather than by where
+// the file sits, because `windows.send` is called from main's modules as
+// `this._windows.send` and both spellings are the same sender.
+
+describe('every event has a sender and a listener', () => {
+  const spec = parse(join(repoRoot, 'src/shared/types/ipc.ts'))
+
+  /** The string literal first argument of every call to `name`, under `root`. */
+  const firstArgumentsOf = (root: string, name: string): Set<string> => {
+    const found = new Set<string>()
+    for (const file of sourceFiles(join(repoRoot, root))) {
+      const source = parse(file)
+      eachNode(source, (node) => {
+        if (!ts.isCallExpression(node)) return
+        const callee = ts.isPropertyAccessExpression(node.expression)
+          ? node.expression.name.text
+          : ts.isIdentifier(node.expression)
+            ? node.expression.text
+            : null
+        if (callee !== name) return
+        const first = node.arguments[0]
+        if (first && ts.isStringLiteral(first)) found.add(first.text)
+      })
+    }
+    return found
+  }
+
+  const toRenderer = literalsIn(spec, 'EVENTS_TO_RENDERER')
+  const toMain = literalsIn(spec, 'EVENTS_TO_MAIN')
+
+  const sentByMain = firstArgumentsOf('src/main', 'send')
+  const heardByRenderer = firstArgumentsOf('src/renderer/src', 'onEvent')
+  const sentByRenderer = firstArgumentsOf('src/renderer/src', 'sendEvent')
+  const heardByMain = firstArgumentsOf('src/main', 'onIpcEvent')
+
+  const missing = (events: Set<string>, found: Set<string>): string[] =>
+    [...events].filter((event) => !found.has(event)).sort()
+
+  it('finds events and calls to check', () => {
+    expect(toRenderer.size).toBeGreaterThan(5)
+    expect(toMain.size).toBeGreaterThan(0)
+    expect(sentByMain.size).toBeGreaterThan(5)
+    expect(heardByRenderer.size).toBeGreaterThan(5)
+  })
+
+  it('has a sender in main and a listener in the renderer for each one main pushes', () => {
+    expect(missing(toRenderer, sentByMain)).toEqual([])
+    expect(missing(toRenderer, heardByRenderer)).toEqual([])
+  })
+
+  it('has a sender in the renderer and a listener in main for each one a window pushes', () => {
+    expect(missing(toMain, sentByRenderer)).toEqual([])
+    expect(missing(toMain, heardByMain)).toEqual([])
   })
 })
 

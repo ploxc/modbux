@@ -378,9 +378,16 @@ export type IpcHandlerMap = {
 }
 
 /**
- * Events emitted
+ * The events main pushes to a window.
+ *
+ * `windows.send` takes one of these and `onEvent` in the renderer listens for
+ * one, so the pair that carries an event is named by the list it is in. They
+ * sat in one list with the other direction, and a single list makes
+ * `windows.send('open_server_window', undefined)` and
+ * `onEvent('open_server_window', ...)` both typecheck, neither of which has
+ * anything at the far end.
  */
-export const IPC_EVENTS = [
+export const EVENTS_TO_RENDERER = [
   'backend_message',
   'client_state',
   'register_data',
@@ -389,11 +396,17 @@ export const IPC_EVENTS = [
   'scan_progress',
   'register_value',
   'window_update',
-  'open_server_window',
   'address_groups',
   'rtu_server_status'
 ] as const
 
+/** The events a window pushes to main. `sendEvent` there, `onIpcEvent` here. */
+export const EVENTS_TO_MAIN = ['open_server_window'] as const
+
+export const IPC_EVENTS = [...EVENTS_TO_RENDERER, ...EVENTS_TO_MAIN] as const
+
+export type EventToRenderer = (typeof EVENTS_TO_RENDERER)[number]
+export type EventToMain = (typeof EVENTS_TO_MAIN)[number]
 export type IpcEvent = (typeof IPC_EVENTS)[number]
 
 export interface IpcEventPayloadMap {

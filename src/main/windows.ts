@@ -1,4 +1,4 @@
-import { IpcEvent, IpcEventPayloadMap } from '@shared'
+import { EventToRenderer, IpcEventPayloadMap } from '@shared'
 import { BrowserWindow, WebContents } from 'electron'
 
 interface WindowsObject {
@@ -53,7 +53,7 @@ export class Windows {
    * first, so without it a stale main handle is what the server window's
    * `window_update` goes missing behind.
    */
-  public send = <E extends IpcEvent>(
+  public send = <E extends EventToRenderer>(
     event: E,
     payload: IpcEventPayloadMap[E][0],
     to?: IpcEventTarget
