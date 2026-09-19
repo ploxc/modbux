@@ -77,7 +77,7 @@ export const TransactionSchema = z.object({
    * `_requestedAddress` takes it off bytes 2 and 3 of the request frame, which
    * every function code Modbux sends puts it at, and falls back on
    * `nextDataAddress`, which modbus-serial files for three of them. Both are
-   * gone only for a frame that never went out, and `_columns.tsx` binds
+   * gone only for a frame that never went out, and `columns.tsx` binds
    * `field: 'address'` with no formatter, so the cell is blank there.
    */
   address: RegisterAddressSchema.optional(),

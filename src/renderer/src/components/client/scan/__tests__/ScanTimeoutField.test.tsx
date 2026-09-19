@@ -3,15 +3,9 @@
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useState } from 'react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
-// ScanProgress reads the root store, which opens IPC listeners on import.
-vi.mock('@renderer/context/client.zustand', () => ({
-  useClientZustand: (selector: (state: Record<string, unknown>) => unknown): unknown =>
-    selector({ clientState: {}, scanProgress: 0 })
-}))
-
-import { ScanTimeoutField, clampScanTimeout } from '../ScanProgress'
+import ScanTimeoutField, { clampScanTimeout } from '../ScanTimeoutField'
 
 // Both dialogs keep the timeout as a number, so the harness does too: that
 // round trip is where the field used to rewrite what you typed.

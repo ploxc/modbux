@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
 import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
@@ -13,10 +12,13 @@ import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { MAX_UNIT_ID, maxReadQuantity, RegisterType } from '@shared'
-import { ElementType, useCallback, useMemo } from 'react'
-import useScanUnitIdColumns from './_columns'
+import { ElementType, useCallback } from 'react'
+import useScanUnitIdColumns from './columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
-import { ScanCloseButton, ScanProgress, ScanTimeoutField } from '../ScanProgress/ScanProgress'
+import ScanCloseButton from '../scan/ScanCloseButton'
+import ScanProgress from '../scan/ScanProgress'
+import ScanStartStopButton from '../scan/ScanStartStopButton'
+import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 //
@@ -254,19 +256,13 @@ const ScanButton = meme((): JSX.Element => {
     })
   }, [scanning])
 
-  const text = useMemo(() => (scanning ? 'Stop Scanning' : 'Start Scanning'), [scanning])
-  const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
-
   return (
-    <Button
+    <ScanStartStopButton
       disabled={disabled}
-      variant="contained"
-      color={color}
-      onClick={scan}
-      data-testid="scan-unitid-start-stop-btn"
-    >
-      {text}
-    </Button>
+      scanning={scanning}
+      scan={scan}
+      testId="scan-unitid-start-stop-btn"
+    />
   )
 })
 

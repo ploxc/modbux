@@ -1,24 +1,22 @@
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
 import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { ElementType, useCallback, useMemo } from 'react'
+import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { dropPendingScanRows, useDataZustand } from '@renderer/context/data.zustand'
-import {
-  ScanCloseButton,
-  ScanFoundCount,
-  ScanGridToggle,
-  ScanProgress,
-  ScanTimeoutField
-} from '../ScanProgress/ScanProgress'
+import ScanCloseButton from '../scan/ScanCloseButton'
+import ScanFoundCount from '../scan/ScanFoundCount'
+import ScanGridToggle from '../scan/ScanGridToggle'
+import ScanProgress from '../scan/ScanProgress'
+import ScanStartStopButton from '../scan/ScanStartStopButton'
+import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { MAX_REGISTER_ADDRESS, maxReadQuantity } from '@shared'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
@@ -198,7 +196,7 @@ const GridToggle = meme((): JSX.Element => {
     layoutZustand.toggleShowGridWhileScanning()
   }, [])
 
-  return <ScanGridToggle shown={shown} toggle={handleToggle} />
+  return <ScanGridToggle shown={shown} toggle={handleToggle} testId="scan-grid-toggle-btn" />
 })
 
 //
@@ -249,14 +247,7 @@ const ScanButton = meme((): JSX.Element => {
     })
   }, [scanning])
 
-  const text = useMemo(() => (scanning ? 'Stop Scanning' : 'Start Scanning'), [scanning])
-  const color = useMemo(() => (scanning ? 'warning' : 'primary'), [scanning])
-
-  return (
-    <Button variant="contained" color={color} onClick={scan} data-testid="scan-start-stop-btn">
-      {text}
-    </Button>
-  )
+  return <ScanStartStopButton scanning={scanning} scan={scan} testId="scan-start-stop-btn" />
 })
 
 //

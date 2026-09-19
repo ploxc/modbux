@@ -1,7 +1,7 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { BITMAP_DATATYPE, RegisterData, RegisterMapObject } from '@shared'
 import { convertedValueColumn } from './convertedValue'
-import { ExpandCell } from './bitmapExpand'
+import { ExpandCell } from './ExpandCell'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // bitmapValueColumn
