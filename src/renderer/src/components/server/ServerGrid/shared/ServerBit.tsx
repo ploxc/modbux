@@ -9,8 +9,15 @@ export interface ServerBitProps {
   bitIndex: number
   active: boolean
   comment: string | undefined
-  onToggle: () => void
-  onCommentChange: (comment: string | undefined) => void
+  /**
+   * Both take the bit they are about, so a caller hands over one `useCallback`
+   * rather than one arrow per row. `meme` is `memo` with `deepEqual`, which
+   * compares a function by identity, so an arrow built in a parent's JSX
+   * redraws every row the parent drew. `ServerBoolRow` passes the address it
+   * already holds and reads it back here.
+   */
+  onToggle: (bitIndex: number) => void
+  onCommentChange: (bitIndex: number, comment: string | undefined) => void
   testIdPrefix?: string
   /** Number of digits to pad the index label (default: 2) */
   padDigits?: number
@@ -43,10 +50,12 @@ const ServerBit = meme(
     const commit = useCallback(
       (text: string) => {
         setEditing(false)
-        onCommentChange(text.trim() || undefined)
+        onCommentChange(bitIndex, text.trim() || undefined)
       },
-      [onCommentChange]
+      [bitIndex, onCommentChange]
     )
+
+    const handleToggle = useCallback(() => onToggle(bitIndex), [bitIndex, onToggle])
 
     return (
       <Box
@@ -72,7 +81,7 @@ const ServerBit = meme(
           // On and off differ only in background and shadow, so the circle
           // renders identically to a test either way. This is the state itself.
           data-active={active}
-          onClick={onToggle}
+          onClick={handleToggle}
           sx={(theme) => ({
             width: 12,
             height: 12,

@@ -36,7 +36,7 @@ describe('the toggle circle', () => {
 
     await userEvent.click(screen.getByTestId('server-bit-circle-3'))
 
-    expect(onToggle).toHaveBeenCalledOnce()
+    expect(onToggle).toHaveBeenCalledWith(3)
   })
 })
 
@@ -49,6 +49,6 @@ describe('the comment', () => {
     await userEvent.clear(screen.getByRole('textbox'))
     await userEvent.type(screen.getByRole('textbox'), 'motor running{Enter}')
 
-    expect(onCommentChange).toHaveBeenCalledWith('motor running')
+    expect(onCommentChange).toHaveBeenCalledWith(3, 'motor running')
   })
 })

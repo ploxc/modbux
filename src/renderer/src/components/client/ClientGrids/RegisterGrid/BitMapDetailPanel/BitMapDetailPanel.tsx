@@ -50,6 +50,11 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     [address, canWrite]
   )
 
+  // Every one of these takes the bit it is about, because `BitIndicator` is
+  // `meme`'d and `deepEqual` compares a function by identity: sixteen arrows
+  // built in this file's JSX are sixteen new ones per render. Measured in
+  // `__tests__/BitMapDetailPanel.test.tsx`: a poll that flipped one bit redrew
+  // all sixteen indicators, and redraws the one now.
   const updateBitMap = useCallback(
     (bitIndex: number, patch: Record<string, unknown>) => {
       const clientZustand = useClientZustand.getState()
@@ -136,10 +141,10 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
               color={entry?.color}
               invert={entry?.invert}
               writable={canWrite}
-              onToggle={() => handleToggle(bitIndex, value)}
-              onCommentChange={(c) => handleCommentChange(bitIndex, c)}
-              onColorChange={(c) => handleColorChange(bitIndex, c)}
-              onInvertChange={(inv) => handleInvertChange(bitIndex, inv)}
+              onToggle={handleToggle}
+              onCommentChange={handleCommentChange}
+              onColorChange={handleColorChange}
+              onInvertChange={handleInvertChange}
             />
           )
         })}

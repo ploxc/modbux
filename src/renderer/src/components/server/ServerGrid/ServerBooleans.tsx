@@ -42,17 +42,21 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
     return z.serverRegisters[uuid]?.[unitId]?.[type]?.[address] as ServerBoolEntry | undefined
   })
 
-  const handleToggle = useCallback(() => {
-    useServerZustand
-      .getState()
-      .setBool({ registerType: type, address, boolState: !(entry?.value ?? false) })
-  }, [type, address, entry?.value])
+  // `ServerBit` hands back the index it was given, which is this row's address.
+  const handleToggle = useCallback(
+    (address: number) => {
+      useServerZustand
+        .getState()
+        .setBool({ registerType: type, address, boolState: !(entry?.value ?? false) })
+    },
+    [type, entry?.value]
+  )
 
   const handleCommentChange = useCallback(
-    (comment: string | undefined) => {
+    (address: number, comment: string | undefined) => {
       useServerZustand.getState().setBoolComment(type, address, comment)
     },
-    [type, address]
+    [type]
   )
 
   const handleRemove = useCallback(() => {

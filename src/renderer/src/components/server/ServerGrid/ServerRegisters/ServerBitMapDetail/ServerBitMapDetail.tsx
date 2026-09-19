@@ -11,6 +11,16 @@ interface ServerBitMapDetailProps {
 
 const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 
+/**
+ * Sixteen bits of a server register, each with its comment.
+ *
+ * Both handlers take the bit they are about, so `ServerBit` gets one
+ * `useCallback` rather than an arrow per row. That saves no render yet: both
+ * close over `register` and `params`, and the parent hands down a new entry
+ * whenever the word moves, so all sixteen rows redraw either way. Measured
+ * before and after the arrows came out, 16 both times. TODO.md carries what
+ * the rest of it needs.
+ */
 const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Element => {
   const { params } = register
   const bitConfig = params.bitMap as BitMapConfig | undefined
@@ -107,8 +117,8 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
             bitIndex={bitIndex}
             active={getBit(Number(register.value), bitIndex)}
             comment={bitConfig?.[String(bitIndex)]?.comment}
-            onToggle={() => void handleToggle(bitIndex)}
-            onCommentChange={(c) => handleCommentChange(bitIndex, c)}
+            onToggle={handleToggle}
+            onCommentChange={handleCommentChange}
           />
         ))}
       </Box>

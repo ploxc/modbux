@@ -17,10 +17,17 @@ interface BitIndicatorProps {
   color: BitColor | undefined
   invert: boolean | undefined
   writable: boolean
-  onToggle: () => void
-  onCommentChange: (comment: string | undefined) => void
-  onColorChange: (color: BitColor | undefined) => void
-  onInvertChange: (invert: boolean) => void
+  /**
+   * Each of these takes the bit it is about, so the panel hands over one
+   * `useCallback` rather than sixteen fresh arrows. `meme` is `memo` with
+   * `deepEqual`, which compares functions by identity, so an arrow built in the
+   * panel's JSX re-rendered all sixteen indicators on every poll that changed a
+   * word. `ServerBoolRow` is the same shape.
+   */
+  onToggle: (bitIndex: number, value: boolean) => void
+  onCommentChange: (bitIndex: number, comment: string | undefined) => void
+  onColorChange: (bitIndex: number, color: BitColor | undefined) => void
+  onInvertChange: (bitIndex: number, invert: boolean) => void
 }
 
 const resolveColor = (c: BitColor | undefined, theme: Theme): string => {
@@ -57,9 +64,24 @@ const BitIndicator = meme(
     const commit = useCallback(
       (text: string) => {
         setEditing(false)
-        onCommentChange(text.trim() || undefined)
+        onCommentChange(bitIndex, text.trim() || undefined)
       },
-      [onCommentChange]
+      [bitIndex, onCommentChange]
+    )
+
+    // What the panel hands over is about a bit; what goes to the circle and to
+    // the popover is about this one. Both ends are stable, so a poll that
+    // changes one word renders the indicator it belongs to.
+    const handleToggle = useCallback(() => onToggle(bitIndex, value), [bitIndex, onToggle, value])
+
+    const handleColorChange = useCallback(
+      (color: BitColor | undefined) => onColorChange(bitIndex, color),
+      [bitIndex, onColorChange]
+    )
+
+    const handleInvertChange = useCallback(
+      (invert: boolean) => onInvertChange(bitIndex, invert),
+      [bitIndex, onInvertChange]
     )
 
     return (
@@ -89,7 +111,7 @@ const BitIndicator = meme(
         {/* Circle toggle — shows RAW value; uses primary when inverted so it's independent of signal color */}
         <Box
           data-testid={`bit-circle-${bitIndex}`}
-          onClick={writable ? onToggle : undefined}
+          onClick={writable ? handleToggle : undefined}
           sx={(theme) => {
             const circleColor = invert ? theme.palette.primary.main : resolveColor(color, theme)
             return {
@@ -182,8 +204,8 @@ const BitIndicator = meme(
           onClose={() => setSettingsAnchor(null)}
           color={color}
           invert={!!invert}
-          onColorChange={onColorChange}
-          onInvertChange={onInvertChange}
+          onColorChange={handleColorChange}
+          onInvertChange={handleInvertChange}
         />
       </Paper>
     )

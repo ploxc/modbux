@@ -57,10 +57,21 @@ const ValueInput = meme(ValueInputForward)
 interface InputFieldProps {
   interpolateKey: keyof RegisterLinearInterpolation
   value: string
-  set: MaskSetFn
+  /**
+   * Takes the field it is about, so the modal hands over one `useCallback`
+   * rather than four arrows. `meme` is `memo` with `deepEqual`, which compares
+   * a function by identity, so an arrow built in the modal's JSX redraws all
+   * four fields whenever any one of them changes.
+   */
+  set: (interpolateKey: keyof RegisterLinearInterpolation, value: string) => void
 }
 
 const InputField = meme(({ interpolateKey, value, set }: InputFieldProps) => {
+  const handleSet = useCallback<MaskSetFn>(
+    (value) => set(interpolateKey, value),
+    [interpolateKey, set]
+  )
+
   return (
     <TextField
       data-testid={`interpolation-${interpolateKey}-field`}
@@ -71,7 +82,7 @@ const InputField = meme(({ interpolateKey, value, set }: InputFieldProps) => {
       slotProps={{
         input: {
           inputComponent: ValueInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set })
+          inputProps: maskInputProps({ set: handleSet })
         }
       }}
     />
@@ -151,13 +162,13 @@ const InterpolationModal = meme(
             </Box>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <InputField interpolateKey="x1" value={x1} set={(v) => handleChange('x1', v)} />
-                <InputField interpolateKey="x2" value={x2} set={(v) => handleChange('x2', v)} />
+                <InputField interpolateKey="x1" value={x1} set={handleChange} />
+                <InputField interpolateKey="x2" value={x2} set={handleChange} />
               </Box>
               <ArrowRightAlt />
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <InputField interpolateKey="y1" value={y1} set={(v) => handleChange('y1', v)} />
-                <InputField interpolateKey="y2" value={y2} set={(v) => handleChange('y2', v)} />
+                <InputField interpolateKey="y1" value={y1} set={handleChange} />
+                <InputField interpolateKey="y2" value={y2} set={handleChange} />
               </Box>
             </Box>
           </Paper>
