@@ -8,7 +8,7 @@
 // again while nothing is connected, and says so in a snackbar, so neither
 // setter may ask in those states.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState } from '@shared'
+import { defaultClientState, emptyRegisterMapping } from '@shared'
 import type { ClientState, RegisterData } from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
 
@@ -201,5 +201,94 @@ describe('the byte order, which reads through the same rule', () => {
     await useClientZustand.getState().setLittleEndian(true)
 
     expect(methods()).toEqual(['updateRegisterConfig'])
+  })
+})
+
+/**
+ * The unit id and the register type, which change what the grid is about.
+ *
+ * `clearRegisterDataWhenIdle` emptied the grid for both, and returned early
+ * with read configuration on because the grid is drawn from the mapping there.
+ * So the old unit's values stayed in the named rows under the new unit id, and
+ * a type change left the rows of the type before it: `RegisterGrid` redraws
+ * the mapping on a change of `readConfiguration` and not of `type`.
+ */
+describe('read configuration on, and the question the grid answers changes', () => {
+  /** The mapping with one holding register and one coil configured. */
+  const withMapping = async (
+    useClientZustand: typeof import('../client.zustand').useClientZustand
+  ): Promise<void> => {
+    const mapping = emptyRegisterMapping()
+    mapping.holding_registers['0'] = { dataType: 'uint16', comment: 'holding' }
+    mapping.coils['4'] = { dataType: 'uint16', comment: 'coil' }
+    await useClientZustand.getState().replaceRegisterMapping(mapping)
+    useClientZustand.getState().setReadConfiguration(true)
+  }
+
+  it('a new unit id redraws the mapping and asks main to read it', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    useDataZustand.getState().setRegisterData([{ ...row, hex: 'BEEF' }])
+    calls.length = 0
+
+    await useClientZustand.getState().setUnitId('3')
+
+    expect(methods()).toEqual(['updateConnectionConfig', 'read'])
+    expect(useDataZustand.getState().registerData.map((data) => data.hex)).toEqual(['0000'])
+  })
+
+  it('a new register type draws that type and asks main to read it', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    calls.length = 0
+
+    await useClientZustand.getState().setType('coils')
+
+    expect(methods()).toEqual(['updateRegisterConfig', 'read'])
+    expect(useDataZustand.getState().registerData.map((data) => data.id)).toEqual([4])
+  })
+
+  // The refusal rule is the same one, so a state main would refuse costs the
+  // ask and not the redraw: the rows on screen are the old unit's either way.
+  it('a new unit id while a poll runs leaves the grid to the poll', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    useClientZustand.getState().setClientState({ ...idle, polling: true })
+    useDataZustand.getState().setRegisterData([{ ...row, hex: 'BEEF' }])
+    calls.length = 0
+
+    await useClientZustand.getState().setUnitId('3')
+
+    expect(methods()).toEqual(['updateConnectionConfig'])
+    expect(useDataZustand.getState().registerData.map((data) => data.hex)).toEqual(['BEEF'])
+  })
+
+  it('a new unit id while a write is in flight redraws and asks for nothing', async () => {
+    const { useClientZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    await withMapping(useClientZustand)
+    useClientZustand.getState().setClientState({ ...idle, writing: true })
+    calls.length = 0
+
+    await useClientZustand.getState().setUnitId('3')
+
+    expect(methods()).toEqual(['updateConnectionConfig'])
+  })
+
+  // With read configuration off the grid still empties, which is what the two
+  // setters did before and what the address and length fields rely on.
+  it('a new unit id with read configuration off empties the grid', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useClientZustand.getState().setClientState(idle)
+    useDataZustand.getState().setRegisterData([row])
+    calls.length = 0
+
+    await useClientZustand.getState().setUnitId('3')
+
+    expect(methods()).toEqual(['updateConnectionConfig'])
+    expect(useDataZustand.getState().registerData).toEqual([])
   })
 })

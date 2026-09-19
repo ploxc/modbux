@@ -21,7 +21,7 @@ import {
   RegisterMapping,
   SerialPortOptions
 } from '@shared'
-import { useDataZustand } from './data.zustand'
+import { showMapping, useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { onEvent } from '@renderer/events'
@@ -67,17 +67,29 @@ export const flushRegisterMappingToMain = async (
 }
 
 /**
- * Drop the rows on screen, unless something is about to replace them.
+ * Answer a question the rows on screen no longer answer.
  *
  * Address, length and type each change what a read asks for, and the unit id
- * changes which device answers it, so the rows from the last read answer a
- * different question. A poll puts new ones there on its own. With read
- * configuration on the grid is drawn from the mapping, so emptying it would
- * take the configured rows with it.
+ * changes which device answers it, so the rows from the last read are about
+ * something else now. A poll puts new ones there on its own.
+ *
+ * With read configuration on, emptying the grid is the wrong answer, because
+ * the grid is drawn from the mapping there and the configured rows would go
+ * with it. Leaving it alone was also wrong: the old unit's values sat under
+ * the new unit id, and after a type change the rows themselves were the old
+ * type's, because `RegisterGrid` redraws the mapping on a change of
+ * `readConfiguration` and not of `type`. So the mapping goes in and main is
+ * asked to fill it, which is what `setReadConfiguration` does when it is
+ * switched on and what `setLittleEndian` does for its own question.
  */
 const clearRegisterDataWhenIdle = (): void => {
   const { clientState, readConfiguration } = useClientZustand.getState()
-  if (clientState.polling || readConfiguration) return
+  if (clientState.polling) return
+  if (readConfiguration) {
+    showMapping()
+    readWhenMainCan()
+    return
+  }
   useDataZustand.getState().setRegisterData([])
 }
 
