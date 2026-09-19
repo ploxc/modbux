@@ -249,7 +249,7 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
   )
 })
 
-const Coils = meme(() => {
+export const Coils = meme(() => {
   const length = useClientZustand((z) => z.registerConfig.length)
   const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
   const address = useValueInputZustand((z) => z.address)
@@ -262,10 +262,17 @@ const Coils = meme(() => {
     valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
   }, [length, registerConfigAddress])
 
-  const rows = useMemo(() => {
-    const amount = Math.ceil(length / 8)
-    return new Array(amount).fill(null)
-  }, [length])
+  // What the picker draws is what one FC15 can write: from the coil pressed to
+  // the end of the read window, and at most `MAX_WRITE_BITS` of them. A window
+  // of 2000 coils drew 2000 buttons, each an MUI Button with a store
+  // subscription of its own, and the 32 past the request could be pressed and
+  // went nowhere.
+  const drawn = useMemo(
+    () => Math.min(registerConfigAddress + length - address, MAX_WRITE_BITS),
+    [address, length, registerConfigAddress]
+  )
+
+  const rows = useMemo(() => new Array(Math.ceil(drawn / 8)).fill(null), [drawn])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -282,7 +289,7 @@ const Coils = meme(() => {
                 const index = ci + ri * 8
                 const coilAddress = address + index
 
-                return coilAddress < registerConfigAddress + length ? (
+                return index < drawn ? (
                   <CoilButton
                     key={`coil_${coilAddress}`}
                     address={coilAddress}

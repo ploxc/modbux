@@ -80,6 +80,11 @@ const ScanLengthField = meme((): JSX.Element => {
 
   const setScanLength = useScanRegistersZustand.getState().setScanLength
 
+  const handleBlur = useCallback(
+    () => setScanLength(String(Math.max(1, scanLength))),
+    [scanLength, setScanLength]
+  )
+
   // Clearing the field stores `Number('') === 0`, and a scan of no addresses
   // ran its loop zero times while the dialog flipped scanning on and off. The
   // floor is on the blur, where `clampScanTimeout` put the timeout's for a
@@ -93,7 +98,7 @@ const ScanLengthField = meme((): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={String(scanLength)}
-      onBlur={() => setScanLength(String(Math.max(1, scanLength)))}
+      onBlur={handleBlur}
       data-testid="scan-length-input"
       slotProps={{
         input: {
@@ -120,6 +125,11 @@ const ChunkSizeField = meme((): JSX.Element => {
 
   const setChunkSize = useScanRegistersZustand.getState().setChunkSize
 
+  const handleBlur = useCallback(
+    () => setChunkSize(String(Math.max(1, chunkSize))),
+    [chunkSize, setChunkSize]
+  )
+
   return (
     <TextField
       disabled={scanning}
@@ -128,7 +138,7 @@ const ChunkSizeField = meme((): JSX.Element => {
       size="small"
       sx={{ width: 90 }}
       value={String(chunkSize)}
-      onBlur={() => setChunkSize(String(Math.max(1, chunkSize)))}
+      onBlur={handleBlur}
       data-testid="scan-chunk-size-input"
       slotProps={{
         input: {

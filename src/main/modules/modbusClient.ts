@@ -857,9 +857,10 @@ export class ModbusClient {
    *
    * The length is the read's own, not `registerConfig.length`. modbus-serial
    * answers a bit read with eight booleans per byte, so a read of three comes
-   * back as eight and the row count has to come from the request. The two are
-   * one number for a read out of the toolbar, where the only group is
-   * `[address, registerConfig.length]`. Every other caller passes its own.
+   * back as eight and the row count has to come from the request. Even the
+   * toolbar's own group is not `registerConfig.length` any more: it is that
+   * length under both read ceilings, so 2000 coils asked for at 65500 is a
+   * group of 36.
    */
   private _toBits = (result: ReadCoilResult, address: number, length: number): RegisterData[] =>
     convertBitData(result, address, length, this._clientState.scanningRegisters)

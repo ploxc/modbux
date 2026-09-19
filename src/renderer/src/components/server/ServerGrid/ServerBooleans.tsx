@@ -42,19 +42,20 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
     return z.serverRegisters[uuid]?.[unitId]?.[type]?.[address] as ServerBoolEntry | undefined
   })
 
-  // `ServerBit` hands back the index it was given, which is this row's address.
+  // `ServerBit` hands back the index it was given, and the index this row gives
+  // it is the coil's address.
   const handleToggle = useCallback(
-    (address: number) => {
+    (bitAddress: number) => {
       useServerZustand
         .getState()
-        .setBool({ registerType: type, address, boolState: !(entry?.value ?? false) })
+        .setBool({ registerType: type, address: bitAddress, boolState: !(entry?.value ?? false) })
     },
     [type, entry?.value]
   )
 
   const handleCommentChange = useCallback(
-    (address: number, comment: string | undefined) => {
-      useServerZustand.getState().setBoolComment(type, address, comment)
+    (bitAddress: number, comment: string | undefined) => {
+      useServerZustand.getState().setBoolComment(type, bitAddress, comment)
     },
     [type]
   )

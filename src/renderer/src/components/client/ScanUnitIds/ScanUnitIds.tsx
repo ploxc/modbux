@@ -40,7 +40,7 @@ const StartUnitIdField = meme((): JSX.Element => {
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setStartUnitId, max: 255 })
+          inputProps: maskInputProps({ set: setStartUnitId, max: MAX_UNIT_ID })
         }
       }}
     />
@@ -61,6 +61,8 @@ const CountField = meme((): JSX.Element => {
   // blur, where `clampScanTimeout` put the timeout's for a measured reason: a
   // bound on the mask rewrites what you type. `ScanButton` holds the same floor
   // for the field that never gets a blur.
+  const handleBlur = useCallback(() => setCount(String(Math.max(1, count))), [count, setCount])
+
   return (
     <TextField
       disabled={scanning}
@@ -69,12 +71,12 @@ const CountField = meme((): JSX.Element => {
       size="small"
       sx={{ width: 80 }}
       value={String(count)}
-      onBlur={() => setCount(String(Math.max(1, count)))}
+      onBlur={handleBlur}
       data-testid="scan-unitid-count-input"
       slotProps={{
         input: {
           inputComponent: UIntInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setCount, max: 256 })
+          inputProps: maskInputProps({ set: setCount, max: MAX_UNIT_ID + 1 })
         }
       }}
     />
@@ -118,6 +120,8 @@ const LengthField = meme((): JSX.Element => {
 
   const setLength = useScanUnitIdZustand.getState().setLength
 
+  const handleBlur = useCallback(() => setLength(String(Math.max(1, length))), [length, setLength])
+
   return (
     <TextField
       disabled={scanning}
@@ -126,7 +130,7 @@ const LengthField = meme((): JSX.Element => {
       size="small"
       sx={{ width: 60 }}
       value={String(length)}
-      onBlur={() => setLength(String(Math.max(1, length)))}
+      onBlur={handleBlur}
       data-testid="scan-unitid-length-input"
       slotProps={{
         input: {
