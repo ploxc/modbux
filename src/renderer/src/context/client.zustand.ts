@@ -532,9 +532,11 @@ const clientZustand = useClientZustand.getState()
  * `CLIENT_ZUSTAND_STORAGE_KEY` as well, because persist wraps `setState`, so
  * the split window overwrote the shared key on every open.
  *
- * Everything this tail does is inside the guard now. The app version was the
- * exception, and it is fetched from `layout.zustand` instead, where the field
- * it fills lives and where both windows reach it.
+ * Every call this tail makes to main is inside the guard now. The app version
+ * was the one outside it, and `layout.zustand` fetches it instead, beside the
+ * field it fills and in both windows. What is left unguarded asks main nothing:
+ * the repair below and the `onEvent` registrations after it. The repair's
+ * `setState` still writes the shared key, for the same reason `init`'s does.
  */
 const isServerWindow = window.api.isServerWindow
 

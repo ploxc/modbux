@@ -42,7 +42,7 @@ describe('the app version', () => {
     expect(useLayoutZustand.getState().version).toBe('0.0.0-test')
   })
 
-  it('is asked for once, by the layout store', async () => {
+  it('is asked for once when both stores are loaded', async () => {
     stubRenderer({ isServerWindow: true })
     recordApiCalls(calls)
 
