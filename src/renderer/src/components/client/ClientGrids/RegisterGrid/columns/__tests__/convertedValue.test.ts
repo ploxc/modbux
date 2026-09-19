@@ -38,6 +38,24 @@ const rowAt = (address: number, utf8: string): RegisterData => ({
   isScanned: false
 })
 
+/** A row carrying one number, under every type that reads it as one. */
+const numberRowAt = (address: number, value: number): RegisterData => ({
+  ...rowAt(address, ''),
+  words: {
+    int16: value,
+    uint16: value,
+    int32: 0,
+    uint32: 0,
+    float: value,
+    unix: '',
+    int64: BigInt(0),
+    uint64: BigInt(0),
+    double: value,
+    datetime: '',
+    utf8: ''
+  }
+})
+
 /**
  * What the value column shows, or a failure saying the column has no getter.
  *
@@ -45,8 +63,12 @@ const rowAt = (address: number, utf8: string): RegisterData => ({
  * first argument `never` and the getter reads the row instead. The api ref is
  * the same: the getter takes it and never touches it.
  */
-const shownValue = (registerMap: RegisterMapObject, row: RegisterData): unknown => {
-  const column = convertedValueColumn(registerMap, false)
+const shownValue = (
+  registerMap: RegisterMapObject,
+  row: RegisterData,
+  showRaw = false
+): unknown => {
+  const column = convertedValueColumn(registerMap, showRaw)
   const { valueGetter } = column
   if (!valueGetter) throw new Error('the value column has no valueGetter')
 
@@ -74,5 +96,54 @@ describe('how much of a string the value column shows', () => {
     dataState.addressGroups = [[0, 6]]
 
     expect(shownValue({ 2: { dataType: 'utf8' } }, rowAt(2, 'CDEFGHIJKL'))).toBe('CDEFGHIJ')
+  })
+})
+
+describe('the number the value column shows', () => {
+  // The rounding takes its precision from the factor, so a factor with one
+  // decimal that rounded to none would show 12 for a register holding 123.
+  it('keeps the decimals the scaling factor introduces', () => {
+    expect(shownValue({ 0: { dataType: 'uint16', scalingFactor: 0.1 } }, numberRowAt(0, 123))).toBe(
+      12.3
+    )
+  })
+
+  // A float carries decimals of its own, and the factor's count alone would
+  // round them away.
+  it('keeps the decimals of a float beside those of the factor', () => {
+    expect(shownValue({ 0: { dataType: 'float', scalingFactor: 0.1 } }, numberRowAt(0, 1.25))).toBe(
+      0.125
+    )
+  })
+
+  it('shows the word itself when the toolbar asks for raw', () => {
+    expect(
+      shownValue({ 0: { dataType: 'uint16', scalingFactor: 0.1 } }, numberRowAt(0, 123), true)
+    ).toBe(123)
+  })
+
+  // The endpoints are read against the scaled number. Both lines run through
+  // the same two points, so a `y1` away from zero is what separates the order
+  // they run in: interpolating the word itself answers 10.1 here.
+  it('interpolates what the scaling factor answered, not the raw word', () => {
+    const map = {
+      0: {
+        dataType: 'uint16' as const,
+        scalingFactor: 0.1,
+        interpolate: { x1: '0', x2: '100', y1: '1', y2: '11' }
+      }
+    }
+
+    expect(shownValue(map, numberRowAt(0, 1000))).toBe(11)
+  })
+
+  // Two endpoints on the same x have no slope to read, and the division would
+  // answer an Infinity the column would draw.
+  it('answers y1 when both endpoints sit on the same x', () => {
+    const map = {
+      0: { dataType: 'uint16' as const, interpolate: { x1: '1', x2: '1', y1: '7', y2: '99' } }
+    }
+
+    expect(shownValue(map, numberRowAt(0, 50))).toBe(7)
   })
 })
