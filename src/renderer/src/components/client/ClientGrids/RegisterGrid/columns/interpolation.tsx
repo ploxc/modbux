@@ -133,47 +133,45 @@ const InterpolationModal = meme(
     }, [address])
 
     return (
-      open && (
-        <Modal open={open} onClose={onClose} slotProps={{ backdrop: { sx: {} } }}>
-          <Paper
-            elevation={5}
-            sx={{
-              position: 'absolute',
-              left: rect?.left ?? 0,
-              top: rect?.top ?? 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              p: 2
-            }}
+      <Modal open={open} onClose={onClose} slotProps={{ backdrop: { sx: {} } }}>
+        <Paper
+          elevation={5}
+          sx={{
+            position: 'absolute',
+            left: rect?.left ?? 0,
+            top: rect?.top ?? 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            p: 2
+          }}
+        >
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}
           >
-            <Box
-              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1 }}
+            <FormLabel color="primary">Linear Interpolation</FormLabel>
+            <IconButton
+              data-testid="interpolation-reset-btn"
+              color="primary"
+              size="small"
+              onClick={handleReset}
             >
-              <FormLabel color="primary">Linear Interpolation</FormLabel>
-              <IconButton
-                data-testid="interpolation-reset-btn"
-                color="primary"
-                size="small"
-                onClick={handleReset}
-              >
-                <Refresh />
-              </IconButton>
+              <Refresh />
+            </IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <InputField interpolateKey="x1" value={x1} set={handleChange} />
+              <InputField interpolateKey="x2" value={x2} set={handleChange} />
             </Box>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <InputField interpolateKey="x1" value={x1} set={handleChange} />
-                <InputField interpolateKey="x2" value={x2} set={handleChange} />
-              </Box>
-              <ArrowRightAlt />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <InputField interpolateKey="y1" value={y1} set={handleChange} />
-                <InputField interpolateKey="y2" value={y2} set={handleChange} />
-              </Box>
+            <ArrowRightAlt />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <InputField interpolateKey="y1" value={y1} set={handleChange} />
+              <InputField interpolateKey="y2" value={y2} set={handleChange} />
             </Box>
-          </Paper>
-        </Modal>
-      )
+          </Box>
+        </Paper>
+      </Modal>
     )
   }
 )
@@ -221,13 +219,20 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
         style={{ opacity: !enabled ? 0 : isDefault ? 0.2 : 1 }}
       />
 
-      <InterpolationModal
-        address={address}
-        open={open}
-        onClose={() => setOpen(false)}
-        actionCellRef={actionCellRef}
-        type={type}
-      />
+      {/*
+        Mounted only while it is open, the way `write.tsx` mounts its modal in
+        the same grid. `InterpolationModal` opens four store subscriptions, and
+        the cell it sits in is drawn once per visible row.
+      */}
+      {open && (
+        <InterpolationModal
+          address={address}
+          open={open}
+          onClose={() => setOpen(false)}
+          actionCellRef={actionCellRef}
+          type={type}
+        />
+      )}
     </>
   )
 })
