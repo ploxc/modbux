@@ -282,7 +282,9 @@ export const useClientZustand = create<
       // `1,5` in a mask field is `NaN`, `UnitIdSchema` refuses it, and a store
       // that wrote it persisted `null` and lost the whole config on the next
       // launch. A round trip is shorter than the gap between two keystrokes, so
-      // no field waits on the answer.
+      // no field waits on the answer. The exception is a field carrying a
+      // validity flag, which sends nothing while that flag is false; the host,
+      // the COM port and the length each say why where they stand.
       //
       // Nine of them differ in nothing but a key under `rtu.options` or under
       // `registerConfig`, and those are one line each over `setSerialOption`
@@ -346,10 +348,22 @@ export const useClientZustand = create<
         if (!currentState.ready) return
         if (currentState.clientState.connectState !== 'disconnected') return
 
+        // The field reads its text from the store, so a blank port name is
+        // kept here and never sent. `ConnectionConfigRtuSchema` types `com` as
+        // a string and takes a blank one, so the boundary had nothing to refuse
+        // and main held a connection config naming no port.
+        if (!valid) {
+          set((state) => {
+            state.valid.com = false
+            state.connectionConfig.rtu.com = com
+          })
+          return
+        }
+
         if (!(await window.api.updateConnectionConfig({ rtu: { com } }))) return
 
         set((state) => {
-          state.valid.com = !!valid
+          state.valid.com = true
           state.connectionConfig.rtu.com = com
         })
       },

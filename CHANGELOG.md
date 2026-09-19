@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A blank COM port is no longer sent to the serial connection.** Clearing the
+  COM field wrote an empty port name into the connection, so a connect attempt
+  failed on nothing to open. The field keeps what you type and marks it, and the
+  connection keeps the last port you picked, which is what the host field
+  already did.
 - **Changing the unit ID now empties the grid the way the address does.** The
   rows the previous unit answered stayed on screen under a unit ID that had not
   read them, so two devices' values were one list. The address, the length and

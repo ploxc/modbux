@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import type { RegisterData } from '@shared'
-import { stubRenderer } from './stubRenderer'
+import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
 
 const load = async (): Promise<{
   clientZustand: typeof import('../client.zustand')
@@ -116,6 +116,35 @@ describe('a value the field marks invalid', () => {
 
     expect(useClientZustand.getState().connectionConfig.tcp.host).toBe('192.168.')
     expect(useClientZustand.getState().valid.host).toBe(false)
+  })
+
+  // `ConnectionConfigRtuSchema` types `com` as a string and takes a blank one,
+  // so nothing at the boundary refuses a connection config naming no port.
+  it('keeps a blank COM port in the store and sends nothing', async () => {
+    const { clientZustand } = await load()
+    const { useClientZustand } = clientZustand
+    await useClientZustand.getState().setCom('COM3', true)
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+
+    await useClientZustand.getState().setCom('   ', false)
+
+    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('   ')
+    expect(useClientZustand.getState().valid.com).toBe(false)
+    expect(calls).toEqual([])
+  })
+
+  it('sends a COM port the field accepts', async () => {
+    const { clientZustand } = await load()
+    const { useClientZustand } = clientZustand
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+
+    await useClientZustand.getState().setCom('COM3', true)
+
+    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('COM3')
+    expect(useClientZustand.getState().valid.com).toBe(true)
+    expect(calls).toEqual([{ method: 'updateConnectionConfig', payload: { rtu: { com: 'COM3' } } }])
   })
 
   it('keeps an empty length in the store and marks it invalid', async () => {
