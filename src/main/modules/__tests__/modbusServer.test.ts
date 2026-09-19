@@ -1485,10 +1485,65 @@ describe('ModbusServer', () => {
       expect(vi.mocked(ServerTCP).mock.results[0]?.value.close).not.toHaveBeenCalled()
     })
 
-    it('emits error when server not found', async () => {
+    it('says nothing about a uuid that never bound a listener', async () => {
       await server.deleteServer('non-existent')
       const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('No server found'))).toBe(true)
+      expect(messages).toEqual([])
+    })
+
+    it('frees the register data, so the uuid hosts no unit afterwards', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 1234,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      await server.deleteServer(uuid)
+      await server.createServer({ uuid, port: 5020 })
+
+      const cb = vi.fn()
+      lastVector(ServerTCP).getHoldingRegister(0, unitIdNumber, cb)
+      expect(cb).toHaveBeenCalledWith(
+        expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+        0
+      )
+    })
+
+    it('frees the register data of a uuid that never bound a listener', async () => {
+      server.addRegister({
+        uuid,
+        unitId,
+        params: {
+          address: 0,
+          registerType: 'holding_registers',
+          dataType: 'uint16',
+          comment: '',
+          value: 1234,
+          min: undefined,
+          max: undefined,
+          interval: undefined
+        }
+      })
+
+      await server.deleteServer(uuid)
+      await server.createServer({ uuid, port: 5020 })
+
+      const cb = vi.fn()
+      lastVector(ServerTCP).getHoldingRegister(0, unitIdNumber, cb)
+      expect(cb).toHaveBeenCalledWith(
+        expect.objectContaining({ modbusErrorCode: GATEWAY_TARGET_FAILED }),
+        0
+      )
     })
 
     it('emits error when close fails', async () => {

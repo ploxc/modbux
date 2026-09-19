@@ -183,6 +183,42 @@ describe('a config written before the unit map was left empty', () => {
   })
 })
 
+describe('deleteServer', () => {
+  it('leaves nothing keyed by the uuid behind, the name included', async () => {
+    stubCreateServer(5020)
+    const { useServerZustand } = await import('../server.zustand')
+
+    await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
+    useServerZustand.getState().setName('the one being deleted')
+
+    await useServerZustand.getState().deleteServer(NEW_UUID)
+
+    const state = useServerZustand.getState()
+    const records = [
+      state.port,
+      state.unitId,
+      state.serverRegisters,
+      state.usedAddresses,
+      state.name,
+      state.littleEndian,
+      state.ready
+    ]
+    expect(records.filter((record) => NEW_UUID in record)).toEqual([])
+  })
+
+  it('sweeps a uuid whose server was never created', async () => {
+    const { useServerZustand } = await import('../server.zustand')
+
+    useServerZustand.getState().setSelectedUuid(NEW_UUID)
+    useServerZustand.getState().setName('never bound')
+    useServerZustand.getState().setSelectedUuid(MAIN_SERVER_UUID)
+
+    useServerZustand.getState().cleanOrphanedServerState()
+
+    expect(NEW_UUID in useServerZustand.getState().name).toBe(false)
+  })
+})
+
 describe('resetServer', () => {
   it('asks main and empties the store', async () => {
     const { useServerZustand } = await import('../server.zustand')

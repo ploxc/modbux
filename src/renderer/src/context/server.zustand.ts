@@ -92,22 +92,32 @@ export const useServerZustand = create<
           state.usedAddresses[uuid] = {}
         }),
       /**
-       * Remove all state entries for uuids that are not present in the uuids array.
-       * This prevents memory leaks and UI bugs from stale state.
+       * Drops every entry keyed by a uuid the store no longer lists.
+       *
+       * The key set is every record's own keys rather than `port`'s alone: a
+       * server whose `createServer` was refused has a name and no port, and
+       * `deleteServer` used to delete the port first, which took the uuid out
+       * of the one list this read. `name` is persisted, so what escaped stayed
+       * in the config file.
        */
       cleanOrphanedServerState: () => {
         set((state) => {
           const uuids = state.uuids
-          Object.keys(state.port).forEach((uuid) => {
-            if (!uuids.includes(uuid)) {
-              delete state.port[uuid]
-              delete state.unitId[uuid]
-              delete state.serverRegisters[uuid]
-              delete state.usedAddresses[uuid]
-              delete state.name[uuid]
-              delete state.littleEndian[uuid]
-            }
-          })
+          const keyed = [
+            state.port,
+            state.unitId,
+            state.serverRegisters,
+            state.usedAddresses,
+            state.name,
+            state.littleEndian,
+            state.ready
+          ]
+          const orphans = new Set(keyed.flatMap((record) => Object.keys(record)))
+
+          for (const uuid of orphans) {
+            if (uuids.includes(uuid)) continue
+            for (const record of keyed) delete record[uuid]
+          }
         })
       },
       createServer: async (params) => {
@@ -138,12 +148,11 @@ export const useServerZustand = create<
           // least that one and the selection lands on a server that is there.
           const [firstRemaining = MAIN_SERVER_UUID] = state.uuids
           if (state.selectedUuid === uuid) state.selectedUuid = firstRemaining
-          delete state.port[uuid]
-          delete state.unitId[uuid]
-          delete state.serverRegisters[uuid]
-          delete state.usedAddresses[uuid]
-          delete state.littleEndian[uuid]
         })
+        // What the uuid keeps is one list, and it is the orphan sweep's. This
+        // deleted five of the seven records itself and left `name` and `ready`
+        // to a sweep that reads `port` for its key set, which this had just
+        // taken the uuid out of.
         get().cleanOrphanedServerState()
       },
       resetServer: async (uuid) => {

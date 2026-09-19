@@ -333,6 +333,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the read stopped with `Attempt to access memory outside buffer bounds`
   rather than showing the registers that did come through. The trailing byte is
   dropped now.
+- **Deleting a server now releases its registers.** The button freed the value
+  generators and the listener and left every register of every unit ID behind,
+  so a session that added and deleted servers kept growing. It also said "No
+  server found" for a server that was never started, which is a server you can
+  delete like any other.
 - **A serial error Modbux does not recognise now names the port it came from.**
   The port was in front of the two messages Modbux writes itself and missing
   from the one that hands the driver's own text through, which is the message a

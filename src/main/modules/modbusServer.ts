@@ -432,7 +432,16 @@ export class ModbusServer {
   }
 
   /**
-   * Deletes a Modbus TCP server for the given UUID, cleaning up all resources.
+   * Deletes a server for the given UUID, releasing everything held under it.
+   *
+   * What the uuid holds goes first, whether or not a TCP listener was ever
+   * bound. `_serverData` holds every register array of every unit id under the
+   * uuid, and `resetServer` used to be the only place that deleted it, which
+   * the delete button does not go through.
+   *
+   * A uuid with no listener is silence rather than an error: a server whose
+   * bind was refused keeps `ready` false in the store and its Delete button,
+   * and it is still a server the user is deleting.
    */
   public deleteServer = async (uuid: string): Promise<void> => {
     // Clean up RTU server if this UUID is the RTU server
@@ -440,17 +449,15 @@ export class ModbusServer {
       await this.stopRtuServer()
     }
 
-    if (!this._servers.has(uuid)) {
-      this._emitMessage({ message: `No server found for UUID ${uuid}`, variant: 'error' })
-      return
-    }
-    await this._closeAndForget(uuid)
     const unitIdGenerators = this._generatorMap.get(uuid)
     if (unitIdGenerators) {
       this._disposeAllGenerators(unitIdGenerators)
     }
     this._generatorMap.delete(uuid)
+    this._serverData.delete(uuid)
     this._littleEndian.delete(uuid)
+
+    await this._closeAndForget(uuid)
   }
 
   /**
