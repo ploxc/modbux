@@ -271,7 +271,7 @@ export class ModbusClient {
    * The three loops asked nobody and claimed the client by setting their own
    * flag, so a poll started during a write put a second request on the wire
    * under it. On RTU both file under transaction key 1, where the write's
-   * `_logTransaction` deletes the entry the read is waiting on and that read
+   * `TransactionLog.log` deletes the entry the read is waiting on and that read
    * times out. A control being greyed is not this guard: both windows load the
    * same renderer and every channel reaches here, so the refusal is main's.
    */
@@ -619,7 +619,7 @@ export class ModbusClient {
     const groups = configGroups.length > 0 ? configGroups : [toolbarGroup]
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
-      // Per group: `_logTransaction` below runs whether the group threw or not,
+      // Per group: `TransactionLog.log` below runs whether the group threw or not,
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
       const transactionIdKey = this._transactionLog.nextTransactionIdKey()
@@ -690,25 +690,6 @@ export class ModbusClient {
   //
   //
   //
-  // Log Transaction
-  //
-  // Everything here is read out of modbus-serial's internals, so it is worth
-  // writing down what those actually guarantee.
-  //
-  // A transaction is created by the writeFCx methods and never removed again:
-  // the library only ever assigns _transactions in its constructor. Removing
-  // them is ours to do, or a session grows one entry per request.
-  //
-  // request and responses are stashed only while debug mode is on, and only
-  // by the write that reaches the port, so a transaction can carry neither.
-  // The library checks for them before using them, and so does
-  // `_logTransaction`: a transaction carrying neither would otherwise crash the
-  // handler the scan that met it runs in.
-  //
-  //
-  //
-  //
-  //
   // Polling
   /**
    * Start a poll chain, unless one is already running.
@@ -742,7 +723,7 @@ export class ModbusClient {
    * not on the generation. So a scan that stopped a poll put its own requests
    * on the client while the poll's last read was still on the wire, and on a
    * serial port both file under transaction key 1, where the scan's
-   * `_logTransaction` deletes the entry that read is waiting on. That is the
+   * `TransactionLog.log` deletes the entry that read is waiting on. That is the
    * collision `_requireClient` exists to prevent, reached through the one
    * owner a scan does not refuse.
    *

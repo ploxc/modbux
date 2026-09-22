@@ -74,7 +74,7 @@ export const TransactionSchema = z.object({
    * The data address the request asked for, and undefined where it cannot be
    * read.
    *
-   * `_requestedAddress` takes it off bytes 2 and 3 of the request frame, which
+   * `requestedAddress` takes it off bytes 2 and 3 of the request frame, which
    * every function code Modbux sends puts it at, and falls back on
    * `nextDataAddress`, which modbus-serial files for three of them. Both are
    * gone only for a frame that never went out, and `columns.tsx` binds
@@ -294,7 +294,7 @@ export interface RawTransaction {
    * `writeFC4` at index.js:880 and `writeFC6` at 983 set it, and `writeFC1`
    * delegates to `writeFC2` and `writeFC3` to `writeFC4`, so FC3, FC4 and FC6
    * carry one and FC1, FC2, FC5, FC15 and FC16 do not. This said `number` and
-   * `_logTransaction` read it, so the Addr cell was blank for every coil read,
+   * the transaction log read it, so the Addr cell was blank for every coil read,
    * every discrete input read and every write Modbux sends.
    */
   nextDataAddress?: number

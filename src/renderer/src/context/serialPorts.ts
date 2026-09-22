@@ -11,7 +11,7 @@ export interface SerialPortsSlice {
  *
  * Both stores hold one of these, and both refresh buttons are disabled while
  * the flag is set, so a flag left true is a button that never comes back.
- * `listSerialPorts` in `modbusClient` catches its own failures and answers
+ * `listSerialPorts` in `modbusClient/serialPorts.ts` catches its own failures and answers
  * `[]`, so today only a change in main reaches the `finally`.
  */
 export const loadSerialPorts = async <State extends SerialPortsSlice>(

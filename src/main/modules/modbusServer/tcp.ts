@@ -11,9 +11,9 @@ const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 &&
 /**
  * How long a bind may take before the listener is treated as failed.
  *
- * `listen` answers with one of its two events, so nobody sits through this. It
- * is here because a promise that neither event resolves would hang
- * `create` and every caller behind it.
+ * `ServerTCP` answers a bind with `initialized` or `serverError`, so nobody
+ * sits through this. It is here because a promise that neither event resolves
+ * would hang `create` and every caller behind it.
  */
 export const BIND_TIMEOUT_MS = 5000
 
