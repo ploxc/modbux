@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Undo and redo.** Cmd+Z or Ctrl+Z undoes the last change to the view you
+  are on, and Cmd+Shift+Z, Ctrl+Shift+Z or Ctrl+Y redoes it. On the client that
+  is the connection and register settings and the mapping, with a Load or a
+  Clear Config as one step. On the server it is the registers and coils you
+  add, edit, remove or switch, a server's name, port and byte order, and a
+  server you create, delete, clear or open. An undo shows you what it changes,
+  and the server's steps go with the server view into its own window and back.
+  A connection setting waits until you disconnect, and Modbux says so, as it
+  does when there is nothing left to undo. In a text field the keys undo your
+  typing, as before. Each view keeps its last 100 steps until Modbux closes.
+
 ### Fixed
 
 - **A scan no longer stalls the window on a large configuration.** Every step a
@@ -412,6 +425,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first then came up with no port at all: a blank button in the row at the top,
   answering nothing, with its registers still there behind it. Each one now
   opens on the first free port instead.
+- **Cmd+Z or Ctrl+Z in the host field now undoes what you typed.** It did
+  nothing there, where the unit ID field beside it undoes a typed run in one
+  step.
 
 ### Changed
 
