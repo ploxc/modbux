@@ -1,20 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
-import {
-  BaseDataType,
-  DataType,
-  getAddressFitError,
-  NumberRegisters,
-  registerWidth,
-  ServerRegister,
-  UnitIdString
-} from '@shared'
+import { BaseDataType, DataType, NumberRegisters, registerWidth, ServerRegister } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import {
+  addressValidation,
   FIELD_DEFAULTS,
-  isAddressInUse,
   RegisterFormSnapshot,
   toFormSnapshot,
   toRegisterParams,
@@ -22,93 +14,34 @@ import {
   utf8RegisterLength
 } from './addRegister.zustand.helpers'
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-type GetAddressInUseFn = (
-  uuid: string,
-  unitId: UnitIdString,
-  registerType: NumberRegisters,
-  dataType: DataType,
-  address: number,
-  length?: number
-) => boolean
-
-const getAddressInUse: GetAddressInUseFn = (
-  uuid,
-  unitId,
-  registerType,
-  dataType,
-  address,
-  length
-) => {
-  const editRegister = useAddRegisterZustand.getState().serverRegisterEdit
-  const usedAddresses = registerType
-    ? (useServerZustand.getState().usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
-    : []
-
-  return isAddressInUse(
-    usedAddresses,
-    dataType,
-    address,
-    length,
-    editRegister
-      ? {
-          dataType: editRegister.params.dataType,
-          address: editRegister.params.address,
-          length: editRegister.params.length
-        }
-      : undefined
-  )
-}
-
 // ─── Address validation ──────────────────────────────────────────────────────
 
-interface AddressValidationResult {
-  addressInUse: boolean
-  addressFitError: boolean
-  /** Whether the address field itself should be marked valid */
-  addressValid: boolean
-  /** Whether the registerLength field should be marked valid (only relevant for utf8) */
-  registerLengthValid: boolean
-}
-
 /**
- * Derives the full address + registerLength validity from raw field strings.
- * Each field is only responsible for its own errors — a bad registerLength
- * never makes the address red and vice versa.
+ * What the dialog's address rule needs of the two stores, read where it runs.
+ *
+ * `addressValidation` takes the used addresses and the register being edited
+ * as arguments, so this is the one place either is looked up.
  */
 const validateAddress = (
   address: string,
   dataType: DataType,
   registerType: NumberRegisters | undefined,
   registerLength: string
-): AddressValidationResult => {
-  const registerLengthValid = dataType !== 'utf8' || registerLength.length > 0
-
-  if (!registerType) {
-    return {
-      addressInUse: false,
-      addressFitError: false,
-      addressValid: address.length > 0,
-      registerLengthValid
-    }
-  }
-
+): ReturnType<typeof addressValidation> => {
   const serverZustand = useServerZustand.getState()
   const uuid = serverZustand.selectedUuid
   const unitId = serverZustand.getUnitId(uuid)
-  const addressNum = Number(address)
-  const length = dataType === 'utf8' ? utf8RegisterLength(registerLength) : undefined
 
-  const addressInUse = getAddressInUse(uuid, unitId, registerType, dataType, addressNum, length)
-  const addressFitError = getAddressFitError(dataType, addressNum, length)
-
-  return {
-    addressInUse,
-    addressFitError,
-    addressValid: address.length > 0 && !addressInUse && !addressFitError,
-    registerLengthValid
-  }
+  return addressValidation({
+    address,
+    dataType,
+    registerType,
+    registerLength,
+    usedAddresses: registerType
+      ? (serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
+      : [],
+    editRegister: useAddRegisterZustand.getState().serverRegisterEdit?.params
+  })
 }
 
 // ─── Store types ─────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { DEFAULT_UTF8_LENGTH, registerWidth } from '@shared'
 import {
+  addressValidation,
   FIELD_DEFAULTS,
   isAddressInUse,
   isFormDirty,
@@ -291,5 +292,68 @@ describe('utf8MaxBytes', () => {
 describe('FIELD_DEFAULTS', () => {
   it('holds the length field as the text the default width prints as', () => {
     expect(FIELD_DEFAULTS.registerLength).toBe(String(DEFAULT_UTF8_LENGTH))
+  })
+})
+
+// ─── addressValidation ──────────────────────────────────────────────
+
+describe('addressValidation', () => {
+  const validate = (
+    overrides: Partial<Parameters<typeof addressValidation>[0]> = {}
+  ): ReturnType<typeof addressValidation> =>
+    addressValidation({
+      address: '10',
+      dataType: 'uint16',
+      registerType: 'holding_registers',
+      registerLength: '',
+      usedAddresses: [],
+      editRegister: undefined,
+      ...overrides
+    })
+
+  it('marks an empty registerLength on a utf8 register invalid', () => {
+    const result = validate({ dataType: 'utf8', registerLength: '' })
+    expect(result.registerLengthValid).toBe(false)
+  })
+
+  it('leaves the address valid when the registerLength is the invalid one', () => {
+    const result = validate({ dataType: 'utf8', registerLength: '' })
+    expect(result.registerLengthValid).toBe(false)
+    expect(result.addressValid).toBe(true)
+  })
+
+  it('leaves the registerLength valid when the address is the invalid one', () => {
+    const result = validate({ address: '', dataType: 'uint16' })
+    expect(result.addressValid).toBe(false)
+    expect(result.registerLengthValid).toBe(true)
+  })
+
+  it('reddens the address for one already in use', () => {
+    const result = validate({ address: '10', usedAddresses: [10] })
+    expect(result.addressInUse).toBe(true)
+    expect(result.addressValid).toBe(false)
+  })
+
+  it('leaves the register being edited out of the addresses in use', () => {
+    const result = validate({
+      address: '10',
+      usedAddresses: [10],
+      editRegister: { dataType: 'uint16', address: 10 }
+    })
+    expect(result.addressInUse).toBe(false)
+    expect(result.addressValid).toBe(true)
+  })
+
+  it('reddens an address whose register runs past 65535', () => {
+    const result = validate({ address: '65535', dataType: 'uint32' })
+    expect(result.addressFitError).toBe(true)
+    expect(result.addressValid).toBe(false)
+  })
+
+  it('answers on the field alone while no register type is chosen', () => {
+    const result = validate({ registerType: undefined, address: '65535', usedAddresses: [65535] })
+    expect(result.addressInUse).toBe(false)
+    expect(result.addressFitError).toBe(false)
+    expect(result.addressValid).toBe(true)
   })
 })

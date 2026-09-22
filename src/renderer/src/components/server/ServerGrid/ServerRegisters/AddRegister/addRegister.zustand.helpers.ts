@@ -2,6 +2,7 @@ import {
   BaseDataType,
   DataType,
   DEFAULT_UTF8_LENGTH,
+  getAddressFitError,
   getMinMaxValues,
   NumberRegisters,
   RegisterParams,
@@ -61,6 +62,66 @@ export const isAddressInUse = (
   }
 
   return addressesNeeded.some((a) => usedAddresses.includes(Number(a)))
+}
+
+interface AddressValidationResult {
+  addressInUse: boolean
+  addressFitError: boolean
+  /** Whether the address field itself should be marked valid */
+  addressValid: boolean
+  /** Whether the registerLength field should be marked valid (only relevant for utf8) */
+  registerLengthValid: boolean
+}
+
+/** The span of the register being edited, which its own address may overlap. */
+type EditRegisterSpan = { dataType: DataType; address: number; length?: number }
+
+/**
+ * Derives the full address + registerLength validity from raw field strings.
+ * Each field is only responsible for its own errors: a bad registerLength
+ * never makes the address red and vice versa.
+ *
+ * The two store reads stay at the call site, so what decides the answer is
+ * every argument here and nothing else.
+ */
+export const addressValidation = ({
+  address,
+  dataType,
+  registerType,
+  registerLength,
+  usedAddresses,
+  editRegister
+}: {
+  address: string
+  dataType: DataType
+  registerType: NumberRegisters | undefined
+  registerLength: string
+  usedAddresses: number[]
+  editRegister: EditRegisterSpan | undefined
+}): AddressValidationResult => {
+  const registerLengthValid = dataType !== 'utf8' || registerLength.length > 0
+
+  if (!registerType) {
+    return {
+      addressInUse: false,
+      addressFitError: false,
+      addressValid: address.length > 0,
+      registerLengthValid
+    }
+  }
+
+  const addressNumber = Number(address)
+  const length = dataType === 'utf8' ? utf8RegisterLength(registerLength) : undefined
+
+  const addressInUse = isAddressInUse(usedAddresses, dataType, addressNumber, length, editRegister)
+  const addressFitError = getAddressFitError(dataType, addressNumber, length)
+
+  return {
+    addressInUse,
+    addressFitError,
+    addressValid: address.length > 0 && !addressInUse && !addressFitError,
+    registerLengthValid
+  }
 }
 
 /** What the add-register dialog holds, before any of it means anything. */
