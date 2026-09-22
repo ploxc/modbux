@@ -2,16 +2,22 @@ import {
   checkHasConfig,
   DEFAULT_MODBUS_PORT,
   defaultSerialPortOptions,
+  EncodableDataType,
   findAvailablePort,
   getUsedAddresses,
+  holdsExact64Bits,
   MAIN_SERVER_UUID,
   PortSchema,
   RegisterParams,
+  registerWidth,
   SerialPortOptions,
   ServerRegisters,
+  ServerRegisterValue,
   ServerSerialConfig,
+  toExact64Bits,
   UnitIdString
 } from '@shared'
+import { round } from 'lodash'
 import {
   DefinedServerRegisters,
   ServerSet,
@@ -296,4 +302,132 @@ export class ServerDelayedSetter<T, P> {
   public getValue(cacheKey: string): T | undefined {
     return this._pending.get(cacheKey)
   }
+}
+
+/**
+ * One word written over a stored composite, and the value that leaves.
+ *
+ * The inverse of `createRegisters`: that one lays a value out over its
+ * registers, this one reads a value back out after one of those registers has
+ * been overwritten. It knows nothing about uuids, units or batching, which is
+ * `applyRegisterValue`'s half.
+ *
+ * `undefined` is "the entry holds no composite", which aborts rather than
+ * merging the word into a composite of zero: the other three registers are
+ * what zero would cost.
+ */
+export const foldWordIntoComposite = ({
+  currentValue,
+  dataType,
+  littleEndian,
+  offsetRegisters,
+  word
+}: {
+  currentValue: ServerRegisterValue | bigint
+  dataType: EncodableDataType
+  littleEndian: boolean
+  offsetRegisters: number
+  word: number
+}): { composite: number | bigint; value: ServerRegisterValue } | undefined => {
+  const byteLength = registerWidth(dataType) * 2
+  const view = new DataView(new ArrayBuffer(byteLength))
+
+  // Neither switch is wrapped in a `try`: nothing below throws for any value an
+  // entry can hold. Measured over nineteen stored values, among them 1.5, NaN,
+  // both infinities, `'abc'`, a 32 digit decimal string and `2n ** 70n`, all
+  // eight setters, the eight getters over a buffer of 0xFF, and seven
+  // `word`s through the one word overwrite: zero throws. A `DataView`
+  // converts what it is handed, and `setBigUint64` takes its argument modulo
+  // 2 ** 64 rather than refusing it.
+  //
+  // Both switches case all eleven types that reach here, so neither carries a
+  // `default`. `newComposite` is declared without a value, which is what makes
+  // a twelfth `EncodableDataType` a type error rather than a silent zero:
+  // adding `probe14` to `BaseDataTypeSchema` answered TS2454 three times.
+  switch (dataType) {
+    case 'int16':
+      view.setInt16(0, Number(currentValue) || 0, littleEndian)
+      break
+    case 'uint16':
+    case 'bitmap':
+      view.setUint16(0, Number(currentValue) || 0, littleEndian)
+      break
+    case 'int32':
+      view.setInt32(0, Number(currentValue) || 0, littleEndian)
+      break
+    case 'uint32':
+    case 'unix':
+      view.setUint32(0, Number(currentValue) || 0, littleEndian)
+      break
+    case 'float':
+      view.setFloat32(0, Number(currentValue) || 0, littleEndian)
+      break
+    // `undefined` is a stored value no composite can be read out of, which a
+    // hand-edited config reaches because `ServerRegisterEntrySchema` takes a
+    // fractional number for these types.
+    case 'int64': {
+      const composite = toExact64Bits(currentValue)
+      if (composite === undefined) return undefined
+      view.setBigInt64(0, composite, littleEndian)
+      break
+    }
+    case 'uint64':
+    case 'datetime': {
+      const composite = toExact64Bits(currentValue)
+      if (composite === undefined) return undefined
+      view.setBigUint64(0, composite, littleEndian)
+      break
+    }
+    case 'double':
+      view.setFloat64(0, Number(currentValue) || 0, littleEndian)
+      break
+  }
+
+  // Overwrite just the one 16-bit register that the client wrote
+  view.setUint16(offsetRegisters * 2, word, littleEndian)
+
+  let newComposite: number | bigint
+  switch (dataType) {
+    case 'int16':
+      newComposite = view.getInt16(0, littleEndian)
+      break
+    case 'uint16':
+    case 'bitmap':
+      newComposite = view.getUint16(0, littleEndian)
+      break
+    case 'int32':
+      newComposite = view.getInt32(0, littleEndian)
+      break
+    case 'uint32':
+    case 'unix':
+      newComposite = view.getUint32(0, littleEndian)
+      break
+    case 'float':
+      newComposite = view.getFloat32(0, littleEndian)
+      break
+    case 'int64':
+      newComposite = view.getBigInt64(0, littleEndian)
+      break
+    case 'uint64':
+    case 'datetime':
+      newComposite = view.getBigUint64(0, littleEndian)
+      break
+    case 'double':
+      newComposite = view.getFloat64(0, littleEndian)
+      break
+  }
+
+  // A decimal string where the composite fills 64 bits as an integer, because
+  // `Number` carries 53 of them: four words of 0xFFFF came out
+  // 18446744073709552000 rather than 18446744073709551615, and the next single
+  // word write read that back through `BigInt`, which `setBigUint64` took
+  // modulo 2 ** 64, leaving the entry holding the low word alone.
+  //
+  // The cache above the caller held the exact composite already, so the loss
+  // only showed after a flush cleared it and the fallback was the entry.
+  const value: ServerRegisterValue = holdsExact64Bits(dataType)
+    ? newComposite.toString()
+    : round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
+
+  return { composite: newComposite, value }
 }
