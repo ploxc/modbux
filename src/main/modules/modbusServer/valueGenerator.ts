@@ -93,10 +93,12 @@ export class ValueGenerator implements RegisterValueGenerator {
   public dispose = (): void => {
     clearInterval(this._intervalTimer)
 
+    // The words go rather than turn zero. A read answers 0 for an address with
+    // no entry, so the two are the same answer and only one of them is stored.
     const size = registerWidth(this._dataType, this._length)
 
     for (let i = 0; i < size; i++) {
-      this._serverData[this._registerType][this._address + i] = 0
+      this._serverData[this._registerType].delete(this._address + i)
     }
   }
 

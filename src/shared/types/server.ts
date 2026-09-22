@@ -92,7 +92,7 @@ export type RegisterValue<K extends RegisterType = RegisterType> = {
     unitId: UnitIdString
     registerType: P
     address: number
-    value: ServerData[P][number]
+    value: ServerDataValue<P>
   }
 }[K]
 
@@ -347,7 +347,30 @@ export const CreateServerParamsSchema = z.object({
 })
 export type CreateServerParams = z.infer<typeof CreateServerParamsSchema>
 
-export type ServerData = { [K in RegisterType]: K extends BooleanRegisters ? boolean[] : number[] }
+/** Which of the two values each register type holds. */
+type ServerDataValues = {
+  coils: boolean
+  discrete_inputs: boolean
+  input_registers: number
+  holding_registers: number
+}
+
+/** A bit for the two boolean register types, a word for the other two. */
+export type ServerDataValue<K extends RegisterType> = ServerDataValues[K]
+
+/**
+ * What one unit holds, per register type, keyed by address.
+ *
+ * A map rather than four arrays of 65536. A unit exists the first time a
+ * mutator names one, and the arrays cost 2.00 MB per unit id whether or not an
+ * address under them is used, measured over ten unit ids with `--expose-gc`.
+ *
+ * An address with no entry reads as the fallback the accessor carries, which is
+ * the zero and the false the arrays answered. The arrays also answered
+ * `undefined` past their last index, and that is the one thing a map cannot
+ * say, so `_get` tests the address against `MAX_REGISTER_ADDRESS` itself.
+ */
+export type ServerData = { [K in RegisterType]: Map<number, ServerDataValues[K]> }
 
 /**
  * What the server needs of a running generator, which is only the teardown.

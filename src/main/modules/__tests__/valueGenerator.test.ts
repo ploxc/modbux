@@ -6,11 +6,21 @@ import type { Windows } from '../../windows'
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
 const createServerData = (): ServerData => ({
-  coils: new Array(65536).fill(false),
-  discrete_inputs: new Array(65536).fill(false),
-  input_registers: new Array(65536).fill(0),
-  holding_registers: new Array(65536).fill(0)
+  coils: new Map(),
+  discrete_inputs: new Map(),
+  input_registers: new Map(),
+  holding_registers: new Map()
 })
+
+/**
+ * The word the server answers for an address, which is 0 where it holds none.
+ *
+ * `ModbusServer._get` reads the map the same way. A register that was removed
+ * and one that was never written are one answer, and that is the answer the
+ * arrays gave before the maps.
+ */
+const wordAt = (serverData: ServerData, address: number): number =>
+  serverData.holding_registers.get(address) ?? 0
 
 describe('ValueGenerator', () => {
   beforeEach(() => {
@@ -41,7 +51,7 @@ describe('ValueGenerator', () => {
     })
 
     // With min === max === 100, the value should be 100
-    expect(serverData.holding_registers[0]).toBe(100)
+    expect(wordAt(serverData, 0)).toBe(100)
     expect(windows.send).toHaveBeenCalledWith(
       'register_value',
       expect.objectContaining({
@@ -110,8 +120,8 @@ describe('ValueGenerator', () => {
 
     // int32 takes 2 registers
     // 70000 = 0x00011170 → [1, 4464]
-    expect(serverData.holding_registers[0]).toBe(1)
-    expect(serverData.holding_registers[1]).toBe(4464)
+    expect(wordAt(serverData, 0)).toBe(1)
+    expect(wordAt(serverData, 1)).toBe(4464)
 
     // Should have sent 2 register_value events (one per register)
     expect(windows.send).toHaveBeenCalledTimes(2)
@@ -166,7 +176,7 @@ describe('ValueGenerator', () => {
     })
 
     // Math.random() = 0.5 → round(0.5 * (100 - 0) + 0, 0) = 50
-    expect(serverData.holding_registers[0]).toBe(50)
+    expect(wordAt(serverData, 0)).toBe(50)
 
     gen.dispose()
     vi.spyOn(Math, 'random').mockRestore()
@@ -197,9 +207,9 @@ describe('ValueGenerator', () => {
     // float 33.33 is written as 2 registers
     // Verify the value by reading it back from the registers
     const buf = Buffer.alloc(4)
-    serverData.holding_registers
-      .slice(0, 2)
-      .forEach((register, i) => buf.writeUInt16BE(register, i * 2))
+    ;[wordAt(serverData, 0), wordAt(serverData, 1)].forEach((register, i) =>
+      buf.writeUInt16BE(register, i * 2)
+    )
     const readBack = buf.readFloatBE(0)
     expect(readBack).toBeCloseTo(33.33, 1)
 
@@ -255,9 +265,9 @@ describe('ValueGenerator', () => {
         comment: ''
       })
 
-      expect(serverData.holding_registers[5]).toBe(100)
+      expect(wordAt(serverData, 5)).toBe(100)
       gen.dispose()
-      expect(serverData.holding_registers[5]).toBe(0)
+      expect(wordAt(serverData, 5)).toBe(0)
     })
 
     it('resets 2 registers for 32-bit types', () => {
@@ -279,12 +289,12 @@ describe('ValueGenerator', () => {
         comment: ''
       })
 
-      expect(serverData.holding_registers[10]).not.toBe(0)
-      expect(serverData.holding_registers[11]).not.toBe(0)
+      expect(wordAt(serverData, 10)).not.toBe(0)
+      expect(wordAt(serverData, 11)).not.toBe(0)
 
       gen.dispose()
-      expect(serverData.holding_registers[10]).toBe(0)
-      expect(serverData.holding_registers[11]).toBe(0)
+      expect(wordAt(serverData, 10)).toBe(0)
+      expect(wordAt(serverData, 11)).toBe(0)
     })
 
     it('resets 4 registers for 64-bit types', () => {
@@ -307,10 +317,10 @@ describe('ValueGenerator', () => {
       })
 
       gen.dispose()
-      expect(serverData.holding_registers[20]).toBe(0)
-      expect(serverData.holding_registers[21]).toBe(0)
-      expect(serverData.holding_registers[22]).toBe(0)
-      expect(serverData.holding_registers[23]).toBe(0)
+      expect(wordAt(serverData, 20)).toBe(0)
+      expect(wordAt(serverData, 21)).toBe(0)
+      expect(wordAt(serverData, 22)).toBe(0)
+      expect(wordAt(serverData, 23)).toBe(0)
     })
   })
 

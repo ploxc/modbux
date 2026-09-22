@@ -65,7 +65,7 @@ export const writeRegisters = ({
 }): void => {
   registers.forEach((register, index) => {
     const registerAddress = address + index
-    serverData[registerType][registerAddress] = register
+    serverData[registerType].set(registerAddress, register)
     windows.send(
       'register_value',
       { uuid, unitId, registerType, address: registerAddress, value: register },

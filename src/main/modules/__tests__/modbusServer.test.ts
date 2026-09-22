@@ -2199,6 +2199,54 @@ describe('ModbusServer', () => {
       })
     })
 
+    /**
+     * The four maps hold what was written and nothing else, so an address
+     * inside the range is either an entry or the accessor's fallback. The
+     * arrays these replaced held 65536 entries and answered the same two
+     * values, which is what keeps this a refactor.
+     */
+    describe('an address inside the range with nothing in it', () => {
+      it('answers false for a coil the unit never wrote', () => {
+        server.setBool({ uuid, unitId, registerType: 'coils', address: 0, state: true })
+        const cb = vi.fn()
+        vector.getCoil(9, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, false)
+      })
+
+      it('answers 0 for a holding register the unit never wrote', () => {
+        hostUnit()
+        const cb = vi.fn()
+        vector.getHoldingRegister(9, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, 0)
+      })
+
+      it('answers 0 for an input register the unit never wrote', () => {
+        hostUnit()
+        const cb = vi.fn()
+        vector.getInputRegister(9, 1, cb)
+        expect(cb).toHaveBeenCalledWith(null, 0)
+      })
+
+      it('answers 0 where a register was removed', () => {
+        hostUnit()
+        const before = vi.fn()
+        vector.getHoldingRegister(100, 1, before)
+        expect(before).toHaveBeenCalledWith(null, 1)
+
+        server.removeRegister({
+          uuid,
+          unitId,
+          registerType: 'holding_registers',
+          address: 100,
+          dataType: 'uint16'
+        })
+
+        const after = vi.fn()
+        vector.getHoldingRegister(100, 1, after)
+        expect(after).toHaveBeenCalledWith(null, 0)
+      })
+    })
+
     describe('getDiscreteInput', () => {
       it('returns discrete input value', () => {
         server.setBool({ uuid, unitId, registerType: 'discrete_inputs', address: 3, state: true })

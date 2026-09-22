@@ -7,6 +7,7 @@ import {
   ResetBoolsParams,
   CreateServerParams,
   ServerData,
+  ServerDataValue,
   ValueGenerators,
   AddRegisterParams,
   UnitIdString,
@@ -23,7 +24,7 @@ import { Windows } from '../windows'
 import { ValueGenerator } from './modbusServer/valueGenerator'
 import { encodeRegisters, writeRegisters } from './modbusServer/registers'
 import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
-import { registerWidth } from '@shared'
+import { MAX_REGISTER_ADDRESS, registerWidth } from '@shared'
 import net from 'net'
 
 const getDefaultGenerators = (): ValueGenerators => ({
@@ -31,17 +32,23 @@ const getDefaultGenerators = (): ValueGenerators => ({
   holding_registers: new Map()
 })
 
-const getDefaultServerData = (): {
-  coils: boolean[]
-  discrete_inputs: boolean[]
-  input_registers: number[]
-  holding_registers: number[]
-} => ({
-  coils: new Array(65536).fill(false),
-  discrete_inputs: new Array(65536).fill(false),
-  input_registers: new Array(65536).fill(0),
-  holding_registers: new Array(65536).fill(0)
+const getDefaultServerData = (): ServerData => ({
+  coils: new Map(),
+  discrete_inputs: new Map(),
+  input_registers: new Map(),
+  holding_registers: new Map()
 })
+
+/**
+ * Keeps the addresses the array holds true and drops the rest.
+ *
+ * `syncBools` is the caller, and it replaces what the unit held rather than
+ * adding to it.
+ */
+const setBoolsFromArray = (bools: Map<number, boolean>, states: boolean[]): void => {
+  bools.clear()
+  for (const [address, state] of states.entries()) if (state) bools.set(address, state)
+}
 
 /**
  * The three Modbus exception codes this server sends.
@@ -637,7 +644,7 @@ export class ModbusServer {
     // `ValueGenerator` writes its first value from its own constructor, so this
     // reads what it just put there rather than answering nothing for a minute.
     const width = registerWidth(dataType, length)
-    return serverData[registerType].slice(address, address + width)
+    return Array.from({ length: width }, (_, i) => serverData[registerType].get(address + i) ?? 0)
   }
 
   /**
@@ -655,9 +662,11 @@ export class ModbusServer {
     const serverData = this._unitData(uuid, unitId)
 
     // Reset all registers occupied by this data type
+    // The words go rather than turn zero. A read answers 0 for an address with
+    // no entry, so the two are the same answer and only one of them is paid for.
     const registerCount = registerWidth(dataType, length)
     for (let i = 0; i < registerCount; i++) {
-      serverData[registerType][address + i] = 0
+      serverData[registerType].delete(address + i)
     }
 
     const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
@@ -709,7 +718,7 @@ export class ModbusServer {
     }
 
     const serverData = this._unitData(uuid, unitId)
-    serverData[registerType] = new Array(65536).fill(0)
+    serverData[registerType].clear()
     this._setServerData(uuid, unitId, serverData)
   }
 
@@ -719,7 +728,7 @@ export class ModbusServer {
    */
   public setBool = ({ uuid, unitId, registerType, address, state }: SetBooleanParameters): void => {
     const serverData = this._unitData(uuid, unitId)
-    serverData[registerType][address] = state
+    serverData[registerType].set(address, state)
     this._setServerData(uuid, unitId, serverData)
     this._windows.send(
       'register_value',
@@ -733,7 +742,7 @@ export class ModbusServer {
    */
   public resetBools = ({ uuid, unitId, registerType }: ResetBoolsParams): void => {
     const serverData = this._unitData(uuid, unitId)
-    serverData[registerType] = new Array(65536).fill(false)
+    serverData[registerType].clear()
     this._setServerData(uuid, unitId, serverData)
   }
 
@@ -743,10 +752,11 @@ export class ModbusServer {
   public syncBools = (params: SyncBoolsParameters): void => {
     const { uuid, unitId } = params
     const serverData = this._unitData(uuid, unitId)
-    params['coils'].forEach((value, index) => (serverData['coils'][index] = value))
-    params['discrete_inputs'].forEach((value, index) => {
-      serverData['discrete_inputs'][index] = value
-    })
+    // The renderer sends both arrays whole, 65536 entries of which the ones it
+    // holds are true. Only those are kept: a false is what an address with no
+    // entry already reads as.
+    setBoolsFromArray(serverData['coils'], params['coils'])
+    setBoolsFromArray(serverData['discrete_inputs'], params['discrete_inputs'])
     this._setServerData(uuid, unitId, serverData)
   }
 
@@ -961,12 +971,12 @@ export class ModbusServer {
    * here is answered exception 4. An `async` accessor throws into a rejection
    * nothing holds, and the client waits out its timeout instead.
    */
-  private _get: <K extends keyof ServerData>(
+  private _get: <K extends RegisterType>(
     registerType: K,
     uuid: string,
     transport: ServerTransport,
-    fallback: ServerData[K][number]
-  ) => IServiceVectorGet<ServerData[K][number]> =
+    fallback: ServerDataValue<K>
+  ) => IServiceVectorGet<ServerDataValue<K>> =
     (registerType, uuid, transport, fallback) => (address, unitIdNumber, cb) => {
       const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, fallback)
@@ -974,10 +984,17 @@ export class ModbusServer {
       if (this._isBroadcast(transport, unitId.data)) return
       if (!this._hostsUnit(uuid, unitId.data)) return this._refuseUnit(transport, cb, fallback)
 
-      const value = this._serverData.get(uuid)?.get(unitId.data)?.[registerType][address]
-      if (value === undefined) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, fallback)
+      // A multi-word read at the top of the range asks for addresses the
+      // protocol cannot express. The arrays answered `undefined` past their
+      // last index and a map answers it for every address it has no entry for,
+      // so the range is asked here and the entry only after.
+      if (address > MAX_REGISTER_ADDRESS) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, fallback)
 
-      cb(null, value)
+      const value = this._serverData.get(uuid)?.get(unitId.data)?.[registerType].get(address)
+
+      // An address inside the range with no entry is a register nobody
+      // configured, and the arrays answered 0 or false for it.
+      cb(null, value ?? fallback)
     }
 
   /**
@@ -988,11 +1005,11 @@ export class ModbusServer {
     uuid: string,
     unitId: UnitIdString,
     address: number,
-    value: ServerData[K][number]
+    value: ServerDataValue<K>
   ): void {
     const serverData = this._serverData.get(uuid)?.get(unitId)
     if (!serverData) return
-    serverData[registerType][address] = value
+    serverData[registerType].set(address, value)
 
     this._windows.send(
       'register_value',
@@ -1015,7 +1032,7 @@ export class ModbusServer {
     registerType: K,
     uuid: string,
     transport: ServerTransport
-  ) => IServiceVectorSet<ServerData[K][number]> =
+  ) => IServiceVectorSet<ServerDataValue<K>> =
     (registerType, uuid, transport) => (address, value, unitIdNumber, cb) => {
       const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
       if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
