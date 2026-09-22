@@ -7,16 +7,15 @@ import {
   ResetBoolsParams,
   CreateServerParams,
   AddRegisterParams,
-  StartRtuServerParams,
-  DataBits,
-  StopBits
+  StartRtuServerParams
 } from '@shared'
-import { ServerTCP, ServerSerial } from 'modbus-serial'
+import { ServerTCP } from 'modbus-serial'
 import { DEFAULT_MODBUS_PORT, ServerEndianness } from '@shared'
 import { Windows } from '../windows'
 import { emitServerMessage } from './modbusServer/messages'
 import { ServerRegistry } from './modbusServer/registry'
-import { BROADCAST_UNIT_ID, createVector } from './modbusServer/vector'
+import { RtuServer } from './modbusServer/rtu'
+import { createVector } from './modbusServer/vector'
 import net from 'net'
 
 const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 && port <= 65535
@@ -30,39 +29,6 @@ const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 &&
  */
 export const BIND_TIMEOUT_MS = 5000
 
-/**
- * The serial port under a `ServerSerial`, with the events this file listens for.
- *
- * `serverserial.js` opens a `SerialPort` into `_serverPath` and returns it from
- * `getPort()`. `ServerSerial.d.ts` declares neither, so reaching the port needs
- * a type written here.
- */
-interface RtuSerialPort {
-  on(event: 'error' | 'close', listener: (err?: Error) => void): void
-}
-
-interface ServerSerialWithPort extends ServerSerial {
-  getPort(): RtuSerialPort
-}
-
-/**
- * `ServerSerial`'s third constructor argument, which its typings leave out.
- *
- * `serverserial.js` builds its own option object out of `path`, `baudRate`,
- * `parity`, `debug`, `unitID` and `binding`, and assigns it over this one. So
- * these two reach `SerialPort` by no other route, and the options object the
- * typings do declare accepts them and drops them. Without them the binding
- * opens at its own defaults, `dataBits: 8` and `stopBits: 1`.
- */
-interface ServerSerialPortOptions {
-  dataBits: DataBits
-  stopBits: StopBits
-}
-
-type ServerSerialConstructor = new (
-  ...args: [...ConstructorParameters<typeof ServerSerial>, ServerSerialPortOptions]
-) => ServerSerial
-
 interface ServerParams {
   windows: Windows
 }
@@ -74,20 +40,18 @@ interface ServerParams {
 export class ModbusServer {
   private _port: Map<string, number> = new Map()
   private _servers: Map<string, ServerTCP> = new Map()
-  private _rtuServer: ServerSerial | null = null
-  private _rtuUuid: string | null = null
-  private _rtuActive: boolean = false
-
-  /** Whether the RTU server is running, for a window that has to ask. */
-  public get rtuActive(): boolean {
-    return this._rtuActive
-  }
-  private _rtuGeneration: number = 0
-  private _broadcastWarningSent: boolean = false
   private _windows: Windows
 
   /** What every server holds, keyed by uuid and then by unit id. */
   private _registry: ServerRegistry
+
+  /** The one RTU server, and the uuid whose registers it serves. */
+  private _rtu: RtuServer
+
+  /** Whether the RTU server is running, for a window that has to ask. */
+  public get rtuActive(): boolean {
+    return this._rtu.active
+  }
 
   /**
    * Construct a ModbusServer instance.
@@ -97,28 +61,9 @@ export class ModbusServer {
     this._windows = windows
     this._registry = new ServerRegistry({
       windows,
-      onUnitData: (uuid): void => this._warnBroadcastUnit(uuid)
+      onUnitData: (uuid): void => this._rtu.warnBroadcastUnit(uuid)
     })
-  }
-
-  /**
-   * Says once per RTU session that registers on unit 0 are unreachable.
-   *
-   * The renderer opens the port before it syncs registers, so on a fresh start
-   * the data arrives after `initialized` and on a config load it is already
-   * there. Hence the two call sites, and the flag that keeps them to one
-   * message.
-   */
-  private _warnBroadcastUnit(uuid: string): void {
-    if (!this._rtuActive || this._rtuUuid !== uuid) return
-    if (this._broadcastWarningSent) return
-    if (!this._registry.hostsUnit(uuid, BROADCAST_UNIT_ID)) return
-
-    this._broadcastWarningSent = true
-    this._emitMessage({
-      message: 'Unit 0 is the broadcast address on RTU. Its registers cannot be read.',
-      variant: 'warning'
-    })
+    this._rtu = new RtuServer({ windows, registry: this._registry })
   }
 
   private _emitMessage(params: Parameters<typeof emitServerMessage>[1]): void {
@@ -278,8 +223,8 @@ export class ModbusServer {
    */
   public deleteServer = async (uuid: string): Promise<void> => {
     // Clean up RTU server if this UUID is the RTU server
-    if (this._rtuUuid === uuid) {
-      await this.stopRtuServer()
+    if (this._rtu.uuid === uuid) {
+      await this._rtu.stop()
     }
 
     this._registry.deleteUuid(uuid)
@@ -334,144 +279,11 @@ export class ModbusServer {
   /** Replaces both bool maps of a unit with what the renderer holds. */
   public syncBools = (params: SyncBoolsParameters): void => this._registry.syncBools(params)
 
-  /**
-   * Reports the RTU server down: the message, and the status the view reads.
-   *
-   * A generation that is not the current one belongs to a server `startRtuServer`
-   * has already replaced, and that server says nothing. An open still in flight
-   * is what gets here: `stopRtuServer` cannot close a port that never opened,
-   * because `SerialPortStream.close` takes its `!isOpen` branch and answers
-   * "Port is not open", so the open outlives the server it was started for.
-   */
-  private _reportRtuDown(generation: number, message: string, error?: Error): void {
-    if (generation !== this._rtuGeneration) return
-    this._rtuActive = false
-    this._emitMessage({ message, variant: 'error', error })
-    this._windows.send('rtu_server_status', false, 'serverView')
-  }
+  /** Starts an RTU server on a serial port for the given UUID. */
+  public startRtuServer = (params: StartRtuServerParams): Promise<void> => this._rtu.start(params)
 
-  /**
-   * Starts an RTU server on a serial port for the given UUID.
-   * Closes any existing RTU server first.
-   */
-  public startRtuServer = async ({ uuid, serialConfig }: StartRtuServerParams): Promise<void> => {
-    if (!serialConfig.com.trim()) return
-    await this.stopRtuServer()
-    this._broadcastWarningSent = false
-    const generation = ++this._rtuGeneration
-
-    try {
-      // No unitID on purpose: passing one makes the library answer for that id
-      // alone. Its default of 255 means "listen to all addresses", and the
-      // vector filters, because only the vector knows which ids have data.
-      this._rtuServer = new (ServerSerial as ServerSerialConstructor)(
-        createVector(this._registry, uuid, 'rtu'),
-        {
-          path: serialConfig.com,
-          baudRate: Number(serialConfig.options.baudRate),
-          parity: serialConfig.options.parity ?? 'none',
-          // `@serialport/stream`'s `_error` hands a failed open to this callback
-          // when one is passed and emits `error` on the port when none is. The
-          // same callback carries the success, with null in place of an error.
-          openCallback: (err): void => {
-            if (err) this._reportRtuDown(generation, `RTU server error: ${err.message}`)
-          }
-        },
-        {
-          dataBits: serialConfig.options.dataBits,
-          stopBits: serialConfig.options.stopBits
-        }
-      )
-      this._rtuUuid = uuid
-
-      const serverPort = (this._rtuServer as ServerSerialWithPort).getPort()
-
-      // A write to a port that is gone fails in `_write`, which disconnects the
-      // stream and calls back with the error, and a Writable given an error
-      // emits it. A failed open arrives in `openCallback` instead.
-      serverPort.on('error', (err) => {
-        this._reportRtuDown(generation, `RTU server error: ${err?.message ?? err}`)
-      })
-
-      // `close` is the disconnect event. `@serialport/stream` documents it as
-      // "in the case of a disconnect it will be called with a Disconnect Error
-      // object", and its `_disconnected` answers a failed read with
-      // `close(undefined, new DisconnectedError(...))` while pushing nothing
-      // into the stream. So an adapter pulled between requests arrives here
-      // and nowhere else, and without this the view keeps showing a server
-      // whose port is gone.
-      serverPort.on('close', (err) => {
-        // A close this process caused is already reported. `stopRtuServer`
-        // clears `_rtuActive` before it closes the port, and the `error`
-        // listener above clears it for the write path, where one unplug emits
-        // both events. A replaced server is refused on its generation instead.
-        if (!this._rtuActive) return
-        this._reportRtuDown(generation, `RTU server disconnected from ${serialConfig.com}`, err)
-      })
-
-      this._rtuServer.on('initialized', () => {
-        // A server that has already been replaced does not get to say it is up.
-        if (generation !== this._rtuGeneration) return
-        this._rtuActive = true
-        this._emitMessage({
-          message: `RTU server started on ${serialConfig.com}`,
-          variant: 'success'
-        })
-        this._windows.send('rtu_server_status', true, 'serverView')
-        this._warnBroadcastUnit(uuid)
-      })
-
-      // `socketError`, not `error`. `serverserial.js` emits `error` only from
-      // `sockWriter`'s `if (err)`, and the only caller of `sockWriter` is
-      // `_callbackFactory`, which passes null on both of its branches: it has
-      // turned the error into an exception frame by then. `socketError` is what
-      // a failure of the pipe under the server emits.
-      this._rtuServer.on('socketError', (err) => {
-        this._reportRtuDown(generation, `RTU server error: ${err?.message ?? err}`)
-      })
-    } catch (err) {
-      this._emitMessage({
-        message: `Failed to start RTU server: ${(err as Error)?.message ?? err}`,
-        variant: 'error'
-      })
-    }
-  }
-
-  /**
-   * Stops the active RTU server if one is running.
-   */
-  public stopRtuServer = async (): Promise<void> => {
-    if (!this._rtuServer) return
-    const server = this._rtuServer
-    const wasActive = this._rtuActive
-    this._rtuServer = null
-    this._rtuUuid = null
-    this._rtuActive = false
-    this._rtuGeneration++
-    this._broadcastWarningSent = false
-    this._windows.send('rtu_server_status', false, 'serverView')
-    if (wasActive) {
-      this._emitMessage({ message: 'RTU server stopped', variant: 'warning' })
-    }
-    try {
-      await new Promise<void>((resolve, reject) => {
-        server.close((err) => {
-          if (err) reject(err)
-          else resolve()
-        })
-      })
-    } catch (err) {
-      const error = err as Error
-      // "Port is not open" is expected when the serial port never connected — ignore silently
-      if (error?.message?.includes('Port is not open')) return
-      console.error('Error closing RTU server:', error?.message, error?.stack)
-      this._emitMessage({
-        message: `Error closing RTU server: ${error?.message ?? err}`,
-        variant: 'error',
-        error
-      })
-    }
-  }
+  /** Stops the active RTU server if one is running. */
+  public stopRtuServer = (): Promise<void> => this._rtu.stop()
 
   /**
    * Stops all running TCP servers. Does NOT clear server data or generators
