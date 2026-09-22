@@ -27,6 +27,9 @@ import {
 import { showMapping, useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
+import { useUndoZustand } from './undo.zustand'
+import { clientFieldReaders, clientFieldSteps } from './undo.zustand.helpers'
+import { ClientField, ClientFieldValues } from './undo.zustand.types'
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -127,6 +130,22 @@ const isDisconnected = (): boolean =>
   useDataZustand.getState().clientState.connectState === 'disconnected'
 
 /**
+ * Records the value a field had, when a write left the store holding another.
+ *
+ * Called after the `set`, including where an invalid value is kept and never
+ * sent: clearing the host and typing a new one is one run, and the run starts
+ * from the host there was before the field was cleared.
+ */
+const recordField = <Field extends ClientField>(
+  field: Field,
+  before: ClientFieldValues[Field],
+  after: ClientFieldValues[Field]
+): void => {
+  if (before === after) return
+  useUndoZustand.getState().recordClient(clientFieldSteps[field](before))
+}
+
+/**
  * One serial option, sent and then written where main took it.
  *
  * `baudRate`, `parity`, `dataBits` and `stopBits` differ in nothing but the
@@ -142,12 +161,14 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
   if (!get().ready) return false
   if (!isDisconnected()) return false
 
+  const before = clientFieldReaders[key](get())
   if (!(await window.api.updateConnectionConfig({ rtu: { options: { [key]: value } } })))
     return false
 
   set((state) => {
     state.connectionConfig.rtu.options[key] = value
   })
+  recordField<keyof SerialPortOptions>(key, before, clientFieldReaders[key](get()))
   return true
 }
 
@@ -166,11 +187,13 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
   value: RegisterConfig[Key]
 ): Promise<boolean> => {
   if (!get().ready) return false
+  const before = get().registerConfig[key]
   if (!(await window.api.updateRegisterConfig({ [key]: value }))) return false
 
   set((state) => {
     state.registerConfig[key] = value
   })
+  recordField<keyof RegisterConfig>(key, before, value)
   return true
 }
 
@@ -222,10 +245,13 @@ export const useClientZustand = create<
       connectionConfig: defaultConnectionConfig,
       registerConfig: defaultRegisterConfig,
       name: '',
-      setName: (name) =>
+      setName: (name) => {
+        const before = get().name
         set((state) => {
           state.name = name
-        }),
+        })
+        recordField('name', before, name)
+      },
       configReset: undefined,
       acknowledgeConfigReset: () =>
         set((state) => {
@@ -234,6 +260,7 @@ export const useClientZustand = create<
       registerMapping: emptyRegisterMapping(),
       setRegisterMapping: (register, key, value) => {
         const type = get().registerConfig.type
+        const before = get().registerMapping[type][register]
 
         set((state) => {
           // Remove register from mapping when data type is set to 'none'
@@ -255,6 +282,18 @@ export const useClientZustand = create<
           state.registerMapping[type][register][key] = value
         })
 
+        if (get().registerMapping[type][register] !== before) {
+          useUndoZustand
+            .getState()
+            .recordClient({ kind: 'mapping', type, register, column: key, value: before })
+        }
+        syncRegisterMappingToMain()
+      },
+      setMappingEntry: (type, register, entry) => {
+        set((state) => {
+          if (entry === undefined) delete state.registerMapping[type][register]
+          else state.registerMapping[type][register] = entry
+        })
         syncRegisterMappingToMain()
       },
       replaceRegisterMapping: async (registerMapping) => {
@@ -310,11 +349,13 @@ export const useClientZustand = create<
         if (!get().ready) return false
         if (!isDisconnected()) return false
 
+        const before = get().connectionConfig.protocol
         if (!(await window.api.updateConnectionConfig({ protocol }))) return false
 
         set((state) => {
           state.connectionConfig.protocol = protocol
         })
+        recordField('protocol', before, protocol)
         return true
       },
       //
@@ -325,17 +366,21 @@ export const useClientZustand = create<
         if (!isDisconnected()) return false
 
         const newPort = Number(port)
+        const before = get().connectionConfig.tcp.options.port
         if (!(await window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })))
           return false
 
         set((state) => {
           state.connectionConfig.tcp.options.port = newPort
         })
+        recordField('port', before, newPort)
         return true
       },
       setHost: async (host, valid) => {
         if (!get().ready) return false
         if (!isDisconnected()) return false
+
+        const before = get().connectionConfig.tcp.host
 
         // The field reads its text from the store, so an invalid host is kept
         // here and never sent. What the boundary never sees needs no answer.
@@ -344,6 +389,7 @@ export const useClientZustand = create<
             state.valid.host = false
             state.connectionConfig.tcp.host = host
           })
+          recordField('host', before, host)
           return false
         }
 
@@ -353,6 +399,7 @@ export const useClientZustand = create<
           state.valid.host = true
           state.connectionConfig.tcp.host = host
         })
+        recordField('host', before, host)
         return true
       },
       //
@@ -366,11 +413,13 @@ export const useClientZustand = create<
         // kept here and never sent. `ConnectionConfigRtuSchema` types `com` as
         // a string and takes a blank one, so the boundary had nothing to refuse
         // and main held a connection config naming no port.
+        const before = get().connectionConfig.rtu.com
         if (!valid) {
           set((state) => {
             state.valid.com = false
             state.connectionConfig.rtu.com = com
           })
+          recordField('com', before, com)
           return false
         }
 
@@ -380,6 +429,7 @@ export const useClientZustand = create<
           state.valid.com = true
           state.connectionConfig.rtu.com = com
         })
+        recordField('com', before, com)
         return true
       },
       setBaudRate: (baudRate) => setSerialOption(set, get, 'baudRate', baudRate),
@@ -411,6 +461,7 @@ export const useClientZustand = create<
         set((state) => {
           state.connectionConfig.unitId = newUnitId
         })
+        recordField('unitId', currentState.connectionConfig.unitId, newUnitId)
         clearRegisterDataWhenIdle(true)
         return true
       },
@@ -426,6 +477,7 @@ export const useClientZustand = create<
         set((state) => {
           state.registerConfig.address = newAddress
         })
+        recordField('address', currentState.registerConfig.address, newAddress)
         clearRegisterDataWhenIdle(false)
         return true
       },
@@ -442,6 +494,7 @@ export const useClientZustand = create<
             state.valid.length = false
             state.registerConfig.length = newLength
           })
+          recordField('length', currentState.registerConfig.length, newLength)
           return false
         }
 
@@ -451,26 +504,31 @@ export const useClientZustand = create<
           state.valid.length = true
           state.registerConfig.length = newLength
         })
+        recordField('length', currentState.registerConfig.length, newLength)
         clearRegisterDataWhenIdle(false)
         return true
       },
       setType: async (type) => {
         if (!get().ready) return false
+        const before = get().registerConfig.type
         if (!(await window.api.updateRegisterConfig({ type }))) return false
 
         set((state) => {
           state.registerConfig.type = type
         })
+        recordField('type', before, type)
         clearRegisterDataWhenIdle(true)
         return true
       },
       setLittleEndian: async (littleEndian) => {
         if (!get().ready) return false
+        const before = get().registerConfig.littleEndian
         if (!(await window.api.updateRegisterConfig({ littleEndian }))) return false
 
         set((state) => {
           state.registerConfig.littleEndian = littleEndian
         })
+        recordField('littleEndian', before, littleEndian)
 
         // The rows on screen were read in the other word order, and the
         // conversion happens where the reading does, so they stay that way

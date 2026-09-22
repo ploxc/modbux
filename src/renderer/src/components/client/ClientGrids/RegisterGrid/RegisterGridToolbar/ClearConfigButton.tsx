@@ -9,6 +9,7 @@ import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { asOneClientStep } from '@renderer/context/clientUndo'
 import { RegisterMapping, RegisterMapValue, RegisterTypeSchema } from '@shared'
 import { useCallback, useState } from 'react'
 
@@ -38,8 +39,10 @@ const mappedRegisterCount = (registerMapping: RegisterMapping): number =>
 
 const clearConfiguration = (): void => {
   const clientZustand = useClientZustand.getState()
-  clientZustand.setName('')
-  void clientZustand.clearRegisterMapping()
+  void asOneClientStep(async () => {
+    clientZustand.setName('')
+    await clientZustand.clearRegisterMapping()
+  })
 }
 
 interface ConfirmProps {

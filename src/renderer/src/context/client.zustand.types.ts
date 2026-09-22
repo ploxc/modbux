@@ -41,6 +41,15 @@ export type ClientZustand = {
     key: K,
     value: V
   ) => void
+  /**
+   * Puts one register's entry back whole, or removes it, under the type named
+   * rather than the one on screen. What an undo of a mapping edit replays.
+   */
+  setMappingEntry: (
+    type: RegisterType,
+    register: number,
+    entry: RegisterMapValue | undefined
+  ) => void
   /** Answers once main has the mapping, because the store writes it after that. */
   replaceRegisterMapping: (registerMapping: RegisterMapping) => Promise<boolean>
   clearRegisterMapping: () => Promise<boolean>

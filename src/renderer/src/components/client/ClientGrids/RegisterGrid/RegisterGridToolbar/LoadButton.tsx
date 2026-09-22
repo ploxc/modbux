@@ -6,6 +6,7 @@ import { migrateClientConfig, resetMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
 import { showMapping } from '@renderer/context/data.zustand'
+import { asOneClientStep } from '@renderer/context/clientUndo'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 const LoadButton = meme((): JSX.Element => {
@@ -30,10 +31,12 @@ const LoadButton = meme((): JSX.Element => {
         const migrationResult = migrateClientConfig(content)
         const { config, migrated, futureVersion } = migrationResult
 
-        // Set name, endianness and register mapping
-        if (config.name) clientZustand.setName(config.name)
-        clientZustand.setLittleEndian(config.littleEndian)
-        await clientZustand.replaceRegisterMapping(config.registerMapping)
+        // Set name, endianness and register mapping, as one step to undo
+        await asOneClientStep(async () => {
+          if (config.name) clientZustand.setName(config.name)
+          await clientZustand.setLittleEndian(config.littleEndian)
+          await clientZustand.replaceRegisterMapping(config.registerMapping)
+        })
 
         // Show success notification
         if (migrated) {
