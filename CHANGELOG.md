@@ -442,6 +442,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the serial layer Modbux uses has no setting for them on those platforms. A
   saved configuration that carries one now comes back on none, with the com port
   and baud rate beside it kept.
+- **Modbux follows your system's setting to reduce motion.** With it on, a
+  button no longer ripples when you click it, dialogs, menus and tooltips appear
+  at once, and a busy spinner stands still.
 
 ## [2.3.0] - 2026-08-30
 

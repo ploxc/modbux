@@ -3,6 +3,7 @@ import '@mui/x-data-grid/themeAugmentation'
 import { createTheme } from '@mui/material/styles'
 
 const base = createTheme({
+  motion: { reducedMotion: 'system' },
   breakpoints: {
     values: {
       xs: 0,
