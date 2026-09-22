@@ -77,6 +77,21 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 const ConnectButton = meme(() => {
   const connectState = useClientZustand((z) => z.clientState.connectState)
 
+  /**
+   * Whether the field this protocol connects through holds something main was
+   * given.
+   *
+   * `setHost` and `setCom` keep a value the schema refuses in the store
+   * without sending it, so the field shows what was typed and main holds the
+   * value before it. Pressing Connect on a half typed host connected to the
+   * previous one and the app reported connected over a field saying otherwise.
+   * The field is already drawn in error, and this is the press that goes with
+   * it.
+   */
+  const addressValid = useClientZustand((z) =>
+    z.connectionConfig.protocol === 'ModbusRtu' ? z.valid.com : z.valid.host
+  )
+
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = useClientZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
@@ -98,7 +113,10 @@ const ConnectButton = meme(() => {
     }
   }, [])
 
-  const disabled = ['disconnecting'].includes(connectState)
+  // Only the press that connects. Disconnect and the cancel a connecting state
+  // draws go through this same button, and neither is refused for a field.
+  const disabled =
+    connectState === 'disconnecting' || (connectState === 'disconnected' && !addressValid)
 
   const color: ButtonProps['color'] = ['connecting', 'connected'].includes(connectState)
     ? 'warning'
