@@ -10,7 +10,7 @@ import { isNumberRegister, RegisterType } from './register'
  * part is not refused here. A TCP port is 16 bit too, and shares no meaning
  * with a register address beyond the width.
  *
- * `PortSchema` takes 0 while `modbusServer.isPort` refuses it, and that is two
+ * `PortSchema` takes 0 while `isPort` in `modbusServer/tcp.ts` refuses it, and that is two
  * questions rather than one rule written twice. 0 is the width's floor and the
  * value a store from before `createServer` checked still carries, which
  * `createServer` answers by starting on 502. `setPort` answers it with "A

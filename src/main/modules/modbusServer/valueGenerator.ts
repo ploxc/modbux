@@ -20,7 +20,7 @@ type ValueGeneratorParams = {
   windows: Windows
   serverData: ServerData
   littleEndian: boolean
-  // `modbusServer.addRegister` answers `none` before it gets here, because an
+  // `ServerRegistry.addRegister` answers `none` before it gets here, because an
   // address held open with nothing in it has nothing to generate.
   dataType: ValuedDataType
 } & RegisterParamsGeneratorPart &

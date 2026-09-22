@@ -13,10 +13,10 @@ import { Windows } from '../../windows'
  * The words a value encodes to, which is not the same question as how many.
  * `registerWidth` answers that one.
  *
- * Two writers reach it: `ModbusServer.addRegister` for a fixed register, and
+ * Two writers reach it: `ServerRegistry.addRegister` for a fixed register, and
  * `ValueGenerator` on every tick. One function rather than the pair of encoders
  * spelled out at each, because what two copies do with a throw drifts apart.
- * `ModbusServer._encode` is the `try` around it; the generator calls this bare
+ * `ServerRegistry._encode` is the `try` around it; the generator calls this bare
  * on purpose, and `addRegister`'s docblock says why.
  *
  * A string is written from its characters rather than from `value`, so `utf8`

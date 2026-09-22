@@ -15,7 +15,7 @@ const createServerData = (): ServerData => ({
 /**
  * The word the server answers for an address, which is 0 where it holds none.
  *
- * `ModbusServer._get` reads the map the same way. A register that was removed
+ * The vector's `get` reads the map the same way. A register that was removed
  * and one that was never written are one answer, and that is the answer the
  * arrays gave before the maps.
  */

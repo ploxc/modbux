@@ -48,12 +48,15 @@ export class ModbusServer {
    * @param windows - Windows IPC interface for backend/frontend communication.
    */
   constructor({ windows }: ServerParams) {
+    // The registry's callback names `_rtu`, so the RTU server is built before
+    // anything that could write a register. Nothing here does today, and the
+    // order is what keeps that from mattering.
     this._registry = new ServerRegistry({
       windows,
       onUnitData: (uuid): void => this._rtu.warnBroadcastUnit(uuid)
     })
-    this._tcp = new TcpServers({ windows, registry: this._registry })
     this._rtu = new RtuServer({ windows, registry: this._registry })
+    this._tcp = new TcpServers({ windows, registry: this._registry })
   }
 
   /** Binds a listener for a uuid, and answers the port it took. */

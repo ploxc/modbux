@@ -9,11 +9,11 @@ import { createVector } from './vector'
 const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 && port <= 65535
 
 /**
- * How long a bind is given to say whether it took.
+ * How long a bind may take before the listener is treated as failed.
  *
- * `ServerTCP` emits `initialized` or `serverError` and a bind that does
- * neither leaves the await unresolved, which would hang the invoke behind it.
- * Five seconds is a loopback listen, which is microseconds when it works.
+ * `listen` answers with one of its two events, so nobody sits through this. It
+ * is here because a promise that neither event resolves would hang
+ * `create` and every caller behind it.
  */
 export const BIND_TIMEOUT_MS = 5000
 

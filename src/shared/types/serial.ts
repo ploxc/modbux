@@ -27,7 +27,7 @@ export type Parity = z.infer<typeof ParitySchema>
 /**
  * The frame widths the selects offer and the binding is handed.
  *
- * `ModbusServer.startRtuServer` casts both to exactly these literals on the way
+ * `RtuServer.start` casts both to exactly these literals on the way
  * into `ServerSerialPortOptions`, and `bindings-cpp` merges its options into
  * defaults and hands them to the native binding with no check of its own on
  * either. Spelling the literals here is what lets those casts go.
