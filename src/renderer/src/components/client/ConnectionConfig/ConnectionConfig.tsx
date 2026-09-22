@@ -78,8 +78,7 @@ const ConnectButton = meme(() => {
   const connectState = useClientZustand((z) => z.clientState.connectState)
 
   /**
-   * Whether the field this protocol connects through holds something main was
-   * given.
+   * Whether the field this protocol connects through names somewhere.
    *
    * Not a schema's answer: `ConnectionConfigSchema` types both `host` and
    * `com` as a bare string and takes a blank one, which is why `setHost` and
@@ -90,10 +89,9 @@ const ConnectButton = meme(() => {
    * otherwise. The field is already drawn in error, and this is the press that
    * goes with it.
    *
-   * The flag is not persisted, so a launch after a blank COM port was typed
-   * finds it true again while `init` hands main the blank. `TODO.md` carries
-   * that as its own question, and it is answered where the launch is rather
-   * than here.
+   * The flag is not persisted, so `init` reads it back off the value. Main is
+   * handed that value either way, and a press here is what the blank has left
+   * to reach.
    */
   const addressValid = useClientZustand((z) =>
     z.connectionConfig.protocol === 'ModbusRtu' ? z.valid.com : z.valid.host

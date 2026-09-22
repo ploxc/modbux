@@ -16,12 +16,23 @@ beforeEach(() => {
 })
 
 /** A stored client config naming `host` over TCP and `com` over RTU. */
-const stored = (host: string, com: string): void => {
+const stored = (host: string, com: string, length = 10): void => {
   localStorage.setItem(
     'client.zustand',
     JSON.stringify({
       state: {
         name: 'bench',
+        registerConfig: {
+          address: 0,
+          length,
+          type: 'holding_registers',
+          pollRate: 1000,
+          timeout: 1000,
+          littleEndian: false,
+          addressBase: '0',
+          show64BitValues: false,
+          advancedMode: false
+        },
         connectionConfig: {
           protocol: 'ModbusRtu',
           unitId: 1,
@@ -64,6 +75,26 @@ describe('the validity of a connection address off disk', () => {
     expect(useClientZustand.getState().valid.com).toBe(true)
   })
 
+  // The read length carries the same kind of flag, over a value the schema
+  // takes: `RegisterConfigSchema` accepts 0 and `setLength` keeps a cleared
+  // field in the store without sending it.
+  it('reads false for a read length of zero', async () => {
+    stored('127.0.0.1', '/dev/ttys011', 0)
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    expect(useClientZustand.getState().valid.length).toBe(false)
+    expect(useClientZustand.getState().registerConfig.length).toBe(0)
+  })
+
+  it('reads true for a read length that asks for something', async () => {
+    stored('127.0.0.1', '/dev/ttys011', 10)
+
+    const { useClientZustand } = await import('../client.zustand')
+
+    expect(useClientZustand.getState().valid.length).toBe(true)
+  })
+
   // A first launch has no blob, and the defaults are what the fields show.
   it('reads the defaults on a launch with nothing stored', async () => {
     const { useClientZustand } = await import('../client.zustand')
@@ -71,5 +102,6 @@ describe('the validity of a connection address off disk', () => {
 
     expect(valid.host).toBe(connectionConfig.tcp.host.trim().length > 0)
     expect(valid.com).toBe(connectionConfig.rtu.com.trim().length > 0)
+    expect(valid.length).toBe(useClientZustand.getState().registerConfig.length > 0)
   })
 })

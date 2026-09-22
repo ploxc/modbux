@@ -20,6 +20,7 @@ import {
   configuredReadGroups,
   emptyRegisterMapping,
   isConnectionAddressGiven,
+  isReadLengthGiven,
   RegisterConfig,
   RegisterMapping,
   SerialPortOptions
@@ -215,6 +216,7 @@ export const useClientZustand = create<
           // fields decide about a value and a value is what disk carries.
           state.valid.host = isConnectionAddressGiven(connectionConfig.tcp.host)
           state.valid.com = isConnectionAddressGiven(connectionConfig.rtu.com)
+          state.valid.length = isReadLengthGiven(registerConfig.length)
         })
 
         // Ready is set before this, so a store action does not wait on a round

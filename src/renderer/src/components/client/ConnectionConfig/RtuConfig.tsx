@@ -85,7 +85,7 @@ const ComActions = meme(() => {
   // connectable and never enumerated, so pressing this on one greyed Connect
   // with nothing but retyping the field to undo it.
   const onValidate = async (): Promise<void> => {
-    if (!com || com.trim() === '') return
+    if (!isConnectionAddressGiven(com)) return
     const result = await useClientZustand.getState().validateSerialPort(com)
     enqueueSnackbar({
       message: result.message,
@@ -119,7 +119,7 @@ const ComActions = meme(() => {
       <ToggleButton
         value="validate"
         onClick={onValidate}
-        disabled={disabled || validating || !com || com.trim() === ''}
+        disabled={disabled || validating || !isConnectionAddressGiven(com)}
         data-testid="rtu-validate-btn"
         aria-label="Validate COM port"
         title="Validate COM port"

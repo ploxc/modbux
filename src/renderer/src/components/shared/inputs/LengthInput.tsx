@@ -3,7 +3,7 @@ import { forwardRef } from 'react'
 import { integerMask } from './integerMask'
 import { meme } from './meme'
 import { MaskInputProps } from './types'
-import { MAX_READ_REGISTERS } from '@shared'
+import { isReadLengthGiven, MAX_READ_REGISTERS } from '@shared'
 
 /**
  * The length of a read, bounded by the caller.
@@ -23,7 +23,7 @@ const LengthInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, 
       min={0}
       max={max}
       inputRef={ref}
-      onAccept={(value) => set(value, Number(value) > 0)}
+      onAccept={(value) => set(value, isReadLengthGiven(Number(value)))}
     />
   )
 })

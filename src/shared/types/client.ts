@@ -200,6 +200,17 @@ export const ConnectStateSchema = z.enum([
  */
 export const isConnectionAddressGiven = (value: string): boolean => value.trim().length > 0
 
+/**
+ * Whether a read length asks for any registers.
+ *
+ * `RegisterConfigSchema` takes 0, which its own docblock calls a shipped state:
+ * `setLength` keeps a cleared field in the store and marks it invalid rather
+ * than sending it. So the flag is what says the field is empty, and `init` has
+ * to answer it for a blob coming off disk the way it does for the two
+ * addresses.
+ */
+export const isReadLengthGiven = (length: number): boolean => length > 0
+
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),
