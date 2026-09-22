@@ -2222,49 +2222,36 @@ describe('ModbusClient', () => {
         expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       })
 
-      // Nothing refuses a poll the user starts while a write is on the wire,
-      // so two requests are filed and only one of them is this write's.
-      it('logs its own while a read it did not start is in flight', async () => {
+      /**
+       * A poll the user starts while a write is on the wire.
+       *
+       * It was not refused, so both filed a transaction and the write logged
+       * the entry the poll's read was still waiting on. On a serial port both
+       * file under key 1, where the delete takes the only entry there is and
+       * `_onReceive` drops the answer into nothing.
+       *
+       * The poll is refused now, so the only entry the table holds after the
+       * write is the read this test put there, and the write logs its own.
+       */
+      it('logs its own, and the poll that would have filed a second is refused', async () => {
         await connectClient()
-        const finishers: Array<() => void> = []
-        mockModbusRTU.writeFC5.mockImplementation(
-          (_unitId: number, address: number, _value: boolean, callback: (err: null) => void) => {
-            fileTransaction({ ...createMockTransaction(address), nextCode: 5 })
-            finishers.push(() => callback(null))
-          }
-        )
-        // The poll's read files its transaction and then waits for an answer
-        // that never comes, which is where the write finds it.
-        mockModbusRTU.readHoldingRegisters.mockImplementation(
-          (address: number) =>
-            new Promise(() => {
-              fileTransaction(createMockTransaction(address))
-            })
-        )
+        aReadInFlight()
+        writeCoilsLikeTheLibrary(null)
 
-        const writePromise = client.write({
-          address: 5,
-          type: 'coils',
-          value: [true],
-          single: true
-        })
-        await vi.advanceTimersByTimeAsync(0)
+        await writeUpToTheReadBack({ address: 5, type: 'coils', value: [true], single: true })
         client.startPolling()
         await vi.advanceTimersByTimeAsync(0)
 
-        const [finishWrite] = finishers
-        if (!finishWrite) throw new Error('writeFC5 was never called')
-        finishWrite()
-        await writePromise
+        expect(client.state.polling).toBe(false)
+        const messages = getWindowCalls('backend_message').map((message) => message[1].message)
+        expect(messages).toContain('Cannot poll during another write')
 
         const transactions = getWindowCalls('transaction')
         expect(transactions).toHaveLength(1)
-        expect(transactions[0]?.[1].id).toContain('1__')
+        expect(transactions[0]?.[1].id).toContain('2__')
         expect(transactions[0]?.[1].code).toBe(5)
         // The read's entry, which `_onReceive` delivers its answer into.
-        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['2'])
-
-        client.stopPolling()
+        expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       })
 
       it('logs the transaction of a write the device refused', async () => {
@@ -2322,9 +2309,18 @@ describe('ModbusClient', () => {
       client.stopScanningRegisters()
     })
 
-    it('skips the read after a write when a scan starts during it', async () => {
+    /**
+     * A scan the user starts while a write is on the wire.
+     *
+     * It took the client, so the write's read back found a loop reading and
+     * skipped itself, and the scan's own requests went out under a write that
+     * had not answered. The scan is refused now, so the write reads back what
+     * it wrote, which is the whole point of holding the client to the end of
+     * it.
+     */
+    it('refuses a scan started while a write is on the wire, and reads back', async () => {
       await connectClient()
-      gateTheReads()
+      const gated = gateTheReads()
       const finishers: Array<() => void> = []
       mockModbusRTU.writeFC5.mockImplementation(
         (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => {
@@ -2335,26 +2331,153 @@ describe('ModbusClient', () => {
       const writePromise = client.write({ address: 0, type: 'coils', value: [true], single: true })
       await vi.advanceTimersByTimeAsync(0)
 
-      // The scan owns the client from here, and its own first read is the one
-      // call that follows.
       client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
       await vi.advanceTimersByTimeAsync(0)
-      expect(client.state.scanningRegisters).toBe(true)
+
+      expect(client.state.scanningRegisters).toBe(false)
+      expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
+        'Cannot scan during another write'
+      )
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
 
       const [finishWrite] = finishers
       if (!finishWrite) throw new Error('writeFC5 was never called')
-      // The read after a write would be refused and say so, and the user asked
-      // for neither, so the messages after the write are the ones before it.
-      const messagesBeforeFinish = getWindowCalls('backend_message').map((m) => m[1].message)
       finishWrite()
+      await vi.advanceTimersByTimeAsync(0)
+      gated.resolveAll()
       await writePromise
 
-      expect(getWindowCalls('backend_message').map((m) => m[1].message)).toEqual(
-        messagesBeforeFinish
-      )
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+    })
 
-      client.stopScanningRegisters()
+    /**
+     * Who may put a request on the wire, asked of main rather than of a
+     * control.
+     *
+     * `read` and `write` asked; the three loops claimed the client by setting
+     * their own flag and asking nobody, so a poll or a scan started during any
+     * of the five put a second master on the bus. A greyed button is not the
+     * guard: both windows load the same renderer and every client channel
+     * reaches this class.
+     *
+     * A scan is the one caller that does not ask about a poll, because
+     * `scanUnitIds` and `scanRegisters` stop one rather than being refused by
+     * one, and that is settled before `stopPolling` so a refused scan leaves
+     * the poll where it found it.
+     */
+    describe('a loop that finds the client taken', () => {
+      /** The client in one owned state, and the state left over afterwards. */
+      const whileReading = async (): Promise<void> => {
+        gateTheReads()
+        void client.read()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(client.state.reading).toBe(true)
+      }
+
+      const whileScanningUnitIds = async (): Promise<void> => {
+        gateTheReads()
+        void client.scanUnitIds({
+          range: [5, 6],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers'],
+          timeout: 1000
+        })
+        await vi.advanceTimersByTimeAsync(0)
+        expect(client.state.scanningUnitIds).toBe(true)
+      }
+
+      it('refuses a poll started during a read', async () => {
+        await connectClient()
+        await whileReading()
+
+        client.startPolling()
+
+        expect(client.state.polling).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
+          'Cannot poll during another read'
+        )
+      })
+
+      it('refuses a poll started during a unit id scan', async () => {
+        await connectClient()
+        await whileScanningUnitIds()
+
+        client.startPolling()
+
+        expect(client.state.polling).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
+          'Cannot poll during a unit id scan'
+        )
+        client.stopScanningUnitIds()
+      })
+
+      it('refuses a register scan started during a unit id scan', async () => {
+        await connectClient()
+        await whileScanningUnitIds()
+
+        await client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+
+        expect(client.state.scanningRegisters).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
+          'Cannot scan during a unit id scan'
+        )
+        client.stopScanningUnitIds()
+      })
+
+      it('refuses a unit id scan started during a read', async () => {
+        await connectClient()
+        await whileReading()
+
+        await client.scanUnitIds({
+          range: [5, 6],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers'],
+          timeout: 1000
+        })
+
+        expect(client.state.scanningUnitIds).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
+          'Cannot scan during another read'
+        )
+      })
+
+      // The poll a scan stops, which is the one state a scan does not ask
+      // about. Refusing it here would have made the scan dialog's Start button
+      // unusable while polling, where today it stops the poll and runs.
+      it('takes a register scan started during a poll, and stops the poll', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(100)
+        expect(client.state.polling).toBe(true)
+
+        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+        await vi.advanceTimersByTimeAsync(1000)
+        await scan
+
+        expect(client.state.polling).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).not.toContain(
+          'Cannot scan during a poll'
+        )
+      })
+
+      // A poll starting twice is two callers arriving at once rather than a
+      // mistake, so it stays the silent no-op it was.
+      it('says nothing when a poll is started while polling', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(100)
+        const before = getWindowCalls('backend_message').length
+
+        client.startPolling()
+
+        expect(client.state.polling).toBe(true)
+        expect(getWindowCalls('backend_message')).toHaveLength(before)
+        client.stopPolling()
+      })
     })
 
     // Every `sent: false` branch says why in a snackbar and puts nothing on the

@@ -292,9 +292,10 @@ export class ModbusClient {
   /**
    * The read loop that owns the client, named, or nothing.
    *
-   * Each of the three loops puts a request on the wire without asking, and each
-   * decides for itself when it is done. A single read and a single write ask
-   * `_clientOwner` instead, which is this question plus the two of them.
+   * Each of the three loops decides for itself when it is done, which is what
+   * separates them from a single read: `write` reads back what it wrote unless
+   * a loop is already reading, and that is this question rather than
+   * `_clientOwner`.
    */
   private _readLoopOwner = (): string | undefined => {
     if (this._clientState.polling) return 'a poll'
@@ -306,15 +307,47 @@ export class ModbusClient {
   /**
    * Whatever owns the client, named, or nothing.
    *
-   * One request at a time is what this class can promise, and `read` and
-   * `write` are the two callers that ask before they send. A write holds the
-   * client from its own request to the end of the read back, so `writing`
-   * covers a stretch in which `reading` is set too, and a caller arriving in it
-   * is told about the write.
+   * One request at a time is what this class can promise, and every caller
+   * that puts a request on the wire asks this first. A write holds the client
+   * from its own request to the end of the read back, so `writing` covers a
+   * stretch in which `reading` is set too, and a caller arriving in it is told
+   * about the write.
+   *
+   * The two scans ask with `exceptPolling`, because a scan stops a poll rather
+   * than being refused by one: that is a consequence of scanning taken here
+   * rather than asked of the user, and it has to be settled before the poll is
+   * stopped, or a refused scan would have stopped it on the way out.
    */
-  private _clientOwner = (): string | undefined => {
+  private _clientOwner = (exceptPolling = false): string | undefined => {
     if (this._clientState.writing) return 'another write'
+    if (exceptPolling) {
+      if (this._clientState.scanningUnitIds) return 'a unit id scan'
+      if (this._clientState.scanningRegisters) return 'a register scan'
+      return this._clientState.reading ? 'another read' : undefined
+    }
     return this._readLoopOwner() ?? (this._clientState.reading ? 'another read' : undefined)
+  }
+
+  /**
+   * Whether `verb` may go ahead, saying who has the client when it may not.
+   *
+   * The three loops asked nobody and claimed the client by setting their own
+   * flag, so a poll started during a write put a second request on the wire
+   * under it. On RTU both file under transaction key 1, where the write's
+   * `_logTransaction` deletes the entry the read is waiting on and that read
+   * times out. A control being greyed is not this guard: both windows load the
+   * same renderer and every channel reaches here, so the refusal is main's.
+   */
+  private _requireClient = (verb: string, exceptPolling = false): boolean => {
+    const owner = this._clientOwner(exceptPolling)
+    if (!owner) return true
+
+    this._emitMessage({
+      message: `Cannot ${verb} during ${owner}`,
+      variant: 'warning',
+      error: null
+    })
+    return false
   }
 
   //
@@ -575,11 +608,7 @@ export class ModbusClient {
    * a read ever blocking a poll.
    */
   public read = async (): Promise<void> => {
-    const owner = this._clientOwner()
-    if (owner) {
-      this._emitMessage({ message: `Cannot read during ${owner}`, variant: 'warning', error: null })
-      return
-    }
+    if (!this._requireClient('read')) return
 
     await this._readOwningTheClient()
   }
@@ -818,6 +847,8 @@ export class ModbusClient {
    */
   public startPolling = (): void => {
     if (this._clientState.polling) return
+    if (!this._requireClient('poll')) return
+
     this._clientState.polling = true
     this._sendClientState()
     this._poll(++this._pollGeneration)
@@ -902,15 +933,7 @@ export class ModbusClient {
     // a closed port has nothing of its own to log.
     if (!this._requireConnected('write')) return
 
-    const owner = this._clientOwner()
-    if (owner) {
-      this._emitMessage({
-        message: `Cannot write during ${owner}`,
-        variant: 'warning',
-        error: null
-      })
-      return
-    }
+    if (!this._requireClient('write')) return
 
     const { address, type, value, dataType, single } = writeParameters
 
@@ -1078,6 +1101,7 @@ export class ModbusClient {
   // Scan Unit ID
   public scanUnitIds = async (params: ScanUnitIDParameters): Promise<void> => {
     if (!this._requireConnected('scan')) return
+    if (!this._requireClient('scan', true)) return
     this.stopPolling()
 
     this._client.setTimeout(params.timeout)
@@ -1161,6 +1185,7 @@ export class ModbusClient {
   // Scan Registers
   public scanRegisters = async (params: ScanRegistersParameters): Promise<void> => {
     if (!this._requireConnected('scan')) return
+    if (!this._requireClient('scan', true)) return
     this.stopPolling()
 
     const { unitId } = this._appState.connectionConfig
