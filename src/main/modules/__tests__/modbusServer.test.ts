@@ -83,7 +83,8 @@ vi.mock('net', () => ({
   }
 }))
 
-import { ModbusServer, BIND_TIMEOUT_MS } from '../modbusServer'
+import { ModbusServer } from '../modbusServer'
+import { BIND_TIMEOUT_MS } from '../modbusServer/tcp'
 import {
   SERVER_DEVICE_FAILURE,
   ILLEGAL_DATA_ADDRESS,
