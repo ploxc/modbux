@@ -9,6 +9,20 @@ vi.mock('electron', () => ({
   }
 }))
 
+// The real modules run pkexec and the desktop's logout commands. On a Linux
+// desktop with pkexec installed that puts a password prompt on screen for
+// `usermod` and the port floor, and the test times out waiting on it.
+const applyPrivilegedPortFix = vi.fn()
+vi.mock('../modules/privilegedPort', () => ({
+  applyPrivilegedPortFix: (...args: unknown[]): unknown => applyPrivilegedPortFix(...args),
+  getPrivilegedPortStatus: vi.fn()
+}))
+vi.mock('../modules/serialGroup', () => ({
+  applySerialGroupFix: vi.fn(),
+  getSerialGroupStatus: vi.fn(),
+  requestLogout: vi.fn()
+}))
+
 import {
   AddRegisterParamsSchema,
   ConnectionConfigSchema,
@@ -619,6 +633,15 @@ describe('each guarded channel got its own schema', () => {
     const { sent } = start()
     await invoke(channel, validPayloads[channel])
     expect(sent.map(({ message }) => message.error)).toEqual([])
+  })
+
+  it('hands the privileged port fix the mode it was sent', async () => {
+    start()
+    applyPrivilegedPortFix.mockClear()
+
+    await invoke('apply_privileged_port_fix', 'persist')
+
+    expect(applyPrivilegedPortFix).toHaveBeenCalledWith('persist')
   })
 
   // `undefined` is the payload every schema here refuses. A string is not:
