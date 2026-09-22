@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ValueGenerator } from '../modbusServer/valueGenerator'
+import { ValueGenerator } from '../valueGenerator'
 import type { ServerData, UnitIdString } from '@shared'
-import type { Windows } from '../../windows'
+import type { Windows } from '../../../windows'
 
 const createMockWindows = (): Windows => ({ send: vi.fn() }) as unknown as Windows
 
