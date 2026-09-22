@@ -1,10 +1,5 @@
-import {
-  test as base,
-  _electron as electron,
-  type ElectronApplication,
-  type Page
-} from '@playwright/test'
-import { launchOptions } from './launch'
+import { test as base, type ElectronApplication, type Page } from '@playwright/test'
+import { launchElectron } from './launch'
 import { createWriteStream, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -48,7 +43,7 @@ export const test = base.extend<{}, ElectronFixtures>({
   electronApp: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, use): Promise<void> => {
-      const app = await electron.launch(launchOptions())
+      const app = await launchElectron()
       keepOutput(app)
 
       await app.evaluate((ctx) =>

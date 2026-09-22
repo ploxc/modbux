@@ -1,4 +1,4 @@
-import { _electron as electron } from '@playwright/test'
+import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { existsSync, mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
@@ -124,4 +124,21 @@ export function launchOptions(userDataDir?: string): LaunchOptions {
   if (!isPackaged) return { args: [join(ROOT, 'out/main/index.js'), ...args], env }
 
   return { executablePath: packagedBinary(), args, env }
+}
+
+/**
+ * Launches the app with reduced motion emulated in every window it has and
+ * every window it opens. The theme follows that setting, so MUI's transitions
+ * and a click's ripple end at once rather than on timers the fixture's CSS does
+ * not reach.
+ */
+export async function launchElectron(userDataDir?: string): Promise<ElectronApplication> {
+  const app = await electron.launch(launchOptions(userDataDir))
+  const reduceMotion = (page: Page): Promise<void> => page.emulateMedia({ reducedMotion: 'reduce' })
+  app.on('window', (page) => {
+    // A window closed before the emulation reached it has no motion left.
+    reduceMotion(page).catch(() => undefined)
+  })
+  await Promise.all(app.windows().map(reduceMotion))
+  return app
 }

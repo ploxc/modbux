@@ -7,7 +7,7 @@ import {
 } from '@playwright/test'
 import net from 'net'
 import { keepOutput } from '../../fixtures/electron-app'
-import { launchOptions, ownProfileDir } from '../../fixtures/launch'
+import { launchElectron, launchOptions, ownProfileDir } from '../../fixtures/launch'
 import { connectClient, navigateToClient, navigateToServer } from '../../fixtures/helpers'
 
 /**
@@ -98,7 +98,7 @@ test.describe.serial('macOS dock — the app outlives its windows', () => {
   test.beforeAll(async () => {
     await startDevice()
     profile = ownProfileDir()
-    app = await electron.launch(launchOptions(profile))
+    app = await launchElectron(profile)
     keepOutput(app)
     page = await waitForWindow()
     await page.waitForTimeout(500)

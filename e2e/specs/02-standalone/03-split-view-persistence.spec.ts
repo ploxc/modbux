@@ -1,17 +1,11 @@
-import {
-  test,
-  expect,
-  _electron as electron,
-  type ElectronApplication,
-  type Page
-} from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import {
   addRegister,
   cleanServerState,
   navigateToHome,
   splitOutServerWindow
 } from '../../fixtures/helpers'
-import { launchOptions } from '../../fixtures/launch'
+import { launchElectron } from '../../fixtures/launch'
 import { keepOutput } from '../../fixtures/electron-app'
 
 let app: ElectronApplication
@@ -21,7 +15,7 @@ async function launchApp(clearStorage: boolean): Promise<void> {
   // Cleared first, so the search below has to find this launch's own window
   // rather than passing on the one the previous launch left here.
   page = undefined as unknown as Page
-  app = await electron.launch(launchOptions())
+  app = await launchElectron()
   keepOutput(app)
   if (clearStorage) {
     await app.evaluate((ctx) =>

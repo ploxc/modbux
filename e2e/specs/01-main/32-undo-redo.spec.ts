@@ -49,7 +49,12 @@ test.describe.serial('Undo and redo in a focused field', () => {
     await input.fill('127.0.0.1')
     await expect.poll(async () => (await savedConnection(mainPage)).host).toBe('127.0.0.1')
 
-    await typeOver(mainPage, input, '10.0.0.5')
+    // One insert rather than a key at a time: typed keys are one undo step only
+    // while nothing else changes the DOM between them, and in the full suite
+    // something did.
+    await input.click()
+    await mainPage.keyboard.press('ControlOrMeta+a')
+    await mainPage.keyboard.insertText('10.0.0.5')
     await expect.poll(async () => (await savedConnection(mainPage)).host).toBe('10.0.0.5')
 
     await mainPage.keyboard.press('ControlOrMeta+z')

@@ -10,13 +10,7 @@
  * The port is found by USB vendor ID, so the run is unattended:
  *   yarn test:e2e:hardware
  */
-import {
-  test,
-  expect,
-  _electron as electron,
-  type ElectronApplication,
-  type Page
-} from '@playwright/test'
+import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
   enableAdvancedMode,
@@ -26,7 +20,7 @@ import {
   scrollCell,
   expectCellContains
 } from '../../fixtures/helpers'
-import { launchOptions } from '../../fixtures/launch'
+import { launchElectron } from '../../fixtures/launch'
 
 import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
 
@@ -37,7 +31,7 @@ let page: Page
 let arduinoPort = ''
 
 async function launchApp(clearStorage = true): Promise<void> {
-  app = await electron.launch(launchOptions())
+  app = await launchElectron()
   if (clearStorage) {
     await app.evaluate((ctx) =>
       ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
