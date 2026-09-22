@@ -605,6 +605,9 @@ export class ModbusClient {
   private _read = async (): Promise<void> => {
     if (!this._requireConnected('read', this._clientState.polling)) return
 
+    // What this read is addressed to, taken before the first request goes out.
+    const readGeneration = this._appState.readGeneration
+
     // Set unit id before reading (in case of TCP)
     const { unitId } = this._appState.connectionConfig
     this._client.setID(unitId)
@@ -692,6 +695,15 @@ export class ModbusClient {
       this._logTransaction(transactionIdKey, errorMessage)
       if (this._clientState.connectState !== 'connected') break
     }
+
+    // A reply describes the unit id, type, address and length the requests
+    // went out under, and carries none of them. `register_data` replaces the
+    // grid with what arrives, and `clearRegisterDataWhenIdle` has emptied it or
+    // drawn the new mapping by then, so the old unit's values would land in the
+    // rows drawn for the new one. The renderer cannot tell the two apart: only
+    // main knows what its read asked. The transactions above are logged either
+    // way, because they happened.
+    if (this._appState.readGeneration !== readGeneration) return
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.

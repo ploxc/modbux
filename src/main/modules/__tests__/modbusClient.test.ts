@@ -1595,6 +1595,151 @@ describe('ModbusClient', () => {
     })
   })
 
+  /**
+   * A reply carries no unit id, no register type and no address of its own, so
+   * what it describes is whatever main asked for. These hold a read open, move
+   * one of those four under it, and then let it answer.
+   */
+  describe('a read answers for what it was addressed to', () => {
+    /**
+     * A gated read that files its transaction, which `gateTheReads` does not.
+     * A logged transaction is what says the request went out and only its
+     * answer was dropped.
+     */
+    const gateTheReadsFilingTransactions = () => {
+      const gates: Array<() => void> = []
+      mockModbusRTU.readHoldingRegisters.mockImplementation(
+        (address: number, length: number) =>
+          new Promise((resolve) => {
+            fileTransaction(createMockTransaction(address, length))
+            gates.push(() => resolve({ data: [100], buffer: Buffer.from([0x00, 0x64]) }))
+          })
+      )
+      return {
+        resolveAll: (): void => {
+          gates.forEach((gate) => gate())
+        }
+      }
+    }
+    it('drops the data when the unit id moved while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.updateConnectionConfig({ unitId: 3 })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+      expect(getWindowCalls('address_groups')).toEqual([])
+    })
+
+    it('drops the data when the register type moved while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.updateRegisterConfig({ type: 'coils' })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    it('drops the data when the address moved while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.updateRegisterConfig({ address: 40 })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    it('drops the data when the length moved while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.updateRegisterConfig({ length: 3 })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    it('drops the data when the mapping arrived while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' } }
+      })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    it('drops the data when read configuration was switched while it was on the wire', async () => {
+      await connectClient()
+      const gate = gateTheReadsFilingTransactions()
+
+      const read = client.read()
+      appState.setReadConfiguration(true)
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('transaction').length).toBe(1)
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    // The poll rate is what the next read waits, and the timeout is how long a
+    // request may take. Neither changes what this read asked the device, so
+    // neither may cost the user the answer.
+    it('sends the data when a field the read did not ask about moved', async () => {
+      await connectClient()
+      const gate = gateTheReads()
+
+      const read = client.read()
+      appState.updateRegisterConfig({ pollRate: 2000, timeout: 4000 })
+      gate.resolveAll()
+      await read
+
+      expect(getWindowCalls('register_data').length).toBe(1)
+    })
+
+    // The drop is a `return` inside the read the chain is awaiting, so the
+    // chain has to arm the next one anyway.
+    it('polls on after the read it dropped', async () => {
+      await connectClient()
+      const gate = gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      appState.updateConnectionConfig({ unitId: 3 })
+      gate.resolveAll()
+      await vi.advanceTimersByTimeAsync(1100)
+      gate.resolveAll()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+
+      expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBe(2)
+      expect(getWindowCalls('register_data').length).toBe(1)
+    })
+  })
+
   describe('_logTransaction', () => {
     it('formats and sends transaction data after read', async () => {
       await connectClient()

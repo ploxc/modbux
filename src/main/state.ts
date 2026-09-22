@@ -39,8 +39,28 @@ export class AppState {
   private _registerConfig = structuredClone(defaultRegisterConfig)
   private _registerMapping?: RegisterMapping
   private _readConfiguration = false
+  private _readGeneration = 0
+
+  /**
+   * How often what a read is addressed to has changed.
+   *
+   * A read puts its requests on the wire under the unit id, register type,
+   * address and length this state held when it started, and read configuration
+   * decides whether the mapping or the toolbar's block is what it asks for.
+   * Change one of those while the read is in flight and the reply describes the
+   * old one, so `_read` takes this number before its first request and drops
+   * what comes back once it has moved.
+   *
+   * The rest of both configs is not counted. A poll rate, a timeout or an
+   * address base changes what the grid does with a read or when the next one
+   * goes out, not what this one asked the device.
+   */
+  get readGeneration(): number {
+    return this._readGeneration
+  }
 
   public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
+    if (config.unitId !== undefined) this._readGeneration++
     this._connectionConfig = merge<ConnectionConfig, DeepPartial<ConnectionConfig>>(
       this._connectionConfig,
       withoutUndefined(config)
@@ -48,6 +68,8 @@ export class AppState {
   }
 
   public updateRegisterConfig(config: DeepPartial<RegisterConfig>): void {
+    if (config.type !== undefined || config.address !== undefined || config.length !== undefined)
+      this._readGeneration++
     this._registerConfig = merge<RegisterConfig, DeepPartial<RegisterConfig>>(
       this._registerConfig,
       withoutUndefined(config)
@@ -55,6 +77,7 @@ export class AppState {
   }
 
   public setRegisterMapping(mapping: RegisterMapping): void {
+    this._readGeneration++
     this._registerMapping = mapping
   }
 
@@ -71,6 +94,7 @@ export class AppState {
   }
 
   public setReadConfiguration(value: boolean): void {
+    this._readGeneration++
     this._readConfiguration = value
   }
 

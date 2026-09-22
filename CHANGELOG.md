@@ -18,7 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows the previous unit answered stayed on screen under a unit ID that had not
   read them, so you were looking at one device's values under another's ID. The
   address, the length and the register type already cleared it. A running poll
-  fills the grid on its own and is left alone, as before.
+  fills the grid on its own and is left alone, as before. A read already on the
+  line when you change it no longer fills the grid back in either: its answer
+  says nothing about which unit ID, address or register type it was sent for,
+  so Modbux drops it rather than draw it under the new one.
 - **A server configuration that puts one register at two addresses is now
   refused.** A register is stored under its address and names that address
   again in its own settings, and a file whose two disagreed opened: the server
