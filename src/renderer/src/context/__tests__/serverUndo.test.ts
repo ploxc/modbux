@@ -51,6 +51,7 @@ const load = async (): Promise<{
   const { useServerZustand } = await import('../server.zustand')
   const { useUndoZustand } = await import('../undo.zustand')
   const serverUndo = await import('../serverUndo')
+  await import('../serverUndoHandover')
   useServerZustand.setState({
     selectedUuid: MAIN_SERVER_UUID,
     servers: {
@@ -225,15 +226,98 @@ describe('a unit', () => {
   })
 })
 
-describe('the split out window closing', () => {
-  it('empties the steps this window held, which describe the store from before', async () => {
+const SERVER_UNDO_STORAGE_KEY = 'server.undo'
+
+/** A stack as `writer` writes it, holding one name step. */
+const handedOverStack = (writer: 'main' | 'server'): string =>
+  JSON.stringify({
+    writer,
+    past: [{ kind: 'name', uuid: MAIN_SERVER_UUID, value: 'from the other window' }],
+    future: [],
+    openKey: undefined
+  })
+
+describe('the main window, as the server view leaves and comes back', () => {
+  it('hands its steps over when the view leaves, and keeps none', async () => {
     const { server, undo } = await load()
     server().addBool('coils', 3)
 
     fireEvent('window_update', { server: true })
+
+    const written = JSON.parse(localStorage.getItem(SERVER_UNDO_STORAGE_KEY) ?? '{}')
+    expect(written.past).toEqual([expect.objectContaining({ kind: 'unit', unitId: '0' })])
+    expect(undo().server.past).toEqual([])
+  })
+
+  it('takes the steps the other window handed back when the view returns', async () => {
+    const { undo } = await load()
+    fireEvent('window_update', { server: true })
+    localStorage.setItem(SERVER_UNDO_STORAGE_KEY, handedOverStack('server'))
+
+    fireEvent('window_update', { server: false })
+
+    expect(undo().server.past).toEqual([
+      { kind: 'name', uuid: MAIN_SERVER_UUID, value: 'from the other window' }
+    ])
+  })
+
+  it('starts with no steps when the split out window wrote none, as after a crash', async () => {
+    const { server, undo } = await load()
+    server().addBool('coils', 3)
+    fireEvent('window_update', { server: true })
+
     fireEvent('window_update', { server: false })
 
     expect(undo().server.past).toEqual([])
+  })
+
+  it('keeps its steps on the update main sends when no view left', async () => {
+    const { server, undo } = await load()
+    server().addBool('coils', 3)
+    localStorage.setItem(SERVER_UNDO_STORAGE_KEY, handedOverStack('server'))
+
+    fireEvent('window_update', { server: false })
+
+    expect(undo().server.past).toEqual([expect.objectContaining({ kind: 'unit' })])
+  })
+
+  it('clears the key at launch, so no history outlives one', async () => {
+    localStorage.setItem(SERVER_UNDO_STORAGE_KEY, handedOverStack('server'))
+
+    await load()
+
+    expect(localStorage.getItem(SERVER_UNDO_STORAGE_KEY)).toBeNull()
+  })
+})
+
+describe('the split out window', () => {
+  it('starts with the steps the main window handed over, and hands its own back', async () => {
+    stubRenderer({ isServerWindow: true })
+    localStorage.setItem(SERVER_UNDO_STORAGE_KEY, handedOverStack('main'))
+    const { useUndoZustand } = await import('../undo.zustand')
+    await import('../serverUndoHandover')
+
+    expect(useUndoZustand.getState().server.past).toEqual([
+      { kind: 'name', uuid: MAIN_SERVER_UUID, value: 'from the other window' }
+    ])
+
+    useUndoZustand.getState().setServer({ past: [], future: [], openKey: undefined })
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(JSON.parse(localStorage.getItem(SERVER_UNDO_STORAGE_KEY) ?? '{}').past).toEqual([])
+  })
+
+  it('starts with no steps on a key that is not a stack', async () => {
+    stubRenderer({ isServerWindow: true })
+    localStorage.setItem(SERVER_UNDO_STORAGE_KEY, '{"writer": "main", "past": "no", "future": []}')
+    const { useUndoZustand } = await import('../undo.zustand')
+    await import('../serverUndoHandover')
+
+    expect(useUndoZustand.getState().server).toEqual({
+      past: [],
+      future: [],
+      openKey: undefined
+    })
   })
 })
 

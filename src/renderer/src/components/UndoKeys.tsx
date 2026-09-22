@@ -2,6 +2,8 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { redoClient, undoClient } from '@renderer/context/clientUndo'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { redoServer, undoServer } from '@renderer/context/serverUndo'
+// Carries the server steps across the split, in both windows this listener runs in.
+import '@renderer/context/serverUndoHandover'
 import { UndoOutcome } from '@renderer/context/undo.zustand.types'
 import { useEffect } from 'react'
 

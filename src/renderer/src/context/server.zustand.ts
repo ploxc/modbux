@@ -50,7 +50,7 @@ import {
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
-import { emptyStack, unitStructure } from './undo.zustand.helpers'
+import { unitStructure } from './undo.zustand.helpers'
 import { deepEqual } from 'fast-equals'
 
 /**
@@ -943,9 +943,6 @@ onEvent('window_update', ({ server }) => {
   }
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
-  // The steps this window holds describe the store from before the split, and
-  // the key it is about to read holds what the other window made of it since.
-  useUndoZustand.getState().setServer(emptyStack())
   persistedVersion = undefined
   void Promise.resolve(useServerZustand.persist.rehydrate())
     .then(() => {

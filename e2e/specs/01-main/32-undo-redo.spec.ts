@@ -12,8 +12,10 @@ import {
   addBool,
   cleanServerState,
   navigateToClient,
+  navigateToHome,
   navigateToServer,
-  selectRegisterType
+  selectRegisterType,
+  splitOutServerWindow
 } from '../../fixtures/helpers'
 
 /** What the client store last persisted, read the way the next launch reads it. */
@@ -132,6 +134,46 @@ test.describe.serial('Undo and redo outside a field', () => {
 
     await mainPage.keyboard.press('ControlOrMeta+Shift+z')
     await expect(row).toBeVisible()
+
+    await cleanServerState(mainPage)
+  })
+})
+
+test.describe.serial('The server steps travel with the server view', () => {
+  test('a step taken in the main window is undone in the split out one, and back', async ({
+    electronApp,
+    mainPage
+  }) => {
+    await navigateToServer(mainPage)
+    await cleanServerState(mainPage)
+    await addBool(mainPage, 'coils', 3)
+    await expect(mainPage.getByTestId('server-bool-row-coils-3')).toBeVisible()
+
+    await navigateToHome(mainPage)
+    const serverPage = await splitOutServerWindow(electronApp, mainPage)
+    const splitRow = serverPage.getByTestId('server-bool-row-coils-3')
+    await expect(splitRow).toBeVisible()
+
+    await serverPage.keyboard.press('ControlOrMeta+z')
+    await expect(splitRow).toHaveCount(0)
+
+    await addBool(serverPage, 'coils', 5)
+    await expect(serverPage.getByTestId('server-bool-row-coils-5')).toBeVisible()
+    await leaveTheField(serverPage)
+
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()
+        .find((window) => window.getTitle() === 'Server')
+        ?.close()
+    })
+    await expect(mainPage.getByTestId('home-btn')).toBeVisible()
+    await navigateToServer(mainPage)
+    const mainRow = mainPage.getByTestId('server-bool-row-coils-5')
+    await expect(mainRow).toBeVisible()
+    await leaveTheField(mainPage)
+
+    await mainPage.keyboard.press('ControlOrMeta+z')
+    await expect(mainRow).toHaveCount(0)
 
     await cleanServerState(mainPage)
   })
