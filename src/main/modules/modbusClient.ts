@@ -15,7 +15,6 @@ import {
   isBooleanRegister,
   maxReadQuantity,
   PROTOCOL_LABELS,
-  RawTransaction,
   readLoopOwner,
   RegisterData,
   registersFrom,
@@ -23,10 +22,11 @@ import {
   ScanRegistersParameters,
   ScanUnitIDParameters,
   ScanUnitIDResult,
-  Transaction,
   WriteParameters
 } from '@shared'
 import { Windows } from '../windows'
+import * as serialPorts from './modbusClient/serialPorts'
+import { TransactionLog } from './modbusClient/transactionLog'
 import {
   NodeStyleCallback,
   ReadCoilResult,
@@ -36,8 +36,6 @@ import {
   WriteRegisterResult
 } from 'modbus-serial/ModbusRTU'
 import round from 'lodash/round'
-import { DateTime } from 'luxon'
-import { v4 } from 'uuid'
 
 type ReadRegisters = (address: number, length: number) => Promise<RegisterData[]>
 
@@ -72,14 +70,6 @@ type WriteAttempt =
 const isModbusException = (error: unknown): boolean =>
   typeof (error as { modbusCode?: unknown })?.modbusCode === 'number'
 
-/** Modbus frames read the way a protocol analyser prints them. */
-const toHexString = (bytes: Uint8Array | undefined): string =>
-  bytes === undefined
-    ? ''
-    : Array.from(bytes)
-        .map((byte) => Number(byte).toString(16).toUpperCase().padStart(2, '0'))
-        .join(' ')
-
 /**
  * The `removeAllListeners` under a `ModbusRTU`.
  *
@@ -90,23 +80,6 @@ const toHexString = (bytes: Uint8Array | undefined): string =>
  */
 interface ModbusRTUEmitter extends ModbusRTU {
   removeAllListeners(): void
-}
-
-/**
- * The two internals the transaction log reads.
- *
- * `ModbusRTU.d.ts` declares neither, so both arrive untyped and the shape is
- * written here. `_transactions` is the table every request is filed in, and
- * `_port._transactionIdWrite` is the key the next one files under.
- *
- * Both optionals describe modbus-serial rather than guarding anything here. A
- * client built but not connected has no `_port` at all, and a serial port has
- * no `_transactionIdWrite` until `open` sets it. `_nextTransactionIdKey` runs
- * behind `_requireConnected`, so it meets neither state.
- */
-interface ModbusRTUInternals extends ModbusRTU {
-  _transactions: Record<string, RawTransaction | undefined>
-  _port: { _transactionIdWrite?: number } | undefined
 }
 
 interface ClientParams {
@@ -135,10 +108,14 @@ export class ModbusClient {
   private _reconnectWasPolling = false
   private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
+  /** What went out and what came back, read off modbus-serial's own table. */
+  private _transactionLog: TransactionLog
+
   constructor({ appState, windows }: ClientParams) {
     this._client = new ModbusRTU()
     this._appState = appState
     this._windows = windows
+    this._transactionLog = new TransactionLog({ client: (): ModbusRTU => this._client, windows })
 
     this._attachClientHandlers()
   }
@@ -215,9 +192,6 @@ export class ModbusClient {
   }
   private _sendData = (data: RegisterData[]): void => {
     this._windows.send('register_data', data, 'main')
-  }
-  private _sendTransaction = (transaction: Transaction): void => {
-    this._windows.send('transaction', transaction, 'main')
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
     this._windows.send('scan_unit_id_result', result, 'main')
@@ -648,7 +622,7 @@ export class ModbusClient {
       // Per group: `_logTransaction` below runs whether the group threw or not,
       // so an errorMessage that outlives its group logs a clean group as failed.
       let errorMessage: string | undefined
-      const transactionIdKey = this._nextTransactionIdKey()
+      const transactionIdKey = this._transactionLog.nextTransactionIdKey()
       try {
         const rows = await this._readers[type](groupAddress, groupLength)
         rows.forEach((row) => {
@@ -692,7 +666,7 @@ export class ModbusClient {
           })
         }
       }
-      this._logTransaction(transactionIdKey, errorMessage)
+      this._transactionLog.log(transactionIdKey, errorMessage)
       if (this._clientState.connectState !== 'connected') break
     }
 
@@ -731,89 +705,6 @@ export class ModbusClient {
   // `_logTransaction`: a transaction carrying neither would otherwise crash the
   // handler the scan that met it runs in.
   //
-  // The key is a transaction id on TCP and UDP, whose ports write it into the
-  // MBAP header and increment it per request. A serial port has none: RTU
-  // frames carry no transaction id, and `rtubufferedport.js` never names
-  // `_transactionIdWrite`. `open` sets it to 1 for every transport
-  // (`index.js:679`), so every serial request files under the key 1 and the
-  // next one lands on top of the last. It is a map key, not a number.
-  private _internals = (): ModbusRTUInternals => this._client as ModbusRTUInternals
-
-  /**
-   * The key modbus-serial files the next request under.
-   *
-   * A `writeFCx` reads `_port._transactionIdWrite` to file its transaction and
-   * the port increments it once the buffer is out, so this is the key of the
-   * request that goes next. Read it immediately before the call: nothing awaits
-   * in between, so nothing else can file first.
-   */
-  private _nextTransactionIdKey = (): string => String(this._internals()._port?._transactionIdWrite)
-
-  /**
-   * The data address the request asked for.
-   *
-   * Read off the request frame, not off `nextDataAddress`. modbus-serial files
-   * that field on two of its twelve transaction records, inside `writeFC4` and
-   * `writeFC6`, and `writeFC1` delegates to `writeFC2` while `writeFC3`
-   * delegates to `writeFC4`. So FC3, FC4 and FC6 carry one and FC1, FC2, FC5,
-   * FC15 and FC16 do not, and the Addr column was blank for every coil read,
-   * every discrete input read and every write Modbux sends.
-   *
-   * Every `writeFCx` builds its frame as unit id, function code, then the data
-   * address at offset 2 as a big-endian word: measured over FC2, FC4, FC5, FC6,
-   * FC15 and FC16, which is every code Modbux sends. `request` is stashed by
-   * `_writeBufferToPort` while debug mode is on, and `connect` sets
-   * `isDebugEnabled` on every client it opens, including the replacement the
-   * disconnect timeout builds, so a frame that went out over a connection this
-   * file made has one. `nextDataAddress` is the fallback either way.
-   */
-  private _requestedAddress = (rawTransaction: RawTransaction): number | undefined => {
-    const request = rawTransaction.request
-    if (request && request.length >= 4) return request.readUInt16BE(2)
-    return rawTransaction.nextDataAddress
-  }
-
-  /**
-   * Log the request filed under `transactionIdKey`, and only that one.
-   *
-   * The caller names its own request because the table holds whatever earlier
-   * requests were never logged out of it. Taking the last entry instead logged
-   * one caller's frame as another's and deleted the entry that caller was
-   * still waiting on.
-   *
-   * On a serial port that key is 1 for every request, so naming it
-   * discriminates nothing and the delete below would take an entry still in
-   * flight. What keeps them apart there is that there is only ever one:
-   * `write` and `read` are both refused while `_clientOwner` answers, and a
-   * poll awaits each request before it sends the next.
-   */
-  private _logTransaction = (transactionIdKey: string, errorMessage: string | undefined): void => {
-    const rawTransactions = this._internals()._transactions
-    const rawTransaction = rawTransactions[transactionIdKey]
-    if (!rawTransaction) return
-
-    // Only the entry being logged, so the same one is not logged again on the
-    // next call. Emptying the table takes entries for requests still in flight
-    // with it, and `_onReceive` drops a response whose entry is gone, so the
-    // request times out rather than resolving.
-    delete rawTransactions[transactionIdKey]
-
-    const transaction: Transaction = {
-      id: `${transactionIdKey}__${v4()}`,
-      timestamp: DateTime.now().toMillis(),
-      unitId: rawTransaction.nextAddress,
-      address: this._requestedAddress(rawTransaction),
-      code: rawTransaction.nextCode,
-      responseLength: rawTransaction.nextLength,
-      timeout: rawTransaction._timeoutFired,
-      request: toHexString(rawTransaction.request),
-      responses: (rawTransaction.responses ?? []).map(toHexString),
-      errorMessage
-    }
-
-    this._sendTransaction(transaction)
-  }
-
   //
   //
   //
@@ -967,7 +858,7 @@ export class ModbusClient {
       // `sent: false` above emitted its own warning and put no request on the
       // wire, so the device holds what it held.
       if (!attempt.sent) return
-      this._logTransaction(attempt.transactionIdKey, attempt.errorMessage)
+      this._transactionLog.log(attempt.transactionIdKey, attempt.errorMessage)
 
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this
@@ -1021,7 +912,7 @@ export class ModbusClient {
       return { sent: false }
     }
 
-    const transactionIdKey = this._nextTransactionIdKey()
+    const transactionIdKey = this._transactionLog.nextTransactionIdKey()
 
     try {
       if (single) {
@@ -1073,7 +964,7 @@ export class ModbusClient {
 
     const { unitId } = this._appState.connectionConfig
     const registers = createRegisters(dataType, value, littleEndian)
-    const transactionIdKey = this._nextTransactionIdKey()
+    const transactionIdKey = this._transactionLog.nextTransactionIdKey()
 
     try {
       if (single) {
@@ -1157,7 +1048,7 @@ export class ModbusClient {
       }
 
       let errorMessage: string | undefined
-      const transactionIdKey = this._nextTransactionIdKey()
+      const transactionIdKey = this._transactionLog.nextTransactionIdKey()
       try {
         await this._readers[registerType](address, length)
         result.registerTypes.push(registerType)
@@ -1166,7 +1057,7 @@ export class ModbusClient {
         result.errorMessage[registerType] = errorMessage
         if (isModbusException(error)) result.refusedRegisterTypes.push(registerType)
       }
-      this._logTransaction(transactionIdKey, errorMessage)
+      this._transactionLog.log(transactionIdKey, errorMessage)
 
       await this._sendScanProgress()
     }
@@ -1237,7 +1128,7 @@ export class ModbusClient {
     let data: RegisterData[] | undefined
     let errorMessage: string | undefined
 
-    const transactionIdKey = this._nextTransactionIdKey()
+    const transactionIdKey = this._transactionLog.nextTransactionIdKey()
     try {
       data = await this._readers[type](address, length)
     } catch (error) {
@@ -1246,7 +1137,7 @@ export class ModbusClient {
       this._emitMessage({ message: errorMessage, variant: 'error', error })
     }
 
-    this._logTransaction(transactionIdKey, errorMessage)
+    this._transactionLog.log(transactionIdKey, errorMessage)
 
     if (!data) return
     data = data.filter((row) => (isBooleanRegister(type) ? row.bit : row.hex !== '0000'))
@@ -1259,39 +1150,13 @@ export class ModbusClient {
     this._clientState.scanningRegisters = false
   }
 
-  // Serial port discovery
-  public listSerialPorts = async (): Promise<{ path: string; manufacturer?: string }[]> => {
-    try {
-      const ports = await ModbusRTU.getPorts()
-      return ports.map((port) => ({
-        path: port.path,
-        manufacturer: port.manufacturer ?? undefined
-      }))
-    } catch (error) {
-      const message = humanizeSerialError(error as Error)
-      this._emitMessage({ message, variant: 'error', error })
-      return []
-    }
-  }
+  /** The serial ports this machine has, for the two RTU COM fields. */
+  public listSerialPorts = (): Promise<{ path: string; manufacturer?: string }[]> =>
+    serialPorts.listSerialPorts(this._emitMessage)
 
-  public validateSerialPort = async (
-    portPath: string
-  ): Promise<{ valid: boolean; message: string }> => {
-    try {
-      const ports = await ModbusRTU.getPorts()
-      const found = ports.some((port) => port.path.toLowerCase() === portPath.toLowerCase())
-      return {
-        valid: found,
-        message: found
-          ? `Port "${portPath}" is available`
-          : `Port "${portPath}" was not found in available ports`
-      }
-    } catch (error) {
-      const message = humanizeSerialError(error as Error, portPath)
-      this._emitMessage({ message, variant: 'error', error })
-      return { valid: false, message }
-    }
-  }
+  /** Whether a path is one of the ports this machine has. */
+  public validateSerialPort = (portPath: string): Promise<{ valid: boolean; message: string }> =>
+    serialPorts.validateSerialPort(portPath, this._emitMessage)
 
   get state(): ClientState {
     return this._clientState
