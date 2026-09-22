@@ -7,7 +7,7 @@ import type {
   RegisterType
 } from './types'
 import { isNumberRegister } from './types'
-import { registerWidth } from './utils'
+import { registerWidth } from './encoding'
 
 /** How far a string is read when nothing in the mapping says where it ends. */
 const MAX_UTF8_READ_REGISTERS = 24

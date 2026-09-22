@@ -1,6 +1,7 @@
 export * from './types'
 export * from './default'
 export * from './utils'
+export * from './encoding'
 export * from './conversion'
 export * from './addressGrouping'
 export * from './clientOwner'

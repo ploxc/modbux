@@ -4,7 +4,7 @@ import { BitMapConfigSchema } from './bitmap'
 import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { SerialPortOptionsSchema } from './serial'
 import { UnitIdString, UnitIdStringSchema } from './unitid'
-import { getAddressFitError, getValueRangeError, MAX_UTF8_LENGTH } from '../utils'
+import { getAddressFitError, getValueRangeError, MAX_UTF8_LENGTH } from '../encoding'
 import {
   BooleanRegisters,
   BooleanRegistersSchema,

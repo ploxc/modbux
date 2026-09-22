@@ -8,7 +8,7 @@ import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
 import { RegisterParamsSchema, RemoveRegisterParamsSchema } from '../types/server'
 import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
-import { MAX_UTF8_LENGTH } from '../utils'
+import { MAX_UTF8_LENGTH } from '../encoding'
 import { ScanUnitIDParametersSchema } from '../types/scan'
 import {
   MAX_READ_BITS,

@@ -16,7 +16,7 @@ import {
   RegisterTypeSchema,
   UnitIdStringSchema
 } from '../types'
-import { getUsedAddresses, holdsExact64Bits } from '../utils'
+import { getUsedAddresses, holdsExact64Bits } from '../encoding'
 
 /**
  * Replace a stored parity that `ParitySchema` no longer names, at `path` from

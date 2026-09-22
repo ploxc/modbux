@@ -15,4 +15,15 @@ export type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}
   ? `${Head}${Capitalize<CamelCase<Tail>>}`
   : S
 
-// ? type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] }
+/**
+ * The camelCase method name a snake_case channel becomes on `window.api`.
+ *
+ * The cast is what no compiler can do for a string replace, and it sits here
+ * rather than at the call site so every caller is checked against it. It holds
+ * for names of lowercase segments, which is the shape the conformance suite
+ * requires of `IPC_CHANNELS`: `_([a-z])` leaves a digit or a capital where it
+ * stands, and `CamelCase` would capitalise it.
+ */
+export function snakeToCamel<S extends string>(str: S): CamelCase<S> {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()) as CamelCase<S>
+}
