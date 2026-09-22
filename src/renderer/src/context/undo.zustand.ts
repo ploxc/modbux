@@ -1,6 +1,12 @@
 import { create } from 'zustand'
-import { clientStepKey, emptyStack, pushStep } from './undo.zustand.helpers'
-import { UndoZustand } from './undo.zustand.types'
+import {
+  clientStepKey,
+  emptyStack,
+  moveStep,
+  pushStep,
+  serverStepKey
+} from './undo.zustand.helpers'
+import { UndoOutcome, UndoStack, UndoZustand } from './undo.zustand.types'
 
 /**
  * The undo and redo stacks, one per store.
@@ -11,6 +17,7 @@ import { UndoZustand } from './undo.zustand.types'
  */
 export const useUndoZustand = create<UndoZustand>()((set, get) => ({
   client: emptyStack(),
+  server: emptyStack(),
   quiet: 0,
   recordClient: (step): void => {
     // A write while quiet is not recorded, and it ends the open run, so the
@@ -22,6 +29,46 @@ export const useUndoZustand = create<UndoZustand>()((set, get) => ({
     set({ client: pushStep(get().client, step, clientStepKey(step)) })
   },
   setClient: (client): void => set({ client }),
+  recordServer: (step): void => {
+    if (get().quiet > 0) {
+      set({ server: { ...get().server, openKey: undefined } })
+      return
+    }
+    set({ server: pushStep(get().server, step, serverStepKey(step)) })
+  },
+  setServer: (server): void => set({ server }),
   beginQuiet: (): void => set({ quiet: get().quiet + 1 }),
   endQuiet: (): void => set({ quiet: get().quiet - 1 })
 }))
+
+/**
+ * Replays the newest step of one stack in one direction, and moves it across
+ * when the replay took.
+ *
+ * Quiet while it runs, so the setters the replay calls record nothing, and
+ * `busy` while another replay or an action recorded as one step is running.
+ */
+export const replayTop = async <Step>(
+  stack: { read: () => UndoStack<Step>; write: (stack: UndoStack<Step>) => void },
+  direction: 'undo' | 'redo',
+  replay: (step: Step) => Promise<Step | undefined>
+): Promise<UndoOutcome> => {
+  const undo = useUndoZustand.getState()
+  if (undo.quiet > 0) return 'busy'
+
+  const current = stack.read()
+  const step = (direction === 'undo' ? current.past : current.future).at(-1)
+  if (step === undefined) return 'empty'
+
+  undo.beginQuiet()
+  let replaced: Step | undefined
+  try {
+    replaced = await replay(step)
+  } finally {
+    undo.endQuiet()
+  }
+  if (replaced === undefined) return 'refused'
+
+  stack.write(moveStep(stack.read(), direction, step, replaced))
+  return 'done'
+}

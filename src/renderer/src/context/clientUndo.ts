@@ -2,12 +2,11 @@ import { isConnectionAddressGiven, isReadLengthGiven } from '@shared'
 import { deepEqual } from 'fast-equals'
 import { useClientZustand } from './client.zustand'
 import { showMapping } from './data.zustand'
-import { useUndoZustand } from './undo.zustand'
+import { replayTop, useUndoZustand } from './undo.zustand'
 import {
   clientFieldReaders,
   clientFieldSteps,
   clientStepKey,
-  moveStep,
   pushStep
 } from './undo.zustand.helpers'
 import {
@@ -19,7 +18,8 @@ import {
   ClientFieldValues,
   ClientMappingStep,
   ClientUndoStep,
-  UndoOutcome
+  UndoOutcome,
+  UndoStack
 } from './undo.zustand.types'
 
 /**
@@ -125,26 +125,13 @@ const replay = (step: ClientUndoStep): Promise<ClientUndoStep | undefined> => {
   }
 }
 
-const move = async (direction: 'undo' | 'redo'): Promise<UndoOutcome> => {
-  const undo = useUndoZustand.getState()
-  if (undo.quiet > 0) return 'busy'
-
-  const steps = direction === 'undo' ? undo.client.past : undo.client.future
-  const step = steps.at(-1)
-  if (!step) return 'empty'
-
-  undo.beginQuiet()
-  let replaced: ClientUndoStep | undefined
-  try {
-    replaced = await replay(step)
-  } finally {
-    undo.endQuiet()
-  }
-  if (!replaced) return 'refused'
-
-  undo.setClient(moveStep(useUndoZustand.getState().client, direction, step, replaced))
-  return 'done'
+const clientStack = {
+  read: (): UndoStack<ClientUndoStep> => useUndoZustand.getState().client,
+  write: (stack: UndoStack<ClientUndoStep>): void => useUndoZustand.getState().setClient(stack)
 }
+
+const move = (direction: 'undo' | 'redo'): Promise<UndoOutcome> =>
+  replayTop(clientStack, direction, replay)
 
 export const undoClient = (): Promise<UndoOutcome> => move('undo')
 export const redoClient = (): Promise<UndoOutcome> => move('redo')

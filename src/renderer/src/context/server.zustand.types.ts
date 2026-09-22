@@ -115,6 +115,8 @@ export type ServerZustand = {
   init: (uuid?: string) => Promise<void>
   addBool: (type: BooleanRegisters, address: number) => boolean
   removeBool: (type: BooleanRegisters, address: number) => boolean
+  /** The user's switch of a coil or discrete input, recorded as a step. */
+  toggleBool: (type: BooleanRegisters, address: number) => void
   setBool: (params: SetBoolParameters | Array<SetBoolParameters>) => void
   setBoolComment: (type: BooleanRegisters, address: number, comment: string | undefined) => void
   resetBools: (type: BooleanRegisters) => void
@@ -122,6 +124,20 @@ export type ServerZustand = {
   removeRegister: (params: RemoveRegisterParams) => void
   setRegisterValue: (params: SetRegisterValueParameters | Array<SetRegisterValueParameters>) => void
   resetRegisters: (type: NumberRegisters) => void
+  /**
+   * Makes a unit hold `registers` again, or nothing, in the store and in main.
+   * What an undo of a change to a unit replays.
+   */
+  restoreUnit: (
+    uuid: string,
+    unitId: UnitIdString,
+    registers: ServerRegisters | undefined
+  ) => Promise<void>
+  /**
+   * Makes a uuid hold `record` again on the port it listens on now, and hands
+   * main all of it. The uuid has to exist, and main hold nothing for it.
+   */
+  restoreServer: (uuid: string, record: PersistedServer) => Promise<void>
   // Asks the backend and settles on the port it actually got, so callers
   // that need the result -- the privileged port modal -- can await it.
   // Answers whether the server now holds the port asked for. `createServer`

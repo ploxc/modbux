@@ -38,11 +38,9 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
   // it is the coil's address.
   const handleToggle = useCallback(
     (bitAddress: number) => {
-      useServerZustand
-        .getState()
-        .setBool({ registerType: type, address: bitAddress, boolState: !(entry?.value ?? false) })
+      useServerZustand.getState().toggleBool(type, bitAddress)
     },
-    [type, entry?.value]
+    [type]
   )
 
   const handleCommentChange = useCallback(

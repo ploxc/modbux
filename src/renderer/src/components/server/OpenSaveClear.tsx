@@ -7,6 +7,7 @@ import { downloadJson } from '@renderer/components/shared/downloadJson'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { asOneServerStep } from '@renderer/context/serverUndo'
 import { checkHasConfig, migrateServerConfig, resetMessage } from '@shared'
 import {
   CURRENT_SERVER_CONFIG_VERSION,
@@ -43,86 +44,93 @@ const useOpen: UseOpenHook = () => {
       const serverZustand = useServerZustand.getState()
 
       try {
-        const content = await file.text()
+        // One step to undo, the reset and the `init` after it included.
+        await asOneServerStep(serverZustand.selectedUuid, async () => {
+          try {
+            const content = await file.text()
 
-        // Use migration framework to handle all config versions
-        const migrationResult = migrateServerConfig(content)
-        const { config, migrated, wasMixedEndianness, futureVersion } = migrationResult
+            // Use migration framework to handle all config versions
+            const migrationResult = migrateServerConfig(content)
+            const { config, migrated, wasMixedEndianness, futureVersion } = migrationResult
 
-        // A unit the file does not name is not written over on the way in, so
-        // whatever the previous config left on it would answer a master after
-        // this one is loaded. Reset takes both sides down to nothing first.
-        //
-        // After the migration rather than before it, because `migrateServerConfig`
-        // needs nothing from the store and throws on both shapes a user picks by
-        // accident, a client config file and malformed JSON. Reset first, and the
-        // configuration on screen was gone in main and in the store before
-        // anything had read the file.
-        await serverZustand.resetServer(serverZustand.selectedUuid)
+            // A unit the file does not name is not written over on the way in, so
+            // whatever the previous config left on it would answer a master after
+            // this one is loaded. Reset takes both sides down to nothing first.
+            //
+            // After the migration rather than before it, because `migrateServerConfig`
+            // needs nothing from the store and throws on both shapes a user picks by
+            // accident, a client config file and malformed JSON. Reset first, and the
+            // configuration on screen was gone in main and in the store before
+            // anything had read the file.
+            await serverZustand.resetServer(serverZustand.selectedUuid)
 
-        // Set name and littleEndian
-        serverZustand.setName(config.name)
-        serverZustand.setLittleEndian(config.littleEndian)
+            // Set name and littleEndian
+            serverZustand.setName(config.name)
+            serverZustand.setLittleEndian(config.littleEndian)
 
-        // Load all unit configs
-        for (const unitId of UnitIdStringSchema.options) {
-          const serverRegisters = config.serverRegistersPerUnit[unitId]
-          if (!serverRegisters) continue
-          const hasConfig = checkHasConfig(serverRegisters)
-          if (!hasConfig) continue
-          serverZustand.replaceServerRegisters(unitId, serverRegisters)
-        }
+            // Load all unit configs
+            for (const unitId of UnitIdStringSchema.options) {
+              const serverRegisters = config.serverRegistersPerUnit[unitId]
+              if (!serverRegisters) continue
+              const hasConfig = checkHasConfig(serverRegisters)
+              if (!hasConfig) continue
+              serverZustand.replaceServerRegisters(unitId, serverRegisters)
+            }
 
-        // Show success notification
-        if (migrated) {
-          enqueueSnackbar({
-            variant: 'info',
-            message: 'Configuration updated from older format',
-            autoHideDuration: 5000
-          })
-        } else {
-          enqueueSnackbar({
-            variant: 'success',
-            message: 'Configuration opened successfully'
-          })
-        }
+            // Show success notification
+            if (migrated) {
+              enqueueSnackbar({
+                variant: 'info',
+                message: 'Configuration updated from older format',
+                autoHideDuration: 5000
+              })
+            } else {
+              enqueueSnackbar({
+                variant: 'success',
+                message: 'Configuration opened successfully'
+              })
+            }
 
-        // Show warning for mixed endianness
-        if (wasMixedEndianness) {
-          enqueueSnackbar({
-            variant: 'warning',
-            message: `Warning: Config had mixed byte order settings. Now using ${config.littleEndian ? 'Little' : 'Big'}-Endian globally. Please verify.`,
-            autoHideDuration: 8000
-          })
-        }
+            // Show warning for mixed endianness
+            if (wasMixedEndianness) {
+              enqueueSnackbar({
+                variant: 'warning',
+                message: `Warning: Config had mixed byte order settings. Now using ${config.littleEndian ? 'Little' : 'Big'}-Endian globally. Please verify.`,
+                autoHideDuration: 8000
+              })
+            }
 
-        // A config from a newer Modbux is parsed against the current schema and
-        // keeps what matches, so the warning says which fields did not come
-        // across rather than that some feature may not work.
-        if (futureVersion) {
-          enqueueSnackbar({
-            variant: 'warning',
-            message: resetMessage('Server', futureVersion),
-            // A notice that everything came across is not one the user has to
-            // dismiss, and it sits on top of "Configuration opened
-            // successfully" either way.
-            persist: futureVersion.fields.length > 0,
-            autoHideDuration: 8000
-          })
-        }
-      } catch (error) {
-        const tError = error as Error
-        enqueueSnackbar({ variant: 'error', message: `Failed to load config: ${tError.message}` })
-        console.error('Config load error:', error)
+            // A config from a newer Modbux is parsed against the current schema and
+            // keeps what matches, so the warning says which fields did not come
+            // across rather than that some feature may not work.
+            if (futureVersion) {
+              enqueueSnackbar({
+                variant: 'warning',
+                message: resetMessage('Server', futureVersion),
+                // A notice that everything came across is not one the user has to
+                // dismiss, and it sits on top of "Configuration opened
+                // successfully" either way.
+                persist: futureVersion.fields.length > 0,
+                autoHideDuration: 8000
+              })
+            }
+          } catch (error) {
+            const tError = error as Error
+            enqueueSnackbar({
+              variant: 'error',
+              message: `Failed to load config: ${tError.message}`
+            })
+            console.error('Config load error:', error)
+          } finally {
+            // `init` runs either way: on a refused file it hands main the
+            // configuration that is still there, which is the one on screen.
+            await serverZustand.init(serverZustand.selectedUuid)
+          }
+        })
       } finally {
         // In the `finally` because `file.text()` is inside the `try` now, and a
         // file that is gone by the time it is read left `opening` true and
         // every server button disabled until the app was restarted.
-        //
-        // `init` runs either way: on a refused file it hands main the
-        // configuration that is still there, which is the one on screen.
-        await serverZustand.init(serverZustand.selectedUuid)
-
         openingRef.current = false
         setOpening(false)
       }
@@ -180,8 +188,10 @@ const OpenSaveClear = meme(() => {
 
   const clear = useCallback(async () => {
     const serverZustand = useServerZustand.getState()
-    serverZustand.setName('')
-    await serverZustand.resetServer(serverZustand.selectedUuid)
+    await asOneServerStep(serverZustand.selectedUuid, async () => {
+      serverZustand.setName('')
+      await serverZustand.resetServer(serverZustand.selectedUuid)
+    })
   }, [])
 
   return (

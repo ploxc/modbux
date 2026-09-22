@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { asOneServerUnitStep } from '@renderer/context/serverUndo'
 import { BaseDataType, DataType, NumberRegisters, registerWidth, ServerRegister } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -322,25 +323,28 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
           ? serverRegisterEdit.params
           : undefined
 
-      if (moved) {
-        serverZustand.removeRegister({
-          uuid,
-          unitId,
-          address: moved.address,
-          registerType,
-          dataType: moved.dataType,
-          length: moved.length
-        })
-      }
+      let added = false
+      // A move is a remove and an add, and one step to undo.
+      await asOneServerUnitStep(uuid, unitId, async () => {
+        if (moved) {
+          serverZustand.removeRegister({
+            uuid,
+            unitId,
+            address: moved.address,
+            registerType,
+            dataType: moved.dataType,
+            length: moved.length
+          })
+        }
 
-      if (!(await serverZustand.addRegister({ uuid, unitId, params }))) {
+        added = await serverZustand.addRegister({ uuid, unitId, params })
         // The remove has already happened, so a refusal here would leave the
         // user with neither register and a message about only one of them.
         // What goes back is what main handed over in the first place, so the
         // restore is refused only if the schema changed under a running app.
-        if (moved) await serverZustand.addRegister({ uuid, unitId, params: moved })
-        return undefined
-      }
+        if (!added && moved) await serverZustand.addRegister({ uuid, unitId, params: moved })
+      })
+      if (!added) return undefined
 
       return { address: params.address, dataType: form.dataType }
     },

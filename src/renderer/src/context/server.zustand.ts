@@ -24,7 +24,10 @@ import {
   MAX_NUMBER_REGISTER_WIDTH,
   ModbusBaudRate,
   RegisterType,
-  RegisterValue
+  RegisterValue,
+  ServerRegisters,
+  BooleanRegisters,
+  NumberRegisters
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { enqueueSnackbar } from 'notistack'
@@ -46,6 +49,9 @@ import {
 } from './server.zustand.helpers'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
+import { useUndoZustand } from './undo.zustand'
+import { emptyStack, unitStructure } from './undo.zustand.helpers'
+import { deepEqual } from 'fast-equals'
 
 /**
  * The version the blob on disk carried, set by `migrate` and read by
@@ -59,6 +65,55 @@ import { repairPersistedStore } from './repairPersistedStore'
  * `repairPersisted` answers a reset on `savedByNewerVersion` alone.
  */
 let persistedVersion: number | undefined
+
+/**
+ * Records what a unit held, when an action changed which addresses it has or
+ * what they are. A value a master or a generator wrote is no step, so the
+ * comparison leaves the values out.
+ */
+const recordUnit = (
+  get: () => ServerZustand,
+  uuid: string,
+  unitId: UnitIdString,
+  before: ServerRegisters | undefined
+): void => {
+  const after = get().servers[uuid]?.registers[unitId]
+  if (deepEqual(unitStructure(before), unitStructure(after))) return
+  useUndoZustand.getState().recordServer({ kind: 'unit', uuid, unitId, value: before })
+}
+
+/**
+ * A unit's registers with the values it holds now kept, so putting a unit back
+ * puts back its addresses and what they are, not a value a master or a
+ * generator has written since. A register keeps its value only where it is the
+ * same register, with the same params.
+ */
+const keepLiveValues = (
+  registers: ServerRegisters,
+  live: ServerRegisters | undefined
+): ServerRegisters => {
+  const bools = (type: BooleanRegisters): ServerRegisters[BooleanRegisters] =>
+    Object.fromEntries(
+      Object.entries(registers[type]).map(([address, entry]) => [
+        address,
+        { ...entry, value: live?.[type][Number(address)]?.value ?? entry.value }
+      ])
+    )
+  const numbers = (type: NumberRegisters): ServerRegisters[NumberRegisters] =>
+    Object.fromEntries(
+      Object.entries(registers[type]).map(([address, entry]) => {
+        const liveEntry = live?.[type][Number(address)]
+        const same = liveEntry !== undefined && deepEqual(liveEntry.params, entry.params)
+        return [address, same ? { ...entry, value: liveEntry.value } : entry]
+      })
+    )
+  return {
+    coils: bools('coils'),
+    discrete_inputs: bools('discrete_inputs'),
+    input_registers: numbers('input_registers'),
+    holding_registers: numbers('holding_registers')
+  }
+}
 
 export const useServerZustand = create<
   ServerZustand,
@@ -101,10 +156,17 @@ export const useServerZustand = create<
           state.ready[uuid] = true
           state.selectedUuid = uuid
         })
+        // The main server has no Delete button, and `init` creates it on a
+        // launch with no servers, which is no step to undo.
+        if (uuid !== MAIN_SERVER_UUID) {
+          useUndoZustand.getState().recordServer({ kind: 'server', uuid, value: undefined })
+        }
         return true
       },
       deleteServer: async (uuid) => {
+        const before = get().servers[uuid]
         await window.api.deleteServer(uuid)
+        if (before) useUndoZustand.getState().recordServer({ kind: 'server', uuid, value: before })
         set((state) => {
           delete state.servers[uuid]
           delete state.ready[uuid]
@@ -219,14 +281,20 @@ export const useServerZustand = create<
         }),
       setName: (name) => {
         const uuid = get().selectedUuid
+        // A name never set reads as the empty one everywhere it is shown.
+        const before = get().servers[uuid]?.name ?? ''
         set((state) => {
           const server = state.servers[uuid]
           if (server) server.name = name
         })
+        if ((get().servers[uuid]?.name ?? '') !== before) {
+          useUndoZustand.getState().recordServer({ kind: 'name', uuid, value: before })
+        }
       },
       addBool: (registerType, address) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
+        const before = get().servers[uuid]?.registers[unitId]
         let added = false
         set((state) => {
           const registers = unitRegisters(state, uuid, unitId)
@@ -236,11 +304,13 @@ export const useServerZustand = create<
           added = true
         })
         if (added) window.api.setBool({ uuid, unitId, registerType, address, state: false })
+        recordUnit(get, uuid, unitId, before)
         return added
       },
       removeBool: (registerType, address) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
+        const before = get().servers[uuid]?.registers[unitId]
         let removed = false
         set((state) => {
           const registers = state.servers[uuid]?.registers[unitId]
@@ -249,7 +319,23 @@ export const useServerZustand = create<
           removed = true
         })
         if (removed) window.api.setBool({ uuid, unitId, registerType, address, state: false })
+        recordUnit(get, uuid, unitId, before)
         return removed
+      },
+      toggleBool: (registerType, address) => {
+        const uuid = get().selectedUuid
+        const unitId = get().getUnitId(uuid)
+        const entry = get().servers[uuid]?.registers[unitId]?.[registerType][address]
+        if (!entry) return
+        useUndoZustand.getState().recordServer({
+          kind: 'bool',
+          uuid,
+          unitId,
+          registerType,
+          address,
+          value: entry.value
+        })
+        get().setBool({ registerType, address, boolState: !entry.value })
       },
       setBool: (params) => {
         const written: SetBooleanParameters[] = []
@@ -274,15 +360,18 @@ export const useServerZustand = create<
       setBoolComment: (registerType, address, comment) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
+        const before = get().servers[uuid]?.registers[unitId]
         set((state) => {
           const entry = state.servers[uuid]?.registers[unitId]?.[registerType]?.[address]
           if (!entry) return
           entry.comment = comment || undefined
         })
+        recordUnit(get, uuid, unitId, before)
       },
       resetBools: (registerType) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
+        const before = get().servers[uuid]?.registers[unitId]
         // Read before the store is emptied, because the other type keeps the
         // values it had and main takes both arrays on every sync.
         const bools = boolArraysOf(get().servers[uuid]?.registers ?? {}, unitId)
@@ -297,6 +386,7 @@ export const useServerZustand = create<
           [registerType]: new Array(65536).fill(false)
         }
         window.api.syncBools(newBools)
+        recordUnit(get, uuid, unitId, before)
       },
       addRegister: async (addParams) => {
         const { uuid, unitId, params } = addParams
@@ -313,6 +403,7 @@ export const useServerZustand = create<
         //
         // Whether it was taken goes back out to the caller, because Add & Next
         // asks for the next free address and that reads the map written below.
+        const before = get().servers[uuid]?.registers[unitId]
         const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
         if (words === undefined) return false
 
@@ -325,6 +416,7 @@ export const useServerZustand = create<
             Object.values(registers[params.registerType]).map((register) => register.params)
           )
         })
+        recordUnit(get, uuid, unitId, before)
 
         // The entry exists now, so the words go through the merge that turns
         // them into the value the grid draws.
@@ -342,6 +434,7 @@ export const useServerZustand = create<
       },
       removeRegister: (removeParams) => {
         const { uuid, unitId, registerType, address } = removeParams
+        const before = get().servers[uuid]?.registers[unitId]
         set((state) => {
           const registers = state.servers[uuid]?.registers[unitId]
           if (registers === undefined) return
@@ -355,6 +448,7 @@ export const useServerZustand = create<
           )
         })
         window.api.removeServerRegister(removeParams)
+        recordUnit(get, uuid, unitId, before)
       },
       setRegisterValue: (params) => {
         if (!Array.isArray(params)) params = [params]
@@ -382,6 +476,7 @@ export const useServerZustand = create<
       resetRegisters: (registerType) => {
         const uuid = get().selectedUuid
         const unitId = get().getUnitId(uuid)
+        const before = get().servers[uuid]?.registers[unitId]
         window.api.resetRegisters({ uuid, unitId, registerType })
         set((state) => {
           const registers = unitRegisters(state, uuid, unitId)
@@ -390,6 +485,82 @@ export const useServerZustand = create<
           registers[registerType] = {}
           addresses[registerType] = []
         })
+        recordUnit(get, uuid, unitId, before)
+      },
+      restoreUnit: async (uuid, unitId, registers) => {
+        const live = get().servers[uuid]?.registers[unitId]
+        const restored = registers && keepLiveValues(registers, live)
+        set((state) => {
+          const server = state.servers[uuid]
+          if (!server) return
+          if (restored === undefined) {
+            delete server.registers[unitId]
+            delete server.usedAddresses[unitId]
+            return
+          }
+          server.registers[unitId] = restored
+          server.usedAddresses[unitId] = {
+            input_registers: getUsedAddresses(
+              Object.values(restored.input_registers).map((register) => register.params)
+            ),
+            holding_registers: getUsedAddresses(
+              Object.values(restored.holding_registers).map((register) => register.params)
+            )
+          }
+        })
+
+        // Main is handed the difference, register by register, rather than the
+        // unit whole: `sync_server_register` adds every register back from its
+        // params, and a value a master wrote into one the step never touched
+        // would go with it. Bools go whole, with the values kept above.
+        const boolStructure = (unit: ServerRegisters | undefined): unknown =>
+          unitStructure(unit && { ...unit, input_registers: {}, holding_registers: {} })
+        if (!deepEqual(boolStructure(live), boolStructure(restored))) {
+          const serverRegisters = get().servers[uuid]?.registers ?? {}
+          await window.api.syncBools({ uuid, unitId, ...boolArraysOf(serverRegisters, unitId) })
+        }
+
+        for (const registerType of ['input_registers', 'holding_registers'] as const) {
+          const before = live?.[registerType] ?? {}
+          const after = restored?.[registerType] ?? {}
+          // Removed first, because a moved register's two spans can overlap.
+          for (const [address, entry] of Object.entries(before)) {
+            if (deepEqual(after[Number(address)]?.params, entry.params)) continue
+            const { dataType, length } = entry.params
+            await window.api.removeServerRegister({
+              uuid,
+              unitId,
+              registerType,
+              address: Number(address),
+              dataType,
+              length
+            })
+          }
+          for (const [address, entry] of Object.entries(after)) {
+            if (deepEqual(before[Number(address)]?.params, entry.params)) continue
+            const { params } = entry
+            const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
+            // What main now holds, folded in as `addRegister` folds it, so the
+            // grid does not show the value from when the step was taken.
+            for (const [offset, value] of (words ?? []).entries()) {
+              applyRegisterValue({
+                uuid,
+                unitId,
+                registerType,
+                address: params.address + offset,
+                value
+              })
+            }
+          }
+        }
+      },
+      restoreServer: async (uuid, record) => {
+        // The port main bound stays, because the server listens on it.
+        const port = get().servers[uuid]?.port ?? record.port
+        set((state) => {
+          state.servers[uuid] = { ...record, port }
+        })
+        await get().init(uuid)
       },
       setPort: async (port) => {
         const uuid = get().selectedUuid
@@ -413,6 +584,7 @@ export const useServerZustand = create<
         }
 
         // Only update port from backend response
+        const before = servers[uuid]?.port
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
         if (actualPort === undefined) return false
 
@@ -420,6 +592,9 @@ export const useServerZustand = create<
           const server = state.servers[uuid]
           if (server) server.port = String(actualPort)
         })
+        if (before !== undefined && get().servers[uuid]?.port !== before) {
+          useUndoZustand.getState().recordServer({ kind: 'port', uuid, value: before })
+        }
         // Main refuses a port by answering the one the server kept, not
         // `undefined`, so a refusal is a port other than the one asked for.
         return actualPort === Number(port)
@@ -438,10 +613,14 @@ export const useServerZustand = create<
         const uuid = currentState.selectedUuid
         if (!currentState.ready[uuid]) return false
 
+        const before = currentState.servers[uuid]?.littleEndian
         set((state) => {
           const server = state.servers[uuid]
           if (server) server.littleEndian = littleEndian
         })
+        if (before !== undefined && before !== littleEndian) {
+          useUndoZustand.getState().recordServer({ kind: 'littleEndian', uuid, value: before })
+        }
 
         // Told before the registers are sent, because main encodes them with
         // the order it holds at that moment.
@@ -764,6 +943,9 @@ onEvent('window_update', ({ server }) => {
   }
   if (!serverWindowOwnsTheKey) return
   serverWindowOwnsTheKey = false
+  // The steps this window holds describe the store from before the split, and
+  // the key it is about to read holds what the other window made of it since.
+  useUndoZustand.getState().setServer(emptyStack())
   persistedVersion = undefined
   void Promise.resolve(useServerZustand.persist.rehydrate())
     .then(() => {

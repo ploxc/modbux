@@ -1,9 +1,11 @@
+import { ServerRegisters } from '@shared'
 import { ClientZustand } from './client.zustand.types'
 import {
   ClientField,
   ClientFieldStepMap,
   ClientFieldValues,
   ClientUndoStep,
+  ServerUndoStep,
   UndoStack
 } from './undo.zustand.types'
 
@@ -82,6 +84,45 @@ export const clientStepKey = (step: ClientUndoStep): string | undefined => {
     case 'configuration':
       return undefined
   }
+}
+
+/**
+ * The run a server step merges into: the name, typed a key at a time, and the
+ * port. The rest are a click each.
+ */
+export const serverStepKey = (step: ServerUndoStep): string | undefined => {
+  switch (step.kind) {
+    case 'name':
+    case 'port':
+      return `${step.kind}.${step.uuid}`
+    case 'server':
+    case 'unit':
+    case 'bool':
+    case 'littleEndian':
+      return undefined
+  }
+}
+
+/**
+ * What a unit holds apart from the values in it: the addresses, what each
+ * register is, and the comments. Compared to tell a change to a unit from a
+ * value a master or a generator wrote into it.
+ *
+ * A register type with nothing in it is left out, so a unit made as four empty
+ * maps on its first write reads the same as one that was never made.
+ */
+export const unitStructure = (
+  registers: ServerRegisters | undefined
+): Record<string, Record<string, unknown>> => {
+  const structure: Record<string, Record<string, unknown>> = {}
+  for (const [registerType, entries] of Object.entries(registers ?? {})) {
+    const addresses: Record<string, unknown> = {}
+    for (const [address, entry] of Object.entries(entries)) {
+      addresses[address] = 'params' in entry ? entry.params : { comment: entry.comment }
+    }
+    if (Object.keys(addresses).length > 0) structure[registerType] = addresses
+  }
+  return structure
 }
 
 /**

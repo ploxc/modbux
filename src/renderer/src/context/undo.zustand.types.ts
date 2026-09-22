@@ -1,12 +1,16 @@
 import {
+  BooleanRegisters,
   ConnectionConfig,
   Parity,
   RegisterConfig,
   RegisterMapping,
   RegisterMapValue,
   RegisterType,
-  SerialPortOptions
+  SerialPortOptions,
+  ServerRegisters,
+  UnitIdString
 } from '@shared'
+import { PersistedServer } from './server.zustand.types'
 
 /**
  * Every client field an undo can put back, keyed by the name a step carries.
@@ -78,6 +82,69 @@ export interface ClientConfigurationStep {
 export type ClientUndoStep = ClientFieldStep | ClientMappingStep | ClientConfigurationStep
 
 /**
+ * A whole server as it was, or `undefined` for a server that did not exist.
+ *
+ * Creating, deleting, Clear and Open each replace what one uuid holds, so one
+ * kind covers all four: its replay makes the uuid hold this again.
+ */
+export interface ServerRecordStep {
+  kind: 'server'
+  uuid: string
+  value: PersistedServer | undefined
+}
+
+/**
+ * What one unit of one server held, all four register types.
+ *
+ * Adding, removing, moving and resetting registers and bools, and a bool's
+ * comment, change what a unit holds rather than what a master reads from it.
+ * The replay keeps the values a master or a generator wrote since, and puts
+ * back which addresses there are and what they are.
+ */
+export interface ServerUnitStep {
+  kind: 'unit'
+  uuid: string
+  unitId: UnitIdString
+  value: ServerRegisters | undefined
+}
+
+/** One coil or discrete input the user switched. */
+export interface ServerBoolStep {
+  kind: 'bool'
+  uuid: string
+  unitId: UnitIdString
+  registerType: BooleanRegisters
+  address: number
+  value: boolean
+}
+
+export interface ServerNameStep {
+  kind: 'name'
+  uuid: string
+  value: string
+}
+
+export interface ServerPortStep {
+  kind: 'port'
+  uuid: string
+  value: string
+}
+
+export interface ServerLittleEndianStep {
+  kind: 'littleEndian'
+  uuid: string
+  value: boolean
+}
+
+export type ServerUndoStep =
+  | ServerRecordStep
+  | ServerUnitStep
+  | ServerBoolStep
+  | ServerNameStep
+  | ServerPortStep
+  | ServerLittleEndianStep
+
+/**
  * The steps of one store, oldest first.
  *
  * `openKey` names the run the next write may merge into. A write to the same
@@ -94,6 +161,7 @@ export type UndoOutcome = 'done' | 'refused' | 'empty' | 'busy'
 
 export interface UndoZustand {
   client: UndoStack<ClientUndoStep>
+  server: UndoStack<ServerUndoStep>
   /**
    * How many replays and actions that write several fields are running. A
    * setter records nothing while it is above zero: the replay is the step, and
@@ -103,6 +171,8 @@ export interface UndoZustand {
   quiet: number
   recordClient: (step: ClientUndoStep) => void
   setClient: (stack: UndoStack<ClientUndoStep>) => void
+  recordServer: (step: ServerUndoStep) => void
+  setServer: (stack: UndoStack<ServerUndoStep>) => void
   beginQuiet: () => void
   endQuiet: () => void
 }
