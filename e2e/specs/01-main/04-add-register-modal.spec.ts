@@ -1,5 +1,11 @@
 import { test, expect } from '../../fixtures/electron-app'
-import { navigateToServer, selectDataType, selectUnitId, addRegister } from '../../fixtures/helpers'
+import {
+  navigateToServer,
+  selectDataType,
+  selectUnitId,
+  addRegister,
+  closeAddRegisterModal
+} from '../../fixtures/helpers'
 import type { RegisterDef } from '../../fixtures/types'
 
 test.describe.serial('AddRegister modal — state management and validation', () => {
@@ -114,8 +120,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
 
     // Close modal, and leave it closed: the next test opens it again, and a
     // backdrop still up swallows that click.
-    await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('add-reg-address-input')).not.toBeVisible()
+    await closeAddRegisterModal(mainPage)
   })
 
   test('Add & Next for UTF-8: string reset, address advances by register length', async ({
@@ -148,8 +153,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     // String value reset
     expect(await stringInput.inputValue()).toBe('')
 
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await closeAddRegisterModal(mainPage)
   })
 
   test('switch to input_registers — verify modal reset between register types', async ({
@@ -345,8 +349,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     // Submit should be disabled
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await closeAddRegisterModal(mainPage)
 
     // Clean up: remove register at 50
     await mainPage.getByTestId('server-edit-reg-holding_registers-50').click()
@@ -414,8 +417,7 @@ test.describe.serial('AddRegister modal — state management and validation', ()
     await expect(mainPage.getByTestId('add-reg-address-in-use')).toBeVisible()
     await expect(mainPage.getByTestId('add-reg-submit-btn')).toBeDisabled()
 
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(300)
+    await closeAddRegisterModal(mainPage)
 
     // The comment proves which register survived.
     await mainPage.getByTestId('server-edit-reg-holding_registers-65535').click()

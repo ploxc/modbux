@@ -862,3 +862,21 @@ export async function splitOutServerWindow(app: ElectronApplication, p: Page): P
   await serverPage.waitForLoadState('domcontentloaded')
   return serverPage
 }
+
+/**
+ * Close the add register dialog with Escape, pressed inside it.
+ *
+ * MUI 9.3.1 puts the Escape handler on the modal root: `getRootProps` in
+ * `Modal/useModal.js` hands `onKeyDown` to that element, so the key closes the
+ * dialog only while focus is inside it. Add & Next disables the button under
+ * the pointer while the submit is in flight, which blurs it to `body`, and
+ * `FocusTrap` puts focus back from an interval of 50 ms. Measured with a probe:
+ * `document.activeElement` is `BODY` immediately after the click and a DIV
+ * inside the modal 300 ms later. `keyboard.press` between those two lands on
+ * `body` and the dialog stays open. Pressing on the address field focuses it
+ * first, which is what the assertion below then holds.
+ */
+export async function closeAddRegisterModal(p: Page): Promise<void> {
+  await p.getByTestId('add-reg-address-input').locator('input').press('Escape')
+  await expect(p.getByTestId('add-reg-address-input')).not.toBeVisible()
+}
