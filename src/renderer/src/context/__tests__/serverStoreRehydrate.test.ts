@@ -186,6 +186,23 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().servers.u?.registers).toEqual({})
   })
 
+  // The reset is what makes the app usable again and it is also what destroys
+  // the evidence, so the key is copied before it goes. `persist` wraps
+  // `setState` with its own `setItem`, so a repair written through the store
+  // before the copy is taken leaves the copy holding the repaired blob.
+  it('keeps the register that failed in the copy a bug report can carry', async () => {
+    const edited = JSON.parse(store([0]))
+    edited.state.servers.u.registers['0'].holding_registers = { '5': register(9) }
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
+
+    await import('../server.zustand')
+    await settle()
+
+    const corrupt = localStorage.getItem(`${SERVER_ZUSTAND_STORAGE_KEY}.corrupt`)
+    expect(corrupt).toContain('"address":9')
+    expect(localStorage.getItem(SERVER_ZUSTAND_STORAGE_KEY)).not.toContain('"address":9')
+  })
+
   // What one field of one server costs. Read whole, `servers` is one field
   // holding every one of them, so the register below would take the port and
   // the name with it and the second server's registers besides.

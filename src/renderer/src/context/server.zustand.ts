@@ -526,13 +526,17 @@ const repairFromTheKey = (): void => {
   // level field at a time and `servers` is the one field holding all of them,
   // so read whole, one register the schema refuses would cost every port,
   // every name and every register in the store.
-  const repairedServers = repairServers(useServerZustand.getState().servers)
-  if (repairedServers) useServerZustand.setState({ servers: repairedServers.servers })
+  //
+  // Handed over rather than written through the store, because a `setState`
+  // here persists, and the copy `keepCorrupt` takes is of the key.
+  const currentState = useServerZustand.getState()
+  const repairedServers = repairServers(currentState.servers)
 
   const repair = repairPersistedStore(useServerZustand, PersistedServerZustandSchema, {
     storageKey: SERVER_ZUSTAND_STORAGE_KEY,
     persistedVersion,
     currentVersion: CURRENT_SERVER_ZUSTAND_VERSION,
+    state: repairedServers && { ...currentState, servers: repairedServers.servers },
     alsoReset: repairedServers?.fields
   })
   if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.reset })

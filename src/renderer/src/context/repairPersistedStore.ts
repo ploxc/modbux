@@ -13,6 +13,16 @@ interface PersistedAt {
   persistedVersion: number | undefined
   currentVersion: number
   /**
+   * The state to read, where a caller repaired part of it first.
+   *
+   * `persist` wraps `setState` with its own `setItem`, so a caller that wrote
+   * its repair through the store would have overwritten the key before
+   * `keepCorrupt` below copied it, and the copy meant for a bug report would
+   * hold the repaired blob. Measured: with the write first, the register that
+   * failed was in neither the key nor the copy.
+   */
+  state?: unknown
+  /**
    * Fields a caller repaired itself, which are reported and kept.
    *
    * The server store reads each server back on its own before calling here,
@@ -47,12 +57,12 @@ interface PersistedAt {
 export const repairPersistedStore = <Shape extends z.ZodRawShape>(
   store: { getState: () => unknown; getInitialState: () => object },
   schema: z.ZodObject<Shape>,
-  { storageKey, persistedVersion, currentVersion, alsoReset = [] }: PersistedAt
+  { storageKey, persistedVersion, currentVersion, state, alsoReset = [] }: PersistedAt
 ): StoreRepair<z.infer<z.ZodObject<Shape>>> | undefined => {
   const savedByNewerVersion = persistedVersion !== undefined && persistedVersion > currentVersion
   const repair = repairPersisted(
     schema,
-    store.getState(),
+    state ?? store.getState(),
     store.getInitialState(),
     savedByNewerVersion
   )
