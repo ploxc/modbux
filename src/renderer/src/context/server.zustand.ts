@@ -93,7 +93,7 @@ export const useServerZustand = create<
         // payload answers undefined, and writing that would put the string
         // "undefined" in the port field.
         const actualPort = await window.api.createServer(params)
-        if (actualPort === undefined) return
+        if (actualPort === undefined) return false
         const { uuid } = params
 
         set((state) => {
@@ -101,6 +101,7 @@ export const useServerZustand = create<
           state.ready[uuid] = true
           state.selectedUuid = uuid
         })
+        return true
       },
       deleteServer: async (uuid) => {
         await window.api.deleteServer(uuid)
@@ -235,6 +236,7 @@ export const useServerZustand = create<
           added = true
         })
         if (added) window.api.setBool({ uuid, unitId, registerType, address, state: false })
+        return added
       },
       removeBool: (registerType, address) => {
         const uuid = get().selectedUuid
@@ -247,6 +249,7 @@ export const useServerZustand = create<
           removed = true
         })
         if (removed) window.api.setBool({ uuid, unitId, registerType, address, state: false })
+        return removed
       },
       setBool: (params) => {
         const written: SetBooleanParameters[] = []
@@ -390,10 +393,10 @@ export const useServerZustand = create<
       },
       setPort: async (port) => {
         const uuid = get().selectedUuid
-        if (!get().ready[uuid]) return
+        if (!get().ready[uuid]) return false
 
         const servers = get().servers
-        if (port === servers[uuid]?.port) return
+        if (port === servers[uuid]?.port) return true
 
         // The check stays here, because `setPort` has a second caller in
         // `PrivilegedPortModal` and a rule written in the field is one that
@@ -406,17 +409,20 @@ export const useServerZustand = create<
             message: `Port ${port} is already used by another server`,
             variant: 'error'
           })
-          return
+          return false
         }
 
         // Only update port from backend response
         const actualPort = await window.api.setServerPort({ uuid, port: Number(port) })
-        if (actualPort === undefined) return
+        if (actualPort === undefined) return false
 
         set((state) => {
           const server = state.servers[uuid]
           if (server) server.port = String(actualPort)
         })
+        // Main refuses a port by answering the one the server kept, not
+        // `undefined`, so a refusal is a port other than the one asked for.
+        return actualPort === Number(port)
       },
       setUnitId: (unitId) => {
         const currentState = get()
@@ -430,7 +436,7 @@ export const useServerZustand = create<
       setLittleEndian: async (littleEndian) => {
         const currentState = get()
         const uuid = currentState.selectedUuid
-        if (!currentState.ready[uuid]) return
+        if (!currentState.ready[uuid]) return false
 
         set((state) => {
           const server = state.servers[uuid]
@@ -442,13 +448,14 @@ export const useServerZustand = create<
         await window.api.setServerEndianness({ uuid, littleEndian })
 
         const serverRegisters = currentState.servers[uuid]?.registers
-        if (!serverRegisters) return
+        if (!serverRegisters) return true
 
         const unitIdsWithData = extractUnitIdsWithData(serverRegisters)
 
         for (const unitId of unitIdsWithData) {
           await syncRegistersWithBackend(serverRegisters, unitId, uuid)
         }
+        return true
       },
       replaceServerRegisters: (unitId, registers) => {
         const uuid = get().selectedUuid

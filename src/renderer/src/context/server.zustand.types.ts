@@ -108,13 +108,13 @@ export type ServerZustand = {
   /** Empties a server's registers and puts it back on unit 0. */
   clean: (uuid: string) => void
   setSelectedUuid: (uuid: string) => void
-  createServer: (params: CreateServerParams) => Promise<void>
+  createServer: (params: CreateServerParams) => Promise<boolean>
   deleteServer: (uuid: string) => Promise<void>
   /** Empties a uuid on both sides: main's data and generators, then `clean`. */
   resetServer: (uuid: string) => Promise<void>
   init: (uuid?: string) => Promise<void>
-  addBool: (type: BooleanRegisters, address: number) => void
-  removeBool: (type: BooleanRegisters, address: number) => void
+  addBool: (type: BooleanRegisters, address: number) => boolean
+  removeBool: (type: BooleanRegisters, address: number) => boolean
   setBool: (params: SetBoolParameters | Array<SetBoolParameters>) => void
   setBoolComment: (type: BooleanRegisters, address: number, comment: string | undefined) => void
   resetBools: (type: BooleanRegisters) => void
@@ -124,9 +124,13 @@ export type ServerZustand = {
   resetRegisters: (type: NumberRegisters) => void
   // Asks the backend and settles on the port it actually got, so callers
   // that need the result -- the privileged port modal -- can await it.
+  // Answers whether the server now holds the port asked for. `createServer`
+  // answers whether a server stands, on whichever port main found free,
+  // `setLittleEndian` whether the server was ready, and `addBool` and
+  // `removeBool` whether they changed anything.
   setPort: AsyncMaskSetFn
   setUnitId: MaskSetFn<UnitIdString>
-  setLittleEndian: (value: boolean) => Promise<void>
+  setLittleEndian: (value: boolean) => Promise<boolean>
   // Replace
   replaceServerRegisters: (unitId: UnitIdString, registers: ServerRegisters) => void
   setName: (name: string) => void

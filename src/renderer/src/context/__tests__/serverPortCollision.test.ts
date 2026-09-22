@@ -22,7 +22,7 @@ beforeEach(() => {
 
 /** The store with two ready servers, 502 selected and 503 beside it. */
 const twoServers = async (): Promise<{
-  setPort: (port: string) => Promise<void>
+  setPort: (port: string) => Promise<boolean>
   portOf: (uuid: string) => string | undefined
 }> => {
   const { useServerZustand } = await import('../server.zustand')
