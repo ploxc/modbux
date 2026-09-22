@@ -392,8 +392,16 @@ describe('shared does not import from main', () => {
 // ─── One store selector per field ────────────────────────────────────────────
 //
 // A selector returning an object literal is a whole-store subscription wearing a
-// selector's clothes: a fresh object every render, so every flush re-renders.
-// This is why the grid draws two thousand rows without useShallow.
+// selector's clothes, and it costs more than the flushes: zustand compares the
+// selector's answer with `Object.is` under `useSyncExternalStore`, so a fresh
+// reference is a new snapshot on the render that follows and React loops.
+// Measured at zustand 5.0.11, on an object literal and on `Object.keys`:
+// `Maximum update depth exceeded`. This is why the grid draws two thousand rows
+// without useShallow.
+//
+// The three object spellings below, the bare call and `(z) => z` are what an
+// AST can read. A call that builds its answer, `Object.keys(z.servers)`, is the
+// same defect and is not, so CONTRIBUTING names it as a reviewer's question.
 
 describe('one store selector per field', () => {
   const files = sourceFiles(rendererRoot)

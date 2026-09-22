@@ -64,12 +64,24 @@ population holds no violation, because a meter that reads no files passes every
 rule it has.
 
 **One store selector per field.** `useClientZustand((z) => z.a)` and then
-`((z) => z.b)`, never one selector returning an object. An object literal is a
-new reference on every render, so a selector that returns one re-renders its
-component on every flush of any field. The same goes for a call with no selector
-and for `(z) => z`, which take the whole store the long way round. The renderer
-has zero of all three and zero `useShallow`, and that is why it draws a
-two-thousand-row grid without either.
+`((z) => z.b)`, never one selector answering something it built. zustand runs
+the selector under `useSyncExternalStore` and compares its answer with
+`Object.is`, so a fresh reference is a new snapshot every time React reads it,
+and React reads it again on the render that follows: the component does not
+render more often, it throws `Maximum update depth exceeded`. Measured at
+zustand 5.0.11 on an object literal and on `Object.keys(z.servers)`, which is
+the spelling that cost the whole server view on 22 Sep 2026. Anything built in
+the selector counts, an array as much as an object, and so do a call with no
+selector and `(z) => z`, which take the whole store the long way round. Where a
+component wants a list of keys, select a value that compares equal, such as the
+joined string, and split it in a `useMemo`. The renderer has zero of all of
+these and zero `useShallow`, and that is why it draws a two-thousand-row grid
+without either.
+
+`conformance.test.ts` reads the object literal, the bare call and `(z) => z`.
+It cannot read a call that builds one, because whether `f(x)` answers a fresh
+reference is not in the AST, so a selector calling anything is a reviewer's
+question.
 
 **An action is fetched where it runs, not subscribed to.** A selector that hands
 back a store function puts that function in the dependency list, and a
