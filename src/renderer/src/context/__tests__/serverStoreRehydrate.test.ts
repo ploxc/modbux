@@ -171,9 +171,9 @@ describe('the server window closing', () => {
   })
 
   // The drop that salvages a register runs in the step to version 4, so a blob
-  // already at this version reaches `PersistedServerZustandSchema` whole. A
-  // key and a `params.address` that disagree cost the field there, which is
-  // what every other rule on that schema costs.
+  // already at this version reaches `PersistedServerSchema` whole. A key and a
+  // `params.address` that disagree cost the field there, which is what every
+  // other rule on that schema costs.
   it('resets the registers of a key whose register names another address', async () => {
     const edited = JSON.parse(store([0]))
     edited.state.servers.u.registers['0'].holding_registers = { '5': register(9) }
@@ -182,8 +182,28 @@ describe('the server window closing', () => {
     const { useServerZustand } = await import('../server.zustand')
     await settle()
 
-    expect(useServerZustand.getState().configReset?.fields).toContain('servers')
-    expect(useServerZustand.getState().servers).toEqual(useServerZustand.getInitialState().servers)
+    expect(useServerZustand.getState().configReset?.fields).toContain('registers')
+    expect(useServerZustand.getState().servers.u?.registers).toEqual({})
+  })
+
+  // What one field of one server costs. Read whole, `servers` is one field
+  // holding every one of them, so the register below would take the port and
+  // the name with it and the second server's registers besides.
+  it('keeps the port, the name and the server beside it', async () => {
+    const edited = JSON.parse(withSecondServer(store([0]), 'the-other-one'))
+    edited.state.servers.u.registers['0'].holding_registers = { '5': register(9) }
+    edited.state.servers['the-other-one'].registers = {
+      '0': { coils: {}, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
+    }
+    localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
+
+    const { useServerZustand } = await import('../server.zustand')
+    await settle()
+
+    const { servers } = useServerZustand.getState()
+    expect(servers.u?.port).toBe('502')
+    expect(servers.u?.name).toBe('bench')
+    expect(Object.keys(servers['the-other-one']?.registers ?? {})).toEqual(['0'])
   })
 
   // `persist` runs `migrate` only where the blob's version differs from the

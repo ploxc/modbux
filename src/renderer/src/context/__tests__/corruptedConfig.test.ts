@@ -138,7 +138,8 @@ describe('a persisted client config from a newer version', () => {
 
 describe('a persisted server config with one field that fails its schema', () => {
   // A shipped blob carries six records keyed by uuid, which the migration
-  // folds into one record of servers before the repair reads them.
+  // folds into one record of servers before the repair reads them. The field
+  // that failed is named inside the server it belongs to.
   it('lets the module finish evaluating', async () => {
     localStorage.setItem(
       'server.zustand',
@@ -158,7 +159,8 @@ describe('a persisted server config with one field that fails its schema', () =>
 
     const { useServerZustand } = await import('../server.zustand')
 
-    expect(useServerZustand.getState().configReset?.fields).toContain('servers')
+    expect(useServerZustand.getState().configReset?.fields).toContain('port')
+    expect(useServerZustand.getState().servers.u?.name).toBe('bench')
   })
 
   it('says nothing when the config parses', async () => {

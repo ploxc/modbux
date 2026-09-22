@@ -9,6 +9,7 @@ import {
   MAIN_SERVER_UUID,
   PortSchema,
   RegisterParams,
+  repairPersisted,
   registerWidth,
   SerialPortOptions,
   ServerRegisters,
@@ -19,7 +20,13 @@ import {
   UnitIdString
 } from '@shared'
 import { round } from 'lodash'
-import { PersistedServer, ServerSet, ServerZustand, UsedAddresses } from './server.zustand.types'
+import {
+  PersistedServer,
+  PersistedServerSchema,
+  ServerSet,
+  ServerZustand,
+  UsedAddresses
+} from './server.zustand.types'
 
 export const extractUnitIdsWithData = (serverRegisters: ServerRegistersPerUnit): UnitIdString[] => {
   const unitIds = Object.keys(serverRegisters) as UnitIdString[]
@@ -159,6 +166,36 @@ export const unitRegisters = (
   const server = state.servers[uuid]
   if (!server) return undefined
   return (server.registers[unitId] ??= getDefaultServerRegisters())
+}
+
+/**
+ * Reads each server back through its own schema, field by field.
+ *
+ * `repairPersisted` works a top level field at a time, and `servers` is one
+ * field holding every server. Read whole, one register the schema refuses
+ * would cost every port, every name and every register in the store. Read this
+ * way it costs the registers of the one server that carries it.
+ *
+ * Nothing where `servers` is not a record of its own, because there are no
+ * entries to walk and an empty one written back would parse. The caller leaves
+ * the field where it is and `repairPersisted` resets it to the one main
+ * server. An array goes the same way: its indices are not uuids.
+ */
+export const repairServers = (
+  servers: unknown
+): { servers: Record<string, PersistedServer>; fields: string[] } | undefined => {
+  if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) return undefined
+
+  const repaired: Record<string, PersistedServer> = {}
+  const fields = new Set<string>()
+
+  for (const [uuid, server] of Object.entries(servers)) {
+    const repair = repairPersisted(PersistedServerSchema, server, getDefaultServer())
+    repaired[uuid] = repair.state
+    for (const field of repair.reset?.fields ?? []) fields.add(field)
+  }
+
+  return { servers: repaired, fields: [...fields] }
 }
 
 /**

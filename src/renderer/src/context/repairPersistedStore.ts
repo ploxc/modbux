@@ -12,6 +12,15 @@ interface PersistedAt {
   /** What the blob on disk carried, which only `migrate` is offered. */
   persistedVersion: number | undefined
   currentVersion: number
+  /**
+   * Fields a caller repaired itself, which are reported and kept.
+   *
+   * The server store reads each server back on its own before calling here,
+   * because `servers` is one field holding every one of them. Those fields
+   * parse by the time the walk below reaches them, so without this the warn,
+   * the copy and the message would all say nothing was lost.
+   */
+  alsoReset?: string[]
 }
 
 /**
@@ -38,17 +47,21 @@ interface PersistedAt {
 export const repairPersistedStore = <Shape extends z.ZodRawShape>(
   store: { getState: () => unknown; getInitialState: () => object },
   schema: z.ZodObject<Shape>,
-  { storageKey, persistedVersion, currentVersion }: PersistedAt
+  { storageKey, persistedVersion, currentVersion, alsoReset = [] }: PersistedAt
 ): StoreRepair<z.infer<z.ZodObject<Shape>>> | undefined => {
+  const savedByNewerVersion = persistedVersion !== undefined && persistedVersion > currentVersion
   const repair = repairPersisted(
     schema,
     store.getState(),
     store.getInitialState(),
-    persistedVersion !== undefined && persistedVersion > currentVersion
+    savedByNewerVersion
   )
-  if (repair.reset === undefined) return undefined
 
-  console.warn(`${storageKey} repaired`, repair.reset)
+  const fields = [...(repair.reset?.fields ?? []), ...alsoReset]
+  if (fields.length === 0 && !savedByNewerVersion) return undefined
+  const reset = { fields, savedByNewerVersion }
+
+  console.warn(`${storageKey} repaired`, reset)
   keepCorrupt(localStorage, storageKey)
-  return { state: repair.state, reset: repair.reset }
+  return { state: repair.state, reset }
 }

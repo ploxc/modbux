@@ -33,6 +33,7 @@ import {
   extractUnitIdsWithData,
   foldWordIntoComposite,
   getDefaultServer,
+  repairServers,
   syncRegistersWithBackend,
   syncUuidToBackend,
   unitRegisters,
@@ -521,10 +522,18 @@ const serverZustand = useServerZustand.getState()
  * found at the close is told the same way one found at load is.
  */
 const repairFromTheKey = (): void => {
+  // Each server read back on its own first. `repairPersisted` works a top
+  // level field at a time and `servers` is the one field holding all of them,
+  // so read whole, one register the schema refuses would cost every port,
+  // every name and every register in the store.
+  const repairedServers = repairServers(useServerZustand.getState().servers)
+  if (repairedServers) useServerZustand.setState({ servers: repairedServers.servers })
+
   const repair = repairPersistedStore(useServerZustand, PersistedServerZustandSchema, {
     storageKey: SERVER_ZUSTAND_STORAGE_KEY,
     persistedVersion,
-    currentVersion: CURRENT_SERVER_ZUSTAND_VERSION
+    currentVersion: CURRENT_SERVER_ZUSTAND_VERSION,
+    alsoReset: repairedServers?.fields
   })
   if (repair) useServerZustand.setState({ ...repair.state, configReset: repair.reset })
 }
