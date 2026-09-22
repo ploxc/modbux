@@ -6,49 +6,23 @@ import {
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
-  ServerData,
   ServerDataValue,
-  ValueGenerators,
   AddRegisterParams,
   UnitIdString,
   UnitIdStringSchema,
   StartRtuServerParams,
   RegisterType,
-  RegisterValue,
   DataBits,
   StopBits
 } from '@shared'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 import { DEFAULT_MODBUS_PORT, ServerEndianness } from '@shared'
 import { Windows } from '../windows'
-import { ValueGenerator } from './modbusServer/valueGenerator'
-import { encodeRegisters, writeRegisters } from './modbusServer/registers'
+import { emitServerMessage } from './modbusServer/messages'
+import { ServerRegistry } from './modbusServer/registry'
 import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
-import { MAX_REGISTER_ADDRESS, registerWidth } from '@shared'
+import { MAX_REGISTER_ADDRESS } from '@shared'
 import net from 'net'
-
-const getDefaultGenerators = (): ValueGenerators => ({
-  input_registers: new Map(),
-  holding_registers: new Map()
-})
-
-const getDefaultServerData = (): ServerData => ({
-  coils: new Map(),
-  discrete_inputs: new Map(),
-  input_registers: new Map(),
-  holding_registers: new Map()
-})
-
-/**
- * Keeps the addresses the array holds true and drops the rest.
- *
- * `syncBools` is the caller, and it replaces what the unit held rather than
- * adding to it.
- */
-const setBoolsFromArray = (bools: Map<number, boolean>, states: boolean[]): void => {
-  bools.clear()
-  for (const [address, state] of states.entries()) if (state) bools.set(address, state)
-}
 
 /**
  * The three Modbus exception codes this server sends.
@@ -68,26 +42,19 @@ export const GATEWAY_TARGET_FAILED = 11
  */
 type ServerTransport = 'tcp' | 'rtu'
 
-/** Unit 0 addresses every device on an RTU bus at once. */
+/** Unit 0 is the broadcast address on RTU. */
 const BROADCAST_UNIT_ID: UnitIdString = '0'
 
-/** 0 is a port number the way "any" is a name: the kernel picks, and it listens. */
 const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 && port <= 65535
 
 /**
- * How long a bind may take before the listener is treated as failed.
+ * How long a bind is given to say whether it took.
  *
- * `listen` answers with one of its two events, so nobody sits through this. It
- * is here because a promise that neither event resolves would hang
- * `createServer` and every caller behind it.
+ * `ServerTCP` emits `initialized` or `serverError` and a bind that does
+ * neither leaves the await unresolved, which would hang the invoke behind it.
+ * Five seconds is a loopback listen, which is microseconds when it works.
  */
 export const BIND_TIMEOUT_MS = 5000
-
-type ServerDataUnitMap = Map<UnitIdString, ServerData>
-type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
-
-type ServerDataMap = Map<string, ServerDataUnitMap>
-type ValueGeneratorsMap = Map<string, ValueGeneratorsUnitMap>
 
 /**
  * One accessor shape per direction, because `IServiceVector`'s four getters and
@@ -157,17 +124,8 @@ export class ModbusServer {
   private _broadcastWarningSent: boolean = false
   private _windows: Windows
 
-  // Map to store server data for each unit ID of a server UUID
-  /**
-   * The byte order each server encodes its registers in, big-endian until told.
-   *
-   * It is set once here and read where a register is encoded, rather than
-   * riding along on every add and every sync, which is the same field of the
-   * same server read again each time.
-   */
-  private _littleEndian: Map<string, boolean> = new Map()
-  private _serverData: ServerDataMap = new Map()
-  private _generatorMap: ValueGeneratorsMap = new Map()
+  /** What every server holds, keyed by uuid and then by unit id. */
+  private _registry: ServerRegistry
 
   /**
    * Construct a ModbusServer instance.
@@ -175,24 +133,10 @@ export class ModbusServer {
    */
   constructor({ windows }: ServerParams) {
     this._windows = windows
-  }
-
-  /**
-   * Ensures an inner map exists for a given UUID in the outer map, creating it if necessary.
-   * @param outerMap - The outer map (by UUID)
-   * @param uuid - The server UUID
-   * @returns The inner map for the UUID
-   */
-  private _ensureInnerMap<K extends UnitIdString, V>(
-    outerMap: Map<string, Map<K, V>>,
-    uuid: string
-  ): Map<K, V> {
-    let inner = outerMap.get(uuid)
-    if (!inner) {
-      inner = new Map()
-      outerMap.set(uuid, inner)
-    }
-    return inner
+    this._registry = new ServerRegistry({
+      windows,
+      onUnitData: (uuid): void => this._warnBroadcastUnit(uuid)
+    })
   }
 
   /**
@@ -207,14 +151,6 @@ export class ModbusServer {
     setCoil: this._set('coils', uuid, transport),
     setRegister: this._set('holding_registers', uuid, transport)
   })
-
-  /**
-   * A unit id is one of ours when it has data under this uuid. The Select
-   * offers all 256, and nothing but a register makes one of them exist.
-   */
-  private _hostsUnit(uuid: string, unitId: UnitIdString): boolean {
-    return this._serverData.get(uuid)?.has(unitId) ?? false
-  }
 
   /**
    * Unit 0 is broadcast on RTU. On TCP there is no broadcast at all and the
@@ -250,7 +186,7 @@ export class ModbusServer {
   private _warnBroadcastUnit(uuid: string): void {
     if (!this._rtuActive || this._rtuUuid !== uuid) return
     if (this._broadcastWarningSent) return
-    if (!this._hostsUnit(uuid, BROADCAST_UNIT_ID)) return
+    if (!this._registry.hostsUnit(uuid, BROADCAST_UNIT_ID)) return
 
     this._broadcastWarningSent = true
     this._emitMessage({
@@ -259,44 +195,8 @@ export class ModbusServer {
     })
   }
 
-  /**
-   * Helper to set server data for a unitId in the server data map.
-   */
-  private _setServerData(uuid: string, unitId: UnitIdString, serverData: ServerData): void {
-    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
-    perUnitMap.set(unitId, serverData)
-    this._warnBroadcastUnit(uuid)
-  }
-
-  /**
-   * Helper to dispose all value generators in a ValueGeneratorsUnitMap.
-   * This stops all intervals and clears the generator maps.
-   */
-  private _disposeAllGenerators(unitMap: ValueGeneratorsUnitMap): void {
-    for (const registerTypeGenerators of unitMap.values()) {
-      registerTypeGenerators.holding_registers.forEach((g) => g.dispose())
-      registerTypeGenerators.input_registers.forEach((g) => g.dispose())
-    }
-  }
-
-  /**
-   * Emits a backend message to the frontend via the Windows IPC interface.
-   */
-  /**
-   * A server message goes to the window showing the server, which in split view
-   * is the popped out one. Broadcasting put "A server needs a port between 1 and
-   * 65535" in the window on the client view and in the one that asked.
-   */
-  private _emitMessage({
-    message,
-    variant,
-    error
-  }: {
-    message: string
-    variant: 'default' | 'error' | 'success' | 'warning' | 'info'
-    error?: Error
-  }): void {
-    this._windows.send('backend_message', { message, variant, error }, 'serverView')
+  private _emitMessage(params: Parameters<typeof emitServerMessage>[1]): void {
+    emitServerMessage(this._windows, params)
   }
 
   /**
@@ -382,7 +282,7 @@ export class ModbusServer {
    * Returns the actual port used (may differ from requested if taken).
    *
    * A listener already on the requested port is the answer to this call. The
-   * vectors read `_serverData` when a request arrives rather than when they are
+   * vectors read the registry when a request arrives rather than when they are
    * built, so nothing about the register data needs a fresh listener, and a
    * port change is `setPort`'s job. Rebinding drops every connected master, so
    * it happens only where it buys something.
@@ -439,9 +339,9 @@ export class ModbusServer {
    * Deletes a server for the given UUID, releasing everything held under it.
    *
    * What the uuid holds goes first, whether or not a TCP listener was ever
-   * bound. `_serverData` holds every register array of every unit id under the
-   * uuid, and the delete button does not go through `resetServer`, which is the
-   * other place that frees it.
+   * bound. The registry holds every register of every unit id under the uuid,
+   * and the delete button does not go through `resetServer`, which is the other
+   * place that frees it.
    *
    * A uuid with no listener is silence rather than an error: a server whose
    * bind was refused keeps `ready` false in the store and its Delete button,
@@ -453,13 +353,7 @@ export class ModbusServer {
       await this.stopRtuServer()
     }
 
-    const unitIdGenerators = this._generatorMap.get(uuid)
-    if (unitIdGenerators) {
-      this._disposeAllGenerators(unitIdGenerators)
-    }
-    this._generatorMap.delete(uuid)
-    this._serverData.delete(uuid)
-    this._littleEndian.delete(uuid)
+    this._registry.deleteUuid(uuid)
 
     await this._closeAndForget(uuid)
   }
@@ -468,7 +362,7 @@ export class ModbusServer {
    * Resets the server for a given UUID: disposes its value generators and
    * clears its register data.
    *
-   * The vectors read `_serverData` per request, so the cleared data is what a
+   * The vectors read the registry per request, so the cleared data is what a
    * master gets from the listener that is already up.
    *
    * `createServer` rebinds nothing from here. `_bindServer` writes `_port` and
@@ -478,287 +372,38 @@ export class ModbusServer {
    * not happen at all.
    */
   public resetServer = async (uuid: string): Promise<void> => {
-    const unitIdGenerators = this._generatorMap.get(uuid)
-    if (unitIdGenerators) {
-      this._disposeAllGenerators(unitIdGenerators)
-    }
-    this._serverData.delete(uuid)
-    this._generatorMap.delete(uuid)
+    this._registry.clearData(uuid)
     const port = this._port.get(uuid)
     if (port) await this.createServer({ uuid, port })
   }
 
   /** Sets the byte order this server encodes its registers in. */
-  public setEndianness = ({ uuid, littleEndian }: ServerEndianness): void => {
-    this._littleEndian.set(uuid, littleEndian)
-  }
+  public setEndianness = (params: ServerEndianness): void => this._registry.setEndianness(params)
 
-  /**
-   * The words a fixed register holds, or nothing at all when it cannot be
-   * encoded.
-   *
-   * `RegisterParamsSchema` bounds the pair of `dataType` and `value` at the IPC
-   * boundary, and `getValueRangeError` there reads the same table this asks
-   * about. This is the class answering for its own input: `addRegister` is
-   * public, and a caller inside main reaches it without crossing that boundary.
-   */
-  private _encode = (params: Parameters<typeof encodeRegisters>[0]): number[] | undefined => {
-    try {
-      return encodeRegisters(params)
-    } catch {
-      return undefined
-    }
-  }
+  /** Adds a register or value generator, and answers the words it now holds. */
+  public addRegister = (params: AddRegisterParams): number[] | undefined =>
+    this._registry.addRegister(params)
 
-  private _unitData = (uuid: string, unitId: UnitIdString): ServerData => {
-    const perUnitMap = this._ensureInnerMap(this._serverData, uuid)
-    const serverData = perUnitMap.get(unitId) ?? getDefaultServerData()
-    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, serverData)
-    return serverData
-  }
+  /** Removes a register or value generator. */
+  public removeRegister = (params: RemoveRegisterParams): void =>
+    this._registry.removeRegister(params)
 
-  /**
-   * Adds a register or value generator for a given server and unitId.
-   * If a generator already exists at the address, it is disposed and replaced.
-   * If a fixed value is provided, sets the register directly.
-   *
-   * Answers the words now held from `address` on, which is an empty list for
-   * `none` because that writes none. The renderer's store waits for this answer
-   * before it writes, and every `register_value` below goes out before the
-   * answer does, so those words would otherwise reach a store with no entry to
-   * put them in and be dropped. The store folds what comes back through the same
-   * merge the event feeds, which is where a word becomes a value.
-   *
-   * `undefined` is the refusal, which is what the store already reads as
-   * nothing changed. An encoder that cannot take the register answers that
-   * rather than throwing: `createIpcHandle` puts no try around a listener, so
-   * a throw would reject the invoke rather than answer it, and
-   * `syncServerRegisters` adds in a bare loop, so it would take every register
-   * after it in that unit with it. One register is refused and the rest of the
-   * unit stands.
-   *
-   * The generator branch throws the same way and gets no guard.
-   * `ValueGenerator` writes its first value from its own constructor, and since
-   * `_updateValue` stopped being `async` that throw leaves this method rather
-   * than becoming a rejection. `RegisterParamsSchema` holds `min` and `max` to
-   * their own data type, so no payload reaches it, and a branch here would be
-   * one no input turns red.
-   */
-  public addRegister = ({ uuid, unitId, params }: AddRegisterParams): number[] | undefined => {
-    const littleEndian = this._littleEndian.get(uuid) ?? false
-    const {
-      address,
-      registerType,
-      dataType,
-      min,
-      max,
-      interval,
-      value,
-      comment,
-      stringValue,
-      length
-    } = params
+  /** Replaces every register of a unit with the ones given. */
+  public syncServerRegisters = (params: SyncRegisterValueParams): void =>
+    this._registry.syncServerRegisters(params)
 
-    // Ensure generator map for this server and unitId
-    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
-      this._generatorMap,
-      uuid
-    )
-    const serverGenerators = perUnitGeneratorMap.get(unitId) ?? getDefaultGenerators()
+  /** Clears one register type of a unit, generators and all. */
+  public resetRegisters = (params: ResetRegistersParams): void =>
+    this._registry.resetRegisters(params)
 
-    if (!perUnitGeneratorMap.has(unitId)) {
-      perUnitGeneratorMap.set(unitId, serverGenerators)
-    }
+  /** Sets a coil or a discrete input. */
+  public setBool = (params: SetBooleanParameters): void => this._registry.setBool(params)
 
-    const generators = serverGenerators[registerType]
+  /** Clears every coil or every discrete input of a unit. */
+  public resetBools = (params: ResetBoolsParams): void => this._registry.resetBools(params)
 
-    /** Frees the register this call is replacing, and answers its data map. */
-    const takeTheAddress = (): ServerData => {
-      generators.get(address)?.dispose()
-      generators.delete(address)
-      const serverData = this._unitData(uuid, unitId)
-      this._setServerData(uuid, unitId, serverData)
-      return serverData
-    }
-
-    // `none` is an address held open with nothing in it, so there is nothing to
-    // write and nothing to generate. The generator is disposed either way,
-    // which is what editing a register to `none` has to do.
-    if (dataType === 'none') {
-      takeTheAddress()
-      return []
-    }
-
-    // If a fixed value is provided, set the register directly
-    const fixedValue = !interval && value !== undefined
-    if (fixedValue) {
-      // Encoded before the address is taken, because a refusal answers
-      // `undefined` and the store reads that as nothing changed. Disposing
-      // first would zero the words of the generator being replaced and drop it,
-      // leaving the grid drawing a generator that does not run.
-      const registers = this._encode({ dataType, value, littleEndian, stringValue, length })
-      if (!registers) {
-        this._emitMessage({
-          message: `The ${dataType} register at ${address} was not added: main cannot encode that value`,
-          variant: 'error'
-        })
-        return undefined
-      }
-
-      const serverData = takeTheAddress()
-      writeRegisters({
-        windows: this._windows,
-        serverData,
-        uuid,
-        unitId,
-        registerType,
-        address,
-        registers
-      })
-      this._setServerData(uuid, unitId, serverData)
-      return registers
-    }
-
-    // Otherwise, add a value generator for this register
-    const serverData = takeTheAddress()
-    generators.set(
-      address,
-      new ValueGenerator({
-        uuid,
-        unitId,
-        windows: this._windows,
-        serverData,
-        address,
-        dataType,
-        min,
-        max,
-        interval,
-        littleEndian,
-        registerType,
-        comment,
-        stringValue,
-        length
-      })
-    )
-
-    // `ValueGenerator` writes its first value from its own constructor, so this
-    // reads what it just put there rather than answering nothing for a minute.
-    const width = registerWidth(dataType, length)
-    return Array.from({ length: width }, (_, i) => serverData[registerType].get(address + i) ?? 0)
-  }
-
-  /**
-   * Removes a register or value generator for a given server and unitId.
-   * Disposes the generator if it exists and resets the register value.
-   */
-  public removeRegister = ({
-    uuid,
-    unitId,
-    registerType,
-    address,
-    dataType,
-    length
-  }: RemoveRegisterParams): void => {
-    const serverData = this._unitData(uuid, unitId)
-
-    // Reset all registers occupied by this data type
-    // The words go rather than turn zero. A read answers 0 for an address with
-    // no entry, so the two are the same answer and only one of them is paid for.
-    const registerCount = registerWidth(dataType, length)
-    for (let i = 0; i < registerCount; i++) {
-      serverData[registerType].delete(address + i)
-    }
-
-    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
-      this._generatorMap,
-      uuid
-    )
-    const serverGenerators = perUnitGeneratorMap.get(unitId)
-    if (!serverGenerators) return
-    const generator = serverGenerators[registerType].get(address)
-    if (!generator) return
-    generator.dispose()
-    serverGenerators[registerType].delete(address)
-  }
-
-  /**
-   * Synchronizes all register values for a given server and unitId.
-   * Resets all holding and input registers, then adds all provided registers.
-   *
-   * `resetRegisters` disposes the generators of one register type and clears
-   * their map before it replaces the data array, so the two calls below reach
-   * every generator this unit has. This opened by doing that dispose and clear
-   * for both types first, which left the calls below nothing to dispose.
-   */
-  public syncServerRegisters = ({
-    uuid,
-    unitId,
-    registerValues
-  }: SyncRegisterValueParams): void => {
-    this.resetRegisters({ uuid, unitId, registerType: 'holding_registers' })
-    this.resetRegisters({ uuid, unitId, registerType: 'input_registers' })
-    for (const params of registerValues) this.addRegister({ uuid, unitId, params })
-  }
-
-  /**
-   * Resets all registers of a given type for a server and unitId.
-   * Disposes all generators for that register type and clears the register data.
-   */
-  public resetRegisters = ({ uuid, unitId, registerType }: ResetRegistersParams): void => {
-    // Dispose and clear only generators for this unitId and registerType
-    const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
-      this._generatorMap,
-      uuid
-    )
-    const serverGenerators = perUnitGeneratorMap.get(unitId)
-    if (serverGenerators) {
-      const generators = serverGenerators[registerType]
-      generators.forEach((generator) => generator.dispose())
-      generators.clear()
-    }
-
-    const serverData = this._unitData(uuid, unitId)
-    serverData[registerType].clear()
-    this._setServerData(uuid, unitId, serverData)
-  }
-
-  /**
-   * Sets a boolean value (coil or discrete input) for a given server and unitId.
-   * Updates the server data and emits a value change event.
-   */
-  public setBool = ({ uuid, unitId, registerType, address, state }: SetBooleanParameters): void => {
-    const serverData = this._unitData(uuid, unitId)
-    serverData[registerType].set(address, state)
-    this._setServerData(uuid, unitId, serverData)
-    this._windows.send(
-      'register_value',
-      { uuid, unitId, registerType, address, value: state },
-      'serverView'
-    )
-  }
-
-  /**
-   * Resets all boolean values (coils or discrete inputs) for a given server and unitId.
-   */
-  public resetBools = ({ uuid, unitId, registerType }: ResetBoolsParams): void => {
-    const serverData = this._unitData(uuid, unitId)
-    serverData[registerType].clear()
-    this._setServerData(uuid, unitId, serverData)
-  }
-
-  /**
-   * Synchronizes all boolean values (coils and discrete inputs) for a given server and unitId.
-   */
-  public syncBools = (params: SyncBoolsParameters): void => {
-    const { uuid, unitId } = params
-    const serverData = this._unitData(uuid, unitId)
-    // The renderer sends both arrays whole, 65536 entries of which the ones it
-    // holds are true. Only those are kept: a false is what an address with no
-    // entry already reads as.
-    setBoolsFromArray(serverData['coils'], params['coils'])
-    setBoolsFromArray(serverData['discrete_inputs'], params['discrete_inputs'])
-    this._setServerData(uuid, unitId, serverData)
-  }
+  /** Replaces both bool maps of a unit with what the renderer holds. */
+  public syncBools = (params: SyncBoolsParameters): void => this._registry.syncBools(params)
 
   /**
    * Reports the RTU server down: the message, and the status the view reads.
@@ -982,7 +627,8 @@ export class ModbusServer {
       if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, fallback)
       // A broadcast is never acknowledged, so there is nothing to read from one.
       if (this._isBroadcast(transport, unitId.data)) return
-      if (!this._hostsUnit(uuid, unitId.data)) return this._refuseUnit(transport, cb, fallback)
+      if (!this._registry.hostsUnit(uuid, unitId.data))
+        return this._refuseUnit(transport, cb, fallback)
 
       // A multi-word read at the top of the range asks for addresses the
       // protocol cannot express. The arrays answered `undefined` past their
@@ -990,39 +636,12 @@ export class ModbusServer {
       // so the range is asked here and the entry only after.
       if (address > MAX_REGISTER_ADDRESS) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, fallback)
 
-      const value = this._serverData.get(uuid)?.get(unitId.data)?.[registerType].get(address)
+      const value = this._registry.read(uuid, unitId.data, registerType, address)
 
       // An address inside the range with no entry is a register nobody
       // configured, and the arrays answered 0 or false for it.
       cb(null, value ?? fallback)
     }
-
-  /**
-   * Writes a coil or holding register into a unit this server hosts and tells the view.
-   */
-  private _write<K extends RegisterType>(
-    registerType: K,
-    uuid: string,
-    unitId: UnitIdString,
-    address: number,
-    value: ServerDataValue<K>
-  ): void {
-    const serverData = this._serverData.get(uuid)?.get(unitId)
-    if (!serverData) return
-    serverData[registerType].set(address, value)
-
-    this._windows.send(
-      'register_value',
-      {
-        uuid,
-        unitId,
-        registerType,
-        address,
-        value
-      } as RegisterValue,
-      'serverView'
-    )
-  }
 
   /**
    * Sets the value of a coil or holding register for a given address and unitId.
@@ -1040,14 +659,14 @@ export class ModbusServer {
 
       // A broadcast write reaches every unit on the bus and is never answered.
       if (this._isBroadcast(transport, unitId)) {
-        for (const hostedUnitId of this._serverData.get(uuid)?.keys() ?? [])
-          this._write(registerType, uuid, hostedUnitId, address, value)
+        for (const hostedUnitId of this._registry.hostedUnitIds(uuid))
+          this._registry.write(registerType, uuid, hostedUnitId, address, value)
         return
       }
 
-      if (!this._hostsUnit(uuid, unitId)) return this._refuseUnit(transport, cb, 0)
+      if (!this._registry.hostsUnit(uuid, unitId)) return this._refuseUnit(transport, cb, 0)
 
-      this._write(registerType, uuid, unitId, address, value)
+      this._registry.write(registerType, uuid, unitId, address, value)
       cb(null)
     }
 
