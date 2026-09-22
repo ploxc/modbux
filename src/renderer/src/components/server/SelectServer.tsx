@@ -3,7 +3,7 @@ import Delete from '@mui/icons-material/Delete'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { findAvailablePort, MAIN_SERVER_UUID } from '@shared'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useSnackbar } from 'notistack'
 import { v4 } from 'uuid'
 import ButtonGroup from '@mui/material/ButtonGroup'
@@ -23,7 +23,20 @@ const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
 
 const SelectServer = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
-  const serverUuids = useServerZustand((z) => Object.keys(z.servers))
+  // A string rather than the array, because zustand compares a selector's
+  // answer with `Object.is` and `Object.keys` allocates a new one every time
+  // it runs. React reads the selector again on the render that follows, finds
+  // another new array and renders again: measured as "Maximum update depth
+  // exceeded" with the array here. A uuid carries no space, so this is the
+  // same value until a server is added or removed.
+  const serverUuidKey = useServerZustand((z) => Object.keys(z.servers).join(' '))
+  const serverUuids = useMemo(
+    // An empty record is a blob that carries one, which `init` answers by
+    // making the main server. `''.split(' ')` is `['']`, a toggle for a uuid
+    // nothing holds.
+    () => (serverUuidKey === '' ? [] : serverUuidKey.split(' ')),
+    [serverUuidKey]
+  )
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
   const addDisabled = useServerZustand((z) => Object.keys(z.servers).length >= 10)
   const { enqueueSnackbar } = useSnackbar()
