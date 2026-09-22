@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A register a saved session cannot read no longer empties the other
+  servers.** Every server's registers were read back as one, so a single
+  register Modbux refused emptied the map of every server you had rather than
+  the one holding it. It costs that one server's registers now, and the servers
+  beside it keep theirs.
 - **A blank COM port is no longer sent to the serial connection.** Clearing the
   COM field wrote an empty port name into the connection, so a connect attempt
   failed on nothing to open. The field keeps what you type and marks it, and the
