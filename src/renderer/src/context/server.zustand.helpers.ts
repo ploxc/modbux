@@ -31,10 +31,10 @@ export const extractUnitIdsWithData = (serverRegisters: DefinedServerRegisters):
 /**
  * The two bool arrays main takes, built from what a unit holds.
  *
- * Main keeps a coil and a discrete input for every one of the 65536 addresses,
- * so a sync sends both arrays whole and the store's sparse map decides which
- * entries are true. Both callers build the pair the same way; `resetBools`
- * then blanks the one it is clearing.
+ * `syncBools` replaces what the unit holds rather than adding to it:
+ * `setBoolsFromArray` clears the map first, so an array shorter than 65536
+ * erases every address past its end. Both callers build the pair the same way;
+ * `resetBools` then blanks the one it is clearing.
  */
 export const boolArraysOf = (
   serverRegisters: DefinedServerRegisters,

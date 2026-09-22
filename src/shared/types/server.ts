@@ -365,6 +365,11 @@ export type ServerDataValue<K extends RegisterType> = ServerDataValues[K]
  * mutator names one, and the arrays cost 2.00 MB per unit id whether or not an
  * address under them is used, measured over ten unit ids with `--expose-gc`.
  *
+ * The trade inverts where every address is written. A remote client may write
+ * any coil and any holding register on a unit the server hosts, and those two
+ * maps full cost 3.50 MB per unit id against the arrays' 2.00 MB, measured the
+ * same way.
+ *
  * An address with no entry reads as the fallback the accessor carries, which is
  * the zero and the false the arrays answered. The arrays also answered
  * `undefined` past their last index, and that is the one thing a map cannot
