@@ -81,12 +81,19 @@ const ConnectButton = meme(() => {
    * Whether the field this protocol connects through holds something main was
    * given.
    *
-   * `setHost` and `setCom` keep a value the schema refuses in the store
-   * without sending it, so the field shows what was typed and main holds the
-   * value before it. Pressing Connect on a half typed host connected to the
-   * previous one and the app reported connected over a field saying otherwise.
-   * The field is already drawn in error, and this is the press that goes with
-   * it.
+   * Not a schema's answer: `ConnectionConfigSchema` types both `host` and
+   * `com` as a bare string and takes a blank one, which is why `setHost` and
+   * `setCom` carry a flag of their own and keep what the field decides without
+   * sending it. So the field shows what was typed and main holds the value
+   * before it, and pressing Connect on a half typed host connected to the
+   * previous one while the app reported connected over a field saying
+   * otherwise. The field is already drawn in error, and this is the press that
+   * goes with it.
+   *
+   * The flag is not persisted, so a launch after a blank COM port was typed
+   * finds it true again while `init` hands main the blank. `TODO.md` carries
+   * that as its own question, and it is answered where the launch is rather
+   * than here.
    */
   const addressValid = useClientZustand((z) =>
     z.connectionConfig.protocol === 'ModbusRtu' ? z.valid.com : z.valid.host

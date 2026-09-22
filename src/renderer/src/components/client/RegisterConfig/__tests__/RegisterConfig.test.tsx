@@ -120,9 +120,9 @@ describe('RegisterConfig read configuration', () => {
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
 
-  // A poll and both scans were missing from the question this toggle asked, so
-  // a press there drew the mapping and then dropped the read without a word.
-  it.each(['polling', 'scanningRegisters', 'scanningUnitIds'] as const)(
+  // Both scans were missing from the question this toggle asked, so a press
+  // there drew the mapping and then dropped the read without a word.
+  it.each(['scanningRegisters', 'scanningUnitIds'] as const)(
     'refuses while %s owns the client',
     (flag) => {
       seed('holding_registers', { 0: { dataType: 'int16' } })
@@ -135,6 +135,20 @@ describe('RegisterConfig read configuration', () => {
       expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
     }
   )
+
+  // A poll is the one owner that fills the grid on its own, and the press that
+  // turns read configuration off asks main for nothing, so neither direction
+  // has anything to wait for.
+  it('offers while a poll runs', () => {
+    seed('holding_registers', { 0: { dataType: 'int16' } })
+    useClientZustand.setState({
+      clientState: { ...defaultClientState, connectState: 'connected', polling: true }
+    } as never)
+
+    render(<RegisterConfig />)
+
+    expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
+  })
 
   // A mapping with nothing to read turns read configuration off. A read in
   // flight greys the same button and must not, or the grid empties while the

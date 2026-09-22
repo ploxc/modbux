@@ -77,10 +77,15 @@ const ComActions = meme(() => {
     useClientZustand.getState().refreshSerialPorts()
   }
 
+  // A diagnostic, and it says what it found in a snackbar. It wrote `valid.com`
+  // as well, and that flag means something narrower: whether main was given
+  // what the field holds. `validateSerialPort` answers no for any path
+  // `getPorts()` does not enumerate, and a socat or other virtual pty is
+  // connectable and never enumerated, so pressing this on one greyed Connect
+  // with nothing but retyping the field to undo it.
   const onValidate = async (): Promise<void> => {
     if (!com || com.trim() === '') return
     const result = await useClientZustand.getState().validateSerialPort(com)
-    useClientZustand.getState().setCom(com, result.valid)
     enqueueSnackbar({
       message: result.message,
       variant: result.valid ? 'success' : 'warning'

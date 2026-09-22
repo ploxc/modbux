@@ -160,9 +160,13 @@ const ReadConfiguration = meme(() => {
   // it, and `readWhenMainCan` drops that ask without a word while anything
   // owns the client. The press would leave the grid on `showMapping`'s zeros
   // with no read coming, so the toggle greys for as long as that lasts.
-  // `clientOwner` is the whole question: naming a read and a write alone left
-  // the toggle pressable during a poll and both scans.
-  const owner = useClientZustand((z) => clientOwner(z.clientState))
+  //
+  // `exceptPolling`, because a poll is the one owner that fills the grid on
+  // its own: `setReadConfiguration` gives main the mapping and the flag, and
+  // the next `_read` builds its groups out of both, so the rows arrive within
+  // one poll rate with no ask of ours. Asking the whole question greyed the
+  // press that turns it off as well, which asks main for nothing at all.
+  const owner = useClientZustand((z) => clientOwner(z.clientState, { exceptPolling: true }))
   const disabled = nothingConfigured || owner !== undefined
 
   // A mapping with nothing to read turns it off. A read in flight does not:

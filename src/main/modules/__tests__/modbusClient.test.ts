@@ -787,6 +787,65 @@ describe('ModbusClient', () => {
       expect(messages.some((m) => m[1].message.includes('reconnecting'))).toBe(true)
     })
 
+    /**
+     * The second between a reconnect and the resume it schedules.
+     *
+     * The resume goes through `startPolling`, which refuses while anything
+     * owns the client and says so. A user pressing Read in that second got a
+     * warning about a poll they never asked for, and the resume cleared its
+     * own memory on the next line, so nothing tried again.
+     */
+    describe('the poll a reconnect resumes', () => {
+      const dropAndReconnect = async (): Promise<void> => {
+        mockModbusRTU.isOpen = false
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3500)
+      }
+
+      it('is resumed when the client is idle', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(100)
+
+        await dropAndReconnect()
+        await vi.advanceTimersByTimeAsync(1100)
+
+        expect(client.state.polling).toBe(true)
+        client.stopPolling()
+      })
+
+      it('says nothing and stays owed while a read holds the client', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(100)
+
+        // The reconnect lands at 3000 ms and schedules the resume 1000 after
+        // it, so this stops 900 ms short of the resume with the poll already
+        // ended by the drop.
+        mockModbusRTU.isOpen = false
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3100)
+        expect(client.state.polling).toBe(false)
+
+        const gated = gateTheReads()
+        void client.read()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(client.state.reading).toBe(true)
+
+        await vi.advanceTimersByTimeAsync(1000)
+
+        expect(client.state.polling).toBe(false)
+        expect(getWindowCalls('backend_message').map((m) => m[1].message)).not.toContain(
+          'Cannot poll during another read'
+        )
+
+        gated.resolveAll()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+    })
+
     it('gives up after max consecutive reconnects', async () => {
       await connectClient()
 
@@ -2461,6 +2520,40 @@ describe('ModbusClient', () => {
         expect(getWindowCalls('backend_message').map((m) => m[1].message)).not.toContain(
           'Cannot scan during a poll'
         )
+      })
+
+      /**
+       * The poll's last read, which `stopPolling` does not wait for.
+       *
+       * It ends the chain and returns, and a chain inside `_read`'s group loop
+       * stays there: that loop breaks on the connect state, not on the
+       * generation. So the scan's requests went out over the poll's, which on
+       * a serial port is the transaction key 1 collision the whole refusal
+       * exists to prevent.
+       */
+      it('waits for the poll read still on the wire before it scans', async () => {
+        await connectClient()
+        const gated = gateTheReads()
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+
+        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+        await vi.advanceTimersByTimeAsync(1000)
+
+        // The poll's read has not answered, so the scan has put nothing on the
+        // client: one call, and it is the poll's.
+        expect(client.state.polling).toBe(false)
+        expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+
+        // The scan's own reads answer through a fresh mock, because
+        // `resolveAll` only resolves the gates that were open when it ran.
+        setupHoldingRegisterReadMock([100])
+        gated.resolveAll()
+        await vi.advanceTimersByTimeAsync(1000)
+        await scan
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBeGreaterThan(1)
       })
 
       // A poll starting twice is two callers arriving at once rather than a

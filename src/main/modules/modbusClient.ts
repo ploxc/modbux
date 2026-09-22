@@ -444,11 +444,18 @@ export class ModbusClient {
           variant: 'success',
           error: null
         })
-        // Resume polling
+        // Resume polling, and stay quiet about a second nobody was watching.
+        // The user can press Read in the second between the reconnect and
+        // this, and `startPolling` would then warn about a poll they did not
+        // ask for and drop the resume on the floor. `clientOwner` is the same
+        // question `_requireClient` asks, and leaving the memory set is what
+        // gives the next reconnect something to resume.
         clearTimeout(this._reconnectResumePollingTimeout)
         this._reconnectResumePollingTimeout = setTimeout(() => {
-          if (this._reconnectWasPolling) this.startPolling()
+          if (!this._reconnectWasPolling) return
+          if (clientOwner(this._clientState)) return
           this._reconnectWasPolling = false
+          this.startPolling()
         }, 1000)
       } else {
         this._emitMessage({
@@ -825,6 +832,23 @@ export class ModbusClient {
   }
 
   /**
+   * The port, once the poll has let go of it.
+   *
+   * `stopPolling` ends the chain and returns, and a chain awaiting a read is
+   * still inside `_read`'s group loop, which breaks on the connect state and
+   * not on the generation. So a scan that stopped a poll put its own requests
+   * on the client while the poll's last read was still on the wire, and on a
+   * serial port both file under transaction key 1, where the scan's
+   * `_logTransaction` deletes the entry that read is waiting on. That is the
+   * collision `_requireClient` exists to prevent, reached through the one
+   * owner a scan does not refuse.
+   *
+   * Awaited rather than refused, because stopping a poll to scan is what the
+   * Start button has always done.
+   */
+  private _pollRead: Promise<void> | undefined
+
+  /**
    * Read, then arm the next read, as long as this chain is still the current one.
    *
    * `stopPolling` clears the handle a sleeping chain holds, and a chain that is
@@ -834,7 +858,12 @@ export class ModbusClient {
    * timer nothing can clear.
    */
   private _poll = async (generation: number): Promise<void> => {
-    await this._read()
+    this._pollRead = this._read()
+    try {
+      await this._pollRead
+    } finally {
+      this._pollRead = undefined
+    }
     if (generation !== this._pollGeneration) return
     this._pollTimeout = setTimeout(
       () => this._poll(generation),
@@ -1066,6 +1095,7 @@ export class ModbusClient {
     if (!this._requireConnected('scan')) return
     if (!this._requireClient('scan', true)) return
     this.stopPolling()
+    await this._pollRead
 
     this._client.setTimeout(params.timeout)
     this._clientState.scanningUnitIds = true
@@ -1150,6 +1180,7 @@ export class ModbusClient {
     if (!this._requireConnected('scan')) return
     if (!this._requireClient('scan', true)) return
     this.stopPolling()
+    await this._pollRead
 
     const { unitId } = this._appState.connectionConfig
     this._client.setID(unitId)
