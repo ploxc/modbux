@@ -35,9 +35,9 @@ const CFLAGS = [
  * The line settings the port at `path` is currently open with.
  *
  * `tcsetattr` writes them onto the pty, so `stty` reads back what the binding
- * applied rather than what Modbux believes it sent. Measured on a socat pair:
- * opening one end at 19200 7E2 gives `speed 19200` and `cs7 parenb cstopb`,
- * while the other end stays at the 9600 cs8 socat left it.
+ * applied rather than what Modbux believes it sent. On macOS, opening one end of
+ * a socat pair at 19200 7E2 gives `speed 19200` and `cs7 parenb cstopb`, while
+ * the other end stays at the 9600 cs8 socat left it.
  *
  * `-a` is what makes an off flag appear as `-parenb`; without it both stty
  * implementations print only what differs from their own idea of sane. BSD
@@ -54,6 +54,14 @@ const lineSettings = (path: string): { speed: number; flags: string[] } => {
 }
 
 /**
+ * The flags a Linux pty does not keep. Measured with `tcsetattr` on a socat pty
+ * on kernel 7.0.0-30: every frame this spec sets reads back `cs8 -parenb`, while
+ * the speed, `cstopb` and `parodd` read back as set.
+ */
+const PTY_DROPS: readonly string[] =
+  process.platform === 'linux' ? ['cs5', 'cs6', 'cs7', 'cs8', 'parenb', '-parenb'] : []
+
+/**
  * Assert what a port opened with, retrying while the server restarts.
  *
  * Every select restarts the RTU server, so the pty holds the previous frame
@@ -64,10 +72,11 @@ const expectLineSettings = async (
   path: string,
   expected: { speed: number; flags: string[] }
 ): Promise<void> => {
+  const kept = expected.flags.filter((flag) => !PTY_DROPS.includes(flag))
   await expect(async () => {
     const actual = lineSettings(path)
     expect(actual.speed).toBe(expected.speed)
-    for (const flag of expected.flags) expect(actual.flags).toContain(flag)
+    for (const flag of kept) expect(actual.flags).toContain(flag)
   }).toPass({ timeout: 10_000 })
 }
 
