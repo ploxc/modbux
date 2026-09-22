@@ -125,9 +125,10 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
  * `detectedVersion === CURRENT` branch, fails `ServerConfigSchema` on
  * `z.number()`, and refuses the whole file rather than the one register.
  *
- * `stringifyExact64BitValues` walks a persisted store, `serverRegisters[uuid]`,
- * and a config is keyed one level up, so the blob is wrapped in the shape that
- * helper reads. That is the same difference `migrateBoolShapeForUnit` carries.
+ * `stringifyExact64BitValues` walks a persisted store,
+ * `servers[uuid].registers`, and a config holds the units alone, so the blob is
+ * wrapped in the shape that helper reads. That is the same difference
+ * `migrateBoolShapeForUnit` carries.
  *
  * The bool shape goes with it. `migrateBoolShapeInConfig` ran on the
  * `detectedVersion === CURRENT` branch alone, and a v2 file carrying the old
@@ -136,7 +137,7 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
 function migrateServerV2toV3(v2Config: unknown): ServerConfig {
   const config = v2Config as ServerConfig & Record<string, unknown>
   migrateBoolShapeInConfig(config.serverRegistersPerUnit)
-  stringifyExact64BitValues({ serverRegisters: { config: config.serverRegistersPerUnit } })
+  stringifyExact64BitValues({ servers: { config: { registers: config.serverRegistersPerUnit } } })
   return { ...config, version: 3 }
 }
 
@@ -165,7 +166,7 @@ export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> 
     // does not run on a config load, so without this the first single word
     // write after opening such a file folds from the rounded value, which is
     // the defect the v2 to v3 step removes for a v2 file.
-    stringifyExact64BitValues({ serverRegisters: { config: parsed.serverRegistersPerUnit } })
+    stringifyExact64BitValues({ servers: { config: { registers: parsed.serverRegistersPerUnit } } })
     const result = ServerConfigSchema.safeParse(parsed)
     if (!result.success) {
       throw new Error(

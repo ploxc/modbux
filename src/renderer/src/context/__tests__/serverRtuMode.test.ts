@@ -47,35 +47,33 @@ const persisted = (com: string): string =>
   JSON.stringify({
     state: {
       selectedUuid: 'a-second-server',
-      uuids: [MAIN_SERVER_UUID],
-      serverRegisters: {
+      servers: {
         [MAIN_SERVER_UUID]: {
-          '0': {
-            coils: {},
-            discrete_inputs: {},
-            input_registers: {},
-            holding_registers: {
-              10: {
-                value: 1,
-                params: {
-                  address: 10,
-                  registerType: 'holding_registers',
-                  dataType: 'uint16',
-                  comment: '',
-                  value: 1
+          port: '502',
+          unitId: '0',
+          littleEndian: true,
+          registers: {
+            '0': {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: {
+                10: {
+                  value: 1,
+                  params: {
+                    address: 10,
+                    registerType: 'holding_registers',
+                    dataType: 'uint16',
+                    comment: '',
+                    value: 1
+                  }
                 }
               }
             }
-          }
+          },
+          usedAddresses: { '0': { holding_registers: [10], input_registers: [] } }
         }
       },
-      usedAddresses: {
-        [MAIN_SERVER_UUID]: { '0': { holding_registers: [10], input_registers: [] } }
-      },
-      port: { [MAIN_SERVER_UUID]: '502' },
-      unitId: { [MAIN_SERVER_UUID]: '0' },
-      name: {},
-      littleEndian: { [MAIN_SERVER_UUID]: true },
       serverMode: 'rtu',
       serialConfig: { com, options: { baudRate: '9600', dataBits: 8, stopBits: 1, parity: 'none' } }
     },

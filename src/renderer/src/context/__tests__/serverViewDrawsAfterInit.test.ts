@@ -19,27 +19,28 @@ const persisted = (): string =>
   JSON.stringify({
     state: {
       selectedUuid: MAIN_SERVER_UUID,
-      uuids: [MAIN_SERVER_UUID],
-      port: { [MAIN_SERVER_UUID]: '502' },
-      name: { [MAIN_SERVER_UUID]: 'bench' },
-      unitId: { [MAIN_SERVER_UUID]: '0' },
-      littleEndian: { [MAIN_SERVER_UUID]: false },
-      usedAddresses: {},
-      serverRegisters: {
+      servers: {
         [MAIN_SERVER_UUID]: {
-          '0': {
-            coils: {},
-            discrete_inputs: {},
-            input_registers: {},
-            holding_registers: {
-              '0': {
-                value: 1,
-                params: {
-                  address: 0,
-                  registerType: 'holding_registers',
-                  dataType: 'uint16',
-                  comment: '',
-                  value: 1
+          port: '502',
+          name: 'bench',
+          unitId: '0',
+          littleEndian: false,
+          usedAddresses: {},
+          registers: {
+            '0': {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: {
+                '0': {
+                  value: 1,
+                  params: {
+                    address: 0,
+                    registerType: 'holding_registers',
+                    dataType: 'uint16',
+                    comment: '',
+                    value: 1
+                  }
                 }
               }
             }
@@ -154,11 +155,13 @@ describe('one server main refuses', () => {
 
   it('costs that server and no other', async () => {
     const blob = JSON.parse(persisted())
-    blob.state.uuids.push(SECOND)
-    blob.state.port[SECOND] = '503'
-    blob.state.unitId[SECOND] = '0'
-    blob.state.littleEndian[SECOND] = false
-    blob.state.serverRegisters[SECOND] = {}
+    blob.state.servers[SECOND] = {
+      port: '503',
+      unitId: '0',
+      littleEndian: false,
+      registers: {},
+      usedAddresses: {}
+    }
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(blob))
 
     const created: string[] = []

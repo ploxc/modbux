@@ -31,7 +31,7 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
   const entry = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.serverRegisters[uuid]?.[unitId]?.[type]?.[address] as ServerBoolEntry | undefined
+    return z.servers[uuid]?.registers[unitId]?.[type]?.[address] as ServerBoolEntry | undefined
   })
 
   // `ServerBit` hands back the index it was given, and the index this row gives
@@ -117,7 +117,7 @@ const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const boolMap = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.serverRegisters[uuid]?.[unitId]?.[type]
+    return z.servers[uuid]?.registers[unitId]?.[type]
   })
   const addresses = useMemo(
     () =>
@@ -137,7 +137,7 @@ const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
 const getBoolMap = (type: BooleanRegisters): Record<string, unknown> => {
   const serverZustand = useServerZustand.getState()
   return (
-    serverZustand.serverRegisters[serverZustand.selectedUuid]?.[
+    serverZustand.servers[serverZustand.selectedUuid]?.registers[
       serverZustand.getUnitId(serverZustand.selectedUuid)
     ]?.[type] ?? {}
   )
@@ -157,7 +157,7 @@ const AddBoolInline = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
   const empty = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return Object.keys(z.serverRegisters[uuid]?.[unitId]?.[type] ?? {}).length === 0
+    return Object.keys(z.servers[uuid]?.registers[unitId]?.[type] ?? {}).length === 0
   })
   useEffect(() => {
     if (empty) setAddress('0')

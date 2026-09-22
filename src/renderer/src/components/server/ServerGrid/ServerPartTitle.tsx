@@ -70,7 +70,7 @@ const ServerPartTitleName = meme(
       const uuid = z.selectedUuid
       const unitId = z.getUnitId(uuid)
 
-      return Object.keys(z.serverRegisters[uuid]?.[unitId]?.[registerType] ?? {}).length
+      return Object.keys(z.servers[uuid]?.registers[unitId]?.[registerType] ?? {}).length
     })
 
     const handleClick = useCallback((): void => {

@@ -25,18 +25,37 @@ import { z } from 'zod'
 export const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
 export type UsedAddresses = z.infer<typeof UsedAddressesSchema>
 
+/**
+ * Everything one server holds, under the uuid that names it.
+ *
+ * Every field here belongs to that one server, so a uuid the store lists is a
+ * uuid with a port, a unit id and a register map beside it. There is no second
+ * list to agree with and nothing to sweep: taking the key out takes all six.
+ *
+ * `ready` is not in here. It says whether main has bound this uuid, and
+ * nothing on disk answers that.
+ */
+export const PersistedServerSchema = z.object({
+  port: z.string(),
+  unitId: UnitIdStringSchema,
+  name: z.string().optional(),
+  littleEndian: z.boolean(),
+  registers: ServerRegistersPerUnitSchema,
+  usedAddresses: z.record(UnitIdStringSchema, UsedAddressesSchema)
+})
+export type PersistedServer = z.infer<typeof PersistedServerSchema>
+
 export const PersistedServerZustandSchema = z.object({
   selectedUuid: z.string(),
-  uuids: z.array(z.string()),
-  serverRegisters: z.record(z.string(), z.union([ServerRegistersPerUnitSchema, z.undefined()])),
-  usedAddresses: z.record(
-    z.string(),
-    z.union([z.record(UnitIdStringSchema, UsedAddressesSchema), z.undefined()])
-  ),
-  port: z.record(z.string(), z.string()),
-  unitId: z.record(z.string(), z.union([UnitIdStringSchema, z.undefined()])),
-  name: z.record(z.string(), z.string().optional()),
-  littleEndian: z.record(z.string(), z.boolean()),
+  /**
+   * The servers, keyed by uuid, in the order they were made.
+   *
+   * `SelectServer` draws its toggle group off `Object.keys`, which walks a key
+   * that is not an array index in insertion order. Modbux writes `v4()` and
+   * `MAIN_SERVER_UUID`, and both carry dashes. A hand-edited key of `'0'` would
+   * be drawn first whatever it was written after, and that is the whole cost.
+   */
+  servers: z.record(z.string(), PersistedServerSchema),
   serverMode: ServerModeSchema.optional(),
   serialConfig: ServerSerialConfigSchema.optional()
 })
@@ -86,12 +105,8 @@ export type ServerZustand = {
    * `ready` is about a server.
    */
   initialized: boolean
+  /** Empties a server's registers and puts it back on unit 0. */
   clean: (uuid: string) => void
-  /**
-   * Remove all state entries for uuids that are not present in the uuids array.
-   * This prevents memory leaks and UI bugs from stale state.
-   */
-  cleanOrphanedServerState: () => void
   setSelectedUuid: (uuid: string) => void
   createServer: (params: CreateServerParams) => Promise<void>
   deleteServer: (uuid: string) => Promise<void>
@@ -133,8 +148,3 @@ export type ServerZustand = {
 
 /** The recipe half of the store's `set`, for a helper that writes through it. */
 export type ServerSet = (recipe: (state: ServerZustand) => void) => void
-
-export type DefinedServerRegisters = Exclude<
-  PersistedServerZustand['serverRegisters'][UnitIdString],
-  undefined
->

@@ -38,7 +38,7 @@ const validateAddress = (
     registerType,
     registerLength,
     usedAddresses: registerType
-      ? (serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? [])
+      ? (serverZustand.servers[uuid]?.usedAddresses[unitId]?.[registerType] ?? [])
       : [],
     editRegister: useAddRegisterZustand.getState().serverRegisterEdit?.params
   })
@@ -253,7 +253,8 @@ export const useAddRegisterZustand = create<AddRegisterZustand, [['zustand/mutat
         const serverZustand = useServerZustand.getState()
         const uuid = serverZustand.selectedUuid
         const unitId = serverZustand.getUnitId(uuid)
-        const usedAddresses = serverZustand.usedAddresses[uuid]?.[unitId]?.[registerType] ?? []
+        const usedAddresses =
+          serverZustand.servers[uuid]?.usedAddresses[unitId]?.[registerType] ?? []
         const size = registerWidth(
           dataType,
           dataType === 'utf8' ? utf8RegisterLength(registerLength) : undefined

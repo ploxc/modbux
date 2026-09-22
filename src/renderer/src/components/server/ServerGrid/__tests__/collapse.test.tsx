@@ -26,8 +26,12 @@ const holdingRegisters = {
 const serverState = {
   selectedUuid: 'main',
   getUnitId: (): string => '0',
-  unitId: { main: '0' },
-  serverRegisters: { main: { '0': { coils, holding_registers: holdingRegisters } } }
+  servers: {
+    main: {
+      unitId: '0',
+      registers: { '0': { coils, holding_registers: holdingRegisters } }
+    }
+  }
 }
 
 vi.mock('@renderer/context/server.zustand', () => ({

@@ -51,7 +51,7 @@ const ModeToggle = meme(() => {
 
 const EndianToggle = meme(() => {
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
-  const littleEndian = useServerZustand((z) => z.littleEndian[selectedUuid] ?? false)
+  const littleEndian = useServerZustand((z) => z.servers[selectedUuid]?.littleEndian ?? false)
   const ready = useServerZustand((z) => z.ready[selectedUuid])
 
   const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
@@ -97,7 +97,7 @@ interface UnitIdMenuItemProps {
 
 const UnitIdMenuItem = meme(({ unitId }: UnitIdMenuItemProps) => {
   const hasConfig = useServerZustand((z) => {
-    const reg = z.serverRegisters[z.selectedUuid]?.[unitId]
+    const reg = z.servers[z.selectedUuid]?.registers[unitId]
     return checkHasConfig(reg)
   })
   return (
@@ -156,7 +156,7 @@ const UnitId = meme(() => {
 
 const PortInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
-  const portFromStore = useServerZustand((z) => z.port[z.selectedUuid] ?? '')
+  const portFromStore = useServerZustand((z) => z.servers[z.selectedUuid]?.port ?? '')
   const [localPort, setLocalPort] = useState(portFromStore)
 
   // Sync localPort with store if store changes (e.g. after backend update)
@@ -195,7 +195,7 @@ const PortInput = meme(PortInputForward)
 //
 // Port
 const Port = meme(() => {
-  const port = useServerZustand((z) => z.port[z.selectedUuid])
+  const port = useServerZustand((z) => z.servers[z.selectedUuid]?.port)
 
   const setPort = useServerZustand.getState().setPort
 

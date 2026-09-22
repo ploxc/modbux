@@ -37,7 +37,7 @@ describe('clearing one boolean type', () => {
 
     useServerZustand.getState().resetBools('coils')
 
-    const unit = useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]?.['0']
+    const unit = useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers['0']
     expect(unit?.coils).toEqual({})
     expect(unit?.discrete_inputs?.[7]?.value).toBe(true)
   })

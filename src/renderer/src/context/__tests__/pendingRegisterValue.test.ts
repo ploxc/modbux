@@ -49,7 +49,7 @@ const seeded = async (): Promise<typeof import('../server.zustand')> => {
 /** The entry the store holds, or a failure saying it is not there. */
 const stored = (store: typeof import('../server.zustand')): ServerRegister[string] => {
   const registers: ServerRegisters | undefined =
-    store.useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]?.['0']
+    store.useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers['0']
   const found = registers?.holding_registers[10]
   if (!found) throw new Error('the register at address 10 is not there')
   return found

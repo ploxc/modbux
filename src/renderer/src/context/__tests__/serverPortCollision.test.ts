@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAIN_SERVER_UUID } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
+import { getDefaultServer } from '../server.zustand.helpers'
 
 const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
 vi.mock('notistack', () => ({ enqueueSnackbar }))
@@ -26,14 +27,16 @@ const twoServers = async (): Promise<{
 }> => {
   const { useServerZustand } = await import('../server.zustand')
   useServerZustand.setState({
-    uuids: [MAIN_SERVER_UUID, SECOND_UUID],
     selectedUuid: MAIN_SERVER_UUID,
-    port: { [MAIN_SERVER_UUID]: '502', [SECOND_UUID]: '503' },
+    servers: {
+      [MAIN_SERVER_UUID]: { ...getDefaultServer(), port: '502' },
+      [SECOND_UUID]: { ...getDefaultServer(), port: '503' }
+    },
     ready: { [MAIN_SERVER_UUID]: true, [SECOND_UUID]: true }
   })
   return {
     setPort: useServerZustand.getState().setPort,
-    portOf: (uuid) => useServerZustand.getState().port[uuid]
+    portOf: (uuid) => useServerZustand.getState().servers[uuid]?.port
   }
 }
 
@@ -76,17 +79,13 @@ describe('the port this server already holds', () => {
   })
 })
 
-describe('a port an orphaned uuid still held', () => {
-  // `cleanOrphanedServerState` runs first, so the records it sweeps cannot
-  // answer for a server the list no longer has.
+describe('a port a deleted server held', () => {
+  // The port went with the key. A record per uuid answered for a server the
+  // list no longer had, until a sweep reached it.
   it('is taken, not refused', async () => {
     const { useServerZustand } = await import('../server.zustand')
-    useServerZustand.setState({
-      uuids: [MAIN_SERVER_UUID],
-      selectedUuid: MAIN_SERVER_UUID,
-      port: { [MAIN_SERVER_UUID]: '502', [SECOND_UUID]: '503' },
-      ready: { [MAIN_SERVER_UUID]: true, [SECOND_UUID]: true }
-    })
+    await twoServers()
+    await useServerZustand.getState().deleteServer(SECOND_UUID)
     const calls: ApiCall[] = []
     recordApiCalls(calls)
 

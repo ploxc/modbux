@@ -139,7 +139,7 @@ const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
   const registerMap = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.serverRegisters[uuid]?.[unitId]?.[type]
+    return z.servers[uuid]?.registers[unitId]?.[type]
   })
   // Sorted by the address the row draws, the way `ServerBoolList` sorts its
   // keys, and keyed by the map key rather than that address. `Object.entries`

@@ -21,6 +21,7 @@ vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar }) }))
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { getDefaultServer } from '@renderer/context/server.zustand.helpers'
 import { ServerBoolEntry, UnitIdString } from '@shared'
 import ServerBooleans from '../ServerBooleans'
 
@@ -55,10 +56,14 @@ beforeEach(() => {
   addBool.mockClear()
   useServerZustand.setState({
     selectedUuid: UUID,
-    uuids: [UUID],
     ready: { [UUID]: true },
-    unitId: { [UUID]: '0' },
-    serverRegisters: { [UUID]: { ...coilsAt('0', [0, 1]), ...coilsAt('1', [0]) } },
+    servers: {
+      [UUID]: {
+        ...getDefaultServer(),
+        unitId: '0',
+        registers: { ...coilsAt('0', [0, 1]), ...coilsAt('1', [0]) }
+      }
+    },
     addBool
   } as never)
 })
@@ -78,7 +83,10 @@ describe('the address the inline add bar offers', () => {
     expect(addressField()).toHaveValue('2')
 
     act(() => {
-      useServerZustand.setState({ unitId: { [UUID]: '1' } } as never)
+      useServerZustand.setState((state) => {
+        const server = state.servers[UUID]
+        if (server) server.unitId = '1'
+      })
     })
 
     expect(addressField()).toHaveValue('1')
@@ -89,12 +97,10 @@ describe('the address the inline add bar offers', () => {
   // most often, because a unit id is picked once per server.
   it('is read again when another server is selected', () => {
     useServerZustand.setState({
-      uuids: [UUID, SECOND_UUID],
       ready: { [UUID]: true, [SECOND_UUID]: true },
-      unitId: { [UUID]: '0', [SECOND_UUID]: '0' },
-      serverRegisters: {
-        [UUID]: coilsAt('0', [0, 1]),
-        [SECOND_UUID]: coilsAt('0', [0])
+      servers: {
+        [UUID]: { ...getDefaultServer(), registers: coilsAt('0', [0, 1]) },
+        [SECOND_UUID]: { ...getDefaultServer(), registers: coilsAt('0', [0]) }
       }
     } as never)
     render(<ServerBooleans name="Coils" type="coils" />)
@@ -111,7 +117,7 @@ describe('the address the inline add bar offers', () => {
 describe('an address with nothing free above it', () => {
   beforeEach(() => {
     useServerZustand.setState({
-      serverRegisters: { [UUID]: coilsAt('0', [65535]) }
+      servers: { [UUID]: { ...getDefaultServer(), registers: coilsAt('0', [65535]) } }
     } as never)
   })
 

@@ -142,14 +142,13 @@ type UseSaveHook = () => {
 
 const useSave: UseSaveHook = () => {
   const save = useCallback(() => {
-    const serverZustand = useServerZustand.getState()
-    const { serverRegisters, selectedUuid, littleEndian } = serverZustand
-    const name = serverZustand.name[selectedUuid] ?? ''
+    const { servers, selectedUuid } = useServerZustand.getState()
+    const server = servers[selectedUuid]
+    if (!server) return
+    const name = server.name ?? ''
 
     const serverRegistersPerUnit: ServerRegistersPerUnit = {}
-
-    const registersPerUnit = serverRegisters[selectedUuid]
-    if (!registersPerUnit) return
+    const registersPerUnit = server.registers
 
     Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
       if (!checkHasConfig(registers)) return
@@ -163,7 +162,7 @@ const useSave: UseSaveHook = () => {
       version: CURRENT_SERVER_CONFIG_VERSION,
       modbuxVersion,
       name,
-      littleEndian: littleEndian[selectedUuid] ?? false,
+      littleEndian: server.littleEndian,
       serverRegistersPerUnit
     }
     downloadJson(`modbux_server_${snakeCase(name)}.json`, JSON.stringify(config, null, 2))

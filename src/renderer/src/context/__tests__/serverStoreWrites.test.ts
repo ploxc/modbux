@@ -38,11 +38,11 @@ describe('a server that was just created', () => {
 
     await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
 
-    const state = useServerZustand.getState()
-    expect(state.serverRegisters[NEW_UUID]).toEqual({})
-    expect(state.usedAddresses[NEW_UUID]).toEqual({})
-    expect(state.unitId[NEW_UUID]).toBe('0')
-    expect(state.port[NEW_UUID]).toBe('5020')
+    const server = useServerZustand.getState().servers[NEW_UUID]
+    expect(server?.registers).toEqual({})
+    expect(server?.usedAddresses).toEqual({})
+    expect(server?.unitId).toBe('0')
+    expect(server?.port).toBe('5020')
   })
 
   it('takes a register on the unit the dialog offers', async () => {
@@ -65,9 +65,9 @@ describe('a server that was just created', () => {
       }
     })
 
-    const state = useServerZustand.getState()
-    expect(state.serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value).toBe(0)
-    expect(state.usedAddresses[NEW_UUID]?.['0']?.['holding_registers']).toEqual([10])
+    const server = useServerZustand.getState().servers[NEW_UUID]
+    expect(server?.registers['0']?.holding_registers[10]?.value).toBe(0)
+    expect(server?.usedAddresses['0']?.['holding_registers']).toEqual([10])
   })
 
   // Main encodes the register and sends its `register_value` words before it
@@ -104,7 +104,7 @@ describe('a server that was just created', () => {
 
     await vi.waitFor(() =>
       expect(
-        useServerZustand.getState().serverRegisters[NEW_UUID]?.['0']?.holding_registers[10]?.value
+        useServerZustand.getState().servers[NEW_UUID]?.registers['0']?.holding_registers[10]?.value
       ).toBe(-1)
     )
   })
@@ -132,7 +132,7 @@ describe('a server that was just created', () => {
       }
     })
 
-    expect(useServerZustand.getState().serverRegisters[NEW_UUID]).toEqual({})
+    expect(useServerZustand.getState().servers[NEW_UUID]?.registers).toEqual({})
   })
 })
 
@@ -143,7 +143,7 @@ describe('what clean writes', () => {
     useServerZustand.getState().clean(MAIN_SERVER_UUID)
 
     expect(
-      Object.keys(useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID] ?? {})
+      Object.keys(useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers ?? {})
     ).toEqual([])
   })
 })
@@ -161,13 +161,15 @@ describe('a config written before the unit map was left empty', () => {
       JSON.stringify({
         state: {
           selectedUuid: MAIN_SERVER_UUID,
-          uuids: [MAIN_SERVER_UUID],
-          serverRegisters: { [MAIN_SERVER_UUID]: { '0': registers, '1': registers } },
-          usedAddresses: { [MAIN_SERVER_UUID]: { '0': {}, '1': {} } },
-          port: { [MAIN_SERVER_UUID]: '502' },
-          unitId: { [MAIN_SERVER_UUID]: '0' },
-          name: {},
-          littleEndian: { [MAIN_SERVER_UUID]: false }
+          servers: {
+            [MAIN_SERVER_UUID]: {
+              port: '502',
+              unitId: '0',
+              littleEndian: false,
+              registers: { '0': registers, '1': registers },
+              usedAddresses: { '0': {}, '1': {} }
+            }
+          }
         },
         version: CURRENT_SERVER_ZUSTAND_VERSION
       })
@@ -178,8 +180,8 @@ describe('a config written before the unit map was left empty', () => {
 
     const state = useServerZustand.getState()
     expect(state.configReset).toBeUndefined()
-    expect(Object.keys(state.serverRegisters[MAIN_SERVER_UUID] ?? {})).toEqual(['0', '1'])
-    expect(state.serverRegisters[MAIN_SERVER_UUID]?.['0']?.coils[1]?.value).toBe(false)
+    expect(Object.keys(state.servers[MAIN_SERVER_UUID]?.registers ?? {})).toEqual(['0', '1'])
+    expect(state.servers[MAIN_SERVER_UUID]?.registers['0']?.coils[1]?.value).toBe(false)
   })
 })
 
@@ -194,28 +196,21 @@ describe('deleteServer', () => {
     await useServerZustand.getState().deleteServer(NEW_UUID)
 
     const state = useServerZustand.getState()
-    const records = [
-      state.port,
-      state.unitId,
-      state.serverRegisters,
-      state.usedAddresses,
-      state.name,
-      state.littleEndian,
-      state.ready
-    ]
-    expect(records.filter((record) => NEW_UUID in record)).toEqual([])
+    expect(NEW_UUID in state.servers).toBe(false)
+    expect(NEW_UUID in state.ready).toBe(false)
   })
 
-  it('sweeps a uuid whose server was never created', async () => {
+  // The name went into a record of its own and outlived the delete, and the
+  // sweep that was supposed to take it read a record the delete had already
+  // emptied. A name is a field of a server now, so a uuid naming none takes
+  // nothing.
+  it('writes no name for a uuid that names no server', async () => {
     const { useServerZustand } = await import('../server.zustand')
 
     useServerZustand.getState().setSelectedUuid(NEW_UUID)
     useServerZustand.getState().setName('never bound')
-    useServerZustand.getState().setSelectedUuid(MAIN_SERVER_UUID)
 
-    useServerZustand.getState().cleanOrphanedServerState()
-
-    expect(NEW_UUID in useServerZustand.getState().name).toBe(false)
+    expect(NEW_UUID in useServerZustand.getState().servers).toBe(false)
   })
 })
 
@@ -235,8 +230,9 @@ describe('resetServer', () => {
     await useServerZustand.getState().resetServer(MAIN_SERVER_UUID)
 
     expect(resetServer).toHaveBeenCalledWith(MAIN_SERVER_UUID)
-    expect(useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]).toEqual({})
-    expect(useServerZustand.getState().usedAddresses[MAIN_SERVER_UUID]).toEqual({})
+    const server = useServerZustand.getState().servers[MAIN_SERVER_UUID]
+    expect(server?.registers).toEqual({})
+    expect(server?.usedAddresses).toEqual({})
   })
 })
 
@@ -247,7 +243,7 @@ describe('getUnitId', () => {
     const unitId = useServerZustand.getState().getUnitId(NEW_UUID)
 
     expect(unitId).toBe('0')
-    expect(Object.keys(useServerZustand.getState().unitId)).toEqual([MAIN_SERVER_UUID])
+    expect(Object.keys(useServerZustand.getState().servers)).toEqual([MAIN_SERVER_UUID])
   })
 })
 
@@ -266,7 +262,7 @@ describe('a bool the store writes', () => {
     useServerZustand.getState().addBool('coils', 3)
 
     expect(
-      useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]?.['0']?.coils[3]?.value
+      useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers['0']?.coils[3]?.value
     ).toBe(false)
     expect(setBool).toHaveBeenCalledWith({
       uuid: MAIN_SERVER_UUID,
@@ -286,8 +282,29 @@ describe('a bool the store writes', () => {
     useServerZustand.getState().addBool('coils', 3)
 
     expect(
-      useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]?.['0']?.coils[3]?.value
+      useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers['0']?.coils[3]?.value
     ).toBe(true)
+  })
+
+  // Main sends `register_value` from inside the call the store is waiting on,
+  // and the batcher hands over 50 ms later, so a flush can land for a server
+  // `deleteServer` took out in between. Dropped rather than written, which is
+  // what `setRegisterValue` does with an address that is gone.
+  it('is dropped for a uuid that names no server', async () => {
+    stubCreateServer(5020)
+    const { useServerZustand } = await import('../server.zustand')
+    await useServerZustand.getState().createServer({ uuid: NEW_UUID, port: 5020 })
+    await useServerZustand.getState().deleteServer(NEW_UUID)
+
+    useServerZustand.getState().setBool({
+      registerType: 'coils',
+      address: 3,
+      boolState: true,
+      optionalUuid: NEW_UUID,
+      optionalUnitId: '0'
+    })
+
+    expect(NEW_UUID in useServerZustand.getState().servers).toBe(false)
   })
 
   it('builds no unit when a bool is removed from one that holds nothing', async () => {
@@ -296,6 +313,6 @@ describe('a bool the store writes', () => {
 
     useServerZustand.getState().removeBool('coils', 3)
 
-    expect(useServerZustand.getState().serverRegisters[MAIN_SERVER_UUID]).toEqual({})
+    expect(useServerZustand.getState().servers[MAIN_SERVER_UUID]?.registers).toEqual({})
   })
 })

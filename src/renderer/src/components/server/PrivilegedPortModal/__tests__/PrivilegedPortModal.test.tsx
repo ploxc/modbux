@@ -12,7 +12,7 @@ import type { PrivilegedPortStatus, PrivilegedPortFixResult } from '@shared'
 const mockSetPort = vi.fn()
 const storeState = {
   selectedUuid: 'main',
-  port: { main: '1024' } as Record<string, string>,
+  servers: { main: { port: '1024' } } as Record<string, { port: string }>,
   ready: { main: true } as Record<string, boolean>,
   setPort: mockSetPort
 }
@@ -65,7 +65,7 @@ describe('PrivilegedPortModal', () => {
     vi.clearAllMocks()
     localStorage.clear()
     window.api.isServerWindow = false
-    storeState.port = { main: '1024' }
+    storeState.servers = { main: { port: '1024' } }
     storeState.ready = { main: true }
     // The modal's own store is module scope, so it outlives a render the way it
     // outlives a remount in the app. Each test starts from a closed modal.

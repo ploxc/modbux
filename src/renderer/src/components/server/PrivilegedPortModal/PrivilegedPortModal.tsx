@@ -57,7 +57,7 @@ const Explanation = meme((): JSX.Element => {
   // Where the server actually landed. When 502 is blocked the backend has
   // already walked up to the first bindable port, so this is the fallback the
   // user is looking at — not the port they asked for.
-  const actualPort = useServerZustand((z) => Number(z.port[z.selectedUuid] ?? 0))
+  const actualPort = useServerZustand((z) => Number(z.servers[z.selectedUuid]?.port ?? 0))
 
   return (
     <Typography variant="body2" sx={{ mb: 2 }}>

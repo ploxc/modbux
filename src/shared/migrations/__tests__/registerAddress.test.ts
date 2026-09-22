@@ -70,27 +70,56 @@ const configAccepts = (address: number): boolean =>
 
 /** A persisted blob with one register per address given, on one server. */
 const persistedWith = (addresses: number[]): Record<string, unknown> => ({
-  serverRegisters: {
+  servers: {
     u: {
-      '1': {
-        coils: {},
-        discrete_inputs: {},
-        input_registers: {},
-        holding_registers: Object.fromEntries(
-          addresses.map((address) => [String(address), { value: 1, params: params(address) }])
-        )
+      registers: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: Object.fromEntries(
+            addresses.map((address) => [String(address), { value: 1, params: params(address) }])
+          )
+        }
       }
     }
   }
 })
 
+/**
+ * The same registers as a shipped blob carried them: six records keyed by uuid.
+ *
+ * `migrateServerState` folds those into one record per server for any version
+ * below 4, so a test driving the migration hands it the shape 2.3.0 wrote and
+ * reads the result back through `unitsOf`.
+ */
+const asShipped = (state: Record<string, unknown>): Record<string, unknown> => {
+  const servers = state.servers as Record<string, Record<string, unknown>>
+  return {
+    uuids: Object.keys(servers),
+    serverRegisters: Object.fromEntries(
+      Object.entries(servers).map(([uuid, server]) => [uuid, server.registers])
+    ),
+    usedAddresses: Object.fromEntries(
+      Object.entries(servers).map(([uuid, server]) => [uuid, server.usedAddresses ?? {}])
+    )
+  }
+}
+
+/** The units of the server keyed `u`, in a blob the drop or the migration walked. */
+const unitsOf = (state: Record<string, unknown>): Record<string, unknown> => {
+  const servers = state.servers as Record<string, Record<string, unknown>> | undefined
+  return (servers?.u?.registers ?? {}) as Record<string, unknown>
+}
+
 /** The holding registers of a migrated blob, or a failure naming what is missing. */
 const migratedHoldingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
-  const perUuid = state.serverRegisters as Record<string, unknown> | undefined
-  const perUnit = perUuid?.u as Record<string, unknown> | undefined
+  const servers = state.servers as Record<string, unknown> | undefined
+  const server = servers?.u as Record<string, unknown> | undefined
+  const perUnit = server?.registers as Record<string, unknown> | undefined
   const registers = perUnit?.['1'] as Record<string, unknown> | undefined
   const holding = registers?.holding_registers as Record<string, unknown> | undefined
-  if (!holding) throw new Error('the migrated blob has no serverRegisters.u.1.holding_registers')
+  if (!holding) throw new Error('the migrated blob has no servers.u.registers.1.holding_registers')
   return holding
 }
 
@@ -174,7 +203,7 @@ describe('a persisted register outside the map', () => {
 
   // The drop on its own is not the store's behaviour; the step in `migrate` is.
   it('is dropped by the migration a shipped blob runs', () => {
-    const state = migrateServerState(persistedWith([100, 70000]), SHIPPED_SERVER_VERSION)
+    const state = migrateServerState(asShipped(persistedWith([100, 70000])), SHIPPED_SERVER_VERSION)
 
     expect(Object.keys(migratedHoldingRegisters(state))).toEqual(['100'])
   })
@@ -197,14 +226,25 @@ describe('the drop on its own', () => {
   // something away rather than naming what was never there.
   it('walks past a null where a server, a unit or a register type should be', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: null, v: { '1': null }, w: { '1': { coils: null } } }
+      servers: {
+        u: null,
+        v: { registers: null },
+        w: { registers: { '1': null } },
+        x: { registers: { '1': { coils: null } } }
+      }
     }
     dropUnservableRegisters(state)
 
-    expect(state.serverRegisters).toEqual({
+    expect(state.servers).toEqual({
       u: null,
-      v: { '1': null },
-      w: { '1': { coils: null, discrete_inputs: {}, input_registers: {}, holding_registers: {} } }
+      v: { registers: null, usedAddresses: {} },
+      w: { registers: { '1': null }, usedAddresses: {} },
+      x: {
+        registers: {
+          '1': { coils: null, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
+        },
+        usedAddresses: { '1': { input_registers: [], holding_registers: [] } }
+      }
     })
   })
 
@@ -212,23 +252,23 @@ describe('the drop on its own', () => {
   // skipped rather than failed for it.
   it('keeps a coil that has no parameters', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { coils: { '3': { value: true }, '70000': { value: true } } } } }
+      servers: {
+        u: { registers: { '1': { coils: { '3': { value: true }, '70000': { value: true } } } } }
+      }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     expect(Object.keys(unit.coils as Record<string, unknown>)).toEqual(['3'])
   })
 
   it('drops an entry that is not an object', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { coils: { '3': 'true' } } } }
+      servers: { u: { registers: { '1': { coils: { '3': 'true' } } } } }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     expect(Object.keys(unit.coils as Record<string, unknown>)).toEqual([])
   })
 
@@ -240,12 +280,11 @@ describe('the drop on its own', () => {
   // and `ServerRegistersSchema` strips the key it does not declare.
   it('leaves a register type it does not know alone', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { file_records: { '3': { value: 1 }, '70000': {} } } } }
+      servers: { u: { registers: { '1': { file_records: { '3': { value: 1 }, '70000': {} } } } } }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     expect(Object.keys(unit.file_records as Record<string, unknown>)).toEqual(['3', '70000'])
   })
 
@@ -254,22 +293,20 @@ describe('the drop on its own', () => {
   // a walk over the keys that are there never sees the one that is missing.
   it('gives a unit the register types it is missing', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { holding_registers: {} } } }
+      servers: { u: { registers: { '1': { holding_registers: {} } } } }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    expect(ServerRegistersSchema.safeParse(perUuid.u?.['1']).success).toBe(true)
+    expect(ServerRegistersSchema.safeParse(unitsOf(state)['1']).success).toBe(true)
   })
 
   it('leaves a register type holding something that is not a map where it is', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: { u: { '1': { coils: 'not a map' } } }
+      servers: { u: { registers: { '1': { coils: 'not a map' } } } }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     expect(unit.coils).toBe('not a map')
   })
 })
@@ -289,15 +326,18 @@ describe('a persisted number register the entry schema refuses', () => {
     coils: Record<string, unknown> = {}
   ): { holding: string[]; coils: string[] } => {
     const state: Record<string, unknown> = {
-      serverRegisters: {
-        u: { '1': { coils, discrete_inputs: {}, input_registers: {}, holding_registers: holding } }
+      servers: {
+        u: {
+          registers: {
+            '1': { coils, discrete_inputs: {}, input_registers: {}, holding_registers: holding }
+          }
+        }
       }
     }
     dropUnservableRegisters(state)
 
     const unit = migratedHoldingRegisters(state)
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const registers = perUuid.u?.['1'] as Record<string, unknown>
+    const registers = unitsOf(state)['1'] as Record<string, unknown>
     return {
       holding: Object.keys(unit),
       coils: Object.keys(registers.coils as Record<string, unknown>)
@@ -339,21 +379,22 @@ describe('a persisted number register the entry schema refuses', () => {
   // What the drop is for: the field survives the register.
   it('leaves a field the schema takes', () => {
     const state: Record<string, unknown> = {
-      serverRegisters: {
+      servers: {
         u: {
-          '1': {
-            coils: {},
-            discrete_inputs: {},
-            input_registers: {},
-            holding_registers: { '0': { value: 1 }, '1': { value: 1, params: params(1) } }
+          registers: {
+            '1': {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: { '0': { value: 1 }, '1': { value: 1, params: params(1) } }
+            }
           }
         }
       }
     }
     dropUnservableRegisters(state)
 
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    expect(ServerRegistersSchema.safeParse(perUuid.u?.['1']).success).toBe(true)
+    expect(ServerRegistersSchema.safeParse(unitsOf(state)['1']).success).toBe(true)
   })
 })
 
@@ -464,23 +505,24 @@ describe('a persisted generator the interval floor refuses', () => {
   })
 
   const persistedGenerators = (intervals: number[]): Record<string, unknown> => ({
-    serverRegisters: {
+    servers: {
       u: {
-        '1': {
-          holding_registers: Object.fromEntries(
-            intervals.map((interval, index) => [
-              String(index),
-              { value: 1, params: { ...generator(interval), address: index } }
-            ])
-          )
+        registers: {
+          '1': {
+            holding_registers: Object.fromEntries(
+              intervals.map((interval, index) => [
+                String(index),
+                { value: 1, params: { ...generator(interval), address: index } }
+              ])
+            )
+          }
         }
       }
     }
   })
 
   const holdingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     return unit.holding_registers as Record<string, unknown>
   }
 
@@ -527,36 +569,40 @@ describe('the used addresses the drop writes back', () => {
   })
 
   const persisted = (): Record<string, unknown> => ({
-    usedAddresses: {
+    servers: {
       u: {
-        '1': { input_registers: [], holding_registers: [100, 101, 200] },
-        '2': { input_registers: [], holding_registers: [300, 400] }
-      }
-    },
-    serverRegisters: {
-      u: {
-        '1': {
-          coils: {},
-          discrete_inputs: {},
-          input_registers: {},
-          holding_registers: {
-            '100': { value: 1, params: wideRegister(100) },
-            '200': { value: 1, params: refusedGenerator(200) }
-          }
+        usedAddresses: {
+          '1': { input_registers: [], holding_registers: [100, 101, 200] },
+          '2': { input_registers: [], holding_registers: [300, 400] }
         },
-        '2': {
-          coils: {},
-          discrete_inputs: {},
-          input_registers: {},
-          holding_registers: { '300': { value: 1, params: params(300) } }
+        registers: {
+          '1': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {
+              '100': { value: 1, params: wideRegister(100) },
+              '200': { value: 1, params: refusedGenerator(200) }
+            }
+          },
+          '2': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: { '300': { value: 1, params: params(300) } }
+          }
         }
       }
     }
   })
 
+  /** The server the blob holds, so a test can take a field off it. */
+  const serverU = (state: Record<string, unknown>): Record<string, unknown> =>
+    (state.servers as Record<string, Record<string, unknown>>).u as Record<string, unknown>
+
   const usedHolding = (state: Record<string, unknown>, unitId: string): unknown => {
-    const perUuid = state.usedAddresses as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.[unitId] as Record<string, unknown>
+    const perUnit = serverU(state).usedAddresses as Record<string, Record<string, unknown>>
+    const unit = perUnit[unitId] as Record<string, unknown>
     return unit.holding_registers
   }
 
@@ -583,7 +629,7 @@ describe('the used addresses the drop writes back', () => {
   // reading a unit off a missing map throws rather than failing a schema.
   it('writes the map a blob carries no field for', () => {
     const state = persisted()
-    delete state.usedAddresses
+    delete serverU(state).usedAddresses
     dropUnservableRegisters(state)
 
     expect(usedHolding(state, '1')).toEqual([100, 101])
@@ -593,23 +639,22 @@ describe('the used addresses the drop writes back', () => {
   // told, and it cannot name a value that was replaced before it looked.
   it('leaves a map that is not an object for the repair to name', () => {
     const state = persisted()
-    state.usedAddresses = 'nonsense'
+    serverU(state).usedAddresses = 'nonsense'
     dropUnservableRegisters(state)
 
-    expect(state.usedAddresses).toBe('nonsense')
+    expect(serverU(state).usedAddresses).toBe('nonsense')
   })
 
-  // The map is one persisted field, so a key its schema refuses costs every
-  // unit in it. The same key costs `serverRegisters` alone.
+  // The map is one field of one server, so a key its schema refuses costs
+  // every unit in it. The same key costs that server's `registers` alone.
   it('writes nothing for a unit id outside the map', () => {
     const state = persisted()
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const registers = perUuid.u as Record<string, unknown>
+    const registers = serverU(state).registers as Record<string, unknown>
     registers['300'] = registers['2']
     dropUnservableRegisters(state)
 
-    const used = state.usedAddresses as Record<string, Record<string, unknown>>
-    expect(Object.keys(used.u ?? {})).toEqual(['1', '2'])
+    const used = serverU(state).usedAddresses as Record<string, unknown>
+    expect(Object.keys(used)).toEqual(['1', '2'])
   })
 })
 
@@ -626,21 +671,22 @@ describe('a persisted register the encoder cannot serve', () => {
   const persisted = (
     registers: Record<string, Record<string, unknown>>
   ): Record<string, unknown> => ({
-    serverRegisters: {
+    servers: {
       u: {
-        '1': {
-          coils: {},
-          discrete_inputs: {},
-          input_registers: {},
-          holding_registers: registers
+        registers: {
+          '1': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: registers
+          }
         }
       }
     }
   })
 
   const holding = (state: Record<string, unknown>): Record<string, unknown> => {
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     return unit.holding_registers as Record<string, unknown>
   }
 
@@ -681,7 +727,7 @@ describe('a persisted register the encoder cannot serve', () => {
   // The drop on its own is not the store's behaviour; the step in `migrate` is.
   it('is dropped by the migration a shipped blob runs', () => {
     const state = migrateServerState(
-      persisted({ '0': register(0, { value: 70000 }), '10': register(10, {}) }),
+      asShipped(persisted({ '0': register(0, { value: 70000 }), '10': register(10, {}) })),
       SHIPPED_SERVER_VERSION
     )
 
@@ -720,8 +766,7 @@ describe('a persisted 64 bit value', () => {
   })
 
   const heldValue = (state: Record<string, unknown>): unknown => {
-    const perUuid = state.serverRegisters as Record<string, Record<string, unknown>>
-    const unit = perUuid.u?.['1'] as Record<string, unknown>
+    const unit = unitsOf(state)['1'] as Record<string, unknown>
     const holding = unit.holding_registers as Record<string, Record<string, unknown>>
     return holding['10']?.value
   }

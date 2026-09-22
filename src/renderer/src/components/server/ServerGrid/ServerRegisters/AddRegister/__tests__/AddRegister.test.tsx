@@ -13,9 +13,13 @@ const mockRemoveRegister = vi.fn()
 const serverState = {
   selectedUuid: 'main',
   getUnitId: (): string => '0',
-  usedAddresses: { main: { '0': { holding_registers: [100, 101] } } },
-  serverRegisters: {},
-  littleEndian: {},
+  servers: {
+    main: {
+      usedAddresses: { '0': { holding_registers: [100, 101] } },
+      registers: {},
+      littleEndian: false
+    }
+  },
   removeRegister: mockRemoveRegister,
   // The real action answers whether main took the register, and everything the
   // buttons do after a submit is behind that answer.

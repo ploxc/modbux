@@ -33,35 +33,33 @@ const recordingBoundary = (): void => {
 const persisted = {
   state: {
     selectedUuid: MAIN_SERVER_UUID,
-    uuids: [MAIN_SERVER_UUID],
-    serverRegisters: {
+    servers: {
       [MAIN_SERVER_UUID]: {
-        '0': {
-          coils: {},
-          discrete_inputs: {},
-          input_registers: {},
-          holding_registers: {
-            10: {
-              value: 1,
-              params: {
-                address: 10,
-                registerType: 'holding_registers',
-                dataType: 'int32',
-                comment: '',
-                value: 1
+        port: '502',
+        unitId: '0',
+        littleEndian: false,
+        registers: {
+          '0': {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {
+              10: {
+                value: 1,
+                params: {
+                  address: 10,
+                  registerType: 'holding_registers',
+                  dataType: 'int32',
+                  comment: '',
+                  value: 1
+                }
               }
             }
           }
-        }
+        },
+        usedAddresses: { '0': { holding_registers: [10], input_registers: [] } }
       }
-    },
-    usedAddresses: {
-      [MAIN_SERVER_UUID]: { '0': { holding_registers: [10], input_registers: [] } }
-    },
-    port: { [MAIN_SERVER_UUID]: '502' },
-    unitId: { [MAIN_SERVER_UUID]: '0' },
-    name: {},
-    littleEndian: { [MAIN_SERVER_UUID]: false }
+    }
   },
   version: CURRENT_SERVER_ZUSTAND_VERSION
 }
@@ -102,7 +100,7 @@ describe('who tells main the byte order', () => {
 
     expect(methods()).toEqual(['setServerEndianness', 'syncServerRegister'])
     expect(calls[0]?.payload).toEqual({ uuid: MAIN_SERVER_UUID, littleEndian: true })
-    expect(useServerZustand.getState().littleEndian[MAIN_SERVER_UUID]).toBe(true)
+    expect(useServerZustand.getState().servers[MAIN_SERVER_UUID]?.littleEndian).toBe(true)
   })
 
   it('sends the registers without saying how to encode them', async () => {

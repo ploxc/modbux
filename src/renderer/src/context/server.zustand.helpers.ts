@@ -12,20 +12,16 @@ import {
   registerWidth,
   SerialPortOptions,
   ServerRegisters,
+  ServerRegistersPerUnit,
   ServerRegisterValue,
   ServerSerialConfig,
   toExact64Bits,
   UnitIdString
 } from '@shared'
 import { round } from 'lodash'
-import {
-  DefinedServerRegisters,
-  ServerSet,
-  ServerZustand,
-  UsedAddresses
-} from './server.zustand.types'
+import { PersistedServer, ServerSet, ServerZustand, UsedAddresses } from './server.zustand.types'
 
-export const extractUnitIdsWithData = (serverRegisters: DefinedServerRegisters): UnitIdString[] => {
+export const extractUnitIdsWithData = (serverRegisters: ServerRegistersPerUnit): UnitIdString[] => {
   const unitIds = Object.keys(serverRegisters) as UnitIdString[]
   const unitIdsWithData = unitIds.filter((unitId) => {
     const registers = serverRegisters[unitId]
@@ -43,7 +39,7 @@ export const extractUnitIdsWithData = (serverRegisters: DefinedServerRegisters):
  * `resetBools` then blanks the one it is clearing.
  */
 export const boolArraysOf = (
-  serverRegisters: DefinedServerRegisters,
+  serverRegisters: ServerRegistersPerUnit,
   unitId: UnitIdString
 ): { coils: boolean[]; discrete_inputs: boolean[] } => {
   const coils: boolean[] = Array(65536).fill(false)
@@ -60,7 +56,7 @@ export const boolArraysOf = (
 }
 
 const syncBoolsWithBackend = async (
-  serverRegisters: DefinedServerRegisters,
+  serverRegisters: ServerRegistersPerUnit,
   unitId: UnitIdString,
   syncUuid: string
 ): Promise<void> => {
@@ -72,7 +68,7 @@ const syncBoolsWithBackend = async (
 }
 
 export const syncRegistersWithBackend = async (
-  serverRegisters: DefinedServerRegisters,
+  serverRegisters: ServerRegistersPerUnit,
   unitId: UnitIdString,
   uuid: string
 ): Promise<{
@@ -107,36 +103,63 @@ const getDefaultUsedAddresses = (): UsedAddresses => ({
   holding_registers: []
 })
 
-/** The used-address map for a uuid, made on the first write into it. */
-const usedAddressesOf = (
-  state: ServerZustand,
-  uuid: string
-): Partial<Record<string, UsedAddresses>> => (state.usedAddresses[uuid] ??= {})
+/**
+ * An empty server on the registered port.
+ *
+ * Two callers with one question between them: `createServer` starts a server
+ * here, and `repairServers` falls back to a field of this one for a field it
+ * could not read. A repaired port of 502 that the main server already holds
+ * costs nothing: `TcpServers.create` probes the socket, walks up from there
+ * and answers the port it bound, which is what the store writes.
+ */
+export const getDefaultServer = (): PersistedServer => ({
+  port: String(DEFAULT_MODBUS_PORT),
+  unitId: '0',
+  name: undefined,
+  littleEndian: false,
+  registers: {},
+  usedAddresses: {}
+})
 
+/**
+ * The used addresses of one unit, made on the first write into it.
+ *
+ * Nothing where the uuid names no server, for the reason `unitRegisters`
+ * gives.
+ */
 export const unitUsedAddresses = (
   state: ServerZustand,
   uuid: string,
   unitId: UnitIdString
-): UsedAddresses => (usedAddressesOf(state, uuid)[unitId] ??= getDefaultUsedAddresses())
+): UsedAddresses | undefined => {
+  const server = state.servers[uuid]
+  if (!server) return undefined
+  return (server.usedAddresses[unitId] ??= getDefaultUsedAddresses())
+}
 
 /**
- * Where an empty unit is made, and the only place that makes one.
+ * The register map of one unit, made on the first write into it.
  *
- * `clean` gives a uuid two empty maps rather than an entry for each of the 256
+ * `clean` gives a server an empty map rather than an entry for each of the 256
  * unit ids, so a unit gets its entry the first time something is written into
  * it. A read takes the optional chain instead: a unit nobody has written to
  * holds nothing, and asking what is in it should not create it.
+ *
+ * Nothing where the uuid names no server. `setBool` takes a uuid off a
+ * `register_value` event, and main sends those from inside the call the store
+ * is waiting on, so one can arrive for a server `deleteServer` has just taken
+ * out. Creating the entry would put that server back with no port, no name and
+ * no listener.
  */
-export const serverRegistersOf = (
-  state: ServerZustand,
-  uuid: string
-): Partial<Record<string, ServerRegisters>> => (state.serverRegisters[uuid] ??= {})
-
 export const unitRegisters = (
   state: ServerZustand,
   uuid: string,
   unitId: UnitIdString
-): ServerRegisters => (serverRegistersOf(state, uuid)[unitId] ??= getDefaultServerRegisters())
+): ServerRegisters | undefined => {
+  const server = state.servers[uuid]
+  if (!server) return undefined
+  return (server.registers[unitId] ??= getDefaultServerRegisters())
+}
 
 /**
  * Hands main everything a uuid holds, then marks it ready.
@@ -150,23 +173,22 @@ export const syncUuidToBackend = async (
   get: () => ServerZustand,
   syncUuid: string
 ): Promise<void> => {
-  const serverRegisters = get().serverRegisters[syncUuid] ?? {}
-  set((state) => {
-    state.serverRegisters[syncUuid] ??= {}
-  })
+  const server = get().servers[syncUuid]
+  if (!server) return
 
   await window.api.setServerEndianness({
     uuid: syncUuid,
-    littleEndian: !!get().littleEndian[syncUuid]
+    littleEndian: server.littleEndian
   })
 
-  for (const unitId of extractUnitIdsWithData(serverRegisters)) {
-    await syncBoolsWithBackend(serverRegisters, unitId, syncUuid)
+  for (const unitId of extractUnitIdsWithData(server.registers)) {
+    await syncBoolsWithBackend(server.registers, unitId, syncUuid)
     const { inputRegisterRegisterValues, holdingRegisterRegisterValues } =
-      await syncRegistersWithBackend(serverRegisters, unitId, syncUuid)
+      await syncRegistersWithBackend(server.registers, unitId, syncUuid)
 
     set((state) => {
       const addresses = unitUsedAddresses(state, syncUuid, unitId)
+      if (!addresses) return
       addresses['input_registers'] = getUsedAddresses(inputRegisterRegisterValues)
       addresses['holding_registers'] = getUsedAddresses(holdingRegisterRegisterValues)
     })
@@ -180,12 +202,10 @@ export const syncUuidToBackend = async (
 /**
  * The port `init` asks main to open a uuid on.
  *
- * `uuids` and `port` are two records with nothing holding them together, so a
- * uuid can be in the list with no port beside it: a hand-edited key says so
- * outright, and `repairPersisted` says it by replacing a `port` record it
- * cannot read with the initial state's one entry. That port reads back as
- * `Number(undefined)`, `PortSchema` refuses a `NaN`, and the server would stand
- * in the toggle group with an empty label, no listener and `ready` false.
+ * A port is stored as the string the field holds, so a hand-edited key can
+ * carry `''` or `'http'`, and `Number` of either is refused by `PortSchema`.
+ * Opened on that, the server would stand in the toggle group with an empty
+ * label, no listener and `ready` false.
  *
  * The walk is over what the store has handed out rather than from 502, because
  * the uuids after this one have no listener yet: main probes sockets, so it
@@ -194,12 +214,12 @@ export const syncUuidToBackend = async (
  * registered port and main's own walk, which is a key naming ten thousand
  * servers.
  */
-export const portToOpen = (uuid: string, ports: Record<string, string>): number => {
-  const storedPort = Number(ports[uuid])
+export const portToOpen = (uuid: string, servers: Record<string, PersistedServer>): number => {
+  const storedPort = Number(servers[uuid]?.port)
   if (PortSchema.safeParse(storedPort).success) return storedPort
 
-  const taken = Object.values(ports)
-    .map(Number)
+  const taken = Object.values(servers)
+    .map((server) => Number(server.port))
     .filter((port) => PortSchema.safeParse(port).success)
 
   return findAvailablePort(taken) ?? DEFAULT_MODBUS_PORT

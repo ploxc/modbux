@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 //
-// `uuids` and `port` are two records with nothing holding them together, so a
-// uuid can be in the list with no port beside it. `init` then opened it on
-// `Number(undefined)`.
+// A port is stored as the string the field holds, so a hand-edited key can
+// carry one `PortSchema` refuses. `init` then opened the server on it, main
+// answered undefined and the server stood in the toggle group with an empty
+// label.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CreateServerParamsSchema,
@@ -15,13 +16,20 @@ const persisted = (port: Record<string, string>, uuids = ['u']): string =>
   JSON.stringify({
     state: {
       selectedUuid: uuids[0],
-      uuids,
-      port,
-      name: {},
-      unitId: Object.fromEntries(uuids.map((uuid) => [uuid, '0'])),
-      littleEndian: Object.fromEntries(uuids.map((uuid) => [uuid, false])),
-      usedAddresses: {},
-      serverRegisters: {}
+      servers: Object.fromEntries(
+        uuids.map((uuid) => [
+          uuid,
+          {
+            // A string `Number` answers NaN for, which `PortSchema` refuses.
+            // `PersistedServerSchema` takes any string, so this reaches `portToOpen`.
+            port: port[uuid] ?? 'nope',
+            unitId: '0',
+            littleEndian: false,
+            registers: {},
+            usedAddresses: {}
+          }
+        ])
+      )
     },
     version: CURRENT_SERVER_ZUSTAND_VERSION
   })
@@ -62,7 +70,7 @@ beforeEach(() => {
   stubCreateServer()
 })
 
-describe('a uuid the port record has no entry for', () => {
+describe('a server whose port is no port', () => {
   it('is opened on the registered port when nothing holds it', async () => {
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, persisted({}))
     const calls: ApiCall[] = []
@@ -72,7 +80,7 @@ describe('a uuid the port record has no entry for', () => {
     await settle()
 
     expect(portsAskedFor(calls)).toEqual([{ uuid: 'u', port: 502 }])
-    expect(useServerZustand.getState().port.u).toBe('502')
+    expect(useServerZustand.getState().servers.u?.port).toBe('502')
   })
 
   // Main probes sockets, and the uuids after this one have no listener yet, so
@@ -94,11 +102,11 @@ describe('a uuid the port record has no entry for', () => {
       { uuid: 'middle', port: 504 },
       { uuid: 'last', port: 503 }
     ])
-    expect(useServerZustand.getState().port.last).toBe('503')
+    expect(useServerZustand.getState().servers.last?.port).toBe('503')
   })
 })
 
-describe('a uuid with a port', () => {
+describe('a server whose port is one', () => {
   it('is opened on the one it holds', async () => {
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, persisted({ u: '5021' }))
     const calls: ApiCall[] = []
@@ -108,6 +116,6 @@ describe('a uuid with a port', () => {
     await settle()
 
     expect(portsAskedFor(calls)).toEqual([{ uuid: 'u', port: 5021 }])
-    expect(useServerZustand.getState().port.u).toBe('5021')
+    expect(useServerZustand.getState().servers.u?.port).toBe('5021')
   })
 })

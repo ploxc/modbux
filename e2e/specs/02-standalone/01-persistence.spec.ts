@@ -183,20 +183,19 @@ test.describe.serial('Persistence — a config saved under the former key', () =
 })
 
 //
-// `uuids` and `port` are two records with nothing holding them together, so a
-// key naming a uuid in one and not in the other parses and is kept. `init` then
-// asked main to open that server on `Number(undefined)`, which `PortSchema`
-// refuses, and the toggle button is labelled with the port it has: the server
-// came back as a button with no label and no listener.
+// A port is stored as the string the field holds, and a hand edit can leave one
+// `PortSchema` refuses. `init` then asked main to open the server on it, main
+// answered nothing, and the toggle button is labelled with the port it has: the
+// server came back as a button with no label and no listener.
 //
 // Only this suite can see that. The unit test covers what `init` asks main for,
 // and what comes back is main's walk for a free port.
-test.describe.serial('Persistence — a server the key holds no port for', () => {
+test.describe.serial('Persistence — a server whose stored port is no port', () => {
   test.afterAll(async () => {
     if (app) await app.close()
   })
 
-  test('add a second server, then take its port out of the key', async () => {
+  test('add a second server, then write a port over it that is none', async () => {
     await launchApp(true)
     await page.getByTestId('home-server-btn').click()
     await expect(page.getByTestId('server-name-input')).toBeVisible({ timeout: 5000 })
@@ -209,10 +208,12 @@ test.describe.serial('Persistence — a server the key holds no port for', () =>
       const saved = localStorage.getItem('server.zustand')
       if (saved === null) return false
       const blob = JSON.parse(saved)
-      const [first] = blob.state.uuids
-      blob.state.port = { [first]: blob.state.port[first] }
+      const uuids = Object.keys(blob.state.servers)
+      const [, second] = uuids
+      if (second === undefined) return false
+      blob.state.servers[second].port = 'nope'
       localStorage.setItem('server.zustand', JSON.stringify(blob))
-      return blob.state.uuids.length === 2
+      return uuids.length === 2
     })
     expect(stripped).toBe(true)
   })

@@ -96,11 +96,11 @@ describe('resetMessage', () => {
 
   it('lists several fields and agrees with itself about the verb', () => {
     const message = resetMessage('Server', {
-      fields: ['port', 'uuids', 'serialConfig'],
+      fields: ['port', 'servers', 'serialConfig'],
       savedByNewerVersion: false
     })
 
-    expect(message).toContain('the ports, the server list and the serial settings')
+    expect(message).toContain('the ports, the servers and the serial settings')
     expect(message).toContain('were reset')
   })
 

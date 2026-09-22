@@ -12,8 +12,7 @@ const registers: { holding_registers: ServerRegister } = { holding_registers: {}
 const serverState = {
   selectedUuid: 'main',
   getUnitId: (): string => '0',
-  unitId: { main: '0' },
-  serverRegisters: { main: { '0': registers } }
+  servers: { main: { unitId: '0', registers: { '0': registers } } }
 }
 
 vi.mock('@renderer/context/server.zustand', () => ({

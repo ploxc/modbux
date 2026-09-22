@@ -2,6 +2,7 @@ import { defaultSerialPortOptions } from '../../default'
 import { V1RegisterParams, V1ServerRegistersPerUnit, extractGlobalEndianness } from './v1'
 import {
   dropUnservableRegisters,
+  isRecord,
   migrateBoolShapeForUnit,
   repairPersistedParity,
   stringifyExact64BitValues
@@ -119,6 +120,55 @@ export function migrateServerRegistersState(
   return migrated
 }
 
+/** The six records a server was spread over, and the field each becomes. */
+const SERVER_FIELDS = {
+  port: 'port',
+  unitId: 'unitId',
+  name: 'name',
+  littleEndian: 'littleEndian',
+  serverRegisters: 'registers',
+  usedAddresses: 'usedAddresses'
+} as const
+
+/**
+ * Folds the six records keyed by uuid into one record of servers.
+ *
+ * Nothing is validated here. A field is carried across whatever it holds, and
+ * `repairServers` reads each server back through `PersistedServerSchema`
+ * afterwards, so a field this step cannot read is one the user is told about
+ * by name.
+ *
+ * The key set is `uuids` where that is a list of strings, because that is the
+ * list the app drew the toggle group from: a uuid in none of the six records
+ * arrives as an empty server and a record entry under no uuid was never on
+ * screen. Where `uuids` holds something else it is the list that is lost, so
+ * the key set falls back to the union of the six.
+ */
+export function foldServersIntoOneRecord(state: Record<string, unknown>): Record<string, unknown> {
+  const folded = { ...state }
+  const sources = Object.keys(SERVER_FIELDS).map((field) => state[field])
+
+  const listed = state.uuids
+  const uuids =
+    Array.isArray(listed) && listed.every((uuid) => typeof uuid === 'string')
+      ? (listed as string[])
+      : sources.flatMap((source) => (isRecord(source) ? Object.keys(source) : []))
+
+  const servers: Record<string, Record<string, unknown>> = {}
+  for (const uuid of uuids) {
+    const server: Record<string, unknown> = {}
+    for (const [oldField, newField] of Object.entries(SERVER_FIELDS)) {
+      const source = state[oldField]
+      if (isRecord(source) && uuid in source) server[newField] = source[uuid]
+    }
+    servers[uuid] = server
+  }
+
+  folded.servers = servers
+  for (const field of ['uuids', ...Object.keys(SERVER_FIELDS)]) delete folded[field]
+  return folded
+}
+
 /**
  * Migrate server Zustand state to the current version.
  * Used by Zustand persist middleware.
@@ -148,10 +198,19 @@ export function migrateServerState(
   }
 
   // v3→v4, which is one step because 3 is what the last release wrote. The
+  // six records keyed by uuid fold into one record of servers, and then: the
   // parity the serial binding refuses, registers outside the 16 bit map, a
   // string width, a fixed value or an interval the encoder, the map or
   // `setInterval` cannot take, and a 64 bit composite that has to be a decimal
   // string for the first word write after a launch to read it exactly.
+  //
+  // The fold runs below 4 alone. Every version above it already writes
+  // `servers`, and folding again would find the six fields gone and replace
+  // the record with an empty one.
+  if (version < CURRENT_SERVER_ZUSTAND_VERSION) {
+    state = foldServersIntoOneRecord(state)
+  }
+
   //
   // Any version but this one, rather than the ones below it. persist calls
   // this for every version that is not the current one, and `repairPersisted`

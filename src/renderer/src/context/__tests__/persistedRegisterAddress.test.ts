@@ -53,11 +53,11 @@ describe('a server config stored with a register outside the map', () => {
     )
 
     const { useServerZustand } = await import('../server.zustand')
-    const registers = useServerZustand.getState().serverRegisters.u?.['1']
+    const registers = useServerZustand.getState().servers.u?.registers['1']
 
     expect(Object.keys(registers?.holding_registers ?? {})).toEqual(['100'])
     expect(Object.keys(registers?.coils ?? {})).toEqual(['3'])
-    expect(useServerZustand.getState().name.u).toBe('bench')
+    expect(useServerZustand.getState().servers.u?.name).toBe('bench')
     expect(useServerZustand.getState().configReset).toBeUndefined()
   })
 })
@@ -107,6 +107,6 @@ describe('a server config stored with a generator the interval floor refuses', (
 
     const { useServerZustand } = await import('../server.zustand')
 
-    expect(useServerZustand.getState().usedAddresses.u?.['1']?.holding_registers).toEqual([])
+    expect(useServerZustand.getState().servers.u?.usedAddresses['1']?.holding_registers).toEqual([])
   })
 })

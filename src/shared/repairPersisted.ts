@@ -65,10 +65,10 @@ export function repairPersisted<Shape extends z.ZodRawShape>(
  * What each field is called on screen. A field with no entry is named as it is
  * stored, which is worth more in a bug report than a guess.
  *
- * Both a persisted store and a config file from a newer Modbux are read
- * through here, and the two name some of the same things differently: the store
- * keeps `serverRegisters`, the file `serverRegistersPerUnit`, and a file also
- * carries the two version fields.
+ * Three things are read through here and they name some of the same things
+ * differently: a server in the persisted store keeps `registers`, a config
+ * file keeps `serverRegistersPerUnit`, and a file also carries the two version
+ * fields.
  */
 const FIELD_LABELS: Record<string, string> = {
   serverRegistersPerUnit: 'the registers',
@@ -79,8 +79,8 @@ const FIELD_LABELS: Record<string, string> = {
   name: 'the name',
   port: 'the ports',
   selectedUuid: 'the selected server',
-  uuids: 'the server list',
-  serverRegisters: 'the registers',
+  servers: 'the servers',
+  registers: 'the registers',
   usedAddresses: 'the used addresses',
   unitId: 'the unit ids',
   littleEndian: 'the endianness',

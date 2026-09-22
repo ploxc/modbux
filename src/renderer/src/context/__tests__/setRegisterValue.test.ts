@@ -5,7 +5,7 @@
 // `resetRegisters` are both one click, which is what puts a flush on an address
 // that is gone.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAIN_SERVER_UUID, ServerRegister, ServerRegisters } from '@shared'
+import { MAIN_SERVER_UUID, ServerRegister, ServerRegisters, ServerRegistersPerUnit } from '@shared'
 import { stubRenderer } from './stubRenderer'
 
 beforeEach(() => {
@@ -20,10 +20,10 @@ beforeEach(() => {
  * A unit is made when something is written into it, so a miss here means the
  * store was not seeded.
  */
-const unit = (
-  registers: Record<string, Record<string, ServerRegisters | undefined> | undefined>
-): ServerRegisters => {
-  const found = registers[MAIN_SERVER_UUID]?.['0']
+const unit = (state: {
+  servers: Record<string, { registers: ServerRegistersPerUnit } | undefined>
+}): ServerRegisters => {
+  const found = state.servers[MAIN_SERVER_UUID]?.registers['0']
   if (!found) throw new Error('the main server has no default unit')
   return found
 }
@@ -57,7 +57,7 @@ const seeded = async (): Promise<typeof import('../server.zustand')> => {
 }
 
 const registers = (store: typeof import('../server.zustand')): ServerRegister =>
-  unit(store.useServerZustand.getState().serverRegisters).holding_registers
+  unit(store.useServerZustand.getState()).holding_registers
 
 describe('setRegisterValue', () => {
   it('writes the value of an entry that is there', async () => {
@@ -73,7 +73,7 @@ describe('setRegisterValue', () => {
   it('drops a value for an address whose entry is gone', async () => {
     const store = await seeded()
     store.useServerZustand.setState((state) => {
-      delete unit(state.serverRegisters).holding_registers[10]
+      delete unit(state).holding_registers[10]
     })
 
     expect(() =>
@@ -89,8 +89,8 @@ describe('setRegisterValue', () => {
   it('writes the entries beside one that is gone', async () => {
     const store = await seeded()
     store.useServerZustand.setState((state) => {
-      unit(state.serverRegisters).holding_registers[20] = entry(20, 2)
-      delete unit(state.serverRegisters).holding_registers[10]
+      unit(state).holding_registers[20] = entry(20, 2)
+      delete unit(state).holding_registers[10]
     })
 
     store.useServerZustand.getState().setRegisterValue([

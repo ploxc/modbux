@@ -13,7 +13,7 @@ import PrivilegedPortModal from '@renderer/components/server/PrivilegedPortModal
 import { ChangeEvent, useCallback } from 'react'
 
 const ServerName = meme(() => {
-  const name = useServerZustand((z) => z.name[z.selectedUuid] ?? '')
+  const name = useServerZustand((z) => z.servers[z.selectedUuid]?.name ?? '')
 
   const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
     const serverZustand = useServerZustand.getState()

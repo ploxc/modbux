@@ -9,7 +9,7 @@ const mockRemoveRegister = vi.fn()
 const serverState = {
   selectedUuid: 'main',
   getUnitId: (): string => '0',
-  usedAddresses: {} as Record<string, unknown>,
+  servers: {} as Record<string, { usedAddresses: Record<string, unknown> }>,
   removeRegister: mockRemoveRegister
 }
 
@@ -115,12 +115,12 @@ describe('what the dialog opened with', () => {
 
 describe('initNextUnusedAddress', () => {
   beforeEach(() => {
-    serverState.usedAddresses = {}
+    serverState.servers = {}
     useAddRegisterZustand.getState().resetToDefaults()
   })
 
   it('moves to the first free address above the one just used', () => {
-    serverState.usedAddresses = { main: { '0': { holding_registers: [10] } } }
+    serverState.servers = { main: { usedAddresses: { '0': { holding_registers: [10] } } } }
     const addRegisterZustand = useAddRegisterZustand.getState()
     addRegisterZustand.setRegisterType('holding_registers')
     addRegisterZustand.setAddress('10', true)
@@ -139,7 +139,7 @@ describe('initNextUnusedAddress', () => {
     addRegisterZustand.setAddress('65535', true)
     // What Add & Next does before it asks for the next address: the register
     // is written, so the address the field still shows is now taken.
-    serverState.usedAddresses = { main: { '0': { holding_registers: [65535] } } }
+    serverState.servers = { main: { usedAddresses: { '0': { holding_registers: [65535] } } } }
 
     addRegisterZustand.initNextUnusedAddress(65536)
 

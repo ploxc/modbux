@@ -13,7 +13,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import ToggleButton from '@mui/material/ToggleButton'
 
 const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
-  const port = useServerZustand((z) => z.port[uuid])
+  const port = useServerZustand((z) => z.servers[uuid]?.port)
   return (
     <ToggleButton data-testid={`select-server-${port}`} value={uuid} sx={{ px: 1.5 }}>
       {port}
@@ -23,14 +23,16 @@ const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
 
 const SelectServer = meme(() => {
   const serverMode = useServerZustand((z) => z.serverMode ?? 'tcp')
-  const serverUuids = useServerZustand((z) => z.uuids)
+  const serverUuids = useServerZustand((z) => Object.keys(z.servers))
   const selectedUuid = useServerZustand((z) => z.selectedUuid)
-  const addDisabled = useServerZustand((z) => z.uuids.length >= 10)
+  const addDisabled = useServerZustand((z) => Object.keys(z.servers).length >= 10)
   const { enqueueSnackbar } = useSnackbar()
 
   const addServer = useCallback(() => {
     const serverZustand = useServerZustand.getState()
-    const newPort = findAvailablePort(Object.values(serverZustand.port).map((v) => Number(v)))
+    const newPort = findAvailablePort(
+      Object.values(serverZustand.servers).map((server) => Number(server.port))
+    )
 
     // `findAvailablePort` walks 502 to 10502 and the button is off at ten
     // servers, so this answers for a range that cannot run out today. A throw

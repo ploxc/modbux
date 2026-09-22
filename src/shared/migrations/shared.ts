@@ -87,7 +87,7 @@ export function parseConfigFile(raw: string): {
 }
 
 /** The object entries of `value`, and nothing at all when it is not an object. */
-const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
+export const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
   isRecord(value)
     ? Object.entries(value).filter((entry): entry is [string, Record<string, unknown>] =>
         isRecord(entry[1])
@@ -144,9 +144,9 @@ const usedAddressesOfUnit = (
  * could ask for `Buffer.alloc(2e12)`, and a fixed `value` was bare, so a
  * `uint16` could carry 70000 and throw out of `createRegisters`. A register
  * running past address 65535 is the pair of `address` and `length` and was
- * refused by neither. `repairPersisted` works a top level field at a time, and
- * without this one such register costs every register on every server and every
- * unit.
+ * refused by neither. A server is read back field by field, so without this
+ * one such register costs every register on every unit of the server that
+ * carries it.
  *
  * `usedAddresses` is persisted beside the registers, `isAddressInUse` refuses an
  * address against it, and the only thing recomputing it on launch is
@@ -160,14 +160,15 @@ const usedAddressesOfUnit = (
  * step, so what is left is a hand-edited blob: a register deleted by hand
  * leaves its addresses behind the same way.
  *
- * A unit id `UnitIdStringSchema` refuses is skipped, because the whole map is
- * one persisted field: writing `'300'` into it would cost the addresses of every
- * unit beside it, where the same key costs `serverRegisters` alone today.
+ * A unit id `UnitIdStringSchema` refuses is skipped, because `usedAddresses`
+ * is one field of that server: writing `'300'` into it would cost the
+ * addresses of every unit beside it, where the same key costs that server's
+ * `registers` alone today.
  */
 export function dropUnservableRegisters(state: Record<string, unknown>): void {
-  for (const [uuid, registersPerUnit] of recordEntries(state.serverRegisters)) {
-    const usedAddresses = recordAt(state, 'usedAddresses')
-    const usedPerUnit = usedAddresses && recordAt(usedAddresses, uuid)
+  for (const [, server] of recordEntries(state.servers)) {
+    const registersPerUnit = recordAt(server, 'registers')
+    const usedPerUnit = recordAt(server, 'usedAddresses')
 
     for (const [unitId, registersByType] of recordEntries(registersPerUnit)) {
       dropUnservableEntries(registersByType)
@@ -224,7 +225,7 @@ const isServable = (registerType: RegisterType, address: string, entry: unknown)
  *
  * Two callers reach a unit by different routes, a config file through
  * `serverRegistersPerUnit[unit]` and the persisted store through
- * `serverRegisters[uuid][unit]`. Only that walk differs, so each caller owns
+ * `servers[uuid].registers[unit]`. Only that walk differs, so each caller owns
  * it and the work below it is here once, the way `migrateBoolShapeForUnit`
  * already is.
  */
@@ -254,7 +255,7 @@ const dropUnservableEntries = (registersByType: unknown): void => {
  * actually comes from.
  *
  * Walks `serverRegistersPerUnit[unit]` where the store walks
- * `serverRegisters[uuid][unit]`, which is the same difference
+ * `servers[uuid].registers[unit]`, which is the same difference
  * `migrateBoolShapeForUnit` already carries.
  */
 export function dropUnservableConfigRegisters(parsed: Record<string, unknown>): void {
@@ -296,8 +297,8 @@ export function dropUnreadableConfigMapping(parsed: Record<string, unknown>): vo
  * than what the device holds.
  */
 export function stringifyExact64BitValues(state: Record<string, unknown>): void {
-  for (const [, registersPerUnit] of recordEntries(state.serverRegisters)) {
-    for (const [, registersByType] of recordEntries(registersPerUnit)) {
+  for (const [, server] of recordEntries(state.servers)) {
+    for (const [, registersByType] of recordEntries(recordAt(server, 'registers'))) {
       for (const entriesByAddress of objectValues(registersByType)) {
         for (const entry of Object.values(entriesByAddress)) {
           if (!isRecord(entry)) continue
@@ -311,10 +312,10 @@ export function stringifyExact64BitValues(state: Record<string, unknown>): void 
           // The digits, or `'0'` where there are none. `String(0.5)` is
           // `"0.5"` and `String(1e21)` is `"1e+21"`, and the union takes
           // either as a number and neither as a string, so writing one back
-          // would turn a blob that parsed into one that does not, and
-          // `repairPersisted` reads `serverRegisters` whole: every server,
-          // every unit. An integer above 2 ** 53 is the case this step is for,
-          // so the test is the digits rather than `Number.isSafeInteger`.
+          // would turn a blob that parsed into one that does not, and a
+          // server's `registers` is read whole: every unit of it. An integer
+          // above 2 ** 53 is the case this step is for, so the test is the
+          // digits rather than `Number.isSafeInteger`.
           //
           // `'0'` rather than left alone, because `toExact64Bits` answers
           // nothing for a value no composite can be read out of, and
@@ -354,7 +355,7 @@ export function dropUnmappableRegisters(state: Record<string, unknown>): void {
  *
  * Two callers walk to a unit's registers by different routes: a config file
  * through `serverRegistersPerUnit[unit]`, the persisted store through
- * `serverRegisters[uuid][unit]`. Only that walk differs, so each caller owns
+ * `servers[uuid].registers[unit]`. Only that walk differs, so each caller owns
  * it and the work below it is here once.
  */
 export function migrateBoolShapeForUnit(unitRegisters: unknown): void {

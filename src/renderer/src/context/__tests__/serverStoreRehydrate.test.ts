@@ -23,21 +23,22 @@ const store = (addresses: number[]): string =>
   JSON.stringify({
     state: {
       selectedUuid: 'u',
-      uuids: ['u'],
-      port: { u: '502' },
-      name: { u: 'bench' },
-      unitId: { u: '0' },
-      littleEndian: { u: false },
-      usedAddresses: {},
-      serverRegisters: {
+      servers: {
         u: {
-          '0': {
-            coils: {},
-            discrete_inputs: {},
-            input_registers: {},
-            holding_registers: Object.fromEntries(
-              addresses.map((address) => [String(address), register(address)])
-            )
+          port: '502',
+          name: 'bench',
+          unitId: '0',
+          littleEndian: false,
+          usedAddresses: {},
+          registers: {
+            '0': {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: Object.fromEntries(
+                addresses.map((address) => [String(address), register(address)])
+              )
+            }
           }
         }
       }
@@ -49,12 +50,14 @@ const store = (addresses: number[]): string =>
 const withSecondServer = (raw: string, uuid: string): string => {
   const blob = JSON.parse(raw)
   const { state } = blob
-  state.uuids.push(uuid)
   state.selectedUuid = uuid
-  state.port[uuid] = '503'
-  state.unitId[uuid] = '0'
-  state.littleEndian[uuid] = false
-  state.serverRegisters[uuid] = {}
+  state.servers[uuid] = {
+    port: '503',
+    unitId: '0',
+    littleEndian: false,
+    registers: {},
+    usedAddresses: {}
+  }
   return JSON.stringify(blob)
 }
 
@@ -67,7 +70,7 @@ const settle = async (): Promise<void> => {
 
 const held = async (): Promise<string[]> => {
   const { useServerZustand } = await import('../server.zustand')
-  return Object.keys(useServerZustand.getState().serverRegisters.u?.['0']?.holding_registers ?? {})
+  return Object.keys(useServerZustand.getState().servers.u?.registers['0']?.holding_registers ?? {})
 }
 
 beforeEach(() => {
@@ -122,11 +125,11 @@ describe('the server window closing', () => {
     fireEvent('window_update', { main: true, server: false })
     await settle()
 
-    expect(useServerZustand.getState().uuids).toContain('made-in-the-split-window')
+    expect(Object.keys(useServerZustand.getState().servers)).toContain('made-in-the-split-window')
     expect(useServerZustand.getState().ready['made-in-the-split-window']).toBe(true)
 
     useServerZustand.getState().setUnitId('7')
-    expect(useServerZustand.getState().unitId['made-in-the-split-window']).toBe('7')
+    expect(useServerZustand.getState().servers['made-in-the-split-window']?.unitId).toBe('7')
   })
 
   // A uuid this window's own `init` wrote `false` for is one main refused, and
@@ -156,33 +159,31 @@ describe('the server window closing', () => {
     expect(useServerZustand.getState().configReset).toBeUndefined()
 
     const edited = JSON.parse(store([0]))
-    edited.state.port = 'nope'
+    edited.state.servers = 'nope'
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
 
     fireEvent('window_update', { main: true, server: true })
     fireEvent('window_update', { main: true, server: false })
     await settle()
 
-    expect(useServerZustand.getState().configReset?.fields).toContain('port')
-    expect(useServerZustand.getState().port).toEqual(useServerZustand.getInitialState().port)
+    expect(useServerZustand.getState().configReset?.fields).toContain('servers')
+    expect(useServerZustand.getState().servers).toEqual(useServerZustand.getInitialState().servers)
   })
 
   // The drop that salvages a register runs in the step to version 4, so a blob
-  // already at this version reaches `PersistedServerZustandSchema` whole. A key
-  // and a `params.address` that disagree cost the field there, which is what
-  // every other rule on that schema costs.
+  // already at this version reaches `PersistedServerZustandSchema` whole. A
+  // key and a `params.address` that disagree cost the field there, which is
+  // what every other rule on that schema costs.
   it('resets the registers of a key whose register names another address', async () => {
     const edited = JSON.parse(store([0]))
-    edited.state.serverRegisters.u['0'].holding_registers = { '5': register(9) }
+    edited.state.servers.u.registers['0'].holding_registers = { '5': register(9) }
     localStorage.setItem(SERVER_ZUSTAND_STORAGE_KEY, JSON.stringify(edited))
 
     const { useServerZustand } = await import('../server.zustand')
     await settle()
 
-    expect(useServerZustand.getState().configReset?.fields).toContain('serverRegisters')
-    expect(useServerZustand.getState().serverRegisters).toEqual(
-      useServerZustand.getInitialState().serverRegisters
-    )
+    expect(useServerZustand.getState().configReset?.fields).toContain('servers')
+    expect(useServerZustand.getState().servers).toEqual(useServerZustand.getInitialState().servers)
   })
 
   // `persist` runs `migrate` only where the blob's version differs from the
