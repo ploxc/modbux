@@ -5,6 +5,7 @@ import Home from './containers/Home'
 import Client from './containers/Client'
 import Server from './containers/Server'
 import UpdateBanner from './components/UpdateBanner'
+import UndoKeys from './components/UndoKeys'
 
 const App = meme((): JSX.Element => {
   const appType = useLayoutZustand((z) => z.appType)
@@ -19,6 +20,7 @@ const App = meme((): JSX.Element => {
         flexDirection: 'column'
       }}
     >
+      <UndoKeys />
       <UpdateBanner />
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         {appType === 'client' ? <Client /> : appType === 'server' ? <Server /> : <Home />}

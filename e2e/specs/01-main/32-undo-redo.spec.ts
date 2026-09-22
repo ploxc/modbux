@@ -8,7 +8,13 @@
  */
 import { test, expect } from '../../fixtures/electron-app'
 import type { Locator, Page } from '@playwright/test'
-import { navigateToClient } from '../../fixtures/helpers'
+import {
+  addBool,
+  cleanServerState,
+  navigateToClient,
+  navigateToServer,
+  selectRegisterType
+} from '../../fixtures/helpers'
 
 /** What the client store last persisted, read the way the next launch reads it. */
 const savedConnection = async (p: Page): Promise<{ host: string; unitId: number }> =>
@@ -74,5 +80,59 @@ test.describe.serial('Undo and redo in a focused field', () => {
     await expect.poll(async () => (await savedConnection(mainPage)).unitId).toBe(17)
 
     await input.fill('0')
+  })
+})
+
+/** Takes the focus off any field, so the key goes to the stack rather than the field. */
+const leaveTheField = async (p: Page): Promise<void> => {
+  await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+}
+
+test.describe.serial('Undo and redo outside a field', () => {
+  // The byte order rather than a text field: Chromium undoes typing in a field
+  // it has just left on its own, so a host edit would pass with no listener.
+  test('the client view undoes and redoes the byte order, and the config follows', async ({
+    mainPage
+  }) => {
+    await navigateToClient(mainPage)
+    // The byte order is shown for the word registers alone.
+    await selectRegisterType(mainPage, 'Holding Registers')
+    const savedLittleEndian = (): Promise<boolean> =>
+      mainPage.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('client.zustand') ?? '{}').state?.registerConfig
+            ?.littleEndian
+      )
+    await mainPage.getByTestId('endian-be-btn').click()
+    await expect.poll(savedLittleEndian).toBe(false)
+    await mainPage.getByTestId('endian-le-btn').click()
+    await expect.poll(savedLittleEndian).toBe(true)
+    await leaveTheField(mainPage)
+
+    await mainPage.keyboard.press('ControlOrMeta+z')
+    await expect.poll(savedLittleEndian).toBe(false)
+    await expect(mainPage.getByTestId('endian-be-btn')).toHaveAttribute('aria-pressed', 'true')
+
+    await mainPage.keyboard.press('ControlOrMeta+Shift+z')
+    await expect.poll(savedLittleEndian).toBe(true)
+
+    await mainPage.getByTestId('endian-be-btn').click()
+  })
+
+  test('the server view undoes and redoes an added coil', async ({ mainPage }) => {
+    await navigateToServer(mainPage)
+    await cleanServerState(mainPage)
+    await addBool(mainPage, 'coils', 3)
+    const row = mainPage.getByTestId('server-bool-row-coils-3')
+    await expect(row).toBeVisible()
+    await leaveTheField(mainPage)
+
+    await mainPage.keyboard.press('ControlOrMeta+z')
+    await expect(row).toHaveCount(0)
+
+    await mainPage.keyboard.press('ControlOrMeta+Shift+z')
+    await expect(row).toBeVisible()
+
+    await cleanServerState(mainPage)
   })
 })
