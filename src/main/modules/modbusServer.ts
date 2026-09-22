@@ -6,12 +6,8 @@ import {
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
-  ServerDataValue,
   AddRegisterParams,
-  UnitIdString,
-  UnitIdStringSchema,
   StartRtuServerParams,
-  RegisterType,
   DataBits,
   StopBits
 } from '@shared'
@@ -20,30 +16,8 @@ import { DEFAULT_MODBUS_PORT, ServerEndianness } from '@shared'
 import { Windows } from '../windows'
 import { emitServerMessage } from './modbusServer/messages'
 import { ServerRegistry } from './modbusServer/registry'
-import type { IServiceVector, FCallbackVal, FCallback } from 'modbus-serial'
-import { MAX_REGISTER_ADDRESS } from '@shared'
+import { BROADCAST_UNIT_ID, createVector } from './modbusServer/vector'
 import net from 'net'
-
-/**
- * The three Modbus exception codes this server sends.
- *
- * The other seven of the protocol's table are not here: an exported constant
- * nothing names costs a lint disable, which is a worse comment than none.
- * `modbusServer.test.ts` asserts on all three of these.
- */
-export const ILLEGAL_DATA_ADDRESS = 2
-export const SERVER_DEVICE_FAILURE = 4
-export const GATEWAY_TARGET_FAILED = 11
-
-/**
- * The transport a vector answers on. RS-485 is shared and a socket is not, so a
- * request for a unit id this server does not host cannot get the same answer on
- * both.
- */
-type ServerTransport = 'tcp' | 'rtu'
-
-/** Unit 0 is the broadcast address on RTU. */
-const BROADCAST_UNIT_ID: UnitIdString = '0'
 
 const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 && port <= 65535
 
@@ -55,18 +29,6 @@ const isPort = (port: number): boolean => Number.isInteger(port) && port >= 1 &&
  * Five seconds is a loopback listen, which is microseconds when it works.
  */
 export const BIND_TIMEOUT_MS = 5000
-
-/**
- * One accessor shape per direction, because `IServiceVector`'s four getters and
- * two setters differ only in the value they carry.
- *
- * These are written out rather than derived from `IServiceVector`, so what
- * checks them is the assignment in `_getVector`. That catches a signature
- * modbus-serial changes incompatibly and not one it widens, because a version
- * that adds an optional parameter stays assignable to these.
- */
-type IServiceVectorGet<T> = (addr: number, unitID: number, cb: FCallbackVal<T>) => void
-type IServiceVectorSet<T> = (addr: number, value: T, unitID: number, cb: FCallback) => void
 
 /**
  * The serial port under a `ServerSerial`, with the events this file listens for.
@@ -137,42 +99,6 @@ export class ModbusServer {
       windows,
       onUnitData: (uuid): void => this._warnBroadcastUnit(uuid)
     })
-  }
-
-  /**
-   * Returns a Modbus service vector for a given server UUID and transport.
-   * This vector provides all the Modbus register accessors and mutators.
-   */
-  private _getVector = (uuid: string, transport: ServerTransport): IServiceVector => ({
-    getCoil: this._get('coils', uuid, transport, false),
-    getDiscreteInput: this._get('discrete_inputs', uuid, transport, false),
-    getInputRegister: this._get('input_registers', uuid, transport, 0),
-    getHoldingRegister: this._get('holding_registers', uuid, transport, 0),
-    setCoil: this._set('coils', uuid, transport),
-    setRegister: this._set('holding_registers', uuid, transport)
-  })
-
-  /**
-   * Unit 0 is broadcast on RTU. On TCP there is no broadcast at all and the
-   * unit identifier routes through a gateway, so 0 is an address like any other.
-   */
-  private _isBroadcast(transport: ServerTransport, unitId: UnitIdString): boolean {
-    return transport === 'rtu' && unitId === BROADCAST_UNIT_ID
-  }
-
-  /**
-   * Answers a request for a unit id this server does not host.
-   *
-   * modbus-serial writes a frame when the vector calls `cb` and writes nothing
-   * when it does not, so returning without calling it is silence on the wire.
-   * On RS-485 silence is the only safe answer: the id belongs to a real device
-   * answering at that moment, and a second frame collides with it. A socket
-   * carries one device, so silence there is a client timeout instead, and the
-   * gateway code says what happened.
-   */
-  private _refuseUnit<T>(transport: ServerTransport, cb: FCallbackVal<T>, value: T): void {
-    if (transport === 'rtu') return
-    this._mbError(GATEWAY_TARGET_FAILED, cb, value)
   }
 
   /**
@@ -250,7 +176,10 @@ export class ModbusServer {
     uuid: string,
     port: number
   ): Promise<{ ok: boolean; errorCode?: string }> {
-    const server = new ServerTCP(this._getVector(uuid, 'tcp'), { host: '0.0.0.0', port })
+    const server = new ServerTCP(createVector(this._registry, uuid, 'tcp'), {
+      host: '0.0.0.0',
+      port
+    })
 
     const result = await new Promise<{ ok: boolean; errorCode?: string }>((resolve) => {
       const timer = setTimeout(
@@ -436,7 +365,7 @@ export class ModbusServer {
       // alone. Its default of 255 means "listen to all addresses", and the
       // vector filters, because only the vector knows which ids have data.
       this._rtuServer = new (ServerSerial as ServerSerialConstructor)(
-        this._getVector(uuid, 'rtu'),
+        createVector(this._registry, uuid, 'rtu'),
         {
           path: serialConfig.com,
           baudRate: Number(serialConfig.options.baudRate),
@@ -601,81 +530,5 @@ export class ModbusServer {
       })
     }
     return currentPort
-  }
-
-  // -------------------------------------------------------------------------
-  // Vector methods for Modbus register access (used by modbus-serial)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Returns the value of a register type for a given address and unitId.
-   * Calls the callback with the value or a Modbus error.
-   *
-   * Synchronous, like `_set`: `servertcp_handler.js` calls a three-argument
-   * accessor inside try/catch and discards what it returns, so a throw from
-   * here is answered exception 4. An `async` accessor throws into a rejection
-   * nothing holds, and the client waits out its timeout instead.
-   */
-  private _get: <K extends RegisterType>(
-    registerType: K,
-    uuid: string,
-    transport: ServerTransport,
-    fallback: ServerDataValue<K>
-  ) => IServiceVectorGet<ServerDataValue<K>> =
-    (registerType, uuid, transport, fallback) => (address, unitIdNumber, cb) => {
-      const unitId = UnitIdStringSchema.safeParse(String(unitIdNumber))
-      if (!unitId.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, fallback)
-      // A broadcast is never acknowledged, so there is nothing to read from one.
-      if (this._isBroadcast(transport, unitId.data)) return
-      if (!this._registry.hostsUnit(uuid, unitId.data))
-        return this._refuseUnit(transport, cb, fallback)
-
-      // A multi-word read at the top of the range asks for addresses the
-      // protocol cannot express. The arrays answered `undefined` past their
-      // last index and a map answers it for every address it has no entry for,
-      // so the range is asked here and the entry only after.
-      if (address > MAX_REGISTER_ADDRESS) return this._mbError(ILLEGAL_DATA_ADDRESS, cb, fallback)
-
-      const value = this._registry.read(uuid, unitId.data, registerType, address)
-
-      // An address inside the range with no entry is a register nobody
-      // configured, and the arrays answered 0 or false for it.
-      cb(null, value ?? fallback)
-    }
-
-  /**
-   * Sets the value of a coil or holding register for a given address and unitId.
-   * Updates the server data and emits a value change event.
-   */
-  private _set: <K extends RegisterType>(
-    registerType: K,
-    uuid: string,
-    transport: ServerTransport
-  ) => IServiceVectorSet<ServerDataValue<K>> =
-    (registerType, uuid, transport) => (address, value, unitIdNumber, cb) => {
-      const unitIdSafe = UnitIdStringSchema.safeParse(String(unitIdNumber))
-      if (!unitIdSafe.success) return this._mbError(SERVER_DEVICE_FAILURE, cb, 0)
-      const unitId = unitIdSafe.data
-
-      // A broadcast write reaches every unit on the bus and is never answered.
-      if (this._isBroadcast(transport, unitId)) {
-        for (const hostedUnitId of this._registry.hostedUnitIds(uuid))
-          this._registry.write(registerType, uuid, hostedUnitId, address, value)
-        return
-      }
-
-      if (!this._registry.hostsUnit(uuid, unitId)) return this._refuseUnit(transport, cb, 0)
-
-      this._registry.write(registerType, uuid, unitId, address, value)
-      cb(null)
-    }
-
-  /**
-   * Helper for returning a Modbus error via callback and emitting a backend message.
-   */
-  private _mbError<T>(code: number, cb: FCallbackVal<T>, value: T): void {
-    const err = new Error()
-    err['modbusErrorCode'] = code
-    cb(err, value)
   }
 }

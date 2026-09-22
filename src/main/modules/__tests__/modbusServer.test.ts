@@ -83,13 +83,12 @@ vi.mock('net', () => ({
   }
 }))
 
+import { ModbusServer, BIND_TIMEOUT_MS } from '../modbusServer'
 import {
-  ModbusServer,
   SERVER_DEVICE_FAILURE,
   ILLEGAL_DATA_ADDRESS,
-  GATEWAY_TARGET_FAILED,
-  BIND_TIMEOUT_MS
-} from '../modbusServer'
+  GATEWAY_TARGET_FAILED
+} from '../modbusServer/vector'
 import { ServerTCP, ServerSerial } from 'modbus-serial'
 
 /** Every handler `createServer` and `startRtuServer` put on their vector. */
