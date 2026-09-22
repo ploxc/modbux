@@ -28,7 +28,7 @@ import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 //
 // Footer
 const Footer = meme(() => {
-  const time = useClientZustand((z) => z.lastSuccessfulTransactionMillis)
+  const time = useDataZustand((z) => z.lastSuccessfulTransactionMillis)
   return (
     <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
       <Typography variant="caption" sx={{ opacity: 0.5 }}>
@@ -61,7 +61,7 @@ const RegisterGridContent = meme((): JSX.Element => {
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still
   // arriving is a fight nobody wins. Scrolling and paging stay.
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
 
   // An expanded bitmap row is taller by whatever its detail panel measures, and
   // the grid places every row below it from this answer.

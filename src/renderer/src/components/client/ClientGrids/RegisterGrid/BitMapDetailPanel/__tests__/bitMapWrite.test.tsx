@@ -33,9 +33,11 @@ const row = {
 } as unknown as RegisterData
 
 const renderPanel = (clientState: Partial<ClientState>): void => {
+  useDataZustand.setState({
+    clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
+  })
   useClientZustand.setState({
     ready: true,
-    clientState: { ...defaultClientState, connectState: 'connected', ...clientState },
     registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
   } as never)
   useDataZustand.setState({ registerData: [row] })

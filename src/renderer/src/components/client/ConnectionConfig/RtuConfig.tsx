@@ -16,6 +16,7 @@ import {
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { isConnectionAddressGiven } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
@@ -24,7 +25,7 @@ import { useCallback, useEffect } from 'react'
 //
 // COM Port Input
 const ComInput = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const com = useClientZustand((z) => z.connectionConfig.rtu.com)
   const comValid = useClientZustand((z) => z.valid.com)
   const loading = useClientZustand((z) => z.serialPortsLoading)
@@ -68,7 +69,7 @@ const ComInput = meme(() => {
 //
 // COM Port Actions
 const ComActions = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const com = useClientZustand((z) => z.connectionConfig.rtu.com)
   const loading = useClientZustand((z) => z.serialPortsLoading)
   const validating = useClientZustand((z) => z.serialPortValidating)
@@ -135,7 +136,7 @@ const ComActions = meme(() => {
 //
 // COM Port (composite)
 const Com = meme((): JSX.Element => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
 
   useEffect(() => {
     if (!disabled) useClientZustand.getState().refreshSerialPorts()
@@ -153,7 +154,7 @@ const Com = meme((): JSX.Element => {
 //
 // Selects (thin wrappers over shared components)
 const ClientBaudRateSelect = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const baudRate = useClientZustand((z) => z.connectionConfig.rtu.options.baudRate)
 
   const setBaudRate = useClientZustand.getState().setBaudRate
@@ -162,7 +163,7 @@ const ClientBaudRateSelect = meme(() => {
 })
 
 const ClientParitySelect = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const parity = useClientZustand((z) => z.connectionConfig.rtu.options.parity ?? 'none')
 
   const setParity = useClientZustand.getState().setParity
@@ -171,7 +172,7 @@ const ClientParitySelect = meme(() => {
 })
 
 const ClientDataBitsSelect = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const dataBits = useClientZustand((z) => z.connectionConfig.rtu.options.dataBits)
 
   const setDataBits = useClientZustand.getState().setDataBits
@@ -180,7 +181,7 @@ const ClientDataBitsSelect = meme(() => {
 })
 
 const ClientStopBitsSelect = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const stopBits = useClientZustand((z) => z.connectionConfig.rtu.options.stopBits)
 
   const setStopBits = useClientZustand.getState().setStopBits

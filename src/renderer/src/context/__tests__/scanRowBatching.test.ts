@@ -30,8 +30,7 @@ const loaded = async (
   dropPendingScanRows: () => void
 }> => {
   const { useDataZustand, dropPendingScanRows } = await import('../data.zustand')
-  const { useClientZustand } = await import('../client.zustand')
-  useClientZustand.setState({ clientState: { ...defaultClientState, scanningRegisters } })
+  useDataZustand.setState({ clientState: { ...defaultClientState, scanningRegisters } })
 
   return {
     addresses: () => useDataZustand.getState().registerData.map((row) => row.id),
@@ -78,8 +77,8 @@ describe('rows a poll reads', () => {
     const { addresses } = await loaded(true)
     fireEvent('register_data', rows([0, 1]))
 
-    const { useClientZustand } = await import('../client.zustand')
-    useClientZustand.setState({
+    const { useDataZustand } = await import('../data.zustand')
+    useDataZustand.setState({
       clientState: { ...defaultClientState, scanningRegisters: false }
     })
     fireEvent('register_data', rows([7]))

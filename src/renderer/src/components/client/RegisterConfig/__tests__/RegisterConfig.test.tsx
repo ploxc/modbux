@@ -16,6 +16,7 @@ vi.hoisted(() => {
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
 
@@ -40,11 +41,8 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
 // included, and `init` writes that answer into the store. The button reads the
 // client state, so it gets one here.
 beforeEach(() => {
-  useClientZustand.setState({
-    ready: true,
-    readConfiguration: false,
-    clientState: { ...defaultClientState }
-  } as never)
+  useClientZustand.setState({ ready: true, readConfiguration: false } as never)
+  useDataZustand.setState({ clientState: { ...defaultClientState } })
 })
 
 describe('RegisterConfig read configuration', () => {
@@ -92,16 +90,16 @@ describe('RegisterConfig read configuration', () => {
   // flight. The button says so instead of taking the press.
   it('refuses while a read is in flight, and offers again after it', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useClientZustand.setState({
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
-    } as never)
+    })
 
     const { rerender } = render(<RegisterConfig />)
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
 
-    useClientZustand.setState({
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', reading: false }
-    } as never)
+    })
     rerender(<RegisterConfig />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
@@ -111,9 +109,9 @@ describe('RegisterConfig read configuration', () => {
   // refuses a read for that whole stretch.
   it('refuses while a write is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useClientZustand.setState({
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', writing: true }
-    } as never)
+    })
 
     render(<RegisterConfig />)
 
@@ -126,9 +124,9 @@ describe('RegisterConfig read configuration', () => {
     'refuses while %s owns the client',
     (flag) => {
       seed('holding_registers', { 0: { dataType: 'int16' } })
-      useClientZustand.setState({
+      useDataZustand.setState({
         clientState: { ...defaultClientState, connectState: 'connected', [flag]: true }
-      } as never)
+      })
 
       render(<RegisterConfig />)
 
@@ -141,9 +139,9 @@ describe('RegisterConfig read configuration', () => {
   // has anything to wait for.
   it('offers while a poll runs', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useClientZustand.setState({
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', polling: true }
-    } as never)
+    })
 
     render(<RegisterConfig />)
 
@@ -155,10 +153,10 @@ describe('RegisterConfig read configuration', () => {
   // read that is about to fill it is still on the wire.
   it('leaves read configuration on while a read is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useClientZustand.setState({
-      readConfiguration: true,
+    useClientZustand.setState({ readConfiguration: true } as never)
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
-    } as never)
+    })
 
     render(<RegisterConfig />)
 
@@ -171,9 +169,9 @@ describe('RegisterConfig read configuration', () => {
 // holding registers.
 describe('RegisterConfig type select', () => {
   it('is off while a register scan runs', () => {
-    useClientZustand.setState({
+    useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', scanningRegisters: true }
-    } as never)
+    })
 
     render(<RegisterConfig />)
 

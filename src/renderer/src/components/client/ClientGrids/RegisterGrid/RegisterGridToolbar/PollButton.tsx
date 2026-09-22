@@ -1,19 +1,19 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
 
 const PollButton = meme((): JSX.Element => {
-  const notConnected = useClientZustand((z) => z.clientState.connectState !== 'connected')
+  const notConnected = useDataZustand((z) => z.clientState.connectState !== 'connected')
 
   // What main would refuse a start for. `exceptPolling` is what keeps the
   // press that stops one: during a poll nothing else can own the client, so
   // this is undefined and the button is the Stop button.
-  const owner = useClientZustand((z) => clientOwner(z.clientState, { exceptPolling: true }))
+  const owner = useDataZustand((z) => clientOwner(z.clientState, { exceptPolling: true }))
   const disabled = notConnected || owner !== undefined
 
-  const polling = useClientZustand((z) => z.clientState.polling)
+  const polling = useDataZustand((z) => z.clientState.polling)
   const togglePolling = useCallback(() => {
     polling ? window.api.stopPolling() : window.api.startPolling()
   }, [polling])

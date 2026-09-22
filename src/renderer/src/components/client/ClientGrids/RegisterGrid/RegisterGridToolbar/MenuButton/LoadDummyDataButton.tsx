@@ -7,7 +7,7 @@ import type { SetAnchorProps } from './MenuButton'
 import Button from '@mui/material/Button'
 
 const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
 
   // Load dummy data for the configured register range so columns can be edited
   // without having to connect to the device or read registers

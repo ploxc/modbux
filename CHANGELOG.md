@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A scan no longer stalls the window on a large configuration.** Every step a
+  scan reported, every transaction it logged and every change of connection
+  state wrote your whole saved client configuration back to disk, register
+  mapping and all. With two thousand mapped registers that is close to a
+  millisecond of frozen window each time, and a unit ID scan over the full range
+  with all four register types reports 988 steps. None of it is worth keeping
+  across a launch, and none of it is written any more.
 - **A register a saved session cannot read no longer empties the other
   servers.** Every server's registers were read back as one, so a single
   register Modbux refused emptied the map of every server you had rather than

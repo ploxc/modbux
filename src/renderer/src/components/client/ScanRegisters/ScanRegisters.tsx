@@ -25,7 +25,7 @@ import { useScanRegistersZustand } from './scanRegisters.zustand'
 //
 // Unit ID field (syncs with main connection config)
 const UnitIdField = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
 
   const setUnitId = useClientZustand.getState().setUnitId
@@ -53,7 +53,7 @@ const UnitIdField = meme((): JSX.Element => {
 //
 // Address field with base toggle
 const AddressField = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const address = useScanRegistersZustand((z) => z.address)
 
   const setAddress = useScanRegistersZustand.getState().setAddress
@@ -73,7 +73,7 @@ const AddressField = meme((): JSX.Element => {
 //
 // Scan Length field
 const ScanLengthField = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const scanLength = useScanRegistersZustand((z) => z.scanLength)
 
   const setScanLength = useScanRegistersZustand.getState().setScanLength
@@ -112,7 +112,7 @@ const ScanLengthField = meme((): JSX.Element => {
 //
 // Chunk Size field
 const ChunkSizeField = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => z.chunkSize)
   const type = useClientZustand((z) => z.registerConfig.type)
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
@@ -152,7 +152,7 @@ const ChunkSizeField = meme((): JSX.Element => {
 //
 // Timeout field
 const TimeoutField = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => z.timeout)
 
   const setTimeout = useScanRegistersZustand.getState().setTimeout
@@ -177,7 +177,7 @@ const TimeoutField = meme((): JSX.Element => {
 // up, and it means that while a scan is running, since the same list holds
 // polled data the rest of the time.
 const FoundCount = meme((): JSX.Element | null => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const count = useDataZustand((z) => z.registerData.length)
 
   if (!scanning) return null
@@ -203,7 +203,7 @@ const GridToggle = meme((): JSX.Element => {
 //
 // Scan button
 const ScanButton = meme((): JSX.Element => {
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
 
   const scan = useCallback(async () => {
     if (scanning) {
@@ -218,7 +218,7 @@ const ScanButton = meme((): JSX.Element => {
     // A scan walks raw addresses, which is what the extra columns are for, and
     // the rows land in a grid you are now watching fill.
     if (!clientZustand.registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
-    clientZustand.setScanProgress(0)
+    dataZustand.setScanProgress(0)
     dropPendingScanRows()
     dataZustand.setRegisterData([])
 
@@ -256,11 +256,10 @@ const ScanButton = meme((): JSX.Element => {
 const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
-  const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
 
   const handleClose = useCallback(() => {
-    const clientZustand = useClientZustand.getState()
-    if (clientZustand.clientState.scanningRegisters) return
+    if (useDataZustand.getState().clientState.scanningRegisters) return
     useScanRegistersZustand.getState().setOpen(false)
   }, [])
 

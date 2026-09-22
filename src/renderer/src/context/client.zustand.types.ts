@@ -3,11 +3,8 @@ import {
   RegisterType,
   ModbusBaudRate,
   Parity,
-  ClientState,
-  Transaction,
   RegisterMapping,
   RegisterMapValue,
-  ScanUnitIDResult,
   RegisterMappingSchema,
   ConnectionConfigSchema,
   RegisterConfigSchema,
@@ -34,14 +31,9 @@ export const PersistedClientZustandSchema = z.object({
 export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema>
 
 export type ClientZustand = {
-  transactions: Transaction[]
-  clientState: ClientState
   ready: boolean
   readConfiguration: boolean
   valid: Valid
-  lastSuccessfulTransactionMillis: number | null
-  scanUnitIdResults: ScanUnitIDResult[]
-  scanProgress: number
   setName: (name: string) => void
   // Register mapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
@@ -56,13 +48,8 @@ export type ClientZustand = {
   configReset: ConfigReset | undefined
   /** Called once the reset has been reported, so it is reported once. */
   acknowledgeConfigReset: () => void
-  // Transaction log
-  addTransaction: (transactions: Transaction) => void
-  clearTransactions: () => void
   // Config
-  init: () => Promise<void>
-  // State
-  setClientState: (clientState: ClientState) => void
+  init: () => void
   // Configuration actions, each one waiting on the boundary before it writes
   setProtocol: (protocol: Protocol) => Promise<void>
   setPort: AsyncMaskSetFn
@@ -84,16 +71,6 @@ export type ClientZustand = {
   setAddressBase: (addressBase: '0' | '1') => Promise<void>
   setAdvancedMode: (advancedMode: boolean) => Promise<void>
   setShow64BitValues: (show64BitValues: boolean) => Promise<void>
-
-  // Transaction
-  setLastSuccessfulTransactionMillis: (value: number | null) => void
-
-  // Unit ID Scannning
-  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
-  clearScanUnitIdResults: () => void
-
-  // Scan progress
-  setScanProgress: (scanProgress: number) => void
 
   // Read configuration
   setReadConfiguration: (readConfiguration: boolean) => void

@@ -50,9 +50,9 @@ const poll = (uint16: number): void => {
 
 beforeEach(() => {
   rendered.length = 0
+  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
   useClientZustand.setState({
     ready: true,
-    clientState: { ...defaultClientState, connectState: 'connected' },
     registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
   } as never)
   useDataZustand.setState({ registerData: [row(0)] })

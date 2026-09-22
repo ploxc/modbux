@@ -1,12 +1,12 @@
 import Button from '@mui/material/Button'
 import { useScanUnitIdZustand } from '@renderer/components/client/ScanUnitIds/scanUnitIds.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { useCallback } from 'react'
 import type { SetAnchorProps } from './MenuButton'
 
 const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'connected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'connected')
 
   // Close the menu behind it, the way scanning registers does. Otherwise it is
   // still hanging there when you close the dialog again.

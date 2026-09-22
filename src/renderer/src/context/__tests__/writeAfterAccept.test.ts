@@ -97,7 +97,7 @@ describe('a payload the boundary takes', () => {
     const { clientZustand, dataZustand } = await load()
     const { useClientZustand } = clientZustand
     dataZustand.useDataZustand.getState().setRegisterData(rows)
-    useClientZustand.getState().setClientState({
+    dataZustand.useDataZustand.getState().setClientState({
       ...defaultClientState,
       connectState: 'connected',
       polling: true

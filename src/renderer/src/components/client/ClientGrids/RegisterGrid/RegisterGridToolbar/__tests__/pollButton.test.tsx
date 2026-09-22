@@ -7,7 +7,6 @@
 // state alone, so every refusal reached the user as a warning for a press the
 // button had taken.
 import { describe, it, expect, vi } from 'vitest'
-
 // The client store registers IPC listeners and calls main at import time.
 vi.hoisted(async () => {
   ;(globalThis as { window?: unknown }).window ??= globalThis
@@ -16,14 +15,14 @@ vi.hoisted(async () => {
 })
 
 import { render, screen } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState } from '@shared'
 import PollButton from '../PollButton'
 
 const renderButton = (clientState: Partial<ClientState>): HTMLElement => {
-  useClientZustand.setState({
+  useDataZustand.setState({
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
-  } as never)
+  })
   render(<PollButton />)
   return screen.getByTestId('poll-btn')
 }

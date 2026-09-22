@@ -15,6 +15,7 @@ vi.hoisted(() => {
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions'
 
@@ -31,8 +32,8 @@ beforeEach(() => {
   // The setter writes what main accepted, so a stub answering `undefined`
   // refuses every payload and the store never moves.
   window.api = { updateConnectionConfig: vi.fn(() => Promise.resolve(true)) } as never
-  useClientZustand.setState({
-    ready: true,
+  useClientZustand.setState({ ready: true } as never)
+  useDataZustand.setState({
     clientState: {
       connectState: 'disconnected',
       polling: false,
@@ -122,7 +123,9 @@ describe('MenuConnectionOptions', () => {
 
   it('disables the checkbox while not disconnected', () => {
     seed({
-      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' },
+      connectionConfig: { ...useClientZustand.getState().connectionConfig, protocol: 'ModbusTcp' }
+    })
+    useDataZustand.setState({
       clientState: {
         connectState: 'connected',
         polling: false,

@@ -72,9 +72,9 @@ const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
 
 beforeEach(() => {
   props.clear()
+  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
   useClientZustand.setState({
     ready: true,
-    clientState: { ...defaultClientState, connectState: 'connected' },
     registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
   } as never)
   useDataZustand.setState({ registerData: [row(0)] })

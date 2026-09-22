@@ -10,7 +10,7 @@ import { useCallback } from 'react'
 import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { sendEvent } from '@renderer/events'
 import Ploxc from '@renderer/svg/Ploxc'
 import GithubCat from '@renderer/svg/GithubCat'
@@ -20,7 +20,7 @@ import GithubCat from '@renderer/svg/GithubCat'
 //
 // Button to open the modbus client
 const ClientButton = meme(() => {
-  const connected = useClientZustand((z) => z.clientState.connectState === 'connected')
+  const connected = useDataZustand((z) => z.clientState.connectState === 'connected')
 
   const handleClick = useCallback((): void => {
     const layoutZustand = useLayoutZustand.getState()

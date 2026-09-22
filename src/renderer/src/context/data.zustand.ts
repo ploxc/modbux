@@ -3,18 +3,35 @@ import { create } from 'zustand'
 import { DataZustand } from './data.zustand.types'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
-// This import closes a cycle: `client.zustand.ts` imports `useDataZustand` and
-// reads it in `clearRegisterDataWhenIdle` and `setLittleEndian`. Both sides
-// hold because every use on both sides sits inside a function body, which runs
-// after both modules have evaluated. A module-scope read is the way to break
-// it: `useClientZustand.getState()` beside the `create` call below threw
-// "Cannot read properties of undefined (reading 'getState')" before
-// `client.zustand.test.ts` ran a single case, and at startup there is no React
-// render behind that to catch it.
+// This import closes a cycle: `client.zustand.ts` imports this module for
+// `showMapping` and for the store its guards read `connectState` out of. Both
+// sides hold because every name either side reaches across the cycle is
+// reached from inside a function body, which runs after both modules have
+// evaluated. Neither tail may name one: `useClientZustand.getState()` beside
+// the `create` call below threw "Cannot read properties of undefined (reading
+// 'getState')" before `client.zustand.test.ts` ran a single case, and at
+// startup there is no React render behind that to catch it.
 import { useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
-import { RegisterData, dummyWords } from '@shared'
+import { ClientState, RegisterData, defaultClientState, dummyWords } from '@shared'
 
+/**
+ * What main pushes about the client, held for as long as the window lives.
+ *
+ * Six of the ten `EVENTS_TO_RENDERER` are the client's and all six land here.
+ * The other four drive a server, the windows or the snackbar.
+ *
+ * Nothing here is persisted, and that is the point. zustand's persist wraps
+ * `setState` and serializes the whole partialized state on every call with no
+ * debounce, so a field written at event rate inside `client.zustand` paid for
+ * the register mapping it keeps on every write. Measured in the app's own
+ * renderer on a 219955 byte blob, 1000 of those writes cost 887 ms of the main
+ * thread, 432 ms of it the `JSON.stringify` alone and 249 ms the
+ * `localStorage.setItem` alone, so the store Chromium keeps off the main thread
+ * does not take that second part off it either. `modbusClient`'s `scanUnitIds`
+ * sets `_totalScans` to the unit id count times the register type count, so a
+ * scan of 1 through 247 over four types sends 988 `scan_progress` events.
+ */
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
     // Register data
@@ -32,6 +49,49 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
     setAddressGroups: (groups) =>
       set((state) => {
         state.addressGroups = groups
+      }),
+
+    // State
+    clientState: { ...defaultClientState },
+    setClientState: (clientState) =>
+      set((state) => {
+        state.clientState = clientState
+      }),
+
+    // Transaction log
+    transactions: [],
+    addTransaction: (transaction) =>
+      set((state) => {
+        state.transactions.unshift(transaction)
+        while (state.transactions.length > 1000) state.transactions.pop()
+      }),
+    clearTransactions: () =>
+      set((state) => {
+        state.transactions = []
+      }),
+    lastSuccessfulTransactionMillis: null,
+    setLastSuccessfulTransactionMillis: (value) =>
+      set((state) => {
+        state.lastSuccessfulTransactionMillis = value
+      }),
+
+    // Unit ID scanning
+    scanUnitIdResults: [],
+    addScanUnitIdResult: (scanUnitIDResult) =>
+      set((state) => {
+        state.scanUnitIdResults.unshift(scanUnitIDResult)
+        while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
+      }),
+    clearScanUnitIdResults: () =>
+      set((state) => {
+        state.scanUnitIdResults = []
+      }),
+
+    // Scan progress
+    scanProgress: 0,
+    setScanProgress: (scanProgress) =>
+      set((state) => {
+        state.scanProgress = scanProgress
       })
   }))
 )
@@ -91,12 +151,46 @@ export const dropPendingScanRows = (): void => {
   pendingScanRows = []
 }
 
+/** Whether a `client_state` push has landed since the module was evaluated. */
+let clientStatePushed = false
+
+/**
+ * Write the state main answered with, unless a push has landed since the ask.
+ *
+ * A push that arrives while the answer is in flight is the newer of the two
+ * and keeps its value.
+ */
+const adoptAnsweredClientState = (clientState: ClientState): void => {
+  if (clientStatePushed) return
+  useDataZustand.getState().setClientState(clientState)
+}
+
+/**
+ * Ask main what the client is doing, because a push says only that it changed.
+ *
+ * Main pushes `client_state` on a change, so a window opened after the last
+ * one starts on the literal above: on macos the app outlives its windows, and
+ * the window that comes back showed Connect over a client that was connected
+ * and polling. The ask sits here rather than in `client.zustand`'s `init`
+ * because these two modules import each other, and a name reached across that
+ * cycle while the other half is still evaluating is a name in its temporal
+ * dead zone. It threw into `init`'s catch, which reported nothing.
+ *
+ * The guard is the one `init` carries: `client_state` is about the one client
+ * main holds, and the split out server window shows none of it.
+ */
+if (!window.api.isServerWindow) {
+  window.api
+    .getClientState()
+    .then(adoptAnsweredClientState)
+    .catch((error) => console.error('The client state main holds was not read:', error))
+}
+
 // Data read from the registers
 onEvent('register_data', (registerData) => {
   const dataZustand = useDataZustand.getState()
-  const clientZustand = useClientZustand.getState()
 
-  if (clientZustand.clientState.scanningRegisters) {
+  if (dataZustand.clientState.scanningRegisters) {
     pendingScanRows.push(...registerData)
     if (!scanFlushTimeout) scanFlushTimeout = setTimeout(flushScanRows, SCAN_FLUSH_MS)
   } else {
@@ -105,10 +199,35 @@ onEvent('register_data', (registerData) => {
     dataZustand.setRegisterData(registerData)
   }
 
-  clientZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
+  dataZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
 onEvent('address_groups', (addressGroups) => {
   const dataZustand = useDataZustand.getState()
   dataZustand.setAddressGroups(addressGroups)
+})
+
+// Client state, like polling, scanning, etc.
+onEvent('client_state', (clientState) => {
+  clientStatePushed = true
+  const dataZustand = useDataZustand.getState()
+  dataZustand.setClientState(clientState)
+})
+
+// Transactions from the transation log
+onEvent('transaction', (transaction) => {
+  const dataZustand = useDataZustand.getState()
+  dataZustand.addTransaction(transaction)
+})
+
+// Unit ID scanning results
+onEvent('scan_unit_id_result', (scanUnitIDResult) => {
+  const dataZustand = useDataZustand.getState()
+  dataZustand.addScanUnitIdResult(scanUnitIDResult)
+})
+
+// Scan progress
+onEvent('scan_progress', (scanProgress) => {
+  const dataZustand = useDataZustand.getState()
+  dataZustand.setScanProgress(scanProgress)
 })

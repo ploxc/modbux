@@ -18,6 +18,7 @@ vi.hoisted(async () => {
 
 import { render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState, defaultConnectionConfig, Protocol } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 
@@ -34,10 +35,10 @@ const renderButton = ({
 }): HTMLElement => {
   useClientZustand.setState({
     ready: true,
-    clientState: { ...defaultClientState, connectState },
     connectionConfig: { ...defaultConnectionConfig, protocol },
     valid: { host, com, length: true }
   } as never)
+  useDataZustand.setState({ clientState: { ...defaultClientState, connectState } })
   render(<ConnectionConfig />)
   return screen.getByTestId('connect-btn')
 }

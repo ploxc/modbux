@@ -1,13 +1,13 @@
 import LinearProgress from '@mui/material/LinearProgress'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 
 /** The bar both scan dialogs put under their controls. */
 const ScanProgress = meme((): JSX.Element | null => {
-  const scanning = useClientZustand(
+  const scanning = useDataZustand(
     (z) => z.clientState.scanningUnitIds || z.clientState.scanningRegisters
   )
-  const scanProgress = useClientZustand((z) => z.scanProgress)
+  const scanProgress = useDataZustand((z) => z.scanProgress)
 
   return scanning ? (
     <LinearProgress

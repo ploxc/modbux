@@ -9,8 +9,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
 
-const load = async (): Promise<typeof import('../client.zustand')> =>
-  await import('../client.zustand')
+const load = async (): Promise<{
+  useClientZustand: typeof import('../client.zustand').useClientZustand
+  useDataZustand: typeof import('../data.zustand').useDataZustand
+}> => ({
+  useClientZustand: (await import('../client.zustand')).useClientZustand,
+  useDataZustand: (await import('../data.zustand')).useDataZustand
+})
 
 let calls: ApiCall[]
 
@@ -49,9 +54,9 @@ describe('the four serial options', () => {
   })
 
   it('write nothing while a connection stands', async () => {
-    const { useClientZustand } = await load()
+    const { useClientZustand, useDataZustand } = await load()
     const before = useClientZustand.getState().connectionConfig.rtu.options.baudRate
-    useClientZustand.getState().setClientState({
+    useDataZustand.getState().setClientState({
       ...defaultClientState,
       connectState: 'connected'
     })

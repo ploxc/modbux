@@ -18,13 +18,14 @@ vi.hoisted(async () => {
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, defaultConnectionConfig } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 
 const renderRtu = (): void => {
+  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'disconnected' } })
   useClientZustand.setState({
     ready: true,
-    clientState: { ...defaultClientState, connectState: 'disconnected' },
     connectionConfig: {
       ...defaultConnectionConfig,
       protocol: 'ModbusRtu',

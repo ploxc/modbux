@@ -21,6 +21,7 @@ const stub = vi.hoisted(() => {
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, ScanRegistersParametersSchema } from '@shared'
 import ScanRegisters from '../ScanRegisters'
 import { useScanRegistersZustand } from '../scanRegisters.zustand'
@@ -35,10 +36,8 @@ const input = (testId: string): HTMLElement =>
 
 beforeEach(() => {
   stub.scanRegisters.mockClear()
-  useClientZustand.setState({
-    ready: true,
-    clientState: { ...defaultClientState }
-  } as never)
+  useClientZustand.setState({ ready: true } as never)
+  useDataZustand.setState({ clientState: { ...defaultClientState } })
   useScanRegistersZustand.setState({
     open: true,
     address: 60000,

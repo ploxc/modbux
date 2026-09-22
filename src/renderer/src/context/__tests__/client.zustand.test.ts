@@ -35,6 +35,7 @@ const handlers = vi.hoisted(() => {
 })
 
 import { useClientZustand } from '../client.zustand'
+import { useDataZustand } from '../data.zustand'
 
 const disconnected: ClientState = { ...defaultClientState }
 
@@ -50,71 +51,31 @@ const pushClientState = (clientState: ClientState): void => {
   handler(undefined, clientState)
 }
 
-/** The answer resolves only once this is called, so a push can land first. */
-let answer: (clientState: ClientState) => void
 const stubApi = (): void => {
   window.api = {
     updateConnectionConfig: vi.fn(),
     updateRegisterConfig: vi.fn(),
     setReadConfiguration: vi.fn(),
-    getClientState: vi.fn(
-      () =>
-        new Promise<ClientState>((resolve) => {
-          answer = resolve
-        })
-    )
+    getClientState: vi.fn(() => new Promise<ClientState>(() => {}))
   } as never
 }
 
 beforeEach(() => {
   stubApi()
-  useClientZustand.setState({ ready: false, clientState: disconnected } as never)
+  useClientZustand.setState({ ready: false } as never)
+  useDataZustand.setState({ clientState: disconnected })
 })
 
-describe('init asks main what the client is doing', () => {
-  it('takes the answer, so a window opened after the last push catches up', async () => {
-    const initialised = useClientZustand.getState().init()
-    answer(connectedAndPolling)
-    await initialised
-
-    expect(useClientZustand.getState().clientState).toEqual(connectedAndPolling)
-  })
-
-  it('keeps a push that landed while the answer was in flight', async () => {
-    const initialised = useClientZustand.getState().init()
-
-    const scanning: ClientState = {
-      ...connectedAndPolling,
-      polling: false,
-      scanningRegisters: true
-    }
-    pushClientState(scanning)
-    answer(connectedAndPolling)
-    await initialised
-
-    expect(useClientZustand.getState().clientState).toEqual(scanning)
-  })
-
-  it('leaves the state alone when main does not answer', async () => {
-    window.api = {
-      ...window.api,
-      getClientState: vi.fn(() => Promise.reject(new Error('no handler registered')))
-    } as never
-
-    await expect(useClientZustand.getState().init()).resolves.toBeUndefined()
-    expect(useClientZustand.getState().clientState).toEqual(disconnected)
-  })
-
-  /**
-   * The half that has to keep working, so it asserts what `init` did before it
-   * asked anything and never touches the answer. A change to the question must
-   * leave this green.
-   */
-  it('is ready and has pushed both configs before it asks', () => {
+/**
+ * What main answers about the client is `answeredClientState.test.ts`, because
+ * `data.zustand` asks at import time rather than through `init`.
+ */
+describe('init hands main the config this window loaded', () => {
+  it('is ready and has pushed both configs', () => {
     const connectionConfig = useClientZustand.getState().connectionConfig
     const registerConfig = useClientZustand.getState().registerConfig
 
-    void useClientZustand.getState().init()
+    useClientZustand.getState().init()
 
     expect(useClientZustand.getState().ready).toBe(true)
     expect(useClientZustand.getState().readConfiguration).toBe(false)
@@ -128,7 +89,7 @@ describe('the client_state listener', () => {
   it('writes what main pushed', () => {
     pushClientState(connectedAndPolling)
 
-    expect(useClientZustand.getState().clientState).toEqual(connectedAndPolling)
+    expect(useDataZustand.getState().clientState).toEqual(connectedAndPolling)
   })
 })
 

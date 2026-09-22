@@ -15,14 +15,14 @@ vi.hoisted(async () => {
 })
 
 import { render, screen } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState } from '@shared'
 import ReadButton from '../ReadButton'
 
 const renderButton = (clientState: Partial<ClientState>): HTMLElement => {
-  useClientZustand.setState({
+  useDataZustand.setState({
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
-  } as never)
+  })
   render(<ReadButton />)
   return screen.getByTestId('read-btn')
 }

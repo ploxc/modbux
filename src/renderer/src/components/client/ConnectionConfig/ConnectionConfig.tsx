@@ -21,7 +21,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 
 // Protocol
 const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const handleChange = useCallback((_event: unknown, value: Protocol | null): void => {
     if (value === null) return
@@ -75,7 +75,7 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 })
 
 const ConnectButton = meme(() => {
-  const connectState = useClientZustand((z) => z.clientState.connectState)
+  const connectState = useDataZustand((z) => z.clientState.connectState)
 
   /**
    * Whether the field this protocol connects through names somewhere.
@@ -98,7 +98,7 @@ const ConnectButton = meme(() => {
   )
 
   const action = useCallback(async (): Promise<void> => {
-    const currentConnectedState = useClientZustand.getState().clientState.connectState
+    const currentConnectedState = useDataZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect()
       if (!useClientZustand.getState().readConfiguration) {

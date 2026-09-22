@@ -6,11 +6,12 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useDataZustand } from '@renderer/context/data.zustand'
 import { ElementType } from 'react'
 
 // Host
 const Host = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const host = useClientZustand((z) => z.connectionConfig.tcp.host)
   const hostValid = useClientZustand((z) => z.valid.host)
 
@@ -40,7 +41,7 @@ const Host = meme(() => {
 //
 // Port
 const Port = meme(() => {
-  const disabled = useClientZustand((z) => z.clientState.connectState !== 'disconnected')
+  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
   const port = useClientZustand((z) => String(z.connectionConfig.tcp.options.port))
 
   const setPort = useClientZustand.getState().setPort

@@ -9,7 +9,6 @@ import {
   ClientZustand
 } from './client.zustand.types'
 import {
-  defaultClientState,
   defaultConnectionConfig,
   defaultRegisterConfig,
   CURRENT_CLIENT_ZUSTAND_VERSION,
@@ -28,7 +27,6 @@ import {
 import { showMapping, useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
-import { onEvent } from '@renderer/events'
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -104,9 +102,8 @@ export const flushRegisterMappingToMain = async (
  * the grid is about; the ask does not.
  */
 const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
-  const { clientState, readConfiguration, registerConfig, registerMapping } =
-    useClientZustand.getState()
-  if (clientState.polling) return
+  const { readConfiguration, registerConfig, registerMapping } = useClientZustand.getState()
+  if (useDataZustand.getState().clientState.polling) return
   if (readConfiguration) {
     if (!readsTheMapping) return
     showMapping()
@@ -117,6 +114,17 @@ const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
   }
   useDataZustand.getState().setRegisterData([])
 }
+
+/**
+ * Whether a connection field may change, which is while no connection stands.
+ *
+ * Five setters ask it: `setSerialOption` for the four serial options, and
+ * `setProtocol`, `setPort`, `setHost` and `setCom`. `connectState` lives in
+ * `data.zustand` with the rest of what main pushes, so they read it there
+ * rather than out of the state they are writing.
+ */
+const isDisconnected = (): boolean =>
+  useDataZustand.getState().clientState.connectState === 'disconnected'
 
 /**
  * One serial option, sent and then written where main took it.
@@ -131,9 +139,8 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
   key: Key,
   value: SerialPortOptions[Key]
 ): Promise<void> => {
-  const currentState = get()
-  if (!currentState.ready) return
-  if (currentState.clientState.connectState !== 'disconnected') return
+  if (!get().ready) return
+  if (!isDisconnected()) return
 
   if (!(await window.api.updateConnectionConfig({ rtu: { options: { [key]: value } } }))) return
 
@@ -173,21 +180,11 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
  * is why it is asked here rather than restated.
  */
 const readWhenMainCan = (): void => {
-  const { clientState } = useClientZustand.getState()
+  const { clientState } = useDataZustand.getState()
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) return
   window.api.read()
 }
-
-/**
- * Whether a `client_state` push has landed since the module was evaluated.
- *
- * `init` asks main what the client is doing, because main pushes on a change
- * and a window opened after the last push starts on the initial literal. The
- * answer is main's state read when the handler ran, so a push that arrives
- * while the answer is in flight is the newer of the two and keeps its value.
- */
-let clientStatePushed = false
 
 carryFormerClientState(localStorage)
 
@@ -198,7 +195,7 @@ export const useClientZustand = create<
   persist(
     mutative((set, get) => ({
       // Config
-      init: async () => {
+      init: () => {
         const { connectionConfig, registerConfig } = get()
 
         window.api.updateConnectionConfig(connectionConfig)
@@ -218,26 +215,9 @@ export const useClientZustand = create<
           state.valid.com = isConnectionAddressGiven(connectionConfig.rtu.com)
           state.valid.length = isReadLengthGiven(registerConfig.length)
         })
-
-        // Ready is set before this, so a store action does not wait on a round
-        // trip. The catch is the point of the try: this runs from module scope
-        // with nothing awaiting it, and a rejection there is an unhandled one.
-        // Falling through leaves the initial literal, which is what the window
-        // showed before it asked.
-        try {
-          const clientState = await window.api.getClientState()
-          if (!clientStatePushed)
-            set((state) => {
-              state.clientState = clientState
-            })
-        } catch {
-          // Main answers this synchronously; a rejection means it is not there.
-        }
       },
       connectionConfig: defaultConnectionConfig,
       registerConfig: defaultRegisterConfig,
-      // Connection state
-      // Register mapping
       name: '',
       setName: (name) =>
         set((state) => {
@@ -293,23 +273,8 @@ export const useClientZustand = create<
         })
       },
       clearRegisterMapping: () => get().replaceRegisterMapping(emptyRegisterMapping()),
-      transactions: [],
-      addTransaction: (transaction) =>
-        set((state) => {
-          state.transactions.unshift(transaction)
-          while (state.transactions.length > 1000) state.transactions.pop()
-        }),
-      clearTransactions: () =>
-        set((state) => {
-          state.transactions = []
-        }),
 
       // State
-      clientState: { ...defaultClientState },
-      setClientState: (clientState) =>
-        set((state) => {
-          state.clientState = clientState
-        }),
       ready: false,
       readConfiguration: false,
 
@@ -338,9 +303,8 @@ export const useClientZustand = create<
       // below has its own reason: a payload of another shape, a string to
       // convert, a validity flag, a grid to clear, a read to ask for.
       setProtocol: async (protocol) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
+        if (!get().ready) return
+        if (!isDisconnected()) return
 
         if (!(await window.api.updateConnectionConfig({ protocol }))) return
 
@@ -352,9 +316,8 @@ export const useClientZustand = create<
       //
       // TCP
       setPort: async (port) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
+        if (!get().ready) return
+        if (!isDisconnected()) return
 
         const newPort = Number(port)
         if (!(await window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })))
@@ -365,9 +328,8 @@ export const useClientZustand = create<
         })
       },
       setHost: async (host, valid) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
+        if (!get().ready) return
+        if (!isDisconnected()) return
 
         // The field reads its text from the store, so an invalid host is kept
         // here and never sent. What the boundary never sees needs no answer.
@@ -390,9 +352,8 @@ export const useClientZustand = create<
       //
       // RTU
       setCom: async (com, valid) => {
-        const currentState = get()
-        if (!currentState.ready) return
-        if (currentState.clientState.connectState !== 'disconnected') return
+        if (!get().ready) return
+        if (!isDisconnected()) return
 
         // The field reads its text from the store, so a blank port name is
         // kept here and never sent. `ConnectionConfigRtuSchema` types `com` as
@@ -522,29 +483,6 @@ export const useClientZustand = create<
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),
       setTimeout: (timeout) => setRegisterConfigField(set, get, 'timeout', timeout),
-      // Transaction
-      lastSuccessfulTransactionMillis: null,
-      setLastSuccessfulTransactionMillis: (value) =>
-        set((state) => {
-          state.lastSuccessfulTransactionMillis = value
-        }),
-      // Unit ID Scannning
-      scanUnitIdResults: [],
-      addScanUnitIdResult: (scanUnitIDResult) =>
-        set((state) => {
-          state.scanUnitIdResults.unshift(scanUnitIDResult)
-          while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
-        }),
-      clearScanUnitIdResults: () =>
-        set((state) => {
-          state.scanUnitIdResults = []
-        }),
-      // Scanning progress
-      scanProgress: 0,
-      setScanProgress: (scanProgress) =>
-        set((state) => {
-          state.scanProgress = scanProgress
-        }),
 
       // Serial port discovery
       serialPorts: [],
@@ -599,8 +537,8 @@ const clientZustand = useClientZustand.getState()
  * Every call this tail makes to main is inside the guard now. The app version
  * was the one outside it, and `layout.zustand` fetches it instead, beside the
  * field it fills and in both windows. What is left unguarded asks main nothing:
- * the repair below and the `onEvent` registrations after it. The repair's
- * `setState` still writes the shared key, for the same reason `init`'s does.
+ * the repair below. Its `setState` still writes the shared key, for the same
+ * reason `init`'s does.
  */
 const isServerWindow = window.api.isServerWindow
 
@@ -615,37 +553,6 @@ if (repair) useClientZustand.setState({ ...repair.state, configReset: repair.res
 
 // Sync the main process state with the front end
 if (!isServerWindow) clientZustand.init()
-
-//
-//
-//
-//
-// Listen to events to set the state
-
-// Client state, like polling, scanning, etc.
-onEvent('client_state', (clientState) => {
-  clientStatePushed = true
-  const clientZustand = useClientZustand.getState()
-  clientZustand.setClientState(clientState)
-})
-
-// Transactions from the transation log
-onEvent('transaction', (transaction) => {
-  const clientZustand = useClientZustand.getState()
-  clientZustand.addTransaction(transaction)
-})
-
-// Unit ID scanning results
-onEvent('scan_unit_id_result', (scanUnitIDResult) => {
-  const clientZustand = useClientZustand.getState()
-  clientZustand.addScanUnitIdResult(scanUnitIDResult)
-})
-
-// Scan progress
-onEvent('scan_progress', (scanProgress) => {
-  const clientZustand = useClientZustand.getState()
-  clientZustand.setScanProgress(scanProgress)
-})
 
 //
 //
