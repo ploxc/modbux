@@ -522,7 +522,9 @@ export const useClientZustand = create<
 const clientZustand = useClientZustand.getState()
 
 /**
- * The window this module may call main from, the question its two siblings ask.
+ * The window this module may call main from, the question its siblings ask.
+ * `layout.zustand`, `server.zustand` and `data.zustand` each read it too, and
+ * `data.zustand`'s tail is the other one that calls main from module scope.
  *
  * `App.tsx` imports `containers/Client` statically and `Client.tsx:11` imports
  * this file, so `out/renderer/assets/` holds one js file and both windows

@@ -112,35 +112,57 @@ describe('the client state main answers with', () => {
     await vi.waitFor(() => expect(useDataZustand.getState().clientState).toEqual(scanning))
   })
 
+  // The refusal is what this waits for, because the state it leaves behind is
+  // the state it started on: waiting on that alone passes on the first attempt,
+  // before the rejection has been handled at all.
   it('leaves the state alone when main does not answer', async () => {
+    const reported = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { useDataZustand } = await import('../data.zustand')
 
     refuse(new Error('no handler registered'))
 
-    await vi.waitFor(() => expect(useDataZustand.getState().clientState).toEqual(disconnected))
+    await vi.waitFor(() => expect(reported).toHaveBeenCalled())
+    expect(useDataZustand.getState().clientState).toEqual(disconnected)
+    reported.mockRestore()
   })
 })
 
-describe('the split out server window', () => {
-  // `client_state` is about the one client main holds, and that window shows
-  // none of it. The guard is the one `init` carries.
-  it('asks nothing', async () => {
-    stub({ isServerWindow: true })
-    const invoked: string[] = []
-    const answers = window.api as unknown as Record<string, unknown>
-    window.api = new Proxy(
-      {},
-      {
-        get: (_target, method: string): unknown => {
-          if (method === 'isServerWindow') return true
-          invoked.push(method)
-          return answers[method]
-        }
+/**
+ * Which window asks, recorded on the one property the tails read before they
+ * decide.
+ *
+ * `isServerWindow` has to answer before the recording, because reading it is
+ * what the guard does and a window that reads nothing else would look the same
+ * as one that asked nothing.
+ */
+const methodsAsked = (isServerWindow: boolean): string[] => {
+  stub({ isServerWindow })
+  const asked: string[] = []
+  const answers = window.api as unknown as Record<string, unknown>
+  window.api = new Proxy(
+    {},
+    {
+      get: (_target, method: string): unknown => {
+        if (method === 'isServerWindow') return isServerWindow
+        asked.push(method)
+        return answers[method]
       }
-    ) as never
+    }
+  ) as never
+  return asked
+}
+
+describe('the window that asks main what the client is doing', () => {
+  // `client_state` is about the one client main holds, and the split out server
+  // window shows none of it. The guard is the one `init` carries.
+  it.each([
+    [false, true],
+    [true, false]
+  ])('is the server window: %s, so it asks: %s', async (isServerWindow, asks) => {
+    const asked = methodsAsked(isServerWindow)
 
     await import('../data.zustand')
 
-    expect(invoked).not.toContain('getClientState')
+    expect(asked.includes('getClientState')).toBe(asks)
   })
 })
