@@ -16,6 +16,7 @@ import {
   migrateClientState,
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
+  clientOwner,
   configuredReadGroups,
   emptyRegisterMapping,
   RegisterConfig,
@@ -164,16 +165,15 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
 /**
  * Ask main for a read, unless it is in no position to answer.
  *
- * `read` refuses and says so in a snackbar when a poll, either scan, a read
- * already in flight or a write owns the client, and again when nothing is
- * connected, so a caller that asks anyway costs the user a warning it did not
- * ask for. The five states are `_clientOwner` in `modbusClient`.
+ * `read` refuses and says so in a snackbar when anything owns the client, and
+ * again when nothing is connected, so a caller that asks anyway costs the user
+ * a warning it did not ask for. `clientOwner` is the question main asks, which
+ * is why it is asked here rather than restated.
  */
 const readWhenMainCan = (): void => {
-  const { connectState, polling, scanningUnitIds, scanningRegisters, reading, writing } =
-    useClientZustand.getState().clientState
-  if (connectState !== 'connected') return
-  if (polling || scanningUnitIds || scanningRegisters || reading || writing) return
+  const { clientState } = useClientZustand.getState()
+  if (clientState.connectState !== 'connected') return
+  if (clientOwner(clientState)) return
   window.api.read()
 }
 

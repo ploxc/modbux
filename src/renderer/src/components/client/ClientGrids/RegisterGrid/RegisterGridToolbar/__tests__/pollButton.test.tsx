@@ -2,9 +2,10 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 //
-// Pressing it asks main for a read, and main refuses one while anything else
-// owns the client. The button says so by going dead, rather than taking a press
-// that answers with a warning.
+// Pressing it starts a poll or stops the one that runs. Main refuses a start
+// while anything else owns the client, and this button disabled on the connect
+// state alone, so every refusal reached the user as a warning for a press the
+// button had taken.
 import { describe, it, expect, vi } from 'vitest'
 
 // The client store registers IPC listeners and calls main at import time.
@@ -17,39 +18,36 @@ vi.hoisted(async () => {
 import { render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState } from '@shared'
-import ReadButton from '../ReadButton'
+import PollButton from '../PollButton'
 
 const renderButton = (clientState: Partial<ClientState>): HTMLElement => {
   useClientZustand.setState({
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   } as never)
-  render(<ReadButton />)
-  return screen.getByTestId('read-btn')
+  render(<PollButton />)
+  return screen.getByTestId('poll-btn')
 }
 
-describe('the Read button', () => {
+describe('the Poll button', () => {
   it('takes a press while the client is idle', () => {
     expect(renderButton({})).toBeEnabled()
+  })
+
+  // The press that stops one. `exceptPolling` is what keeps it: nothing else
+  // can own the client during a poll, so the button stays live to be pressed
+  // again.
+  it('takes a press while a poll runs', () => {
+    expect(renderButton({ polling: true })).toBeEnabled()
   })
 
   it('takes none while a read is in flight', () => {
     expect(renderButton({ reading: true })).toBeDisabled()
   })
 
-  // A write holds the client from its own request to the end of the read back,
-  // and `reading` covers the second half of that stretch alone.
   it('takes none while a write is in flight', () => {
     expect(renderButton({ writing: true })).toBeDisabled()
   })
 
-  it('takes none while a poll runs', () => {
-    expect(renderButton({ polling: true })).toBeDisabled()
-  })
-
-  // Both scans were missing from the question this button asked, so the press
-  // was refused by main and the button took it anyway. What kept it out of
-  // reach was the strip a register scan draws over the toolbar and the
-  // backdrop a unit id scan draws over the window.
   it('takes none while a register scan runs', () => {
     expect(renderButton({ scanningRegisters: true })).toBeDisabled()
   })

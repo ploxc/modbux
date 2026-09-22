@@ -120,6 +120,22 @@ describe('RegisterConfig read configuration', () => {
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
 
+  // A poll and both scans were missing from the question this toggle asked, so
+  // a press there drew the mapping and then dropped the read without a word.
+  it.each(['polling', 'scanningRegisters', 'scanningUnitIds'] as const)(
+    'refuses while %s owns the client',
+    (flag) => {
+      seed('holding_registers', { 0: { dataType: 'int16' } })
+      useClientZustand.setState({
+        clientState: { ...defaultClientState, connectState: 'connected', [flag]: true }
+      } as never)
+
+      render(<RegisterConfig />)
+
+      expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
+    }
+  )
+
   // A mapping with nothing to read turns read configuration off. A read in
   // flight greys the same button and must not, or the grid empties while the
   // read that is about to fill it is still on the wire.

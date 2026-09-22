@@ -5,6 +5,7 @@ import {
   BackendMessage,
   BaseDataType,
   ClientState,
+  clientOwner,
   convertBitData,
   configuredReadGroups,
   convertRegisterData,
@@ -15,6 +16,7 @@ import {
   maxReadQuantity,
   PROTOCOL_LABELS,
   RawTransaction,
+  readLoopOwner,
   RegisterData,
   registersFrom,
   RegisterType,
@@ -290,45 +292,6 @@ export class ModbusClient {
   }
 
   /**
-   * The read loop that owns the client, named, or nothing.
-   *
-   * Each of the three loops decides for itself when it is done, which is what
-   * separates them from a single read: `write` reads back what it wrote unless
-   * a loop is already reading, and that is this question rather than
-   * `_clientOwner`.
-   */
-  private _readLoopOwner = (): string | undefined => {
-    if (this._clientState.polling) return 'a poll'
-    if (this._clientState.scanningUnitIds) return 'a unit id scan'
-    if (this._clientState.scanningRegisters) return 'a register scan'
-    return undefined
-  }
-
-  /**
-   * Whatever owns the client, named, or nothing.
-   *
-   * One request at a time is what this class can promise, and every caller
-   * that puts a request on the wire asks this first. A write holds the client
-   * from its own request to the end of the read back, so `writing` covers a
-   * stretch in which `reading` is set too, and a caller arriving in it is told
-   * about the write.
-   *
-   * The two scans ask with `exceptPolling`, because a scan stops a poll rather
-   * than being refused by one: that is a consequence of scanning taken here
-   * rather than asked of the user, and it has to be settled before the poll is
-   * stopped, or a refused scan would have stopped it on the way out.
-   */
-  private _clientOwner = (exceptPolling = false): string | undefined => {
-    if (this._clientState.writing) return 'another write'
-    if (exceptPolling) {
-      if (this._clientState.scanningUnitIds) return 'a unit id scan'
-      if (this._clientState.scanningRegisters) return 'a register scan'
-      return this._clientState.reading ? 'another read' : undefined
-    }
-    return this._readLoopOwner() ?? (this._clientState.reading ? 'another read' : undefined)
-  }
-
-  /**
    * Whether `verb` may go ahead, saying who has the client when it may not.
    *
    * The three loops asked nobody and claimed the client by setting their own
@@ -339,7 +302,7 @@ export class ModbusClient {
    * same renderer and every channel reaches here, so the refusal is main's.
    */
   private _requireClient = (verb: string, exceptPolling = false): boolean => {
-    const owner = this._clientOwner(exceptPolling)
+    const owner = clientOwner(this._clientState, { exceptPolling })
     if (!owner) return true
 
     this._emitMessage({
@@ -968,7 +931,7 @@ export class ModbusClient {
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this
       // write owns the client, so nothing else can have set it.
-      if (!this._readLoopOwner()) await this._readOwningTheClient()
+      if (!readLoopOwner(this._clientState)) await this._readOwningTheClient()
     } finally {
       this._clientState.writing = false
       this._sendClientState()

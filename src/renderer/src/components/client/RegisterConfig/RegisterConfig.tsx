@@ -14,7 +14,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { flushRegisterMappingToMain, useClientZustand } from '@renderer/context/client.zustand'
-import { maxReadQuantity, registersFrom, RegisterType } from '@shared'
+import { clientOwner, maxReadQuantity, registersFrom, RegisterType } from '@shared'
 import { showMapping } from '@renderer/context/data.zustand'
 import { ElementType, useCallback, useEffect, useRef } from 'react'
 
@@ -26,8 +26,8 @@ const TypeSelect = meme(() => {
   // A register scan reads this field once, for the chunk size one response
   // carries, and `_scanRegister` reads it again for every chunk. Changing it
   // between the two asks a device for 2000 holding registers. The scan dialog
-  // disables every field it owns while it runs; this one is the toolbar's, and
-  // what kept it out of reach was the overlay drawn over it.
+  // disables every field it owns while it runs; this one sits in the top bar,
+  // and what kept it out of reach was the strip the dialog draws over it.
   const scanning = useClientZustand((z) => z.clientState.scanningRegisters)
 
   const handleChange = useCallback((type: RegisterType) => {
@@ -157,12 +157,13 @@ const ReadConfiguration = meme(() => {
   )
 
   // Turning it on draws the mapping into the grid and then asks main to read
-  // it, and `readWhenMainCan` drops that ask without a word while a read or a
-  // write owns the client. The press would leave the grid on `showMapping`'s
-  // zeros with no read coming, so the toggle greys for as long as that lasts.
-  const reading = useClientZustand((z) => z.clientState.reading)
-  const writing = useClientZustand((z) => z.clientState.writing)
-  const disabled = nothingConfigured || reading || writing
+  // it, and `readWhenMainCan` drops that ask without a word while anything
+  // owns the client. The press would leave the grid on `showMapping`'s zeros
+  // with no read coming, so the toggle greys for as long as that lasts.
+  // `clientOwner` is the whole question: naming a read and a write alone left
+  // the toggle pressable during a poll and both scans.
+  const owner = useClientZustand((z) => clientOwner(z.clientState))
+  const disabled = nothingConfigured || owner !== undefined
 
   // A mapping with nothing to read turns it off. A read in flight does not:
   // that greys the button for a moment, and turning it off would empty the grid

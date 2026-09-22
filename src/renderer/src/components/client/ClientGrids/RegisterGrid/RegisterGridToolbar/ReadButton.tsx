@@ -1,24 +1,28 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { clientOwner } from '@shared'
 import { useCallback } from 'react'
 
 const ReadButton = meme((): JSX.Element => {
   const connected = useClientZustand((z) => z.clientState.connectState === 'connected')
-  const polling = useClientZustand((z) => z.clientState.polling)
 
-  // Main says a read is running and refuses a second one while it is. It
-  // refuses one for the length of a write too, which holds the client from its
-  // own request to the end of the read back.
+  // What main would refuse this press for, which is the same question it asks
+  // of every caller that puts a request on the wire. Naming a subset of it
+  // left the button pressable during both scans, where it was reachable only
+  // by what the two dialogs happen to draw over.
+  const owner = useClientZustand((z) => clientOwner(z.clientState))
+
+  // A read in flight is the one state this says something about rather than
+  // just refusing.
   const reading = useClientZustand((z) => z.clientState.reading)
-  const writing = useClientZustand((z) => z.clientState.writing)
 
   const handleRead = useCallback(() => {
     window.api.read()
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
-  const disabled = !connected || polling || reading || writing
+  const disabled = !connected || owner !== undefined
 
   return (
     <Button
