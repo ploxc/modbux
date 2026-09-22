@@ -1,3 +1,4 @@
+import { isConnectionAddressGiven } from '@shared'
 import { forwardRef } from 'react'
 import { meme } from './meme'
 import { MaskInputProps } from './types'
@@ -10,7 +11,7 @@ const HostInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, re
       ref={ref}
       onChange={(e) => {
         const value = e.target.value
-        set(value, value.trim().length > 0)
+        set(value, isConnectionAddressGiven(value))
       }}
     />
   )

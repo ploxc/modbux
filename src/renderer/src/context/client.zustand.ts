@@ -19,6 +19,7 @@ import {
   clientOwner,
   configuredReadGroups,
   emptyRegisterMapping,
+  isConnectionAddressGiven,
   RegisterConfig,
   RegisterMapping,
   SerialPortOptions
@@ -206,6 +207,14 @@ export const useClientZustand = create<
         set((state) => {
           state.readConfiguration = false
           state.ready = true
+
+          // `partialize` persists `connectionConfig` and not `valid`, so a
+          // blank COM port typed before a quit comes back in the field with
+          // the flag reading true, and Connect took a press on it. The flag is
+          // read off the value rather than stored, because it is what the two
+          // fields decide about a value and a value is what disk carries.
+          state.valid.host = isConnectionAddressGiven(connectionConfig.tcp.host)
+          state.valid.com = isConnectionAddressGiven(connectionConfig.rtu.com)
         })
 
         // Ready is set before this, so a store action does not wait on a round

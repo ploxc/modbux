@@ -188,6 +188,18 @@ export const ConnectStateSchema = z.enum([
   'disconnecting'
 ])
 
+/**
+ * Whether a host or a COM port names somewhere to connect.
+ *
+ * `ConnectionConfigSchema` types both as a bare string and takes a blank one,
+ * so the boundary has nothing to refuse and main held a connection config
+ * naming no port. `setHost` and `setCom` carry a flag instead, and this is the
+ * one test behind it: `HostInput` and the COM field each spelled it out, and
+ * `init` had to answer it again for a blob coming off disk, because
+ * `partialize` persists `connectionConfig` and not `valid`.
+ */
+export const isConnectionAddressGiven = (value: string): boolean => value.trim().length > 0
+
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),

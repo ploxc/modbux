@@ -16,6 +16,7 @@ import {
   useComInputWidth
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { isConnectionAddressGiven } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useCallback, useEffect } from 'react'
 
@@ -33,7 +34,7 @@ const ComInput = meme(() => {
   // Typing is valid only once it is not blank; picking from the list always is.
   const handleInputChange = useCallback((_event: unknown, value: string): void => {
     const clientZustand = useClientZustand.getState()
-    clientZustand.setCom(value, value.trim().length > 0)
+    clientZustand.setCom(value, isConnectionAddressGiven(value))
   }, [])
 
   const handleChange = useCallback((_event: unknown, value: string | null): void => {
