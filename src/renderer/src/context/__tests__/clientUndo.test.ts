@@ -130,7 +130,7 @@ describe('a field', () => {
     await client().setHost('10.0.0.5', true)
     setConnected(true)
 
-    expect(await clientUndo.undoClient()).toBe('refused')
+    expect(await clientUndo.undoClient()).toBe('refused-connected')
     expect(client().connectionConfig.tcp.host).toBe('10.0.0.5')
     expect(undo().client.past).toHaveLength(1)
 
@@ -179,6 +179,14 @@ describe('a field', () => {
     await clientUndo.undoClient()
 
     expect(client().registerConfig.pollRate).toBe(6000)
+  })
+
+  it('puts back a field that is no connection setting while a connection stands', async () => {
+    const { client, clientUndo, setConnected } = await load()
+    await client().setUnitId('7')
+    setConnected(true)
+
+    expect(await clientUndo.undoClient()).toBe('done')
   })
 
   it('leaves nothing to redo once a new edit comes after an undo', async () => {

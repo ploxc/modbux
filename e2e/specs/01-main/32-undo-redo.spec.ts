@@ -121,6 +121,18 @@ test.describe.serial('Undo and redo outside a field', () => {
     await mainPage.getByTestId('endian-be-btn').click()
   })
 
+  test('says there is nothing to redo right after a new step', async ({ mainPage }) => {
+    await navigateToClient(mainPage)
+    await selectRegisterType(mainPage, 'Holding Registers')
+    await mainPage.getByTestId('endian-le-btn').click()
+    await leaveTheField(mainPage)
+
+    await mainPage.keyboard.press('ControlOrMeta+Shift+z')
+
+    await expect(mainPage.locator('.notistack-SnackbarContainer')).toContainText('Nothing to redo')
+    await mainPage.getByTestId('endian-be-btn').click()
+  })
+
   test('the server view undoes and redoes an added coil', async ({ mainPage }) => {
     await navigateToServer(mainPage)
     await cleanServerState(mainPage)

@@ -9,7 +9,8 @@ import { MAIN_SERVER_UUID, RegisterParams } from '@shared'
 import { fireEvent, recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
 import { getDefaultServer } from '../server.zustand.helpers'
 
-vi.mock('notistack', () => ({ enqueueSnackbar: vi.fn() }))
+const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
+vi.mock('notistack', () => ({ enqueueSnackbar }))
 
 const SECOND_UUID = 'the-server-on-503'
 
@@ -27,6 +28,7 @@ const answerWith = (method: string, answer: (payload: unknown) => Promise<unknow
 beforeEach(() => {
   vi.resetModules()
   localStorage.clear()
+  enqueueSnackbar.mockClear()
   stubRenderer()
   // Main binds what it is asked for, and answers the port it holds.
   answerWith('createServer', (payload) => Promise.resolve((payload as { port: number }).port))
@@ -211,7 +213,7 @@ describe('a unit', () => {
       servers: { [SECOND_UUID]: { ...getDefaultServer(), port: '503' } }
     })
 
-    expect(await serverUndo.undoServer()).toBe('refused')
+    expect(await serverUndo.undoServer()).toBe('refused-gone')
     expect(undo().server.past).toHaveLength(1)
   })
 
@@ -389,6 +391,21 @@ describe('a whole server', () => {
     expect(restored?.name).toBe('second')
     expect(restored?.registers['0']?.coils[3]).toEqual({ value: false })
     expect(restored?.port).toBe('503')
+  })
+
+  it('says so when it comes back on another port than it had', async () => {
+    const { server, serverUndo } = await load()
+    await server().deleteServer(SECOND_UUID)
+    // Something took 503 meanwhile, so main walks up to the next one free.
+    answerWith('createServer', () => Promise.resolve(504))
+
+    await serverUndo.undoServer()
+
+    expect(server().servers[SECOND_UUID]?.port).toBe('504')
+    expect(enqueueSnackbar).toHaveBeenCalledWith({
+      message: 'Port 503 is taken, so the server is back on port 504',
+      variant: 'warning'
+    })
   })
 
   it('is one step for Clear, which puts the name and the registers back', async () => {

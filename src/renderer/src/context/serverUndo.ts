@@ -1,5 +1,6 @@
 import { UnitIdString } from '@shared'
 import { deepEqual } from 'fast-equals'
+import { enqueueSnackbar } from 'notistack'
 import { useServerZustand } from './server.zustand'
 import { PersistedServer } from './server.zustand.types'
 import { replayTop, useUndoZustand } from './undo.zustand'
@@ -13,6 +14,7 @@ import {
   ServerUndoStep,
   ServerUnitStep,
   UndoOutcome,
+  UndoRefusal,
   UndoStack
 } from './undo.zustand.types'
 
@@ -28,9 +30,9 @@ const show = (uuid: string, unitId?: UnitIdString): void => {
   }
 }
 
-const replayName = async (step: ServerNameStep): Promise<ServerNameStep | undefined> => {
+const replayName = async (step: ServerNameStep): Promise<ServerNameStep | UndoRefusal> => {
   const server = useServerZustand.getState().servers[step.uuid]
-  if (!server) return undefined
+  if (!server) return 'refused-gone'
   show(step.uuid)
   const replaced: ServerNameStep = { ...step, value: server.name ?? '' }
   useServerZustand.getState().setName(step.value)
@@ -38,9 +40,11 @@ const replayName = async (step: ServerNameStep): Promise<ServerNameStep | undefi
 }
 
 /** Refused when main binds another port, which is the port the server kept. */
-const replayPort = async (step: ServerPortStep): Promise<ServerPortStep | undefined> => {
+const replayPort = async (
+  step: ServerPortStep
+): Promise<ServerPortStep | UndoRefusal | undefined> => {
   const server = useServerZustand.getState().servers[step.uuid]
-  if (!server) return undefined
+  if (!server) return 'refused-gone'
   show(step.uuid)
   const replaced: ServerPortStep = { ...step, value: server.port }
   return (await useServerZustand.getState().setPort(step.value)) ? replaced : undefined
@@ -48,21 +52,21 @@ const replayPort = async (step: ServerPortStep): Promise<ServerPortStep | undefi
 
 const replayLittleEndian = async (
   step: ServerLittleEndianStep
-): Promise<ServerLittleEndianStep | undefined> => {
+): Promise<ServerLittleEndianStep | UndoRefusal | undefined> => {
   const server = useServerZustand.getState().servers[step.uuid]
-  if (!server) return undefined
+  if (!server) return 'refused-gone'
   show(step.uuid)
   const replaced: ServerLittleEndianStep = { ...step, value: server.littleEndian }
   return (await useServerZustand.getState().setLittleEndian(step.value)) ? replaced : undefined
 }
 
 /** Refused for a coil that is gone since, which switching would bring back. */
-const replayBool = async (step: ServerBoolStep): Promise<ServerBoolStep | undefined> => {
+const replayBool = async (step: ServerBoolStep): Promise<ServerBoolStep | UndoRefusal> => {
   const entry =
     useServerZustand.getState().servers[step.uuid]?.registers[step.unitId]?.[step.registerType][
       step.address
     ]
-  if (!entry) return undefined
+  if (!entry) return 'refused-gone'
   show(step.uuid, step.unitId)
   const replaced: ServerBoolStep = { ...step, value: entry.value }
   useServerZustand.getState().setBool({
@@ -75,9 +79,9 @@ const replayBool = async (step: ServerBoolStep): Promise<ServerBoolStep | undefi
   return replaced
 }
 
-const replayUnit = async (step: ServerUnitStep): Promise<ServerUnitStep | undefined> => {
+const replayUnit = async (step: ServerUnitStep): Promise<ServerUnitStep | UndoRefusal> => {
   const server = useServerZustand.getState().servers[step.uuid]
-  if (!server) return undefined
+  if (!server) return 'refused-gone'
   show(step.uuid, step.unitId)
   const replaced: ServerUnitStep = { ...step, value: server.registers[step.unitId] }
   await useServerZustand.getState().restoreUnit(step.uuid, step.unitId, step.value)
@@ -109,10 +113,21 @@ const replayServer = async (step: ServerRecordStep): Promise<ServerRecordStep | 
     return undefined
   }
   await useServerZustand.getState().restoreServer(step.uuid, step.value)
+
+  // A port something else took meanwhile is walked past, and the server
+  // listens on another one than it had. Said, because a master still aims at
+  // the old one.
+  const port = useServerZustand.getState().servers[step.uuid]?.port
+  if (port !== undefined && port !== step.value.port) {
+    enqueueSnackbar({
+      message: `Port ${step.value.port} is taken, so the server is back on port ${port}`,
+      variant: 'warning'
+    })
+  }
   return replaced
 }
 
-const replay = (step: ServerUndoStep): Promise<ServerUndoStep | undefined> => {
+const replay = (step: ServerUndoStep): Promise<ServerUndoStep | UndoRefusal | undefined> => {
   switch (step.kind) {
     case 'name':
       return replayName(step)

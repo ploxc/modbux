@@ -157,7 +157,14 @@ export interface UndoStack<Step> {
   openKey: string | undefined
 }
 
-export type UndoOutcome = 'done' | 'refused' | 'empty' | 'busy'
+/**
+ * Why a step stayed on its stack: a connection setting while a connection
+ * stands, a server or a coil that is gone, or a refusal with no reason known
+ * here, which main may have reported itself.
+ */
+export type UndoRefusal = 'refused' | 'refused-connected' | 'refused-gone'
+
+export type UndoOutcome = 'done' | 'empty' | 'busy' | UndoRefusal
 
 export interface UndoZustand {
   client: UndoStack<ClientUndoStep>

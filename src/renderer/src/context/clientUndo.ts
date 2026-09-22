@@ -1,7 +1,7 @@
 import { isConnectionAddressGiven, isReadLengthGiven } from '@shared'
 import { deepEqual } from 'fast-equals'
 import { useClientZustand } from './client.zustand'
-import { showMapping } from './data.zustand'
+import { showMapping, useDataZustand } from './data.zustand'
 import { replayTop, useUndoZustand } from './undo.zustand'
 import {
   clientFieldReaders,
@@ -19,6 +19,7 @@ import {
   ClientMappingStep,
   ClientUndoStep,
   UndoOutcome,
+  UndoRefusal,
   UndoStack
 } from './undo.zustand.types'
 
@@ -55,6 +56,24 @@ const clientFieldWriters: {
 }
 
 /**
+ * The fields a connect opens with, which their setters refuse while a
+ * connection stands. Named here so the refusal can say so.
+ */
+const CONNECTION_FIELDS: ReadonlySet<ClientField> = new Set<ClientField>([
+  'protocol',
+  'host',
+  'port',
+  'com',
+  'baudRate',
+  'parity',
+  'dataBits',
+  'stopBits'
+])
+
+const isDisconnected = (): boolean =>
+  useDataZustand.getState().clientState.connectState === 'disconnected'
+
+/**
  * Writes a step's value, and answers the step that would write back what was
  * there, or undefined when the store does not hold the value afterwards.
  *
@@ -64,7 +83,8 @@ const clientFieldWriters: {
  */
 const replayField = async <Field extends ClientField>(
   step: ClientFieldStepOf<Field>
-): Promise<ClientFieldStep | undefined> => {
+): Promise<ClientFieldStep | UndoRefusal | undefined> => {
+  if (CONNECTION_FIELDS.has(step.field) && !isDisconnected()) return 'refused-connected'
   const read = clientFieldReaders[step.field]
   const replaced = clientFieldSteps[step.field](read(useClientZustand.getState()))
   await clientFieldWriters[step.field](step.value)
@@ -114,7 +134,7 @@ const replayConfiguration = async (
   return replaced
 }
 
-const replay = (step: ClientUndoStep): Promise<ClientUndoStep | undefined> => {
+const replay = (step: ClientUndoStep): Promise<ClientUndoStep | UndoRefusal | undefined> => {
   switch (step.kind) {
     case 'field':
       return replayField(step)

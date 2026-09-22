@@ -8,10 +8,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from '../../context/__tests__/stubRenderer'
 
 const replays = vi.hoisted(() => ({
-  undoClient: vi.fn(async () => 'done'),
-  redoClient: vi.fn(async () => 'done'),
-  undoServer: vi.fn(async () => 'done'),
-  redoServer: vi.fn(async () => 'done')
+  undoClient: vi.fn(async (): Promise<string> => 'done'),
+  redoClient: vi.fn(async (): Promise<string> => 'done'),
+  undoServer: vi.fn(async (): Promise<string> => 'done'),
+  redoServer: vi.fn(async (): Promise<string> => 'done')
+}))
+const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
+vi.mock('notistack', () => ({
+  useSnackbar: (): { enqueueSnackbar: typeof enqueueSnackbar } => ({ enqueueSnackbar })
 }))
 vi.mock('@renderer/context/clientUndo', () => ({
   undoClient: replays.undoClient,
@@ -25,7 +29,8 @@ vi.mock('@renderer/context/serverUndo', () => ({
 beforeEach(() => {
   vi.resetModules()
   stubRenderer()
-  for (const replay of Object.values(replays)) replay.mockClear()
+  for (const replay of Object.values(replays)) replay.mockReset().mockResolvedValue('done')
+  enqueueSnackbar.mockClear()
 })
 
 const mount = async (appType: 'client' | 'server' | undefined): Promise<void> => {
@@ -122,6 +127,59 @@ describe('on the server view', () => {
     press({ key: 'Z', metaKey: true, shiftKey: true })
 
     expect(ran()).toEqual(['undoServer', 'redoServer'])
+  })
+})
+
+describe('what the user is told', () => {
+  it('says there is nothing to undo, or to redo, on an empty stack', async () => {
+    await mount('client')
+    replays.undoClient.mockResolvedValue('empty')
+    replays.redoClient.mockResolvedValue('empty')
+
+    press({ key: 'z', metaKey: true })
+    press({ key: 'Z', metaKey: true, shiftKey: true })
+
+    await vi.waitFor(() =>
+      expect(enqueueSnackbar.mock.calls.map(([said]) => said)).toEqual([
+        { message: 'Nothing to undo', variant: 'info' },
+        { message: 'Nothing to redo', variant: 'info' }
+      ])
+    )
+  })
+
+  it('says to disconnect for a connection setting', async () => {
+    await mount('client')
+    replays.undoClient.mockResolvedValue('refused-connected')
+
+    press({ key: 'z', metaKey: true })
+
+    await vi.waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith({
+        message: 'Disconnect to undo a connection setting',
+        variant: 'warning'
+      })
+    )
+  })
+
+  it('adds nothing to a refusal that was reported where it happened', async () => {
+    await mount('client')
+    replays.undoClient.mockResolvedValue('refused')
+
+    press({ key: 'z', metaKey: true })
+    await vi.waitFor(() => expect(replays.undoClient).toHaveBeenCalled())
+    await Promise.resolve()
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled()
+  })
+
+  it('says nothing for a step that went through', async () => {
+    await mount('client')
+
+    press({ key: 'z', metaKey: true })
+    await vi.waitFor(() => expect(replays.undoClient).toHaveBeenCalled())
+    await Promise.resolve()
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled()
   })
 })
 

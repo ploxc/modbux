@@ -5,6 +5,7 @@ import { redoServer, undoServer } from '@renderer/context/serverUndo'
 // Carries the server steps across the split, in both windows this listener runs in.
 import '@renderer/context/serverUndoHandover'
 import { UndoOutcome } from '@renderer/context/undo.zustand.types'
+import { useSnackbar, VariantType } from 'notistack'
 import { useEffect } from 'react'
 
 /** The keys, on any platform: Cmd or Ctrl with Z, with Shift+Z or Y for redo. */
@@ -28,6 +29,35 @@ export const holdsText = (element: Element | null): boolean => {
   return !['checkbox', 'radio', 'button', 'submit', 'range', 'file'].includes(element.type)
 }
 
+/**
+ * What each outcome tells the user, or nothing for one that says it by
+ * happening. A refused step stays on its stack, so the message says what to
+ * do for it to go through.
+ */
+export const undoMessage = (
+  outcome: UndoOutcome,
+  direction: 'undo' | 'redo'
+): { message: string; variant: VariantType } | undefined => {
+  switch (outcome) {
+    // A plain refusal was said already by what refused it: main answers a
+    // payload it refuses with a message of its own, and the port setter says
+    // which port is taken.
+    case 'done':
+    case 'busy':
+    case 'refused':
+      return undefined
+    case 'empty':
+      return { message: `Nothing to ${direction}`, variant: 'info' }
+    case 'refused-connected':
+      return { message: `Disconnect to ${direction} a connection setting`, variant: 'warning' }
+    case 'refused-gone':
+      return {
+        message: `Nothing to ${direction} there: that server or coil is gone`,
+        variant: 'warning'
+      }
+  }
+}
+
 const replays: Record<'client' | 'server', Record<'undo' | 'redo', () => Promise<UndoOutcome>>> = {
   client: { undo: undoClient, redo: redoClient },
   server: { undo: undoServer, redo: redoServer }
@@ -42,6 +72,8 @@ const replays: Record<'client' | 'server', Record<'undo' | 'redo', () => Promise
  * capture phase, so the grid's own key handling does not see the key first.
  */
 const UndoKeys = meme((): null => {
+  const { enqueueSnackbar } = useSnackbar()
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       const direction = undoKeyOf(event)
@@ -56,11 +88,14 @@ const UndoKeys = meme((): null => {
       if (!appType) return
 
       event.preventDefault()
-      void replays[appType][direction]()
+      void replays[appType][direction]().then((outcome) => {
+        const said = undoMessage(outcome, direction)
+        if (said) enqueueSnackbar(said)
+      })
     }
     window.addEventListener('keydown', onKeyDown, true)
     return (): void => window.removeEventListener('keydown', onKeyDown, true)
-  }, [])
+  }, [enqueueSnackbar])
 
   return null
 })

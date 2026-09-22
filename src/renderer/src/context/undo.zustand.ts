@@ -6,7 +6,7 @@ import {
   pushStep,
   serverStepKey
 } from './undo.zustand.helpers'
-import { UndoOutcome, UndoStack, UndoZustand } from './undo.zustand.types'
+import { UndoOutcome, UndoRefusal, UndoStack, UndoZustand } from './undo.zustand.types'
 
 /**
  * The undo and redo stacks, one per store.
@@ -48,10 +48,10 @@ export const useUndoZustand = create<UndoZustand>()((set, get) => ({
  * Quiet while it runs, so the setters the replay calls record nothing, and
  * `busy` while another replay or an action recorded as one step is running.
  */
-export const replayTop = async <Step>(
+export const replayTop = async <Step extends object>(
   stack: { read: () => UndoStack<Step>; write: (stack: UndoStack<Step>) => void },
   direction: 'undo' | 'redo',
-  replay: (step: Step) => Promise<Step | undefined>
+  replay: (step: Step) => Promise<Step | UndoRefusal | undefined>
 ): Promise<UndoOutcome> => {
   const undo = useUndoZustand.getState()
   if (undo.quiet > 0) return 'busy'
@@ -61,13 +61,14 @@ export const replayTop = async <Step>(
   if (step === undefined) return 'empty'
 
   undo.beginQuiet()
-  let replaced: Step | undefined
+  let replaced: Step | UndoRefusal | undefined
   try {
     replaced = await replay(step)
   } finally {
     undo.endQuiet()
   }
   if (replaced === undefined) return 'refused'
+  if (typeof replaced === 'string') return replaced
 
   stack.write(moveStep(stack.read(), direction, step, replaced))
   return 'done'
