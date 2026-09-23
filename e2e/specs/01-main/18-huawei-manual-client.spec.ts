@@ -239,9 +239,13 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     await mainPage.getByTestId('read-btn').click()
     await mainPage.waitForTimeout(5000)
 
-    // DataGrid virtualizes rows — only ~28-35 are in the DOM at once
-    const rowCount = await mainPage.locator('.MuiDataGrid-row').count()
-    expect(rowCount).toBeGreaterThanOrEqual(20)
+    // The grid virtualises, so the rows in the DOM are what the window is tall
+    // enough for: 29 here, 19 on the macOS and Windows runners. aria-rowcount
+    // counts every row, and the header.
+    await expect(mainPage.locator('.MuiDataGrid-root [role="grid"]').first()).toHaveAttribute(
+      'aria-rowcount',
+      String(TOTAL_REGISTERS + 1)
+    )
   })
 
   test('readConfig validates comments survived', async ({ mainPage }) => {
