@@ -12,9 +12,10 @@ const PollButton = meme((): JSX.Element => {
   // press that stops one: during a poll nothing else can own the client, so
   // this is undefined and the button is the Stop button.
   const owner = useDataZustand((z) => clientOwner(z.clientState, { exceptPolling: true }))
-  const disabled = notConnected || owner !== undefined
-
   const polling = useDataZustand((z) => z.clientState.polling)
+  // A poll goes on through a reconnect, so the press that stops it does too.
+  const disabled = (notConnected && !polling) || owner !== undefined
+
   const togglePolling = useCallback(() => {
     const uuid = selectedClientUuid()
     polling ? window.api.stopPolling(uuid) : window.api.startPolling(uuid)

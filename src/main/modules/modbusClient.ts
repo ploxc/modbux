@@ -1,3 +1,4 @@
+import type ModbusRTU from 'modbus-serial'
 import { AppState } from '../state'
 import {
   AddressGroup,
@@ -44,22 +45,47 @@ type ReadRegisters = (
   length: number
 ) => Promise<RegisterData[]>
 
+/** Answers whether the scan may go on: no once it was stopped or its ride ended. */
 type ScanUnitIdFn = ({
   id,
   address,
   length,
   registerTypes,
   timeout,
-  transport
-}: Omit<ScanUnitIDParameters, 'range'> & { id: number; transport: Transport }) => Promise<void>
+  ride,
+  scan
+}: Omit<ScanUnitIDParameters, 'range'> & {
+  id: number
+  ride: Ride
+  scan: number
+}) => Promise<boolean>
 
 /**
  * What a write did with the port.
  *
- * A write refused before it goes out files no transaction and has nothing to
- * read back, so refused and written are two answers rather than one.
+ * A write refused before it goes out has nothing to read back, and neither
+ * does one that failed on a connection that went while it waited. A write the
+ * device took, or refused, is read back.
  */
 type WriteAttempt = { sent: boolean }
+
+/** What a request came back with: its result, or the error it failed with. */
+type Settled<Result> = { ok: true; result: Result } | { ok: false; error: unknown }
+
+/**
+ * The connection a request went out on, taken when it went.
+ *
+ * `ride` is the client's count of the times it left a connected state, so an
+ * equal count means the client has been connected over this transport since
+ * the request went out. A different one means the connection is not the one
+ * there now, even when the transport, the state and the port read the same
+ * again: after a reconnect, or after leaving a shared transport and joining
+ * it once more.
+ */
+interface Ride {
+  transport: Transport
+  ride: number
+}
 
 interface ClientParams {
   uuid: string
@@ -84,15 +110,30 @@ export class ModbusClient implements TransportClient {
    */
   private _transport: Transport | undefined
 
+  /** How often this client has left a connected state. `Ride` says why. */
+  private _ride = 0
+
+  /**
+   * Which scan is the latest. A scan's tail clears its flag only while it is,
+   * because a scan that ended with its connection can finish after a new one
+   * started on the next.
+   */
+  private _scanGeneration = 0
+
+  /**
+   * Whether the scan started as `scan` is still the one running: its flag set,
+   * and no scan started since. A stopped scan's flag can be set again by the
+   * next one before its request settles.
+   */
+  private _stillScanning = (flag: 'scanningUnitIds' | 'scanningRegisters', scan: number): boolean =>
+    this._clientState[flag] && scan === this._scanGeneration
+
   private _clientState: ClientState = { ...defaultClientState }
 
   private _pollTimeout: NodeJS.Timeout | undefined
   private _pollGeneration = 0
   private _totalScans = 1
   private _scansDone = 1
-
-  private _reconnectWasPolling = false
-  private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
   constructor({ uuid, appState, windows, transports }: ClientParams) {
     this.uuid = uuid
@@ -152,13 +193,21 @@ export class ModbusClient implements TransportClient {
   //
   //
   // Utils
+  /** The one place the connect state changes, which is where a ride ends. */
+  private _enter = (connectState: ConnectState): void => {
+    if (this._clientState.connectState === 'connected' && connectState !== 'connected') {
+      this._ride++
+    }
+    this._clientState.connectState = connectState
+  }
+
   private _setDisconnected = (): void => {
-    this._clientState.connectState = 'disconnected'
+    this._enter('disconnected')
     // A scan is a read loop like polling is, so it ends here too. The loops
-    // break on the connect state as well, so what these two add is the flag
-    // reaching the dialogs in the `client_state` reporting the disconnect
-    // rather than at the end of the read in flight. They go before
-    // `stopPolling`, which sends one.
+    // end on the ride as well, when their request settles, so what these two
+    // add is the flag reaching the dialogs in the `client_state` reporting
+    // the disconnect rather than at the end of the read in flight. They go
+    // before `stopPolling`, which sends one.
     this.stopScanningUnitIds()
     this.stopScanningRegisters()
     this.stopPolling()
@@ -169,17 +218,23 @@ export class ModbusClient implements TransportClient {
    * The transport, when it is open under a connected state, with the message a
    * caller that finds it shut gets.
    *
-   * Three callers ask it, `_read`, `write` and either scan, and the state they
-   * find is one to correct rather than to report around: `connected` over a
-   * closed port leaves the view reading connected until something says
-   * otherwise, and `_setDisconnected` is what says it.
+   * Three callers ask it, `_read`, `write` and either scan. A client is
+   * disconnected when it rides no transport, so a no leaves the state to what
+   * decides it: an open or a close under way, or the reconnect `lost` starts
+   * for a port found shut. A disconnected client is told so again, which ends
+   * a poll or a scan that was started without a connection.
    *
    * A poll's own read is the one caller with nobody to answer, and it is the
-   * one that passes `quiet`: the close that ended it has already spoken.
+   * one that passes `quiet`.
    */
   private _connectedTransport = (verb: string, quiet = false): Transport | undefined => {
     const transport = this._transport
-    if (this._clientState.connectState === 'connected' && transport?.isOpen) return transport
+    if (transport && this._clientState.connectState === 'connected' && transport.isOpen) {
+      return transport
+    }
+    // `lost` has said what happened and put the client on connecting, so a
+    // refusal beside it would contradict it.
+    if (transport && this._noticeShut(transport)) return undefined
     if (!quiet) {
       this._emitMessage({
         message: `Cannot ${verb}, not connected`,
@@ -187,7 +242,51 @@ export class ModbusClient implements TransportClient {
         error: null
       })
     }
-    this._setDisconnected()
+    if (this._clientState.connectState === 'disconnected') this._setDisconnected()
+    return undefined
+  }
+
+  /**
+   * Report the client's transport lost when its port is shut under a
+   * connected state: `lost` puts the transport's clients on connecting and
+   * reconnects. A transport the client has left is not its to report.
+   * Answers whether it reported.
+   */
+  private _noticeShut = (transport: Transport): boolean => {
+    if (transport !== this._transport) return false
+    if (this._clientState.connectState !== 'connected' || transport.isOpen) return false
+    transport.lost()
+    return true
+  }
+
+  /** The ride a request that goes out now goes out on. */
+  private _rideOn = (transport: Transport): Ride => ({ transport, ride: this._ride })
+
+  /** Whether the connection a request went out on is still the one there. */
+  private _stillOn = ({ transport, ride }: Ride): boolean => ride === this._ride && transport.isOpen
+
+  /**
+   * What a request came back with, or undefined when its ride ended while it
+   * waited.
+   *
+   * A request waits its turn on the transport, and by the time it comes back
+   * the client may have left that connection, the port may be shut, or a
+   * reconnect may have put another connection in its place. What it brings
+   * back is then about a connection that is gone rather than the device's
+   * answer, so every caller drops it without a row, a result or a message.
+   */
+  private _settle = async <Result>(
+    ride: Ride,
+    request: Promise<Result>
+  ): Promise<Settled<Result> | undefined> => {
+    let settled: Settled<Result>
+    try {
+      settled = { ok: true, result: await request }
+    } catch (error) {
+      settled = { ok: false, error }
+    }
+    if (this._stillOn(ride)) return settled
+    this._noticeShut(ride.transport)
     return undefined
   }
 
@@ -217,45 +316,14 @@ export class ModbusClient implements TransportClient {
   //
   // What the transport tells this client
   public setConnectState = (connectState: ConnectState): void => {
-    this._clientState.connectState = connectState
+    this._enter(connectState)
     this._sendClientState()
   }
 
-  /**
-   * The connection is gone for this client, so everything it runs on it ends,
-   * and so does the poll a reconnect would have resumed.
-   */
+  /** The connection is gone for this client, so everything it runs on it ends. */
   public transportClosed = (from: Transport): void => {
     if (from !== this._transport) return
-    this._reconnectWasPolling = false
-    clearTimeout(this._reconnectResumePollingTimeout)
     this._setDisconnected()
-  }
-
-  /** Remember whether a poll ran, so the reconnect can resume it. */
-  public connectionLost = (): void => {
-    this._reconnectWasPolling = this._clientState.polling
-    this._clientState.connectState = 'connecting'
-    this._sendClientState()
-  }
-
-  /**
-   * Resume polling, and stay quiet about a second nobody was watching.
-   *
-   * The user can press Read in the second between the reconnect and this, and
-   * `startPolling` would then warn about a poll they did not ask for and drop
-   * the resume on the floor. `clientOwner` is the same question
-   * `_requireClient` asks, and leaving the memory set is what gives the next
-   * reconnect something to resume.
-   */
-  public reconnected = (): void => {
-    clearTimeout(this._reconnectResumePollingTimeout)
-    this._reconnectResumePollingTimeout = setTimeout(() => {
-      if (!this._reconnectWasPolling) return
-      if (clientOwner(this._clientState)) return
-      this._reconnectWasPolling = false
-      this.startPolling()
-    }, 1000)
   }
 
   //
@@ -267,29 +335,20 @@ export class ModbusClient implements TransportClient {
    */
   public connect = async (): Promise<void> => {
     const { connectionConfig } = this._appState
-    // A client rides one connection. A client still connected on another one
-    // keeps it, as it did when it held its own port. An `error` no close
-    // followed leaves a disconnected client on the one before, holding that
-    // port and hearing its reconnects, so that one is let go of first.
+    // A client rides one connection, and a client that rides one is not
+    // disconnected, so a connect elsewhere finds it connected or on its way.
+    // It keeps what it has, as it did when it held its own port.
     const previous = this._transport
-    const leaving =
-      previous?.rides(this) && previous.key !== transportKey(connectionConfig)
-        ? previous
-        : undefined
-    const { connectState } = this._clientState
-    if (leaving && connectState !== 'disconnected') {
+    if (previous?.rides(this) && previous.key !== transportKey(connectionConfig)) {
+      const { connectState } = this._clientState
       const message = connectState === 'connected' ? 'Already connected' : `Still ${connectState}`
       this._emitMessage({ message, variant: 'warning', error: null })
       return
     }
-    // A refused connect leaves the client on the transport it rode, so the
-    // question comes before it lets go of that one.
+    // Asked before `_transport` moves: a refused connect leaves the client on
+    // the transport whose close it is still waiting for.
     const transport = this._transports.acquire(connectionConfig)
     if (transport.refuses()) return
-    // `release` closes the port it rode in the background and tells nobody, so
-    // the question above and the join in `attach` run in one turn and the
-    // answer is still true when it joins.
-    leaving?.release(this)
     this._transport = transport
     await transport.attach(this, connectionConfig)
   }
@@ -299,7 +358,7 @@ export class ModbusClient implements TransportClient {
   // Disconnect
   public disconnect = async (): Promise<void> => {
     const wasConnecting = this._clientState.connectState === 'connecting'
-    this._clientState.connectState = 'disconnecting'
+    this._enter('disconnecting')
     this._sendClientState()
 
     const transport = this._transport
@@ -362,6 +421,7 @@ export class ModbusClient implements TransportClient {
   private _read = async (pollGeneration?: number): Promise<void> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
     if (!transport) return
+    const ride = this._rideOn(transport)
     const stopped = (): boolean =>
       pollGeneration !== undefined && pollGeneration !== this._pollGeneration
 
@@ -406,13 +466,20 @@ export class ModbusClient implements TransportClient {
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
       if (stopped()) return
-      try {
-        const rows = await this._readers[type](transport, target, groupAddress, groupLength)
-        rows.forEach((row) => {
+      const settled = await this._settle(
+        ride,
+        this._readers[type](transport, target, groupAddress, groupLength)
+      )
+      // The connection went while this group waited, so nothing of this read
+      // goes anywhere.
+      if (!settled) return
+      if (settled.ok) {
+        settled.result.forEach((row) => {
           row.groupIndex = groupIndex
         })
-        data.push(...rows)
-      } catch (error) {
+        data.push(...settled.result)
+      } else {
+        const { error } = settled
         const errorMessage = errorText(error)
 
         if (this._appState.readConfiguration) {
@@ -448,7 +515,6 @@ export class ModbusClient implements TransportClient {
           })
         }
       }
-      if (this._clientState.connectState !== 'connected') break
     }
 
     // A reply describes the unit id, type, address and length the requests
@@ -477,9 +543,8 @@ export class ModbusClient implements TransportClient {
    * Start a poll chain, unless one is already running.
    *
    * A chain is a read, a wait, and the next read, so a second chain is a second
-   * read of the same registers in every round. Both callers can arrive while a read is in flight:
-   * `start_polling` passes on whatever the renderer sends, and the reconnect
-   * resume fires a second after the connect that scheduled it.
+   * read of the same registers in every round. `start_polling` passes on
+   * whatever the renderer sends, so a start can arrive while a chain runs.
    */
   public startPolling = (): void => {
     if (this._clientState.polling) return
@@ -602,18 +667,18 @@ export class ModbusClient implements TransportClient {
     try {
       let attempt: WriteAttempt
 
+      const ride = this._rideOn(transport)
       switch (type) {
         case 'coils':
-          attempt = await this._writeCoil(transport, target, address, value, single)
+          attempt = await this._writeCoil(ride, target, address, value, single)
           break
         case 'holding_registers':
-          attempt = await this._writeRegister(transport, target, address, value, dataType, single)
+          attempt = await this._writeRegister(ride, target, address, value, dataType, single)
           break
       }
 
-      // A refused write has nothing to read back: every `sent: false` below
-      // emitted its own warning and put no request on the wire, so the device
-      // holds what it held.
+      // A write with nothing to read back: refused before it went out, with
+      // its own warning, or failed on a connection that went while it waited.
       if (!attempt.sent) return
 
       // Read back what the device now holds, unless a loop started during the
@@ -647,8 +712,33 @@ export class ModbusClient implements TransportClient {
       })
     )
 
+  /**
+   * One write request, and what it did with the port.
+   *
+   * A write the device took, or refused, is read back over the connection it
+   * went out on, and a refusal says why. Once that connection went while the
+   * write waited, there is nothing to read back over it and nothing to say:
+   * the read back would ask another connection, or none.
+   */
+  private _sendWrite = async (
+    ride: Ride,
+    target: RequestTarget,
+    send: (modbus: ModbusRTU) => Promise<unknown>
+  ): Promise<WriteAttempt> => {
+    const settled = await this._settle(ride, ride.transport.request<unknown>(target, send))
+    if (!settled) return { sent: false }
+    if (!settled.ok) {
+      this._emitMessage({
+        message: errorText(settled.error),
+        variant: 'error',
+        error: settled.error
+      })
+    }
+    return { sent: true }
+  }
+
   private _writeCoil = async (
-    transport: Transport,
+    ride: Ride,
     target: RequestTarget,
     address: number,
     value: boolean[],
@@ -668,24 +758,19 @@ export class ModbusClient implements TransportClient {
       return { sent: false }
     }
 
-    try {
-      await transport.request<unknown>(target, (modbus) =>
-        single
-          ? this._awaitWrite<WriteCoilResult>((next) =>
-              modbus.writeFC5(target.unitId, address, first, next)
-            )
-          : this._awaitWrite<WriteMultipleResult>((next) =>
-              modbus.writeFC15(target.unitId, address, value, next)
-            )
-      )
-    } catch (error) {
-      this._emitMessage({ message: errorText(error), variant: 'error', error })
-    }
-    return { sent: true }
+    return this._sendWrite(ride, target, (modbus) =>
+      single
+        ? this._awaitWrite<WriteCoilResult>((next) =>
+            modbus.writeFC5(target.unitId, address, first, next)
+          )
+        : this._awaitWrite<WriteMultipleResult>((next) =>
+            modbus.writeFC15(target.unitId, address, value, next)
+          )
+    )
   }
 
   private _writeRegister = async (
-    transport: Transport,
+    ride: Ride,
     target: RequestTarget,
     address: number,
     value: number,
@@ -717,20 +802,15 @@ export class ModbusClient implements TransportClient {
 
     const registers = createRegisters(dataType, value, littleEndian)
 
-    try {
-      await transport.request<unknown>(target, (modbus) =>
-        single
-          ? this._awaitWrite<WriteRegisterResult>((next) =>
-              modbus.writeFC6(target.unitId, address, registers[0], next)
-            )
-          : this._awaitWrite<WriteMultipleResult>((next) =>
-              modbus.writeFC16(target.unitId, address, registers, next)
-            )
-      )
-    } catch (error) {
-      this._emitMessage({ message: errorText(error), variant: 'error', error: error })
-    }
-    return { sent: true }
+    return this._sendWrite(ride, target, (modbus) =>
+      single
+        ? this._awaitWrite<WriteRegisterResult>((next) =>
+            modbus.writeFC6(target.unitId, address, registers[0], next)
+          )
+        : this._awaitWrite<WriteMultipleResult>((next) =>
+            modbus.writeFC16(target.unitId, address, registers, next)
+          )
+    )
   }
 
   //
@@ -751,6 +831,8 @@ export class ModbusClient implements TransportClient {
     this._clientState.scanningUnitIds = true
     this._sendClientState()
 
+    const ride = this._rideOn(transport)
+    const scan = ++this._scanGeneration
     const { range } = params
 
     this._totalScans = (range[1] - range[0] + 1) * params.registerTypes.length
@@ -758,11 +840,12 @@ export class ModbusClient implements TransportClient {
     this._scanProgressSentAt = 0
 
     for (let id = range[0]; id <= range[1]; id++) {
-      await this._scanUnitIds({ id, transport, ...params })
-      if (!this._clientState.scanningUnitIds) break
-      if (this._clientState.connectState !== 'connected') break
+      if (!(await this._scanUnitIds({ id, ride, scan, ...params }))) break
     }
 
+    // A scan that ended with its connection can finish after a new one
+    // started on the next, and the flag is that one's then.
+    if (scan !== this._scanGeneration) return
     this._clientState.scanningUnitIds = false
     this._sendClientState()
   }
@@ -779,7 +862,8 @@ export class ModbusClient implements TransportClient {
     length,
     registerTypes,
     timeout,
-    transport
+    ride,
+    scan
   }) => {
     const result: ScanUnitIDResult = {
       id,
@@ -795,33 +879,35 @@ export class ModbusClient implements TransportClient {
     }
 
     for (const registerType of registerTypes) {
-      if (!this._clientState.scanningUnitIds) {
-        this._sendClientState()
-        return
-      }
+      if (!this._stillScanning('scanningUnitIds', scan)) return false
 
-      try {
-        await this._readers[registerType](
-          transport,
+      const settled = await this._settle(
+        ride,
+        this._readers[registerType](
+          ride.transport,
           { uuid: this.uuid, unitId: id, timeout },
           address,
           length
         )
+      )
+      // A connection that went is not an id that did not answer, so the id
+      // gets no result, and neither does one a newer scan has overtaken.
+      if (!settled) return false
+      if (scan !== this._scanGeneration) return false
+      if (settled.ok) {
         result.registerTypes.push(registerType)
-      } catch (error) {
-        result.errorMessage[registerType] = errorText(error)
-        if (isModbusException(error)) result.refusedRegisterTypes.push(registerType)
+      } else {
+        result.errorMessage[registerType] = errorText(settled.error)
+        if (isModbusException(settled.error)) result.refusedRegisterTypes.push(registerType)
       }
 
       this._countScanStep()
     }
 
-    if (!this._clientState.scanningUnitIds) {
-      this._sendClientState()
-      return
-    }
+    if (!this._stillScanning('scanningUnitIds', scan)) return false
 
     this._sendUnitIdResult(result)
+    return true
   }
 
   //
@@ -856,40 +942,58 @@ export class ModbusClient implements TransportClient {
     this._clientState.scanningRegisters = true
     this._sendClientState()
 
+    const ride = this._rideOn(transport)
+    const scan = ++this._scanGeneration
+
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
-      await this._scanRegister(transport, target, address, length)
+      if (!(await this._scanRegister(ride, scan, target, address, length))) break
       this._countScanStep()
-      if (!this._clientState.scanningRegisters) break
-      if (this._clientState.connectState !== 'connected') break
+      if (!this._stillScanning('scanningRegisters', scan)) break
     }
 
+    if (scan !== this._scanGeneration) return
     this._clientState.scanningRegisters = false
     this._sendClientState()
   }
 
+  /**
+   * Answers whether the scan may go on, which is no once its ride ended or a
+   * newer scan started. What an overtaken scan brings back is the old range's,
+   * and the grid is the newer scan's by then.
+   */
   private _scanRegister = async (
-    transport: Transport,
+    ride: Ride,
+    scan: number,
     target: RequestTarget,
     address: number,
     length: number
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const type = this._appState.registerConfig.type
     // The last chunk alone, so the stride its caller walks is untouched. What
     // one response carries is clamped there, where the same number is the
     // stride and the progress divisor.
     length = Math.min(length, registersFrom(address))
 
-    let data: RegisterData[] | undefined
-
-    try {
-      data = await this._readers[type](transport, target, address, length)
-    } catch (error) {
-      this._emitMessage({ message: errorText(error), variant: 'error', error })
+    const settled = await this._settle(
+      ride,
+      this._readers[type](ride.transport, target, address, length)
+    )
+    if (!settled) return false
+    if (scan !== this._scanGeneration) return false
+    if (!settled.ok) {
+      this._emitMessage({
+        message: errorText(settled.error),
+        variant: 'error',
+        error: settled.error
+      })
+      return true
     }
 
-    if (!data) return
-    data = data.filter((row) => (isBooleanRegister(type) ? row.bit : row.hex !== '0000'))
+    const data = settled.result.filter((row) =>
+      isBooleanRegister(type) ? row.bit : row.hex !== '0000'
+    )
     this._sendData(data)
+    return true
   }
 
   public stopScanningRegisters = (): void => {

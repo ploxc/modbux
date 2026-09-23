@@ -56,6 +56,13 @@ vi.mock('modbus-serial', () => {
 import { Transport, TransportClient } from '../transport'
 import { Transports } from '../transports'
 
+/** Fire a handler the transport registered, or fail naming the one it did not. */
+const fireHandler = (event: 'close' | 'error', ...args: unknown[]): void => {
+  const handler = mockModbusRTU.handlers[event]
+  if (!handler) throw new Error(`no '${event}' handler registered`)
+  handler(...args)
+}
+
 let sent: Array<[string, unknown]> = []
 const windows = {
   send: vi.fn((event: string, payload: unknown) => {
@@ -78,11 +85,7 @@ const createClient = () => {
     transportClosed: () => {
       client.closed++
       states.push('disconnected')
-    },
-    connectionLost: () => {
-      states.push('connecting')
-    },
-    reconnected: () => {}
+    }
   }
   return client
 }
@@ -279,9 +282,7 @@ describe('Transport', () => {
       await transport.attach(second, tcp('10.0.0.1'))
 
       mockModbusRTU.isOpen = false
-      const close = mockModbusRTU.handlers['close']
-      if (!close) throw new Error('no close handler registered')
-      close()
+      fireHandler('close')
 
       expect(first.states.at(-1)).toBe('connecting')
       expect(second.states.at(-1)).toBe('connecting')
@@ -320,34 +321,86 @@ describe('Transport', () => {
     })
   })
 
-  describe('a client it releases', () => {
-    it('closes the port once nobody rides it, and tells nobody', async () => {
+  describe('a connection found lost', () => {
+    // A TCP reset leaves the port shut and says nothing, so the client on it
+    // still reads connected when the next one joins.
+    it('reconnects every rider when a client joins a port that died silently', async () => {
+      const first = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(first, tcp('10.0.0.1'))
+      mockModbusRTU.isOpen = false
+
+      const second = createClient()
+      await transport.attach(second, tcp('10.0.0.1'))
+
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(1)
+      expect(first.states.at(-1)).toBe('connecting')
+      expect(second.states.at(-1)).toBe('connecting')
+
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(2)
+      expect(first.states.at(-1)).toBe('connected')
+      expect(second.states.at(-1)).toBe('connected')
+    })
+
+    // modbus-serial leaves the port a reconnect replaced listening, and its
+    // close reaches the transport after the new port has opened.
+    it('ignores a close while the port reads open', async () => {
       const client = createClient()
       const transport = transports.acquire(tcp('10.0.0.1'))
       await transport.attach(client, tcp('10.0.0.1'))
       const before = sent.length
 
-      transport.release(client)
-      await vi.advanceTimersByTimeAsync(0)
+      fireHandler('close')
+      await vi.advanceTimersByTimeAsync(3500)
 
-      expect(mockModbusRTU.close).toHaveBeenCalledTimes(1)
       expect(sent.slice(before)).toEqual([])
-      expect(client.closed).toBe(0)
-      expect(transports.acquire(tcp('10.0.0.1'))).not.toBe(transport)
+      expect(client.states.at(-1)).toBe('connected')
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(1)
     })
 
-    it('leaves the port open for the clients still on it', async () => {
+    it('adds nothing to a reconnect whose open is on its way', async () => {
+      const client = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(client, tcp('10.0.0.1'))
+      mockModbusRTU.isOpen = false
+      mockModbusRTU.connectTCP.mockImplementation(() => new Promise<void>(() => {}))
+
+      transport.lost()
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(2)
+      transport.lost()
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(2)
+      const lost = messages().filter((message) =>
+        String((message as { message: string }).message).startsWith('Connection lost')
+      )
+      expect(lost).toHaveLength(1)
+    })
+
+    it('puts every client on connecting and reconnects once for two reports', async () => {
       const first = createClient()
       const second = createClient()
       const transport = transports.acquire(tcp('10.0.0.1'))
       await transport.attach(first, tcp('10.0.0.1'))
       await transport.attach(second, tcp('10.0.0.1'))
+      mockModbusRTU.isOpen = false
 
-      transport.release(first)
+      transport.lost()
+      transport.lost()
+      fireHandler('close')
 
-      expect(mockModbusRTU.close).not.toHaveBeenCalled()
-      expect(transport.rides(first)).toBe(false)
-      expect(transport.rides(second)).toBe(true)
+      expect(first.states.at(-1)).toBe('connecting')
+      expect(second.states.at(-1)).toBe('connecting')
+      const lost = messages().filter((message) =>
+        String((message as { message: string }).message).startsWith('Connection lost')
+      )
+      expect(lost).toHaveLength(1)
+
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(2)
+      expect(first.states.at(-1)).toBe('connected')
     })
   })
 

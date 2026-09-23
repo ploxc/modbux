@@ -17,6 +17,9 @@ let clientEventHandlers: Record<string, (...args: unknown[]) => void> = {}
 const fireClientEvent = (event: 'close' | 'error', ...args: unknown[]): void => {
   const handler = clientEventHandlers[event]
   if (!handler) throw new Error(`no '${event}' handler registered`)
+  // modbus-serial's ports set `openFlag` false before they emit a close, so
+  // the client reads shut by the time the close reaches it.
+  if (event === 'close') mockModbusRTU.isOpen = false
   handler(...args)
 }
 
@@ -129,6 +132,13 @@ import { ModbusClient } from '../modbusClient'
 import { Transports } from '../modbusClient/transports'
 import * as serialPorts from '../modbusClient/serialPorts'
 import ModbusRTU from 'modbus-serial'
+
+/** Answer the oldest request still waiting, or fail naming that none is. */
+const answerNext = (answers: Array<() => void>): void => {
+  const answer = answers.shift()
+  if (!answer) throw new Error('no request is waiting for an answer')
+  answer()
+}
 
 /** When a mock was first called, or a failure naming the one that never ran. */
 const firstCallOrder = (
@@ -536,20 +546,16 @@ describe('ModbusClient', () => {
       await retry
     })
 
-    // An `error` that no close follows leaves the client on its connection.
-    // A connect to another one lets go of that first, so the port it held
-    // closes rather than staying open under a client that left it.
-    it('lets go of the connection it rode before connecting to another', async () => {
+    // An `error` that no close follows says so and changes nothing: the port
+    // may well be working.
+    it('keeps a port an error left working', async () => {
       await connectClient()
       fireClientEvent('error', new Error('the port faulted'))
-      const first = constructedClient(0)
+      expect(client.state.connectState).toBe('connected')
 
-      appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      mockModbusRTU = createMockModbusRTU()
-      await connectClient()
-
-      expect(first.close).toHaveBeenCalledTimes(1)
-      expect(constructedClient(1).connectTCP).toHaveBeenCalledTimes(1)
+      setupHoldingRegisterReadMock([100])
+      await client.read()
+      expect(getWindowCalls('register_data')).toHaveLength(1)
     })
 
     // Main does not refuse a connection field while connected, so a connect
@@ -639,60 +645,6 @@ describe('ModbusClient', () => {
       closed()
       await disconnecting
       expect(client.state.connectState).toBe('disconnected')
-    })
-
-    // Its close is the old transport's business: the connect goes on while it
-    // runs, and nothing it reports afterwards reaches the client.
-    it('connects elsewhere without waiting for the port it rode to close', async () => {
-      await connectClient()
-      fireClientEvent('error', new Error('the port faulted'))
-      let closed: () => void = () => {
-        throw new Error('close was never called')
-      }
-      constructedClient(0).close.mockImplementation((callback: () => void) => {
-        closed = callback
-      })
-
-      appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      mockModbusRTU = createMockModbusRTU()
-      await connectClient()
-      expect(client.state.connectState).toBe('connected')
-      const messagesBefore = getWindowCalls('backend_message').length
-      const statesBefore = getWindowCalls('client_state').length
-
-      closed()
-      await vi.advanceTimersByTimeAsync(5000)
-
-      expect(client.state.connectState).toBe('connected')
-      expect(getWindowCalls('backend_message').slice(messagesBefore)).toEqual([])
-      expect(getWindowCalls('client_state').slice(statesBefore)).toEqual([])
-    })
-
-    it('keeps the connection it rode when the next one refuses it', async () => {
-      await connectClient()
-      fireClientEvent('error', new Error('the port faulted'))
-
-      mockModbusRTU = createMockModbusRTU()
-      mockModbusRTU.connectTCP.mockImplementation(() => new Promise<void>(() => {}))
-      const otherState = new AppState()
-      otherState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      const other = new ModbusClient({
-        uuid: 'client-2',
-        appState: otherState,
-        windows,
-        transports
-      })
-      void other.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      await other.disconnect()
-
-      appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      await client.connect()
-
-      expect(constructedClient(0).close).not.toHaveBeenCalled()
-      expect(getWindowCalls('backend_message').at(-1)?.[1].message).toBe(
-        'Still finishing the connect you cancelled'
-      )
     })
 
     it('emits "Already connected" warning if client is open', async () => {
@@ -1063,81 +1015,68 @@ describe('ModbusClient', () => {
     })
 
     /**
-     * The second between a reconnect and the resume it schedules.
+     * A poll across a reconnect.
      *
-     * The resume goes through `startPolling`, which refuses while anything
-     * owns the client and says so. A user pressing Read in that second got a
-     * warning about a poll they never asked for, and the resume cleared its
-     * own memory on the next line, so nothing tried again.
+     * A client rides its transport through a reconnect, and a request that
+     * finds it connecting is refused without touching the state, so the poll
+     * goes on ticking and reads again once the connection is back. A stop in
+     * between is the user's, and nothing undoes it.
      */
-    describe('the poll a reconnect resumes', () => {
-      const dropAndReconnect = async (): Promise<void> => {
+    describe('a poll across a reconnect', () => {
+      const drop = (): void => {
         mockModbusRTU.isOpen = false
         fireClientEvent('close')
-        await vi.advanceTimersByTimeAsync(3500)
       }
 
-      it('is resumed when the client is idle', async () => {
+      it('asks nothing while the reconnect runs, and reads again after it', async () => {
         await connectClient()
         setupHoldingRegisterReadMock([100])
         client.startPolling()
         await vi.advanceTimersByTimeAsync(100)
 
-        await dropAndReconnect()
-        await vi.advanceTimersByTimeAsync(1100)
-
+        drop()
+        mockModbusRTU.readHoldingRegisters.mockClear()
+        await vi.advanceTimersByTimeAsync(2900)
+        expect(client.state.connectState).toBe('connecting')
         expect(client.state.polling).toBe(true)
+        expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+        expect(
+          getWindowCalls('client_state').some((call) => call[1].connectState === 'disconnected')
+        ).toBe(false)
+
+        await vi.advanceTimersByTimeAsync(2000)
+        expect(client.state.connectState).toBe('connected')
+        expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
         client.stopPolling()
       })
 
-      // The resume is owed to the connection that came back, and a disconnect
-      // in the second before it pays it off rather than leaving it to start a
-      // poll on a closed port.
-      it('is not resumed after a disconnect in the second before it', async () => {
+      it('stays stopped when it was stopped during the reconnect', async () => {
         await connectClient()
         setupHoldingRegisterReadMock([100])
         client.startPolling()
         await vi.advanceTimersByTimeAsync(100)
 
-        await dropAndReconnect()
-        await client.disconnect()
-        const sentBefore = getWindowCalls('client_state').length
-        await vi.advanceTimersByTimeAsync(1100)
+        drop()
+        await vi.advanceTimersByTimeAsync(1000)
+        client.stopPolling()
+        await vi.advanceTimersByTimeAsync(5000)
 
-        const polledAfter = getWindowCalls('client_state')
-          .slice(sentBefore)
-          .some((call) => call[1].polling)
-        expect(polledAfter).toBe(false)
+        expect(client.state.connectState).toBe('connected')
+        expect(client.state.polling).toBe(false)
       })
 
-      it('says nothing and stays owed while a read holds the client', async () => {
+      it('ends when the reconnect gives up', async () => {
         await connectClient()
         setupHoldingRegisterReadMock([100])
+        mockModbusRTU.connectTCP.mockRejectedValue(new Error('ECONNREFUSED'))
         client.startPolling()
         await vi.advanceTimersByTimeAsync(100)
 
-        // The reconnect lands at 3000 ms and schedules the resume 1000 after
-        // it, so this stops 900 ms short of the resume with the poll already
-        // ended by the drop.
-        mockModbusRTU.isOpen = false
-        fireClientEvent('close')
-        await vi.advanceTimersByTimeAsync(3100)
+        drop()
+        await vi.advanceTimersByTimeAsync(30000)
+
+        expect(client.state.connectState).toBe('disconnected')
         expect(client.state.polling).toBe(false)
-
-        const gated = gateTheReads()
-        void client.read()
-        await vi.advanceTimersByTimeAsync(0)
-        expect(client.state.reading).toBe(true)
-
-        await vi.advanceTimersByTimeAsync(1000)
-
-        expect(client.state.polling).toBe(false)
-        expect(getWindowCalls('backend_message').map((m) => m[1].message)).not.toContain(
-          'Cannot poll during another read'
-        )
-
-        await gated.resolveAll()
-        await vi.advanceTimersByTimeAsync(0)
       })
     })
 
@@ -1285,8 +1224,9 @@ describe('ModbusClient', () => {
   })
 
   describe('close event edge cases', () => {
-    // ! Coverage-only: exercises close handler when auto-reconnect is exhausted
-    it('emits "Connection closed unexpectedly" when auto-reconnect is disabled', async () => {
+    // A close that lands after the burst gave up is about a connection nobody
+    // rides any more, and the user has been told it gave up.
+    it('says nothing about a close after the reconnect gave up', async () => {
       await connectClient()
       // Disable auto-reconnect by exhausting reconnects
       await vi.advanceTimersByTimeAsync(11000)
@@ -1295,12 +1235,12 @@ describe('ModbusClient', () => {
         await vi.advanceTimersByTimeAsync(3500)
       }
 
-      // Now auto-reconnect is disabled. Trigger another close.
-      ;(windows.send as ReturnType<typeof vi.fn>).mockClear()
+      expect(client.state.connectState).toBe('disconnected')
+      const before = getWindowCalls('backend_message').length
       fireClientEvent('close')
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Connection closed unexpectedly')).toBe(true)
+      expect(getWindowCalls('backend_message').slice(before)).toEqual([])
+      expect(client.state.connectState).toBe('disconnected')
     })
   })
 
@@ -1653,19 +1593,23 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
     })
 
-    it('scanRegisters refuses when the port closed under a connected state', async () => {
+    it('scanRegisters reports the connection lost when the port closed underneath', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([0])
       mockModbusRTU.isOpen = false
 
       await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
+      const messages = getWindowCalls('backend_message').map((m) => m[1].message)
+      expect(messages.some((message) => message.startsWith('Connection lost'))).toBe(true)
+      expect(messages).not.toContain('Cannot scan, not connected')
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
     })
   })
 
+  // A TCP reset reaches the transport as nothing: `tcpport.js` emits no error
+  // and no close for it. The request that finds the port shut is what says
+  // the connection is lost, and the transport reconnects.
   describe('a port that closed under a connected state', () => {
     /** Connected as far as the state knows, and shut underneath. */
     const closedUnderneath = async (): Promise<void> => {
@@ -1674,27 +1618,30 @@ describe('ModbusClient', () => {
       mockModbusRTU.isOpen = false
     }
 
-    it('a refused write reports the disconnect', async () => {
-      await closedUnderneath()
+    const lostAndReconnecting = (): void => {
+      expect(client.state.connectState).toBe('connecting')
+      expect(getLastClientState().connectState).toBe('connecting')
+      expect(
+        getWindowCalls('backend_message').some((m) =>
+          m[1].message.startsWith('Connection lost, reconnecting')
+        )
+      ).toBe(true)
+    }
 
+    it('a refused write reports the connection lost', async () => {
+      await closedUnderneath()
       await client.write({ address: 5, type: 'coils', value: [true], single: true })
-
-      expect(client.state.connectState).toBe('disconnected')
-      expect(getLastClientState().connectState).toBe('disconnected')
+      lostAndReconnecting()
     })
 
-    it('a refused register scan reports the disconnect', async () => {
+    it('a refused register scan reports the connection lost', async () => {
       await closedUnderneath()
-
       await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
-
-      expect(client.state.connectState).toBe('disconnected')
-      expect(getLastClientState().connectState).toBe('disconnected')
+      lostAndReconnecting()
     })
 
-    it('a refused unit id scan reports the disconnect', async () => {
+    it('a refused unit id scan reports the connection lost', async () => {
       await closedUnderneath()
-
       await client.scanUnitIds({
         range: [1, 3],
         address: 0,
@@ -1702,32 +1649,413 @@ describe('ModbusClient', () => {
         registerTypes: ['holding_registers'],
         timeout: 1000
       })
-
-      expect(client.state.connectState).toBe('disconnected')
-      expect(getLastClientState().connectState).toBe('disconnected')
+      lostAndReconnecting()
     })
 
-    // A poll asked for one read and gets one message per read otherwise, and
-    // the close that shut the port has already said what happened.
-    it('a poll reports the disconnect without saying it cannot read', async () => {
+    // A poll asked for one read and gets one message per read otherwise.
+    it('a poll waits the reconnect out without saying it cannot read', async () => {
       await closedUnderneath()
 
       client.startPolling()
       await vi.advanceTimersByTimeAsync(100)
 
+      lostAndReconnecting()
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot read, not connected')).toBe(false)
-      expect(client.state.polling).toBe(false)
-      expect(getLastClientState().connectState).toBe('disconnected')
+      expect(client.state.polling).toBe(true)
+      client.stopPolling()
     })
 
-    it('a read the user asked for says it cannot read', async () => {
+    // `lost` says what happened, and a refusal beside it would contradict it.
+    it('a read the user asked for says the connection was lost, and only that', async () => {
       await closedUnderneath()
 
       await client.read()
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message === 'Cannot read, not connected')).toBe(true)
+      const messages = getWindowCalls('backend_message').map((m) => m[1].message)
+      expect(messages.filter((message) => message.startsWith('Connection lost'))).toHaveLength(1)
+      expect(messages).not.toContain('Cannot read, not connected')
+    })
+
+    // A loop holds the transport it started on. When the client has moved on,
+    // what that transport's shut port says is about the one it left.
+    it('leaves the client alone when a read over the transport it left fails', async () => {
+      await connectClient()
+      let fail: () => void = () => {
+        throw new Error('the read was never sent')
+      }
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' }, 100: { dataType: 'uint16' } }
+      })
+      mockModbusRTU.readHoldingRegisters.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = () => reject(new Error('Timed out'))
+          })
+      )
+      const reading = client.read()
+      await vi.advanceTimersByTimeAsync(0)
+
+      await client.disconnect()
+      appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
+      mockModbusRTU = createMockModbusRTU()
+      await connectClient()
+
+      constructedClient(0).isOpen = false
+      const messagesBefore = getWindowCalls('backend_message').length
+      const rowsBefore = getWindowCalls('register_data').length
+      fail()
+      await reading
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(client.state.connectState).toBe('connected')
+      expect(getWindowCalls('register_data')).toHaveLength(rowsBefore)
+      expect(
+        getWindowCalls('backend_message')
+          .slice(messagesBefore)
+          .some((m) => m[1].message.startsWith('Connection lost'))
+      ).toBe(false)
+      expect(constructedClient(0).connectTCP).toHaveBeenCalledTimes(1)
+    })
+
+    // Nothing refuses a poll started without a connection, and a chain nobody
+    // ends would tick for as long as Modbux runs.
+    it('ends a poll started without a connection', async () => {
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(client.state.polling).toBe(false)
+    })
+
+    // `_settle` is the one place a request's answer is dropped when its
+    // connection went, so each kind of request is asked once here.
+    describe('a request whose connection went while it waited', () => {
+      const shutDuring = (reader: 'readHoldingRegisters' | 'readInputRegisters'): void => {
+        mockModbusRTU[reader].mockImplementation(async () => {
+          mockModbusRTU.isOpen = false
+          throw new Error('Port Not Open')
+        })
+      }
+
+      it('gives a unit id no result when its only type found the port shut', async () => {
+        await connectClient()
+        shutDuring('readHoldingRegisters')
+
+        await client.scanUnitIds({
+          range: [1, 3],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers'],
+          timeout: 1000
+        })
+
+        expect(getWindowCalls('scan_unit_id_result')).toEqual([])
+        expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+        expect(client.state.scanningUnitIds).toBe(false)
+      })
+
+      // A stop leaves the request on the wire, and the next scan sets the
+      // flag again before it settles.
+      it('ends a stopped scan even when the next one has started', async () => {
+        await connectClient()
+        const answers: Array<() => void> = []
+        mockModbusRTU.readHoldingRegisters.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              answers.push(() => resolve({ data: [1], buffer: Buffer.from([0, 1]) }))
+            })
+        )
+        const scan = (range: [number, number]) =>
+          client.scanUnitIds({
+            range,
+            address: 0,
+            length: 1,
+            registerTypes: ['holding_registers'],
+            timeout: 1000
+          })
+        const stopped = scan([1, 3])
+        await vi.advanceTimersByTimeAsync(0)
+        client.stopScanningUnitIds()
+        const next = scan([10, 10])
+        await vi.advanceTimersByTimeAsync(0)
+
+        answerNext(answers)
+        await stopped
+        await vi.advanceTimersByTimeAsync(0)
+        answerNext(answers)
+        await next
+
+        expect(getWindowCalls('scan_unit_id_result').map((call) => call[1].id)).toEqual([10])
+        expect(getWindowCalls('scan_progress').map((call) => call[1])).toEqual([100])
+      })
+
+      it('sends a stopped register scan’s last chunk nowhere once the next one has started', async () => {
+        await connectClient()
+        const answers: Array<() => void> = []
+        mockModbusRTU.readHoldingRegisters.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              answers.push(() => resolve({ data: [1], buffer: Buffer.from([0, 1]) }))
+            })
+        )
+        const stopped = client.scanRegisters({ addressRange: [1, 3], length: 1, timeout: 1000 })
+        await vi.advanceTimersByTimeAsync(0)
+        client.stopScanningRegisters()
+        const next = client.scanRegisters({ addressRange: [10, 10], length: 1, timeout: 1000 })
+        await vi.advanceTimersByTimeAsync(0)
+
+        answerNext(answers)
+        await stopped
+        await vi.advanceTimersByTimeAsync(0)
+        answerNext(answers)
+        await next
+
+        const rows = getWindowCalls('register_data').flatMap((call) => call[1])
+        expect(rows.map((row) => row.id)).toEqual([10])
+        expect(getWindowCalls('scan_progress').map((call) => call[1])).toEqual([100])
+      })
+
+      // A connect that finds the client connected answers "Already connected"
+      // and changes nothing, so the scan running over that connection runs on.
+      it('keeps a scan running through a connect that changes nothing', async () => {
+        await connectClient()
+        let answer: () => void = () => {
+          throw new Error('the probe was never sent')
+        }
+        mockModbusRTU.readHoldingRegisters.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              answer = () => resolve({ data: [1], buffer: Buffer.from([0, 1]) })
+            })
+        )
+        const scanning = client.scanUnitIds({
+          range: [1, 1],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers'],
+          timeout: 1000
+        })
+        await vi.advanceTimersByTimeAsync(0)
+
+        await client.connect()
+        answer()
+        await scanning
+
+        expect(getWindowCalls('scan_unit_id_result')).toHaveLength(1)
+        expect(client.state.scanningUnitIds).toBe(false)
+      })
+
+      it('sends no half grid for a read that found the port shut part way', async () => {
+        await connectClient()
+        appState.setReadConfiguration(true)
+        appState.setRegisterMapping({
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: { 0: { dataType: 'uint16' }, 100: { dataType: 'uint16' } }
+        })
+        mockModbusRTU.readHoldingRegisters
+          .mockResolvedValueOnce({ data: [1], buffer: Buffer.from([0, 1]) })
+          .mockImplementationOnce(async () => {
+            mockModbusRTU.isOpen = false
+            throw new Error('Port Not Open')
+          })
+
+        await client.read()
+
+        expect(getWindowCalls('register_data')).toEqual([])
+      })
+
+      it('says nothing of a failed read over a connection the client left', async () => {
+        await connectClient()
+        let fail: () => void = () => {
+          throw new Error('the read was never sent')
+        }
+        mockModbusRTU.readHoldingRegisters.mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              fail = () => reject(new Error('Timed out'))
+            })
+        )
+        const reading = client.read()
+        await vi.advanceTimersByTimeAsync(0)
+        await client.disconnect()
+        appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
+        mockModbusRTU = createMockModbusRTU()
+        await connectClient()
+
+        const before = getWindowCalls('backend_message').length
+        fail()
+        await reading
+
+        expect(getWindowCalls('backend_message').slice(before)).toEqual([])
+      })
+
+      // The transport, the state and the port all read the same after a
+      // reconnect, and the request still went out on the connection before.
+      it('drops a read that went out before a reconnect', async () => {
+        await connectClient()
+        let fail: () => void = () => {
+          throw new Error('the read was never sent')
+        }
+        mockModbusRTU.readHoldingRegisters.mockImplementationOnce(
+          () =>
+            new Promise((_resolve, reject) => {
+              fail = () => reject(new Error('Timed out'))
+            })
+        )
+        const reading = client.read()
+        await vi.advanceTimersByTimeAsync(0)
+
+        mockModbusRTU.isOpen = false
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3500)
+        expect(client.state.connectState).toBe('connected')
+
+        const before = getWindowCalls('backend_message').length
+        fail()
+        await reading
+
+        expect(getWindowCalls('backend_message').slice(before)).toEqual([])
+      })
+
+      it('says nothing of a write that failed on a connection that went', async () => {
+        await connectClient()
+        let fail: () => void = () => {
+          throw new Error('the write was never sent')
+        }
+        mockModbusRTU.writeFC5.mockImplementationOnce(
+          (_unit: number, _address: number, _value: boolean, next: (error: Error) => void) => {
+            fail = () => next(new Error('Timed out'))
+          }
+        )
+        const writing = client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await vi.advanceTimersByTimeAsync(0)
+
+        mockModbusRTU.isOpen = false
+        fireClientEvent('close')
+        const before = getWindowCalls('backend_message').length
+        mockModbusRTU.readCoils.mockClear()
+        fail()
+        await writing
+
+        expect(getWindowCalls('backend_message').slice(before)).toEqual([])
+        expect(mockModbusRTU.readCoils).not.toHaveBeenCalled()
+      })
+
+      // It landed, but the read back would ask another connection, or none.
+      it('reads nothing back of a write whose connection went after it landed', async () => {
+        await connectClient()
+        let answer: () => void = () => {
+          throw new Error('the write was never sent')
+        }
+        mockModbusRTU.writeFC5.mockImplementationOnce(
+          (_unit: number, _address: number, _value: boolean, next: (error: null) => void) => {
+            answer = () => next(null)
+          }
+        )
+        const writing = client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await vi.advanceTimersByTimeAsync(0)
+
+        fireClientEvent('close')
+        mockModbusRTU.readCoils.mockClear()
+        const before = getWindowCalls('backend_message').length
+        answer()
+        await writing
+
+        expect(mockModbusRTU.readCoils).not.toHaveBeenCalled()
+        expect(
+          getWindowCalls('backend_message')
+            .slice(before)
+            .map((m) => m[1].message)
+        ).not.toContain('Cannot read, not connected')
+      })
+
+      // Another client keeps the transport open, so leaving and joining again
+      // finds the same transport, connected and open, and only the ride says
+      // the old scan's request went out before.
+      it('leaves a new scan alone when the old one settles after a rejoin', async () => {
+        await connectClient()
+        const other = new ModbusClient({
+          uuid: 'client-2',
+          appState: new AppState(),
+          windows,
+          transports
+        })
+        await other.connect()
+
+        const answers: Array<() => void> = []
+        mockModbusRTU.readHoldingRegisters.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              answers.push(() => resolve({ data: [1], buffer: Buffer.from([0, 1]) }))
+            })
+        )
+        const parameters = {
+          range: [1, 1] as [number, number],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers' as const],
+          timeout: 1000
+        }
+        const oldScan = client.scanUnitIds(parameters)
+        await vi.advanceTimersByTimeAsync(0)
+
+        await client.disconnect()
+        await client.connect()
+        const newScan = client.scanUnitIds(parameters)
+        await vi.advanceTimersByTimeAsync(0)
+
+        answerNext(answers)
+        await oldScan
+        expect(client.state.scanningUnitIds).toBe(true)
+        expect(getWindowCalls('scan_unit_id_result')).toEqual([])
+
+        await vi.advanceTimersByTimeAsync(0)
+        answerNext(answers)
+        await newScan
+        expect(getWindowCalls('scan_unit_id_result')).toHaveLength(1)
+      })
+
+      it('sends no rows of a scan chunk over a connection the client left', async () => {
+        await connectClient()
+        let answer: () => void = () => {
+          throw new Error('the chunk was never sent')
+        }
+        mockModbusRTU.readHoldingRegisters.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              answer = () => resolve({ data: [7], buffer: Buffer.from([0, 7]) })
+            })
+        )
+        const scanning = client.scanRegisters({ addressRange: [0, 0], length: 1, timeout: 1000 })
+        await vi.advanceTimersByTimeAsync(0)
+        await client.disconnect()
+        appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
+        mockModbusRTU = createMockModbusRTU()
+        await connectClient()
+
+        answer()
+        await scanning
+
+        expect(getWindowCalls('register_data')).toEqual([])
+      })
+    })
+
+    it('starts one reconnect for two requests that find it shut', async () => {
+      await closedUnderneath()
+
+      await client.read()
+      await client.read()
+
+      const lost = getWindowCalls('backend_message').filter((m) =>
+        m[1].message.startsWith('Connection lost, reconnecting')
+      )
+      expect(lost).toHaveLength(1)
     })
   })
 
@@ -3208,8 +3536,9 @@ describe('ModbusClient', () => {
       })
     })
 
-    // Every `sent: false` branch says why in a snackbar and puts nothing on the
-    // wire, so the device holds what it held and there is nothing to read back.
+    // A write refused before it goes out says why in a snackbar and puts
+    // nothing on the wire, so the device holds what it held and there is
+    // nothing to read back.
     it('reads nothing back when the write never reached the wire', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
@@ -3572,6 +3901,7 @@ describe('ModbusClient', () => {
       // reconnect calls setID again, which is what this asserts on.
       mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
         fireClientEvent('error', new Error('socket hang up'))
+        mockModbusRTU.isOpen = false
         throw new Error('Port Not Open')
       })
       mockModbusRTU.setID.mockClear()
@@ -3987,11 +4317,32 @@ describe('ModbusClient', () => {
       expect(client.state.scanningRegisters).toBe(false)
     })
 
+    it('gives no result for the id the connection dropped during', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        mockModbusRTU.isOpen = false
+        throw new Error('Port Not Open')
+      })
+
+      await client.scanUnitIds({
+        range: [1, 1],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers', 'input_registers'],
+        timeout: 1000
+      })
+
+      expect(mockModbusRTU.readInputRegisters).not.toHaveBeenCalled()
+      expect(getWindowCalls('scan_unit_id_result')).toEqual([])
+      expect(client.state.connectState).toBe('connecting')
+    })
+
     it('stops a register scan when the connection drops mid-scan', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
       mockModbusRTU.readHoldingRegisters.mockImplementationOnce(async () => {
         fireClientEvent('error', new Error('socket hang up'))
+        mockModbusRTU.isOpen = false
         throw new Error('Port Not Open')
       })
       mockModbusRTU.readHoldingRegisters.mockClear()
@@ -4210,12 +4561,13 @@ describe('ModbusClient', () => {
   })
 
   describe('error event handler', () => {
-    it('transitions to disconnected on error', async () => {
+    // A socket that fails closes too, and the close is what reconnects.
+    it('says what failed and leaves the state to what follows', async () => {
       await connectClient()
 
       fireClientEvent('error', new Error('Test error'))
 
-      expect(getLastClientState().connectState).toBe('disconnected')
+      expect(getLastClientState().connectState).toBe('connected')
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].variant === 'error')).toBe(true)

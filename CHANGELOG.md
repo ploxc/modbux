@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Pressing Poll off and on again while a read was on its way put a second read
   on the connection before the first had answered, which an RTU bus cannot
   tell apart. Every request now waits for the one before it.
+- **A connection that drops keeps its poll while it reconnects.** The poll
+  that ticked during a reconnect put the client view on Connect, and the
+  reconnect then put it back on connected and started the poll again. The
+  view now says it is reconnecting for as long as it is, and the poll waits it
+  out and reads again once the connection is back. A TCP connection the device
+  resets is reconnected too, where the client used to go to Connect at the next
+  read, and a connection error that leaves the port working no longer shows
+  the client as disconnected.
 - **A stopped poll stops after the request it has on the way.** Its read went
   on through every configured group and then filled the grid, so a scan
   started from a poll waited for all of it, against a device that does not

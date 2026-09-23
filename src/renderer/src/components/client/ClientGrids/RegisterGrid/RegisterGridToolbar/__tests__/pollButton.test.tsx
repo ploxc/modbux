@@ -58,4 +58,17 @@ describe('the Poll button', () => {
   it('takes none while nothing is connected', () => {
     expect(renderButton({ connectState: 'disconnected' })).toBeDisabled()
   })
+
+  // A poll goes on through a reconnect, so the press that stops it does too.
+  it('takes the press that stops a poll while the connection reconnects', () => {
+    expect(renderButton({ connectState: 'connecting', polling: true })).toBeEnabled()
+  })
+
+  it('takes the press that stops a poll while the client disconnects', () => {
+    expect(renderButton({ connectState: 'disconnecting', polling: true })).toBeEnabled()
+  })
+
+  it('takes no press that starts one while the connection reconnects', () => {
+    expect(renderButton({ connectState: 'connecting' })).toBeDisabled()
+  })
 })

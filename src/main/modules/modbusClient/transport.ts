@@ -27,10 +27,6 @@ export interface TransportClient {
    * connection, and then it is about the one the client left.
    */
   transportClosed: (from: Transport) => void
-  /** The connection was lost and a reconnect is under way. */
-  connectionLost: () => void
-  /** A reconnect after a loss opened the connection again. */
-  reconnected: () => void
 }
 
 /** Who a request is for, which the connection it shares knows nothing of. */
@@ -145,7 +141,9 @@ export class Transport {
   private _attachHandlers = (): void => {
     this._modbus
       .on('error', (error) => {
-        this._setConnectState('disconnected')
+        // Said and nothing more. A port that closes after it says what the
+        // close does, and one that is gone without closing is found by the
+        // next request, which calls `lost`.
         this._emitMessage({
           message: errorText(error) || 'Connection error',
           variant: 'error',
@@ -153,37 +151,42 @@ export class Transport {
         })
       })
       .on('close', () => {
-        if (this._shouldAutoReconnect) {
-          // The connection this timer vouched for is gone. Left running, it
-          // would zero the count in the middle of the burst that follows, and
-          // the burst would run past its limit.
-          clearTimeout(this._reconnectResetTimeout)
-
-          // Only emit reconnecting message if not already in connecting state
-          if (!this._reconnectTimeout) {
-            this._emitMessage({
-              message: `Connection lost, reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
-              variant: 'warning',
-              error: null
-            })
-          }
-          for (const client of this._clients) client.connectionLost()
-          this._scheduleReconnect()
-        } else {
-          // Every close that gets here is one the app did not ask for.
-          // modbus-serial takes its close relay off the port inside `close()`,
-          // so the close `detach` asks for reaches no handler. Measured on
-          // 8.0.25 over TCP, over a socat pty and on an Arduino's USB serial
-          // port. The other way out of `detach` is the timeout, and that one
-          // takes the handlers off itself, for the reason written there.
-          this._setConnectState('disconnected')
-          this._emitMessage({
-            message: 'Connection closed unexpectedly',
-            variant: 'error',
-            error: null
-          })
-        }
+        // A close after a disconnect or after a burst that gave up is one
+        // nobody rides any more, and modbus-serial takes its close relay off
+        // the port inside `close()`, so the close `detach` asks for reaches
+        // no handler. Measured on 8.0.25 over TCP, over a socat pty and on an
+        // Arduino's USB serial port.
+        if (this._shouldAutoReconnect) this.lost()
       })
+  }
+
+  /**
+   * The connection is gone while clients ride it, so they go to connecting and
+   * one reconnect burst starts.
+   *
+   * Two things say so. The port's close does, and so does a request that finds
+   * the port shut under a connected state, which is all a TCP reset leaves:
+   * `tcpport.js` emits nothing for a socket error, and the close after it
+   * finds `openFlag` false and emits nothing either. A serial port reads shut
+   * while its close is still on its way, so the second can come before the
+   * first. Whichever comes second finds the burst under way, or, once the
+   * reconnect has opened a new port, finds the port open: a close relayed
+   * from the port it replaced, which modbus-serial leaves listening. Neither
+   * adds anything.
+   */
+  public lost = (): void => {
+    if (this._reconnectTimeout || this._openInFlight || this._modbus.isOpen) return
+    // The connection this timer vouched for is gone. Left running, it would
+    // zero the count in the middle of the burst that follows, and the burst
+    // would run past its limit.
+    clearTimeout(this._reconnectResetTimeout)
+    this._emitMessage({
+      message: `Connection lost, reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
+      variant: 'warning',
+      error: null
+    })
+    this._setConnectState('connecting')
+    this._scheduleReconnect()
   }
 
   /**
@@ -311,6 +314,13 @@ export class Transport {
 
     client.setConnectState('connecting')
     if (this._openInFlight || this._reconnectTimeout) return
+    // Riders on a port that is shut with nothing reopening it are on a
+    // connection that went without a close, which is all a TCP reset leaves,
+    // and that is a reconnect for all of them rather than a fresh open.
+    if (this._clients.size > 1) {
+      this.lost()
+      return
+    }
     this._config = structuredClone(config)
     await this._open(false)
   }
@@ -397,7 +407,6 @@ export class Transport {
           variant: 'success',
           error: null
         })
-        for (const client of this._clients) client.reconnected()
       } else {
         this._emitMessage({
           message: `Connected over ${PROTOCOL_LABELS[protocol]}`,
@@ -486,27 +495,6 @@ export class Transport {
     } finally {
       this._closing = false
     }
-  }
-
-  /**
-   * Let go of a client that has moved to another connection, telling neither
-   * it nor the user, and close this one in the background once nobody rides
-   * it.
-   *
-   * `ModbusClient.connect` calls it for a client an `error` without a close
-   * left here. The user asked for a connection elsewhere rather than for a
-   * disconnect, so nothing about this one's close is theirs to read, and the
-   * client has already stopped listening to it.
-   */
-  public release = (client: TransportClient): void => {
-    if (!this._clients.delete(client) || this._clients.size > 0) return
-    this._stopReconnecting()
-    if (!this._modbus.isOpen) {
-      this._modbus.destroy(() => {})
-      this._idleWhenDone()
-      return
-    }
-    void this._closePort().then(this._idleWhenDone)
   }
 
   /**
