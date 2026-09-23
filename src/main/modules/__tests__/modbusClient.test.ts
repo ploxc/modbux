@@ -3106,9 +3106,10 @@ describe('ModbusClient', () => {
 
     it('stops mid-scan when stopScanningUnitIds is called', async () => {
       await connectClient()
-      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
+      // A device takes time to answer, and a stop arrives in between.
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1))
+        return { data: [0], buffer: Buffer.alloc(2) }
       })
 
       const scanPromise = client.scanUnitIds({
@@ -3136,9 +3137,10 @@ describe('ModbusClient', () => {
     // so the last id handed to `setID` is the last iteration that ran.
     it('leaves the remaining unit ids unvisited after a cancel', async () => {
       await connectClient()
-      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
-        data: [0],
-        buffer: Buffer.alloc(2)
+      // A device takes time to answer, and a stop arrives in between.
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1))
+        return { data: [0], buffer: Buffer.alloc(2) }
       })
       mockModbusRTU.setID.mockClear()
 
@@ -3150,7 +3152,8 @@ describe('ModbusClient', () => {
         timeout: 1000
       })
 
-      await vi.advanceTimersByTimeAsync(50)
+      // About ten ids in, at a millisecond an answer.
+      await vi.advanceTimersByTimeAsync(10)
       client.stopScanningUnitIds()
       await vi.advanceTimersByTimeAsync(5000)
       await scanPromise
@@ -3508,9 +3511,65 @@ describe('ModbusClient', () => {
       })
     })
 
+    describe('how fast a scan runs, and what it reports', () => {
+      it('waits for nothing but the device', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+
+        await client.scanRegisters({ addressRange: [0, 999], length: 10, timeout: 1000 })
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBe(100)
+        expect(client.state.scanningRegisters).toBe(false)
+      })
+
+      it('says how far it has got every 100 ms, and 100 at the end', async () => {
+        await connectClient()
+        mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 1))
+          return { data: new Array(10).fill(100), buffer: Buffer.alloc(20) }
+        })
+
+        const scanPromise = client.scanRegisters({
+          addressRange: [0, 9999],
+          length: 10,
+          timeout: 1000
+        })
+        await vi.advanceTimersByTimeAsync(2000)
+        await scanPromise
+
+        const progress = getWindowCalls('scan_progress').map((call) => call[1])
+        // A thousand answers a millisecond apart: a report per 100 ms of them,
+        // not one per answer.
+        expect(progress.length).toBeGreaterThan(5)
+        expect(progress.length).toBeLessThan(20)
+        expect(progress.at(-1)).toBe(100)
+      })
+
+      it('sends the result of each unit id without waiting', async () => {
+        await connectClient()
+        mockModbusRTU.readHoldingRegisters.mockResolvedValue({ data: [0], buffer: Buffer.alloc(2) })
+
+        await client.scanUnitIds({
+          range: [1, 5],
+          address: 0,
+          length: 1,
+          registerTypes: ['holding_registers'],
+          timeout: 1000
+        })
+
+        expect(getWindowCalls('scan_unit_id_result').map((call) => call[1].id)).toEqual([
+          1, 2, 3, 4, 5
+        ])
+      })
+    })
+
     it('stops mid-scan when stopScanningRegisters is called', async () => {
       await connectClient()
-      setupHoldingRegisterReadMock([100])
+      // A device takes time to answer, and a stop arrives in between.
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1))
+        return { data: new Array(10).fill(100), buffer: Buffer.alloc(20) }
+      })
 
       const scanPromise = client.scanRegisters({
         addressRange: [0, 1000],

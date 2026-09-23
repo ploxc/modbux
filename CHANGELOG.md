@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does when there is nothing left to undo. In a text field the keys undo your
   typing. Each view keeps its last 100 steps until Modbux closes.
 
+### Changed
+
+- **Scans no longer pause between requests.** A register scan and a unit ID
+  scan waited 10 ms after every request, so a device that answers quickly was
+  asked at a fraction of its pace. A register scan of 10,000 addresses in
+  chunks of 10 took 13 seconds against Modbux's own server and now takes about
+  2. A slow device scans as fast as before, and the progress bar still moves.
+
 ### Fixed
 
 - **A client keeps reconnecting while its device is gone.** Pulling the USB

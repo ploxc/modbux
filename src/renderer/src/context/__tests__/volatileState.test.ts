@@ -3,10 +3,8 @@
 // Five fields written at event rate live in `data.zustand`, which has no
 // persist middleware. In `client.zustand` each of them serialized the whole
 // partialized state, register mapping included, because zustand's persist
-// wraps `setState` and calls `setItem` on every call with no debounce.
-// `scanUnitIds` in `modbusClient.ts` sets `_totalScans` to the unit id count
-// times the register type count, so a unit id scan of 0 through 255 over four
-// types sends 1024 `scan_progress` events alone.
+// wraps `setState` and calls `setItem` on every call with no debounce. A unit
+// id scan of 0 through 255 over four types logs 1024 transactions.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLIENT_ZUSTAND_STORAGE_KEY, defaultClientState } from '@shared'
 import type { ScanUnitIDResult, Transaction } from '@shared'

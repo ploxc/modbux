@@ -206,23 +206,23 @@ export class ModbusClient {
   }
 
   /**
-   * Sends how far a scan has got, and pauses 5 ms.
+   * Counts one step of a scan, and says how far it has got at most every
+   * 100 ms, and on the last step.
    *
-   * Both scans await this between two device requests, so the pause is what a
-   * scan spends rather than what it reports. The widest unit id scan the fields
-   * accept is 256 ids over four register types, which is 1024 calls and 5.12 s;
-   * a register scan of 65536 addresses at a chunk of 100 is 656 calls and
-   * 3.28 s.
-   *
-   * `8aed54a` brought the three pauses in with the scans and recorded no reason
-   * for any of them. Shortening one is a change to how fast Modbux talks to a
-   * device, so it is measured against a device rather than settled here.
+   * A step is one device request, and a scan can take thousands. Sending each
+   * one costs an IPC message and a store write in the renderer, and the bar
+   * cannot show a step of a thousandth anyway. Nothing here waits, so a scan
+   * runs as fast as the device answers.
    */
-  private _sendScanProgress = async (): Promise<void> => {
+  private _scanProgressSentAt = 0
+  private _countScanStep = (): void => {
     this._scansDone++
+    const now = Date.now()
+    const last = this._scansDone >= this._totalScans
+    if (!last && now - this._scanProgressSentAt < 100) return
+    this._scanProgressSentAt = now
     const progress = round((this._scansDone / this._totalScans) * 100, 2)
     this._windows.send('scan_progress', progress, 'main')
-    await new Promise((resolve) => setTimeout(resolve, 5))
   }
 
   //
@@ -1003,6 +1003,7 @@ export class ModbusClient {
 
     this._totalScans = (range[1] - range[0] + 1) * params.registerTypes.length
     this._scansDone = 0
+    this._scanProgressSentAt = 0
 
     for (let id = range[0]; id <= range[1]; id++) {
       await this._scanUnitIds({ id, ...params })
@@ -1054,7 +1055,7 @@ export class ModbusClient {
       }
       this._transactionLog.log(transactionIdKey, errorMessage)
 
-      await this._sendScanProgress()
+      this._countScanStep()
     }
 
     if (!this._clientState.scanningUnitIds) {
@@ -1062,10 +1063,6 @@ export class ModbusClient {
       return
     }
 
-    // One pause per unit id, between the last register type's progress and this
-    // id's result row: 2.56 s over the widest scan the fields accept.
-    // `_sendScanProgress` says what these figures are.
-    await new Promise((resolve) => setTimeout(resolve, 10))
     this._sendUnitIdResult(result)
   }
 
@@ -1094,19 +1091,16 @@ export class ModbusClient {
 
     this._totalScans = Math.ceil((addressRange[1] - addressRange[0] + 1) / length)
     this._scansDone = 0
+    this._scanProgressSentAt = 0
 
     this._clientState.scanningRegisters = true
     this._sendClientState()
 
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
       await this._scanRegister(address, length)
-      await this._sendScanProgress()
+      this._countScanStep()
       if (!this._clientState.scanningRegisters) break
       if (this._clientState.connectState !== 'connected') break
-      // The second pause per chunk, on top of `_sendScanProgress`'s, so a
-      // register scan waits 10 ms between chunks: 6.56 s over 65536 addresses
-      // at a chunk of 100.
-      await new Promise((resolve) => setTimeout(resolve, 5))
     }
 
     this._clientState.scanningRegisters = false

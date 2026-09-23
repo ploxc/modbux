@@ -28,9 +28,9 @@ import { ClientState, RegisterData, defaultClientState, dummyWords } from '@shar
  * renderer on a 219955 byte blob, 1000 of those writes cost 887 ms of the main
  * thread, 432 ms of it the `JSON.stringify` alone and 249 ms the
  * `localStorage.setItem` alone, so the store Chromium keeps off the main thread
- * does not take that second part off it either. `modbusClient`'s `scanUnitIds`
- * sets `_totalScans` to the unit id count times the register type count, so a
- * scan of 0 through 255 over four types sends 1024 `scan_progress` events.
+ * does not take that second part off it either. A scan sends `scan_progress`
+ * at most every 100 ms, and a unit id scan sends a result per id and a
+ * transaction per request.
  */
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
