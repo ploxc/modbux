@@ -30,7 +30,7 @@ import { ClientState, RegisterData, defaultClientState, dummyWords } from '@shar
  * `localStorage.setItem` alone, so the store Chromium keeps off the main thread
  * does not take that second part off it either. `modbusClient`'s `scanUnitIds`
  * sets `_totalScans` to the unit id count times the register type count, so a
- * scan of 1 through 247 over four types sends 988 `scan_progress` events.
+ * scan of 0 through 255 over four types sends 1024 `scan_progress` events.
  */
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
