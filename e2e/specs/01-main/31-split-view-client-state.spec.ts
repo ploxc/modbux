@@ -53,6 +53,7 @@ test.describe.serial('Read configuration survives the split out server window', 
   test('connected, read configuration fills every configured register', async ({ mainPage }) => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await enableReadConfiguration(mainPage)
+    await mainPage.getByTestId('read-btn').click()
 
     await expectCell(mainPage, 0, 'word_uint16', '1')
     await expectCell(mainPage, 50, 'word_uint16', '51')

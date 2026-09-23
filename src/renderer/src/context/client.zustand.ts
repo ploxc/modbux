@@ -541,15 +541,10 @@ export const useClientZustand = create<
         set((state) => {
           state.readConfiguration = readConfiguration
         })
+        // No read follows. One fired by the switch could land after the switch
+        // went back, and a read of the toolbar's range then filled a grid
+        // drawing the mapping. The next Read or poll brings the values.
         window.api.setReadConfiguration(readConfiguration)
-
-        // Turning it on puts the mapping in the grid through `showMapping`,
-        // which gives every row `dummyWords`, and that reads `uint16: 0`. A
-        // connected user was left looking at zeros nothing had asked a device
-        // for. Main holds what the read needs by then: `ReadConfiguration`
-        // flushes the mapping before it calls this, and the flag goes out on
-        // the line above.
-        if (readConfiguration) readWhenMainCan()
       },
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),

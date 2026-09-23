@@ -156,10 +156,10 @@ const ReadConfiguration = meme(() => {
     )
   )
 
-  // Turning it on draws the mapping into the grid and then asks main to read
-  // it, and `readWhenMainCan` drops that ask without a word while anything
-  // owns the client. The press would leave the grid on `showMapping`'s zeros
-  // with no read coming, so the toggle greys for as long as that lasts.
+  // Switching draws the mapping into the grid, or empties it, and a read, a
+  // write or a scan that owns the client answers after the switch: its rows
+  // then land in a grid about the other question. So the toggle greys for as
+  // long as anything owns the client.
   //
   // `exceptPolling`, because a poll is the one owner that fills the grid on
   // its own: `setReadConfiguration` gives main the mapping and the flag, and

@@ -1,4 +1,4 @@
-import { test, resetApp } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -10,7 +10,8 @@ import {
   loadServerConfig,
   loadClientConfig,
   selectRegisterType,
-  expectCell
+  expectCell,
+  cell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -23,11 +24,9 @@ test.beforeAll(async ({ electronApp, mainPage }) => {
 })
 
 // Turning read configuration on fills the grid from the mapping, and every word
-// in it is `dummyWords`, so address 0 reads 0 where the server holds 1. The
-// store asks main for a read, and only while main can answer one: nothing
-// presses Read here. `19-large-config` drives the same two configs and presses
-// it.
-test.describe.serial('Read configuration reads what it just put on screen', () => {
+// in it is `dummyWords`, so address 0 reads 0 where the server holds 1 until a
+// read. The switch asks for none. `19-large-config` drives the same two configs.
+test.describe.serial('Read configuration shows the mapping, and Read fills it', () => {
   test('clean server state', async ({ mainPage }) => {
     await cleanServerState(mainPage)
   })
@@ -50,9 +49,17 @@ test.describe.serial('Read configuration reads what it just put on screen', () =
     await disableReadConfiguration(mainPage)
   })
 
-  test('connected, the values are there without pressing Read', async ({ mainPage }) => {
+  // The switch reads nothing: a read it fired could land after it went back.
+  // A second after the switch the grid still holds the mapping's zeros, and
+  // Read brings the values.
+  test('connected, the switch reads nothing and Read brings the values', async ({ mainPage }) => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await enableReadConfiguration(mainPage)
+    await expectCell(mainPage, 0, 'comment', 'reg-000')
+    await mainPage.waitForTimeout(1000)
+    expect(await cell(mainPage, 0, 'word_uint16')).toBe('0')
+
+    await mainPage.getByTestId('read-btn').click()
 
     await expectCell(mainPage, 0, 'word_uint16', '1')
     await expectCell(mainPage, 50, 'word_uint16', '51')
