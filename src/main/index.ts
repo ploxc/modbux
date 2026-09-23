@@ -174,7 +174,30 @@ let splash: BrowserWindow | null = null
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+/**
+ * React Developer Tools in the window's own DevTools, under `yarn dev` only.
+ *
+ * Electron's docs recommend `electron-devtools-installer` and list React
+ * Developer Tools among the extensions tested to work. The extension has to be
+ * loaded before the page is, so the first window waits for it.
+ * `import.meta.env.DEV` is false in a build, which drops this branch and the
+ * import with it, so neither a build nor the e2e suite downloads anything.
+ * The Components and Profiler tabs find React after one reload (Cmd+R) with
+ * DevTools open; before it they report that the page has no React.
+ */
+const installReactDevtools = async (): Promise<void> => {
+  if (!import.meta.env.DEV) return
+  try {
+    const { installExtension, REACT_DEVELOPER_TOOLS } = await import('electron-devtools-installer')
+    await installExtension(REACT_DEVELOPER_TOOLS)
+  } catch (error) {
+    console.error('React Developer Tools did not load:', error)
+  }
+}
+
+app.whenReady().then(async () => {
+  await installReactDevtools()
+
   if (os.platform() !== 'darwin') {
     splash = new BrowserWindow({
       width: 400,

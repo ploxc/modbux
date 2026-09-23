@@ -84,6 +84,7 @@
     "@vitest/coverage-v8": "^4.1",
     "electron": "^43.3.0",
     "electron-builder": "26.15.3",
+    "electron-devtools-installer": "^4.0.0",
     "electron-vite": "^5",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.5",
