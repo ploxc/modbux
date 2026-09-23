@@ -45,15 +45,18 @@ async function snackbarsOver(p: Page, milliseconds: number): Promise<string> {
 /**
  * Closes every snackbar on screen. `preventDuplicate` drops a message whose
  * text is still showing, so a "Connected over" left by an earlier spec both
- * reads as raised here and hides one that is.
+ * reads as raised here and hides one that is. On a CI runner a closed
+ * snackbar can stay in the DOM hidden, so only a visible close button is
+ * pressed, and afterwards no container may hold the text, hidden or not.
  */
 async function closeSnackbars(p: Page): Promise<void> {
-  const close = p.getByTestId('snackbar-close-btn')
+  const close = p.getByTestId('snackbar-close-btn').filter({ visible: true })
   await expect(async () => {
     const count = await close.count()
     if (count > 0) await close.first().click()
     expect(count).toBe(0)
   }).toPass({ timeout: 10_000 })
+  await expect(p.locator(SNACKBARS, { hasText: 'Connected over' })).toHaveCount(0)
 }
 
 test.describe.serial('Cancelling a connect', () => {
