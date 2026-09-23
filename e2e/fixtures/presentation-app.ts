@@ -4,7 +4,7 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { launchOptions, evaluateMain } from './launch'
+import { launchOptions, evaluateMain, keepOutput } from './launch'
 
 export type PresentationFixtures = {
   electronApp: ElectronApplication
@@ -17,6 +17,7 @@ export const test = base.extend<{}, PresentationFixtures>({
     // eslint-disable-next-line no-empty-pattern
     async ({}, use): Promise<void> => {
       const app = await electron.launch(launchOptions())
+      keepOutput(app)
 
       await evaluateMain(() =>
         app.evaluate((ctx) =>

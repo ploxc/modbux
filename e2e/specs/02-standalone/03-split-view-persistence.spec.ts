@@ -6,7 +6,6 @@ import {
   splitOutServerWindow
 } from '../../fixtures/helpers'
 import { launchElectron, evaluateMain } from '../../fixtures/launch'
-import { keepOutput } from '../../fixtures/electron-app'
 
 let app: ElectronApplication
 let page: Page
@@ -16,7 +15,6 @@ async function launchApp(clearStorage: boolean): Promise<void> {
   // rather than passing on the one the previous launch left here.
   page = undefined as unknown as Page
   app = await launchElectron()
-  keepOutput(app)
   if (clearStorage) {
     await evaluateMain(() =>
       app.evaluate((ctx) =>

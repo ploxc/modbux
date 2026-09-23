@@ -1,5 +1,5 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
-import { existsSync, mkdtempSync } from 'fs'
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 
@@ -127,6 +127,37 @@ export function launchOptions(userDataDir?: string): LaunchOptions {
 }
 
 /**
+ * Everything the app writes, kept next to the traces.
+ *
+ * Playwright owns the child process and nothing reads its stdio, so a run that
+ * ends with "Target page, context or browser has been closed" says only that
+ * the app is gone. The exit line below is the point of this: a code means the
+ * app came down on its own, a signal means something else took it.
+ *
+ * `launchElectron` calls it for every app it starts, and the workflow uploads
+ * test-results/ when a run fails, so the file travels with the trace it
+ * belongs to.
+ */
+export function keepOutput(app: ElectronApplication): void {
+  const dir = join(process.cwd(), 'test-results')
+  mkdirSync(dir, { recursive: true })
+
+  const worker = process.env.TEST_WORKER_INDEX ?? '0'
+  const log = createWriteStream(join(dir, `electron-main-${worker}.log`), { flags: 'a' })
+  const stamp = (): string => new Date().toISOString()
+
+  // The persistence spec launches its own app beside the worker's, and both
+  // write here, so every line says which process it came from.
+  const proc = app.process()
+  const pid = proc.pid
+  proc.stdout?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} out ${c.toString()}`))
+  proc.stderr?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} err ${c.toString()}`))
+  proc.on('exit', (code, signal) => {
+    log.write(`[${stamp()}] ${pid} exit code=${code} signal=${signal}\n`)
+  })
+}
+
+/**
  * Launches the app with reduced motion emulated in every window it has and
  * every window it opens. The theme follows that setting, so MUI's transitions
  * and a click's ripple end at once rather than on timers the fixture's CSS does
@@ -134,6 +165,7 @@ export function launchOptions(userDataDir?: string): LaunchOptions {
  */
 export async function launchElectron(userDataDir?: string): Promise<ElectronApplication> {
   const app = await electron.launch(launchOptions(userDataDir))
+  keepOutput(app)
   const reduceMotion = (page: Page): Promise<void> => page.emulateMedia({ reducedMotion: 'reduce' })
   app.on('window', (page) => {
     // A window closed before the emulation reached it has no motion left.

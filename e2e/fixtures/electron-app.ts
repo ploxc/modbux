@@ -1,50 +1,49 @@
 import { test as base, type ElectronApplication, type Page } from '@playwright/test'
 import { launchElectron, evaluateMain } from './launch'
-import { createWriteStream, mkdirSync } from 'fs'
-import { join } from 'path'
-
-/**
- * Everything the app writes, kept next to the traces.
- *
- * Playwright owns the child process and nothing reads its stdio, so a run that
- * ends with "Target page, context or browser has been closed" says only that
- * the app is gone. The exit line below is the point of this: a code means the
- * app came down on its own, a signal means something else took it.
- *
- * The workflow uploads test-results/ when a run fails, so the file travels with
- * the trace it belongs to.
- */
-export function keepOutput(app: ElectronApplication): void {
-  const dir = join(process.cwd(), 'test-results')
-  mkdirSync(dir, { recursive: true })
-
-  const worker = process.env.TEST_WORKER_INDEX ?? '0'
-  const log = createWriteStream(join(dir, `electron-main-${worker}.log`), { flags: 'a' })
-  const stamp = (): string => new Date().toISOString()
-
-  // The persistence spec launches its own app beside the worker's, and both
-  // write here, so every line says which process it came from.
-  const proc = app.process()
-  const pid = proc.pid
-  proc.stdout?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} out ${c.toString()}`))
-  proc.stderr?.on('data', (c: Buffer) => log.write(`[${stamp()}] ${pid} err ${c.toString()}`))
-  proc.on('exit', (code, signal) => {
-    log.write(`[${stamp()}] ${pid} exit code=${code} signal=${signal}\n`)
-  })
-}
 
 export type ElectronFixtures = {
   electronApp: ElectronApplication
   mainPage: Page
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-export const test = base.extend<{}, ElectronFixtures>({
+/**
+ * A trace of the app for every test that fails.
+ *
+ * Playwright's own `trace` option records the contexts it creates itself, and
+ * the app's is not one of them, so a failed test's trace held its assertions
+ * and no DOM. Tracing runs on the app's context for the whole worker, one
+ * chunk per test, and a chunk is written only when its test failed, beside a
+ * screenshot of every window still open. An app that is already gone has no
+ * chunk to stop, and its log says why.
+ */
+type ElectronTestFixtures = { electronTrace: void }
+
+export const test = base.extend<ElectronTestFixtures, ElectronFixtures>({
+  electronTrace: [
+    async ({ electronApp }, use, testInfo): Promise<void> => {
+      const tracing = electronApp.context().tracing
+      await tracing.startChunk({ title: testInfo.title })
+      await use()
+      if (testInfo.status === testInfo.expectedStatus) {
+        await tracing.stopChunk().catch(() => undefined)
+        return
+      }
+      for (const [i, window] of electronApp.windows().entries()) {
+        await window
+          .screenshot({ path: testInfo.outputPath(`window-${i}.png`) })
+          .catch(() => undefined)
+      }
+      await tracing
+        .stopChunk({ path: testInfo.outputPath('electron-trace.zip') })
+        .catch(() => undefined)
+    },
+    { auto: true }
+  ],
   electronApp: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, use): Promise<void> => {
       const app = await launchElectron()
-      keepOutput(app)
+      await app.context().tracing.start({ snapshots: true })
 
       await evaluateMain(() =>
         app.evaluate((ctx) =>

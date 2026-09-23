@@ -2,7 +2,6 @@ import { test, expect, type ElectronApplication, type Page } from '@playwright/t
 import { resolve } from 'path'
 import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
 import { launchElectron, evaluateMain } from '../../fixtures/launch'
-import { keepOutput } from '../../fixtures/electron-app'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
@@ -13,10 +12,6 @@ let page: Page
 
 async function launchApp(clearStorage = true): Promise<void> {
   app = await launchElectron()
-  // This spec launches its own app, so it needs the same output kept as the
-  // shared fixture keeps. Its launches race the worker's app for the single
-  // instance lock, which is where the log has to be able to speak.
-  keepOutput(app)
   if (clearStorage) {
     await evaluateMain(() =>
       app.evaluate((ctx) =>
