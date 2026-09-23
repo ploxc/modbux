@@ -18,27 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the server's steps go with the server view into its own window and back.
   A connection setting waits until you disconnect, and Modbux says so, as it
   does when there is nothing left to undo. In a text field the keys undo your
-  typing, as before. Each view keeps its last 100 steps until Modbux closes.
+  typing. Each view keeps its last 100 steps until Modbux closes.
 
 ### Fixed
 
 - **A scan no longer stalls the window on a large configuration.** Every step a
   scan reported, every transaction it logged and every change of connection
   state wrote your whole saved client configuration back to disk, register
-  mapping and all. With two thousand mapped registers that is close to a
-  millisecond of frozen window each time, and a unit ID scan over the full range
-  with all four register types reports 988 steps. None of it is worth keeping
+  mapping and all. With a large mapping that is close to a millisecond of
+  frozen window each time, and a unit ID scan reports a step for every unit ID
+  and register type it asks. None of it is worth keeping
   across a launch, and none of it is written any more.
-- **A register a saved session cannot read no longer empties the other
-  servers.** Every server's registers were read back as one, so a single
-  register Modbux refused emptied the map of every server you had rather than
-  the one holding it. It costs that one server's registers now, and the servers
-  beside it keep theirs.
+- **A register a saved session cannot read no longer resets every server.** One
+  register Modbux refused reset the whole server setup to its defaults: every
+  server, with its name, port and registers. It now costs the registers of the
+  one server holding it, and every other server comes back as it was.
 - **A blank COM port is no longer sent to the serial connection.** Clearing the
   COM field wrote an empty port name into the connection, so a connect attempt
-  failed on nothing to open. The field keeps what you type and marks it, and the
-  connection keeps the last port you picked for the rest of the session, which
-  is what the host field already did.
+  failed on nothing to open. The field keeps what you type and marks it, and
+  Connect stays greyed until it names a port again, as it does for a blank
+  host.
 - **Changing the unit ID now empties the grid the way the address does.** The
   rows the previous unit answered stayed on screen under a unit ID that had not
   read them, so you were looking at one device's values under another's ID. The
@@ -60,15 +59,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the client's bitmap panel put two requests on one connection, and the second
   carried the word from before the first. A write now holds the connection until
   the register has been read back, the bits stop taking a click for that moment,
-  and the Read button and the Read Configuration toggle grey out with them.
+  and the Read and Poll buttons and the Read Configuration toggle grey out with
+  them.
 - **A coil read can now ask for the 2000 bits the protocol allows.** The Length
   field stopped at 125 whatever the type selected, which is the ceiling for
   holding and input registers, so reading a thousand coils took eight reads
   rather than one. It now stops at what the selected type answers, and at what
   is left from the address: a read starting at 65500 offers 36. Writing those
-  coils back stops at 1968, which is what one request carries. A read no longer
-  runs off the end of the range either, and neither does a scan: a length left
-  over from a wider read asked a device for addresses that do not exist.
+  coils back stops at 1968, which is what one request carries. A read of the
+  toolbar's range no longer runs off the end of the range either, and a read or
+  a scan no longer asks for more than one response carries: a length or chunk
+  size left over from a coil read asked a device for 2000 registers.
 - **A scan that reaches past the last unit ID or register now stops there.** A
   Start of 200 with a Count of 100 asked for unit ID 299, and an address of
   60000 with a Length of 10000 asked for register 69999. Neither exists, so the
@@ -78,8 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scanned nothing in the same silence, and now goes back to 1 when you leave the
   field.
 - **The transaction log now shows the address of a coil read and of a write.**
-  The Addr column was blank for every coil read, every discrete input read and
-  every write Modbux sends, so a log of coil traffic said nothing about which
+  The Addr column was blank for every coil read, every discrete input read,
+  every coil write and every multi-register write, so a log of coil traffic said nothing about which
   address each request went to.
 - **The unit ID scan no longer asks for more than a device can answer.** Its
   Length field took anything up to 65535 and sent it as the quantity, which is
@@ -109,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A file that is not a configuration is now refused instead of opened.**
   Picking a JSON file holding a number, a string or a list emptied the server
   and reported that the configuration had been updated from an older format. A
-  file holding nothing at all emptied it too and then failed with a message
+  file holding only `null` emptied it too and then failed with a message
   about a property of null. A file claiming a version that is not a number got
   one of those or the newer-version warning, depending on the value.
 - **Opening the wrong file no longer empties the server.** Picking a client
@@ -121,47 +122,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on that launch and on every launch after it, with no message and nothing on
   screen to clear the configuration with. A refusal now costs the one server it
   belonged to.
-- **A server added in the split out window can be changed when that window
-  closes.** Its port, unit id and byte order each refused every change with no
-  message until Modbux was restarted.
 - **A server register the encoder cannot serve is now refused by name.** A
   config file could put a fixed value outside the range of its own data type, a
-  string wider than the register map, a register running past the last address,
-  a generator drawing between two numbers its data type cannot hold, or a
-  generator whose interval was so long it fired every millisecond instead.
-  Opening it left the server view blank for that launch and every launch after
-  it, with no message and nothing on screen to clear it with. The file is now
-  refused with the register and the field named, and one already saved is
-  dropped on the next launch with the rest of the setup kept.
+  string wider than the register map, or a register running past the last
+  address, and opening it left the server view blank for that launch and every
+  launch after it, with no message and nothing on screen to clear it with. A
+  generator drawing between two numbers its data type cannot hold served 0
+  instead, and one whose interval was too long fired every millisecond. The
+  file is now refused with the register and the field named, and one already
+  saved is dropped on the next launch, with the addresses it stood on freed and
+  the rest of the setup kept.
 - **Splitting the server into its own window no longer turns Read
   Configuration off.** The toggle stayed on while the reading went back to the
-  address and length in the toolbar, so every configured register above the
-  tenth stopped being read and its value left the grid. The split out window now
+  address and length in the toolbar, so every configured register outside them
+  stopped being read and its value left the grid. The split out window now
   leaves the client alone.
 - **A DATETIME write now carries the date you typed.** The write dialog took a
   value field whose range was stated in seconds while the register is encoded
   from milliseconds, so every value it accepted fell before the year 2000 and
   went out as 2000/01/01 00:00:00. The field now takes milliseconds over the
-  range the format carries, which is 2000 through 2127. A date past 2127 used to
-  be written with the year wrapped, so a register set to 2200 read back as 2072;
-  it now stops at the end of 2127.
-- **An address freed on load is offered again.** A saved setup comes back
-  without a register Modbux cannot serve, and the addresses that register stood
-  on stayed marked In use, so the Add dialog refused an address the grid showed
-  nothing at.
+  range the format carries, which is 2000 through 2127.
 - **A write no longer logs another request as its own.** The transaction log
   took the last request that went out, listed it as the write and took its entry
-  away, so a read still waiting for an answer timed out. That happened after a
-  write Modbux refuses, such as a UTF-8 register through FC16, and after any
-  write with a poll or a read running alongside it. A write with nothing
-  connected now says so rather than answering "Port Not Open", and an empty coil
-  list is refused for FC15 the way it already was for FC5.
+  away, so a read still waiting for an answer timed out. That happened to a
+  write with a poll or a read running alongside it.
 - **The transaction log now shows a unit id scan.** The scan sends a request per
   unit id and per register type, and the log listed none of them.
-- **A write or a scan refused for a lost connection now reports it.** Both said
-  they could not reach the device and left the app showing it as connected. A
-  read already corrected the state, so which one you pressed decided whether the
-  app noticed.
 - **Two bit toggles in a row now both land.** A bit in the server's bitmap panel
   is set by writing the whole word back, and the panel read that word from
   before the toggle before it, so a second toggle in quick succession cleared
@@ -170,7 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Each window kept its own copy of the server setup and both wrote it to the
   same place, so the window you were not looking at wrote its copy over what you
   had just added. One generator was enough to keep that happening, and closing
-  the split window left the stale copy as the only one.
+  the split window left the stale copy as the only one. A server made there can
+  be changed once the window closes.
 - **The RTU status light is right in a window that just opened.** It is set from
   a message the server sends when it starts or stops, so a window opened after
   that showed the server as stopped while it was running. The window now asks.
@@ -210,9 +197,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server's DATETIME row decoded the four registers itself, without the format's
   invalid flag and without checking the fields it read, so whatever a client had
   written into them came back as a plausible date. A day its month does not
-  have, such as the 31st of February, came out as the words `Invalid DateTime`,
-  in the client grid as well. Both now show nothing, and a UNIX register holding
-  0 shows 1970/01/01 00:00:00 where it used to show a dash.
+  have, such as the 31st of February, came out in the client grid as the words
+  `Invalid DateTime`. It now shows nothing there and a dash in the server row,
+  and a UNIX register holding 0 shows 1970/01/01 00:00:00 where it used to show
+  a dash.
 - **The server no longer answers for units it does not have.** On a shared
   RS-485 line it replied to every address on the bus, including the ones
   belonging to the real devices on it, so its frame went out at the same moment
@@ -224,7 +212,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on the network could turn an unused unit ID into one the server answers for,
   and nothing in the view said it had happened.
 - **Opening the server in its own window no longer disconnects your clients.**
-  The second window restarted every running server, and anything connected was
+  The second window restarted every running TCP server, and anything connected was
   dropped without a word. Clearing a server's registers did the same. Both now
   leave the connection where it is.
 - **Writing one coil no longer switches off the ones beside it.** The write
@@ -325,7 +313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Starting the poll again right after stopping it no longer runs two read
   loops at once.** Pressing Stop and then Poll while a read was still on its way
   left the old loop running beside the new one, so the device was asked twice as
-  often and two requests could sit on one connection. Only one loop runs now,
+  often from then on. Only one loop runs now,
   however fast the buttons are pressed.
 - **Read configuration is only offered where there is something to read.** The
   button went live as soon as an address carried anything at all, a comment
@@ -377,8 +365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window opens in the browser.
 - **A Linear Interpolation endpoint no longer loses its decimals.** Its four
   fields stopped at two, so an endpoint of 0.0625 went in as 0.06 and every row
-  scaled through it read 4% low. They take seven now, which is what the value,
-  min and max fields on the server side have always taken.
+  scaled through it was off by 4%. They take seven now, which is what the
+  value, min and max fields on the server side take.
 - **A read no longer fails on a device whose answer carries half a register.**
   The reply declares how many bytes it holds, and a device declaring an odd
   number leaves a byte no register is made of. Modbux read past the end of it
@@ -412,22 +400,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already like this.
 - **The Value column no longer shows the word "undefined".** Rows read as coils
   or discrete inputs carry no register value, and they stay on screen when you
-  switch the register type while a read loop is running. Every mapped address
-  then drew `undefined` in the Value column, or `undefine` on a UTF-8 mapping.
+  switch the register type while a read loop is running. Every address
+  mapped as a date or a Unix time then drew `undefined` in the Value column, and
+  a UTF-8 mapping drew `undefine`.
   Those cells are empty now.
 - **The address on the Add bar follows the unit you are looking at.** It was
   read once, from whichever unit was selected then, so after switching to a unit
   holding fewer coils it sat above every address that unit had. Adding an
   address with nothing free above it now says so as well, instead of leaving the
   button doing nothing.
-- **A server whose port was lost comes back on one.** When the stored ports
-  could not be read, Modbux said so and reset them, and every server but the
-  first then came up with no port at all: a blank button in the row at the top,
-  answering nothing, with its registers still there behind it. Each one now
-  opens on the first free port instead.
-- **Cmd+Z or Ctrl+Z in the host field now undoes what you typed.** It did
-  nothing there, where the unit ID field beside it undoes a typed run in one
-  step.
 
 ### Changed
 
