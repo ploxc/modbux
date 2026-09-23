@@ -4,7 +4,9 @@
  * The Connect button is a Cancel for as long as the state is 'connecting', and
  * it sends `disconnect`. On RTU a cancelled connect that finishes its open
  * anyway reports "Connected over Modbus RTU" over the cancel, leaving the
- * button on Disconnect and the port held.
+ * button on Disconnect and the port held. The button is what this reads: a
+ * snackbar can outlive the spec that raised it, and `preventDuplicate` drops a
+ * new one whose text is still showing.
  *
  * Both calls go through `window.api` in one tick, which is the window the
  * button opens while a port is opening.
@@ -25,38 +27,15 @@ import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 const PTY_0 = '/tmp/ttyVCANCEL0'
 const PTY_1 = '/tmp/ttyVCANCEL1'
 
-const SNACKBARS = '.notistack-SnackbarContainer'
-
-/** Every snackbar raised over the next two seconds, read as they come. */
-async function snackbarsOver(p: Page, milliseconds: number): Promise<string> {
-  const seen: string[] = []
+/** Every label the Connect button shows over the next two seconds. */
+async function connectLabelsOver(p: Page, milliseconds: number): Promise<string[]> {
+  const seen = new Set<string>()
   const deadline = Date.now() + milliseconds
   while (Date.now() < deadline) {
-    const text = await p
-      .locator(SNACKBARS)
-      .textContent({ timeout: 100 })
-      .catch(() => null)
-    if (text) seen.push(text)
+    seen.add((await p.getByTestId('connect-btn').textContent()) ?? '')
     await p.waitForTimeout(50)
   }
-  return [...new Set(seen)].join(' | ')
-}
-
-/**
- * Closes every snackbar on screen. `preventDuplicate` drops a message whose
- * text is still showing, so a "Connected over" left by an earlier spec both
- * reads as raised here and hides one that is. On a CI runner a closed
- * snackbar can stay in the DOM hidden, so only a visible close button is
- * pressed, and afterwards no container may hold the text, hidden or not.
- */
-async function closeSnackbars(p: Page): Promise<void> {
-  const close = p.getByTestId('snackbar-close-btn').filter({ visible: true })
-  await expect(async () => {
-    const count = await close.count()
-    if (count > 0) await close.first().click()
-    expect(count).toBe(0)
-  }).toPass({ timeout: 10_000 })
-  await expect(p.locator(SNACKBARS, { hasText: 'Connected over' })).toHaveCount(0)
+  return [...seen]
 }
 
 test.describe.serial('Cancelling a connect', () => {
@@ -111,15 +90,13 @@ test.describe.serial('Cancelling a connect', () => {
     await navigateToClient(mainPage)
     await connectClientRTU(mainPage, '0', '9600', 'none', '8', '1')
     await mainPage.getByTestId('rtu-com-input').locator('input').fill(PTY_1)
-    await closeSnackbars(mainPage)
 
     await mainPage.evaluate(() => {
       window.api.connect()
       window.api.disconnect()
     })
 
-    const raised = await snackbarsOver(mainPage, 2000)
-    expect(raised).not.toContain('Connected over')
+    expect(await connectLabelsOver(mainPage, 2000)).not.toContain('Disconnect')
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')
   })
 
