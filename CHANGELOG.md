@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opening the other side's configuration says so.** A client configuration
+  from before files carried a version, opened on the server, cleared the
+  server and loaded nothing, while it reported "Configuration updated from
+  older format". The other mix-ups were refused with a message naming a
+  missing field. Each now says the file belongs to the other side, and leaves
+  what is on screen alone.
+- **A server configuration from before units opens again.** A file saved
+  before a server had units, before June 2025, loaded as an empty server. Its
+  registers now open as unit 0.
 - **A client keeps reconnecting while its device is gone.** Pulling the USB
   cable of a serial device got one reconnect attempt, and when that failed the
   client stopped trying, so plugging the cable back in did nothing. It now

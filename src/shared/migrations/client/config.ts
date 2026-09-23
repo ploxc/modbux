@@ -6,6 +6,7 @@ import {
   dropUnreadableConfigMapping,
   formatZodError,
   parseConfigFile,
+  refuseOtherSidesConfig,
   renameLegacyRegisterTypeKeys
 } from '../shared'
 
@@ -50,6 +51,7 @@ function migrateClientV1toV2(v1Config: unknown): RegisterMapConfig {
  */
 export function migrateClientConfig(raw: string): MigrationResult<RegisterMapConfig> {
   const { parsed, detectedVersion } = parseConfigFile(raw)
+  refuseOtherSidesConfig(parsed, 'client')
 
   // Current version - no migration needed
   if (detectedVersion === CURRENT_CLIENT_CONFIG_VERSION) {

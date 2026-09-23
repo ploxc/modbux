@@ -13,6 +13,7 @@ import {
   dropUnservableConfigRegisters,
   isRecord,
   parseConfigFile,
+  refuseOtherSidesConfig,
   renameLegacyRegisterTypeKeys,
   stringifyExact64BitValues
 } from '../shared'
@@ -44,7 +45,10 @@ const SERVER_CONFIG_MIGRATIONS: Record<number, Migration<ServerConfig>> = {
 function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndianness?: boolean } {
   renameLegacyRegisterTypeKeys(v1Config)
   const config = v1Config as V1ServerConfig
-  const v1Registers = config.serverRegistersPerUnit ?? {}
+  // A server before `14893ff` had no units, and its one set of registers is
+  // what unit 0 holds now.
+  const v1Registers =
+    config.serverRegistersPerUnit ?? (config.serverRegisters ? { 0: config.serverRegisters } : {})
   // `V1ServerRegisters` declares the bool records as the entries this leaves,
   // because the loop below reads them after it. The helper runs here rather
   // than a third copy of the step: a copy that builds a new record per bool
@@ -156,6 +160,7 @@ function migrateBoolShapeInConfig(serverRegistersPerUnit: unknown): void {
  */
 export function migrateServerConfig(raw: string): MigrationResult<ServerConfig> {
   const { parsed, detectedVersion } = parseConfigFile(raw)
+  refuseOtherSidesConfig(parsed, 'server')
 
   // Current version - migrate bool shape if needed, then validate
   if (detectedVersion === CURRENT_SERVER_CONFIG_VERSION) {

@@ -86,6 +86,32 @@ export function parseConfigFile(raw: string): {
   return { parsed, detectedVersion: version ?? 1 }
 }
 
+/**
+ * Refuses a file saved by the other side.
+ *
+ * A server config is the one that holds `serverRegistersPerUnit`, in every
+ * version, or `serverRegisters`, which a server wrote before it had units. A
+ * client config from before versioned files is a bare register mapping with no
+ * key of its own to test for, so the client side asks the opposite question:
+ * whether the file holds a server's key.
+ */
+export function refuseOtherSidesConfig(
+  parsed: Record<string, unknown>,
+  side: 'client' | 'server'
+): void {
+  const isServerConfig = 'serverRegistersPerUnit' in parsed || 'serverRegisters' in parsed
+  if (side === 'server' && !isServerConfig) {
+    throw new Error(
+      'This is not a server configuration. A client configuration opens in the client.'
+    )
+  }
+  if (side === 'client' && isServerConfig) {
+    throw new Error(
+      'This is not a client configuration. A server configuration opens on the server.'
+    )
+  }
+}
+
 /** The object entries of `value`, and nothing at all when it is not an object. */
 export const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
   isRecord(value)

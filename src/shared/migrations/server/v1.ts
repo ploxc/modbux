@@ -32,6 +32,8 @@ export type V1ServerRegistersPerUnit = Record<string, V1ServerRegisters | undefi
 export interface V1ServerConfig {
   name?: string
   serverRegistersPerUnit?: V1ServerRegistersPerUnit
+  /** What a server wrote before it had units: the registers of unit 0. */
+  serverRegisters?: V1ServerRegisters
 }
 
 /**

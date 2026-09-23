@@ -436,7 +436,9 @@ describe('configMigration', () => {
       )
 
       it('still takes a file with no version at all', () => {
-        const result = migrateServerConfig(JSON.stringify({ name: 'v1', coils: {} }))
+        const result = migrateServerConfig(
+          JSON.stringify({ name: 'v1', serverRegistersPerUnit: {} })
+        )
         expect(result.fromVersion).toBe(1)
         expect(result.migrated).toBe(true)
       })
