@@ -17,6 +17,7 @@ import {
   ClientState,
   RegisterData,
   ScanUnitIDResult,
+  Transaction,
   defaultClientState,
   dummyWords
 } from '@shared'
@@ -66,15 +67,17 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
 
     // Transaction log
     transactions: [],
-    addTransaction: (transaction) =>
+    addTransactions: (transactions) =>
       set((state) => {
-        state.transactions.unshift(transaction)
+        state.transactions.unshift(...[...transactions].reverse())
         while (state.transactions.length > 1000) state.transactions.pop()
       }),
-    clearTransactions: () =>
+    clearTransactions: () => {
+      pendingTransactions.drop()
       set((state) => {
         state.transactions = []
-      }),
+      })
+    },
     lastSuccessfulTransactionMillis: null,
     setLastSuccessfulTransactionMillis: (value) =>
       set((state) => {
@@ -89,7 +92,7 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
         while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
       }),
     clearScanUnitIdResults: () => {
-      dropPendingUnitIdResults()
+      pendingUnitIdResults.drop()
       set((state) => {
         state.scanUnitIdResults = []
       })
@@ -160,27 +163,42 @@ export const dropPendingScanRows = (): void => {
 }
 
 /**
- * Results a unit id scan found, held back and written on the same timer.
+ * Events that arrive one per request, held back and written on the same timer.
  *
- * One result arrives per unit id, and the table drew itself again on each: a
- * scan of 255 ids lagged behind itself.
+ * A unit id scan sends a result per unit id, and the table drew itself again
+ * on each: a scan of 255 ids lagged behind itself. Main sends a transaction per
+ * request, and a register scan in chunks of one against a server that answers
+ * at once sent them faster than the window could write them.
  */
-let pendingUnitIdResults: ScanUnitIDResult[] = []
-let unitIdFlushTimeout: NodeJS.Timeout | undefined
-
-const flushUnitIdResults = (): void => {
-  clearTimeout(unitIdFlushTimeout)
-  unitIdFlushTimeout = undefined
-  if (pendingUnitIdResults.length === 0) return
-  useDataZustand.getState().addScanUnitIdResults(pendingUnitIdResults)
-  pendingUnitIdResults = []
+const heldOnTimer = <T>(
+  write: (items: T[]) => void
+): { push: (item: T) => void; flush: () => void; drop: () => void } => {
+  let pending: T[] = []
+  let timeout: NodeJS.Timeout | undefined
+  const drop = (): void => {
+    clearTimeout(timeout)
+    timeout = undefined
+    pending = []
+  }
+  const flush = (): void => {
+    const items = pending
+    drop()
+    write(items)
+  }
+  const push = (item: T): void => {
+    pending.push(item)
+    if (!timeout) timeout = setTimeout(flush, SCAN_FLUSH_MS)
+  }
+  return { push, flush, drop }
 }
 
-const dropPendingUnitIdResults = (): void => {
-  clearTimeout(unitIdFlushTimeout)
-  unitIdFlushTimeout = undefined
-  pendingUnitIdResults = []
-}
+const pendingUnitIdResults = heldOnTimer<ScanUnitIDResult>((results) =>
+  useDataZustand.getState().addScanUnitIdResults(results)
+)
+
+const pendingTransactions = heldOnTimer<Transaction>((transactions) =>
+  useDataZustand.getState().addTransactions(transactions)
+)
 
 /** Whether a `client_state` push has landed since the module was evaluated. */
 let clientStatePushed = false
@@ -244,22 +262,16 @@ onEvent('client_state', (clientState) => {
   // Main sends a scan's last rows before the state that ends it, so they are
   // written before the button says the scan stopped, not up to a flush later.
   if (!clientState.scanningRegisters) flushScanRows()
-  if (!clientState.scanningUnitIds) flushUnitIdResults()
+  if (!clientState.scanningUnitIds) pendingUnitIdResults.flush()
   const dataZustand = useDataZustand.getState()
   dataZustand.setClientState(clientState)
 })
 
 // Transactions from the transation log
-onEvent('transaction', (transaction) => {
-  const dataZustand = useDataZustand.getState()
-  dataZustand.addTransaction(transaction)
-})
+onEvent('transaction', (transaction) => pendingTransactions.push(transaction))
 
 // Unit ID scanning results
-onEvent('scan_unit_id_result', (scanUnitIDResult) => {
-  pendingUnitIdResults.push(scanUnitIDResult)
-  if (!unitIdFlushTimeout) unitIdFlushTimeout = setTimeout(flushUnitIdResults, SCAN_FLUSH_MS)
-})
+onEvent('scan_unit_id_result', (scanUnitIDResult) => pendingUnitIdResults.push(scanUnitIDResult))
 
 // Scan progress
 onEvent('scan_progress', (scanProgress) => {

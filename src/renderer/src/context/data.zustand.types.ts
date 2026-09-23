@@ -14,7 +14,7 @@ export interface DataZustand {
 
   // Transaction log
   transactions: Transaction[]
-  addTransaction: (transaction: Transaction) => void
+  addTransactions: (transactions: Transaction[]) => void
   clearTransactions: () => void
   lastSuccessfulTransactionMillis: number | null
   setLastSuccessfulTransactionMillis: (value: number | null) => void

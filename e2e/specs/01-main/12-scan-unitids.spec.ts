@@ -356,9 +356,11 @@ test.describe.serial('Scan Unit IDs', () => {
 
     // The row rather than the button: the button reads Start Scanning both
     // before main takes the request and after it is done, so a refused request
-    // satisfies it without a scan.
+    // satisfies it without a scan. 255, the last id, rather than 200: the
+    // newest result is the top row, and a scan faster than the check left 200
+    // below what the grid draws.
     const modal = mainPage.locator('.MuiModal-root')
-    await expect(modal.locator('.MuiDataGrid-row[data-id="200"]')).toBeVisible({ timeout: 60000 })
+    await expect(modal.locator('.MuiDataGrid-row[data-id="255"]')).toBeVisible({ timeout: 60000 })
 
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
       'Start Scanning',

@@ -58,7 +58,7 @@ describe('what main pushes about the client', () => {
     keysWritten.length = 0
 
     dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
-    dataZustand.addTransaction(transaction)
+    dataZustand.addTransactions([transaction])
     dataZustand.addScanUnitIdResults([scanResult])
     dataZustand.setScanProgress(50)
     dataZustand.setLastSuccessfulTransactionMillis(1)
@@ -77,7 +77,7 @@ describe('what main pushes about the client', () => {
     const dataZustand = useDataZustand.getState()
 
     dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
-    dataZustand.addTransaction(transaction)
+    dataZustand.addTransactions([transaction])
     dataZustand.addScanUnitIdResults([scanResult])
     dataZustand.setScanProgress(50)
     dataZustand.setLastSuccessfulTransactionMillis(1)
