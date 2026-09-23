@@ -251,5 +251,11 @@ app.on('window-all-closed', () => {
   }
 })
 
+// A quit neither caller above logged still passes here. The stack names the
+// JavaScript that asked for it, and a quit from outside the app's own code
+// has none of its frames in it.
+app.on('before-quit', () => lifecycle(`before-quit\n${new Error().stack}`))
+app.on('quit', (_event, exitCode) => lifecycle(`quit exitCode=${exitCode}`))
+
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
