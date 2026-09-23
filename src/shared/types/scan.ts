@@ -1,5 +1,5 @@
 import { RegisterType, RegisterTypeSchema } from './register'
-import { maxReadQuantity, RegisterAddressSchema, UnitIdSchema } from './ranges'
+import { maxReadQuantity, RegisterAddressSchema, registersFrom, UnitIdSchema } from './ranges'
 import z from 'zod'
 
 // Scan Registers
@@ -16,11 +16,12 @@ export type ScanRegistersParameters = z.infer<typeof ScanRegistersParametersSche
 /**
  * What a unit id scan asks each unit for.
  *
- * `length` and `registerTypes` bound each other, so the rule is the pair: one
- * length goes out for every type selected, and the strictest of them is the one
- * the request has to fit. Bare, `length` reached
- * `this._readers[registerType](address, length)` unchanged and `modbus-serial`
- * wrote it into the quantity field with nothing between.
+ * `length` is bound twice: by `registerTypes`, because one length goes out
+ * for every type selected and the strictest of them is the one the request has
+ * to fit, and by `address`, because the read has to end on an address there is.
+ * Bare, `length` reached `this._readers[registerType](address, length)`
+ * unchanged and `modbus-serial` wrote it into the quantity field with nothing
+ * between.
  */
 export const ScanUnitIDParametersSchema = z
   .object({
@@ -32,12 +33,23 @@ export const ScanUnitIDParametersSchema = z
   })
   .superRefine((parameters, ctx) => {
     const ceiling = maxReadQuantity(parameters.registerTypes)
-    if (parameters.length <= ceiling) return
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['length'],
-      message: `One read of these register types answers at most ${ceiling}`
-    })
+    if (parameters.length > ceiling) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['length'],
+        message: `One read of these register types answers at most ${ceiling}`
+      })
+    }
+    // The read also has to end on an address there is: 65535 with a length
+    // of 2 asked every unit for 65536.
+    const available = registersFrom(parameters.address)
+    if (parameters.length > available) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['length'],
+        message: `A read from ${parameters.address} reaches the last address after ${available}`
+      })
+    }
   })
 export type ScanUnitIDParameters = z.infer<typeof ScanUnitIDParametersSchema>
 

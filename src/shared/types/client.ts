@@ -1,12 +1,14 @@
 import z from 'zod'
 import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
+import { registerWidth } from '../encoding'
 import {
   MAX_WRITE_BITS,
   PortSchema,
   RegisterAddressKeySchema,
   RegisterAddressSchema,
-  UnitIdSchema
+  UnitIdSchema,
+  registersFrom
 } from './ranges'
 import { RegisterType, RegisterTypeSchema } from './register'
 import { SerialPortOptionsSchema } from './serial'
@@ -176,6 +178,19 @@ export const WriteParametersSchema = z
       })
     ])
   )
+  // What the write reaches has to end on an address there is: an int32 at
+  // 65535 went out as FC16 for 65535 and 65536.
+  .superRefine((parameters, ctx) => {
+    const width =
+      parameters.type === 'coils' ? parameters.value.length : registerWidth(parameters.dataType)
+    const available = registersFrom(parameters.address)
+    if (width <= available) return
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['address'],
+      message: `A write of ${width} from ${parameters.address} runs past the last address`
+    })
+  })
 export type WriteParameters = z.infer<typeof WriteParametersSchema>
 
 //

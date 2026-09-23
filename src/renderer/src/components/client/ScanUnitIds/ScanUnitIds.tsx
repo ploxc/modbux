@@ -11,7 +11,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { MAX_UNIT_ID, maxReadQuantity, RegisterType } from '@shared'
+import { MAX_UNIT_ID, maxReadQuantity, RegisterType, registersFrom } from '@shared'
 import { ElementType, useCallback } from 'react'
 import useScanUnitIdColumns from './columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -118,7 +118,11 @@ const LengthField = meme((): JSX.Element => {
   // every one of them. The floor is on the blur, the way Count's is:
   // `ScanUnitIDParametersSchema` takes a positive length.
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
-  const max = maxReadQuantity(registerTypes)
+  const address = useScanUnitIdZustand((z) => z.address)
+  // The read also ends on an address there is, the way the toolbar's Length
+  // field is bounded. The mask rewrites the stored length when the address
+  // moves, so a length typed first still fits.
+  const max = Math.min(maxReadQuantity(registerTypes), registersFrom(address))
 
   const setLength = useScanUnitIdZustand.getState().setLength
 

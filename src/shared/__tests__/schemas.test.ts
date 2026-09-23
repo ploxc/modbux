@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   ConnectionConfigSchema,
   RegisterConfigSchema,
-  RegisterMapObjectSchema
+  RegisterMapObjectSchema,
+  WriteParametersSchema
 } from '../types/client'
 import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
@@ -558,10 +559,66 @@ describe('ScanUnitIDParametersSchema — the quantity that reaches the wire', ()
     expect(takes({ registerTypes: ['coils', 'holding_registers'], length: 125 })).toBe(true)
   })
 
+  // The quantity also has to end at the last address there is: 65535 with a
+  // length of 2 asked every unit for 65535 and 65536.
+  it('refuses a read that runs past the last address', () => {
+    expect(takes({ address: MAX_REGISTER_ADDRESS, length: 2 })).toBe(false)
+    expect(takes({ address: 65500, length: 37 })).toBe(false)
+  })
+
+  it('takes a read that ends on the last address', () => {
+    expect(takes({ address: MAX_REGISTER_ADDRESS, length: 1 })).toBe(true)
+    expect(takes({ address: 65500, length: 36 })).toBe(true)
+  })
+
+  it('names the length when the read runs past the last address', () => {
+    const result = ScanUnitIDParametersSchema.safeParse(
+      parameters({ address: MAX_REGISTER_ADDRESS, length: 2 })
+    )
+    expect(result.error?.issues[0]?.path).toEqual(['length'])
+  })
+
   it('names the length', () => {
     const result = ScanUnitIDParametersSchema.safeParse(parameters({ length: 65535 }))
     expect(result.success).toBe(false)
     expect(result.error?.issues[0]?.path).toEqual(['length'])
+  })
+})
+
+describe('WriteParametersSchema — the registers a write reaches', () => {
+  const holding = (address: number, dataType: string): unknown => ({
+    address,
+    single: false,
+    type: 'holding_registers',
+    value: 1,
+    dataType
+  })
+  const coils = (address: number, count: number): unknown => ({
+    address,
+    single: false,
+    type: 'coils',
+    value: Array<boolean>(count).fill(true),
+    dataType: undefined
+  })
+  const takes = (parameters: unknown): boolean =>
+    WriteParametersSchema.safeParse(parameters).success
+
+  it('refuses a value that runs past the last address', () => {
+    expect(takes(holding(MAX_REGISTER_ADDRESS, 'int32'))).toBe(false)
+    expect(takes(holding(65533, 'double'))).toBe(false)
+  })
+
+  it('takes a value that ends on the last address', () => {
+    expect(takes(holding(65534, 'int32'))).toBe(true)
+    expect(takes(holding(MAX_REGISTER_ADDRESS, 'uint16'))).toBe(true)
+  })
+
+  it('refuses coils that run past the last address', () => {
+    expect(takes(coils(65530, 7))).toBe(false)
+  })
+
+  it('takes coils that end on the last address', () => {
+    expect(takes(coils(65530, 6))).toBe(true)
   })
 })
 

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A unit ID scan stops at the last address.** Address 65535 with a length of
+  2 asked every unit for an address that does not exist. The Length field now
+  stops at the addresses left, as the read's Length field does. A write that
+  would run past the last address is refused too.
 - **Opening the other side's configuration says so.** A client configuration
   from before files carried a version, opened on the server, cleared the
   server and loaded nothing, while it reported "Configuration updated from

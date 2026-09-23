@@ -72,6 +72,19 @@ describe('ScanUnitIds asks for a range the boundary takes', () => {
     expect(ScanUnitIDParametersSchema.safeParse(payload()).success).toBe(true)
   })
 
+  // The Length field's mask is bounded by the address as well, and rewrites
+  // the stored length when it mounts: 65535 with a length of 2 asked for 65536.
+  it('ends the read on the last address', () => {
+    useScanUnitIdZustand.setState({ address: 65535, length: 2 })
+
+    render(<ScanUnitIds />)
+
+    fireEvent.click(screen.getByTestId('scan-unitid-start-stop-btn'))
+
+    expect(payload()).toMatchObject({ address: 65535, length: 1 })
+    expect(ScanUnitIDParametersSchema.safeParse(payload()).success).toBe(true)
+  })
+
   it('leaves a range that fits where it is', () => {
     useScanUnitIdZustand.setState({ startUnitId: 1, count: 6 })
 
