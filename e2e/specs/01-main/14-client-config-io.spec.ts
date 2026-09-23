@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   selectRegisterType,
@@ -19,6 +19,10 @@ const CONFIG_FILES = {
   clientBasicLE: resolve(CONFIG_DIR, 'client-basic-le.json'),
   clientComprehensive: resolve(CONFIG_DIR, 'client-server1-unit0.json')
 }
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Client config I/O — view, save, clear, load', () => {
   test('navigate to client view', async ({ mainPage }) => {

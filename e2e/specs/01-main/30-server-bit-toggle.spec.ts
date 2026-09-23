@@ -1,5 +1,9 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import { addRegister, cleanServerState } from '../../fixtures/helpers'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 // A toggle writes the whole word back, so it has to read the word the toggle
 // before it wrote. The store gets that word one IPC round trip late and hands

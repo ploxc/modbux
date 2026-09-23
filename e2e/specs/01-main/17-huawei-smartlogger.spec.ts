@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -27,6 +27,10 @@ import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Huawei Smart Logger — comprehensive integration test', () => {
   test('clean server state', async ({ mainPage }) => {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToServer,
   navigateToClient,
@@ -33,6 +33,10 @@ const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-basic-unit1.json')
 // cannot be validated against Modbux's own ServerTCP, which speaks MBAP.
 const PTY = '/tmp/ttyVRTU'
 const TCP_PORT = '15020'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () => {
   test.skip(!hasSocat, 'socat not available')

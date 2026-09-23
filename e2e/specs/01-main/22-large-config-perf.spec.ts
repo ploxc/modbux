@@ -3,11 +3,15 @@
  * Measures how long the sequential for...of loop takes to load all unit configs.
  */
 
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import { navigateToServer, loadServerConfig, selectUnitId } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
 const LARGE_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-large-perf.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Large config performance (20 units, 2600 entries)', () => {
   test('navigate to server', async ({ mainPage }) => {

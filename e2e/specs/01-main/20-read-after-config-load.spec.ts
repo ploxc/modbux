@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -12,6 +12,10 @@ import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Read after config load — init readConfiguration sync', () => {
   test('clean server state', async ({ mainPage }) => {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -178,6 +178,10 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
 }
 
 // ─── Tests ────────────────────────────────────────────────────────
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Huawei Smart Logger — JSON server + manual client config', () => {
   // ─── Server setup (JSON load) ──────────────────────────────────

@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -18,6 +18,10 @@ import { resolve } from 'path'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-large-config.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Large Config (>100 registers) with readConfiguration', () => {
   // ─── Setup ──────────────────────────────────────────────────────

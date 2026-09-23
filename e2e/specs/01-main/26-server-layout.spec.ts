@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import { navigateToServer, addBool } from '../../fixtures/helpers'
 import { evaluateMain } from '../../fixtures/launch'
 
@@ -13,6 +13,10 @@ import { evaluateMain } from '../../fixtures/launch'
  */
 const DEFAULT_SIZE: [number, number] = [1480, 1000]
 const BITS = 14
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Server layout — panels stay inside the view', () => {
   test('fill both bit lists', async ({ mainPage }) => {

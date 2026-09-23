@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToServer,
   navigateToClient,
@@ -6,6 +6,10 @@ import {
   addRegister
 } from '../../fixtures/helpers'
 import type { RegisterDef } from '../../fixtures/types'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Input validation — AddRegister modal and client inputs', () => {
   test('navigate to server view', async ({ mainPage }) => {

@@ -9,7 +9,7 @@
  * Not part of the suite. Run it with `yarn test:e2e --grep "Scan grid cost"`.
  */
 
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   loadServerConfig,
   navigateToClient,
@@ -26,6 +26,10 @@ const CONFIG = resolve(__dirname, '../../fixtures/config-files/server-scan-perf.
 // measurement is about the grid rather than about failed reads.
 const SCAN_LENGTH = process.env.SCAN_LENGTH ?? '2000'
 const CHUNK_SIZE = process.env.CHUNK_SIZE ?? '1'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Scan grid cost', () => {
   test('load a server with 2000 registers', async ({ mainPage }) => {

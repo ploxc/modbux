@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToServer,
   selectDataType,
@@ -7,6 +7,10 @@ import {
   closeAddRegisterModal
 } from '../../fixtures/helpers'
 import type { RegisterDef } from '../../fixtures/types'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('AddRegister modal — state management and validation', () => {
   test('navigate to server, select server 502, unit 0', async ({ mainPage }) => {

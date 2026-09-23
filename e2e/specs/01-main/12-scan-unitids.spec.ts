@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -11,6 +11,10 @@ import {
 import { resolve } from 'path'
 
 const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Scan Unit IDs', () => {
   // ─── Setup ──────────────────────────────────────────────────────────

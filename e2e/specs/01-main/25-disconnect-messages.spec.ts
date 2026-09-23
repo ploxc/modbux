@@ -12,7 +12,7 @@
  * unexpectedly" beside "Disconnected from server". So what this spec watches is
  * the library: it goes red if a bump puts that relay back.
  */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
 import {
   cleanServerState,
@@ -40,6 +40,10 @@ async function expectCleanDisconnect(p: Page): Promise<void> {
   await expect(snackbars).toContainText('Disconnected from server', { timeout: 5000 })
   await expect(snackbars).not.toContainText('unexpectedly')
 }
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Disconnect messaging — TCP', () => {
   test('clean server state', async ({ mainPage }) => {

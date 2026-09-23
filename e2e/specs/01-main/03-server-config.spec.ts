@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToServer,
   navigateToClient,
@@ -9,6 +9,10 @@ import {
   addBool
 } from '../../fixtures/helpers'
 import { SERVER_1_UNIT_0, SERVER_1_UNIT_1, SERVER_2_UNIT_0 } from '../../fixtures/test-data'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Server configuration', () => {
   /** What `add-server-btn` picked, read once the second server is selected. */

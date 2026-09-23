@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import { navigateToHome, navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { type Page } from '@playwright/test'
 import net from 'net'
@@ -8,6 +8,10 @@ let serverPage: Page
 let serverPort: number
 let master: net.Socket
 const masterEvents: string[] = []
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Split View — Server in separate window', () => {
   test.afterAll(() => {

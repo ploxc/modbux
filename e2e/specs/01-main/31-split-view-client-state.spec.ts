@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   navigateToHome,
@@ -23,6 +23,10 @@ const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-large-config.json')
 
 let serverPage: Page
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 // Both windows load the one renderer bundle, so both evaluate
 // `client.zustand`'s module scope, and `init` there called

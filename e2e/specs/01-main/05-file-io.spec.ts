@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import { addBool, navigateToServer, navigateToClient, selectUnitId } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -13,6 +13,10 @@ const CONFIG_FILES = {
   serverLegacy: resolve(CONFIG_DIR, 'server-v1-legacy.json'),
   clientBasic: resolve(CONFIG_DIR, 'client-basic.json')
 }
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('File I/O — open, save, clear server and client configs', () => {
   test('navigate to server view', async ({ mainPage }) => {

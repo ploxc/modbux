@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   cleanServerState,
@@ -15,6 +15,10 @@ import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const BITMAP_CONFIG = resolve(CONFIG_DIR, 'client-bitmap.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Bitmap settings — color, invert & config persistence', () => {
   test('navigate to client and load bitmap config', async ({ mainPage }) => {

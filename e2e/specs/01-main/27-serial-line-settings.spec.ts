@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
 import {
   navigateToServer,
@@ -133,6 +133,10 @@ const CASES: { name: string; ui: SerialUi; speed: number; flags: string[] }[] = 
     flags: ['cs5', '-parenb', 'cstopb']
   }
 ]
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Serial line settings — what reaches the port', () => {
   test.skip(!hasSocat, 'socat not available')

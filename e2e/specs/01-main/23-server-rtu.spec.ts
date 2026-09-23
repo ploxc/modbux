@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
 import {
   navigateToServer,
@@ -37,6 +37,10 @@ const PTY_0 = '/tmp/ttyV0'
 const PTY_1 = '/tmp/ttyV1'
 
 // ─── Block 1: Server RTU UI Elements ─────────────────────────────────────────
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Server RTU — UI elements', () => {
   test('navigate to server view', async ({ mainPage }) => {

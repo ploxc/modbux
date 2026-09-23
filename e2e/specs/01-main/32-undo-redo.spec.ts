@@ -6,7 +6,7 @@
  * saved configuration follows. The key presses here go to the page, not through
  * Electron's Edit menu, so this covers the field's half and not the menu's.
  */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Locator, Page } from '@playwright/test'
 import {
   addBool,
@@ -36,6 +36,10 @@ const typeOver = async (p: Page, input: Locator, text: string): Promise<void> =>
   await p.keyboard.press('ControlOrMeta+a')
   await p.keyboard.type(text, { delay: 30 })
 }
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Undo and redo in a focused field', () => {
   test('open the client view over TCP', async ({ mainPage }) => {

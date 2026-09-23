@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   selectRegisterType,
   addRegister,
@@ -16,6 +16,10 @@ import {
   expectCell,
   expectCellContains
 } from '../../fixtures/helpers'
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Write Operations', () => {
   // ─── Setup: clean state and configure writable registers ───────────

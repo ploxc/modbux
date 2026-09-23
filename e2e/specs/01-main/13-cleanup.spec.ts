@@ -1,4 +1,4 @@
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   loadServerConfig,
   selectUnitId,
@@ -10,6 +10,10 @@ import { resolve } from 'path'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
 const SERVER_2_CONFIG = resolve(CONFIG_DIR, 'server-2.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Cleanup Operations', () => {
   // Setup: clean state first, then create full state to clean up

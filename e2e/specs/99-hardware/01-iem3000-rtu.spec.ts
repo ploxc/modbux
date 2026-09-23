@@ -9,7 +9,7 @@
  *
  * With no Arduino attached the whole suite skips.
  */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClientRTU,
@@ -31,6 +31,10 @@ const CLIENT_CONFIG_ERROR = resolve(CONFIG_DIR, 'client-iem3000-error.json')
 
 /** Gap between enabling read-configuration and the read it must serve. */
 const READ_SETTLE_MS = 250
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
   let arduinoPort = ''

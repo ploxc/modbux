@@ -1,4 +1,4 @@
-import { test } from '../../fixtures/electron-app'
+import { test, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
   connectClient,
@@ -17,6 +17,10 @@ import { resolve } from 'path'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-large-config.json')
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 // Turning read configuration on fills the grid from the mapping, and every word
 // in it is `dummyWords`, so address 0 reads 0 where the server holds 1. The

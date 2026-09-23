@@ -11,7 +11,7 @@
  * Both calls go through `window.api` in one tick, which is the window the
  * button opens while a port is opening.
  */
-import { test, expect } from '../../fixtures/electron-app'
+import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
 import {
   cleanServerState,
@@ -37,6 +37,10 @@ async function connectLabelsOver(p: Page, milliseconds: number): Promise<string[
   }
   return [...seen]
 }
+
+test.beforeAll(async ({ electronApp, mainPage }) => {
+  await resetApp(electronApp, mainPage)
+})
 
 test.describe.serial('Cancelling a connect', () => {
   test.skip(!hasSocat, 'socat not available')
