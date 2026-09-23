@@ -35,7 +35,8 @@ export default defineConfig({
   timeout: 60000,
   retries: 0,
   workers: 1,
-  maxFailures: 1,
+  // Every spec file resets the app in its beforeAll, so a failure in one file
+  // says nothing about the next, and the run reports every failure it has.
   use: {
     trace: 'on-first-retry'
   }

@@ -294,7 +294,7 @@ generic driver claims the device. Every `test:all:*` ends with this round, and
 - **New features need tests.** Unit tests for logic, e2e tests for UI behavior.
 - **Bug fixes need a regression test.** Prove it was broken, prove it's fixed.
 - **Tests must be deterministic.** No flaky tests. No "works on my machine". Use `waitForTimeout()` for UI settling and animations, but use `toPass()` when asserting on data that needs time to arrive.
-- **e2e tests run serially** with `maxFailures: 1`. One failure stops the entire suite. This is intentional.
+- **e2e tests run serially**, and every spec file starts with a `beforeAll` that calls `resetApp`, which the fixture refuses to run a test without. A failure skips the rest of a `describe.serial` and touches no other file, so one run reports every failing file.
 
 ### Writing e2e tests
 
