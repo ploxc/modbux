@@ -9,6 +9,7 @@ import {
   loadServerConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import net from 'net'
 
 const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
@@ -217,8 +218,12 @@ test.describe.serial('Scan Unit IDs', () => {
     const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
     await timeout.fill('500')
 
-    // Start scanning — button text changes back when done
+    // The last row before the button: the button reads Start Scanning before
+    // main takes the request too, and a scan still running when the next test
+    // presses the button is stopped by it.
     await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    const modal = mainPage.locator('.MuiModal-root')
+    await expect(modal.locator('.MuiDataGrid-row[data-id="5"]')).toBeVisible({ timeout: 30000 })
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
       'Start Scanning',
       { timeout: 30000 }
@@ -291,8 +296,9 @@ test.describe.serial('Scan Unit IDs', () => {
     const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
     await timeout.fill('500')
 
-    // Start scan
+    // The last row before the button, as in the first scan.
     await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(modal.locator('.MuiDataGrid-row[data-id="3"]')).toBeVisible({ timeout: 60000 })
     await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
       'Start Scanning',
       { timeout: 60000 }
@@ -331,39 +337,6 @@ test.describe.serial('Scan Unit IDs', () => {
     const answered = row1.locator('.scan-answered')
     const count = await answered.count()
     expect(count).toBeGreaterThanOrEqual(3)
-  })
-
-  // ─── Fields disabled during scanning + stop mid-scan ─────────────
-
-  test('fields are disabled while scanning and stop works', async ({ mainPage }) => {
-    // Configure max range so scanning takes time
-    const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
-    await startUnit.fill('0')
-    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
-    await count.fill('256')
-    const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
-    await timeout.fill('500')
-
-    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Stop Scanning')
-
-    // While scanning, all config fields should be disabled
-    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeDisabled()
-    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeDisabled()
-    await expect(mainPage.getByTestId('scan-unitid-address-input').locator('input')).toBeDisabled()
-    await expect(mainPage.getByTestId('scan-unitid-length-input').locator('input')).toBeDisabled()
-    await expect(mainPage.getByTestId('scan-unitid-timeout-input').locator('input')).toBeDisabled()
-
-    // Stop scan mid-operation
-    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
-    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
-      'Start Scanning',
-      { timeout: 10000 }
-    )
-
-    // Fields should be re-enabled after stopping
-    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeEnabled()
-    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeEnabled()
   })
 
   // ─── A range wider than the unit ids there are ────────────────────
@@ -425,6 +398,62 @@ test.describe.serial('Scan Unit IDs', () => {
 
   test('disconnect', async ({ mainPage }) => {
     await disconnectClient(mainPage)
+  })
+
+  // ─── Fields disabled during scanning + stop mid-scan ─────────────
+
+  // Modbux's own server refuses a unit it does not host at once, so a scan of
+  // all 256 against it could end before the five fields were read: it did in
+  // 3 of 7 runs of yarn test:e2e on Linux, 23 Sep 2026. A device that never
+  // answers makes every read wait out the 500ms timeout, so the scan is still
+  // running when Stop is pressed.
+  test('fields are disabled while scanning and stop works', async ({ mainPage }) => {
+    const sockets: net.Socket[] = []
+    const silentDevice = net.createServer((socket) => sockets.push(socket))
+    const port = await new Promise<number>((resolve) => {
+      silentDevice.listen(0, '127.0.0.1', () => {
+        const address = silentDevice.address()
+        if (address === null || typeof address === 'string') throw new Error('device has no port')
+        resolve(address.port)
+      })
+    })
+
+    await connectClient(mainPage, '127.0.0.1', String(port), '0')
+    await mainPage.getByTestId('menu-btn').click()
+    await mainPage.getByTestId('scan-unitids-btn').click()
+
+    const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
+    await startUnit.fill('0')
+    const count = mainPage.getByTestId('scan-unitid-count-input').locator('input')
+    await count.fill('256')
+    const timeout = mainPage.getByTestId('scan-unitid-timeout-input').locator('input')
+    await timeout.fill('500')
+
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText('Stop Scanning')
+
+    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-address-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-length-input').locator('input')).toBeDisabled()
+    await expect(mainPage.getByTestId('scan-unitid-timeout-input').locator('input')).toBeDisabled()
+
+    // Unstopped, the scan runs for 256 x 500ms, so reading Start Scanning
+    // within 10s is the stop's doing.
+    await mainPage.getByTestId('scan-unitid-start-stop-btn').click()
+    await expect(mainPage.getByTestId('scan-unitid-start-stop-btn')).toContainText(
+      'Start Scanning',
+      { timeout: 10000 }
+    )
+
+    await expect(mainPage.getByTestId('scan-start-unitid-input').locator('input')).toBeEnabled()
+    await expect(mainPage.getByTestId('scan-unitid-count-input').locator('input')).toBeEnabled()
+
+    await mainPage.keyboard.press('Escape')
+    await mainPage.keyboard.press('Escape')
+    await disconnectClient(mainPage)
+    for (const socket of sockets) socket.destroy()
+    silentDevice.close()
   })
 
   test('scan unit IDs button is disabled when disconnected', async ({ mainPage }) => {
