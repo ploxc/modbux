@@ -5,7 +5,7 @@ import {
   navigateToHome,
   splitOutServerWindow
 } from '../../fixtures/helpers'
-import { launchElectron } from '../../fixtures/launch'
+import { launchElectron, evaluateMain } from '../../fixtures/launch'
 import { keepOutput } from '../../fixtures/electron-app'
 
 let app: ElectronApplication
@@ -18,15 +18,19 @@ async function launchApp(clearStorage: boolean): Promise<void> {
   app = await launchElectron()
   keepOutput(app)
   if (clearStorage) {
-    await app.evaluate((ctx) =>
-      ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+    await evaluateMain(() =>
+      app.evaluate((ctx) =>
+        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      )
     )
   }
   let searchCount = 0
   while (searchCount < 10) {
     searchCount++
-    const found = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+    const found = await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+      )
     )
     const [firstWindow] = app.windows()
     if (found && firstWindow && app.windows().length === 1) {
@@ -86,11 +90,13 @@ test.describe.serial('A register added in the split out server window', () => {
   })
 
   test('the split window closes and the main window keeps it', async () => {
-    await app.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .filter((w) => w.getTitle() === 'Server')
-        .forEach((w) => w.close())
-    })
+    await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .filter((w) => w.getTitle() === 'Server')
+          .forEach((w) => w.close())
+      })
+    )
     await page.waitForTimeout(3000)
   })
 

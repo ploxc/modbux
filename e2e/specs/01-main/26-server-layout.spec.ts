@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures/electron-app'
 import { navigateToServer, addBool } from '../../fixtures/helpers'
+import { evaluateMain } from '../../fixtures/launch'
 
 /**
  * The server view lays its four panels out in a wrapping flex row. Nothing
@@ -29,14 +30,16 @@ test.describe.serial('Server layout — panels stay inside the view', () => {
     [820, 800]
   ] as [number, number][]) {
     test(`no overflow at ${width}x${height}`, async ({ mainPage, electronApp }) => {
-      await electronApp.evaluate(
-        ({ BrowserWindow }, size) => {
-          const [window] = BrowserWindow.getAllWindows()
-          if (!window) throw new Error('no window to resize')
-          const [w, h] = size
-          window.setSize(w, h)
-        },
-        [width, height] as [number, number]
+      await evaluateMain(() =>
+        electronApp.evaluate(
+          ({ BrowserWindow }, size) => {
+            const [window] = BrowserWindow.getAllWindows()
+            if (!window) throw new Error('no window to resize')
+            const [w, h] = size
+            window.setSize(w, h)
+          },
+          [width, height] as [number, number]
+        )
       )
       await mainPage.waitForTimeout(500)
 
@@ -49,11 +52,13 @@ test.describe.serial('Server layout — panels stay inside the view', () => {
   }
 
   test('restore the window', async ({ electronApp }) => {
-    await electronApp.evaluate(({ BrowserWindow }, size) => {
-      const [window] = BrowserWindow.getAllWindows()
-      if (!window) throw new Error('no window to restore')
-      const [w, h] = size
-      window.setSize(w, h)
-    }, DEFAULT_SIZE)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }, size) => {
+        const [window] = BrowserWindow.getAllWindows()
+        if (!window) throw new Error('no window to restore')
+        const [w, h] = size
+        window.setSize(w, h)
+      }, DEFAULT_SIZE)
+    )
   })
 })

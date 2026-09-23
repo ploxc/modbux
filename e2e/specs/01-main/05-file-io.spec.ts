@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures/electron-app'
 import { addBool, navigateToServer, navigateToClient, selectUnitId } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CONFIG_FILES = {
@@ -154,11 +155,13 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
   }) => {
     const savePath = resolve(tmpdir(), `modbux-test-save-${Date.now()}.json`)
 
-    await electronApp.evaluate(({ session }, path) => {
-      session.defaultSession.on('will-download', (_event, item) => {
-        item.setSavePath(path)
-      })
-    }, savePath)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.on('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
 
     await mainPage.getByTestId('server-save-btn').click()
     await mainPage.waitForTimeout(1000)
@@ -202,11 +205,13 @@ test.describe.serial('File I/O — open, save, clear server and client configs',
     await expect(mainPage.getByTestId('section-coils')).toContainText('(2)')
 
     const savePath = resolve(tmpdir(), `modbux-test-coils-off-${Date.now()}.json`)
-    await electronApp.evaluate(({ session }, path) => {
-      session.defaultSession.on('will-download', (_event, item) => {
-        item.setSavePath(path)
-      })
-    }, savePath)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.on('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
 
     await mainPage.getByTestId('server-save-btn').click()
     await mainPage.waitForTimeout(1000)

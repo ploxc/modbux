@@ -1,7 +1,7 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
-import { launchElectron } from '../../fixtures/launch'
+import { launchElectron, evaluateMain } from '../../fixtures/launch'
 import { keepOutput } from '../../fixtures/electron-app'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
@@ -18,16 +18,20 @@ async function launchApp(clearStorage = true): Promise<void> {
   // instance lock, which is where the log has to be able to speak.
   keepOutput(app)
   if (clearStorage) {
-    await app.evaluate((ctx) =>
-      ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+    await evaluateMain(() =>
+      app.evaluate((ctx) =>
+        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      )
     )
   }
   // Wait for main window (check BrowserWindow title, not HTML title)
   let searchCount = 0
   while (searchCount < 10) {
     searchCount++
-    const found = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+    const found = await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+      )
     )
     const [firstWindow] = app.windows()
     if (found && firstWindow && app.windows().length === 1) {

@@ -14,7 +14,7 @@
  * one go. It raises a PolicyKit password prompt.
  */
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
-import { launchElectron } from '../../fixtures/launch'
+import { launchElectron, evaluateMain } from '../../fixtures/launch'
 import { navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { readFileSync } from 'fs'
 
@@ -32,16 +32,20 @@ function kernelFloor(): number {
 async function launchApp(clearStorage = true): Promise<void> {
   app = await launchElectron()
   if (clearStorage) {
-    await app.evaluate((ctx) =>
-      ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+    await evaluateMain(() =>
+      app.evaluate((ctx) =>
+        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      )
     )
   }
   // firstWindow() can hand back a window that is already on its way out, so
   // wait for the real main window the way the hardware specs do.
   let found: Page | undefined
   for (let attempt = 0; attempt < 10 && !found; attempt++) {
-    const ready = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+    const ready = await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+      )
     )
     if (ready && app.windows().length === 1) found = app.windows()[0]
     else await new Promise((r) => setTimeout(r, 1000))

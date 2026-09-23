@@ -7,7 +7,7 @@ import {
 } from '@playwright/test'
 import net from 'net'
 import { keepOutput } from '../../fixtures/electron-app'
-import { launchElectron, launchOptions, ownProfileDir } from '../../fixtures/launch'
+import { launchElectron, launchOptions, ownProfileDir, evaluateMain } from '../../fixtures/launch'
 import { connectClient, navigateToClient, navigateToServer } from '../../fixtures/helpers'
 
 /**
@@ -74,7 +74,9 @@ function startDevice(): Promise<void> {
 }
 
 async function windowCount(): Promise<number> {
-  return app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+  return evaluateMain(() =>
+    app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+  )
 }
 
 /**
@@ -133,8 +135,8 @@ test.describe.serial('macOS dock — the app outlives its windows', () => {
   })
 
   test('closing every window leaves the app running', async () => {
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().forEach((w) => w.close())
+    await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.close()))
     )
     await expect.poll(windowCount, { timeout: 10000 }).toBe(0)
   })

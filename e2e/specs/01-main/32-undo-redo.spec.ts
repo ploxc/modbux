@@ -17,6 +17,7 @@ import {
   selectRegisterType,
   splitOutServerWindow
 } from '../../fixtures/helpers'
+import { evaluateMain } from '../../fixtures/launch'
 
 /** What the client store last persisted, read the way the next launch reads it. */
 const savedConnection = async (p: Page): Promise<{ host: string; unitId: number }> =>
@@ -178,11 +179,13 @@ test.describe.serial('The server steps travel with the server view', () => {
     await expect(serverPage.getByTestId('server-bool-row-coils-5')).toBeVisible()
     await leaveTheField(serverPage)
 
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .find((window) => window.getTitle() === 'Server')
-        ?.close()
-    })
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .find((window) => window.getTitle() === 'Server')
+          ?.close()
+      })
+    )
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()
     await navigateToServer(mainPage)
     const mainRow = mainPage.getByTestId('server-bool-row-coils-5')

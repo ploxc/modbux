@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/electron-app'
 import { navigateToHome, navigateToServer, splitOutServerWindow } from '../../fixtures/helpers'
 import { type Page } from '@playwright/test'
 import net from 'net'
+import { evaluateMain } from '../../fixtures/launch'
 
 let serverPage: Page
 let serverPort: number
@@ -11,11 +12,13 @@ const masterEvents: string[] = []
 test.describe.serial('Split View — Server in separate window', () => {
   test.afterAll(async ({ electronApp }) => {
     master?.destroy()
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .filter((w) => w.getTitle() === 'Server')
-        .forEach((w) => w.close())
-    })
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .filter((w) => w.getTitle() === 'Server')
+          .forEach((w) => w.close())
+      })
+    )
   })
 
   test('read the server port, then navigate to home', async ({ mainPage }) => {
@@ -39,10 +42,12 @@ test.describe.serial('Split View — Server in separate window', () => {
   test('open split view from Home', async ({ electronApp, mainPage }) => {
     serverPage = await splitOutServerWindow(electronApp, mainPage)
     await serverPage.waitForTimeout(500)
-    const title = await electronApp.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((w) => w.getTitle() === 'Server')
-        ?.getTitle()
+    const title = await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()
+          .find((w) => w.getTitle() === 'Server')
+          ?.getTitle()
+      )
     )
     expect(title).toBe('Server')
   })
@@ -93,11 +98,13 @@ test.describe.serial('Split View — Server in separate window', () => {
     electronApp,
     mainPage
   }) => {
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .find((w) => w.getTitle() === 'Server')
-        ?.close()
-    })
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .find((w) => w.getTitle() === 'Server')
+          ?.close()
+      })
+    )
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()
   })
 })

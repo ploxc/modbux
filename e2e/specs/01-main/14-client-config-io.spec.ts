@@ -11,6 +11,7 @@ import {
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const CONFIG_FILES = {
@@ -82,11 +83,13 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   test('save client config — verify download content', async ({ electronApp, mainPage }) => {
     const savePath = resolve(tmpdir(), `modbux-client-test-save-${Date.now()}.json`)
 
-    await electronApp.evaluate(({ session }, path) => {
-      session.defaultSession.on('will-download', (_event, item) => {
-        item.setSavePath(path)
-      })
-    }, savePath)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.on('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
 
     await mainPage.getByTestId('save-config-btn').click()
     await mainPage.waitForTimeout(1000)

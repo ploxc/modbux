@@ -21,6 +21,7 @@ import {
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import { tmpdir } from 'os'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-huawei-smartlogger.json')
@@ -339,11 +340,13 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   test('save manual config and verify JSON output', async ({ electronApp, mainPage }) => {
     const savePath = resolve(tmpdir(), `modbux-huawei-manual-${Date.now()}.json`)
 
-    await electronApp.evaluate(({ session }, path) => {
-      session.defaultSession.on('will-download', (_event, item) => {
-        item.setSavePath(path)
-      })
-    }, savePath)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.on('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
 
     await mainPage.getByTestId('save-config-btn').click()
     await mainPage.waitForTimeout(1000)

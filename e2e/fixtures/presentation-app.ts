@@ -4,7 +4,7 @@ import {
   type ElectronApplication,
   type Page
 } from '@playwright/test'
-import { launchOptions } from './launch'
+import { launchOptions, evaluateMain } from './launch'
 
 export type PresentationFixtures = {
   electronApp: ElectronApplication
@@ -18,8 +18,10 @@ export const test = base.extend<{}, PresentationFixtures>({
     async ({}, use): Promise<void> => {
       const app = await electron.launch(launchOptions())
 
-      await app.evaluate((ctx) =>
-        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      await evaluateMain(() =>
+        app.evaluate((ctx) =>
+          ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+        )
       )
 
       await use(app)
@@ -36,8 +38,10 @@ export const test = base.extend<{}, PresentationFixtures>({
       while (searchCount < 10) {
         searchCount++
 
-        const found = await electronApp.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+        const found = await evaluateMain(() =>
+          electronApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+          )
         )
 
         if (found && electronApp.windows().length === 1) {

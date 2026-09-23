@@ -17,6 +17,7 @@ import {
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { type Page } from '@playwright/test'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
@@ -33,11 +34,13 @@ let serverPage: Page
 // see it.
 test.describe.serial('Read configuration survives the split out server window', () => {
   test.afterAll(async ({ electronApp }) => {
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .filter((w) => w.getTitle() === 'Server')
-        .forEach((w) => w.close())
-    })
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .filter((w) => w.getTitle() === 'Server')
+          .forEach((w) => w.close())
+      })
+    )
   })
 
   test('clean server state', async ({ mainPage }) => {

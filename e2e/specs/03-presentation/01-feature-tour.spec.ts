@@ -42,6 +42,7 @@ import { readFileSync, writeFileSync } from 'fs'
 import { Locator, type Page } from '@playwright/test'
 import GIFEncoder from 'gif-encoder-2'
 import { PNG } from 'pngjs'
+import { evaluateMain } from '../../fixtures/launch'
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
 
@@ -953,11 +954,13 @@ test.describe.serial('Act V — Side by Side', () => {
   test('scene 33 — cleanup', async ({ electronApp, mainPage }) => {
     await disconnectClient(mainPage)
 
-    await electronApp.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .filter((w) => w.getTitle() === 'Server')
-        .forEach((w) => w.close())
-    })
+    await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .filter((w) => w.getTitle() === 'Server')
+          .forEach((w) => w.close())
+      })
+    )
     await beat(mainPage, 500)
 
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()

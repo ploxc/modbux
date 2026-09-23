@@ -1,11 +1,14 @@
 import { test, expect } from '../../fixtures/electron-app'
+import { evaluateMain } from '../../fixtures/launch'
 
 test.describe.serial('Home screen and navigation', () => {
   test('app launches with correct title', async ({ electronApp }) => {
-    const title = await electronApp.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((w) => w.getTitle() === 'Modbux')
-        ?.getTitle()
+    const title = await evaluateMain(() =>
+      electronApp.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()
+          .find((w) => w.getTitle() === 'Modbux')
+          ?.getTitle()
+      )
     )
     expect(title).toBe('Modbux')
   })

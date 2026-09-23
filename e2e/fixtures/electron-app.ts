@@ -1,5 +1,5 @@
 import { test as base, type ElectronApplication, type Page } from '@playwright/test'
-import { launchElectron } from './launch'
+import { launchElectron, evaluateMain } from './launch'
 import { createWriteStream, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -46,8 +46,10 @@ export const test = base.extend<{}, ElectronFixtures>({
       const app = await launchElectron()
       keepOutput(app)
 
-      await app.evaluate((ctx) =>
-        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      await evaluateMain(() =>
+        app.evaluate((ctx) =>
+          ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+        )
       )
 
       await use(app)
@@ -65,8 +67,10 @@ export const test = base.extend<{}, ElectronFixtures>({
         searchCount++
 
         // Check BrowserWindow title (HTML <title> was removed to not override it)
-        const found = await electronApp.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+        const found = await evaluateMain(() =>
+          electronApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+          )
         )
 
         if (found && electronApp.windows().length === 1) {

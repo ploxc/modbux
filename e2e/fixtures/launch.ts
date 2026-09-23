@@ -142,3 +142,27 @@ export async function launchElectron(userDataDir?: string): Promise<ElectronAppl
   await Promise.all(app.windows().map(reduceMotion))
   return app
 }
+
+/**
+ * Runs an `app.evaluate` call again when main's inspector drops its answer.
+ *
+ * Node's inspector can collect the promise Playwright awaits before it settles
+ * and answers `Promise was collected`, which Playwright reports as "Execution
+ * context was destroyed, most likely because of a navigation" although main is
+ * running (microsoft/playwright#33737). The function may already have run,
+ * so every call passed here has to be safe to run twice. The drops come in
+ * runs, so a retry waits before it asks again.
+ */
+export async function evaluateMain<R>(evaluate: () => Promise<R>): Promise<R> {
+  const deadline = Date.now() + 5000
+  for (;;) {
+    try {
+      return await evaluate()
+    } catch (error) {
+      const dropped =
+        error instanceof Error && error.message.includes('Execution context was destroyed')
+      if (!dropped || Date.now() > deadline) throw error
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+  }
+}

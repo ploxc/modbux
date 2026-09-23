@@ -20,7 +20,7 @@ import {
   scrollCell,
   expectCellContains
 } from '../../fixtures/helpers'
-import { launchElectron } from '../../fixtures/launch'
+import { launchElectron, evaluateMain } from '../../fixtures/launch'
 
 import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
 
@@ -33,15 +33,19 @@ let arduinoPort = ''
 async function launchApp(clearStorage = true): Promise<void> {
   app = await launchElectron()
   if (clearStorage) {
-    await app.evaluate((ctx) =>
-      ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+    await evaluateMain(() =>
+      app.evaluate((ctx) =>
+        ctx.session.defaultSession.clearStorageData({ storages: ['localstorage'] })
+      )
     )
   }
   let searchCount = 0
   while (searchCount < 10) {
     searchCount++
-    const found = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+    const found = await evaluateMain(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Modbux')
+      )
     )
     const [firstWindow] = app.windows()
     if (found && firstWindow && app.windows().length === 1) {
