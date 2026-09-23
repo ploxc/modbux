@@ -59,7 +59,7 @@ describe('what main pushes about the client', () => {
 
     dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
     dataZustand.addTransaction(transaction)
-    dataZustand.addScanUnitIdResult(scanResult)
+    dataZustand.addScanUnitIdResults([scanResult])
     dataZustand.setScanProgress(50)
     dataZustand.setLastSuccessfulTransactionMillis(1)
 
@@ -78,7 +78,7 @@ describe('what main pushes about the client', () => {
 
     dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
     dataZustand.addTransaction(transaction)
-    dataZustand.addScanUnitIdResult(scanResult)
+    dataZustand.addScanUnitIdResults([scanResult])
     dataZustand.setScanProgress(50)
     dataZustand.setLastSuccessfulTransactionMillis(1)
 

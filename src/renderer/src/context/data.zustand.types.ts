@@ -21,7 +21,7 @@ export interface DataZustand {
 
   // Unit ID scanning
   scanUnitIdResults: ScanUnitIDResult[]
-  addScanUnitIdResult: (scanUnitIdResult: ScanUnitIDResult) => void
+  addScanUnitIdResults: (scanUnitIdResults: ScanUnitIDResult[]) => void
   clearScanUnitIdResults: () => void
 
   // Scan progress

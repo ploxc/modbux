@@ -13,7 +13,13 @@ import { DateTime } from 'luxon'
 // startup there is no React render behind that to catch it.
 import { useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
-import { ClientState, RegisterData, defaultClientState, dummyWords } from '@shared'
+import {
+  ClientState,
+  RegisterData,
+  ScanUnitIDResult,
+  defaultClientState,
+  dummyWords
+} from '@shared'
 
 /**
  * What main pushes about the client, held for as long as the window lives.
@@ -77,15 +83,17 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
 
     // Unit ID scanning
     scanUnitIdResults: [],
-    addScanUnitIdResult: (scanUnitIDResult) =>
+    addScanUnitIdResults: (scanUnitIDResults) =>
       set((state) => {
-        state.scanUnitIdResults.unshift(scanUnitIDResult)
+        state.scanUnitIdResults.unshift(...[...scanUnitIDResults].reverse())
         while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
       }),
-    clearScanUnitIdResults: () =>
+    clearScanUnitIdResults: () => {
+      dropPendingUnitIdResults()
       set((state) => {
         state.scanUnitIdResults = []
-      }),
+      })
+    },
 
     // Scan progress
     scanProgress: 0,
@@ -151,6 +159,29 @@ export const dropPendingScanRows = (): void => {
   pendingScanRows = []
 }
 
+/**
+ * Results a unit id scan found, held back and written on the same timer.
+ *
+ * One result arrives per unit id, and the table drew itself again on each: a
+ * scan of 255 ids lagged behind itself.
+ */
+let pendingUnitIdResults: ScanUnitIDResult[] = []
+let unitIdFlushTimeout: NodeJS.Timeout | undefined
+
+const flushUnitIdResults = (): void => {
+  clearTimeout(unitIdFlushTimeout)
+  unitIdFlushTimeout = undefined
+  if (pendingUnitIdResults.length === 0) return
+  useDataZustand.getState().addScanUnitIdResults(pendingUnitIdResults)
+  pendingUnitIdResults = []
+}
+
+const dropPendingUnitIdResults = (): void => {
+  clearTimeout(unitIdFlushTimeout)
+  unitIdFlushTimeout = undefined
+  pendingUnitIdResults = []
+}
+
 /** Whether a `client_state` push has landed since the module was evaluated. */
 let clientStatePushed = false
 
@@ -213,6 +244,7 @@ onEvent('client_state', (clientState) => {
   // Main sends a scan's last rows before the state that ends it, so they are
   // written before the button says the scan stopped, not up to a flush later.
   if (!clientState.scanningRegisters) flushScanRows()
+  if (!clientState.scanningUnitIds) flushUnitIdResults()
   const dataZustand = useDataZustand.getState()
   dataZustand.setClientState(clientState)
 })
@@ -225,8 +257,8 @@ onEvent('transaction', (transaction) => {
 
 // Unit ID scanning results
 onEvent('scan_unit_id_result', (scanUnitIDResult) => {
-  const dataZustand = useDataZustand.getState()
-  dataZustand.addScanUnitIdResult(scanUnitIDResult)
+  pendingUnitIdResults.push(scanUnitIDResult)
+  if (!unitIdFlushTimeout) unitIdFlushTimeout = setTimeout(flushUnitIdResults, SCAN_FLUSH_MS)
 })
 
 // Scan progress
