@@ -143,6 +143,10 @@ export class ModbusClient {
         if (this._shouldAutoReconnect) {
           // Remember polling state before trying to reconnect
           this._reconnectWasPolling = this._clientState.polling
+          // The connection this timer vouched for is gone. Left running, it
+          // would zero the count in the middle of the burst that follows, and
+          // the burst would run past its limit.
+          clearTimeout(this._reconnectResetTimeout)
 
           // Only emit reconnecting message if not already in connecting state
           if (!this._reconnectTimeout) {
@@ -303,6 +307,7 @@ export class ModbusClient {
         error: null
       })
       this._reconnectWasPolling = false
+      this._reconnectTriggered = false
       clearTimeout(this._reconnectResumePollingTimeout)
       this._setDisconnected()
       return
@@ -450,11 +455,20 @@ export class ModbusClient {
         return
       }
       const port = protocol === 'ModbusRtu' ? com : undefined
-      this._emitMessage({
-        message: humanizeSerialError(error as Error, port),
-        variant: 'error',
-        error
-      })
+      const reason = humanizeSerialError(error as Error, port)
+      // A failed reconnect is one attempt of the burst, not the end of it: a
+      // pulled USB cable fails every open until it is plugged back in, and no
+      // `close` follows a failed open to schedule the next one.
+      this._emitMessage({ message: reason, variant: 'error', error })
+      if (this._reconnectTriggered) {
+        this._emitMessage({
+          message: `Reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
+          variant: 'warning',
+          error: null
+        })
+        this._scheduleReconnect()
+        return
+      }
       this._setDisconnected()
     } finally {
       this._connectInFlight = false

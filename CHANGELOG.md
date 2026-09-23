@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A client keeps reconnecting while its device is gone.** Pulling the USB
+  cable of a serial device got one reconnect attempt, and when that failed the
+  client stopped trying, so plugging the cable back in did nothing. It now
+  keeps trying, up to five attempts, and picks the connection and the poll back
+  up once the device answers.
 - **A scan no longer stalls the window on a large configuration.** Every step a
   scan reported, every transaction it logged and every change of connection
   state wrote your whole saved client configuration back to disk, register

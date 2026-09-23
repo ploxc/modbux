@@ -865,6 +865,97 @@ describe('ModbusClient', () => {
       expect(getLastClientState().connectState).toBe('disconnected')
     })
 
+    /**
+     * A reconnect whose open fails.
+     *
+     * A pulled USB cable fails every open until it is plugged back in, and a
+     * failed open fires no `close` to schedule the next attempt.
+     */
+    describe('a reconnect whose open fails', () => {
+      const GONE = 'No such file or directory, cannot open /dev/tty.usbmodem144301'
+      const messageTexts = (): string[] =>
+        getWindowCalls('backend_message').map((m) => String(m[1].message))
+
+      const dropWithDeviceGone = async (): Promise<void> => {
+        await connectClient()
+        await vi.advanceTimersByTimeAsync(11000)
+        mockModbusRTU.isOpen = false
+        mockModbusRTU.connectTCP.mockRejectedValue(new Error(GONE))
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3500)
+      }
+
+      it('tries again, and stays connecting', async () => {
+        await dropWithDeviceGone()
+        const attempts = mockModbusRTU.connectTCP.mock.calls.length
+
+        await vi.advanceTimersByTimeAsync(3000)
+
+        expect(mockModbusRTU.connectTCP.mock.calls.length).toBe(attempts + 1)
+        expect(getLastClientState().connectState).toBe('connecting')
+        const messages = getWindowCalls('backend_message').map((m) => m[1])
+        expect(messages).toContainEqual(
+          expect.objectContaining({ message: GONE, variant: 'error' })
+        )
+        expect(messages).toContainEqual(
+          expect.objectContaining({ message: 'Reconnecting (2/5)...', variant: 'warning' })
+        )
+      })
+
+      it('connects when the device is back', async () => {
+        await dropWithDeviceGone()
+        mockModbusRTU.connectTCP.mockImplementation(async () => {
+          mockModbusRTU.isOpen = true
+        })
+
+        await vi.advanceTimersByTimeAsync(3000)
+
+        expect(getLastClientState().connectState).toBe('connected')
+        expect(messageTexts()).toContain('Reconnected over Modbus TCP')
+      })
+
+      it('gives up at the limit, and a manual connect after it starts afresh', async () => {
+        await dropWithDeviceGone()
+        await vi.advanceTimersByTimeAsync(3000 * 5)
+
+        expect(messageTexts()).toContain('Too many consecutive reconnect attempts, giving up')
+        expect(getLastClientState().connectState).toBe('disconnected')
+        const attempts = mockModbusRTU.connectTCP.mock.calls.length
+        await vi.advanceTimersByTimeAsync(10000)
+        expect(mockModbusRTU.connectTCP.mock.calls.length).toBe(attempts)
+
+        await connectClient()
+        expect(getLastClientState().connectState).toBe('connected')
+        expect(messageTexts().at(-1)).toBe('Connected over Modbus TCP')
+      })
+
+      it('counts on through the second the last connect was vouched for', async () => {
+        await connectClient()
+        mockModbusRTU.isOpen = false
+        mockModbusRTU.connectTCP.mockRejectedValue(new Error(GONE))
+        // The drop lands inside the ten seconds after the connect, so the
+        // stability timer is still pending when the burst starts.
+        await vi.advanceTimersByTimeAsync(5000)
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3000 * 6)
+
+        const retries = messageTexts().filter((text) => text.startsWith('Reconnecting ('))
+        expect(retries).toEqual([2, 3, 4, 5].map((n) => `Reconnecting (${n}/5)...`))
+        expect(messageTexts()).toContain('Too many consecutive reconnect attempts, giving up')
+      })
+
+      it('leaves a connect the user pressed failing once, with no retry', async () => {
+        mockModbusRTU.connectTCP.mockRejectedValue(new Error(GONE))
+
+        await client.connect()
+        await vi.advanceTimersByTimeAsync(10000)
+
+        expect(mockModbusRTU.connectTCP.mock.calls.length).toBe(1)
+        expect(getLastClientState().connectState).toBe('disconnected')
+        expect(messageTexts()).toContain(GONE)
+      })
+    })
+
     it('does not reconnect after deliberate disconnect', async () => {
       await connectClient()
       await client.disconnect()
