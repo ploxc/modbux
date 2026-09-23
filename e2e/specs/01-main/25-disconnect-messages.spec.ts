@@ -122,6 +122,13 @@ test.describe.serial('Disconnect messaging — RTU', () => {
   })
 
   test('deliberate disconnect reports no error', async ({ mainPage }) => {
+    // `preventDuplicate` drops a message equal to one still on screen, and the
+    // TCP half's "Disconnected from server" is still leaving when this one
+    // arrives: a pty closes within milliseconds. Measured on CI, where this one
+    // was dropped and never shown.
+    await expect(mainPage.locator(SNACKBARS)).not.toContainText('Disconnected from server', {
+      timeout: 10_000
+    })
     await disconnectClient(mainPage)
     await expectCleanDisconnect(mainPage)
   })

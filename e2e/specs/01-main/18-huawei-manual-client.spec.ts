@@ -15,7 +15,8 @@ import {
   cleanServerState,
   loadServerConfig,
   loadDummyData,
-  expectCell
+  expectCell,
+  scrollToRow
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
@@ -41,7 +42,7 @@ const holdingRegisters: Record<string, ClientRegister> =
 
 const TOTAL_REGISTERS = Object.keys(holdingRegisters).length
 
-// ─── Build address groups from JSON (max 33 rows to avoid virtualization) ──
+// ─── Build address groups from JSON (at most 33 rows each) ──
 
 const DATA_TYPE_WIDTH: Record<string, number> = {
   uint16: 1,
@@ -122,6 +123,9 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
   const label = `${reg.dataType.toUpperCase()} @ ${rowId}${reg.comment ? ` (${reg.comment})` : ''}`
 
   await test.step(`configure: ${label}`, async () => {
+    // The grid virtualises, and at 1024 by 768 a group of 31 rows reaches
+    // past what it draws: row 40736 was never in the DOM.
+    await scrollToRow(p, rowId)
     const row = p.locator(`.MuiDataGrid-row[data-id="${rowId}"]`)
 
     // Data type (dropdown select)
