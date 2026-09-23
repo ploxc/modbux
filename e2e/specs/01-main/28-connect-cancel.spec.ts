@@ -20,10 +20,8 @@ import {
 } from '../../fixtures/helpers'
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
+import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
-const SOCAT_PATHS = ['/usr/local/bin/socat', '/usr/bin/socat']
-const SOCAT_PATH = SOCAT_PATHS.find((p) => existsSync(p)) ?? 'socat'
-const hasSocat = existsSync(SOCAT_PATH)
 const PTY_0 = '/tmp/ttyVCANCEL0'
 const PTY_1 = '/tmp/ttyVCANCEL1'
 
@@ -42,6 +40,20 @@ async function snackbarsOver(p: Page, milliseconds: number): Promise<string> {
     await p.waitForTimeout(50)
   }
   return [...new Set(seen)].join(' | ')
+}
+
+/**
+ * Closes every snackbar on screen. `preventDuplicate` drops a message whose
+ * text is still showing, so a "Connected over" left by an earlier spec both
+ * reads as raised here and hides one that is.
+ */
+async function closeSnackbars(p: Page): Promise<void> {
+  const close = p.getByTestId('snackbar-close-btn')
+  await expect(async () => {
+    const count = await close.count()
+    if (count > 0) await close.first().click()
+    expect(count).toBe(0)
+  }).toPass({ timeout: 10_000 })
 }
 
 test.describe.serial('Cancelling a connect', () => {
@@ -96,6 +108,7 @@ test.describe.serial('Cancelling a connect', () => {
     await navigateToClient(mainPage)
     await connectClientRTU(mainPage, '0', '9600', 'none', '8', '1')
     await mainPage.getByTestId('rtu-com-input').locator('input').fill(PTY_1)
+    await closeSnackbars(mainPage)
 
     await mainPage.evaluate(() => {
       window.api.connect()

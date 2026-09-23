@@ -24,12 +24,8 @@ import {
 } from '../../fixtures/helpers'
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
+import { SOCAT_PATH, hasSocat } from '../../fixtures/socat'
 
-const SOCAT_PATHS = ['/usr/local/bin/socat', '/usr/bin/socat']
-// The bare name when neither path is there, so `hasSocat` is what decides
-// whether the suite runs rather than a path that happens to exist.
-const SOCAT_PATH = SOCAT_PATHS.find((p) => existsSync(p)) ?? 'socat'
-const hasSocat = existsSync(SOCAT_PATH)
 const PTY_0 = '/tmp/ttyVDISC0'
 const PTY_1 = '/tmp/ttyVDISC1'
 

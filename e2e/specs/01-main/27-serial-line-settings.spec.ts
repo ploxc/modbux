@@ -217,8 +217,10 @@ test.describe.serial('Serial line settings — what reaches the port', () => {
 
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
-  test('disconnect the client', async ({ mainPage }) => {
+  test('disconnect the client and switch it back to TCP', async ({ mainPage }) => {
     await disconnectClient(mainPage)
+    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
   })
 
   test('restore the server defaults and switch back to TCP', async ({ mainPage }) => {
