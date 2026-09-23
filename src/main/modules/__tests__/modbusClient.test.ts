@@ -775,6 +775,52 @@ describe('ModbusClient', () => {
     })
   })
 
+  // `modbus-serial` adds "(retry request again later)" to exception 11, and the
+  // spec says the target is usually not there, which is also what Modbux's own
+  // server means by it: a unit it does not host. Filed upstream as
+  // yaacov/node-modbus-serial#631.
+  describe('the text of exception 11', () => {
+    const LIBRARY =
+      'Modbus exception 11: Gateway target device failed to respond (retry request again later)'
+    const SPEC =
+      'Modbus exception 11: Gateway target device failed to respond (device is usually not present on the network)'
+
+    it('reaches the message as the spec says it', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(
+        Object.assign(new Error(LIBRARY), { modbusCode: 11 })
+      )
+
+      await client.read()
+
+      const messages = getWindowCalls('backend_message').map((message) => message[1].message)
+      expect(messages.some((message) => message.startsWith(SPEC))).toBe(true)
+      expect(messages.some((message) => message.includes('retry request again later'))).toBe(false)
+    })
+
+    it('leaves an error with no message to say Connection error', async () => {
+      await connectClient()
+
+      fireClientEvent('error', {})
+
+      const messages = getWindowCalls('backend_message').map((message) => message[1].message)
+      expect(messages).toContain('Connection error')
+    })
+
+    it('leaves exception 6, where retrying is the point', async () => {
+      await connectClient()
+      const busy = 'Modbus exception 6: Slave device busy (retry request again later)'
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(
+        Object.assign(new Error(busy), { modbusCode: 6 })
+      )
+
+      await client.read()
+
+      const messages = getWindowCalls('backend_message').map((message) => message[1].message)
+      expect(messages.some((message) => message.startsWith(busy))).toBe(true)
+    })
+  })
+
   describe('auto-reconnect', () => {
     it('schedules reconnect on close event', async () => {
       await connectClient()

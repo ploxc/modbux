@@ -67,6 +67,22 @@ type WriteAttempt =
  * is the whole test, and it separates a unit that refused a request from a
  * unit that was never there.
  */
+/**
+ * The message of an error `modbus-serial` threw, with exception 11 read the
+ * way the spec reads it.
+ *
+ * The library adds "(retry request again later)" to exception 11. The spec
+ * (V1.1b3, section 7) says no response came from the target and the device is
+ * usually not present, which is also what Modbux's own server means by it: a
+ * unit it does not host. Retrying is the advice for exception 6, where the
+ * library's text stays. Filed as yaacov/node-modbus-serial#631.
+ */
+const errorText = (error: unknown): string =>
+  ((error as Error).message ?? '').replace(
+    'Gateway target device failed to respond (retry request again later)',
+    'Gateway target device failed to respond (device is usually not present on the network)'
+  )
+
 const isModbusException = (error: unknown): boolean =>
   typeof (error as { modbusCode?: unknown })?.modbusCode === 'number'
 
@@ -133,7 +149,7 @@ export class ModbusClient {
         this._clientState.connectState = 'disconnected'
         this._sendClientState()
         this._emitMessage({
-          message: (error as Error).message || 'Connection error',
+          message: errorText(error) || 'Connection error',
           variant: 'error',
           error: error
         })
@@ -543,7 +559,7 @@ export class ModbusClient {
       })
       this._setDisconnected()
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
+      this._emitMessage({ message: errorText(error), variant: 'error', error: error })
 
       // The promise above takes `resolve` alone, so nothing rejects it and this
       // runs only if `ModbusRTU.close` throws where it stands. That leaves a
@@ -645,7 +661,7 @@ export class ModbusClient {
         data.push(...rows)
       } catch (error) {
         const readError = error as Error
-        errorMessage = readError.message
+        errorMessage = errorText(readError)
 
         if (this._appState.readConfiguration) {
           // Generate error placeholder rows for configured addresses in this failed group
@@ -921,8 +937,8 @@ export class ModbusClient {
         this._client.writeFC15(unitId, address, value, next)
       )
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error })
-      return { sent: true, transactionIdKey, errorMessage: (error as Error).message }
+      this._emitMessage({ message: errorText(error), variant: 'error', error })
+      return { sent: true, transactionIdKey, errorMessage: errorText(error) }
     }
 
     return { sent: true, transactionIdKey, errorMessage: undefined }
@@ -974,8 +990,8 @@ export class ModbusClient {
         this._client.writeFC16(unitId, address, registers, next)
       )
     } catch (error) {
-      this._emitMessage({ message: (error as Error).message, variant: 'error', error: error })
-      return { sent: true, transactionIdKey, errorMessage: (error as Error).message }
+      this._emitMessage({ message: errorText(error), variant: 'error', error: error })
+      return { sent: true, transactionIdKey, errorMessage: errorText(error) }
     }
     return { sent: true, transactionIdKey, errorMessage: undefined }
   }
@@ -1049,7 +1065,7 @@ export class ModbusClient {
         await this._readers[registerType](address, length)
         result.registerTypes.push(registerType)
       } catch (error) {
-        errorMessage = (error as Error).message
+        errorMessage = errorText(error)
         result.errorMessage[registerType] = errorMessage
         if (isModbusException(error)) result.refusedRegisterTypes.push(registerType)
       }
@@ -1122,7 +1138,7 @@ export class ModbusClient {
       data = await this._readers[type](address, length)
     } catch (error) {
       const readError = error as Error
-      errorMessage = readError.message
+      errorMessage = errorText(readError)
       this._emitMessage({ message: errorMessage, variant: 'error', error })
     }
 

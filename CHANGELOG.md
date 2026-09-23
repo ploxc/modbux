@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Exception 11 no longer tells you to retry later.** A gateway or a server
+  answering exception 11 read "retry request again later", while the Modbus
+  specification says the target device is usually not there, and Modbux's own
+  server sends it for a unit ID it does not host. The message now says so.
 - **A unit ID scan stops at the last address.** Address 65535 with a length of
   2 asked every unit for an address that does not exist. The Length field now
   stops at the addresses left, as the read's Length field does. A write that
