@@ -17,6 +17,10 @@ vi.mock('../modules/privilegedPort', () => ({
   applyPrivilegedPortFix: (...args: unknown[]): unknown => applyPrivilegedPortFix(...args),
   getPrivilegedPortStatus: vi.fn()
 }))
+vi.mock('../modules/modbusClient/serialPorts', () => ({
+  listSerialPorts: vi.fn(),
+  validateSerialPort: vi.fn()
+}))
 vi.mock('../modules/serialGroup', () => ({
   applySerialGroupFix: vi.fn(),
   getSerialGroupStatus: vi.fn(),
@@ -25,6 +29,7 @@ vi.mock('../modules/serialGroup', () => ({
 
 import {
   AddRegisterParamsSchema,
+  ClientScanUnitIdsSchema,
   ConnectionConfigSchema,
   CreateServerParamsSchema,
   MAX_WRITE_BITS,
@@ -194,9 +199,8 @@ describe('createIpcHandle', () => {
     ipcHandle('get_privileged_port_status', vi.fn(), PortSchema)
   })
 
-  // `main/index.ts:23` constructs one `ModbusClient` and none of these channels
-  // carries an addressee, so before this any window could aim them at it. The
-  // split out server window did, from `client.zustand`'s module scope.
+  // Any window can name any client's uuid on these channels. The split out
+  // server window did, from `client.zustand`'s module scope.
   it('refuses a client channel from a window that is not the main one', async () => {
     const { windows, sent } = createWindows()
     const ipcHandle = createIpcHandle(windows)
@@ -221,7 +225,7 @@ describe('createIpcHandle', () => {
     const ipcHandle = createIpcHandle(windows)
     const listener = vi.fn()
 
-    ipcHandle('scan_unit_ids', listener, ScanUnitIDParametersSchema)
+    ipcHandle('scan_unit_ids', listener, ClientScanUnitIdsSchema)
     await invoke('scan_unit_ids', 'not a payload', { id: 'the split out server window' })
 
     expect(listener).not.toHaveBeenCalled()
@@ -235,7 +239,7 @@ describe('createIpcHandle', () => {
     const ipcHandle = createIpcHandle(windows)
     const listener = vi.fn()
 
-    ipcHandle('scan_unit_ids', listener, ScanUnitIDParametersSchema)
+    ipcHandle('scan_unit_ids', listener, ClientScanUnitIdsSchema)
     await invoke('scan_unit_ids', 'not a payload')
 
     expect(listener).not.toHaveBeenCalled()
@@ -256,7 +260,7 @@ describe('createIpcHandle', () => {
   })
 
   // The RTU server's COM field reads the port list from the server window, so a
-  // rule over every channel main's client happens to own would break it.
+  // rule over every channel the client view calls would break it.
   it('takes serial discovery from either window', async () => {
     const { windows, sent } = createWindows()
     const ipcHandle = createIpcHandle(windows)
@@ -514,22 +518,43 @@ describe('each guarded channel got its own schema', () => {
     })
 
   const validPayloads: Record<string, unknown> = {
-    update_connection_config: { unitId: 3 },
-    update_register_config: { address: 40, length: 10 },
+    create_client: 'client-1',
+    update_connection_config: { uuid: 'client-1', connectionConfig: { unitId: 3 } },
+    update_register_config: { uuid: 'client-1', registerConfig: { address: 40, length: 10 } },
     set_register_mapping: {
-      coils: {},
-      discrete_inputs: {},
-      input_registers: {},
-      holding_registers: {}
+      uuid: 'client-1',
+      registerMapping: {
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {}
+      }
     },
-    write: { address: 4, single: true, type: 'coils', value: [true] },
-    scan_registers: { addressRange: [0, 100], length: 10, timeout: 500 },
+    set_read_configuration: { uuid: 'client-1', readConfiguration: true },
+    connect: 'client-1',
+    disconnect: 'client-1',
+    read: 'client-1',
+    start_polling: 'client-1',
+    stop_polling: 'client-1',
+    stop_scanning_unit_ids: 'client-1',
+    stop_scanning_registers: 'client-1',
+    write: {
+      uuid: 'client-1',
+      parameters: { address: 4, single: true, type: 'coils', value: [true] }
+    },
+    scan_registers: {
+      uuid: 'client-1',
+      parameters: { addressRange: [0, 100], length: 10, timeout: 500 }
+    },
     scan_unit_ids: {
-      range: [1, 10],
-      address: 0,
-      length: 1,
-      registerTypes: ['holding_registers'],
-      timeout: 500
+      uuid: 'client-1',
+      parameters: {
+        range: [1, 10],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 500
+      }
     },
     add_replace_server_register: {
       uuid: 'server-1',
@@ -576,13 +601,7 @@ describe('each guarded channel got its own schema', () => {
   const start = (): { sent: SentMessage[] } => {
     handle.mockClear()
     const { windows, sent } = createWindows()
-    initIpc(
-      stub() as unknown as Electron.App,
-      stub() as never,
-      stub() as never,
-      stub() as never,
-      windows
-    )
+    initIpc(stub() as unknown as Electron.App, stub() as never, stub() as never, windows)
     return { sent }
   }
 
@@ -613,21 +632,23 @@ describe('each guarded channel got its own schema', () => {
     expect(guarded.sort()).toEqual(Object.keys(validPayloads).sort())
   })
 
-  // The convention `update_connection_config`'s doc comment states: a channel
-  // whose payload can be refused says whether it took it, so the store can read
-  // the refusal rather than diverge from main in silence.
-  //
-  // Written by hand, because what a channel answers for a payload it took is
-  // its own decision and not something the handler list tells apart. The
-  // refusal half of the same rule is read from the handlers below.
-  it.each(['update_connection_config', 'update_register_config', 'set_register_mapping'])(
-    '%s answers true for a payload it took',
-    async (channel) => {
-      start()
+  // A channel whose payload can be refused says whether it took it, so the
+  // store can read the refusal rather than diverge from main in silence. The
+  // answer is `Clients`'s, and what is asserted here is that the handler hands
+  // it back rather than dropping it.
+  it.each([
+    ['update_connection_config', 'updateConnectionConfig'],
+    ['update_register_config', 'updateRegisterConfig'],
+    ['set_register_mapping', 'setRegisterMapping'],
+    ['set_read_configuration', 'setReadConfiguration']
+  ])('%s answers what the clients answered', async (channel, method) => {
+    handle.mockClear()
+    const { windows } = createWindows()
+    const clients = { [method]: vi.fn(() => true) }
+    initIpc(stub() as unknown as Electron.App, clients as never, stub() as never, windows)
 
-      expect(await invoke(channel, validPayloads[channel])).toBe(true)
-    }
-  )
+    expect(await invoke(channel, validPayloads[channel])).toBe(true)
+  })
 
   it.each(Object.keys(validPayloads))('lets a valid %s payload through', async (channel) => {
     const { sent } = start()

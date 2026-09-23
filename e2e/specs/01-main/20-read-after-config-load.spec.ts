@@ -9,6 +9,7 @@ import {
   clearData
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import { CLIENT_UUID } from '../../fixtures/client-uuid'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
@@ -38,9 +39,9 @@ test.describe.serial('Read after config load — init readConfiguration sync', (
   test('inject readConfiguration=true into backend and clear grid', async ({ mainPage }) => {
     // Simulate the init() desync: backend gets readConfiguration=true
     // but frontend has it false. Backend has no registerMapping.
-    await mainPage.evaluate(() => {
-      window.api.setReadConfiguration(true)
-    })
+    await mainPage.evaluate((uuid) => {
+      window.api.setReadConfiguration({ uuid, readConfiguration: true })
+    }, CLIENT_UUID)
     await mainPage.waitForTimeout(200)
 
     // Clear the grid so we can verify the next read actually produces data

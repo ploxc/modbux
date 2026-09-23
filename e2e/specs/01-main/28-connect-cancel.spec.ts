@@ -12,6 +12,7 @@
  * button opens while a port is opening.
  */
 import { test, expect, resetApp } from '../../fixtures/electron-app'
+import { CLIENT_UUID } from '../../fixtures/client-uuid'
 import type { Page } from '@playwright/test'
 import {
   cleanServerState,
@@ -95,10 +96,10 @@ test.describe.serial('Cancelling a connect', () => {
     await connectClientRTU(mainPage, '0', '9600', 'none', '8', '1')
     await mainPage.getByTestId('rtu-com-input').locator('input').fill(PTY_1)
 
-    await mainPage.evaluate(() => {
-      window.api.connect()
-      window.api.disconnect()
-    })
+    await mainPage.evaluate((uuid) => {
+      window.api.connect(uuid)
+      window.api.disconnect(uuid)
+    }, CLIENT_UUID)
 
     expect(await connectLabelsOver(mainPage, 2000)).not.toContain('Disconnect')
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')

@@ -1,10 +1,11 @@
 import {
   AddRegisterParamsSchema,
+  ClientConnectionConfigUpdateSchema,
+  ClientRegisterConfigUpdateSchema,
+  ClientRegisterMappingSchema,
   ClientState,
   defaultClientState,
-  ConnectionConfigSchema,
-  RegisterConfigSchema,
-  RegisterMappingSchema
+  MAIN_CLIENT_UUID
 } from '@shared'
 
 /**
@@ -28,19 +29,19 @@ const disconnected: ClientState = { ...defaultClientState }
 /**
  * A channel whose type cannot answer `undefined` answers something here.
  *
- * `init` writes what `get_client_state` hands back, so a stub answering
+ * `data.zustand` writes what `get_client_states` hands back, so a stub answering
  * `undefined` puts that in the store and every setter reading `connectState`
  * throws a line later.
  */
 const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
-  updateConnectionConfig: answerConfig(ConnectionConfigSchema.deepPartial()),
-  updateRegisterConfig: answerConfig(RegisterConfigSchema.deepPartial()),
-  setRegisterMapping: answerConfig(RegisterMappingSchema),
+  updateConnectionConfig: answerConfig(ClientConnectionConfigUpdateSchema),
+  updateRegisterConfig: answerConfig(ClientRegisterConfigUpdateSchema),
+  setRegisterMapping: answerConfig(ClientRegisterMappingSchema),
   // The words main answers with, which for a payload it refuses is nothing at
   // all rather than an empty list.
   addReplaceServerRegister: (payload: unknown): Promise<number[] | undefined> =>
     Promise.resolve(AddRegisterParamsSchema.safeParse(payload).success ? [] : undefined),
-  getClientState: () => Promise.resolve(disconnected),
+  getClientStates: () => Promise.resolve({ [MAIN_CLIENT_UUID]: disconnected }),
   getAppVersion: () => Promise.resolve('0.0.0-test'),
   getRtuServerStatus: () => Promise.resolve(false),
   listSerialPorts: () => Promise.resolve([])
@@ -127,4 +128,19 @@ export const recordApiCalls = (calls: ApiCall[]): void => {
       }
     }
   ) as never
+}
+
+/**
+ * What a client channel carried besides the uuid, once the uuid is the store's.
+ *
+ * Every client channel names the client it drives, so a payload is the uuid
+ * and one field beside it. A test about the field reads the field; this checks
+ * the uuid on the way, so none of them can send another client's.
+ */
+export const clientPayload = (payload: unknown): unknown => {
+  const { uuid, ...rest } = payload as { uuid: unknown } & Record<string, unknown>
+  if (uuid !== MAIN_CLIENT_UUID) throw new Error(`addressed to ${String(uuid)}`)
+  const [field, ...more] = Object.values(rest)
+  if (more.length > 0) throw new Error('a client payload carries one field beside the uuid')
+  return field
 }

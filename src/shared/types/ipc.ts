@@ -1,26 +1,28 @@
 import type {
-  ConnectionConfig,
-  DeepPartial,
-  RegisterConfig,
+  AddressGroupsEvent,
+  ClientConnectionConfigUpdate,
+  ClientReadConfiguration,
+  ClientRegisterConfigUpdate,
+  ClientRegisterMapping,
+  ClientScanRegisters,
+  ClientScanUnitIds,
+  ClientStateEvent,
+  ClientWrite,
+  RegisterDataEvent,
   RemoveRegisterParams,
-  ScanRegistersParameters,
-  ScanUnitIDParameters,
+  ScanProgressEvent,
+  ScanUnitIdResultEvent,
   SetBooleanParameters,
   SyncBoolsParameters,
   SyncRegisterValueParams,
   ServerEndianness,
-  WriteParameters,
-  RegisterMapping,
   ResetRegistersParams,
   ResetBoolsParams,
   CreateServerParams,
   ClientState,
   AddRegisterParams,
-  RegisterData,
-  Transaction,
-  ScanUnitIDResult,
+  TransactionEvent,
   RegisterValue,
-  AddressGroup,
   SerialPortInfo,
   SerialPortValidationResult,
   StartRtuServerParams,
@@ -61,9 +63,10 @@ export interface WindowsOpen {
  * 3. The camelCase method will be automatically available on window.api
  */
 export const IPC_CHANNELS = [
+  'create_client',
   'update_connection_config',
   'update_register_config',
-  'get_client_state',
+  'get_client_states',
   'set_register_mapping',
   'connect',
   'disconnect',
@@ -117,98 +120,110 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  */
 export interface IpcHandlerSpec {
   /**
-   * Update the ConnectionConfig (DeepPartial), and say whether it was taken.
+   * Make the client main addresses under a uuid, unless one is there already.
+   *
+   * A window that loads again finds its client in main as it left it,
+   * connected and polling included, so a second create changes nothing.
+   */
+  ['create_client']: {
+    args: [string]
+    return: void
+  }
+
+  /**
+   * Update a client's ConnectionConfig (DeepPartial), and say whether it was
+   * taken.
    *
    * `true` is the whole answer, because main merges exactly the payload it was
    * given. A refusal answers `undefined`, which is what `createIpcHandle` sends
    * back, and the store keeps what it had.
    */
   ['update_connection_config']: {
-    args: [DeepPartial<ConnectionConfig>]
+    args: [ClientConnectionConfigUpdate]
     return: true | undefined
   }
 
-  /** Update the RegisterConfig (DeepPartial), and say whether it was taken. */
+  /** Update a client's RegisterConfig (DeepPartial), and say whether it was taken. */
   ['update_register_config']: {
-    args: [DeepPartial<RegisterConfig>]
+    args: [ClientRegisterConfigUpdate]
     return: true | undefined
   }
 
   /**
-   * What the client is doing right now.
+   * What every client is doing right now, by uuid.
    *
    * `client_state` is pushed on a change, so a window that opens after the last
    * push has nothing to catch up on and starts on the initial literal. This is
    * how it asks.
    */
-  ['get_client_state']: {
+  ['get_client_states']: {
     args: []
-    return: ClientState
+    return: Record<string, ClientState>
   }
 
-  /** Set the RegisterMapping, and say whether it was taken. */
+  /** Set a client's RegisterMapping, and say whether it was taken. */
   ['set_register_mapping']: {
-    args: [RegisterMapping]
+    args: [ClientRegisterMapping]
     return: true | undefined
   }
 
-  /** Connect the Modbus client */
+  /** Connect a client */
   ['connect']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Disconnect the Modbus client */
+  /** Disconnect a client */
   ['disconnect']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Read the configured registers. The rows come back as a `register_data` event. */
+  /** Read a client's registers. The rows come back as a `register_data` event. */
   ['read']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Start polling on the Modbus client */
+  /** Start polling on a client */
   ['start_polling']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Stop polling on the Modbus client */
+  /** Stop polling on a client */
   ['stop_polling']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Write to registers via the Modbus client */
+  /** Write to registers through a client */
   ['write']: {
-    args: [WriteParameters]
+    args: [ClientWrite]
     return: void
   }
 
-  /** Start scanning for unit IDs */
+  /** Start scanning for unit IDs on a client */
   ['scan_unit_ids']: {
-    args: [ScanUnitIDParameters]
+    args: [ClientScanUnitIds]
     return: void
   }
 
-  /** Stop scanning for unit IDs */
+  /** Stop a client's unit ID scan */
   ['stop_scanning_unit_ids']: {
-    args: []
+    args: [string]
     return: void
   }
 
-  /** Start scanning registers */
+  /** Start scanning registers on a client */
   ['scan_registers']: {
-    args: [ScanRegistersParameters]
+    args: [ClientScanRegisters]
     return: void
   }
 
-  /** Stop scanning registers */
+  /** Stop a client's register scan */
   ['stop_scanning_registers']: {
-    args: []
+    args: [string]
     return: void
   }
 
@@ -305,10 +320,13 @@ export interface IpcHandlerSpec {
     return: SerialPortValidationResult
   }
 
-  /** Set the readConfiguration flag (session-only, not persisted) */
+  /**
+   * Set a client's readConfiguration flag (session-only, not persisted), and
+   * say whether it was taken.
+   */
   ['set_read_configuration']: {
-    args: [boolean]
-    return: void
+    args: [ClientReadConfiguration]
+    return: true | undefined
   }
 
   /** Start RTU server on a UUID with serial config */
@@ -329,7 +347,7 @@ export interface IpcHandlerSpec {
    * `rtu_server_status` is addressed to the window showing the server, so a
    * window that was not that window when the last one went out has nothing to
    * catch up on. This is how it asks, and it answers what that event carries,
-   * the way `get_client_state` answers what `client_state` carries.
+   * the way `get_client_states` answers what `client_state` carries.
    */
   ['get_rtu_server_status']: {
     args: []
@@ -408,15 +426,15 @@ export type EventToMain = (typeof EVENTS_TO_MAIN)[number]
 
 export interface IpcEventPayloadMap {
   ['backend_message']: [BackendMessage]
-  ['client_state']: [ClientState]
-  ['register_data']: [RegisterData[]]
-  ['transaction']: [Transaction]
-  ['scan_unit_id_result']: [ScanUnitIDResult]
-  ['scan_progress']: [number]
+  ['client_state']: [ClientStateEvent]
+  ['register_data']: [RegisterDataEvent]
+  ['transaction']: [TransactionEvent]
+  ['scan_unit_id_result']: [ScanUnitIdResultEvent]
+  ['scan_progress']: [ScanProgressEvent]
   ['register_value']: [RegisterValue]
   ['window_update']: [WindowsOpen]
   ['open_server_window']: []
-  ['address_groups']: [AddressGroup[]]
+  ['address_groups']: [AddressGroupsEvent]
   ['rtu_server_status']: [boolean]
 }
 

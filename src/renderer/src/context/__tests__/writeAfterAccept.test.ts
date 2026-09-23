@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import type { RegisterData } from '@shared'
-import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
+import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
 
 const load = async (): Promise<{
   clientZustand: typeof import('../client.zustand')
@@ -162,7 +162,9 @@ describe('a value the field marks invalid', () => {
 
     expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('COM9')
     expect(useClientZustand.getState().valid.com).toBe(true)
-    expect(calls).toEqual([{ method: 'updateConnectionConfig', payload: { rtu: { com: 'COM9' } } }])
+    expect(calls.map(({ method, payload }) => [method, clientPayload(payload)])).toEqual([
+      ['updateConnectionConfig', { rtu: { com: 'COM9' } }]
+    ])
   })
 
   it('keeps an empty length in the store and marks it invalid', async () => {

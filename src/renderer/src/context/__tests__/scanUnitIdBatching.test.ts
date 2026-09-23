@@ -4,7 +4,7 @@
 // on each one. With 255 ids the window lagged behind the scan, so the results
 // are collected and written on a timer, the way the rows of a register scan are.
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState, type ScanUnitIDResult } from '@shared'
+import { defaultClientState, type ScanUnitIDResult, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 
 const SCAN_FLUSH_MS = 100
@@ -50,9 +50,9 @@ describe('results a unit id scan finds', () => {
   it('reach the table in one write per flush, newest first', async () => {
     const { ids, writes } = await loaded()
 
-    fireEvent('scan_unit_id_result', result(1))
-    fireEvent('scan_unit_id_result', result(2))
-    fireEvent('scan_unit_id_result', result(3))
+    fireEvent('scan_unit_id_result', { uuid: MAIN_CLIENT_UUID, result: result(1) })
+    fireEvent('scan_unit_id_result', { uuid: MAIN_CLIENT_UUID, result: result(2) })
+    fireEvent('scan_unit_id_result', { uuid: MAIN_CLIENT_UUID, result: result(3) })
     expect(ids()).toEqual([])
 
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -63,16 +63,19 @@ describe('results a unit id scan finds', () => {
 
   it('reach the table with the state that ends the scan', async () => {
     const { ids } = await loaded()
-    fireEvent('scan_unit_id_result', result(1))
+    fireEvent('scan_unit_id_result', { uuid: MAIN_CLIENT_UUID, result: result(1) })
 
-    fireEvent('client_state', { ...defaultClientState, scanningUnitIds: false })
+    fireEvent('client_state', {
+      uuid: MAIN_CLIENT_UUID,
+      clientState: { ...defaultClientState, scanningUnitIds: false }
+    })
 
     expect(ids()).toEqual([1])
   })
 
   it('do not outlive a clear', async () => {
     const { ids, clear } = await loaded()
-    fireEvent('scan_unit_id_result', result(1))
+    fireEvent('scan_unit_id_result', { uuid: MAIN_CLIENT_UUID, result: result(1) })
 
     clear()
     vi.advanceTimersByTime(SCAN_FLUSH_MS)

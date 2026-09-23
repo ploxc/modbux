@@ -18,7 +18,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
-import { ClientState, defaultClientState, RegisterData } from '@shared'
+import { ClientState, defaultClientState, MAIN_CLIENT_UUID, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
 
 const calls: ApiCall[] = []
@@ -59,11 +59,14 @@ describe('the bit a toggle writes', () => {
       {
         method: 'write',
         payload: {
-          address: 0,
-          dataType: 'uint16',
-          type: 'holding_registers',
-          value: 8,
-          single: true
+          uuid: MAIN_CLIENT_UUID,
+          parameters: {
+            address: 0,
+            dataType: 'uint16',
+            type: 'holding_registers',
+            value: 8,
+            single: true
+          }
         }
       }
     ])

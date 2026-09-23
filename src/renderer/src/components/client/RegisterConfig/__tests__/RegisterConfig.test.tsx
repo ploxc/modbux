@@ -37,8 +37,8 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
   } as never)
 }
 
-// The stub above answers `undefined` to every channel, `get_client_state`
-// included, and `init` writes that answer into the store. The button reads the
+// The stub above answers `undefined` to every channel, `get_client_states`
+// included, so the store gets no client state from main. The button reads the
 // client state, so it gets one here.
 beforeEach(() => {
   useClientZustand.setState({ ready: true, readConfiguration: false } as never)

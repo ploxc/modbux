@@ -143,10 +143,10 @@ describe('Transport', () => {
       await transport.attach(createClient(), tcp('10.0.0.1'))
       const gate = gateTheReads()
 
-      const first = transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      const first = transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(10, 1)
       )
-      const second = transport.request({ unitId: 2, timeout: 2000 }, (modbus) =>
+      const second = transport.request({ uuid: 'client-1', unitId: 2, timeout: 2000 }, (modbus) =>
         modbus.readHoldingRegisters(20, 1)
       )
       await vi.advanceTimersByTimeAsync(0)
@@ -165,10 +165,10 @@ describe('Transport', () => {
       await transport.attach(createClient(), tcp('10.0.0.1'))
       const gate = gateTheReads()
 
-      void transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      void transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(10, 1)
       )
-      void transport.request({ unitId: 2, timeout: 2000 }, (modbus) =>
+      void transport.request({ uuid: 'client-1', unitId: 2, timeout: 2000 }, (modbus) =>
         modbus.readHoldingRegisters(20, 1)
       )
       await vi.advanceTimersByTimeAsync(0)
@@ -188,10 +188,10 @@ describe('Transport', () => {
       await transport.attach(createClient(), tcp('10.0.0.1'))
       const gate = gateTheReads()
 
-      void transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      void transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(10, 1)
       )
-      void transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      void transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(20, 1)
       )
       await gate.answerNext()
@@ -199,7 +199,7 @@ describe('Transport', () => {
 
       const addresses = sent
         .filter(([event]) => event === 'transaction')
-        .map(([, transaction]) => (transaction as { address: number }).address)
+        .map(([, event]) => (event as { transaction: { address: number } }).transaction.address)
       expect(addresses).toEqual([10, 20])
     })
 
@@ -210,10 +210,10 @@ describe('Transport', () => {
         .mockRejectedValueOnce(new Error('Timed out'))
         .mockResolvedValueOnce({ data: [7], buffer: Buffer.alloc(2) })
 
-      const failed = transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      const failed = transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(10, 1)
       )
-      const next = transport.request({ unitId: 1, timeout: 1000 }, (modbus) =>
+      const next = transport.request({ uuid: 'client-1', unitId: 1, timeout: 1000 }, (modbus) =>
         modbus.readHoldingRegisters(20, 1)
       )
 

@@ -961,46 +961,39 @@ describe('every event has a sender and a listener', () => {
 })
 
 //
-// ─── Every channel that reaches main's client is placed ──────────────────────
+// ─── Every channel that reaches main's clients is placed ─────────────────────
 //
-// `main/index.ts` constructs one `ModbusClient`, and no client channel carries
-// an addressee, so any window can aim one at it. `CLIENT_CHANNELS` in
-// `main/ipc.ts` is the list `createIpcHandle` refuses from a window that is not
-// `windows.main`, and it is hand written. A channel added later is three lines,
-// a name, a spec entry and a handler, and every one of the rules above stays
-// green while it escapes the guard, which is the defect this list was added to
-// close.
+// Every client channel names a client by uuid, and any window can name any
+// uuid. `CLIENT_CHANNELS` in `main/ipc.ts` is the list `createIpcHandle`
+// refuses from a window that is not `windows.main`, and it is hand written. A
+// channel added later is three lines, a name, a spec entry and a handler, and
+// every one of the rules above stays green while it escapes the guard, which
+// is the defect this list was added to close.
 //
-// The signal is the handler's own body: a listener naming `client` or `state`
-// reaches what one window owns. Everything else drives a server, which is
-// addressed by uuid, or asks `app` or a Linux helper.
+// The signal is the handler's own body: a listener naming `clients` reaches
+// what one window owns. Everything else drives a server, which the server view
+// owns, or asks `app`, the serial ports or a Linux helper.
 
-describe('every channel that reaches main’s client is placed', () => {
+describe('every channel that reaches main’s clients is placed', () => {
   /**
-   * The channels that reach the client and are deliberately not refused.
+   * The channels that reach the clients and are deliberately not refused.
    *
-   * The two serial ones enumerate hardware rather than touch the client, and
-   * `server.zustand.ts refreshSerialPorts` calls the first of the two for the
-   * RTU server's COM field. `get_client_state` answers a `ClientState` rather
-   * than `undefined`, so a refusal has nothing to hand back, and reading what
-   * main is doing changes nothing about it.
+   * `get_client_states` answers a record rather than `undefined`, so a refusal
+   * has nothing to hand back, and reading what main is doing changes nothing
+   * about it.
    */
-  const ALLOWED_FROM_EITHER_WINDOW = [
-    'list_serial_ports',
-    'validate_serial_port',
-    'get_client_state'
-  ]
+  const ALLOWED_FROM_EITHER_WINDOW = ['get_client_states']
 
   const ipc = parse(join(repoRoot, 'src/main/ipc.ts'))
 
-  /** Every channel whose listener body names `client` or `state`. */
+  /** Every channel whose listener body names `clients`, however it reaches in. */
   const reachesTheClient = new Set<string>()
   eachNode(ipc, (node) => {
     if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return
     if (node.expression.text !== 'ipcHandle') return
     const [channel, listener] = node.arguments
     if (!channel || !ts.isStringLiteral(channel) || !listener) return
-    if (/\b(client|state)\./.test(listener.getText(ipc))) reachesTheClient.add(channel.text)
+    if (/\bclients\b/.test(listener.getText(ipc))) reachesTheClient.add(channel.text)
   })
 
   /** The names `CLIENT_CHANNELS` holds. */

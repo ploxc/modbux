@@ -20,6 +20,7 @@ import {
   emptyRegisterMapping,
   isConnectionAddressGiven,
   isReadLengthGiven,
+  MAIN_CLIENT_UUID,
   RegisterConfig,
   RegisterMapping,
   SerialPortOptions
@@ -30,6 +31,16 @@ import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
 import { clientFieldReaders, clientFieldSteps } from './undo.zustand.helpers'
 import { ClientField, ClientFieldValues } from './undo.zustand.types'
+
+/**
+ * The uuid main holds this store's client under, which every client channel
+ * names.
+ *
+ * The store holds one client, so this is always the one: `MAIN_CLIENT_UUID`.
+ * A function rather than the constant, because what a caller wants is the
+ * client the view shows, and that is a question the store answers.
+ */
+export const selectedClientUuid = (): string => MAIN_CLIENT_UUID
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -48,7 +59,10 @@ function syncRegisterMappingToMain(): void {
     // Nothing waits on a cell edit reaching main, so the answer has nobody to
     // stop. A refusal reports itself as a `backend_message` and costs main the
     // edit, and the next edit sends the whole mapping again.
-    void window.api.setRegisterMapping(useClientZustand.getState().registerMapping)
+    void window.api.setRegisterMapping({
+      uuid: selectedClientUuid(),
+      registerMapping: useClientZustand.getState().registerMapping
+    })
   }, 150)
 }
 
@@ -68,7 +82,9 @@ export const flushRegisterMappingToMain = async (
 ): Promise<boolean> => {
   if (_ipcTimer) clearTimeout(_ipcTimer)
   _ipcTimer = null
-  return (await window.api.setRegisterMapping(registerMapping)) ?? false
+  return (
+    (await window.api.setRegisterMapping({ uuid: selectedClientUuid(), registerMapping })) ?? false
+  )
 }
 
 /**
@@ -162,7 +178,12 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
   if (!isDisconnected()) return false
 
   const before = clientFieldReaders[key](get())
-  if (!(await window.api.updateConnectionConfig({ rtu: { options: { [key]: value } } })))
+  if (
+    !(await window.api.updateConnectionConfig({
+      uuid: selectedClientUuid(),
+      connectionConfig: { rtu: { options: { [key]: value } } }
+    }))
+  )
     return false
 
   set((state) => {
@@ -188,7 +209,13 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
 ): Promise<boolean> => {
   if (!get().ready) return false
   const before = get().registerConfig[key]
-  if (!(await window.api.updateRegisterConfig({ [key]: value }))) return false
+  if (
+    !(await window.api.updateRegisterConfig({
+      uuid: selectedClientUuid(),
+      registerConfig: { [key]: value }
+    }))
+  )
+    return false
 
   set((state) => {
     state.registerConfig[key] = value
@@ -209,7 +236,7 @@ const readWhenMainCan = (): void => {
   const { clientState } = useDataZustand.getState()
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) return
-  window.api.read()
+  window.api.read(selectedClientUuid())
 }
 
 carryFormerClientState(localStorage)
@@ -223,10 +250,14 @@ export const useClientZustand = create<
       // Config
       init: () => {
         const { connectionConfig, registerConfig } = get()
+        const uuid = selectedClientUuid()
 
-        window.api.updateConnectionConfig(connectionConfig)
-        window.api.updateRegisterConfig(registerConfig)
-        window.api.setReadConfiguration(false)
+        // Main handles invokes in the order they arrive and makes the client
+        // without waiting on anything, so the three after it find it there.
+        window.api.createClient(uuid)
+        window.api.updateConnectionConfig({ uuid, connectionConfig })
+        window.api.updateRegisterConfig({ uuid, registerConfig })
+        window.api.setReadConfiguration({ uuid, readConfiguration: false })
 
         set((state) => {
           state.readConfiguration = false
@@ -350,7 +381,13 @@ export const useClientZustand = create<
         if (!isDisconnected()) return false
 
         const before = get().connectionConfig.protocol
-        if (!(await window.api.updateConnectionConfig({ protocol }))) return false
+        if (
+          !(await window.api.updateConnectionConfig({
+            uuid: selectedClientUuid(),
+            connectionConfig: { protocol }
+          }))
+        )
+          return false
 
         set((state) => {
           state.connectionConfig.protocol = protocol
@@ -367,7 +404,12 @@ export const useClientZustand = create<
 
         const newPort = Number(port)
         const before = get().connectionConfig.tcp.options.port
-        if (!(await window.api.updateConnectionConfig({ tcp: { options: { port: newPort } } })))
+        if (
+          !(await window.api.updateConnectionConfig({
+            uuid: selectedClientUuid(),
+            connectionConfig: { tcp: { options: { port: newPort } } }
+          }))
+        )
           return false
 
         set((state) => {
@@ -393,7 +435,13 @@ export const useClientZustand = create<
           return false
         }
 
-        if (!(await window.api.updateConnectionConfig({ tcp: { host } }))) return false
+        if (
+          !(await window.api.updateConnectionConfig({
+            uuid: selectedClientUuid(),
+            connectionConfig: { tcp: { host } }
+          }))
+        )
+          return false
 
         set((state) => {
           state.valid.host = true
@@ -423,7 +471,13 @@ export const useClientZustand = create<
           return false
         }
 
-        if (!(await window.api.updateConnectionConfig({ rtu: { com } }))) return false
+        if (
+          !(await window.api.updateConnectionConfig({
+            uuid: selectedClientUuid(),
+            connectionConfig: { rtu: { com } }
+          }))
+        )
+          return false
 
         set((state) => {
           state.valid.com = true
@@ -456,7 +510,13 @@ export const useClientZustand = create<
         const newUnitId = Number(unitId)
         if (newUnitId === currentState.connectionConfig.unitId) return true
 
-        if (!(await window.api.updateConnectionConfig({ unitId: newUnitId }))) return false
+        if (
+          !(await window.api.updateConnectionConfig({
+            uuid: selectedClientUuid(),
+            connectionConfig: { unitId: newUnitId }
+          }))
+        )
+          return false
 
         set((state) => {
           state.connectionConfig.unitId = newUnitId
@@ -472,7 +532,13 @@ export const useClientZustand = create<
         const newAddress = Number(address)
         if (newAddress === currentState.registerConfig.address) return true
 
-        if (!(await window.api.updateRegisterConfig({ address: newAddress }))) return false
+        if (
+          !(await window.api.updateRegisterConfig({
+            uuid: selectedClientUuid(),
+            registerConfig: { address: newAddress }
+          }))
+        )
+          return false
 
         set((state) => {
           state.registerConfig.address = newAddress
@@ -498,7 +564,13 @@ export const useClientZustand = create<
           return false
         }
 
-        if (!(await window.api.updateRegisterConfig({ length: newLength }))) return false
+        if (
+          !(await window.api.updateRegisterConfig({
+            uuid: selectedClientUuid(),
+            registerConfig: { length: newLength }
+          }))
+        )
+          return false
 
         set((state) => {
           state.valid.length = true
@@ -511,7 +583,13 @@ export const useClientZustand = create<
       setType: async (type) => {
         if (!get().ready) return false
         const before = get().registerConfig.type
-        if (!(await window.api.updateRegisterConfig({ type }))) return false
+        if (
+          !(await window.api.updateRegisterConfig({
+            uuid: selectedClientUuid(),
+            registerConfig: { type }
+          }))
+        )
+          return false
 
         set((state) => {
           state.registerConfig.type = type
@@ -523,7 +601,13 @@ export const useClientZustand = create<
       setLittleEndian: async (littleEndian) => {
         if (!get().ready) return false
         const before = get().registerConfig.littleEndian
-        if (!(await window.api.updateRegisterConfig({ littleEndian }))) return false
+        if (
+          !(await window.api.updateRegisterConfig({
+            uuid: selectedClientUuid(),
+            registerConfig: { littleEndian }
+          }))
+        )
+          return false
 
         set((state) => {
           state.registerConfig.littleEndian = littleEndian
@@ -544,7 +628,7 @@ export const useClientZustand = create<
         // No read follows. One fired by the switch could land after the switch
         // went back, and a read of the toolbar's range then filled a grid
         // drawing the mapping. The next Read or poll brings the values.
-        window.api.setReadConfiguration(readConfiguration)
+        window.api.setReadConfiguration({ uuid: selectedClientUuid(), readConfiguration })
       },
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),
@@ -633,6 +717,6 @@ if (!isServerWindow) clientZustand.init()
 // name and nothing the user can act on.
 if (!isServerWindow) {
   window.api
-    .stopScanningUnitIds()
+    .stopScanningUnitIds(selectedClientUuid())
     .catch((error) => console.error('A running scan was not stopped:', error))
 }

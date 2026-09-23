@@ -7,7 +7,7 @@
 // came back.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
-import { recordApiCalls, stubRenderer, type ApiCall } from './stubRenderer'
+import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
@@ -27,8 +27,10 @@ beforeEach(() => {
 })
 
 /** The last payload the named channel carried, or undefined if it never ran. */
-const lastPayload = (method: string): unknown =>
-  calls.filter((call) => call.method === method).at(-1)?.payload
+const lastPayload = (method: string): unknown => {
+  const call = calls.filter((candidate) => candidate.method === method).at(-1)
+  return call && clientPayload(call.payload)
+}
 
 describe('the four serial options', () => {
   it('each send their own key under rtu.options and write it back', async () => {

@@ -242,9 +242,9 @@ describe('Windows', () => {
     })
   })
 
-  // `createIpcHandle` refuses the fourteen channels that drive main's one
-  // Modbus client on this answer, so a window it cannot place has to answer
-  // false rather than throw.
+  // `createIpcHandle` refuses the channels that drive main's Modbus clients on
+  // this answer, so a window it cannot place has to answer false rather than
+  // throw.
   describe('isMain', () => {
     it('answers for the main window and for no other', () => {
       const mainWindow = createMockWindow()

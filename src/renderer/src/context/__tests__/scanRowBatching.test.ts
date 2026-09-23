@@ -4,7 +4,7 @@
 // each one, so the rows are collected and written on a timer. What that timer
 // is holding has to go when the grid is replaced or a scan starts again.
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState, getDummyRegisterData } from '@shared'
+import { defaultClientState, getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 
 const SCAN_FLUSH_MS = 100
@@ -42,8 +42,8 @@ describe('rows a scan finds', () => {
   it('reach the grid in one write per flush', async () => {
     const { addresses } = await loaded(true)
 
-    fireEvent('register_data', rows([0, 1]))
-    fireEvent('register_data', rows([2]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([2]) })
     expect(addresses()).toEqual([])
 
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -53,7 +53,7 @@ describe('rows a scan finds', () => {
 
   it('are dropped when the scan is asked to forget them', async () => {
     const { addresses, dropPendingScanRows } = await loaded(true)
-    fireEvent('register_data', rows([0, 1]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
     dropPendingScanRows()
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -67,9 +67,12 @@ describe('rows a scan finds', () => {
 describe('rows a scan found when it ends', () => {
   it('reach the grid with the state that ends it', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', rows([0, 1]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
-    fireEvent('client_state', { ...defaultClientState, scanningRegisters: false })
+    fireEvent('client_state', {
+      uuid: MAIN_CLIENT_UUID,
+      clientState: { ...defaultClientState, scanningRegisters: false }
+    })
 
     expect(addresses()).toEqual([0, 1])
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -78,9 +81,12 @@ describe('rows a scan found when it ends', () => {
 
   it('wait for the flush while a state says the scan still runs', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', rows([0, 1]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
-    fireEvent('client_state', { ...defaultClientState, scanningRegisters: true })
+    fireEvent('client_state', {
+      uuid: MAIN_CLIENT_UUID,
+      clientState: { ...defaultClientState, scanningRegisters: true }
+    })
 
     expect(addresses()).toEqual([])
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -94,20 +100,20 @@ describe('rows a poll reads', () => {
   it('replace the grid at once', async () => {
     const { addresses } = await loaded(false)
 
-    fireEvent('register_data', rows([7]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })
 
     expect(addresses()).toEqual([7])
   })
 
   it('take what the scan had waiting with them', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', rows([0, 1]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
     const { useDataZustand } = await import('../data.zustand')
     useDataZustand.setState({
       clientState: { ...defaultClientState, scanningRegisters: false }
     })
-    fireEvent('register_data', rows([7]))
+    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
 
     expect(addresses()).toEqual([7])

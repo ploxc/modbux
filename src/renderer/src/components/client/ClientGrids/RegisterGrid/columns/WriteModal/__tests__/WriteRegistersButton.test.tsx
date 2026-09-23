@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // WriteModal reaches both root stores, and each registers ipcRenderer listeners
 // on import. The buttons read neither.
 vi.mock('@renderer/context/client.zustand', () => ({
-  useClientZustand: Object.assign(() => undefined, { getState: () => ({}) })
+  useClientZustand: Object.assign(() => undefined, { getState: () => ({}) }),
+  selectedClientUuid: (): string => 'the-client'
 }))
 vi.mock('@renderer/context/data.zustand', () => ({
   useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
@@ -34,11 +35,14 @@ describe('the register write buttons', () => {
     await user.click(screen.getByTestId('write-fc6-btn'))
 
     expect(mockWrite).toHaveBeenCalledWith({
-      address: 4,
-      dataType: 'int16',
-      type: 'holding_registers',
-      value: 7,
-      single: true
+      uuid: 'the-client',
+      parameters: {
+        address: 4,
+        dataType: 'int16',
+        type: 'holding_registers',
+        value: 7,
+        single: true
+      }
     })
   })
 
@@ -78,11 +82,14 @@ describe('the register write buttons', () => {
     await user.click(screen.getByTestId('write-fc16-btn'))
 
     expect(mockWrite).toHaveBeenCalledWith({
-      address: 4,
-      dataType: 'int16',
-      type: 'holding_registers',
-      value: 12,
-      single: false
+      uuid: 'the-client',
+      parameters: {
+        address: 4,
+        dataType: 'int16',
+        type: 'holding_registers',
+        value: 12,
+        single: false
+      }
     })
   })
 })

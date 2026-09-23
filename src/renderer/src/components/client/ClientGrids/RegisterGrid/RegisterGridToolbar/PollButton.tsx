@@ -3,6 +3,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
+import { selectedClientUuid } from '@renderer/context/client.zustand'
 
 const PollButton = meme((): JSX.Element => {
   const notConnected = useDataZustand((z) => z.clientState.connectState !== 'connected')
@@ -15,7 +16,8 @@ const PollButton = meme((): JSX.Element => {
 
   const polling = useDataZustand((z) => z.clientState.polling)
   const togglePolling = useCallback(() => {
-    polling ? window.api.stopPolling() : window.api.startPolling()
+    const uuid = selectedClientUuid()
+    polling ? window.api.stopPolling(uuid) : window.api.startPolling(uuid)
   }, [polling])
 
   const variant: ButtonProps['variant'] = polling ? 'contained' : 'outlined'

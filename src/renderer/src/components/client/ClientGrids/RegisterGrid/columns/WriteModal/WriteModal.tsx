@@ -11,7 +11,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
@@ -98,11 +98,14 @@ export const WriteRegistersButton = meme(() => {
   const handleWrite = useCallback(
     (single: boolean) => {
       window.api.write({
-        address,
-        dataType,
-        type: 'holding_registers',
-        value: Number(value),
-        single
+        uuid: selectedClientUuid(),
+        parameters: {
+          address,
+          dataType,
+          type: 'holding_registers',
+          value: Number(value),
+          single
+        }
       })
     },
     [address, dataType, value]
@@ -174,10 +177,13 @@ export const CoilFunctionSelect = meme(() => {
       })
     }
     window.api.write({
-      address,
-      type: 'coils',
-      value,
-      single: coilFunction === 5
+      uuid: selectedClientUuid(),
+      parameters: {
+        address,
+        type: 'coils',
+        value,
+        single: coilFunction === 5
+      }
     })
   }, [address, coilFunction, coils, registerConfigAddress, enqueueSnackbar])
 

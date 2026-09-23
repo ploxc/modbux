@@ -20,6 +20,7 @@ import ScanProgress from '../scan/ScanProgress'
 import ScanStartStopButton from '../scan/ScanStartStopButton'
 import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { selectedClientUuid } from '@renderer/context/client.zustand'
 
 //
 //
@@ -227,7 +228,7 @@ const ScanButton = meme((): JSX.Element => {
 
   const scan = useCallback(() => {
     if (scanning) {
-      window.api.stopScanningUnitIds()
+      window.api.stopScanningUnitIds(selectedClientUuid())
       return
     }
 
@@ -252,11 +253,14 @@ const ScanButton = meme((): JSX.Element => {
     // closes the dialog and the field unmounts without one, leaving the
     // `Number('') === 0` of a cleared field in the store.
     window.api.scanUnitIds({
-      address,
-      length: Math.min(Math.max(1, length), maxReadQuantity(registerTypes)),
-      range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + Math.max(1, count) - 1)],
-      registerTypes,
-      timeout
+      uuid: selectedClientUuid(),
+      parameters: {
+        address,
+        length: Math.min(Math.max(1, length), maxReadQuantity(registerTypes)),
+        range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + Math.max(1, count) - 1)],
+        registerTypes,
+        timeout
+      }
     })
   }, [scanning])
 

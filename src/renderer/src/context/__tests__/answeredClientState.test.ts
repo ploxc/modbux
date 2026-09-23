@@ -13,7 +13,7 @@
 // window that came back after the last one closed read Connect over a client
 // that was connected and polling.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState } from '@shared'
+import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import type { ClientState } from '@shared'
 
 const disconnected: ClientState = { ...defaultClientState }
@@ -31,10 +31,12 @@ const scanning: ClientState = {
 }
 
 /** The `client_state` listener the store registered, so a test can push. */
-let pushed: ((event: unknown, clientState: ClientState) => void) | undefined
+let pushed: ((event: unknown, push: { uuid: string; clientState: ClientState }) => void) | undefined
 
-/** Resolves the answer to `get_client_state`, so a push can land first. */
+/** Resolves the answer to `get_client_states`, so a push can land first. */
 let answer: (clientState: ClientState) => void
+/** Resolves it with no client in it, which a fresh launch answers. */
+let answerEmpty: () => void
 let refuse: (error: Error) => void
 
 /**
@@ -50,8 +52,7 @@ const stub = ({ isServerWindow = false }: { isServerWindow?: boolean } = {}): vo
   w.electron = {
     ipcRenderer: {
       on: (channel: string, listener: (event: unknown, ...args: unknown[]) => void) => {
-        if (channel === 'client_state')
-          pushed = listener as (event: unknown, clientState: ClientState) => void
+        if (channel === 'client_state') pushed = listener as typeof pushed
         return (): void => {}
       },
       send: (): void => {}
@@ -63,10 +64,11 @@ const stub = ({ isServerWindow = false }: { isServerWindow?: boolean } = {}): vo
       get: (_target, method: string): unknown =>
         method === 'isServerWindow'
           ? isServerWindow
-          : method === 'getClientState'
-            ? (): Promise<ClientState> =>
-                new Promise<ClientState>((resolve, reject) => {
-                  answer = resolve
+          : method === 'getClientStates'
+            ? (): Promise<Record<string, ClientState>> =>
+                new Promise<Record<string, ClientState>>((resolve, reject) => {
+                  answer = (clientState): void => resolve({ [MAIN_CLIENT_UUID]: clientState })
+                  answerEmpty = (): void => resolve({})
                   refuse = reject
                 })
             : (): Promise<undefined> => Promise.resolve(undefined)
@@ -76,7 +78,7 @@ const stub = ({ isServerWindow = false }: { isServerWindow?: boolean } = {}): vo
 
 const push = (clientState: ClientState): void => {
   if (!pushed) throw new Error('no client_state listener was registered')
-  pushed(undefined, clientState)
+  pushed(undefined, { uuid: MAIN_CLIENT_UUID, clientState })
 }
 
 beforeEach(() => {
@@ -102,6 +104,19 @@ describe('the client state main answers with', () => {
       )
     }
   )
+
+  // `data.zustand` finishes before `client.zustand`'s `init`, so on a fresh
+  // launch the ask goes out before the client exists, and main answers with
+  // no client in it.
+  it('leaves the state alone when main holds no client yet', async () => {
+    const { useDataZustand } = await import('../data.zustand')
+    const before = useDataZustand.getState().clientState
+
+    answerEmpty()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(useDataZustand.getState().clientState).toBe(before)
+  })
 
   it('loses to a push that landed while it was in flight', async () => {
     const { useDataZustand } = await import('../data.zustand')
@@ -153,8 +168,8 @@ const methodsAsked = (isServerWindow: boolean): string[] => {
 }
 
 describe('the window that asks main what the client is doing', () => {
-  // `client_state` is about the one client main holds, and the split out server
-  // window shows none of it. The guard is the one `init` carries.
+  // The split out server window shows no client. The guard is the one `init`
+  // carries.
   it.each([
     [false, true],
     [true, false]
@@ -163,6 +178,6 @@ describe('the window that asks main what the client is doing', () => {
 
     await import('../data.zustand')
 
-    expect(asked.includes('getClientState')).toBe(asks)
+    expect(asked.includes('getClientStates')).toBe(asks)
   })
 })

@@ -11,10 +11,11 @@ import { DateTime } from 'luxon'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { useClientZustand } from './client.zustand'
+import { selectedClientUuid, useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
 import {
   ClientState,
+  MAIN_CLIENT_UUID,
   RegisterData,
   ScanUnitIDResult,
   Transaction,
@@ -216,6 +217,11 @@ const adoptAnsweredClientState = (clientState: ClientState): void => {
 
 /**
  * Ask main what the client is doing, because a push says only that it changed.
+ * Main answers for every client it holds, and this store holds
+ * `MAIN_CLIENT_UUID`, the one client the client store has. The constant rather
+ * than `selectedClientUuid`, which is a name across the cycle below: vitest
+ * evaluates each import behind an await, so this answer can land before
+ * `client.zustand` has finished, and the call threw "is not a function".
  *
  * Main pushes `client_state` on a change, so a window opened after the last
  * one starts on the literal above: on macos the app outlives its windows, and
@@ -225,18 +231,31 @@ const adoptAnsweredClientState = (clientState: ClientState): void => {
  * cycle while the other half is still evaluating is a name in its temporal
  * dead zone. It threw into `init`'s catch, which reported nothing.
  *
- * The guard is the one `init` carries: `client_state` is about the one client
- * main holds, and the split out server window shows none of it.
+ * The guard is the one `init` carries: the split out server window shows no
+ * client.
  */
 if (!window.api.isServerWindow) {
   window.api
-    .getClientState()
-    .then(adoptAnsweredClientState)
+    .getClientStates()
+    .then((clientStates) => {
+      const clientState = clientStates[MAIN_CLIENT_UUID]
+      if (clientState) adoptAnsweredClientState(clientState)
+    })
     .catch((error) => console.error('The client state main holds was not read:', error))
 }
 
+/**
+ * Whether an event is about the client this store holds.
+ *
+ * Main sends every client's events to the main window, and this store holds
+ * the one the view shows, so another client's rows, state or transactions
+ * would land in its fields.
+ */
+const isShown = (uuid: string): boolean => uuid === selectedClientUuid()
+
 // Data read from the registers
-onEvent('register_data', (registerData) => {
+onEvent('register_data', ({ uuid, registerData }) => {
+  if (!isShown(uuid)) return
   const dataZustand = useDataZustand.getState()
 
   if (dataZustand.clientState.scanningRegisters) {
@@ -251,13 +270,15 @@ onEvent('register_data', (registerData) => {
   dataZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
 })
 
-onEvent('address_groups', (addressGroups) => {
+onEvent('address_groups', ({ uuid, addressGroups }) => {
+  if (!isShown(uuid)) return
   const dataZustand = useDataZustand.getState()
   dataZustand.setAddressGroups(addressGroups)
 })
 
 // Client state, like polling, scanning, etc.
-onEvent('client_state', (clientState) => {
+onEvent('client_state', ({ uuid, clientState }) => {
+  if (!isShown(uuid)) return
   clientStatePushed = true
   // Main sends a scan's last rows before the state that ends it, so they are
   // written before the button says the scan stopped, not up to a flush later.
@@ -268,13 +289,18 @@ onEvent('client_state', (clientState) => {
 })
 
 // Transactions from the transation log
-onEvent('transaction', (transaction) => pendingTransactions.push(transaction))
+onEvent('transaction', ({ uuid, transaction }) => {
+  if (isShown(uuid)) pendingTransactions.push(transaction)
+})
 
 // Unit ID scanning results
-onEvent('scan_unit_id_result', (scanUnitIDResult) => pendingUnitIdResults.push(scanUnitIDResult))
+onEvent('scan_unit_id_result', ({ uuid, result }) => {
+  if (isShown(uuid)) pendingUnitIdResults.push(result)
+})
 
 // Scan progress
-onEvent('scan_progress', (scanProgress) => {
+onEvent('scan_progress', ({ uuid, progress: scanProgress }) => {
+  if (!isShown(uuid)) return
   const dataZustand = useDataZustand.getState()
   dataZustand.setScanProgress(scanProgress)
 })

@@ -6,7 +6,7 @@
 // grouping its reads out of the mapping the renderer had thrown away.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegisterMapping } from '@shared'
-import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
+import { ApiCall, recordApiCalls, stubRenderer, clientPayload } from './stubRenderer'
 
 const calls: ApiCall[] = []
 
@@ -16,7 +16,7 @@ const methods = (): string[] => calls.map((call) => call.method)
 const lastPayload = (method: string): unknown => {
   const call = calls.findLast((candidate) => candidate.method === method)
   if (!call) throw new Error(`${method} was never called`)
-  return call.payload
+  return clientPayload(call.payload)
 }
 
 /**

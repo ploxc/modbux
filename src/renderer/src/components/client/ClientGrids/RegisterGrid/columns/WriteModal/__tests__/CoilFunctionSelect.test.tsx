@@ -12,7 +12,8 @@ vi.mock('@renderer/context/client.zustand', () => ({
     (selector: (state: { registerConfig: { address: number } }) => unknown) =>
       selector({ registerConfig: { address: 0 } }),
     { getState: () => ({}) }
-  )
+  ),
+  selectedClientUuid: (): string => 'the-client'
 }))
 vi.mock('@renderer/context/data.zustand', () => ({
   useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
@@ -32,8 +33,10 @@ const mockWrite = vi.fn()
 global.window.api = { write: mockWrite }
 
 const written = (): boolean[] => {
-  const payload = mockWrite.mock.calls[0]?.[0] as { value: boolean[] } | undefined
-  return payload?.value ?? []
+  const payload = mockWrite.mock.calls[0]?.[0] as
+    | { uuid: string; parameters: { value: boolean[] } }
+    | undefined
+  return payload?.parameters.value ?? []
 }
 
 // The Length field took the 2000 FC01 answers, and the dialog writes over the

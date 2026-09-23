@@ -1,23 +1,24 @@
-import { AppState } from './state'
 import {
-  ScanRegistersParameters,
-  ConnectionConfigSchema,
+  BackendMessage,
+  ClientConnectionConfigUpdateSchema,
+  ClientReadConfigurationSchema,
+  ClientRegisterConfigUpdateSchema,
+  ClientRegisterMappingSchema,
+  ClientScanRegistersSchema,
+  ClientScanUnitIdsSchema,
+  ClientUuidSchema,
+  ClientWriteSchema,
   IpcHandlerMap,
   EventToMain,
   IpcEventPayloadMap,
   formatZodError,
-  WriteParametersSchema,
   AddRegisterParamsSchema,
   SetBooleanParametersSchema,
   CreateServerParamsSchema,
   PrivilegedPortFixModeSchema,
-  RegisterConfigSchema,
-  RegisterMappingSchema,
   RemoveRegisterParamsSchema,
   ResetBoolsParamsSchema,
   ResetRegistersParamsSchema,
-  ScanRegistersParametersSchema,
-  ScanUnitIDParametersSchema,
   StartRtuServerParamsSchema,
   SyncBoolsParametersSchema,
   SyncRegisterValueParamsSchema,
@@ -25,7 +26,8 @@ import {
   ServerUuidSchema
 } from '@shared'
 import { Windows } from './windows'
-import { ModbusClient } from './modules/modbusClient'
+import { Clients } from './modules/modbusClient/clients'
+import * as serialPorts from './modules/modbusClient/serialPorts'
 import { ModbusServer } from './modules/modbusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
 import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modules/serialGroup'
@@ -76,25 +78,22 @@ type RefusableChannel = {
 }[keyof IpcHandlerMap]
 
 /**
- * The channels that drive main's one Modbus client, answered for `windows.main`
+ * The channels that drive main's Modbus clients, answered for `windows.main`
  * alone.
  *
- * `main/index.ts` constructs one `ModbusClient`, and not one of these channels
- * carries an addressee, so any window could aim them at it. Both windows load
- * the same renderer bundle, so both hold the client store; the near-term cost
- * was its module scope calling `set_read_configuration` and
+ * Each names a client by uuid, and any window can name any uuid. Both windows
+ * load the same renderer bundle, so both hold the client store; the near-term
+ * cost was its module scope calling `set_read_configuration` and
  * `stop_scanning_unit_ids` from the split out server window, which
  * `client.zustand.ts` now gates on `isServerWindow`. This side is the rule
  * rather than the instance: a caller added to that module later, or a client
- * component mounted in the server window, reaches the same single client.
+ * component mounted in the server window, reaches the same clients.
  *
- * `list_serial_ports` and `validate_serial_port` are not here. They enumerate
- * hardware rather than touch the client, and `server.zustand.ts:467` calls the
- * first of the two for the RTU server's COM field. `get_client_state` is not
- * here either: it answers a `ClientState` rather than `undefined`, and reading
- * what main is doing changes nothing about it.
+ * `get_client_states` is not here: it answers a record rather than
+ * `undefined`, and reading what main is doing changes nothing about it.
  */
 const CLIENT_CHANNELS: readonly RefusableChannel[] = [
+  'create_client',
   'connect',
   'disconnect',
   'read',
@@ -178,76 +177,84 @@ export const createIpcHandle =
 
 type InitIpcFn = (
   app: Electron.App,
-  state: AppState,
-  client: ModbusClient,
+  clients: Clients,
   server: ModbusServer,
   windows: Windows
 ) => void
 
-export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
+export const initIpc: InitIpcFn = (app, clients, server, windows) => {
   const ipcHandle = createIpcHandle(windows)
 
-  // Connection config
+  /** What a failed port enumeration says, in the window the client view is drawn in. */
+  const toMainWindow = (message: BackendMessage): void =>
+    windows.send('backend_message', message, 'main')
+
+  // Clients
+  ipcHandle('create_client', (_, uuid) => clients.create(uuid), ClientUuidSchema)
+  ipcHandle('get_client_states', () => clients.states())
+
+  // Configuration
   ipcHandle(
     'update_connection_config',
-    (_, config) => {
-      state.updateConnectionConfig(config)
-      return true
-    },
-    ConnectionConfigSchema.deepPartial()
+    (_, update) => clients.updateConnectionConfig(update),
+    ClientConnectionConfigUpdateSchema
   )
-
-  // Register config
   ipcHandle(
     'update_register_config',
-    (_, config) => {
-      state.updateRegisterConfig(config)
-      return true
-    },
-    RegisterConfigSchema.deepPartial()
+    (_, update) => clients.updateRegisterConfig(update),
+    ClientRegisterConfigUpdateSchema
   )
-
-  // Client state
-  ipcHandle('get_client_state', () => client.state)
-
-  // Register mapping
   ipcHandle(
     'set_register_mapping',
-    (_, mapping) => {
-      state.setRegisterMapping(mapping)
-      return true
-    },
-    RegisterMappingSchema
+    (_, update) => clients.setRegisterMapping(update),
+    ClientRegisterMappingSchema
+  )
+  // Read configuration (session-only toggle)
+  ipcHandle(
+    'set_read_configuration',
+    (_, update) => clients.setReadConfiguration(update),
+    ClientReadConfigurationSchema
   )
 
   // Connection Actions
-  ipcHandle('connect', () => client.connect())
-  ipcHandle('disconnect', () => client.disconnect())
+  ipcHandle('connect', (_, uuid) => clients.get(uuid)?.connect(), ClientUuidSchema)
+  ipcHandle('disconnect', (_, uuid) => clients.get(uuid)?.disconnect(), ClientUuidSchema)
 
   // Read Actions
-  ipcHandle('read', () => client.read())
-  ipcHandle('start_polling', () => client.startPolling())
-  ipcHandle('stop_polling', () => client.stopPolling())
+  ipcHandle('read', (_, uuid) => clients.get(uuid)?.read(), ClientUuidSchema)
+  ipcHandle('start_polling', (_, uuid) => clients.get(uuid)?.startPolling(), ClientUuidSchema)
+  ipcHandle('stop_polling', (_, uuid) => clients.get(uuid)?.stopPolling(), ClientUuidSchema)
 
   // Write Actions
-  ipcHandle('write', (_, writeParameters) => client.write(writeParameters), WriteParametersSchema)
+  ipcHandle(
+    'write',
+    (_, { uuid, parameters }) => clients.get(uuid)?.write(parameters),
+    ClientWriteSchema
+  )
 
   // Scan Unit ID Actions
   ipcHandle(
     'scan_unit_ids',
-    (_, scanUnitIdParameters) => client.scanUnitIds(scanUnitIdParameters),
-    ScanUnitIDParametersSchema
+    (_, { uuid, parameters }) => clients.get(uuid)?.scanUnitIds(parameters),
+    ClientScanUnitIdsSchema
   )
-  ipcHandle('stop_scanning_unit_ids', () => client.stopScanningUnitIds())
+  ipcHandle(
+    'stop_scanning_unit_ids',
+    (_, uuid) => clients.get(uuid)?.stopScanningUnitIds(),
+    ClientUuidSchema
+  )
 
   // Scan Registers Actions
   ipcHandle(
     'scan_registers',
-    (_, scanRegistersParameters: ScanRegistersParameters) =>
-      client.scanRegisters(scanRegistersParameters),
-    ScanRegistersParametersSchema
+    (_, { uuid, parameters }) => clients.get(uuid)?.scanRegisters(parameters),
+    ClientScanRegistersSchema
   )
-  ipcHandle('stop_scanning_registers', () => client.stopScanningRegisters())
+  ipcHandle(
+    'stop_scanning_registers',
+    (_, uuid) => clients.get(uuid)?.stopScanningRegisters(),
+    ClientUuidSchema
+  )
 
   // Server
   ipcHandle(
@@ -296,9 +303,6 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   // App Version
   ipcHandle('get_app_version', () => app.getVersion())
 
-  // Read configuration (session-only toggle)
-  ipcHandle('set_read_configuration', (_, value) => state.setReadConfiguration(value))
-
   // Linux privileged ports (port 502 needs the unprivileged-port floor lowered)
   ipcHandle('get_privileged_port_status', (_, port) => getPrivilegedPortStatus(port))
   ipcHandle(
@@ -311,8 +315,10 @@ export const initIpc: InitIpcFn = (app, state, client, server, windows) => {
   ipcHandle('request_logout', () => requestLogout())
 
   // Serial port discovery
-  ipcHandle('list_serial_ports', () => client.listSerialPorts())
-  ipcHandle('validate_serial_port', (_, portPath) => client.validateSerialPort(portPath))
+  ipcHandle('list_serial_ports', () => serialPorts.listSerialPorts(toMainWindow))
+  ipcHandle('validate_serial_port', (_, portPath) =>
+    serialPorts.validateSerialPort(portPath, toMainWindow)
+  )
 }
 
 /**

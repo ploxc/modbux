@@ -3,9 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initIpc, onIpcEvent } from './ipc'
-import { AppState } from './state'
-import { ModbusClient } from './modules/modbusClient'
-import { Transports } from './modules/modbusClient/transports'
+import { Clients } from './modules/modbusClient/clients'
 import os from 'os'
 import { ModbusServer } from './modules/modbusServer'
 import { Windows } from './windows'
@@ -17,17 +15,14 @@ if (is.dev && os.platform() === 'darwin') {
 
 const windows = new Windows()
 
-// Initialize the app state
-const appState = new AppState()
-
-// Initialize the modbus client
-const client = new ModbusClient({ appState, windows, transports: new Transports(windows) })
+// The modbus clients, one per uuid a window asks for
+const clients = new Clients(windows)
 
 // Initialize the modbus server
 const server = new ModbusServer({ windows })
 
 // IPC
-initIpc(app, appState, client, server, windows)
+initIpc(app, clients, server, windows)
 
 /**
  * Say which path took the app down.

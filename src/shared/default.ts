@@ -94,3 +94,6 @@ export const getDummyRegisterData = (register: number): RegisterData => ({
 })
 
 export const MAIN_SERVER_UUID = '21794bae-26a7-488c-954c-2105cb303c59'
+
+/** The uuid the client store's one client is created and addressed under. */
+export const MAIN_CLIENT_UUID = '084550bd-a9eb-452e-83f9-dc7a125b2ba4'

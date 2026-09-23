@@ -18,6 +18,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions'
+import { MAIN_CLIENT_UUID } from '@shared'
 
 // The options menu groups register options / connection options / actions,
 // each section carrying its own trailing divider so empty sections never
@@ -113,7 +114,10 @@ describe('MenuConnectionOptions', () => {
     await waitFor(() =>
       expect(useClientZustand.getState().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
     )
-    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ protocol: 'ModbusRtuOverTcp' })
+    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({
+      uuid: MAIN_CLIENT_UUID,
+      connectionConfig: { protocol: 'ModbusRtuOverTcp' }
+    })
 
     fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
     await waitFor(() =>

@@ -22,13 +22,17 @@ const stub = vi.hoisted(() => {
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { defaultClientState, ScanRegistersParametersSchema } from '@shared'
+import { defaultClientState, MAIN_CLIENT_UUID, ScanRegistersParametersSchema } from '@shared'
 import ScanRegisters from '../ScanRegisters'
 import { useScanRegistersZustand } from '../scanRegisters.zustand'
 
 const payload = async (): Promise<unknown> => {
   await waitFor(() => expect(stub.scanRegisters).toHaveBeenCalled())
-  return stub.scanRegisters.mock.calls[0]?.[0]
+  const call = stub.scanRegisters.mock.calls[0]?.[0] as
+    | { uuid: string; parameters: unknown }
+    | undefined
+  expect(call?.uuid).toBe(MAIN_CLIENT_UUID)
+  return call?.parameters
 }
 
 const input = (testId: string): HTMLElement =>

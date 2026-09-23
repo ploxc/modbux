@@ -3,6 +3,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
+import { selectedClientUuid } from '@renderer/context/client.zustand'
 
 const ReadButton = meme((): JSX.Element => {
   const connected = useDataZustand((z) => z.clientState.connectState === 'connected')
@@ -18,7 +19,7 @@ const ReadButton = meme((): JSX.Element => {
   const reading = useDataZustand((z) => z.clientState.reading)
 
   const handleRead = useCallback(() => {
-    window.api.read()
+    window.api.read(selectedClientUuid())
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'

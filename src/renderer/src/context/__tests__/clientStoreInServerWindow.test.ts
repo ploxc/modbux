@@ -8,7 +8,7 @@
 // instead of the configured groups, while the main window's toggle reads on.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLIENT_ZUSTAND_STORAGE_KEY } from '@shared'
-import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
+import { ApiCall, recordApiCalls, stubRenderer, clientPayload } from './stubRenderer'
 
 const calls: ApiCall[] = []
 
@@ -57,6 +57,7 @@ describe('client.zustand in the split out server window', () => {
     expect(methods).toContain('updateConnectionConfig')
     expect(methods).toContain('updateRegisterConfig')
     expect(methods).toContain('stopScanningUnitIds')
-    expect(calls.find(({ method }) => method === 'setReadConfiguration')?.payload).toBe(false)
+    const readConfiguration = calls.find(({ method }) => method === 'setReadConfiguration')
+    expect(readConfiguration && clientPayload(readConfiguration.payload)).toBe(false)
   })
 })

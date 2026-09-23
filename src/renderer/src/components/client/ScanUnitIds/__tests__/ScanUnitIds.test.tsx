@@ -22,11 +22,17 @@ const stub = vi.hoisted(() => {
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { defaultClientState, ScanUnitIDParametersSchema } from '@shared'
+import { defaultClientState, MAIN_CLIENT_UUID, ScanUnitIDParametersSchema } from '@shared'
 import ScanUnitIds from '../ScanUnitIds'
 import { useScanUnitIdZustand } from '../scanUnitIds.zustand'
 
-const payload = (): unknown => stub.scanUnitIds.mock.calls[0]?.[0]
+const payload = (): unknown => {
+  const call = stub.scanUnitIds.mock.calls[0]?.[0] as
+    | { uuid: string; parameters: unknown }
+    | undefined
+  expect(call?.uuid).toBe(MAIN_CLIENT_UUID)
+  return call?.parameters
+}
 
 const input = (testId: string): HTMLElement =>
   within(screen.getByTestId(testId)).getByRole('textbox')

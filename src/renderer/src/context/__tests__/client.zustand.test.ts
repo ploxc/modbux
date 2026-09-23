@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { defaultClientState } from '@shared'
+import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import type { ClientState, RegisterMapping } from '@shared'
 
 /**
@@ -48,15 +48,16 @@ const connectedAndPolling: ClientState = {
 const pushClientState = (clientState: ClientState): void => {
   const handler = handlers.get('client_state')
   if (!handler) throw new Error('no client_state listener was registered')
-  handler(undefined, clientState)
+  handler(undefined, { uuid: MAIN_CLIENT_UUID, clientState })
 }
 
 const stubApi = (): void => {
   window.api = {
+    createClient: vi.fn(),
     updateConnectionConfig: vi.fn(),
     updateRegisterConfig: vi.fn(),
     setReadConfiguration: vi.fn(),
-    getClientState: vi.fn(() => new Promise<ClientState>(() => {}))
+    getClientStates: vi.fn(() => new Promise<Record<string, ClientState>>(() => {}))
   } as never
 }
 
@@ -71,7 +72,7 @@ beforeEach(() => {
  * `data.zustand` asks at import time rather than through `init`.
  */
 describe('init hands main the config this window loaded', () => {
-  it('is ready and has pushed both configs', () => {
+  it('is ready, has made its client, and has pushed both configs to it', () => {
     const connectionConfig = useClientZustand.getState().connectionConfig
     const registerConfig = useClientZustand.getState().registerConfig
 
@@ -79,13 +80,28 @@ describe('init hands main the config this window loaded', () => {
 
     expect(useClientZustand.getState().ready).toBe(true)
     expect(useClientZustand.getState().readConfiguration).toBe(false)
-    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith(connectionConfig)
-    expect(window.api.updateRegisterConfig).toHaveBeenCalledWith(registerConfig)
-    expect(window.api.setReadConfiguration).toHaveBeenCalledWith(false)
+    const uuid = MAIN_CLIENT_UUID
+    expect(window.api.createClient).toHaveBeenCalledWith(uuid)
+    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ uuid, connectionConfig })
+    expect(window.api.updateRegisterConfig).toHaveBeenCalledWith({ uuid, registerConfig })
+    expect(window.api.setReadConfiguration).toHaveBeenCalledWith({
+      uuid,
+      readConfiguration: false
+    })
   })
 })
 
 describe('the client_state listener', () => {
+  it('leaves the store alone for a client it does not hold', () => {
+    const before = useDataZustand.getState().clientState
+    const handler = handlers.get('client_state')
+    if (!handler) throw new Error('no client_state listener was registered')
+
+    handler(undefined, { uuid: 'another-client', clientState: connectedAndPolling })
+
+    expect(useDataZustand.getState().clientState).toBe(before)
+  })
+
   it('writes what main pushed', () => {
     pushClientState(connectedAndPolling)
 

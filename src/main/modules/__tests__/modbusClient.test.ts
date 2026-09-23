@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { Protocol, RawTransaction, WriteParameters } from '@shared'
+import type { BackendMessage, Protocol, RawTransaction, WriteParameters } from '@shared'
 import type { Windows } from '../../windows'
 import { AppState } from '../../state'
 
@@ -127,6 +127,7 @@ vi.mock('modbus-serial', () => {
 
 import { ModbusClient } from '../modbusClient'
 import { Transports } from '../modbusClient/transports'
+import * as serialPorts from '../modbusClient/serialPorts'
 import ModbusRTU from 'modbus-serial'
 
 /** When a mock was first called, or a failure naming the one that never ran. */
@@ -150,13 +151,29 @@ const firstCallOrder = (
 let sentToWindows: any[][] = []
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let addressedTo: any[][] = []
+/** The uuid each client event named, beside the event. */
+let namedClient: Array<[string, unknown]> = []
+
+/** The field each client event carries its payload in, beside the uuid. */
+const CLIENT_EVENT_FIELDS: Record<string, string> = {
+  client_state: 'clientState',
+  register_data: 'registerData',
+  address_groups: 'addressGroups',
+  transaction: 'transaction',
+  scan_unit_id_result: 'result',
+  scan_progress: 'progress'
+}
 
 const createMockWindows = (): Windows =>
   ({
     // The addressee is recorded apart from the payload, because who a message
-    // reached is its own question. `undefined` there is every window.
+    // reached is its own question. `undefined` there is every window. A client
+    // event's payload is recorded without its uuid, which `namedClient` keeps.
     send: vi.fn((event: string, payload: unknown, to?: unknown) => {
-      sentToWindows.push([event, structuredClone(payload)])
+      const field = CLIENT_EVENT_FIELDS[event]
+      const addressed = payload as Record<string, unknown>
+      if (field) namedClient.push([event, addressed['uuid']])
+      sentToWindows.push([event, structuredClone(field ? addressed[field] : payload)])
       addressedTo.push([to, event])
     })
   }) as unknown as Windows
@@ -179,11 +196,12 @@ describe('ModbusClient', () => {
     ;(ModbusRTU as any).getPorts.mockResolvedValue([])
     sentToWindows = []
     addressedTo = []
+    namedClient = []
     portIncrementsKey = true
     windows = createMockWindows()
     appState = new AppState()
     transports = new Transports(windows)
-    client = new ModbusClient({ appState, windows, transports })
+    client = new ModbusClient({ uuid: 'client-1', appState, windows, transports })
   })
 
   afterEach(() => {
@@ -601,7 +619,12 @@ describe('ModbusClient', () => {
       mockModbusRTU.connectTCP.mockImplementation(() => new Promise<void>(() => {}))
       const otherState = new AppState()
       otherState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      const other = new ModbusClient({ appState: otherState, windows, transports })
+      const other = new ModbusClient({
+        uuid: 'client-2',
+        appState: otherState,
+        windows,
+        transports
+      })
       void other.connect()
       await vi.advanceTimersByTimeAsync(0)
       await other.disconnect()
@@ -653,7 +676,12 @@ describe('ModbusClient', () => {
       mockModbusRTU.connectTCP.mockImplementation(() => new Promise<void>(() => {}))
       const otherState = new AppState()
       otherState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
-      const other = new ModbusClient({ appState: otherState, windows, transports })
+      const other = new ModbusClient({
+        uuid: 'client-2',
+        appState: otherState,
+        windows,
+        transports
+      })
       void other.connect()
       await vi.advanceTimersByTimeAsync(0)
       await other.disconnect()
@@ -748,6 +776,34 @@ describe('ModbusClient', () => {
    * `client.zustand` too and persists it to the same key. An event delivered
    * there writes its frozen copy over what the main window stored.
    */
+  describe('the client an event names', () => {
+    it('names this client on every event it sends', async () => {
+      await connectClient()
+      setupHoldingRegisterReadMock([100])
+      await client.read()
+      await client.scanUnitIds({
+        range: [1, 1],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+
+      const events = new Set(namedClient.map(([event]) => event))
+      expect([...events].sort()).toEqual(
+        [
+          'address_groups',
+          'client_state',
+          'register_data',
+          'scan_progress',
+          'scan_unit_id_result',
+          'transaction'
+        ].sort()
+      )
+      expect(namedClient.filter(([, uuid]) => uuid !== 'client-1')).toEqual([])
+    })
+  })
+
   describe('the window a client event reaches', () => {
     it('addresses every one of them to the main window', async () => {
       await connectClient()
@@ -4081,7 +4137,12 @@ describe('ModbusClient', () => {
     })
   })
 
+  // They read no connection, so they are the module's, called the way the
+  // IPC handlers call them.
   describe('serial port operations', () => {
+    const emitMessage = (message: BackendMessage): void =>
+      windows.send('backend_message', message, 'main')
+
     it('listSerialPorts returns mapped port list', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockResolvedValue([
@@ -4089,7 +4150,7 @@ describe('ModbusClient', () => {
         { path: '/dev/ttyUSB1', manufacturer: undefined }
       ])
 
-      const ports = await client.listSerialPorts()
+      const ports = await serialPorts.listSerialPorts(emitMessage)
 
       expect(ports).toEqual([
         { path: '/dev/ttyUSB0', manufacturer: 'FTDI' },
@@ -4101,7 +4162,7 @@ describe('ModbusClient', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockRejectedValue(new Error('USB error'))
 
-      const ports = await client.listSerialPorts()
+      const ports = await serialPorts.listSerialPorts(emitMessage)
 
       expect(ports).toEqual([])
       const messages = getWindowCalls('backend_message')
@@ -4112,7 +4173,7 @@ describe('ModbusClient', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockResolvedValue([{ path: '/dev/ttyUSB0' }])
 
-      const result = await client.validateSerialPort('/dev/ttyUSB0')
+      const result = await serialPorts.validateSerialPort('/dev/ttyUSB0', emitMessage)
 
       expect(result.valid).toBe(true)
       expect(result.message).toContain('available')
@@ -4122,7 +4183,7 @@ describe('ModbusClient', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockResolvedValue([{ path: '/dev/ttyUSB0' }])
 
-      const result = await client.validateSerialPort('/dev/ttyUSB1')
+      const result = await serialPorts.validateSerialPort('/dev/ttyUSB1', emitMessage)
 
       expect(result.valid).toBe(false)
       expect(result.message).toContain('not found')
@@ -4132,7 +4193,7 @@ describe('ModbusClient', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockRejectedValue(new Error('file not found'))
 
-      const result = await client.validateSerialPort('/dev/ttyUSB0')
+      const result = await serialPorts.validateSerialPort('/dev/ttyUSB0', emitMessage)
 
       expect(result.valid).toBe(false)
       expect(result.message).toContain('not found or not available')
@@ -4142,7 +4203,7 @@ describe('ModbusClient', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(ModbusRTU as any).getPorts.mockResolvedValue([{ path: '/dev/ttyUSB0' }])
 
-      const result = await client.validateSerialPort('/DEV/TTYUSB0')
+      const result = await serialPorts.validateSerialPort('/DEV/TTYUSB0', emitMessage)
 
       expect(result.valid).toBe(true)
     })

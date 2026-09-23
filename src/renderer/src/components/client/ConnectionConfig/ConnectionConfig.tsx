@@ -11,7 +11,7 @@ import RtuConfig from './RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
 import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
 import { Protocol } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -100,7 +100,7 @@ const ConnectButton = meme(() => {
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = useDataZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
-      window.api.disconnect()
+      window.api.disconnect(selectedClientUuid())
       if (!useClientZustand.getState().readConfiguration) {
         useDataZustand.getState().setRegisterData([])
       }
@@ -114,7 +114,7 @@ const ConnectButton = meme(() => {
         const blocked = await useSerialGroupZustand.getState().check({ force: true })
         if (blocked) return
       }
-      window.api.connect()
+      window.api.connect(selectedClientUuid())
     }
   }, [])
 

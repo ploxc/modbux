@@ -1,6 +1,7 @@
 import { test as base, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { launchElectron, evaluateMain } from './launch'
 import { cleanServerState, navigateToHome } from './helpers'
+import { CLIENT_UUID } from './client-uuid'
 
 export type ElectronFixtures = {
   electronApp: ElectronApplication
@@ -36,7 +37,7 @@ export async function resetApp(app: ElectronApplication, page: Page): Promise<vo
         .forEach((w) => w.close())
     })
   )
-  await page.evaluate(() => window.api.disconnect())
+  await page.evaluate((uuid) => window.api.disconnect(uuid), CLIENT_UUID)
 
   await cleanServerState(page)
   await page.getByTestId('server-mode-tcp-btn').click()

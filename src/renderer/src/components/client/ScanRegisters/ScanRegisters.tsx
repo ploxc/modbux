@@ -4,7 +4,7 @@ import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
@@ -207,7 +207,7 @@ const ScanButton = meme((): JSX.Element => {
 
   const scan = useCallback(async () => {
     if (scanning) {
-      window.api.stopScanningRegisters()
+      window.api.stopScanningRegisters(selectedClientUuid())
       return
     }
 
@@ -238,12 +238,15 @@ const ScanButton = meme((): JSX.Element => {
     // gives a range ending before it starts, which the schema takes and the
     // scan loop never enters.
     await window.api.scanRegisters({
-      addressRange: [
-        address,
-        Math.min(MAX_REGISTER_ADDRESS, address + Math.max(1, scanLength) - 1)
-      ],
-      length: Math.max(1, chunkSize),
-      timeout
+      uuid: selectedClientUuid(),
+      parameters: {
+        addressRange: [
+          address,
+          Math.min(MAX_REGISTER_ADDRESS, address + Math.max(1, scanLength) - 1)
+        ],
+        length: Math.max(1, chunkSize),
+        timeout
+      }
     })
   }, [scanning])
 

@@ -24,7 +24,6 @@ import {
   WriteParameters
 } from '@shared'
 import { Windows } from '../windows'
-import * as serialPorts from './modbusClient/serialPorts'
 import { errorText, isModbusException } from './modbusClient/errors'
 import { RequestTarget, Transport, TransportClient } from './modbusClient/transport'
 import { Transports } from './modbusClient/transports'
@@ -63,12 +62,15 @@ type ScanUnitIdFn = ({
 type WriteAttempt = { sent: boolean }
 
 interface ClientParams {
+  uuid: string
   appState: AppState
   windows: Windows
   transports: Transports
 }
 
 export class ModbusClient implements TransportClient {
+  /** The uuid every event this client sends names it by. */
+  readonly uuid: string
   private _appState: AppState
   private _windows: Windows
   private _transports: Transports
@@ -92,7 +94,8 @@ export class ModbusClient implements TransportClient {
   private _reconnectWasPolling = false
   private _reconnectResumePollingTimeout: NodeJS.Timeout | undefined
 
-  constructor({ appState, windows, transports }: ClientParams) {
+  constructor({ uuid, appState, windows, transports }: ClientParams) {
+    this.uuid = uuid
     this._appState = appState
     this._windows = windows
     this._transports = transports
@@ -113,17 +116,17 @@ export class ModbusClient implements TransportClient {
     this._windows.send('backend_message', message, 'main')
   }
   private _sendClientState = (): void => {
-    this._windows.send('client_state', this._clientState, 'main')
+    this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
-  private _sendData = (data: RegisterData[]): void => {
-    this._windows.send('register_data', data, 'main')
+  private _sendData = (registerData: RegisterData[]): void => {
+    this._windows.send('register_data', { uuid: this.uuid, registerData }, 'main')
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
-    this._windows.send('scan_unit_id_result', result, 'main')
+    this._windows.send('scan_unit_id_result', { uuid: this.uuid, result }, 'main')
   }
 
-  private _sendGroups = (groups: AddressGroup[]): void => {
-    this._windows.send('address_groups', groups, 'main')
+  private _sendGroups = (addressGroups: AddressGroup[]): void => {
+    this._windows.send('address_groups', { uuid: this.uuid, addressGroups }, 'main')
   }
 
   /**
@@ -143,7 +146,7 @@ export class ModbusClient implements TransportClient {
     if (!last && now - this._scanProgressSentAt < 100) return
     this._scanProgressSentAt = now
     const progress = round((this._scansDone / this._totalScans) * 100, 2)
-    this._windows.send('scan_progress', progress, 'main')
+    this._windows.send('scan_progress', { uuid: this.uuid, progress }, 'main')
   }
 
   //
@@ -365,6 +368,7 @@ export class ModbusClient implements TransportClient {
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration
     const target: RequestTarget = {
+      uuid: this.uuid,
       unitId: this._appState.connectionConfig.unitId,
       timeout: this._appState.registerConfig.timeout
     }
@@ -588,6 +592,7 @@ export class ModbusClient implements TransportClient {
     // 3000 ms an open sets, rather than the 1000 ms the toolbar's own floor
     // promises.
     const target: RequestTarget = {
+      uuid: this.uuid,
       unitId: this._appState.connectionConfig.unitId,
       timeout: this._appState.registerConfig.timeout
     }
@@ -796,7 +801,12 @@ export class ModbusClient implements TransportClient {
       }
 
       try {
-        await this._readers[registerType](transport, { unitId: id, timeout }, address, length)
+        await this._readers[registerType](
+          transport,
+          { uuid: this.uuid, unitId: id, timeout },
+          address,
+          length
+        )
         result.registerTypes.push(registerType)
       } catch (error) {
         result.errorMessage[registerType] = errorText(error)
@@ -826,6 +836,7 @@ export class ModbusClient implements TransportClient {
     this.stopPolling()
 
     const target: RequestTarget = {
+      uuid: this.uuid,
       unitId: this._appState.connectionConfig.unitId,
       timeout: params.timeout
     }
@@ -887,15 +898,12 @@ export class ModbusClient implements TransportClient {
     this._clientState.scanningRegisters = false
   }
 
-  /** The serial ports this machine has, for the two RTU COM fields. */
-  public listSerialPorts = (): Promise<{ path: string; manufacturer?: string }[]> =>
-    serialPorts.listSerialPorts(this._emitMessage)
-
-  /** Whether a path is one of the ports this machine has. */
-  public validateSerialPort = (portPath: string): Promise<{ valid: boolean; message: string }> =>
-    serialPorts.validateSerialPort(portPath, this._emitMessage)
-
   get state(): ClientState {
     return this._clientState
+  }
+
+  /** What main holds of this client's configuration. */
+  get config(): AppState {
+    return this._appState
   }
 }

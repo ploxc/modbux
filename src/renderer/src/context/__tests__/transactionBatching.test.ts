@@ -7,6 +7,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
+import { MAIN_CLIENT_UUID } from '@shared'
 
 const FLUSH_MS = 100
 
@@ -54,9 +55,9 @@ describe('transactions main sends', () => {
   it('reach the log in one write per flush, newest first', async () => {
     const { ids, writes } = await loaded()
 
-    fireEvent('transaction', transaction('a'))
-    fireEvent('transaction', transaction('b'))
-    fireEvent('transaction', transaction('c'))
+    fireEvent('transaction', { uuid: MAIN_CLIENT_UUID, transaction: transaction('a') })
+    fireEvent('transaction', { uuid: MAIN_CLIENT_UUID, transaction: transaction('b') })
+    fireEvent('transaction', { uuid: MAIN_CLIENT_UUID, transaction: transaction('c') })
     expect(ids()).toEqual([])
 
     vi.advanceTimersByTime(FLUSH_MS)
@@ -67,7 +68,7 @@ describe('transactions main sends', () => {
 
   it('do not outlive a clear', async () => {
     const { ids, clear } = await loaded()
-    fireEvent('transaction', transaction('a'))
+    fireEvent('transaction', { uuid: MAIN_CLIENT_UUID, transaction: transaction('a') })
 
     clear()
     vi.advanceTimersByTime(FLUSH_MS)

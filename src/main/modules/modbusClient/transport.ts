@@ -35,6 +35,8 @@ export interface TransportClient {
 
 /** Who a request is for, which the connection it shares knows nothing of. */
 export interface RequestTarget {
+  /** The client that sent it, which its transaction is logged under. */
+  uuid: string
   unitId: number
   timeout: number
 }
@@ -224,7 +226,7 @@ export class Transport {
    * turn would delete the entry of the request that went next.
    */
   public request = <Result>(
-    { unitId, timeout }: RequestTarget,
+    { uuid, unitId, timeout }: RequestTarget,
     send: (modbus: ModbusRTU) => Promise<Result>
   ): Promise<Result> =>
     this._run(async (modbus) => {
@@ -233,10 +235,10 @@ export class Transport {
       const transactionIdKey = this._transactionLog.nextTransactionIdKey()
       try {
         const result = await send(modbus)
-        this._transactionLog.log(transactionIdKey, undefined)
+        this._transactionLog.log(uuid, transactionIdKey, undefined)
         return result
       } catch (error) {
-        this._transactionLog.log(transactionIdKey, errorText(error))
+        this._transactionLog.log(uuid, transactionIdKey, errorText(error))
         throw error
       }
     })

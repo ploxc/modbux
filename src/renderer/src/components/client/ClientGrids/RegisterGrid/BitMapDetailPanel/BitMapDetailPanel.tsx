@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import { BitColor, BitMapConfig } from '@shared'
@@ -45,11 +45,14 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
         ? currentUint16 & ~(1 << bitIndex) // clear bit
         : currentUint16 | (1 << bitIndex) // set bit
       window.api.write({
-        address,
-        dataType: 'uint16',
-        type: 'holding_registers',
-        value: newUint16,
-        single: true
+        uuid: selectedClientUuid(),
+        parameters: {
+          address,
+          dataType: 'uint16',
+          type: 'holding_registers',
+          value: newUint16,
+          single: true
+        }
       })
     },
     [address, canWrite]
