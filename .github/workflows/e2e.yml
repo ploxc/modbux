@@ -146,11 +146,14 @@ jobs:
       - name: Build
         run: yarn electron-vite build
 
-      # --trace retain-on-failure, because the repository config sets
-      # on-first-retry against retries: 0 and so records nothing. A failure here
+      # E2E_TRACE=1 makes the fixture trace the app's own context and keep the
+      # trace of a failed test; --trace retain-on-failure records only the
+      # contexts Playwright creates, which holds the assertions. A failure here
       # cannot be reproduced on the machine you are reading this from.
       - name: E2E against out/
         if: inputs.mode != 'packaged'
+        env:
+          E2E_TRACE: '1'
         shell: bash
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --trace retain-on-failure
 
@@ -177,6 +180,8 @@ jobs:
 
       - name: E2E against dist/
         if: "!cancelled() && inputs.mode != 'dev'"
+        env:
+          E2E_TRACE: '1'
         shell: bash
         run: ${{ runner.os == 'Linux' && 'xvfb-run -a' || '' }} yarn playwright test --config playwright.packaged.config.ts --trace retain-on-failure
 

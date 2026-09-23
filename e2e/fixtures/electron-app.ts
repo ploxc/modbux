@@ -52,15 +52,21 @@ export async function resetApp(app: ElectronApplication, page: Page): Promise<vo
 }
 
 /**
- * A trace of the app for every test that fails.
+ * A screenshot of every open window for every test that fails, and a trace of
+ * the app beside it when `E2E_TRACE=1`.
  *
  * Playwright's own `trace` option records the contexts it creates itself, and
  * the app's is not one of them, so a failed test's trace held its assertions
  * and no DOM. Tracing runs on the app's context for the whole worker, one
- * chunk per test, and a chunk is written only when its test failed, beside a
- * screenshot of every window still open. An app that is already gone has no
- * chunk to stop, and its log says why.
+ * chunk per test, and a chunk is written only when its test failed. An app
+ * that is already gone has no chunk to stop, and its log says why.
+ *
+ * Recording cost 06, 11 and 21 together 1.2 and 1.3 min against 1.0 min
+ * without, so the workflow turns it on and a local run leaves it off: a spec
+ * that fails locally is run again on its own with `E2E_TRACE=1`.
  */
+const tracing = process.env.E2E_TRACE === '1'
+
 type ElectronTestFixtures = { electronTrace: void }
 
 export const test = base.extend<ElectronTestFixtures, ElectronFixtures>({
@@ -69,11 +75,11 @@ export const test = base.extend<ElectronTestFixtures, ElectronFixtures>({
       if (!resetFiles.has(testInfo.file)) {
         throw new Error(`${testInfo.file} has no beforeAll that calls resetApp`)
       }
-      const tracing = electronApp.context().tracing
-      await tracing.startChunk({ title: testInfo.title })
+      const context = tracing ? electronApp.context().tracing : undefined
+      await context?.startChunk({ title: testInfo.title })
       await use()
       if (testInfo.status === testInfo.expectedStatus) {
-        await tracing.stopChunk().catch(() => undefined)
+        await context?.stopChunk().catch(() => undefined)
         return
       }
       for (const [i, window] of electronApp.windows().entries()) {
@@ -81,8 +87,8 @@ export const test = base.extend<ElectronTestFixtures, ElectronFixtures>({
           .screenshot({ path: testInfo.outputPath(`window-${i}.png`) })
           .catch(() => undefined)
       }
-      await tracing
-        .stopChunk({ path: testInfo.outputPath('electron-trace.zip') })
+      await context
+        ?.stopChunk({ path: testInfo.outputPath('electron-trace.zip') })
         .catch(() => undefined)
     },
     { auto: true }
@@ -91,7 +97,7 @@ export const test = base.extend<ElectronTestFixtures, ElectronFixtures>({
     // eslint-disable-next-line no-empty-pattern
     async ({}, use): Promise<void> => {
       const app = await launchElectron()
-      await app.context().tracing.start({ snapshots: true })
+      if (tracing) await app.context().tracing.start({ snapshots: true })
 
       await evaluateMain(() =>
         app.evaluate((ctx) =>
