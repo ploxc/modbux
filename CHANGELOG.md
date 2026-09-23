@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Pressing Poll off and on again while a read was on its way put a second read
   on the connection before the first had answered, which an RTU bus cannot
   tell apart. Every request now waits for the one before it.
+- **A stopped poll stops after the request it has on the way.** Its read went
+  on through every configured group and then filled the grid, so a scan
+  started from a poll waited for all of it, against a device that does not
+  answer one timeout per group. It now lets go once the request on the wire
+  answers, and what it read is dropped.
 - **Exception 11 no longer tells you to retry later.** A gateway or a server
   answering exception 11 read "retry request again later", while the Modbus
   specification says the target device is usually not there, and Modbux's own

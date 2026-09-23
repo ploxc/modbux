@@ -345,9 +345,22 @@ export class ModbusClient implements TransportClient {
     }
   }
 
-  private _read = async (): Promise<void> => {
+  /**
+   * One read of the toolbar's block or of the configured groups, sent as one
+   * `register_data`.
+   *
+   * `pollGeneration` is the chain a poll's read belongs to. A stopped poll
+   * lets go after the request it has on the wire, and neither sends nor says
+   * anything about it: the rows
+   * would land in whatever the stop made room for, which is a scan's result
+   * list or the grid of a chain that started since, and the groups it had
+   * left would go out between that chain's own on the queue.
+   */
+  private _read = async (pollGeneration?: number): Promise<void> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
     if (!transport) return
+    const stopped = (): boolean =>
+      pollGeneration !== undefined && pollGeneration !== this._pollGeneration
 
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration
@@ -388,6 +401,7 @@ export class ModbusClient implements TransportClient {
     const groups = configGroups.length > 0 ? configGroups : [toolbarGroup]
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
+      if (stopped()) return
       try {
         const rows = await this._readers[type](transport, target, groupAddress, groupLength)
         rows.forEach((row) => {
@@ -422,7 +436,7 @@ export class ModbusClient implements TransportClient {
               }
             }
           }
-        } else {
+        } else if (!stopped()) {
           this._emitMessage({
             message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${this._appState.connectionConfig.unitId}]`,
             variant: 'error',
@@ -441,6 +455,7 @@ export class ModbusClient implements TransportClient {
     // main knows what its read asked. The transport logged the transactions
     // above either way, because they happened.
     if (this._appState.readGeneration !== readGeneration) return
+    if (stopped()) return
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
@@ -479,21 +494,6 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
-   * The poll's last read, until it has answered.
-   *
-   * `stopPolling` ends the chain and returns, and a chain awaiting a read is
-   * still inside `_read`'s group loop, which breaks on the connect state and
-   * not on the generation. That read sends its rows when it answers, and a
-   * register scan started meanwhile takes every `register_data` as rows it
-   * found. So a scan waits for it, which is the overlap `_requireClient`
-   * exists to prevent, reached through the one owner a scan does not refuse.
-   *
-   * Awaited rather than refused, because stopping a poll to scan is what the
-   * Start button has always done.
-   */
-  private _pollRead: Promise<void> | undefined
-
-  /**
    * Read, then arm the next read, as long as this chain is still the current one.
    *
    * `stopPolling` clears the handle a sleeping chain holds, and a chain that is
@@ -503,12 +503,7 @@ export class ModbusClient implements TransportClient {
    * timer nothing can clear.
    */
   private _poll = async (generation: number): Promise<void> => {
-    this._pollRead = this._read()
-    try {
-      await this._pollRead
-    } finally {
-      this._pollRead = undefined
-    }
+    await this._read(generation)
     if (generation !== this._pollGeneration) return
     this._pollTimeout = setTimeout(
       () => this._poll(generation),
@@ -747,7 +742,6 @@ export class ModbusClient implements TransportClient {
     if (!transport) return
     if (!this._requireClient('scan', true)) return
     this.stopPolling()
-    await this._pollRead
 
     this._clientState.scanningUnitIds = true
     this._sendClientState()
@@ -830,7 +824,6 @@ export class ModbusClient implements TransportClient {
     if (!transport) return
     if (!this._requireClient('scan', true)) return
     this.stopPolling()
-    await this._pollRead
 
     const target: RequestTarget = {
       unitId: this._appState.connectionConfig.unitId,

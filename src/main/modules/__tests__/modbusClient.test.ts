@@ -1376,6 +1376,107 @@ describe('ModbusClient', () => {
     })
   })
 
+  // A stopped poll lets go after the request it has on the wire, and what it
+  // read goes nowhere.
+  describe('a poll stopped during a read', () => {
+    const twoGroups = (): void => {
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {
+          0: { dataType: 'uint16' },
+          100: { dataType: 'uint16' }
+        }
+      })
+    }
+
+    it('says nothing of a request that failed after the stop', async () => {
+      await connectClient()
+      let fail: () => void = () => {
+        throw new Error('the read was never sent')
+      }
+      mockModbusRTU.readHoldingRegisters.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = () => reject(new Error('Timed out'))
+          })
+      )
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      const before = getWindowCalls('backend_message').length
+      fail()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(getWindowCalls('backend_message').slice(before)).toEqual([])
+    })
+
+    it('sends nothing of the read it was in', async () => {
+      await connectClient()
+      const gates = gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      await gates.resolveAll()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(getWindowCalls('register_data')).toEqual([])
+    })
+
+    it('sends no group after the one on the wire', async () => {
+      await connectClient()
+      twoGroups()
+      const gates = gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      await gates.resolveAll()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(mockModbusRTU.readHoldingRegisters.mock.calls.map(([address]) => address)).toEqual([0])
+    })
+
+    it('leaves the queue to the chain started after it', async () => {
+      await connectClient()
+      twoGroups()
+      const gates = gateTheReads()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      client.startPolling()
+      for (let answer = 0; answer < 3; answer++) await gates.resolveAll()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const addresses = mockModbusRTU.readHoldingRegisters.mock.calls.map(([address]) => address)
+      expect(addresses.slice(0, 3)).toEqual([0, 0, 100])
+      expect(getWindowCalls('register_data')).toHaveLength(1)
+      client.stopPolling()
+      await gates.resolveAll()
+    })
+
+    it('gives a scan it made room for none of its rows', async () => {
+      await connectClient()
+      const gates = gateTheReads()
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const scan = client.scanRegisters({ addressRange: [5, 5], length: 1, timeout: 1000 })
+      expect(client.state.scanningRegisters).toBe(true)
+      await gates.resolveAll()
+      await gates.resolveAll()
+      await scan
+
+      const rows = getWindowCalls('register_data').flatMap((call) => call[1])
+      expect(rows.map((row) => row.id)).toEqual([5])
+    })
+  })
+
   describe('scanning', () => {
     it('stopScanningUnitIds sets flag to false', () => {
       client.stopScanningUnitIds()
@@ -3005,15 +3106,11 @@ describe('ModbusClient', () => {
       })
 
       /**
-       * The poll's last read, which `stopPolling` does not wait for.
-       *
-       * It ends the chain and returns, and a chain inside `_read`'s group loop
-       * stays there: that loop breaks on the connect state, not on the
-       * generation. So the scan's requests went out over the poll's, which on
-       * a serial port is the transaction key 1 collision the whole refusal
-       * exists to prevent.
+       * The poll's last request, which `stopPolling` does not wait for. The
+       * scan's requests queue behind it on the transport rather than going out
+       * over it, which on a serial port is the transaction key 1 collision.
        */
-      it('waits for the poll read still on the wire before it scans', async () => {
+      it('queues behind the poll request still on the wire', async () => {
         await connectClient()
         const gated = gateTheReads()
         client.startPolling()
