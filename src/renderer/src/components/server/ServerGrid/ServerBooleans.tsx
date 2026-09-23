@@ -104,25 +104,25 @@ const ServerBoolRow = meme(({ address, type }: ServerBoolRowProps) => {
 // ─── Bool list ────────────────────────────────────────────────────────────────
 
 const ServerBoolList = meme(({ type }: Omit<ServerBooleanProps, 'name'>) => {
-  // Zustand runs a selector on every store change to compare, not only during
-  // render, so a ref caching the sorted keys here would be written outside
-  // React's render phase. The map is selected and the order derived in a
-  // `useMemo`, which runs when React says so, the way `ServerRegisterRows`
-  // next door does. Mutative gives the map a new identity on every value
-  // written into it, so this list re-renders per toggle. The register list
-  // already pays that against generators writing on an interval, and each row
-  // is `meme`'d on props that do not move.
-  const boolMap = useServerZustand((z) => {
+  // The addresses, not the map: Mutative gives the map a new identity on every
+  // value written into it, and a string compares equal until an address comes
+  // or goes. Each row selects its own entry, so a toggle draws that row. Every
+  // address ends in a comma, so the split's last piece is always the empty one.
+  const joinedAddresses = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.servers[uuid]?.registers[unitId]?.[type]
+    return Object.keys(z.servers[uuid]?.registers[unitId]?.[type] ?? {})
+      .map((address) => `${address},`)
+      .join('')
   })
   const addresses = useMemo(
     () =>
-      Object.keys(boolMap ?? {})
+      joinedAddresses
+        .split(',')
+        .slice(0, -1)
         .map(Number)
         .sort((a, b) => a - b),
-    [boolMap]
+    [joinedAddresses]
   )
 
   return addresses.map((address) => (

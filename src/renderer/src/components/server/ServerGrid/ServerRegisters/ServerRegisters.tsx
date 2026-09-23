@@ -73,9 +73,20 @@ const ServerRegisterValue = meme(({ register }: RowProps): JSX.Element => {
   )
 })
 
-const ServerRegisterRow = meme(({ register }: RowProps) => {
-  const isBitmap = register.params.dataType === 'bitmap'
+interface ServerRegisterRowProps {
+  type: NumberRegisters
+  registerKey: string
+}
+
+const ServerRegisterRow = meme(({ type, registerKey }: ServerRegisterRowProps) => {
+  const register = useServerZustand((z) => {
+    const uuid = z.selectedUuid
+    const unitId = z.getUnitId(uuid)
+    return z.servers[uuid]?.registers[unitId]?.[type]?.[registerKey]
+  })
   const [expanded, setExpanded] = useState(false)
+  if (!register) return null
+  const isBitmap = register.params.dataType === 'bitmap'
 
   return (
     <Box>
@@ -136,23 +147,42 @@ const ServerRegisterRow = meme(({ register }: RowProps) => {
 })
 
 const ServerRegisterRows = meme(({ type }: { type: NumberRegisters }) => {
-  const registerMap = useServerZustand((z) => {
+  // Each map key with the address its row draws, joined: a string that compares
+  // equal until a register comes, goes or moves, where the map itself takes a
+  // new identity on every value a generator writes into it. Each row selects
+  // its own entry, so a value draws that row alone. Every pair ends in a comma,
+  // so the split's last piece is always the empty one.
+  const joinedKeys = useServerZustand((z) => {
     const uuid = z.selectedUuid
     const unitId = z.getUnitId(uuid)
-    return z.servers[uuid]?.registers[unitId]?.[type]
+    return Object.entries(z.servers[uuid]?.registers[unitId]?.[type] ?? {})
+      .map(([key, entry]) => `${key}:${entry.params.address},`)
+      .join('')
   })
   // Sorted by the address the row draws, the way `ServerBoolList` sorts its
   // keys, and keyed by the map key rather than that address. `Object.entries`
   // is ascending only over integer-index keys, and `RegisterAddressKeySchema`
   // accepts '007', which is not one and which names the same address as '7'.
-  const registers = useMemo(
+  const registerKeys = useMemo(
     () =>
-      Object.entries(registerMap ?? {}).sort(([, a], [, b]) => a.params.address - b.params.address),
-    [registerMap]
+      joinedKeys
+        .split(',')
+        .slice(0, -1)
+        .map((pair) => {
+          const colon = pair.indexOf(':')
+          return { key: pair.slice(0, colon), address: Number(pair.slice(colon + 1)) }
+        })
+        .sort((a, b) => a.address - b.address)
+        .map(({ key }) => key),
+    [joinedKeys]
   )
 
-  return registers.map(([address, register]) => (
-    <ServerRegisterRow key={`server_register_${type}_${address}`} register={register} />
+  return registerKeys.map((registerKey) => (
+    <ServerRegisterRow
+      key={`server_register_${type}_${registerKey}`}
+      type={type}
+      registerKey={registerKey}
+    />
   ))
 })
 
