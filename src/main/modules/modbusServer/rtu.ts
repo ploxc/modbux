@@ -8,9 +8,9 @@ import { BROADCAST_UNIT_ID, createVector } from './vector'
 /**
  * The serial port under a `ServerSerial`, with the events this file listens for.
  *
- * `serverserial.js` opens a `SerialPort` into `_serverPath` and returns it from
- * `getPort()`. `ServerSerial.d.ts` declares neither, so reaching the port needs
- * a type written here.
+ * `serverserial.js` (modbus-serial 8.0.25) opens a `SerialPort` into
+ * `_serverPath` and returns it from `getPort()`. `ServerSerial.d.ts` declares
+ * neither, so reaching the port needs a type written here.
  */
 interface RtuSerialPort {
   on(event: 'error' | 'close', listener: (err?: Error) => void): void
@@ -23,11 +23,11 @@ interface ServerSerialWithPort extends ServerSerial {
 /**
  * `ServerSerial`'s third constructor argument, which its typings leave out.
  *
- * `serverserial.js` builds its own option object out of `path`, `baudRate`,
- * `parity`, `debug`, `unitID` and `binding`, and assigns it over this one. So
- * these two reach `SerialPort` by no other route, and the options object the
- * typings do declare accepts them and drops them. Without them the binding
- * opens at its own defaults, `dataBits: 8` and `stopBits: 1`.
+ * `serverserial.js` (8.0.25) builds its own option object out of `path`,
+ * `baudRate`, `parity`, `debug`, `unitID` and `binding`, and assigns it over
+ * this one. So these two reach `SerialPort` by no other route, and the
+ * options object the typings do declare accepts them and drops them. Without
+ * them the binding opens at its own defaults, `dataBits: 8` and `stopBits: 1`.
  */
 interface ServerSerialPortOptions {
   dataBits: DataBits
@@ -101,8 +101,9 @@ export class RtuServer {
    * A generation that is not the current one belongs to a server `start` has
    * already replaced, and that server says nothing. An open still in flight
    * is what gets here: `stop` cannot close a port that never opened,
-   * because `SerialPortStream.close` takes its `!isOpen` branch and answers
-   * "Port is not open", so the open outlives the server it was started for.
+   * because `SerialPortStream.close` (13.0.0) takes its `!isOpen` branch and
+   * answers "Port is not open", so the open outlives the server it was started
+   * for.
    */
   private _reportDown(generation: number, message: string, error?: Error): void {
     if (generation !== this._generation) return
@@ -131,9 +132,10 @@ export class RtuServer {
           path: serialConfig.com,
           baudRate: Number(serialConfig.options.baudRate),
           parity: serialConfig.options.parity ?? 'none',
-          // `@serialport/stream`'s `_error` hands a failed open to this callback
-          // when one is passed and emits `error` on the port when none is. The
-          // same callback carries the success, with null in place of an error.
+          // `@serialport/stream` 13.0.0's `_error` hands a failed open to this
+          // callback when one is passed and emits `error` on the port when none
+          // is. The same callback carries the success, with null in place of an
+          // error.
           openCallback: (err): void => {
             if (err) this._reportDown(generation, `RTU server error: ${err.message}`)
           }
@@ -154,9 +156,9 @@ export class RtuServer {
         this._reportDown(generation, `RTU server error: ${err?.message ?? err}`)
       })
 
-      // `close` is the disconnect event. `@serialport/stream` documents it as
-      // "in the case of a disconnect it will be called with a Disconnect Error
-      // object", and its `_disconnected` answers a failed read with
+      // `close` is the disconnect event. `@serialport/stream` 13.0.0 documents
+      // it as "in the case of a disconnect it will be called with a Disconnect
+      // Error object", and its `_disconnected` answers a failed read with
       // `close(undefined, new DisconnectedError(...))` while pushing nothing
       // into the stream. So an adapter pulled between requests arrives here
       // and nowhere else, and without this the view keeps showing a server
@@ -182,11 +184,11 @@ export class RtuServer {
         this.warnBroadcastUnit(uuid)
       })
 
-      // `socketError`, not `error`. `serverserial.js` emits `error` only from
-      // `sockWriter`'s `if (err)`, and the only caller of `sockWriter` is
+      // `socketError`, not `error`. `serverserial.js` 8.0.25 emits `error` only
+      // from `sockWriter`'s `if (err)`, and the only caller of `sockWriter` is
       // `_callbackFactory`, which passes null on both of its branches: it has
-      // turned the error into an exception frame by then. `socketError` is what
-      // a failure of the pipe under the server emits.
+      // turned the error into an exception frame by then. `socketError` is
+      // what a failure of the pipe under the server emits.
       this._server.on('socketError', (err) => {
         this._reportDown(generation, `RTU server error: ${err?.message ?? err}`)
       })
