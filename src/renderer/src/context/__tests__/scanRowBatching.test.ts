@@ -62,6 +62,32 @@ describe('rows a scan finds', () => {
   })
 })
 
+// Main sends the rows of the chunk in flight before the state that says the
+// scan ended, and the button reads that state.
+describe('rows a scan found when it ends', () => {
+  it('reach the grid with the state that ends it', async () => {
+    const { addresses } = await loaded(true)
+    fireEvent('register_data', rows([0, 1]))
+
+    fireEvent('client_state', { ...defaultClientState, scanningRegisters: false })
+
+    expect(addresses()).toEqual([0, 1])
+    vi.advanceTimersByTime(SCAN_FLUSH_MS)
+    expect(addresses()).toEqual([0, 1])
+  })
+
+  it('wait for the flush while a state says the scan still runs', async () => {
+    const { addresses } = await loaded(true)
+    fireEvent('register_data', rows([0, 1]))
+
+    fireEvent('client_state', { ...defaultClientState, scanningRegisters: true })
+
+    expect(addresses()).toEqual([])
+    vi.advanceTimersByTime(SCAN_FLUSH_MS)
+    expect(addresses()).toEqual([0, 1])
+  })
+})
+
 // A poll replaces the grid, so anything a scan left waiting answers a question
 // nobody is asking any more.
 describe('rows a poll reads', () => {

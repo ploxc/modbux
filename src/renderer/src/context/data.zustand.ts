@@ -210,6 +210,9 @@ onEvent('address_groups', (addressGroups) => {
 // Client state, like polling, scanning, etc.
 onEvent('client_state', (clientState) => {
   clientStatePushed = true
+  // Main sends a scan's last rows before the state that ends it, so they are
+  // written before the button says the scan stopped, not up to a flush later.
+  if (!clientState.scanningRegisters) flushScanRows()
   const dataZustand = useDataZustand.getState()
   dataZustand.setClientState(clientState)
 })
