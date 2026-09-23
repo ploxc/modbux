@@ -149,6 +149,27 @@ export const ConnectionConfigSchema = z.object({
 })
 export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>
 
+/**
+ * The connection a config opens, named so two configs naming one connection
+ * compare equal.
+ *
+ * One request at a time is a property of the connection, not of the client: an
+ * RS485 bus is half duplex, an RTU frame carries no transaction id to match a
+ * reply to, and a gateway may take one connection at a time. So every client
+ * whose config gives the same key rides one connection and one queue. Plain TCP
+ * follows the same rule, so there is one. The protocol is part of the key
+ * because the framing is: a TCP client and an RTU over TCP client to one host
+ * cannot share a socket.
+ *
+ * A port name compares without case, as `validateSerialPort` compares it, and
+ * so does a host name. Two names for one address, `localhost` and `127.0.0.1`,
+ * stay two keys: telling them apart would take a lookup.
+ */
+export const transportKey = ({ protocol, tcp, rtu }: ConnectionConfig): string =>
+  protocol === 'ModbusRtu'
+    ? `${protocol}:${rtu.com.trim().toLowerCase()}`
+    : `${protocol}:${tcp.host.trim().toLowerCase()}:${tcp.options.port}`
+
 //
 //
 //
@@ -202,6 +223,7 @@ export const ConnectStateSchema = z.enum([
   'connecting',
   'disconnecting'
 ])
+export type ConnectState = z.infer<typeof ConnectStateSchema>
 
 /**
  * Whether a host or a COM port names somewhere to connect.

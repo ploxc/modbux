@@ -596,7 +596,7 @@ const clientZustand = useClientZustand.getState()
  * this file, so `out/renderer/assets/` holds one js file and both windows
  * evaluate this module scope. Without the guard, opening the split out server
  * window ran `init`, which hands main the config this window loaded and calls
- * `setReadConfiguration(false)`. `modbusClient.ts:586` reads that flag, and off
+ * `setReadConfiguration(false)`. `ModbusClient._read` reads that flag, and off
  * it polls one flat `[address, length]` block instead of the configured groups,
  * while the main window's toggle still reads on. `init`'s own `set` writes
  * `CLIENT_ZUSTAND_STORAGE_KEY` as well, because persist wraps `setState`, so

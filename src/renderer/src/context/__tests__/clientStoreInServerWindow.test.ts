@@ -4,7 +4,7 @@
 // `client.zustand`, so `out/renderer/assets/` holds one js file and both windows
 // evaluate that module scope. It called main five times from whichever window
 // ran it, and `set_read_configuration(false)` is the one that costs: with the
-// flag off, `modbusClient.ts:586` polls one flat `[address, length]` block
+// flag off, `ModbusClient._read` polls one flat `[address, length]` block
 // instead of the configured groups, while the main window's toggle reads on.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLIENT_ZUSTAND_STORAGE_KEY } from '@shared'

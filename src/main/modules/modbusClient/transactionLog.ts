@@ -19,10 +19,14 @@ const toHexString = (bytes: Uint8Array | undefined): string =>
  * written here. `_transactions` is the table every request is filed in, and
  * `_port._transactionIdWrite` is the key the next one files under.
  *
- * Both optionals describe modbus-serial rather than guarding anything here. A
- * client built but not connected has no `_port` at all, and a serial port has
- * no `_transactionIdWrite` until `open` sets it. `nextTransactionIdKey` runs
- * behind `_requireConnected`, so it meets neither state.
+ * `_port` is optional because a client built but not connected has none, and
+ * every request passes `_connectedTransport` first, which a client without one
+ * does not. `_transactionIdWrite` is optional because a serial port and a
+ * telnet port have none until `open` sets it. A request waits its turn after
+ * `_connectedTransport` let it in, and the connection can drop or be replaced
+ * by a reconnect before the turn comes, so the key is whatever the port there
+ * holds then. A request that fails before it goes out files nothing under it,
+ * and `log` finds nothing.
  */
 interface ModbusRTUInternals extends ModbusRTU {
   _transactions: Record<string, RawTransaction | undefined>
@@ -42,10 +46,9 @@ interface ModbusRTUInternals extends ModbusRTU {
  * Every `writeFCx` builds its frame as unit id, function code, then the data
  * address at offset 2 as a big-endian word: measured over FC2, FC4, FC5, FC6,
  * FC15 and FC16, which is every code Modbux sends. `request` is stashed by
- * `_writeBufferToPort` while debug mode is on, and `connect` sets
- * `isDebugEnabled` on every client it opens, including the replacement the
- * disconnect timeout builds, so a frame that went out over a connection this
- * file made has one. `nextDataAddress` is the fallback either way.
+ * `_writeBufferToPort` while debug mode is on, and `Transport._open` sets
+ * `isDebugEnabled` on every client it opens, so a frame that went out over a
+ * connection Modbux made has one. `nextDataAddress` is the fallback either way.
  */
 const requestedAddress = (rawTransaction: RawTransaction): number | undefined => {
   const request = rawTransaction.request
@@ -54,14 +57,7 @@ const requestedAddress = (rawTransaction: RawTransaction): number | undefined =>
 }
 
 interface TransactionLogParams {
-  /**
-   * The client as it is now, not as it was.
-   *
-   * `ModbusClient.disconnect` builds a replacement `ModbusRTU` when a close
-   * times out, so a reference taken once would read the table of a client
-   * nothing sends on any more.
-   */
-  client: () => ModbusRTU
+  client: ModbusRTU
   windows: Windows
 }
 
@@ -72,7 +68,7 @@ interface TransactionLogParams {
  * is what a library bump breaks.
  */
 export class TransactionLog {
-  private _client: () => ModbusRTU
+  private _client: ModbusRTU
   private _windows: Windows
 
   constructor({ client, windows }: TransactionLogParams) {
@@ -86,7 +82,7 @@ export class TransactionLog {
   // `_transactionIdWrite`. `open` sets it to 1 for every transport
   // (`index.js:679`), so every serial request files under the key 1 and the
   // next one lands on top of the last. It is a map key, not a number.
-  private _internals = (): ModbusRTUInternals => this._client() as ModbusRTUInternals
+  private _internals = (): ModbusRTUInternals => this._client as ModbusRTUInternals
 
   /**
    * The key modbus-serial files the next request under.
@@ -109,8 +105,8 @@ export class TransactionLog {
    * On a serial port that key is 1 for every request, so naming it
    * discriminates nothing and the delete below would take an entry still in
    * flight. What keeps them apart there is that there is only ever one:
-   * `write` and `read` are both refused while `_clientOwner` answers, and a
-   * poll awaits each request before it sends the next.
+   * `Transport.request` files, awaits and logs a request inside one turn of
+   * the queue every client on the connection waits in.
    */
   public log = (transactionIdKey: string, errorMessage: string | undefined): void => {
     const rawTransactions = this._internals()._transactions

@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { initIpc, onIpcEvent } from './ipc'
 import { AppState } from './state'
 import { ModbusClient } from './modules/modbusClient'
+import { Transports } from './modules/modbusClient/transports'
 import os from 'os'
 import { ModbusServer } from './modules/modbusServer'
 import { Windows } from './windows'
@@ -20,7 +21,7 @@ const windows = new Windows()
 const appState = new AppState()
 
 // Initialize the modbus client
-const client = new ModbusClient({ appState, windows })
+const client = new ModbusClient({ appState, windows, transports: new Transports(windows) })
 
 // Initialize the modbus server
 const server = new ModbusServer({ windows })
