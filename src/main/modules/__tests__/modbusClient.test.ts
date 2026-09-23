@@ -1034,6 +1034,26 @@ describe('ModbusClient', () => {
         client.stopPolling()
       })
 
+      // The resume is owed to the connection that came back, and a disconnect
+      // in the second before it pays it off rather than leaving it to start a
+      // poll on a closed port.
+      it('is not resumed after a disconnect in the second before it', async () => {
+        await connectClient()
+        setupHoldingRegisterReadMock([100])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(100)
+
+        await dropAndReconnect()
+        await client.disconnect()
+        const sentBefore = getWindowCalls('client_state').length
+        await vi.advanceTimersByTimeAsync(1100)
+
+        const polledAfter = getWindowCalls('client_state')
+          .slice(sentBefore)
+          .some((call) => call[1].polling)
+        expect(polledAfter).toBe(false)
+      })
+
       it('says nothing and stays owed while a read holds the client', async () => {
         await connectClient()
         setupHoldingRegisterReadMock([100])

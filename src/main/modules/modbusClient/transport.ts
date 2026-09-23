@@ -260,14 +260,17 @@ export class Transport {
   /**
    * Whether a client may not ride this connection yet, having said why.
    *
-   * A cancelled open that is still opening holds the port the next open would
-   * ask for. `attach` asks it, and `ModbusClient.connect` asks it first as
-   * well, because a refused connect keeps the client on the transport it rode.
+   * A close that is still closing, or a cancelled open that is still opening,
+   * holds the port the next open would ask for. `attach` asks it, and
+   * `ModbusClient.connect` asks it first as well, because a refused connect
+   * keeps the client on the transport it rode.
    */
   public refuses = (): boolean => {
-    if (!(this._openInFlight && this._clients.size === 0)) return false
+    if (!this._closing && !(this._openInFlight && this._clients.size === 0)) return false
     this._emitMessage({
-      message: 'Still finishing the connect you cancelled',
+      message: this._closing
+        ? 'Still closing that connection, try again in a moment'
+        : 'Still finishing the connect you cancelled',
       variant: 'warning',
       error: null
     })

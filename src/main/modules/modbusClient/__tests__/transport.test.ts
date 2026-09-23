@@ -63,6 +63,9 @@ const windows = {
   })
 } as unknown as Windows
 
+const messages = () =>
+  sent.filter(([event]) => event === 'backend_message').map(([, payload]) => payload)
+
 /** A client that records every state the transport put it in. */
 const createClient = () => {
   const states: ConnectState[] = []
@@ -286,6 +289,34 @@ describe('Transport', () => {
       await vi.advanceTimersByTimeAsync(3500)
       expect(first.states.at(-1)).toBe('connected')
       expect(second.states.at(-1)).toBe('connected')
+    })
+
+    it('refuses a client while the last one’s close is still closing', async () => {
+      let closed: () => void = () => {
+        throw new Error('close was never called')
+      }
+      mockModbusRTU.close.mockImplementation((callback: () => void) => {
+        closed = () => {
+          mockModbusRTU.isOpen = false
+          callback()
+        }
+      })
+      const first = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(first, tcp('10.0.0.1'))
+
+      const closing = transport.detach(first, false)
+      const late = createClient()
+      await transports.acquire(tcp('10.0.0.1')).attach(late, tcp('10.0.0.1'))
+
+      expect(late.states).toEqual([])
+      expect(messages().at(-1)).toMatchObject({
+        message: 'Still closing that connection, try again in a moment',
+        variant: 'warning'
+      })
+
+      closed()
+      await closing
     })
   })
 

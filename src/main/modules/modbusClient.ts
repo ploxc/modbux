@@ -218,9 +218,14 @@ export class ModbusClient implements TransportClient {
     this._sendClientState()
   }
 
-  /** The connection is gone for this client, so everything it runs on it ends. */
+  /**
+   * The connection is gone for this client, so everything it runs on it ends,
+   * and so does the poll a reconnect would have resumed.
+   */
   public transportClosed = (from: Transport): void => {
     if (from !== this._transport) return
+    this._reconnectWasPolling = false
+    clearTimeout(this._reconnectResumePollingTimeout)
     this._setDisconnected()
   }
 
