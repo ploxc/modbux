@@ -10,15 +10,8 @@ let master: net.Socket
 const masterEvents: string[] = []
 
 test.describe.serial('Split View — Server in separate window', () => {
-  test.afterAll(async ({ electronApp }) => {
+  test.afterAll(() => {
     master?.destroy()
-    await evaluateMain(() =>
-      electronApp.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()
-          .filter((w) => w.getTitle() === 'Server')
-          .forEach((w) => w.close())
-      })
-    )
   })
 
   test('read the server port, then navigate to home', async ({ mainPage }) => {

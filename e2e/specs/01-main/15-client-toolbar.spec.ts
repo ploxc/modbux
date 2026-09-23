@@ -14,12 +14,14 @@ import {
   expectCell,
   expectColumn,
   openColumnMenu,
-  clearClientConfig
+  clearClientConfig,
+  loadClientConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-integration.json')
+const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-basic.json')
 
 test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Setup ──────────────────────────────────────────────────────────
@@ -29,8 +31,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await loadServerConfig(mainPage, SERVER_CONFIG)
   })
 
-  test('navigate to client and connect', async ({ mainPage }) => {
+  test('navigate to client, load a mapping and connect', async ({ mainPage }) => {
     await navigateToClient(mainPage)
+    await loadClientConfig(mainPage, CLIENT_CONFIG)
     await connectClient(mainPage, '127.0.0.1', '502', '0')
   })
 
@@ -42,7 +45,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Advanced mode & 64-bit toggle ────────────────────────────────
 
   test('disable advanced mode — no value columns visible', async ({ mainPage }) => {
-    // Ensure advanced mode is off (earlier specs may have enabled it)
+    // Ensure advanced mode is off
     await mainPage.getByTestId('menu-btn').click()
     await mainPage
       .getByTestId('advanced-mode-checkbox')
@@ -74,7 +77,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByTestId('advanced-mode-checkbox').click()
     await mainPage.waitForTimeout(200)
 
-    // Ensure 64-bit is off (earlier specs may have left it on)
+    // Ensure 64-bit is off
     const show64Input = mainPage
       .getByTestId('show-64bit-checkbox')
       .locator('input[type="checkbox"]')
@@ -285,8 +288,8 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     test(`[${regType}] read config: clear config → button disabled`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
 
-      // The first pass of this loop runs against what `14-client-config-io`
-      // left mapped, and the second against what the first cleared. Keep it
+      // The first pass of this loop runs against the mapping the setup
+      // loaded, and the second against what the first cleared. Keep it
       // leaves that mapping where it was, which the dialog coming up a second
       // time is what says.
       const asks = regType === 'Holding Registers'

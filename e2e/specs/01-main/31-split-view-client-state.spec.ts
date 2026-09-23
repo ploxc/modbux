@@ -17,7 +17,6 @@ import {
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { type Page } from '@playwright/test'
-import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
@@ -33,16 +32,6 @@ let serverPage: Page
 // configured register above address 9 stopped being read. Only two windows can
 // see it.
 test.describe.serial('Read configuration survives the split out server window', () => {
-  test.afterAll(async ({ electronApp }) => {
-    await evaluateMain(() =>
-      electronApp.evaluate(({ BrowserWindow }) => {
-        BrowserWindow.getAllWindows()
-          .filter((w) => w.getTitle() === 'Server')
-          .forEach((w) => w.close())
-      })
-    )
-  })
-
   test('clean server state', async ({ mainPage }) => {
     await cleanServerState(mainPage)
   })

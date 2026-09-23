@@ -4,11 +4,21 @@ import {
   connectClient,
   disconnectClient,
   enableAdvancedMode,
-  selectRegisterType
+  selectRegisterType,
+  cleanServerState,
+  loadServerConfig
 } from '../../fixtures/helpers'
+import { resolve } from 'path'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 test.describe.serial('Scan Unit IDs', () => {
-  // ─── Setup (server already configured from spec 11) ─────────────────
+  // ─── Setup ──────────────────────────────────────────────────────────
+
+  test('clean server state and load server config', async ({ mainPage }) => {
+    await cleanServerState(mainPage)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
+  })
 
   test('navigate to client and connect', async ({ mainPage }) => {
     await navigateToClient(mainPage)

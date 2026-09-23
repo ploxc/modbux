@@ -14,7 +14,6 @@ import {
   disableReadConfiguration,
   cleanServerState,
   loadServerConfig,
-  clearData,
   loadDummyData,
   expectCell
 } from '../../fixtures/helpers'
@@ -231,7 +230,9 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
   })
 
   test('readConfiguration reads all manually configured registers', async ({ mainPage }) => {
-    await clearData(mainPage)
+    // Connecting a fresh app empties the dummy rows, so the rows below come
+    // from readConfiguration.
+    await expect(mainPage.getByTestId('clear-data-btn')).toBeDisabled()
 
     await enableReadConfiguration(mainPage)
 
