@@ -26,6 +26,7 @@ import { defaultClientState, MAIN_CLIENT_UUID, ScanRegistersParametersSchema } f
 import ScanRegisters from '../ScanRegisters'
 import { useScanRegistersZustand } from '../scanRegisters.zustand'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../context/__tests__/shownData'
 
 const payload = async (): Promise<unknown> => {
   await waitFor(() => expect(stub.scanRegisters).toHaveBeenCalled())
@@ -42,7 +43,7 @@ const input = (testId: string): HTMLElement =>
 beforeEach(() => {
   stub.scanRegisters.mockClear()
   patchSelectedClient(useClientZustand, {}, { ready: true })
-  useDataZustand.setState({ clientState: { ...defaultClientState } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState } })
   useScanRegistersZustand.setState({
     open: true,
     address: 60000,

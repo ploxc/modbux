@@ -12,7 +12,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import {
   useClientZustand,
   flushRegisterMappingToMain,
@@ -31,16 +31,17 @@ const TypeSelect = meme(() => {
   const labelId = 'register-type-select'
   const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
 
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // A register scan reads this field once, for the chunk size one response
   // carries, and `_scanRegister` reads it again for every chunk. Changing it
   // between the two asks a device for 2000 holding registers. The scan dialog
   // disables every field it owns while it runs; this one sits in the top bar,
   // and what kept it out of reach was the strip the dialog draws over it.
-  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   const handleChange = useCallback((type: RegisterType) => {
     if (!getSelectedSession().readConfiguration) {
-      useDataZustand.getState().setRegisterData([])
+      useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
     }
     useClientZustand.getState().setType(type)
   }, [])
@@ -164,6 +165,7 @@ const ReadConfiguration = meme(() => {
     )
   )
 
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // Switching draws the mapping into the grid, or empties it, and a read, a
   // write or a scan that owns the client answers after the switch: its rows
   // then land in a grid about the other question. So the toggle greys for as
@@ -174,7 +176,9 @@ const ReadConfiguration = meme(() => {
   // the next `_read` builds its groups out of both, so the rows arrive within
   // one poll rate with no ask of ours. Asking the whole question greyed the
   // press that turns it off as well, which asks main for nothing at all.
-  const owner = useDataZustand((z) => clientOwner(z.clientState, { exceptPolling: true }))
+  const owner = useDataZustand((z) =>
+    clientOwner(dataOf(z, selectedUuid).clientState, { exceptPolling: true })
+  )
   const disabled = nothingConfigured || owner !== undefined
 
   // A mapping with nothing to read turns it off. A read in flight does not:

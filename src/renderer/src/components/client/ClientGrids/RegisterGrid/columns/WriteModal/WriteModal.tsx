@@ -17,7 +17,7 @@ import {
   selectedClient,
   selectedClientUuid
 } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { getShownData } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
@@ -269,7 +269,7 @@ export const Coils = meme(() => {
 
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const { registerData } = useDataZustand.getState()
+    const { registerData } = getShownData()
     valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
   }, [length, registerConfigAddress])
 

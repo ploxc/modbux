@@ -2,13 +2,16 @@ import Button from '@mui/material/Button'
 import { useScanRegistersZustand } from '@renderer/components/client/ScanRegisters/scanRegisters.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 import type { SetAnchorProps } from './MenuButton'
 
 const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
-  const disabled = useDataZustand((z) => z.clientState.connectState !== 'connected')
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useDataZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'connected'
+  )
   const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
   const registers16Bit = isNumberRegister(type)
 

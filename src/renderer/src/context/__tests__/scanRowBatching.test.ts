@@ -6,6 +6,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
+import { patchShownData, shownData } from './shownData'
 
 const SCAN_FLUSH_MS = 100
 
@@ -27,13 +28,13 @@ const loaded = async (
   scanningRegisters: boolean
 ): Promise<{
   addresses: () => number[]
-  dropPendingScanRows: () => void
+  dropPendingScanRows: (uuid: string) => void
 }> => {
   const { useDataZustand, dropPendingScanRows } = await import('../data.zustand')
-  useDataZustand.setState({ clientState: { ...defaultClientState, scanningRegisters } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState, scanningRegisters } })
 
   return {
-    addresses: () => useDataZustand.getState().registerData.map((row) => row.id),
+    addresses: () => shownData(useDataZustand).registerData.map((row) => row.id),
     dropPendingScanRows
   }
 }
@@ -55,7 +56,7 @@ describe('rows a scan finds', () => {
     const { addresses, dropPendingScanRows } = await loaded(true)
     fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
-    dropPendingScanRows()
+    dropPendingScanRows(MAIN_CLIENT_UUID)
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
 
     expect(addresses()).toEqual([])
@@ -110,7 +111,7 @@ describe('rows a poll reads', () => {
     fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
     const { useDataZustand } = await import('../data.zustand')
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, scanningRegisters: false }
     })
     fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })

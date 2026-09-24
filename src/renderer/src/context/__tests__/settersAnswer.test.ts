@@ -4,7 +4,7 @@
 // setter answers `false` on every refusal and `true` once main holds the value,
 // including when it held it already.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState, MAIN_SERVER_UUID } from '@shared'
+import { defaultClientState, MAIN_SERVER_UUID, MAIN_CLIENT_UUID } from '@shared'
 import { stubRenderer } from './stubRenderer'
 import { getDefaultServer } from '../server.zustand.helpers'
 import { patchSelectedClient } from './selectedClient'
@@ -33,7 +33,9 @@ const loadClient = async (): Promise<{
   const { useClientZustand } = await import('../client.zustand')
   const { useDataZustand } = await import('../data.zustand')
   const connect = (): void =>
-    useDataZustand.getState().setClientState({ ...defaultClientState, connectState: 'connected' })
+    useDataZustand
+      .getState()
+      .setClientState(MAIN_CLIENT_UUID, { ...defaultClientState, connectState: 'connected' })
   return { useClientZustand, connect }
 }
 

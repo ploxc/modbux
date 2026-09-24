@@ -21,6 +21,7 @@ import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRendere
 import { ClientState, defaultClientState, MAIN_CLIENT_UUID, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../../../context/__tests__/shownData'
 
 const calls: ApiCall[] = []
 
@@ -34,7 +35,7 @@ const row = {
 } as unknown as RegisterData
 
 const renderPanel = (clientState: Partial<ClientState>): void => {
-  useDataZustand.setState({
+  patchShownData(useDataZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   patchSelectedClient(
@@ -42,7 +43,7 @@ const renderPanel = (clientState: Partial<ClientState>): void => {
     { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
     { ready: true }
   )
-  useDataZustand.setState({ registerData: [row] })
+  patchShownData(useDataZustand, { registerData: [row] })
   render(<BitMapDetailPanel address={0} />)
 }
 

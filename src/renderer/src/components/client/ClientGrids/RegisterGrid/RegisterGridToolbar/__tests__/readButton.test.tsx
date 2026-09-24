@@ -18,9 +18,10 @@ import { render, screen } from '@testing-library/react'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState } from '@shared'
 import ReadButton from '../ReadButton'
+import { patchShownData } from '../../../../../../context/__tests__/shownData'
 
 const renderButton = (clientState: Partial<ClientState>): HTMLElement => {
-  useDataZustand.setState({
+  patchShownData(useDataZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   render(<ReadButton />)

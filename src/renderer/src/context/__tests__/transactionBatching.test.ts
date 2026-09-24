@@ -8,6 +8,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { Transaction } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 import { MAIN_CLIENT_UUID } from '@shared'
+import { shownData } from './shownData'
+import { dataOf } from '../data.zustand.helpers'
 
 const FLUSH_MS = 100
 
@@ -42,12 +44,16 @@ const loaded = async (): Promise<{
   const { useDataZustand } = await import('../data.zustand')
   let writes = 0
   useDataZustand.subscribe((state, previous) => {
-    if (state.transactions !== previous.transactions) writes++
+    if (
+      dataOf(state, MAIN_CLIENT_UUID).transactions !==
+      dataOf(previous, MAIN_CLIENT_UUID).transactions
+    )
+      writes++
   })
   return {
-    ids: () => useDataZustand.getState().transactions.map((entry) => entry.id),
+    ids: () => shownData(useDataZustand).transactions.map((entry) => entry.id),
     writes: () => writes,
-    clear: () => useDataZustand.getState().clearTransactions()
+    clear: () => useDataZustand.getState().clearTransactions(MAIN_CLIENT_UUID)
   }
 }
 

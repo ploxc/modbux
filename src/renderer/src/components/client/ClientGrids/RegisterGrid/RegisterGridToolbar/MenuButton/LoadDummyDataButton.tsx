@@ -1,13 +1,20 @@
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand } from '@renderer/context/data.zustand'
-import { getSelectedClient } from '@renderer/context/client.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import {
+  getSelectedClient,
+  useClientZustand,
+  selectedClientUuid
+} from '@renderer/context/client.zustand'
 import { RegisterData, getDummyRegisterData } from '@shared'
 import { useCallback } from 'react'
 import type { SetAnchorProps } from './MenuButton'
 import Button from '@mui/material/Button'
 
 const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
-  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useDataZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
+  )
 
   // Load dummy data for the configured register range so columns can be edited
   // without having to connect to the device or read registers
@@ -22,7 +29,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
       index++
     }
 
-    dataZustand.setRegisterData(dummyData)
+    dataZustand.setRegisterData(selectedClientUuid(), dummyData)
     setAnchor(null)
   }, [setAnchor])
 

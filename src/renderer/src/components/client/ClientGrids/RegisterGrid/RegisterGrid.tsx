@@ -1,9 +1,14 @@
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
-import { useClientZustand, selectedClient, selectedSession } from '@renderer/context/client.zustand'
+import {
+  useClientZustand,
+  selectedClient,
+  selectedSession,
+  selectedClientUuid
+} from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
@@ -28,7 +33,8 @@ import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 //
 // Footer
 const Footer = meme(() => {
-  const time = useDataZustand((z) => z.lastSuccessfulTransactionMillis)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const time = useDataZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
   return (
     <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
       <Typography variant="caption" sx={{ opacity: 0.5 }}>
@@ -48,7 +54,8 @@ const Footer = meme(() => {
 //
 // DataGrid
 const RegisterGridContent = meme((): JSX.Element => {
-  const registerData = useDataZustand((z) => z.registerData)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const registerData = useDataZustand((z) => dataOf(z, selectedUuid).registerData)
   const registerMapping = useClientZustand(
     (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type]
   )
@@ -63,7 +70,7 @@ const RegisterGridContent = meme((): JSX.Element => {
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still
   // arriving is a fight nobody wins. Scrolling and paging stay.
-  const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   // An expanded bitmap row is taller by whatever its detail panel measures, and
   // the grid places every row below it from this answer.
@@ -104,7 +111,7 @@ const RegisterGridContent = meme((): JSX.Element => {
     } else {
       // Only clear data when transitioning from ON to OFF, not on initial mount
       if (prevReadConfigRef.current) {
-        useDataZustand.getState().setRegisterData([])
+        useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
       }
       apiRef.current?.setFilterModel({ items: [] })
     }

@@ -24,6 +24,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../context/__tests__/shownData'
 
 // Read configuration reads the addresses a data type was set on. What the
 // button offers has to be that same set, because a mapping it cannot read
@@ -47,7 +48,7 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
 // client state, so it gets one here.
 beforeEach(() => {
   patchSelectedClient(useClientZustand, {}, { ready: true, readConfiguration: false })
-  useDataZustand.setState({ clientState: { ...defaultClientState } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState } })
 })
 
 describe('RegisterConfig read configuration', () => {
@@ -95,14 +96,14 @@ describe('RegisterConfig read configuration', () => {
   // flight. The button says so instead of taking the press.
   it('refuses while a read is in flight, and offers again after it', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
     const { rerender } = render(<RegisterConfig />)
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
 
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', reading: false }
     })
     rerender(<RegisterConfig />)
@@ -114,7 +115,7 @@ describe('RegisterConfig read configuration', () => {
   // refuses a read for that whole stretch.
   it('refuses while a write is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', writing: true }
     })
 
@@ -129,7 +130,7 @@ describe('RegisterConfig read configuration', () => {
     'refuses while %s owns the client',
     (flag) => {
       seed('holding_registers', { 0: { dataType: 'int16' } })
-      useDataZustand.setState({
+      patchShownData(useDataZustand, {
         clientState: { ...defaultClientState, connectState: 'connected', [flag]: true }
       })
 
@@ -144,7 +145,7 @@ describe('RegisterConfig read configuration', () => {
   // has anything to wait for.
   it('offers while a poll runs', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', polling: true }
     })
 
@@ -159,7 +160,7 @@ describe('RegisterConfig read configuration', () => {
   it('leaves read configuration on while a read is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
     patchSelectedClient(useClientZustand, {}, { readConfiguration: true })
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
@@ -174,7 +175,7 @@ describe('RegisterConfig read configuration', () => {
 // holding registers.
 describe('RegisterConfig type select', () => {
   it('is off while a register scan runs', () => {
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', scanningRegisters: true }
     })
 

@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import type { ClientState } from '@shared'
+import { shownData } from './shownData'
 
 const disconnected: ClientState = { ...defaultClientState }
 
@@ -100,7 +101,7 @@ describe('the client state main answers with', () => {
       answer(connectedAndPolling)
 
       await vi.waitFor(() =>
-        expect(useDataZustand.getState().clientState).toEqual(connectedAndPolling)
+        expect(shownData(useDataZustand).clientState).toEqual(connectedAndPolling)
       )
     }
   )
@@ -110,12 +111,12 @@ describe('the client state main answers with', () => {
   // no client in it.
   it('leaves the state alone when main holds no client yet', async () => {
     const { useDataZustand } = await import('../data.zustand')
-    const before = useDataZustand.getState().clientState
+    const before = shownData(useDataZustand).clientState
 
     answerEmpty()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useDataZustand.getState().clientState).toBe(before)
+    expect(shownData(useDataZustand).clientState).toBe(before)
   })
 
   it('loses to a push that landed while it was in flight', async () => {
@@ -124,7 +125,7 @@ describe('the client state main answers with', () => {
     push(scanning)
     answer(connectedAndPolling)
 
-    await vi.waitFor(() => expect(useDataZustand.getState().clientState).toEqual(scanning))
+    await vi.waitFor(() => expect(shownData(useDataZustand).clientState).toEqual(scanning))
   })
 
   // The refusal is what this waits for, because the state it leaves behind is
@@ -137,7 +138,7 @@ describe('the client state main answers with', () => {
     refuse(new Error('no handler registered'))
 
     await vi.waitFor(() => expect(reported).toHaveBeenCalled())
-    expect(useDataZustand.getState().clientState).toEqual(disconnected)
+    expect(shownData(useDataZustand).clientState).toEqual(disconnected)
     reported.mockRestore()
   })
 })

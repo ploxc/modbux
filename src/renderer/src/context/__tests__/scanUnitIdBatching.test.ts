@@ -6,6 +6,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, type ScanUnitIDResult, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
+import { patchShownData, shownData } from './shownData'
+import { dataOf } from '../data.zustand.helpers'
 
 const SCAN_FLUSH_MS = 100
 
@@ -34,15 +36,19 @@ const loaded = async (): Promise<{
   clear: () => void
 }> => {
   const { useDataZustand } = await import('../data.zustand')
-  useDataZustand.setState({ clientState: { ...defaultClientState, scanningUnitIds: true } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState, scanningUnitIds: true } })
   let writes = 0
   useDataZustand.subscribe((state, previous) => {
-    if (state.scanUnitIdResults !== previous.scanUnitIdResults) writes++
+    if (
+      dataOf(state, MAIN_CLIENT_UUID).scanUnitIdResults !==
+      dataOf(previous, MAIN_CLIENT_UUID).scanUnitIdResults
+    )
+      writes++
   })
   return {
-    ids: () => useDataZustand.getState().scanUnitIdResults.map((entry) => entry.id),
+    ids: () => shownData(useDataZustand).scanUnitIdResults.map((entry) => entry.id),
     writes: () => writes,
-    clear: () => useDataZustand.getState().clearScanUnitIdResults()
+    clear: () => useDataZustand.getState().clearScanUnitIdResults(MAIN_CLIENT_UUID)
   }
 }
 

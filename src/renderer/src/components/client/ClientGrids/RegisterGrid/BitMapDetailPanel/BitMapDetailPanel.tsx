@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf, getShownData } from '@renderer/context/data.zustand'
 import {
   useClientZustand,
   selectedClient,
@@ -21,8 +21,9 @@ const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Element => {
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const uint16 = useDataZustand(
-    (z) => z.registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
+    (z) => dataOf(z, selectedUuid).registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
   )
 
   const bitConfig = useClientZustand(
@@ -31,20 +32,20 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
 
   const registerType = useClientZustand((z) => selectedClient(z).registerConfig.type)
   const writable = registerType === 'holding_registers'
-  const connectState = useDataZustand((z) => z.clientState.connectState)
-  const polling = useDataZustand((z) => z.clientState.polling)
+  const connectState = useDataZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
+  const polling = useDataZustand((z) => dataOf(z, selectedUuid).clientState.polling)
 
   // Main refuses a write while one is in flight, and holds it until the read
   // back is in. Sixteen toggles one click apart are what that refusal is for,
   // so the bits go inert for that stretch instead.
-  const writing = useDataZustand((z) => z.clientState.writing)
+  const writing = useDataZustand((z) => dataOf(z, selectedUuid).clientState.writing)
   const canWrite = writable && connectState === 'connected' && !polling && !writing
 
   const handleToggle = useCallback(
     (bitIndex: number, currentValue: boolean) => {
       if (!canWrite) return
       const currentUint16 =
-        useDataZustand.getState().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
+        getShownData().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
       const newUint16 = currentValue
         ? currentUint16 & ~(1 << bitIndex) // clear bit
         : currentUint16 | (1 << bitIndex) // set bit

@@ -32,7 +32,7 @@ import {
   selectedClient,
   selectedSession
 } from './client.zustand.helpers'
-import { showMapping, useDataZustand } from './data.zustand'
+import { dataOf, showMapping, useDataZustand } from './data.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
@@ -154,19 +154,21 @@ export const flushRegisterMappingToMain = async (
  * mapping just drawn. The redraw still happens, because the mapping is what
  * the grid is about; the ask does not.
  */
-const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
-  const { registerConfig, registerMapping } = getSelectedClient()
-  const { readConfiguration } = getSelectedSession()
-  if (useDataZustand.getState().clientState.polling) return
-  if (readConfiguration) {
+const clearRegisterDataWhenIdle = (uuid: string, readsTheMapping: boolean): void => {
+  const { clients, sessions } = useClientZustand.getState()
+  const client = clients[uuid]
+  if (!client) return
+  if (dataOf(useDataZustand.getState(), uuid).clientState.polling) return
+  if (sessions[uuid]?.readConfiguration) {
     if (!readsTheMapping) return
-    showMapping()
+    showMapping(uuid)
+    const { registerConfig, registerMapping } = client
     if (configuredReadGroups(true, registerConfig.type, registerMapping).length > 0) {
-      readWhenMainCan()
+      readWhenMainCan(uuid)
     }
     return
   }
-  useDataZustand.getState().setRegisterData([])
+  useDataZustand.getState().setRegisterData(uuid, [])
 }
 
 /**
@@ -177,8 +179,8 @@ const clearRegisterDataWhenIdle = (readsTheMapping: boolean): void => {
  * `data.zustand` with the rest of what main pushes, so they read it there
  * rather than out of the state they are writing.
  */
-const isDisconnected = (): boolean =>
-  useDataZustand.getState().clientState.connectState === 'disconnected'
+const isDisconnected = (uuid: string): boolean =>
+  dataOf(useDataZustand.getState(), uuid).clientState.connectState === 'disconnected'
 
 /**
  * Records the value a field had, when a write left the store holding another.
@@ -217,7 +219,7 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
 ): Promise<boolean> => {
   const uuid = get().selectedUuid
   if (!selectedSession(get()).ready) return false
-  if (!isDisconnected()) return false
+  if (!isDisconnected(uuid)) return false
 
   const before = clientFieldReaders[key](selectedClient(get()))
   if (
@@ -276,11 +278,11 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
  * a warning it did not ask for. `clientOwner` is the question main asks, which
  * is why it is asked here rather than restated.
  */
-const readWhenMainCan = (): void => {
-  const { clientState } = useDataZustand.getState()
+const readWhenMainCan = (uuid: string): void => {
+  const { clientState } = dataOf(useDataZustand.getState(), uuid)
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) return
-  window.api.read(selectedClientUuid())
+  window.api.read(uuid)
 }
 
 /**
@@ -361,6 +363,7 @@ export const useClientZustand = create<
           const [first = MAIN_CLIENT_UUID] = Object.keys(state.clients)
           state.selectedUuid = first
         })
+        useDataZustand.getState().dropClient(uuid)
         // A step whose client is gone has nothing to be put back into, and
         // left on the stack it would refuse every undo after it.
         const undo = useUndoZustand.getState()
@@ -488,7 +491,7 @@ export const useClientZustand = create<
       setProtocol: async (protocol) => {
         const uuid = get().selectedUuid
         if (!selectedSession(get()).ready) return false
-        if (!isDisconnected()) return false
+        if (!isDisconnected(uuid)) return false
 
         const before = selectedClient(get()).connectionConfig.protocol
         if (!(await window.api.updateConnectionConfig({ uuid, connectionConfig: { protocol } })))
@@ -508,7 +511,7 @@ export const useClientZustand = create<
       setPort: async (port) => {
         const uuid = get().selectedUuid
         if (!selectedSession(get()).ready) return false
-        if (!isDisconnected()) return false
+        if (!isDisconnected(uuid)) return false
 
         const newPort = Number(port)
         const before = selectedClient(get()).connectionConfig.tcp.options.port
@@ -531,7 +534,7 @@ export const useClientZustand = create<
       setHost: async (host, valid) => {
         const uuid = get().selectedUuid
         if (!selectedSession(get()).ready) return false
-        if (!isDisconnected()) return false
+        if (!isDisconnected(uuid)) return false
 
         const before = selectedClient(get()).connectionConfig.tcp.host
 
@@ -568,7 +571,7 @@ export const useClientZustand = create<
       setCom: async (com, valid) => {
         const uuid = get().selectedUuid
         if (!selectedSession(get()).ready) return false
-        if (!isDisconnected()) return false
+        if (!isDisconnected(uuid)) return false
 
         // The field reads its text from the store, so a blank port name is
         // kept here and never sent. `ConnectionConfigRtuSchema` types `com` as
@@ -639,7 +642,7 @@ export const useClientZustand = create<
           })
         )
         recordField(uuid, 'unitId', before, newUnitId)
-        clearRegisterDataWhenIdle(true)
+        clearRegisterDataWhenIdle(uuid, true)
         return true
       },
       setAddress: async (address) => {
@@ -664,7 +667,7 @@ export const useClientZustand = create<
           })
         )
         recordField(uuid, 'address', before, newAddress)
-        clearRegisterDataWhenIdle(false)
+        clearRegisterDataWhenIdle(uuid, false)
         return true
       },
       setLength: async (length, valid) => {
@@ -699,7 +702,7 @@ export const useClientZustand = create<
           })
         )
         recordField(uuid, 'length', before, newLength)
-        clearRegisterDataWhenIdle(false)
+        clearRegisterDataWhenIdle(uuid, false)
         return true
       },
       setType: async (type) => {
@@ -715,7 +718,7 @@ export const useClientZustand = create<
           })
         )
         recordField(uuid, 'type', before, type)
-        clearRegisterDataWhenIdle(true)
+        clearRegisterDataWhenIdle(uuid, true)
         return true
       },
       setLittleEndian: async (littleEndian) => {
@@ -735,7 +738,7 @@ export const useClientZustand = create<
         // The rows on screen were read in the other word order, and the
         // conversion happens where the reading does, so they stay that way
         // until the next read. An empty grid has nothing to put right.
-        if (useDataZustand.getState().registerData.length > 0) readWhenMainCan()
+        if (dataOf(useDataZustand.getState(), uuid).registerData.length > 0) readWhenMainCan(uuid)
         return true
       },
       setReadConfiguration: (readConfiguration) => {

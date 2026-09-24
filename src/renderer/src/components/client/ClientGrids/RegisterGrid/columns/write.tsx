@@ -5,9 +5,10 @@ import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import { RegisterType, RegisterData } from '@shared'
 import { ReactElement, useEffect, useRef, useState } from 'react'
+import { useClientZustand } from '@renderer/context/client.zustand'
 
 interface ActionProps {
   address: number
@@ -21,8 +22,12 @@ const Action = meme(({ address, type }: ActionProps): JSX.Element => {
   const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const disabled = useDataZustand((z) => {
-    return z.clientState.polling || z.clientState.connectState !== 'connected'
+    return (
+      dataOf(z, selectedUuid).clientState.polling ||
+      dataOf(z, selectedUuid).clientState.connectState !== 'connected'
+    )
   })
 
   // Set values to raw when opening the write modal so you see what the value is without scaling

@@ -22,9 +22,12 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, defaultConnectionConfig } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../context/__tests__/shownData'
 
 const renderRtu = (): void => {
-  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'disconnected' } })
+  patchShownData(useDataZustand, {
+    clientState: { ...defaultClientState, connectState: 'disconnected' }
+  })
   patchSelectedClient(
     useClientZustand,
     {

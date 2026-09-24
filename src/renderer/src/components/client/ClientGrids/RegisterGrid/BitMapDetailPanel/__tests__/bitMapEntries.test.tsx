@@ -38,6 +38,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { BitMapConfig, defaultClientState, emptyRegisterMapping, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../../../context/__tests__/shownData'
 
 const row = (uint16: number): RegisterData =>
   ({
@@ -73,13 +74,15 @@ const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
 
 beforeEach(() => {
   props.clear()
-  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
+  patchShownData(useDataZustand, {
+    clientState: { ...defaultClientState, connectState: 'connected' }
+  })
   patchSelectedClient(
     useClientZustand,
     { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
     { ready: true }
   )
-  useDataZustand.setState({ registerData: [row(0)] })
+  patchShownData(useDataZustand, { registerData: [row(0)] })
 })
 
 describe('what a bit keeps in the mapping', () => {

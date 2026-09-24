@@ -1,30 +1,40 @@
 import { AddressGroup, ClientState, RegisterData, ScanUnitIDResult, Transaction } from '@shared'
 
-export interface DataZustand {
-  // Register data
+/** What main pushed about one client, and the rows the view drew from it. */
+export interface ClientData {
   registerData: RegisterData[]
-  setRegisterData: (data: RegisterData[]) => void
-  appendRegisterData: (data: RegisterData[]) => void
   addressGroups: AddressGroup[]
-  setAddressGroups: (groups: AddressGroup[]) => void
+  clientState: ClientState
+  transactions: Transaction[]
+  lastSuccessfulTransactionMillis: number | null
+  scanUnitIdResults: ScanUnitIDResult[]
+  scanProgress: number
+}
+
+/** Every client's data under the uuid the client store holds it under. */
+export interface DataZustand {
+  clients: Record<string, ClientData>
+
+  // Register data
+  setRegisterData: (uuid: string, data: RegisterData[]) => void
+  appendRegisterData: (uuid: string, data: RegisterData[]) => void
+  setAddressGroups: (uuid: string, groups: AddressGroup[]) => void
 
   // State
-  clientState: ClientState
-  setClientState: (clientState: ClientState) => void
+  setClientState: (uuid: string, clientState: ClientState) => void
 
   // Transaction log
-  transactions: Transaction[]
-  addTransactions: (transactions: Transaction[]) => void
-  clearTransactions: () => void
-  lastSuccessfulTransactionMillis: number | null
-  setLastSuccessfulTransactionMillis: (value: number | null) => void
+  addTransactions: (uuid: string, transactions: Transaction[]) => void
+  clearTransactions: (uuid: string) => void
+  setLastSuccessfulTransactionMillis: (uuid: string, value: number | null) => void
 
   // Unit ID scanning
-  scanUnitIdResults: ScanUnitIDResult[]
-  addScanUnitIdResults: (scanUnitIdResults: ScanUnitIDResult[]) => void
-  clearScanUnitIdResults: () => void
+  addScanUnitIdResults: (uuid: string, scanUnitIdResults: ScanUnitIDResult[]) => void
+  clearScanUnitIdResults: (uuid: string) => void
 
   // Scan progress
-  scanProgress: number
-  setScanProgress: (scanProgress: number) => void
+  setScanProgress: (uuid: string, scanProgress: number) => void
+
+  /** Forget a client taken away. */
+  dropClient: (uuid: string) => void
 }

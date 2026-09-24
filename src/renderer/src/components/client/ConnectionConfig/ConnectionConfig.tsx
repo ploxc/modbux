@@ -23,12 +23,15 @@ import { Protocol } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf, getShownData } from '@renderer/context/data.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 // Protocol
 const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
-  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useDataZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
+  )
 
   const handleChange = useCallback((_event: unknown, value: Protocol | null): void => {
     if (value === null) return
@@ -82,7 +85,8 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 })
 
 const ConnectButton = meme(() => {
-  const connectState = useDataZustand((z) => z.clientState.connectState)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const connectState = useDataZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
 
   /**
    * Whether the field this protocol connects through names somewhere.
@@ -107,11 +111,11 @@ const ConnectButton = meme(() => {
   )
 
   const action = useCallback(async (): Promise<void> => {
-    const currentConnectedState = useDataZustand.getState().clientState.connectState
+    const currentConnectedState = getShownData().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect(selectedClientUuid())
       if (!getSelectedSession().readConfiguration) {
-        useDataZustand.getState().setRegisterData([])
+        useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
       }
       return
     }

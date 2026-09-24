@@ -6,7 +6,7 @@ import {
   selectedClientUuid,
   useClientZustand
 } from './client.zustand'
-import { showMapping, useDataZustand } from './data.zustand'
+import { dataOf, showMapping, useDataZustand } from './data.zustand'
 import { replayTop, useUndoZustand } from './undo.zustand'
 import {
   clientFieldReaders,
@@ -89,8 +89,8 @@ const CONNECTION_FIELDS: ReadonlySet<ClientField> = new Set<ClientField>([
   'stopBits'
 ])
 
-const isDisconnected = (): boolean =>
-  useDataZustand.getState().clientState.connectState === 'disconnected'
+const isDisconnected = (uuid: string): boolean =>
+  dataOf(useDataZustand.getState(), uuid).clientState.connectState === 'disconnected'
 
 /**
  * Writes a step's value, and answers the step that would write back what was
@@ -103,7 +103,7 @@ const isDisconnected = (): boolean =>
 const replayField = async <Field extends ClientField>(
   step: ClientFieldStepOf<Field>
 ): Promise<ClientFieldStep | UndoRefusal | undefined> => {
-  if (CONNECTION_FIELDS.has(step.field) && !isDisconnected()) return 'refused-connected'
+  if (CONNECTION_FIELDS.has(step.field) && !isDisconnected(step.uuid)) return 'refused-connected'
   const read = clientFieldReaders[step.field]
   const replaced = clientFieldSteps[step.field](read(getSelectedClient()), step.uuid)
   await clientFieldWriters[step.field](step.value)
@@ -155,7 +155,7 @@ const replayConfiguration = async (
     return undefined
   }
   client.setName(step.value.name)
-  showMapping()
+  showMapping(step.uuid)
   return replaced
 }
 

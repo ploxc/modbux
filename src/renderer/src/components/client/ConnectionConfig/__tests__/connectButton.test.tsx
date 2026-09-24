@@ -22,6 +22,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState, defaultConnectionConfig, Protocol } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../context/__tests__/shownData'
 
 const renderButton = ({
   connectState = 'disconnected',
@@ -39,7 +40,7 @@ const renderButton = ({
     { connectionConfig: { ...defaultConnectionConfig, protocol } },
     { ready: true, valid: { host, com, length: true } }
   )
-  useDataZustand.setState({ clientState: { ...defaultClientState, connectState } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState, connectState } })
   render(<ConnectionConfig />)
   return screen.getByTestId('connect-btn')
 }

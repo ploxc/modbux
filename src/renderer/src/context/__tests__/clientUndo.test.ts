@@ -44,7 +44,7 @@ const load = async (): Promise<{
     undo: () => useUndoZustand.getState(),
     clientUndo,
     setConnected: (connected) =>
-      useDataZustand.getState().setClientState({
+      useDataZustand.getState().setClientState(MAIN_CLIENT_UUID, {
         ...defaultClientState,
         connectState: connected ? 'connected' : 'disconnected'
       })

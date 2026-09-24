@@ -18,8 +18,9 @@ import { getSelectedClient, useClientZustand } from '@renderer/context/client.zu
 import { useDataZustand } from '@renderer/context/data.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions'
-import { MAIN_CLIENT_UUID } from '@shared'
+import { MAIN_CLIENT_UUID, defaultClientState } from '@shared'
 import { patchSelectedClient } from '../../../../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../../../../context/__tests__/shownData'
 
 // The options menu groups register options / connection options / actions,
 // each section carrying its own trailing divider so empty sections never
@@ -35,14 +36,15 @@ beforeEach(() => {
   // refuses every payload and the store never moves.
   window.api = { updateConnectionConfig: vi.fn(() => Promise.resolve(true)) } as never
   patchSelectedClient(useClientZustand, {}, { ready: true })
-  useDataZustand.setState({
+  patchShownData(useDataZustand, {
     clientState: {
+      ...defaultClientState,
       connectState: 'disconnected',
       polling: false,
       scanningUnitIds: false,
       scanningRegisters: false
     }
-  } as never)
+  })
 })
 
 describe('MenuRegisterOptions', () => {
@@ -128,14 +130,15 @@ describe('MenuConnectionOptions', () => {
     seed({
       connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusTcp' }
     })
-    useDataZustand.setState({
+    patchShownData(useDataZustand, {
       clientState: {
+        ...defaultClientState,
         connectState: 'connected',
         polling: false,
         scanningUnitIds: false,
         scanningRegisters: false
       }
-    } as never)
+    })
 
     render(<MenuConnectionOptions />)
 

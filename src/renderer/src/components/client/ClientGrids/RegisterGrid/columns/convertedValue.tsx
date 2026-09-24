@@ -1,5 +1,5 @@
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { getShownData } from '@renderer/context/data.zustand'
 import { DataType, RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
 import { round } from 'lodash'
 
@@ -91,7 +91,7 @@ export const getConvertedValue = (
   // For strings we must calculate the length until the next defined datatype
   let count = 1
   if (dataType === 'utf8') {
-    const groups = useDataZustand.getState().addressGroups
+    const groups = getShownData().addressGroups
 
     // Find the current group that contains the address
     const currentGroup = groups.find(

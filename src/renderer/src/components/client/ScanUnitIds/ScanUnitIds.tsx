@@ -10,7 +10,7 @@ import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf, getShownData } from '@renderer/context/data.zustand'
 import { MAX_UNIT_ID, maxReadQuantity, RegisterType, registersFrom } from '@shared'
 import { ElementType, useCallback } from 'react'
 import useScanUnitIdColumns from './columns'
@@ -20,13 +20,14 @@ import ScanProgress from '../scan/ScanProgress'
 import ScanStartStopButton from '../scan/ScanStartStopButton'
 import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { selectedClientUuid } from '@renderer/context/client.zustand'
+import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
 
 //
 //
 // Start Unit ID field
 const StartUnitIdField = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
 
   const setStartUnitId = useScanUnitIdZustand.getState().setStartUnitId
@@ -54,7 +55,8 @@ const StartUnitIdField = meme((): JSX.Element => {
 //
 // Count field
 const CountField = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const count = useScanUnitIdZustand((z) => z.count)
 
   const setCount = useScanUnitIdZustand.getState().setCount
@@ -90,7 +92,8 @@ const CountField = meme((): JSX.Element => {
 //
 // Address field with base toggle
 const AddressField = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const address = useScanUnitIdZustand((z) => z.address)
 
   const setAddress = useScanUnitIdZustand.getState().setAddress
@@ -110,7 +113,8 @@ const AddressField = meme((): JSX.Element => {
 //
 // Length field
 const LengthField = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const length = useScanUnitIdZustand((z) => z.length)
 
   // The field passed no `max`, so `UintInput`'s default of 65535 was typeable
@@ -153,7 +157,8 @@ const LengthField = meme((): JSX.Element => {
 //
 // Timeout field
 const TimeoutField = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const timeout = useScanUnitIdZustand((z) => z.timeout)
 
   const setTimeout = useScanUnitIdZustand.getState().setTimeout
@@ -172,7 +177,8 @@ const TimeoutField = meme((): JSX.Element => {
 //
 // Select register types
 const SelectRegisterTypes = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   const handleChange = useCallback((_event: unknown, value: RegisterType[]): void => {
@@ -223,7 +229,8 @@ const SelectRegisterTypes = meme((): JSX.Element => {
 //
 // Scan button
 const ScanButton = meme((): JSX.Element => {
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
 
   const scan = useCallback(() => {
@@ -234,8 +241,9 @@ const ScanButton = meme((): JSX.Element => {
 
     const scanUnitIdZustand = useScanUnitIdZustand.getState()
     const dataZustand = useDataZustand.getState()
-    dataZustand.clearScanUnitIdResults()
-    dataZustand.setScanProgress(0)
+    const uuid = selectedClientUuid()
+    dataZustand.clearScanUnitIdResults(uuid)
+    dataZustand.setScanProgress(uuid, 0)
 
     const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
 
@@ -278,7 +286,8 @@ const ScanButton = meme((): JSX.Element => {
 //
 // Scan result grid
 const ScanResultGrid = meme(() => {
-  const scanResults = useDataZustand((z) => z.scanUnitIdResults)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const scanResults = useDataZustand((z) => dataOf(z, selectedUuid).scanUnitIdResults)
   const registerTypes = useScanUnitIdZustand((z) => z.registerTypes)
 
   const columns = useScanUnitIdColumns()
@@ -339,16 +348,16 @@ const ScanResultGrid = meme(() => {
 const ScanUnitIds = meme(() => {
   const open = useScanUnitIdZustand((z) => z.open)
 
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // Don't close while scanning
-  const scanning = useDataZustand((z) => z.clientState.scanningUnitIds)
+  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
 
   const handleClose = useCallback(() => {
-    const dataZustand = useDataZustand.getState()
     const scanUnitIdZustand = useScanUnitIdZustand.getState()
-    if (dataZustand.clientState.scanningUnitIds) return
+    if (getShownData().clientState.scanningUnitIds) return
     // The results belong to the dialog. Leaving them behind means the next
     // scan opens on the last one and fills in around it.
-    dataZustand.clearScanUnitIdResults()
+    useDataZustand.getState().clearScanUnitIdResults(selectedClientUuid())
     scanUnitIdZustand.setOpen(false)
   }, [])
 

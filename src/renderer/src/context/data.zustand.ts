@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
-import { DataZustand } from './data.zustand.types'
+import { ClientData, DataZustand } from './data.zustand.types'
+import { dataOf, emptyClientData } from './data.zustand.helpers'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
 // This import closes a cycle: `client.zustand.ts` imports this module for
@@ -11,22 +12,28 @@ import { DateTime } from 'luxon'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { getSelectedClient, selectedClientUuid } from './client.zustand'
+import { selectedClientUuid, useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
-import {
-  ClientState,
-  MAIN_CLIENT_UUID,
-  RegisterData,
-  ScanUnitIDResult,
-  Transaction,
-  defaultClientState,
-  dummyWords
-} from '@shared'
+import { RegisterData, ScanUnitIDResult, Transaction, dummyWords } from '@shared'
+
+export { dataOf }
+
+/** The data of the client the view shows, read now rather than subscribed to. */
+export const getShownData = (): ClientData =>
+  dataOf(useDataZustand.getState(), selectedClientUuid())
+
+/** Runs `recipe` on the data under `uuid`, made first when there is none. */
+const onData = (state: DataZustand, uuid: string, recipe: (data: ClientData) => void): void => {
+  const data = state.clients[uuid] ?? emptyClientData()
+  state.clients[uuid] = data
+  recipe(data)
+}
 
 /**
- * What main pushes about the client, held for as long as the window lives.
+ * What main pushes about each client, held for as long as the window lives,
+ * under the uuid the client store holds it under.
  *
- * Six of the ten `EVENTS_TO_RENDERER` are the client's and all six land here.
+ * Six of the ten `EVENTS_TO_RENDERER` are a client's and all six land here.
  * The other four drive a server, the windows or the snackbar.
  *
  * Nothing here is persisted, and that is the point. zustand's persist wraps
@@ -42,77 +49,103 @@ import {
  */
 export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
+    clients: {},
+
     // Register data
-    registerData: [],
-    setRegisterData: (data) =>
-      set((state) => {
-        state.registerData = data
-      }),
-    appendRegisterData: (data) =>
-      set((state) => {
-        state.registerData.push(...data)
-      }),
-    // Address groups
-    addressGroups: [],
-    setAddressGroups: (groups) =>
-      set((state) => {
-        state.addressGroups = groups
-      }),
+    setRegisterData: (uuid, registerData) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.registerData = registerData
+        })
+      ),
+    appendRegisterData: (uuid, registerData) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.registerData.push(...registerData)
+        })
+      ),
+    setAddressGroups: (uuid, addressGroups) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.addressGroups = addressGroups
+        })
+      ),
 
     // State
-    clientState: { ...defaultClientState },
-    setClientState: (clientState) =>
-      set((state) => {
-        state.clientState = clientState
-      }),
+    setClientState: (uuid, clientState) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.clientState = clientState
+        })
+      ),
 
     // Transaction log
-    transactions: [],
-    addTransactions: (transactions) =>
-      set((state) => {
-        state.transactions.unshift(...[...transactions].reverse())
-        while (state.transactions.length > 1000) state.transactions.pop()
-      }),
-    clearTransactions: () => {
-      pendingTransactions.drop()
-      set((state) => {
-        state.transactions = []
-      })
+    addTransactions: (uuid, transactions) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.transactions.unshift(...[...transactions].reverse())
+          while (data.transactions.length > 1000) data.transactions.pop()
+        })
+      ),
+    clearTransactions: (uuid) => {
+      pendingTransactions.drop(uuid)
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.transactions = []
+        })
+      )
     },
-    lastSuccessfulTransactionMillis: null,
-    setLastSuccessfulTransactionMillis: (value) =>
-      set((state) => {
-        state.lastSuccessfulTransactionMillis = value
-      }),
+    setLastSuccessfulTransactionMillis: (uuid, value) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.lastSuccessfulTransactionMillis = value
+        })
+      ),
 
     // Unit ID scanning
-    scanUnitIdResults: [],
-    addScanUnitIdResults: (scanUnitIDResults) =>
-      set((state) => {
-        state.scanUnitIdResults.unshift(...[...scanUnitIDResults].reverse())
-        while (state.scanUnitIdResults.length > 256) state.scanUnitIdResults.pop()
-      }),
-    clearScanUnitIdResults: () => {
-      pendingUnitIdResults.drop()
-      set((state) => {
-        state.scanUnitIdResults = []
-      })
+    addScanUnitIdResults: (uuid, scanUnitIdResults) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.scanUnitIdResults.unshift(...[...scanUnitIdResults].reverse())
+          while (data.scanUnitIdResults.length > 256) data.scanUnitIdResults.pop()
+        })
+      ),
+    clearScanUnitIdResults: (uuid) => {
+      pendingUnitIdResults.drop(uuid)
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.scanUnitIdResults = []
+        })
+      )
     },
 
     // Scan progress
-    scanProgress: 0,
-    setScanProgress: (scanProgress) =>
+    setScanProgress: (uuid, scanProgress) =>
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.scanProgress = scanProgress
+        })
+      ),
+
+    dropClient: (uuid) => {
+      pendingScanRows.drop(uuid)
+      pendingUnitIdResults.drop(uuid)
+      pendingTransactions.drop(uuid)
+      clientStatePushed.delete(uuid)
       set((state) => {
-        state.scanProgress = scanProgress
+        delete state.clients[uuid]
       })
+    }
   }))
 )
 
-/** Populate grid with configured register placeholders */
-export const showMapping = (): void => {
+/** Populate a client's grid with its configured register placeholders */
+export const showMapping = (uuid: string = selectedClientUuid()): void => {
+  const client = useClientZustand.getState().clients[uuid]
+  if (!client) return
   const registerData: RegisterData[] = []
-  const registerMapping = getSelectedClient().registerMapping
-  const type = getSelectedClient().registerConfig.type
+  const { registerMapping } = client
+  const { type } = client.registerConfig
 
   Object.entries(registerMapping[type]).forEach(([addressString, mapValue]) => {
     if (!mapValue || mapValue.dataType === 'none' || !mapValue.dataType) return
@@ -129,108 +162,99 @@ export const showMapping = (): void => {
     registerData.push(row)
   })
 
-  useDataZustand.getState().setRegisterData(registerData)
+  useDataZustand.getState().setRegisterData(uuid, registerData)
 }
 
-/**
- * Rows found by a scan, held back and written in batches.
- *
- * A scan sends one message per chunk, and the grid renders the whole list
- * again on each one, so the work per chunk grows with what has been found
- * already. With the grid on screen a scan of 2000 addresses in chunks of one
- * took 208 seconds instead of 26, and the window stopped answering for most of
- * it. Collecting the rows and writing them on a timer puts the number of
- * renders on the clock instead of on the chunk count. The server view solves
- * the same problem the same way.
- */
+/** How long a batch of what main sends at event rate waits before it is written. */
 const SCAN_FLUSH_MS = 100
 
-let pendingScanRows: RegisterData[] = []
-let scanFlushTimeout: NodeJS.Timeout | undefined
-
-const flushScanRows = (): void => {
-  clearTimeout(scanFlushTimeout)
-  scanFlushTimeout = undefined
-  if (pendingScanRows.length === 0) return
-  useDataZustand.getState().appendRegisterData(pendingScanRows)
-  pendingScanRows = []
-}
-
-/** Nothing may survive into the next scan, which starts from an empty grid. */
-export const dropPendingScanRows = (): void => {
-  clearTimeout(scanFlushTimeout)
-  scanFlushTimeout = undefined
-  pendingScanRows = []
-}
-
 /**
- * Events that arrive one per request, held back and written on the same timer.
- *
- * A unit id scan sends a result per unit id, and the table drew itself again
- * on each: a scan of 255 ids lagged behind itself. Main sends a transaction per
- * request, and a register scan in chunks of one against a server that answers
- * at once sent them faster than the window could write them.
+ * What main sends at event rate, held back per client and written a batch at a
+ * time on a timer, so the number of renders follows the clock rather than the
+ * number of messages.
  */
 const heldOnTimer = <T>(
-  write: (items: T[]) => void
-): { push: (item: T) => void; flush: () => void; drop: () => void } => {
-  let pending: T[] = []
-  let timeout: NodeJS.Timeout | undefined
-  const drop = (): void => {
-    clearTimeout(timeout)
-    timeout = undefined
-    pending = []
+  write: (uuid: string, items: T[]) => void
+): {
+  push: (uuid: string, items: T[]) => void
+  flush: (uuid: string) => void
+  drop: (uuid: string) => void
+} => {
+  const pending = new Map<string, { items: T[]; timeout: NodeJS.Timeout }>()
+  const drop = (uuid: string): void => {
+    clearTimeout(pending.get(uuid)?.timeout)
+    pending.delete(uuid)
   }
-  const flush = (): void => {
-    const items = pending
-    drop()
-    write(items)
+  const flush = (uuid: string): void => {
+    const held = pending.get(uuid)
+    drop(uuid)
+    if (held) write(uuid, held.items)
   }
-  const push = (item: T): void => {
-    pending.push(item)
-    if (!timeout) timeout = setTimeout(flush, SCAN_FLUSH_MS)
+  const push = (uuid: string, items: T[]): void => {
+    const held = pending.get(uuid)
+    if (held) {
+      held.items.push(...items)
+      return
+    }
+    pending.set(uuid, { items: [...items], timeout: setTimeout(() => flush(uuid), SCAN_FLUSH_MS) })
   }
   return { push, flush, drop }
 }
 
-const pendingUnitIdResults = heldOnTimer<ScanUnitIDResult>((results) =>
-  useDataZustand.getState().addScanUnitIdResults(results)
-)
-
-const pendingTransactions = heldOnTimer<Transaction>((transactions) =>
-  useDataZustand.getState().addTransactions(transactions)
-)
-
-/** Whether a `client_state` push has landed since the module was evaluated. */
-let clientStatePushed = false
-
 /**
- * Write the state main answered with, unless a push has landed since the ask.
- *
- * A push that arrives while the answer is in flight is the newer of the two
- * and keeps its value.
+ * Rows found by a scan. A scan sends one message per chunk, and the grid
+ * renders the whole list again on each one, so the work per chunk grows with
+ * what has been found already. With the grid on screen a scan of 2000
+ * addresses in chunks of one took 208 seconds instead of 26, and the window
+ * stopped answering for most of it. The server view solves the same problem
+ * the same way.
  */
-const adoptAnsweredClientState = (clientState: ClientState): void => {
-  if (clientStatePushed) return
-  useDataZustand.getState().setClientState(clientState)
-}
+const pendingScanRows = heldOnTimer<RegisterData>((uuid, rows) =>
+  useDataZustand.getState().appendRegisterData(uuid, rows)
+)
 
 /**
- * Ask main what the client is doing, because a push says only that it changed.
- * Main answers for every client it holds, and this store holds one client's:
- * this takes `MAIN_CLIENT_UUID`'s, the client a store has until a second one
- * is added. The constant rather than `selectedClientUuid`, which is a name
- * across the cycle below: vitest evaluates each import behind an await, so
- * this answer can land before `client.zustand` has finished, and the call
- * threw "is not a function".
+ * A unit id scan sends a result per unit id, and the table drew itself again
+ * on each: a scan of 255 ids lagged behind itself.
+ */
+const pendingUnitIdResults = heldOnTimer<ScanUnitIDResult>((uuid, results) =>
+  useDataZustand.getState().addScanUnitIdResults(uuid, results)
+)
+
+/**
+ * Main sends a transaction per request, and a register scan in chunks of one
+ * against a server that answers at once sent them faster than the window could
+ * write them.
+ */
+const pendingTransactions = heldOnTimer<Transaction>((uuid, transactions) =>
+  useDataZustand.getState().addTransactions(uuid, transactions)
+)
+
+/** Nothing may survive into the client's next scan, which starts from an empty grid. */
+export const dropPendingScanRows = (uuid: string): void => pendingScanRows.drop(uuid)
+
+/** The clients a `client_state` push has landed for since the module was evaluated. */
+const clientStatePushed = new Set<string>()
+
+/**
+ * Ask main what every client is doing, because a push says only that it
+ * changed, and write each state no push has landed for since the ask. A push
+ * that arrives while the answer is in flight is the newer of the two. A client
+ * the client store does not hold gets nothing, as a push about it gets
+ * nothing: main outlives a window, and one that came back on a reset store
+ * does not hold the clients main still does.
  *
  * Main pushes `client_state` on a change, so a window opened after the last
- * one starts on the literal above: on macos the app outlives its windows, and
- * the window that comes back showed Connect over a client that was connected
- * and polling. The ask sits here rather than in `client.zustand`'s `init`
- * because these two modules import each other, and a name reached across that
- * cycle while the other half is still evaluating is a name in its temporal
- * dead zone. It threw into `init`'s catch, which reported nothing.
+ * one starts on the defaults: on macos the app outlives its windows, and the
+ * window that comes back showed Connect over a client that was connected and
+ * polling. The ask sits here rather than in `client.zustand`'s `init` because
+ * these two modules import each other, and a name reached across that cycle
+ * while the other half is still evaluating is a name in its temporal dead
+ * zone. It threw into `init`'s catch, which reported nothing. The answer
+ * reaches back into `client.zustand` only from inside the callback: an invoke
+ * answers in a task of its own, after both modules have evaluated. A stub that
+ * answers in a microtask can land it while the import chain is still under
+ * way, and vitest then hands over the half that has not finished.
  *
  * The guard is the one `init` carries: the split out server window shows no
  * client.
@@ -239,69 +263,66 @@ if (!window.api.isServerWindow) {
   window.api
     .getClientStates()
     .then((clientStates) => {
-      const clientState = clientStates[MAIN_CLIENT_UUID]
-      if (clientState) adoptAnsweredClientState(clientState)
+      for (const [uuid, clientState] of Object.entries(clientStates)) {
+        if (!isHeld(uuid) || clientStatePushed.has(uuid)) continue
+        useDataZustand.getState().setClientState(uuid, clientState)
+      }
     })
     .catch((error) => console.error('The client state main holds was not read:', error))
 }
 
 /**
- * Whether an event is about the client this store holds.
+ * Whether an event is about a client the client store holds.
  *
- * Main sends every client's events to the main window, and this store holds
- * the one the view shows, so another client's rows, state or transactions
- * would land in its fields.
+ * Main sends every client's events to the main window. A client taken away
+ * still sends the state its disconnect leaves, after the store let go of it.
  */
-const isShown = (uuid: string): boolean => uuid === selectedClientUuid()
+const isHeld = (uuid: string): boolean => Object.hasOwn(useClientZustand.getState().clients, uuid)
 
 // Data read from the registers
 onEvent('register_data', ({ uuid, registerData }) => {
-  if (!isShown(uuid)) return
+  if (!isHeld(uuid)) return
   const dataZustand = useDataZustand.getState()
 
-  if (dataZustand.clientState.scanningRegisters) {
-    pendingScanRows.push(...registerData)
-    if (!scanFlushTimeout) scanFlushTimeout = setTimeout(flushScanRows, SCAN_FLUSH_MS)
+  if (dataOf(dataZustand, uuid).clientState.scanningRegisters) {
+    pendingScanRows.push(uuid, registerData)
   } else {
     // A poll replaces the grid, so anything a scan left waiting is stale.
-    dropPendingScanRows()
-    dataZustand.setRegisterData(registerData)
+    pendingScanRows.drop(uuid)
+    dataZustand.setRegisterData(uuid, registerData)
   }
 
-  dataZustand.setLastSuccessfulTransactionMillis(DateTime.now().toMillis())
+  dataZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
 })
 
 onEvent('address_groups', ({ uuid, addressGroups }) => {
-  if (!isShown(uuid)) return
-  const dataZustand = useDataZustand.getState()
-  dataZustand.setAddressGroups(addressGroups)
+  if (!isHeld(uuid)) return
+  useDataZustand.getState().setAddressGroups(uuid, addressGroups)
 })
 
 // Client state, like polling, scanning, etc.
 onEvent('client_state', ({ uuid, clientState }) => {
-  if (!isShown(uuid)) return
-  clientStatePushed = true
+  if (!isHeld(uuid)) return
+  clientStatePushed.add(uuid)
   // Main sends a scan's last rows before the state that ends it, so they are
   // written before the button says the scan stopped, not up to a flush later.
-  if (!clientState.scanningRegisters) flushScanRows()
-  if (!clientState.scanningUnitIds) pendingUnitIdResults.flush()
-  const dataZustand = useDataZustand.getState()
-  dataZustand.setClientState(clientState)
+  if (!clientState.scanningRegisters) pendingScanRows.flush(uuid)
+  if (!clientState.scanningUnitIds) pendingUnitIdResults.flush(uuid)
+  useDataZustand.getState().setClientState(uuid, clientState)
 })
 
 // Transactions from the transation log
 onEvent('transaction', ({ uuid, transaction }) => {
-  if (isShown(uuid)) pendingTransactions.push(transaction)
+  if (isHeld(uuid)) pendingTransactions.push(uuid, [transaction])
 })
 
 // Unit ID scanning results
 onEvent('scan_unit_id_result', ({ uuid, result }) => {
-  if (isShown(uuid)) pendingUnitIdResults.push(result)
+  if (isHeld(uuid)) pendingUnitIdResults.push(uuid, [result])
 })
 
 // Scan progress
-onEvent('scan_progress', ({ uuid, progress: scanProgress }) => {
-  if (!isShown(uuid)) return
-  const dataZustand = useDataZustand.getState()
-  dataZustand.setScanProgress(scanProgress)
+onEvent('scan_progress', ({ uuid, progress }) => {
+  if (!isHeld(uuid)) return
+  useDataZustand.getState().setScanProgress(uuid, progress)
 })

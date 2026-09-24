@@ -37,6 +37,7 @@ const handlers = vi.hoisted(() => {
 import { useClientZustand, getSelectedClient, getSelectedSession } from '../client.zustand'
 import { useDataZustand } from '../data.zustand'
 import { patchSelectedClient } from './selectedClient'
+import { patchShownData, shownData } from './shownData'
 
 const disconnected: ClientState = { ...defaultClientState }
 
@@ -65,7 +66,7 @@ const stubApi = (): void => {
 beforeEach(() => {
   stubApi()
   patchSelectedClient(useClientZustand, {}, { ready: false })
-  useDataZustand.setState({ clientState: disconnected })
+  patchShownData(useDataZustand, { clientState: disconnected })
 })
 
 /**
@@ -94,19 +95,19 @@ describe('init hands main the config this window loaded', () => {
 
 describe('the client_state listener', () => {
   it('leaves the store alone for a client it does not hold', () => {
-    const before = useDataZustand.getState().clientState
+    const before = shownData(useDataZustand).clientState
     const handler = handlers.get('client_state')
     if (!handler) throw new Error('no client_state listener was registered')
 
     handler(undefined, { uuid: 'another-client', clientState: connectedAndPolling })
 
-    expect(useDataZustand.getState().clientState).toBe(before)
+    expect(shownData(useDataZustand).clientState).toBe(before)
   })
 
   it('writes what main pushed', () => {
     pushClientState(connectedAndPolling)
 
-    expect(useDataZustand.getState().clientState).toEqual(connectedAndPolling)
+    expect(shownData(useDataZustand).clientState).toEqual(connectedAndPolling)
   })
 })
 

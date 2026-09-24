@@ -6,12 +6,15 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useClientZustand, selectedClient, selectedSession } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import { ElementType } from 'react'
 
 // Host
 const Host = meme(() => {
-  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useDataZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
+  )
   const host = useClientZustand((z) => selectedClient(z).connectionConfig.tcp.host)
   const hostValid = useClientZustand((z) => selectedSession(z).valid.host)
 
@@ -41,7 +44,10 @@ const Host = meme(() => {
 //
 // Port
 const Port = meme(() => {
-  const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useDataZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
+  )
   const port = useClientZustand((z) => String(selectedClient(z).connectionConfig.tcp.options.port))
 
   const setPort = useClientZustand.getState().setPort

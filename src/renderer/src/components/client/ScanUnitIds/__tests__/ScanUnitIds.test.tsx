@@ -26,6 +26,7 @@ import { defaultClientState, MAIN_CLIENT_UUID, ScanUnitIDParametersSchema } from
 import ScanUnitIds from '../ScanUnitIds'
 import { useScanUnitIdZustand } from '../scanUnitIds.zustand'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../context/__tests__/shownData'
 
 const payload = (): unknown => {
   const call = stub.scanUnitIds.mock.calls[0]?.[0] as
@@ -41,7 +42,7 @@ const input = (testId: string): HTMLElement =>
 beforeEach(() => {
   stub.scanUnitIds.mockClear()
   patchSelectedClient(useClientZustand, {}, { ready: true })
-  useDataZustand.setState({ clientState: { ...defaultClientState } })
+  patchShownData(useDataZustand, { clientState: { ...defaultClientState } })
   useScanUnitIdZustand.setState({
     open: true,
     address: 0,

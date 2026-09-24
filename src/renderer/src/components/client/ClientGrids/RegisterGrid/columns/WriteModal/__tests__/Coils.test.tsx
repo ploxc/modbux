@@ -19,7 +19,7 @@ vi.mock('@renderer/context/client.zustand', () => ({
   getSelectedClient: (): { registerConfig: typeof registerConfig } => ({ registerConfig })
 }))
 vi.mock('@renderer/context/data.zustand', () => ({
-  useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
+  getShownData: (): { registerData: [] } => ({ registerData: [] })
 }))
 
 import { Coils } from '../WriteModal'

@@ -32,6 +32,7 @@ import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import { patchShownData } from '../../../../../../context/__tests__/shownData'
 
 const row = (uint16: number): RegisterData =>
   ({
@@ -45,19 +46,21 @@ const row = (uint16: number): RegisterData =>
 
 const poll = (uint16: number): void => {
   act(() => {
-    useDataZustand.setState({ registerData: [row(uint16)] })
+    patchShownData(useDataZustand, { registerData: [row(uint16)] })
   })
 }
 
 beforeEach(() => {
   rendered.length = 0
-  useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
+  patchShownData(useDataZustand, {
+    clientState: { ...defaultClientState, connectState: 'connected' }
+  })
   patchSelectedClient(
     useClientZustand,
     { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
     { ready: true }
   )
-  useDataZustand.setState({ registerData: [row(0)] })
+  patchShownData(useDataZustand, { registerData: [row(0)] })
 })
 
 // `meme` is `memo` with `deepEqual`, which compares a function by identity. An

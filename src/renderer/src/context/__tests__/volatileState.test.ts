@@ -6,9 +6,10 @@
 // wraps `setState` and calls `setItem` on every call with no debounce. A unit
 // id scan of 0 through 255 over four types logs 1024 transactions.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLIENT_ZUSTAND_STORAGE_KEY, defaultClientState } from '@shared'
+import { CLIENT_ZUSTAND_STORAGE_KEY, defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import type { ScanUnitIDResult, Transaction } from '@shared'
 import { stubRenderer } from './stubRenderer'
+import { shownData } from './shownData'
 
 const transaction: Transaction = {
   id: 'a',
@@ -57,11 +58,14 @@ describe('what main pushes about the client', () => {
     const dataZustand = useDataZustand.getState()
     keysWritten.length = 0
 
-    dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
-    dataZustand.addTransactions([transaction])
-    dataZustand.addScanUnitIdResults([scanResult])
-    dataZustand.setScanProgress(50)
-    dataZustand.setLastSuccessfulTransactionMillis(1)
+    dataZustand.setClientState(MAIN_CLIENT_UUID, {
+      ...defaultClientState,
+      connectState: 'connected'
+    })
+    dataZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
+    dataZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
+    dataZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
+    dataZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
 
     expect(keysWritten).toEqual([])
 
@@ -76,13 +80,16 @@ describe('what main pushes about the client', () => {
     const { useDataZustand } = await load()
     const dataZustand = useDataZustand.getState()
 
-    dataZustand.setClientState({ ...defaultClientState, connectState: 'connected' })
-    dataZustand.addTransactions([transaction])
-    dataZustand.addScanUnitIdResults([scanResult])
-    dataZustand.setScanProgress(50)
-    dataZustand.setLastSuccessfulTransactionMillis(1)
+    dataZustand.setClientState(MAIN_CLIENT_UUID, {
+      ...defaultClientState,
+      connectState: 'connected'
+    })
+    dataZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
+    dataZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
+    dataZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
+    dataZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
 
-    const state = useDataZustand.getState()
+    const state = shownData(useDataZustand)
     expect(state.clientState.connectState).toBe('connected')
     expect(state.transactions).toEqual([transaction])
     expect(state.scanUnitIdResults).toEqual([scanResult])
