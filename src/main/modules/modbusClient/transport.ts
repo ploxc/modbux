@@ -132,9 +132,10 @@ export class Transport {
   private _transactionLog: TransactionLog
 
   /**
-   * Rejects the request on the wire, which the last client's detach calls: no
-   * client is left to hear its answer, and `close` takes the reply listener
-   * off anyway.
+   * Rejects the request on the wire. The last client's detach calls it, because
+   * no client is left to hear its answer and `close` takes the reply listener
+   * off anyway, and so does `lost`, because the answer went with the
+   * connection.
    *
    * modbus-serial's `destroy` clears the timeout of every pending transaction
    * and never calls it back, so a request it caught would never settle: the
@@ -206,6 +207,10 @@ export class Transport {
     // zero the count in the middle of the burst that follows, and the burst
     // would run past its limit.
     clearTimeout(this._reconnectResetTimeout)
+    // The reply to the request on the wire went with the connection, and every
+    // request queued behind it would wait out its timeout rather than the
+    // reconnect.
+    this._abandonInFlight?.(new Error('Connection lost'))
     this._scheduleReconnect(true)
   }
 

@@ -256,6 +256,11 @@ describe('Transport', () => {
       mockModbusRTU.readHoldingRegisters.mockImplementation(
         (address: number) =>
           new Promise((resolve, reject) => {
+            // modbus-serial 8.0.25 answers a request on a shut port at once.
+            if (!mockModbusRTU.isOpen) {
+              reject(new Error('Port Not Open'))
+              return
+            }
             const timeout = mockModbusRTU.setTimeout.mock.calls.at(-1)?.[0]
             if (timeout) {
               const timer = setTimeout(() => reject(new Error('Timed out')), timeout)
@@ -318,15 +323,15 @@ describe('Transport', () => {
       return { client, transport }
     }
 
-    it('rejects the read a drop left on the wire when the last client leaves the reconnect', async () => {
+    // A TCP reset shuts the port and emits nothing, so nothing calls `lost`.
+    it('rejects the read a silent reset left on the wire when the last client leaves', async () => {
       const { client, transport } = await connected()
       likeTheLibrary()
       const read = track(readOn(transport, client, 1000))
       await vi.advanceTimersByTimeAsync(0)
 
       mockModbusRTU.isOpen = false
-      fireHandler('close')
-      await transport.detach(client, true)
+      await transport.detach(client, false)
       await vi.advanceTimersByTimeAsync(0)
 
       expect(read).toEqual({ is: 'rejected: Connection closed' })
@@ -362,21 +367,31 @@ describe('Transport', () => {
       expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
     })
 
-    it('lets a read a drop left on the wire time out through a reconnect that fails', async () => {
+    it('rejects the read a drop left on the wire at the drop', async () => {
       const { client, transport } = await connected()
-      const library = likeTheLibrary()
+      likeTheLibrary()
       const read = track(readOn(transport, client, 8000))
       await vi.advanceTimersByTimeAsync(0)
 
-      library.openThatTimesOut()
       mockModbusRTU.isOpen = false
       fireHandler('close')
-      // The reconnect waits three seconds and its open fails three after that.
-      await vi.advanceTimersByTimeAsync(6000)
-      expect(read).toEqual({ is: 'pending' })
-      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(0)
 
-      expect(read).toEqual({ is: 'rejected: Timed out' })
+      expect(read).toEqual({ is: 'rejected: Connection lost' })
+    })
+
+    it('lets the read queued behind a dropped one go at the drop', async () => {
+      const { client, transport } = await connected()
+      likeTheLibrary()
+      void readOn(transport, client, 8000).catch(() => undefined)
+      const queued = track(readOn(transport, client, 8000))
+      await vi.advanceTimersByTimeAsync(0)
+
+      mockModbusRTU.isOpen = false
+      fireHandler('close')
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(queued).toEqual({ is: 'rejected: Port Not Open' })
     })
 
     it('sends nothing queued behind the last client’s read once it has left', async () => {
