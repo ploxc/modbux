@@ -64,8 +64,7 @@ interface TransactionLogParams {
 /**
  * What went out and what came back, read off modbus-serial's own table.
  *
- * This is the only part of the client that names an undeclared internal, which
- * is what a library bump breaks.
+ * It reads two undeclared internals, which is what a library bump breaks.
  */
 export class TransactionLog {
   private _client: ModbusRTU

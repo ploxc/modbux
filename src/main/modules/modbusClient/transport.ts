@@ -36,18 +36,29 @@ export interface RequestTarget {
   uuid: string
   unitId: number
   timeout: number
+  /**
+   * Whether that client is still on the ride it queued the request on, which
+   * a disconnect or a drop ends.
+   */
+  current: () => boolean
 }
 
 /**
- * The `removeAllListeners` under a `ModbusRTU`.
+ * The `removeAllListeners` under a `ModbusRTU`, and its port.
  *
  * `index.js` has the class extend `EventEmitter`, and `ModbusRTU.d.ts` declares
  * `on` and nothing else of the emitter, so taking listeners off again needs a
  * type written here. Nothing inside modbus-serial listens on the client object,
  * so what comes off is what this file put on.
+ *
+ * `_port` is what every `connect*` assigns before it opens, and it is absent
+ * where a port constructor threw first, as a serial one does on an empty path.
+ * A TCP and a telnet port have a `destroy` that destroys the socket; a serial
+ * port has none.
  */
 interface ModbusRTUEmitter extends ModbusRTU {
   removeAllListeners(): void
+  _port: { destroy?: (callback: () => void) => void } | undefined
 }
 
 interface TransportParams {
@@ -116,6 +127,17 @@ export class Transport {
 
   /** What went out and what came back, read off modbus-serial's own table. */
   private _transactionLog: TransactionLog
+
+  /**
+   * Rejects the request on the wire, which the last client's detach calls: no
+   * client is left to hear its answer, and `close` takes the reply listener
+   * off anyway.
+   *
+   * modbus-serial's `destroy` clears the timeout of every pending transaction
+   * and never calls it back, so a request it caught would never settle: the
+   * client's `reading` or `writing` would stay set until Modbux restarts.
+   */
+  private _abandonInFlight: ((reason: Error) => void) | undefined
 
   constructor({ key, config, windows, onIdle }: TransportParams) {
     this.key = key
@@ -222,22 +244,32 @@ export class Transport {
    * out under them. The log is inside the turn for the same reason: on a
    * serial port every request files under key 1, so a log written after the
    * turn would delete the entry of the request that went next.
+   *
+   * A turn that comes up once its client is no longer on the ride it was
+   * queued on is refused rather than sent: after a disconnect it would reach
+   * the device once that user was told they were disconnected.
    */
   public request = <Result>(
-    { uuid, unitId, timeout }: RequestTarget,
+    { uuid, unitId, timeout, current }: RequestTarget,
     send: (modbus: ModbusRTU) => Promise<Result>
   ): Promise<Result> =>
     this._run(async (modbus) => {
+      if (!current()) throw new Error('Connection closed')
       modbus.setID(unitId)
       modbus.setTimeout(timeout)
       const transactionIdKey = this._transactionLog.nextTransactionIdKey()
       try {
-        const result = await send(modbus)
+        const result = await new Promise<Result>((resolve, reject) => {
+          this._abandonInFlight = reject
+          send(modbus).then(resolve, reject)
+        })
         this._transactionLog.log(uuid, transactionIdKey, undefined)
         return result
       } catch (error) {
         this._transactionLog.log(uuid, transactionIdKey, errorText(error))
         throw error
+      } finally {
+        this._abandonInFlight = undefined
       }
     })
 
@@ -440,6 +472,11 @@ export class Transport {
       }, 10000)
       this._setConnectState('connected')
     } catch (error) {
+      // tcpport's connect `timeout` calls back and leaves its socket dialling,
+      // so a host that answers later would hold a connection nobody closes.
+      // The port's own `destroy` takes that socket; `ModbusRTU.destroy` would
+      // also clear the timeout of a request a drop left on the wire.
+      ;(this._modbus as ModbusRTUEmitter)._port?.destroy?.(() => {})
       if (generation !== this._generation) return
       const port = protocol === 'ModbusRtu' ? com : undefined
       const reason = humanizeSerialError(error as Error, port)
@@ -472,6 +509,28 @@ export class Transport {
   }
 
   /**
+   * Let go of the port for good: nothing it says reaches the transport again,
+   * and `destroy` takes the socket.
+   */
+  private _abandonPort = (callback: () => void): void => {
+    const abandoned = this._modbus as ModbusRTUEmitter
+    // What `destroy` leaves behind decides what this has to do itself.
+    // It destroys a socket, and returns a serial port untouched:
+    // `RTUBufferedPort` declares no `destroy`, so `ModbusRTU.destroy`
+    // takes the branch that only calls back, keeping the port open and
+    // its close relay on it. Taking the listeners off is what stops that
+    // port speaking to the transport that replaces it, which it would do
+    // as a connection lost on a connection that is fine.
+    abandoned.removeAllListeners()
+    // modbus-serial's `_onError` emits on the client, and `destroy`
+    // leaves that relay on a serial port too, so a client with no
+    // `error` listener left would take the main process down with an
+    // unhandled `error` event the next time that port faults.
+    abandoned.on('error', () => {})
+    abandoned.destroy(callback)
+  }
+
+  /**
    * Close the open port, giving up on it after five seconds, and say how it
    * ended without saying it to anyone.
    *
@@ -481,28 +540,19 @@ export class Transport {
     this._closing = true
     try {
       return await new Promise<'closed' | 'timed out'>((resolve) => {
-        const giveUp = setTimeout(() => {
-          const abandoned = this._modbus as ModbusRTUEmitter
-          // What `destroy` leaves behind decides what this has to do itself.
-          // It destroys a socket, and returns a serial port untouched:
-          // `RTUBufferedPort` declares no `destroy`, so `ModbusRTU.destroy`
-          // takes the branch that only calls back, keeping the port open and
-          // its close relay on it. Taking the listeners off is what stops that
-          // port speaking to the transport that replaces it, which it would do
-          // as a connection lost on a connection that is fine.
-          abandoned.removeAllListeners()
-          // modbus-serial's `_onError` emits on the client, and `destroy`
-          // leaves that relay on a serial port too, so a client with no
-          // `error` listener left would take the main process down with an
-          // unhandled `error` event the next time that port faults.
-          abandoned.on('error', () => {})
-          abandoned.destroy(() => resolve('timed out'))
-        }, 5000)
-
-        this._modbus.close(() => {
+        const giveUp = setTimeout(() => this._abandonPort(() => resolve('timed out')), 5000)
+        try {
+          this._modbus.close(() => {
+            clearTimeout(giveUp)
+            resolve('closed')
+          })
+        } catch (error) {
+          // A close that threw started nothing to wait for, so the port is
+          // let go of now rather than after the five seconds.
           clearTimeout(giveUp)
-          resolve('closed')
-        })
+          this._abandonPort(() => {})
+          throw error
+        }
       })
     } catch (error) {
       return { failed: error }
@@ -537,12 +587,17 @@ export class Transport {
 
     const { protocol } = this._config
     this._stopReconnecting()
+    this._abandonInFlight?.(new Error('Connection closed'))
 
     if (!this._modbus.isOpen) {
       if (!wasConnecting) {
         this._emitMessage({ message: 'Already disconnected', variant: 'warning', error: null })
       }
-      this._modbus.destroy(() => {})
+      // Nothing is destroyed here. The port is shut, or still opening for a
+      // connect the user cancelled, and `destroy` strands whatever waits on
+      // it: over TCP it drops the open's callback, so `_openInFlight` never
+      // clears, and it clears the timeout of the request a drop left on the
+      // wire.
       client.transportClosed(this)
       this._idleWhenDone()
       return

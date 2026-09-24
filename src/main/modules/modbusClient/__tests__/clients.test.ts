@@ -311,6 +311,37 @@ describe('Clients', () => {
       expect(named('register_data')).toEqual(['a', 'b'])
     })
 
+    it('sends nothing a client queued before it left and joined again', async () => {
+      await connectBoth()
+      const connection = instances[0]
+      if (!connection) throw new Error('no connection was opened')
+      let answerFirst: () => void = () => {
+        throw new Error('no read is waiting for an answer')
+      }
+      const answer = connection.readHoldingRegisters.getMockImplementation()
+      if (!answer) throw new Error('readHoldingRegisters has no implementation to wrap')
+      connection.readHoldingRegisters.mockImplementationOnce(
+        (address: number) =>
+          new Promise((resolve) => {
+            answerFirst = () => resolve(answer(address))
+          })
+      )
+      const b = clients.get('b')
+      const a = clients.get('a')
+      if (!a || !b) throw new Error('both clients were created')
+
+      const bRead = b.read()
+      const aRead = a.read()
+      await vi.advanceTimersByTimeAsync(0)
+      await a.disconnect()
+      await a.connect()
+      answerFirst()
+      await Promise.all([bRead, aRead])
+
+      expect(connection.readHoldingRegisters).toHaveBeenCalledTimes(1)
+      expect(connection.setID.mock.calls).toEqual([[2]])
+    })
+
     it('stays open for one client when the other disconnects', async () => {
       await connectBoth()
 

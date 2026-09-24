@@ -2701,6 +2701,25 @@ describe('ModbusClient', () => {
       expect(getLastClientState().reading).toBe(false)
     })
 
+    it('stops saying a read runs once a disconnect during a reconnect leaves it', async () => {
+      await connectClient()
+      // A read still inside its timeout, which modbus-serial rejects only once
+      // that runs out: up to ten seconds, by `ReadTimingSchema`.
+      mockModbusRTU.readHoldingRegisters.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => setTimeout(() => reject(new Error('Timed out')), 10000))
+      )
+      void client.read()
+      await vi.advanceTimersByTimeAsync(0)
+
+      fireClientEvent('close')
+      await client.disconnect()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(client.state.reading).toBe(false)
+      expect(getLastClientState().reading).toBe(false)
+    })
+
     it('reads again once the first has answered', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])

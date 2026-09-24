@@ -275,8 +275,19 @@ export class ModbusClient implements TransportClient {
   /** The ride a request that goes out now goes out on. */
   private _rideOn = (transport: Transport): Ride => ({ transport, ride: this._ride })
 
+  /** Whether the client has not left the ride since. */
+  private _onRide = ({ ride }: Ride): boolean => ride === this._ride
+
   /** Whether the connection a request went out on is still the one there. */
-  private _stillOn = ({ transport, ride }: Ride): boolean => ride === this._ride && transport.isOpen
+  private _stillOn = (ride: Ride): boolean => this._onRide(ride) && ride.transport.isOpen
+
+  /** Who a request on `ride` is for, which the transport asks again when its turn comes. */
+  private _target = (ride: Ride, unitId: number, timeout: number): RequestTarget => ({
+    uuid: this.uuid,
+    unitId,
+    timeout,
+    current: () => this._onRide(ride)
+  })
 
   /**
    * What a request came back with, or undefined when its ride ended while it
@@ -455,11 +466,11 @@ export class ModbusClient implements TransportClient {
 
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration
-    const target: RequestTarget = {
-      uuid: this.uuid,
-      unitId: this._appState.connectionConfig.unitId,
-      timeout: this._appState.registerConfig.timeout
-    }
+    const target = this._target(
+      ride,
+      this._appState.connectionConfig.unitId,
+      this._appState.registerConfig.timeout
+    )
 
     const data: RegisterData[] = []
 
@@ -757,18 +768,18 @@ export class ModbusClient implements TransportClient {
     // whatever ran last on the connection got a register scan's 100 ms, or the
     // 3000 ms an open sets, rather than the 1000 ms the toolbar's own floor
     // promises.
-    const target: RequestTarget = {
-      uuid: this.uuid,
-      unitId: this._appState.connectionConfig.unitId,
-      timeout: this._appState.registerConfig.timeout
-    }
+    const ride = this._rideOn(transport)
+    const target = this._target(
+      ride,
+      this._appState.connectionConfig.unitId,
+      this._appState.registerConfig.timeout
+    )
 
     this._clientState.writing = true
     this._sendClientState()
     try {
       let attempt: WriteAttempt
 
-      const ride = this._rideOn(transport)
       switch (type) {
         case 'coils':
           attempt = await this._writeCoil(ride, target, address, value, single)
@@ -986,7 +997,7 @@ export class ModbusClient implements TransportClient {
         ride,
         this._readers[registerType](
           ride.transport,
-          { uuid: this.uuid, unitId: id, timeout },
+          this._target(ride, id, timeout),
           address,
           length
         )
@@ -1022,11 +1033,8 @@ export class ModbusClient implements TransportClient {
     if (!this._requireClient('scan', true)) return
     this.stopPolling()
 
-    const target: RequestTarget = {
-      uuid: this.uuid,
-      unitId: this._appState.connectionConfig.unitId,
-      timeout: params.timeout
-    }
+    const ride = this._rideOn(transport)
+    const target = this._target(ride, this._appState.connectionConfig.unitId, params.timeout)
 
     // The chunk is the stride, the divisor of the progress and the quantity of
     // every request, so it is one number here. `ScanRegistersParametersSchema`
@@ -1043,7 +1051,6 @@ export class ModbusClient implements TransportClient {
     this._clientState.scanningRegisters = true
     this._sendClientState()
 
-    const ride = this._rideOn(transport)
     const scan = ++this._scanGeneration
 
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
