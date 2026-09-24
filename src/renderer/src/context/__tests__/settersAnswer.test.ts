@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 //
-// A caller that replays a setter has to know whether main took the value. Each
-// setter answers `false` on every refusal and `true` once main holds the value,
-// including when it held it already.
+// A caller that replays a setter has to know whether the store took the value.
+// Each setter answers `false` on every refusal and `true` once main and the
+// store hold the value, including when they held it already. An answer a later
+// call superseded is `false` too, and `lateAnswer.test.ts` holds that case.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_SERVER_UUID, MAIN_CLIENT_UUID } from '@shared'
 import { stubRenderer } from './stubRenderer'

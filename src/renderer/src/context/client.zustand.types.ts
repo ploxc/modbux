@@ -96,8 +96,9 @@ export type ClientZustand = {
   // Config
   init: () => void
   // Configuration actions, each one waiting on the boundary before it writes.
-  // Each answers whether main holds the value afterwards: `false` on every
-  // refusal, `true` once it is written or when it was already there.
+  // Each answers whether main and the store both hold the value afterwards:
+  // `false` on every refusal and on an answer a later call superseded, `true`
+  // once it is written or when it was already there.
   setProtocol: (protocol: Protocol) => Promise<boolean>
   setPort: AsyncMaskSetFn
   setHost: AsyncMaskSetFn

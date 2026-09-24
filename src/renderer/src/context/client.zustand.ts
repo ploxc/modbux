@@ -184,6 +184,28 @@ const isDisconnected = (uuid: string): boolean =>
   dataOf(useDataZustand.getState(), uuid).clientState.connectState === 'disconnected'
 
 /**
+ * The last call of each setter that writes an invalid value at once, per
+ * client, so the answer to an earlier valid call can tell it came too late.
+ */
+const latestCall = new Map<string, number>()
+
+/**
+ * Starts a call of `field` on `uuid`, and answers whether it is still the
+ * latest one.
+ *
+ * `setHost`, `setCom` and `setLength` write an invalid value at once and a
+ * valid one after main answers, so a valid key's answer can arrive after a
+ * later invalid key was written. Written then, it would put the older value
+ * back in the store while the field shows the newer.
+ */
+const startCall = (uuid: string, field: 'host' | 'com' | 'length'): (() => boolean) => {
+  const key = `${uuid}:${field}`
+  const call = (latestCall.get(key) ?? 0) + 1
+  latestCall.set(key, call)
+  return () => latestCall.get(key) === call
+}
+
+/**
  * Records the value a field had, when a write left the store holding another.
  *
  * Called after the `set`, including where an invalid value is kept and never
@@ -564,6 +586,7 @@ export const useClientZustand = create<
         if (!isDisconnected(uuid)) return false
 
         const before = selectedClient(get()).connectionConfig.tcp.host
+        const isLatest = startCall(uuid, 'host')
 
         // The field reads its text from the store, so an invalid host is kept
         // here and never sent. What the boundary never sees needs no answer.
@@ -582,6 +605,7 @@ export const useClientZustand = create<
           !(await window.api.updateConnectionConfig({ uuid, connectionConfig: { tcp: { host } } }))
         )
           return false
+        if (!isLatest()) return false
 
         set((state) =>
           onClient(state, uuid, ({ client, session }) => {
@@ -605,6 +629,7 @@ export const useClientZustand = create<
         // a string and takes a blank one, so the boundary had nothing to refuse
         // and main held a connection config naming no port.
         const before = selectedClient(get()).connectionConfig.rtu.com
+        const isLatest = startCall(uuid, 'com')
         if (!valid) {
           set((state) =>
             onClient(state, uuid, ({ client, session }) => {
@@ -620,6 +645,7 @@ export const useClientZustand = create<
           !(await window.api.updateConnectionConfig({ uuid, connectionConfig: { rtu: { com } } }))
         )
           return false
+        if (!isLatest()) return false
 
         set((state) =>
           onClient(state, uuid, ({ client, session }) => {
@@ -703,6 +729,7 @@ export const useClientZustand = create<
 
         const newLength = Number(length)
         const before = selectedClient(get()).registerConfig.length
+        const isLatest = startCall(uuid, 'length')
 
         // The field reads its length from the store, so an empty or zero one is
         // kept here and never sent.
@@ -721,6 +748,7 @@ export const useClientZustand = create<
           !(await window.api.updateRegisterConfig({ uuid, registerConfig: { length: newLength } }))
         )
           return false
+        if (!isLatest()) return false
 
         set((state) =>
           onClient(state, uuid, ({ client, session }) => {
