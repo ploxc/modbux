@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { getReadSpan, buildAddrInfos, groupAddressInfos } from '../addressGrouping'
-import type { RegisterMapObject } from '../types'
+import { getReadSpan, buildAddrInfos, groupAddressInfos, readsNothing } from '../addressGrouping'
+import { emptyRegisterMapping } from '../default'
+import type { RegisterMapObject, RegisterMapping } from '../types'
 
 describe('getReadSpan', () => {
   it('returns 1 for 16-bit types', () => {
@@ -251,5 +252,35 @@ describe('groupAddressInfos', () => {
       [0, 6],
       [200, 6]
     ])
+  })
+})
+
+describe('readsNothing', () => {
+  const mapped = (): RegisterMapping => {
+    const mapping = emptyRegisterMapping()
+    mapping.holding_registers = { 0: { dataType: 'uint16' } }
+    mapping.coils = { 0: { dataType: 'uint16' } }
+    return mapping
+  }
+
+  it('is true for a length not given with read configuration off', () => {
+    expect(readsNothing(false, 'holding_registers', mapped(), false)).toBe(true)
+  })
+
+  it('is false for a length given', () => {
+    expect(readsNothing(false, 'holding_registers', mapped(), true)).toBe(false)
+  })
+
+  it('is false under read configuration with a group for the type', () => {
+    expect(readsNothing(true, 'holding_registers', mapped(), false)).toBe(false)
+  })
+
+  it('is true under read configuration with no group for the type', () => {
+    expect(readsNothing(true, 'input_registers', mapped(), false)).toBe(true)
+  })
+
+  // A bit type reads the toolbar's block whatever a config file maps on it.
+  it('is true for a bit type under read configuration, whatever it maps', () => {
+    expect(readsNothing(true, 'coils', mapped(), false)).toBe(true)
   })
 })

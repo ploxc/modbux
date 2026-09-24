@@ -16,9 +16,11 @@ import {
   createRegisters,
   defaultClientState,
   isBooleanRegister,
+  isReadLengthGiven,
   maxReadQuantity,
   pollDelay,
   readLoopOwner,
+  readsNothing,
   RegisterConfig,
   RegisterData,
   registersFrom,
@@ -315,6 +317,25 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
+   * Whether `verb` would ask for no registers, having said so.
+   *
+   * The length field keeps a 0 it refused rather than sending it, but `init`
+   * hands main the whole stored register config, so after a restart main holds
+   * the 0 the field showed. A read and the read back of a write ask it before
+   * they own the client, `startPolling` before a poll starts, and a poll's own
+   * read on every tick.
+   */
+  private _refusesLength = (verb: string): boolean => {
+    const { readConfiguration, registerMapping, registerConfig } = this._appState
+    const lengthGiven = isReadLengthGiven(registerConfig.length)
+    if (!readsNothing(readConfiguration, registerConfig.type, registerMapping, lengthGiven)) {
+      return false
+    }
+    this._emitMessage({ message: `Cannot ${verb} a length of 0`, variant: 'warning', error: null })
+    return true
+  }
+
+  /**
    * Whether `verb` may go ahead, saying who has the client when it may not.
    *
    * The transport's queue keeps two requests off the wire at once; this keeps
@@ -433,6 +454,7 @@ export class ModbusClient implements TransportClient {
    * would refuse it.
    */
   private _readOwningTheClient = async (): Promise<void> => {
+    if (this._refusesLength('read')) return
     this._clientState.reading = true
     this._sendClientState()
     try {
@@ -463,6 +485,14 @@ export class ModbusClient implements TransportClient {
     const ride = this._rideOn(transport)
     const stopped = (): boolean =>
       pollGeneration !== undefined && pollGeneration !== this._pollGeneration
+
+    // `startPolling` refused a poll of no registers, so a poll that gets here
+    // lost its configured groups since, and it stops rather than read nothing
+    // on every tick.
+    if (pollGeneration !== undefined && this._refusesLength('poll')) {
+      this.stopPolling()
+      return undefined
+    }
 
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration
@@ -619,6 +649,7 @@ export class ModbusClient implements TransportClient {
   public startPolling = (): void => {
     if (this._clientState.polling) return
     if (!this._requireClient('poll')) return
+    if (this._refusesLength('poll')) return
 
     this._clientState.polling = true
     this._sendClientState()

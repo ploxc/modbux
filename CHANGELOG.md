@@ -101,6 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed on nothing to open. The field keeps what you type and marks it, and
   Connect stays greyed until it names a port again, as it does for a blank
   host.
+- **Read and Poll grey out while the Length field is empty or 0.** They took
+  a press there: the read went out at the length the field last accepted, and
+  after a restart at a length of 0, which asks the device for no registers.
+  A read or a poll of no registers is refused with a message now as well.
+  With read configuration on, the length counts only for a register type
+  with nothing configured, because that is when the toolbar's range is read.
 - **Changing the unit ID now empties the grid the way the address does.** The
   rows the previous unit answered stayed on screen under a unit ID that had not
   read them, so you were looking at one device's values under another's ID. The

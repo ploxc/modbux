@@ -5,6 +5,7 @@ import {
   isConnectionAddressGiven,
   isReadLengthGiven,
   MAIN_CLIENT_UUID,
+  readsNothing,
   repairPersisted
 } from '@shared'
 import {
@@ -66,6 +67,25 @@ export const selectedClient = (state: Selection): PersistedClient =>
 export const selectedSession = (
   state: Pick<PersistedClientZustand, 'selectedUuid'> & { sessions: Record<string, ClientSession> }
 ): ClientSession => state.sessions[state.selectedUuid] ?? NO_SESSION
+
+/**
+ * Whether a read of `uuid` would ask for no registers, which main refuses:
+ * the question `readsNothing` asks, of that client's config and its Length
+ * field's flag.
+ */
+export const readsNothingOf = (
+  state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
+  uuid: string
+): boolean => {
+  const client = state.clients[uuid] ?? NO_CLIENT
+  const session = state.sessions[uuid] ?? NO_SESSION
+  return readsNothing(
+    session.readConfiguration,
+    client.registerConfig.type,
+    client.registerMapping,
+    session.valid.length
+  )
+}
 
 /**
  * The clients read back one at a time, field by field, and a selected uuid

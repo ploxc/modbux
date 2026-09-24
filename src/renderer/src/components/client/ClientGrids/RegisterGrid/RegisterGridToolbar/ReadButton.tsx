@@ -3,7 +3,11 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  readsNothingOf,
+  selectedClientUuid,
+  useClientZustand
+} from '@renderer/context/client.zustand'
 
 const ReadButton = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
@@ -21,12 +25,15 @@ const ReadButton = meme((): JSX.Element => {
   // just refusing.
   const reading = useDataZustand((z) => dataOf(z, selectedUuid).clientState.reading)
 
+  // What main refuses as a read of no registers.
+  const readsNoRegisters = useClientZustand((z) => readsNothingOf(z, z.selectedUuid))
+
   const handleRead = useCallback(() => {
     window.api.read(selectedClientUuid())
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
-  const disabled = !connected || owner !== undefined
+  const disabled = !connected || owner !== undefined || readsNoRegisters
 
   return (
     <Button

@@ -146,3 +146,19 @@ export const configuredReadGroups = (
   registerMapping: RegisterMapping | undefined
 ): Array<AddressGroup> =>
   readConfiguration && isNumberRegister(type) ? groupAddressInfos(registerMapping?.[type]) : []
+
+/**
+ * Whether a read would ask for no registers: the toolbar's block, at a length
+ * the field refused and kept.
+ *
+ * Read configuration reads its groups instead, and where it has none for the
+ * type the toolbar's block goes out after all, so the length decides then too.
+ * Main refuses a read and a poll on this, and Read and Poll grey out on it.
+ */
+export const readsNothing = (
+  readConfiguration: boolean,
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  lengthGiven: boolean
+): boolean =>
+  !lengthGiven && configuredReadGroups(readConfiguration, type, registerMapping).length === 0

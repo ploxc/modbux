@@ -220,6 +220,21 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await readRegisters(mainPage, '0', '40')
   })
 
+  test('a cleared length greys Read and Poll until it names a register again', async ({
+    mainPage
+  }) => {
+    const lengthInput = mainPage.getByTestId('reg-length-input').locator('input')
+    await lengthInput.fill('')
+
+    await expect(mainPage.getByTestId('read-btn')).toBeDisabled()
+    await expect(mainPage.getByTestId('poll-btn')).toBeDisabled()
+
+    await lengthInput.fill('40')
+    await expect(mainPage.getByTestId('read-btn')).toBeEnabled()
+    await expect(mainPage.getByTestId('poll-btn')).toBeEnabled()
+    await readRegisters(mainPage, '0', '40')
+  })
+
   // ─── Raw display toggle ─────────────────────────────────────────────
 
   test('raw button toggles raw display mode', async ({ mainPage }) => {

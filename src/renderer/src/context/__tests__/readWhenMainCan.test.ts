@@ -89,6 +89,20 @@ describe('the byte order, which reads through the same rule', () => {
     expect(methods()).toEqual(['updateRegisterConfig', 'read'])
   })
 
+  // Main refuses a read of no registers, and after a restart it holds the 0
+  // the Length field kept.
+  it('asks for nothing while the Length field holds a length it refused', async () => {
+    const { useClientZustand, useDataZustand } = await load()
+    useDataZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+    useDataZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLength('0', false)
+    calls.length = 0
+
+    await useClientZustand.getState().setLittleEndian(true)
+
+    expect(methods()).toEqual(['updateRegisterConfig'])
+  })
+
   it('asks for nothing on an empty grid', async () => {
     const { useClientZustand, useDataZustand } = await load()
     useDataZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)

@@ -27,6 +27,7 @@ import {
 } from '@shared'
 import {
   getDefaultClient,
+  readsNothingOf,
   readySession,
   repairClients,
   selectedClient,
@@ -51,7 +52,7 @@ export const getSelectedClient = (): PersistedClient => selectedClient(useClient
 /** Its session, read now rather than subscribed to. */
 export const getSelectedSession = (): ClientSession => selectedSession(useClientZustand.getState())
 
-export { selectedClient, selectedSession }
+export { readsNothingOf, selectedClient, selectedSession }
 
 /**
  * The client and the session under `uuid`, as the recipe finds them, or
@@ -275,13 +276,16 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
  *
  * `read` refuses and says so in a snackbar when anything owns the client, and
  * again when nothing is connected, so a caller that asks anyway costs the user
- * a warning it did not ask for. `clientOwner` is the question main asks, which
- * is why it is asked here rather than restated.
+ * a warning it did not ask for, and it refuses a read of no registers the
+ * same way. `clientOwner` is the question main asks. `readsNothingOf` asks
+ * main's length question of what the Length field shows, which is what main
+ * holds after a restart and what the field leaves unsent before one.
  */
 const readWhenMainCan = (uuid: string): void => {
   const { clientState } = dataOf(useDataZustand.getState(), uuid)
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) return
+  if (readsNothingOf(useClientZustand.getState(), uuid)) return
   window.api.read(uuid)
 }
 

@@ -2379,6 +2379,133 @@ describe('ModbusClient', () => {
     })
   })
 
+  // The length field keeps a 0 it refuses, and `init` hands main the stored
+  // register config, so main holds that 0 after a restart.
+  describe('a read length of 0', () => {
+    const lastMessage = () => getWindowCalls('backend_message').at(-1)?.[1]
+
+    it('refuses a read, and says so', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      setupHoldingRegisterReadMock([100])
+      const before = getWindowCalls('client_state').length
+
+      await client.read()
+
+      // Refused before it owned the client, so no read was ever said to run.
+      expect(getWindowCalls('client_state').slice(before)).toEqual([])
+
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot read a length of 0',
+        variant: 'warning'
+      })
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(client.state.reading).toBe(false)
+    })
+
+    it('refuses a poll, and says so', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot poll a length of 0',
+        variant: 'warning'
+      })
+      expect(client.state.polling).toBe(false)
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+    })
+
+    it('reads the configured groups, which the length is not part of', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' } }
+      })
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 1)
+    })
+
+    it('refuses a read under read configuration with no group for the type', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      appState.setReadConfiguration(true)
+
+      await client.read()
+
+      expect(lastMessage()).toMatchObject({ message: 'Cannot read a length of 0' })
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+    })
+
+    it('reads nothing back after a write, and says so', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      mockModbusRTU.writeFC6.mockImplementation(
+        (_unit: number, _address: number, _value: number, next: (error: null) => void) => next(null)
+      )
+
+      await client.write({
+        address: 0,
+        type: 'holding_registers',
+        value: 1,
+        dataType: 'uint16',
+        single: true
+      })
+
+      expect(mockModbusRTU.writeFC6).toHaveBeenCalled()
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(lastMessage()).toMatchObject({ message: 'Cannot read a length of 0' })
+    })
+
+    it('stops a poll whose groups went since it started, and says so', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 0 })
+      appState.setReadConfiguration(true)
+      appState.setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' } }
+      })
+      setupHoldingRegisterReadMock([100])
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      const reads = mockModbusRTU.readHoldingRegisters.mock.calls.length
+      const said = getWindowCalls('backend_message').length
+
+      appState.setReadConfiguration(false)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBe(reads)
+      expect(
+        getWindowCalls('backend_message')
+          .slice(said)
+          .map((call) => call[1].message)
+      ).toEqual(['Cannot poll a length of 0'])
+      expect(client.state.polling).toBe(false)
+    })
+
+    it('reads a length of 1', async () => {
+      await connectClient()
+      appState.updateRegisterConfig({ length: 1 })
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 1)
+    })
+  })
+
   describe('read with data', () => {
     it('reads holding registers and sends data', async () => {
       await connectClient()

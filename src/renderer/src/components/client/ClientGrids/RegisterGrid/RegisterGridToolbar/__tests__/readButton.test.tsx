@@ -16,14 +16,36 @@ vi.hoisted(async () => {
 
 import { render, screen } from '@testing-library/react'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { ClientState, defaultClientState } from '@shared'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import ReadButton from '../ReadButton'
 import { patchShownData } from '../../../../../../context/__tests__/shownData'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
-const renderButton = (clientState: Partial<ClientState>): HTMLElement => {
+interface Toolbar {
+  /** What the Length field's validity flag reads. */
+  lengthGiven?: boolean
+  /** Read configuration on, with a group for the register type or without. */
+  mappedGroup?: boolean
+}
+
+const renderButton = (
+  clientState: Partial<ClientState>,
+  { lengthGiven = true, mappedGroup }: Toolbar = {}
+): HTMLElement => {
   patchShownData(useDataZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
+  const registerMapping = emptyRegisterMapping()
+  if (mappedGroup) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
+  patchSelectedClient(
+    useClientZustand,
+    { registerMapping },
+    {
+      readConfiguration: mappedGroup !== undefined,
+      valid: { host: true, com: true, length: lengthGiven }
+    }
+  )
   render(<ReadButton />)
   return screen.getByTestId('read-btn')
 }
@@ -61,5 +83,19 @@ describe('the Read button', () => {
 
   it('takes none while nothing is connected', () => {
     expect(renderButton({ connectState: 'disconnected' })).toBeDisabled()
+  })
+
+  // Main refuses a read of no registers, which is the toolbar's block at a
+  // length the field refused and kept.
+  it('takes none at a length the field refused', () => {
+    expect(renderButton({}, { lengthGiven: false })).toBeDisabled()
+  })
+
+  it('takes a press at that length when read configuration reads its groups', () => {
+    expect(renderButton({}, { lengthGiven: false, mappedGroup: true })).toBeEnabled()
+  })
+
+  it('takes none at that length when read configuration has no group for the type', () => {
+    expect(renderButton({}, { lengthGiven: false, mappedGroup: false })).toBeDisabled()
   })
 })
