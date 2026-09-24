@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opening the server in its own window leaves the RTU server running.** The
+  new window started the RTU server again, which closed and reopened its serial
+  port and said "RTU server stopped". The window now asks which servers are
+  running instead of starting them.
 - **A unit id over RTU stops at 247.** Modbus RTU and RTU over TCP address
   units up to 247, and Modbus TCP keeps 0 to 255. A client over RTU on 248 or
   higher keeps its id, shows it red, and refuses to connect, read, poll, write
@@ -55,8 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   view now says it is reconnecting for as long as it is, and the poll waits it
   out and reads again once the connection is back. A TCP connection the device
   resets is reconnected too, the moment it resets, where the client used to go
-  to Connect at the next read, and a connection error that leaves the port working no longer shows
-  the client as disconnected.
+  to Connect at the next read, and a connection error that leaves the port
+  working no longer shows the client as disconnected.
 - **A stopped poll stops after the request it has on the way.** Its read went
   on through every configured group and then filled the grid, so a scan
   started from a poll waited for all of it, against a device that does not

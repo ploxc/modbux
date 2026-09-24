@@ -99,6 +99,7 @@ export const IPC_CHANNELS = [
   'start_rtu_server',
   'stop_rtu_server',
   'get_rtu_server_status',
+  'get_server_ports',
   'stop_all_tcp_servers',
   'get_privileged_port_status',
   'apply_privileged_port_fix',
@@ -362,6 +363,17 @@ export interface IpcHandlerSpec {
   ['get_rtu_server_status']: {
     args: []
     return: boolean
+  }
+
+  /**
+   * The port of every server main holds a TCP listener for, by uuid.
+   *
+   * The split out server window asks it in place of opening the servers again,
+   * so it knows which ones the main window's `init` opened.
+   */
+  ['get_server_ports']: {
+    args: []
+    return: Record<string, number>
   }
 
   /** Stop all running TCP servers (cleanup before RTU switch) */

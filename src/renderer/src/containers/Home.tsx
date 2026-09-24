@@ -15,6 +15,7 @@ import { sendEvent } from '@renderer/events'
 import Ploxc from '@renderer/svg/Ploxc'
 import GithubCat from '@renderer/svg/GithubCat'
 import { useClientZustand } from '@renderer/context/client.zustand'
+import { useServerZustand } from '@renderer/context/server.zustand'
 
 //
 //
@@ -94,6 +95,27 @@ const ServerButton = meme((): JSX.Element => {
       <Typography variant="overline" sx={(theme) => ({ color: theme.palette.background.default })}>
         Server
       </Typography>
+    </Button>
+  )
+})
+
+/**
+ * Opens the server in a window of its own, once this window has opened every
+ * server. The new window asks main which servers it holds, and one this window
+ * has not opened yet would stay unusable there until the window reloads.
+ */
+const SplitButton = meme((): JSX.Element => {
+  const initialized = useServerZustand((z) => z.initialized)
+  const openServerWindow = useCallback(() => sendEvent('open_server_window'), [])
+  return (
+    <Button
+      data-testid="home-split-btn"
+      aria-label="Open server in separate window"
+      title="Open server in separate window"
+      disabled={!initialized}
+      onClick={openServerWindow}
+    >
+      <CallSplit sx={(theme) => ({ color: theme.palette.background.default })} fontSize="large" />
     </Button>
   )
 })
@@ -179,19 +201,7 @@ const Home = meme(() => {
         />
         <Box sx={() => ({ display: 'flex', gap: 3 })}>
           <ServerButton />
-          <Button
-            data-testid="home-split-btn"
-            aria-label="Open server in separate window"
-            title="Open server in separate window"
-            onClick={() => {
-              sendEvent('open_server_window')
-            }}
-          >
-            <CallSplit
-              sx={(theme) => ({ color: theme.palette.background.default })}
-              fontSize="large"
-            />
-          </Button>
+          <SplitButton />
           <ClientButton />
         </Box>
         <PloxcLogo />

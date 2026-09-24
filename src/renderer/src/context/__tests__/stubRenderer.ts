@@ -44,6 +44,7 @@ const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   getClientStates: () => Promise.resolve({ [MAIN_CLIENT_UUID]: disconnected }),
   getAppVersion: () => Promise.resolve('0.0.0-test'),
   getRtuServerStatus: () => Promise.resolve(false),
+  getServerPorts: () => Promise.resolve({}),
   listSerialPorts: () => Promise.resolve([])
 }
 

@@ -730,8 +730,37 @@ const repairFromTheKey = (): void => {
 
 repairFromTheKey()
 
-// Init server
-useServerZustand.getState().init()
+/**
+ * What the split out server window does in place of `init`: ask main which
+ * servers the main window opened, and mark those ready.
+ *
+ * `init` opens every server and sends main this window's persisted copy of its
+ * registers. In RTU mode that restarts the RTU server, because
+ * `RtuServer.start` stops the running one first. In RTU mode the main server is
+ * ready whether or not its port opened, as `init` has it.
+ */
+const adoptMainServers = async (): Promise<void> => {
+  const { serverMode, servers } = useServerZustand.getState()
+  if (serverMode === 'rtu') {
+    useServerZustand.setState({
+      ready: { [MAIN_SERVER_UUID]: true },
+      selectedUuid: MAIN_SERVER_UUID,
+      initialized: true
+    })
+    return
+  }
+  const ports = await window.api.getServerPorts()
+  useServerZustand.setState({
+    ready: Object.fromEntries(Object.keys(servers).map((uuid) => [uuid, uuid in ports])),
+    initialized: true
+  })
+}
+
+if (window.api.isServerWindow) {
+  adoptMainServers().catch((error) => console.error('Asking main for its servers failed:', error))
+} else {
+  useServerZustand.getState().init()
+}
 
 const delayedBool = new ServerDelayedSetter<boolean, SetBoolParameters>({
   maxCount: 250,

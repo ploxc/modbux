@@ -60,10 +60,12 @@ test.describe.serial('Split View — Server in separate window', () => {
   })
 
   /**
-   * The second window runs the store module again, so `init` calls
-   * `createServer` for every uuid. When that rebound the listener,
-   * `ServerTCP.close` destroyed every open socket and a master outside Modbux
-   * got a FIN. Only the e2e suite can see this: it takes two windows.
+   * The second window runs the store module again. It asks main which servers
+   * it holds rather than opening them, and main leaves a listener already on
+   * the requested port alone besides, which `modbusServer.test.ts` holds on
+   * its own. A rebind would have `ServerTCP.close` destroy every open socket,
+   * and a master outside Modbux would get a FIN. Only the e2e suite sees the
+   * two windows together.
    */
   test('the master keeps its connection through the window opening', async () => {
     expect(masterEvents).toEqual([])

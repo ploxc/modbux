@@ -46,6 +46,11 @@ export class TcpServers {
     return this._port.get(uuid)
   }
 
+  /** The port of every uuid that has a listener. */
+  public ports(): Record<string, number> {
+    return Object.fromEntries(this._port)
+  }
+
   /**
    * Checks if a TCP port is available for binding.
    * Returns an object with availability and optional error code (e.g. EACCES, EADDRINUSE).

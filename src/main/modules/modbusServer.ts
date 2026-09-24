@@ -138,6 +138,9 @@ export class ModbusServer {
   /** Replaces both bool maps of a unit with what the renderer holds. */
   public syncBools = (params: SyncBoolsParameters): void => this._registry.syncBools(params)
 
+  /** The port of every server with a TCP listener, by uuid. */
+  public serverPorts = (): Record<string, number> => this._tcp.ports()
+
   /** Starts an RTU server on a serial port for the given UUID. */
   public startRtuServer = (params: StartRtuServerParams): Promise<void> => this._rtu.start(params)
 

@@ -1474,6 +1474,16 @@ describe('ModbusServer', () => {
     })
   })
 
+  describe('serverPorts', () => {
+    it('answers the port of every uuid with a listener, and not one it deleted', async () => {
+      await server.createServer({ uuid, port: 5020 })
+      await server.createServer({ uuid: 'another', port: 5021 })
+      await server.deleteServer('another')
+
+      expect(server.serverPorts()).toEqual({ [uuid]: 5020 })
+    })
+  })
+
   describe('deleteServer', () => {
     it('deletes an existing server', async () => {
       await server.createServer({ uuid, port: 5020 })
