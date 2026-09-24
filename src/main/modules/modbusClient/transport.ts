@@ -61,6 +61,9 @@ interface ModbusRTUEmitter extends ModbusRTU {
   _port: { destroy?: (callback: () => void) => void } | undefined
 }
 
+/** How a close ended: closed, let go of after five seconds, or thrown. */
+type CloseEnding = 'closed' | 'timed out' | { failed: unknown }
+
 interface TransportParams {
   key: string
   /**
@@ -442,13 +445,7 @@ export class Transport {
         // opens the same path and a serial port that is still closing refuses
         // it: `_openInFlight` is cleared in the `finally` below, so what this
         // waits for is what that flag promises.
-        await new Promise<void>((resolve) => {
-          const giveUp = setTimeout(resolve, 5000)
-          this._modbus.close(() => {
-            clearTimeout(giveUp)
-            resolve()
-          })
-        })
+        await this._closeOrAbandon()
         return
       }
 
@@ -531,31 +528,71 @@ export class Transport {
   }
 
   /**
-   * Close the open port, giving up on it after five seconds, and say how it
-   * ended without saying it to anyone.
+   * Close the port, and let go of it when the close has not finished five
+   * seconds later, or when it throws.
+   *
+   * A close finishes when it calls back on a port that reads shut, whatever it
+   * calls back with: a serial binding clears its descriptor before it closes,
+   * so even a close that failed answers on a port that reads shut. Only a TCP
+   * or telnet port answers while it reads open. tcpport calls its close back
+   * with "TCP Connection Timed Out", and telnetport with "TelnetPort
+   * Connection Timed Out.", when the socket's idle timer fires, which
+   * counts from the last traffic rather than from the close, and again each
+   * time traffic re-arms it: the peer has not answered the FIN yet, and may
+   * never. Each such answer asks again, and the five seconds decide.
+   */
+  private _closeOrAbandon = (): Promise<CloseEnding> =>
+    new Promise((resolve) => {
+      let settled = false
+      const settle = (ending: CloseEnding): void => {
+        settled = true
+        clearTimeout(giveUp)
+        resolve(ending)
+      }
+      const letGo = (ending: CloseEnding): void => {
+        settle(ending)
+        this._abandonPort(() => {})
+      }
+      const giveUp = setTimeout(() => letGo('timed out'), 5000)
+      const ask = (): void => {
+        try {
+          this._modbus.close(answered)
+        } catch (error) {
+          // A close that threw leaves nothing to wait for, so the port is let go
+          // of now rather than after the five seconds.
+          letGo({ failed: error })
+        }
+      }
+      // An answer ahead of the give-up in the same turn queues this to run after
+      // it, and a destroyed socket reads open until Node emits its `close`,
+      // which runs after the immediate this is queued as. The port can also
+      // shut between an answer and the next ask, with nobody's callback kept to
+      // hear it.
+      const askAgain = (): void => {
+        if (settled) return
+        if (this._modbus.isOpen) ask()
+        else settle('closed')
+      }
+      const answered = (): void => {
+        // Settled here rather than an immediate later, so a close that answers
+        // on a port that reads shut ends in the same turn.
+        if (!this._modbus.isOpen) settle('closed')
+        // After the answer returns: tcpport empties its callback slot once the
+        // callback has run, which would drop one kept from inside it.
+        else setImmediate(askAgain)
+      }
+      ask()
+    })
+
+  /**
+   * Close the open port, and say how it ended without saying it to anyone.
    *
    * `_closing` holds for as long as this runs, which is what `refuses` reads.
    */
-  private _closePort = async (): Promise<'closed' | 'timed out' | { failed: unknown }> => {
+  private _closePort = async (): Promise<CloseEnding> => {
     this._closing = true
     try {
-      return await new Promise<'closed' | 'timed out'>((resolve) => {
-        const giveUp = setTimeout(() => this._abandonPort(() => resolve('timed out')), 5000)
-        try {
-          this._modbus.close(() => {
-            clearTimeout(giveUp)
-            resolve('closed')
-          })
-        } catch (error) {
-          // A close that threw started nothing to wait for, so the port is
-          // let go of now rather than after the five seconds.
-          clearTimeout(giveUp)
-          this._abandonPort(() => {})
-          throw error
-        }
-      })
-    } catch (error) {
-      return { failed: error }
+      return await this._closeOrAbandon()
     } finally {
       this._closing = false
     }
@@ -605,8 +642,8 @@ export class Transport {
 
     const ending = await this._closePort()
     if (typeof ending === 'object') {
-      // `ModbusRTU.close` threw where it stands. That leaves a port whose close
-      // never started, which is a disconnect whatever the port went on to do.
+      // `ModbusRTU.close` threw, and the port has been let go of, which is a
+      // disconnect whatever the port goes on to do.
       this._emitMessage({
         message: errorText(ending.failed),
         variant: 'error',

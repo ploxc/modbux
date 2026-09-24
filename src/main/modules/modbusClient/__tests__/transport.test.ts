@@ -445,6 +445,261 @@ describe('Transport', () => {
       expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
     })
 
+    // tcpport's close ends the socket and keeps the callback it was handed,
+    // which a second close replaces. The socket's idle timer answers it with
+    // an error and leaves the port reading open. The peer's FIN or reset, if
+    // either comes, shuts the port and answers whatever callback is kept.
+    // `handleCallback` empties the slot after the call rather than before, so a
+    // close asked for inside the answer loses its callback.
+    const closeThatTimesOut = (
+      peer?: { answers: 'fin' | 'reset'; after: number },
+      idle: { at: number; rearmedAt?: number } = { at: 3000 }
+    ) => {
+      let kept: ((error?: Error) => void) | undefined
+      const answer = (error?: Error) => {
+        kept?.(error)
+        kept = undefined
+      }
+      // `ModbusRTU.destroy` calls `tcpport.destroy()` with no callback, which
+      // empties the kept one, and destroys the socket, whose `close` shuts the
+      // port after an immediate an earlier answer queued. The fake clock runs
+      // the two in the order they were created.
+      mockModbusRTU.destroy.mockImplementation((callback: () => void) => {
+        kept = undefined
+        setImmediate(() => (mockModbusRTU.isOpen = false))
+        callback()
+      })
+      let ended = false
+      mockModbusRTU.close.mockImplementation((callback: (error?: Error) => void) => {
+        kept = callback
+        if (ended) return
+        ended = true
+        setTimeout(() => answer(new Error('TCP Connection Timed Out')), idle.at)
+        if (idle.rearmedAt !== undefined) {
+          setTimeout(() => answer(new Error('TCP Connection Timed Out')), idle.rearmedAt)
+        }
+        if (!peer) return
+        setTimeout(() => {
+          mockModbusRTU.isOpen = false
+          answer(peer.answers === 'reset' ? new Error('read ECONNRESET') : undefined)
+        }, peer.after)
+      })
+      return { idleTimerFires: () => answer(new Error('TCP Connection Timed Out')) }
+    }
+
+    // The idle timer counts from the traffic before the close, and traffic
+    // after its first answer re-arms it, which answers the close that asked
+    // again the same way.
+    it('keeps asking through a second error answer', async () => {
+      closeThatTimesOut({ answers: 'fin', after: 4500 }, { at: 500, rearmedAt: 3500 })
+      const { client, transport } = await connected()
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(4499)
+      expect(leaving).toEqual({ is: 'pending' })
+      await vi.advanceTimersByTimeAsync(1)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    it('lets go of a port at once when the close it asks again throws', async () => {
+      closeThatTimesOut()
+      const { client, transport } = await connected()
+      const first = mockModbusRTU.close.getMockImplementation()
+      if (!first) throw new Error('close has no implementation to wrap')
+      mockModbusRTU.close.mockImplementationOnce(first).mockImplementationOnce(() => {
+        throw new Error('Port is not open')
+      })
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(3001)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+      expect(messages()).toContainEqual(expect.objectContaining({ message: 'Port is not open' }))
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+    })
+
+    // A reset right after the idle answer finds nobody's callback kept.
+    it('takes a port that shut before it was asked again as closed', async () => {
+      closeThatTimesOut({ answers: 'reset', after: 3000 })
+      const { client, transport } = await connected()
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(3001)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    // An idle timer due in the same tick as the give-up, and armed before it,
+    // asks again once the port has been let go of.
+    it('asks nothing more of a port it let go of', async () => {
+      const socket = closeThatTimesOut()
+      const { client, transport } = await connected()
+      setTimeout(socket.idleTimerFires, 5000)
+
+      await Promise.all([transport.detach(client, false), vi.advanceTimersByTimeAsync(5000)])
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(mockModbusRTU.close).toHaveBeenCalledTimes(2)
+      expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets go of a port that still reads open five seconds into its close', async () => {
+      closeThatTimesOut()
+      const { client, transport } = await connected()
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(4999)
+      expect(leaving).toEqual({ is: 'pending' })
+      await vi.advanceTimersByTimeAsync(1)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+      expect(messages()).toContainEqual(
+        expect.objectContaining({ message: 'Disconnect timeout, the connection was dropped' })
+      )
+    })
+
+    it('waits out an error answer for a FIN that arrives inside the five seconds', async () => {
+      closeThatTimesOut({ answers: 'fin', after: 4000 })
+      const { client, transport } = await connected()
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(3999)
+      expect(leaving).toEqual({ is: 'pending' })
+      await vi.advanceTimersByTimeAsync(1)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    it('takes a reset after an error answer as closed', async () => {
+      closeThatTimesOut({ answers: 'reset', after: 3500 })
+      const { client, transport } = await connected()
+
+      const leaving = track(transport.detach(client, false))
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(leaving).toEqual({ is: 'resolved' })
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    // A peer that answers the FIN with a reset: tcpport's socket `error` shuts
+    // the port and calls the close back with the error. A serial close whose
+    // binding failed answers the same way, because the binding clears its
+    // descriptor first.
+    it('takes an error answer from a port that reads shut as closed', async () => {
+      mockModbusRTU.close.mockImplementation((callback: (error?: Error) => void) => {
+        mockModbusRTU.isOpen = false
+        callback(new Error('read ECONNRESET'))
+      })
+      const { client, transport } = await connected()
+
+      await transport.detach(client, false)
+
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    // A serial port reads shut from the moment its close starts until it answers.
+    it('lets go of a port whose close never answers while it reads shut', async () => {
+      mockModbusRTU.close.mockImplementation(() => {
+        mockModbusRTU.isOpen = false
+      })
+      const { client, transport } = await connected()
+
+      await Promise.all([transport.detach(client, false), vi.advanceTimersByTimeAsync(5000)])
+
+      expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+      expect(messages()).toContainEqual(
+        expect.objectContaining({ message: 'Disconnect timeout, the connection was dropped' })
+      )
+    })
+
+    it('destroys nothing of a port whose close answered', async () => {
+      const { client, transport } = await connected()
+
+      await transport.detach(client, false)
+
+      expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      expect(messages().at(-1)).toMatchObject({ message: 'Disconnected from server' })
+    })
+
+    describe('a connect cancelled while it opens, whose port opens after all', () => {
+      const cancelledOpen = async () => {
+        let open: () => void = () => {
+          throw new Error('connectTCP was never called')
+        }
+        mockModbusRTU.connectTCP.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              open = () => {
+                mockModbusRTU.isOpen = true
+                resolve()
+              }
+            })
+        )
+        const client = createClient()
+        const transport = transports.acquire(tcp('10.0.0.1'))
+        const opening = track(transport.attach(client, tcp('10.0.0.1')))
+        await transport.detach(client, true)
+        open()
+        return { transport, opening }
+      }
+
+      it('lets go of that port when its close never answers', async () => {
+        mockModbusRTU.close.mockImplementation(() => {})
+        const { transport, opening } = await cancelledOpen()
+
+        await vi.advanceTimersByTimeAsync(5000)
+
+        expect(opening).toEqual({ is: 'resolved' })
+        expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+        expect(Object.keys(mockModbusRTU.handlers)).toEqual(['error'])
+        expect(transports.acquire(tcp('10.0.0.1'))).not.toBe(transport)
+      })
+
+      it('lets go of that port when it still reads open five seconds into its close', async () => {
+        closeThatTimesOut()
+        const { opening } = await cancelledOpen()
+
+        await vi.advanceTimersByTimeAsync(5000)
+
+        expect(opening).toEqual({ is: 'resolved' })
+        expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+      })
+
+      it('lets go of that port at once when its close throws', async () => {
+        mockModbusRTU.close.mockImplementation(() => {
+          throw new Error('Port is not open')
+        })
+        const { opening } = await cancelledOpen()
+
+        await vi.advanceTimersByTimeAsync(0)
+        expect(opening).toEqual({ is: 'resolved' })
+        expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+        await vi.advanceTimersByTimeAsync(5000)
+        expect(mockModbusRTU.destroy).toHaveBeenCalledTimes(1)
+      })
+
+      it('destroys nothing of that port when its close answers', async () => {
+        const { opening } = await cancelledOpen()
+
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(opening).toEqual({ is: 'resolved' })
+        expect(mockModbusRTU.destroy).not.toHaveBeenCalled()
+      })
+    })
+
     it('rejects the read on the wire when the last client leaves an open port', async () => {
       const { client, transport } = await connected()
       likeTheLibrary()

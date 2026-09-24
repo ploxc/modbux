@@ -91,7 +91,11 @@ const createMockModbusRTU = () => ({
   connectTelnet: vi.fn(async (host: string, options: Record<string, unknown>) => {
     recordConnect('connectTelnet', host, options, { timeout: 3000 })
   }),
-  close: vi.fn((cb: () => void) => cb()),
+  // A close that succeeds calls back on a port that reads shut.
+  close: vi.fn(function (this: { isOpen: boolean }, cb: () => void) {
+    this.isOpen = false
+    cb()
+  }),
   destroy: vi.fn((cb: () => void) => cb()),
   readCoils: vi.fn().mockResolvedValue(undefined),
   readDiscreteInputs: vi.fn().mockResolvedValue(undefined),
@@ -592,8 +596,12 @@ describe('ModbusClient', () => {
       let closed: () => void = () => {
         throw new Error('close was never called')
       }
-      mockModbusRTU.close.mockImplementation((callback: () => void) => {
-        closed = callback
+      const leaving = mockModbusRTU
+      leaving.close.mockImplementation((callback: () => void) => {
+        closed = () => {
+          leaving.isOpen = false
+          callback()
+        }
       })
       const disconnecting = client.disconnect()
 
@@ -616,8 +624,12 @@ describe('ModbusClient', () => {
       let closed: () => void = () => {
         throw new Error('close was never called')
       }
-      constructedClient(0).close.mockImplementation((callback: () => void) => {
-        closed = callback
+      const leaving = constructedClient(0)
+      leaving.close.mockImplementation((callback: () => void) => {
+        closed = () => {
+          leaving.isOpen = false
+          callback()
+        }
       })
 
       // Another client cancels an open to 192.168.1.11, which is still opening.
@@ -838,7 +850,10 @@ describe('ModbusClient', () => {
         mockModbusRTU.isOpen = true
       })
       await client.connect()
-      mockModbusRTU.close.mockImplementation(() => {})
+      // `SerialPort.isOpen` reads false from the moment `close()` is called.
+      mockModbusRTU.close.mockImplementation(() => {
+        mockModbusRTU.isOpen = false
+      })
 
       const disconnectPromise = client.disconnect()
       await vi.advanceTimersByTimeAsync(5500)

@@ -107,6 +107,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A read or a poll of no registers is refused with a message now as well.
   With read configuration on, the length counts only for a register type
   with nothing configured, because that is when the toolbar's range is read.
+- **A disconnect from a TCP device that never closes its side drops the
+  connection.** Within three seconds of the last request, as while polling,
+  Modbux said "Disconnected from server" and left the connection half open
+  for as long as the device kept it. It now waits the five seconds a
+  disconnect is given, drops it and says the disconnect timed out, as it
+  already did for one that came later.
 - **Changing the unit ID now empties the grid the way the address does.** The
   rows the previous unit answered stayed on screen under a unit ID that had not
   read them, so you were looking at one device's values under another's ID. The
