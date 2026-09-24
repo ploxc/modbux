@@ -711,16 +711,6 @@ describe('ModbusClient', () => {
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === expected)).toBe(true)
     })
-
-    it('resets consecutive reconnects after 10s stability', async () => {
-      await connectClient()
-      // Advance past the 10s reconnect reset timeout
-      await vi.advanceTimersByTimeAsync(11000)
-
-      // Trigger close events — counter was reset so it starts fresh
-      fireClientEvent('close')
-      expect(getLastClientState().connectState).toBe('connecting')
-    })
   })
 
   /**
@@ -1003,6 +993,9 @@ describe('ModbusClient', () => {
   })
 
   describe('auto-reconnect', () => {
+    const messageTexts = (): string[] =>
+      getWindowCalls('backend_message').map((call) => String(call[1].message))
+
     it('schedules reconnect on close event', async () => {
       await connectClient()
 
@@ -1080,23 +1073,47 @@ describe('ModbusClient', () => {
       })
     })
 
-    it('gives up after max consecutive reconnects', async () => {
+    it('reconnects five times in a row, and gives up on the sixth drop', async () => {
       await connectClient()
+      for (let i = 0; i < 5; i++) {
+        fireClientEvent('close')
+        await vi.advanceTimersByTimeAsync(3500)
+      }
+      expect(messageTexts().filter((text) => text === 'Reconnected over Modbus TCP')).toHaveLength(
+        5
+      )
+      expect(getLastClientState().connectState).toBe('connected')
 
-      // Let the initial 10s reconnect-reset timer expire so it doesn't interfere
-      await vi.advanceTimersByTimeAsync(11000)
+      const before = getWindowCalls('client_state').length
+      fireClientEvent('close')
+      await vi.advanceTimersByTimeAsync(3500)
 
-      // Simulate 5 consecutive close events (max)
+      // A drop with no attempt left puts nobody on connecting.
+      const states = getWindowCalls('client_state')
+        .slice(before)
+        .map((call) => call[1].connectState)
+      expect([...new Set(states)]).toEqual(['disconnected'])
+
+      expect(messageTexts().at(-1)).toBe(
+        'Connection lost, too many consecutive reconnect attempts, giving up'
+      )
+      expect(getLastClientState().connectState).toBe('disconnected')
+    })
+
+    it('starts a fresh burst on a drop once the fifth reconnect has held', async () => {
+      await connectClient()
       for (let i = 0; i < 5; i++) {
         fireClientEvent('close')
         await vi.advanceTimersByTimeAsync(3500)
       }
 
-      const messages = getWindowCalls('backend_message')
-      expect(messages.some((m) => m[1].message.includes('Too many consecutive reconnect'))).toBe(
-        true
-      )
-      expect(getLastClientState().connectState).toBe('disconnected')
+      await vi.advanceTimersByTimeAsync(11000)
+      fireClientEvent('close')
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(messageTexts().at(-2)).toBe('Connection lost, reconnecting (1/5)...')
+      expect(messageTexts().at(-1)).toBe('Reconnected over Modbus TCP')
+      expect(getLastClientState().connectState).toBe('connected')
     })
 
     /**
@@ -1107,8 +1124,6 @@ describe('ModbusClient', () => {
      */
     describe('a reconnect whose open fails', () => {
       const GONE = 'No such file or directory, cannot open /dev/tty.usbmodem144301'
-      const messageTexts = (): string[] =>
-        getWindowCalls('backend_message').map((m) => String(m[1].message))
 
       const dropWithDeviceGone = async (): Promise<void> => {
         await connectClient()
@@ -1134,6 +1149,32 @@ describe('ModbusClient', () => {
         expect(messages).toContainEqual(
           expect.objectContaining({ message: 'Reconnecting (2/5)...', variant: 'warning' })
         )
+      })
+
+      it('makes every attempt it announces', async () => {
+        await dropWithDeviceGone()
+        await vi.advanceTimersByTimeAsync(3000 * 5)
+
+        const announced = messageTexts().filter((text) => /reconnecting \(/i.test(text))
+        expect(announced).toEqual([
+          'Connection lost, reconnecting (1/5)...',
+          ...[2, 3, 4, 5].map((n) => `Reconnecting (${n}/5)...`)
+        ])
+        // One open for the connect, and one per attempt announced.
+        expect(mockModbusRTU.connectTCP.mock.calls.length).toBe(1 + 5)
+      })
+
+      it('connects on the fifth attempt', async () => {
+        await dropWithDeviceGone()
+        await vi.advanceTimersByTimeAsync(3000 * 3)
+        mockModbusRTU.connectTCP.mockImplementation(async () => {
+          mockModbusRTU.isOpen = true
+        })
+
+        await vi.advanceTimersByTimeAsync(3000)
+
+        expect(messageTexts().at(-1)).toBe('Reconnected over Modbus TCP')
+        expect(getLastClientState().connectState).toBe('connected')
       })
 
       it('connects when the device is back', async () => {
@@ -1230,7 +1271,7 @@ describe('ModbusClient', () => {
       await connectClient()
       // Disable auto-reconnect by exhausting reconnects
       await vi.advanceTimersByTimeAsync(11000)
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 6; i++) {
         fireClientEvent('close')
         await vi.advanceTimersByTimeAsync(3500)
       }

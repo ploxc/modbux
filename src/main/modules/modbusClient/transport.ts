@@ -162,8 +162,8 @@ export class Transport {
   }
 
   /**
-   * The connection is gone while clients ride it, so they go to connecting and
-   * one reconnect burst starts.
+   * The connection is gone while clients ride it, so the burst puts them on
+   * connecting and reconnects, or lets them go when it has no attempt left.
    *
    * Two things say so. The port's close does, and so does a request that finds
    * the port shut under a connected state, which is all a TCP reset leaves:
@@ -181,13 +181,7 @@ export class Transport {
     // zero the count in the middle of the burst that follows, and the burst
     // would run past its limit.
     clearTimeout(this._reconnectResetTimeout)
-    this._emitMessage({
-      message: `Connection lost, reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
-      variant: 'warning',
-      error: null
-    })
-    this._setConnectState('connecting')
-    this._scheduleReconnect()
+    this._scheduleReconnect(true)
   }
 
   /**
@@ -327,7 +321,7 @@ export class Transport {
     if (this._openInFlight || this._reconnectTimeout) return
     // Riders on a port that is shut with nothing reopening it are on a
     // connection that went without a close, which is all a TCP reset leaves,
-    // and that is a reconnect for all of them rather than a fresh open.
+    // and that is the burst's for all of them rather than a fresh open.
     if (this._clients.size > 1) {
       this.lost()
       return
@@ -337,22 +331,36 @@ export class Transport {
   }
 
   // --- Auto-reconnect logic ---
-  private _scheduleReconnect = (): void => {
-    this._consecutiveReconnects++
-
+  /**
+   * Announce the next attempt of the burst and schedule it, or give up once
+   * the burst has made as many as it may.
+   *
+   * The count is asked before it goes up, so every attempt announced is an
+   * attempt made. `afterDrop` is whether `lost` called it rather than a failed
+   * reopen, whose `_open` has put the clients on connecting already. A drop is
+   * said even when the burst has no attempt left.
+   */
+  private _scheduleReconnect = (afterDrop: boolean): void => {
     if (this._consecutiveReconnects >= this._maxConsecutiveReconnects) {
       this._shouldAutoReconnect = false
       this._emitMessage({
-        message: 'Too many consecutive reconnect attempts, giving up',
+        message: afterDrop
+          ? 'Connection lost, too many consecutive reconnect attempts, giving up'
+          : 'Too many consecutive reconnect attempts, giving up',
         variant: 'error',
         error: null
       })
-      this._reconnectTimeout = undefined
       this._closeForEveryone()
       return
     }
 
-    if (this._reconnectTimeout) clearTimeout(this._reconnectTimeout)
+    this._consecutiveReconnects++
+    this._emitMessage({
+      message: `${afterDrop ? 'Connection lost, reconnecting' : 'Reconnecting'} (${this._consecutiveReconnects}/${this._maxConsecutiveReconnects})...`,
+      variant: 'warning',
+      error: null
+    })
+    if (afterDrop) this._setConnectState('connecting')
     this._reconnectTimeout = setTimeout(() => this._open(true), this._reconnectDelay)
   }
 
@@ -435,17 +443,12 @@ export class Transport {
       if (generation !== this._generation) return
       const port = protocol === 'ModbusRtu' ? com : undefined
       const reason = humanizeSerialError(error as Error, port)
-      // A failed reconnect is one attempt of the burst, not the end of it: a
-      // pulled USB cable fails every open until it is plugged back in, and no
-      // `close` follows a failed open to schedule the next one.
+      // A failed reconnect schedules the burst's next attempt itself, or gives
+      // up when it has none left: a pulled USB cable fails every open until it
+      // is plugged back in, and no `close` follows a failed open.
       this._emitMessage({ message: reason, variant: 'error', error })
       if (reconnect) {
-        this._emitMessage({
-          message: `Reconnecting (${this._consecutiveReconnects + 1}/${this._maxConsecutiveReconnects})...`,
-          variant: 'warning',
-          error: null
-        })
-        this._scheduleReconnect()
+        this._scheduleReconnect(false)
         return
       }
       this._closeForEveryone()

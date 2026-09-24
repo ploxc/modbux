@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   client stopped trying, so plugging the cable back in did nothing. It now
   keeps trying, up to five attempts, and picks the connection and the poll back
   up once the device answers.
+- **A connection that keeps dropping is reconnected up to five times in a
+  row.** Modbux counted the reconnects 1/5 to 5/5 and gave up at 5/5 without
+  making the fifth.
 - **A scan no longer stalls the window on a large configuration.** Every step a
   scan reported, every transaction it logged and every change of connection
   state wrote your whole saved client configuration back to disk, register

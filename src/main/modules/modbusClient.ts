@@ -233,9 +233,9 @@ export class ModbusClient implements TransportClient {
    *
    * Three callers ask it, `_read`, `write` and either scan. A client is
    * disconnected when it rides no transport, so a no leaves the state to what
-   * decides it: an open or a close under way, or the reconnect `lost` starts
-   * for a port found shut. A disconnected client is told so again, which ends
-   * a poll or a scan that was started without a connection.
+   * decides it: an open or a close under way, or what `lost` does with a port
+   * found shut. A disconnected client is told so again, which ends a poll or a
+   * scan that was started without a connection.
    *
    * A poll's own read is the one caller with nobody to answer, and it is the
    * one that passes `quiet`.
@@ -245,8 +245,8 @@ export class ModbusClient implements TransportClient {
     if (transport && this._clientState.connectState === 'connected' && transport.isOpen) {
       return transport
     }
-    // `lost` has said what happened and put the client on connecting, so a
-    // refusal beside it would contradict it.
+    // `lost` has said what happened, reconnecting or giving up, so a refusal
+    // beside it would say it twice.
     if (transport && this._noticeShut(transport)) return undefined
     if (!quiet) {
       this._emitMessage({
@@ -261,9 +261,9 @@ export class ModbusClient implements TransportClient {
 
   /**
    * Report the client's transport lost when its port is shut under a
-   * connected state: `lost` puts the transport's clients on connecting and
-   * reconnects. A transport the client has left is not its to report.
-   * Answers whether it reported.
+   * connected state: `lost` reconnects the transport's clients, or lets them
+   * go when the burst has no attempt left. A transport the client has left is
+   * not its to report. Answers whether it reported.
    */
   private _noticeShut = (transport: Transport): boolean => {
     if (transport !== this._transport) return false
