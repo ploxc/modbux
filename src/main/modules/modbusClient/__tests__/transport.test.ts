@@ -867,6 +867,122 @@ describe('Transport', () => {
       expect(second.states.at(-1)).toBe('connected')
     })
 
+    /**
+     * Drop the connection and let the burst reopen it, `times` over, up to the
+     * five a burst makes. Each drop lands inside the ten seconds in which the
+     * burst keeps its count, so the count goes up by `times`.
+     */
+    const dropAndReopen = async (times: number) => {
+      for (let i = 0; i < times; i++) {
+        mockModbusRTU.isOpen = false
+        fireHandler('close')
+        await vi.advanceTimersByTimeAsync(3500)
+      }
+    }
+
+    /** The messages a drop sends, which carry the count or say the burst gave up. */
+    const lostMessages = () =>
+      messages().filter((message) =>
+        (message as { message: string }).message.startsWith('Connection lost')
+      )
+    const lastLost = () => lostMessages().at(-1)
+
+    const afterReconnects = async (times: number) => {
+      const first = createClient()
+      const second = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(first, tcp('10.0.0.1'))
+      await dropAndReopen(times)
+      return { first, second, transport }
+    }
+
+    it.each([2, 5])(
+      'starts a fresh burst for a client that joins a port that died silently after %i reconnects',
+      async (times) => {
+        const { first, second, transport } = await afterReconnects(times)
+        mockModbusRTU.isOpen = false
+
+        await transport.attach(second, tcp('10.0.0.1'))
+        expect(lastLost()).toMatchObject({ message: 'Connection lost, reconnecting (1/5)...' })
+        await vi.advanceTimersByTimeAsync(3500)
+
+        expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(times + 2)
+        expect(first.states.at(-1)).toBe('connected')
+        expect(second.states.at(-1)).toBe('connected')
+      }
+    )
+
+    // The button reads Disconnect for a rider, but the channel takes a connect.
+    it('starts a fresh burst for a rider that connects again', async () => {
+      const { first, second, transport } = await afterReconnects(5)
+      mockModbusRTU.isOpen = false
+      await transport.attach(second, tcp('10.0.0.1'))
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(7)
+      await dropAndReopen(4)
+      expect(lastLost()).toMatchObject({ message: 'Connection lost, reconnecting (5/5)...' })
+      mockModbusRTU.isOpen = false
+
+      await transport.attach(first, tcp('10.0.0.1'))
+      expect(lastLost()).toMatchObject({ message: 'Connection lost, reconnecting (1/5)...' })
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(12)
+      expect(first.states.at(-1)).toBe('connected')
+      expect(second.states.at(-1)).toBe('connected')
+    })
+
+    it.each(['waits to reopen', 'is reopening'] as const)(
+      'leaves the count of a burst a client joins while it %s',
+      async (moment) => {
+        const { second, transport } = await afterReconnects(4)
+        let open: () => void = () => {
+          throw new Error('connectTCP was never called')
+        }
+        mockModbusRTU.connectTCP.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              open = () => {
+                mockModbusRTU.isOpen = true
+                resolve()
+              }
+            })
+        )
+        mockModbusRTU.isOpen = false
+        fireHandler('close')
+        if (moment === 'is reopening') await vi.advanceTimersByTimeAsync(3500)
+
+        await transport.attach(second, tcp('10.0.0.1'))
+        await vi.advanceTimersByTimeAsync(3500)
+        open()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(6)
+        expect(second.states.at(-1)).toBe('connected')
+        mockModbusRTU.isOpen = false
+        fireHandler('close')
+
+        expect(lastLost()).toMatchObject({
+          message: 'Connection lost, too many consecutive reconnect attempts, giving up'
+        })
+      }
+    )
+
+    it('gives up when a rider finds that port shut instead', async () => {
+      const { first, second, transport } = await afterReconnects(5)
+      await transport.attach(second, tcp('10.0.0.1'))
+      mockModbusRTU.isOpen = false
+
+      transport.lost()
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(6)
+      expect(first.states.at(-1)).toBe('disconnected')
+      expect(second.states.at(-1)).toBe('disconnected')
+      expect(lastLost()).toMatchObject({
+        message: 'Connection lost, too many consecutive reconnect attempts, giving up'
+      })
+    })
+
     // modbus-serial leaves the port a reconnect replaced listening, and its
     // close reaches the transport after the new port has opened.
     it('ignores a close while the port reads open', async () => {
@@ -897,9 +1013,7 @@ describe('Transport', () => {
       await vi.advanceTimersByTimeAsync(3500)
 
       expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(2)
-      const lost = messages().filter((message) =>
-        String((message as { message: string }).message).startsWith('Connection lost')
-      )
+      const lost = lostMessages()
       expect(lost).toHaveLength(1)
     })
 
@@ -917,9 +1031,7 @@ describe('Transport', () => {
 
       expect(first.states.at(-1)).toBe('connecting')
       expect(second.states.at(-1)).toBe('connecting')
-      const lost = messages().filter((message) =>
-        String((message as { message: string }).message).startsWith('Connection lost')
-      )
+      const lost = lostMessages()
       expect(lost).toHaveLength(1)
 
       await vi.advanceTimersByTimeAsync(3500)

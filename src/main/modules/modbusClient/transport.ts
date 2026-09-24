@@ -356,8 +356,11 @@ export class Transport {
     if (this._openInFlight || this._reconnectTimeout) return
     // Riders on a port that is shut with nothing reopening it are on a
     // connection that went without a close, which is all a TCP reset leaves,
-    // and that is the burst's for all of them rather than a fresh open.
+    // and that is the burst's for all of them rather than a fresh open. The
+    // count starts again, because a Connect is a user asking: a burst that
+    // reached its limit would otherwise let every rider go with no attempt.
     if (this._clients.size > 1) {
+      this._consecutiveReconnects = 0
       this.lost()
       return
     }
