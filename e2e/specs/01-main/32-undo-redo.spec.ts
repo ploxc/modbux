@@ -23,7 +23,8 @@ import { evaluateMain } from '../../fixtures/launch'
 const savedConnection = async (p: Page): Promise<{ host: string; unitId: number }> =>
   p.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('client.zustand') ?? '{}')
-    const connectionConfig = saved.state?.connectionConfig
+    // The store keeps its clients under a uuid, and the one shown is selected.
+    const connectionConfig = saved.state?.clients?.[saved.state?.selectedUuid]?.connectionConfig
     return {
       host: connectionConfig?.tcp?.host,
       unitId: connectionConfig?.unitId
@@ -110,11 +111,10 @@ test.describe.serial('Undo and redo outside a field', () => {
     // The byte order is shown for the word registers alone.
     await selectRegisterType(mainPage, 'Holding Registers')
     const savedLittleEndian = (): Promise<boolean> =>
-      mainPage.evaluate(
-        () =>
-          JSON.parse(localStorage.getItem('client.zustand') ?? '{}').state?.registerConfig
-            ?.littleEndian
-      )
+      mainPage.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('client.zustand') ?? '{}')
+        return saved.state?.clients?.[saved.state?.selectedUuid]?.registerConfig?.littleEndian
+      })
     await mainPage.getByTestId('endian-be-btn').click()
     await expect.poll(savedLittleEndian).toBe(false)
     await mainPage.getByTestId('endian-le-btn').click()

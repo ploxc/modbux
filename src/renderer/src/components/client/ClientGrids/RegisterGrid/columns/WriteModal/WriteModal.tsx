@@ -11,7 +11,12 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  useClientZustand,
+  getSelectedClient,
+  selectedClient,
+  selectedClientUuid
+} from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
@@ -81,7 +86,7 @@ export const DataTypeSelect = meme(({ address }: { address: number }) => {
     const {
       registerMapping,
       registerConfig: { type }
-    } = useClientZustand.getState()
+    } = getSelectedClient()
 
     valueInputZustand.setDataType(writeDataTypeFor(registerMapping[type][address]?.dataType))
   }, [address])
@@ -147,7 +152,7 @@ export const WriteRegistersButton = meme(() => {
 export const CoilFunctionSelect = meme(() => {
   const { enqueueSnackbar } = useSnackbar()
   const address = useValueInputZustand((z) => z.address)
-  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
+  const registerConfigAddress = useClientZustand((z) => selectedClient(z).registerConfig.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
@@ -256,8 +261,8 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 })
 
 export const Coils = meme(() => {
-  const length = useClientZustand((z) => z.registerConfig.length)
-  const registerConfigAddress = useClientZustand((z) => z.registerConfig.address)
+  const length = useClientZustand((z) => selectedClient(z).registerConfig.length)
+  const registerConfigAddress = useClientZustand((z) => selectedClient(z).registerConfig.address)
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)

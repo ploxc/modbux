@@ -9,6 +9,7 @@ import {
 import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
 import { migrateServerConfig } from '../server/config'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
+import { MAIN_CLIENT_UUID } from '../../default'
 import { dropUnmappableRegisters, dropUnservableRegisters } from '../shared'
 
 /**
@@ -824,8 +825,15 @@ describe('a persisted mapping entry outside the map', () => {
     }
   })
 
+  /**
+   * The holding registers of a mapping, whether the blob holds one client flat,
+   * as `dropUnmappableRegisters` is handed it, or the migration has folded it
+   * into a client under `MAIN_CLIENT_UUID`.
+   */
   const holdingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
-    const mapping = state.registerMapping as Record<string, Record<string, unknown>>
+    const clients = state.clients as Record<string, Record<string, unknown>> | undefined
+    const client = clients?.[MAIN_CLIENT_UUID] ?? state
+    const mapping = client.registerMapping as Record<string, Record<string, unknown>>
     return mapping.holding_registers as Record<string, unknown>
   }
 

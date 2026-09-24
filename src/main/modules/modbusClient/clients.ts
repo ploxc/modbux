@@ -41,6 +41,19 @@ export class Clients {
     )
   }
 
+  /**
+   * Take the client under `uuid` away, letting go of its connection first.
+   *
+   * A client nobody connected has nothing to let go of, so it is dropped
+   * without the "Already disconnected" a Disconnect press gets.
+   */
+  public delete = async (uuid: string): Promise<void> => {
+    const client = this.get(uuid)
+    if (!client) return
+    this._clients.delete(uuid)
+    await client.dispose()
+  }
+
   /** The client under `uuid`, or undefined once the main window has been told. */
   public get = (uuid: string): ModbusClient | undefined => {
     const client = this._clients.get(uuid)

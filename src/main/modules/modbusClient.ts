@@ -356,6 +356,18 @@ export class ModbusClient implements TransportClient {
   //
   //
   // Disconnect
+  /**
+   * End everything this client runs, and disconnect it if it rides a
+   * connection. What `Clients.delete` calls before it lets go of the client.
+   */
+  public dispose = async (): Promise<void> => {
+    if (this._transport?.rides(this)) {
+      await this.disconnect()
+      return
+    }
+    this._setDisconnected()
+  }
+
   public disconnect = async (): Promise<void> => {
     const wasConnecting = this._clientState.connectState === 'connecting'
     this._enter('disconnecting')

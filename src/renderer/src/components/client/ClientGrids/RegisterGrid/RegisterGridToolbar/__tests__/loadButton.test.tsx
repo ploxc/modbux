@@ -21,8 +21,9 @@ const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
 vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar }) }))
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import LoadButton from '../LoadButton'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const CONFIG = JSON.stringify({
   version: 2,
@@ -53,7 +54,7 @@ const messages = (): unknown[] =>
 beforeEach(() => {
   enqueueSnackbar.mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  useClientZustand.setState({ name: '' } as never)
+  patchSelectedClient(useClientZustand, { name: '' })
 })
 
 describe('a file that cannot be read', () => {
@@ -78,10 +79,10 @@ describe('a file that reads', () => {
     // The mapping is what the file was for, and `replaceRegisterMapping` writes
     // it only where main took it. `stubRenderer` answers that channel with the
     // schema `main/ipc.ts` guards it with.
-    expect(useClientZustand.getState().registerMapping.holding_registers[0]).toEqual({
+    expect(getSelectedClient().registerMapping.holding_registers[0]).toEqual({
       dataType: 'int16'
     })
-    expect(useClientZustand.getState().name).toBe('Test Client')
+    expect(getSelectedClient().name).toBe('Test Client')
     expect(screen.getByTestId('load-config-file-input')).toBeInTheDocument()
     expect(screen.getByTestId('load-config-btn')).not.toBeDisabled()
   })

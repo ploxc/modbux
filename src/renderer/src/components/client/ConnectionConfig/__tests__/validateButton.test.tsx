@@ -17,21 +17,26 @@ vi.hoisted(async () => {
 })
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, getSelectedSession } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, defaultConnectionConfig } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
+import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
 
 const renderRtu = (): void => {
   useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'disconnected' } })
-  useClientZustand.setState({
-    ready: true,
-    connectionConfig: {
-      ...defaultConnectionConfig,
-      protocol: 'ModbusRtu',
-      rtu: { ...defaultConnectionConfig.rtu, com: '/tmp/ttyV1' }
+  patchSelectedClient(
+    useClientZustand,
+    {
+      connectionConfig: {
+        ...defaultConnectionConfig,
+        protocol: 'ModbusRtu',
+        rtu: { ...defaultConnectionConfig.rtu, com: '/tmp/ttyV1' }
+      }
     },
-    valid: { host: true, com: true, length: true },
+    { ready: true, valid: { host: true, com: true, length: true } }
+  )
+  useClientZustand.setState({
     serialPorts: [],
     validateSerialPort: async () => ({ valid: false, message: 'Port not found' })
   } as never)
@@ -45,7 +50,7 @@ describe('the Validate button', () => {
     fireEvent.click(screen.getByTestId('rtu-validate-btn'))
 
     await waitFor(() => {
-      expect(useClientZustand.getState().valid.com).toBe(true)
+      expect(getSelectedSession().valid.com).toBe(true)
     })
     expect(screen.getByTestId('connect-btn')).toBeEnabled()
   })

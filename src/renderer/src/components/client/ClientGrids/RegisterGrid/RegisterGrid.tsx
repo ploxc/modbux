@@ -1,6 +1,6 @@
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient, selectedSession } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
@@ -49,14 +49,16 @@ const Footer = meme(() => {
 // DataGrid
 const RegisterGridContent = meme((): JSX.Element => {
   const registerData = useDataZustand((z) => z.registerData)
-  const registerMapping = useClientZustand((z) => z.registerMapping[z.registerConfig.type])
+  const registerMapping = useClientZustand(
+    (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type]
+  )
   const columns = useRegisterGridColumns()
 
   const apiRef = useGridApiRef()
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
-  const readConfiguration = useClientZustand((z) => z.readConfiguration)
+  const readConfiguration = useClientZustand((z) => selectedSession(z).readConfiguration)
 
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still

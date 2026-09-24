@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_SERVER_UUID } from '@shared'
 import { stubRenderer } from './stubRenderer'
 import { getDefaultServer } from '../server.zustand.helpers'
+import { patchSelectedClient } from './selectedClient'
 
 vi.mock('notistack', () => ({ enqueueSnackbar: vi.fn() }))
 
@@ -86,7 +87,7 @@ describe('a client setter', () => {
 
   it('answers false before the store is ready', async () => {
     const { useClientZustand } = await loadClient()
-    useClientZustand.setState({ ready: false })
+    patchSelectedClient(useClientZustand, {}, { ready: false })
     const client = useClientZustand.getState()
 
     expect(await client.setPollRate(5000)).toBe(false)

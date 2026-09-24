@@ -32,10 +32,15 @@ export type ClientFieldValues = RegisterConfig &
 
 export type ClientField = keyof ClientFieldValues
 
-/** One field, the value it had before the run of writes this step stands for. */
+/**
+ * One field, the value it had before the run of writes this step stands for,
+ * of the client under `uuid`. Every client step names its client, because the
+ * stack holds the steps of every client the view has shown.
+ */
 export type ClientFieldStepMap = {
   [Field in ClientField]: {
     kind: 'field'
+    uuid: string
     field: Field
     value: ClientFieldValues[Field]
   }
@@ -61,6 +66,7 @@ export type ClientFieldStep = ClientFieldStepOf
  */
 export interface ClientMappingStep {
   kind: 'mapping'
+  uuid: string
   type: RegisterType
   register: number
   column: keyof RegisterMapValue
@@ -76,6 +82,7 @@ export interface ClientConfiguration {
 
 export interface ClientConfigurationStep {
   kind: 'configuration'
+  uuid: string
   value: ClientConfiguration
 }
 

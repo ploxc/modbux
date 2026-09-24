@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RegisterMapping } from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer, clientPayload } from './stubRenderer'
+import { selectedClient, selectedSession } from '../client.zustand.helpers'
 
 const calls: ApiCall[] = []
 
@@ -74,7 +75,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
     expect(lastPayload('setReadConfiguration')).toBe(false)
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(false)
   })
 
   it('is what the store holds', async () => {
@@ -82,7 +83,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    expect(useClientZustand.getState().registerMapping).toEqual(loaded)
+    expect(selectedClient(useClientZustand.getState()).registerMapping).toEqual(loaded)
   })
 })
 
@@ -111,7 +112,7 @@ describe('a cleared mapping', () => {
     await useClientZustand.getState().clearRegisterMapping()
 
     expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(false)
   })
 
   it('leaves the store holding four empty records', async () => {
@@ -120,7 +121,7 @@ describe('a cleared mapping', () => {
 
     await useClientZustand.getState().clearRegisterMapping()
 
-    expect(useClientZustand.getState().registerMapping).toEqual({
+    expect(selectedClient(useClientZustand.getState()).registerMapping).toEqual({
       coils: {},
       discrete_inputs: {},
       holding_registers: {},
@@ -157,6 +158,6 @@ describe('a single cell edit', () => {
     useClientZustand.getState().setRegisterMapping(43, 'dataType', 'int16')
     vi.advanceTimersByTime(150)
 
-    expect(useClientZustand.getState().readConfiguration).toBe(true)
+    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(true)
   })
 })

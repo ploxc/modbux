@@ -1,6 +1,10 @@
 import Box from '@mui/material/Box'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  useClientZustand,
+  selectedClient,
+  selectedClientUuid
+} from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
 import { BitColor, BitMapConfig } from '@shared'
@@ -22,10 +26,10 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
   )
 
   const bitConfig = useClientZustand(
-    (z) => z.registerMapping[z.registerConfig.type][address]?.bitMap
+    (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type][address]?.bitMap
   )
 
-  const registerType = useClientZustand((z) => z.registerConfig.type)
+  const registerType = useClientZustand((z) => selectedClient(z).registerConfig.type)
   const writable = registerType === 'holding_registers'
   const connectState = useDataZustand((z) => z.clientState.connectState)
   const polling = useDataZustand((z) => z.clientState.polling)

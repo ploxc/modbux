@@ -47,11 +47,14 @@ export const useUndoZustand = create<UndoZustand>()((set, get) => ({
  *
  * Quiet while it runs, so the setters the replay calls record nothing, and
  * `busy` while another replay or an action recorded as one step is running.
+ * `prepare` runs before the quiet starts, for what the quiet holds still, and
+ * refuses the step by answering false.
  */
 export const replayTop = async <Step extends object>(
   stack: { read: () => UndoStack<Step>; write: (stack: UndoStack<Step>) => void },
   direction: 'undo' | 'redo',
-  replay: (step: Step) => Promise<Step | UndoRefusal | undefined>
+  replay: (step: Step) => Promise<Step | UndoRefusal | undefined>,
+  prepare: (step: Step) => boolean = () => true
 ): Promise<UndoOutcome> => {
   const undo = useUndoZustand.getState()
   if (undo.quiet > 0) return 'busy'
@@ -59,6 +62,7 @@ export const replayTop = async <Step extends object>(
   const current = stack.read()
   const step = (direction === 'undo' ? current.past : current.future).at(-1)
   if (step === undefined) return 'empty'
+  if (!prepare(step)) return 'refused'
 
   undo.beginQuiet()
   let replaced: Step | UndoRefusal | undefined

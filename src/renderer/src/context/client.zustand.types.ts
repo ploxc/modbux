@@ -22,18 +22,54 @@ interface Valid {
   length: boolean
 }
 
-export const PersistedClientZustandSchema = z.object({
+/**
+ * Everything one client holds on disk, under the uuid that names it.
+ *
+ * Taking the key out takes all four, the way `PersistedServerSchema` holds a
+ * server.
+ */
+export const PersistedClientSchema = z.object({
   name: z.string(),
   registerMapping: RegisterMappingSchema,
   connectionConfig: ConnectionConfigSchema,
   registerConfig: RegisterConfigSchema
 })
+export type PersistedClient = z.infer<typeof PersistedClientSchema>
+
+export const PersistedClientZustandSchema = z.object({
+  /** The client the view shows, which every action acts on. */
+  selectedUuid: z.string(),
+  /** The clients, keyed by the uuid main holds each under. */
+  clients: z.record(z.string(), PersistedClientSchema)
+})
 export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema>
 
-export type ClientZustand = {
+/**
+ * What a client holds for as long as the window lives and no longer.
+ *
+ * `ready` says main has the client's config, `readConfiguration` is the
+ * session-only switch, and `valid` is what the host, COM and length fields
+ * decided about a value, which `init` reads off the value again at load.
+ */
+export interface ClientSession {
   ready: boolean
   readConfiguration: boolean
   valid: Valid
+}
+
+export type ClientZustand = {
+  sessions: Record<string, ClientSession>
+  /**
+   * Adds a client with the default config, hands it to main, and shows it.
+   * Answers its uuid.
+   */
+  addClient: () => string
+  /**
+   * Takes a client away, in main and here, and shows the first one left. The
+   * last client stays: the view always shows one.
+   */
+  deleteClient: (uuid: string) => Promise<boolean>
+  setSelectedUuid: (uuid: string) => void
   setName: (name: string) => void
   // Register mapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(

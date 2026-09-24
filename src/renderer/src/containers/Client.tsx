@@ -8,10 +8,10 @@ import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
 import ScanRegisters from '@renderer/components/client/ScanRegisters/ScanRegisters'
 import ScanUnitIds from '@renderer/components/client/ScanUnitIds/ScanUnitIds'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedSession } from '@renderer/context/client.zustand'
 
 const Client = meme(() => {
-  const ready = useClientZustand((z) => z.ready)
+  const ready = useClientZustand((z) => selectedSession(z).ready)
   return (
     <Fade in={ready} timeout={500}>
       <Box

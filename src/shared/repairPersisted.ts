@@ -78,7 +78,7 @@ const FIELD_LABELS: Record<string, string> = {
   registerMapping: 'the register mapping',
   name: 'the name',
   port: 'the ports',
-  selectedUuid: 'the selected server',
+  clients: 'the clients',
   servers: 'the servers',
   registers: 'the registers',
   usedAddresses: 'the used addresses',
@@ -88,8 +88,16 @@ const FIELD_LABELS: Record<string, string> = {
   serialConfig: 'the serial settings'
 }
 
-const listFields = (fields: string[]): string => {
-  const labelled = fields.map((field) => FIELD_LABELS[field] ?? `\`${field}\``)
+/** The fields both stores keep under one name for a different thing. */
+const STORE_LABELS: Record<'Client' | 'Server', Record<string, string>> = {
+  Client: { selectedUuid: 'the selected client' },
+  Server: { selectedUuid: 'the selected server' }
+}
+
+const listFields = (store: 'Client' | 'Server', fields: string[]): string => {
+  const labelled = fields.map(
+    (field) => STORE_LABELS[store][field] ?? FIELD_LABELS[field] ?? `\`${field}\``
+  )
   const head = labelled.slice(0, -1)
   const last = labelled.slice(-1).join('')
   return head.length === 0 ? last : `${head.join(', ')} and ${last}`
@@ -105,7 +113,7 @@ export function resetMessage(store: 'Client' | 'Server', reset: ConfigReset): st
   const kept = 'Everything else was kept.'
 
   if (!reset.savedByNewerVersion) {
-    return `${store} configuration: ${listFields(reset.fields)} could not be read and ${
+    return `${store} configuration: ${listFields(store, reset.fields)} could not be read and ${
       reset.fields.length === 1 ? 'was' : 'were'
     } reset. ${kept}`
   }
@@ -115,6 +123,7 @@ export function resetMessage(store: 'Client' | 'Server', reset: ConfigReset): st
   }
 
   return `${store} configuration was saved by a newer version of Modbux, and ${listFields(
+    store,
     reset.fields
   )} did not come across. ${kept}`
 }

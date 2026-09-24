@@ -5,13 +5,15 @@ import Paper from '@mui/material/Paper'
 import Popover from '@mui/material/Popover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import SliderComponent from '@renderer/components/shared/SliderComponent'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { useCallback, useState } from 'react'
 
 // Polling interval slider
 const PollRate = meme((): JSX.Element => {
-  const value = useClientZustand((z) => Math.floor(z.registerConfig.pollRate / 1000))
+  const value = useClientZustand((z) =>
+    Math.floor(selectedClient(z).registerConfig.pollRate / 1000)
+  )
 
   const handleChange = useCallback((seconds: number): void => {
     const clientZustand = useClientZustand.getState()
@@ -30,7 +32,7 @@ const PollRate = meme((): JSX.Element => {
 
 // Read Timeout slider
 const Timeout = meme((): JSX.Element => {
-  const value = useClientZustand((z) => Math.floor(z.registerConfig.timeout / 1000))
+  const value = useClientZustand((z) => Math.floor(selectedClient(z).registerConfig.timeout / 1000))
 
   const handleChange = useCallback((seconds: number): void => {
     const clientZustand = useClientZustand.getState()

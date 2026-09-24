@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CURRENT_CLIENT_ZUSTAND_VERSION } from '@shared'
 import { stubRenderer } from './stubRenderer'
+import { selectedClient } from '../client.zustand.helpers'
 
 beforeEach(() => {
   vi.resetModules()
@@ -54,7 +55,7 @@ describe('a persisted client config with one field that fails its schema', () =>
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().connectionConfig.protocol).toBeDefined()
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.protocol).toBeDefined()
   })
 
   it('keeps the register mapping standing beside it', async () => {
@@ -68,9 +69,9 @@ describe('a persisted client config with one field that fails its schema', () =>
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().registerMapping.holding_registers[5]?.comment).toBe(
-      'Feeder A'
-    )
+    expect(
+      selectedClient(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
+    ).toBe('Feeder A')
   })
 
   it('copies the unreadable blob rather than clearing it', async () => {
@@ -106,19 +107,17 @@ describe('a persisted client config from a newer version', () => {
     const reset = useClientZustand.getState().configReset
     expect(reset?.savedByNewerVersion).toBe(true)
     expect(reset?.fields).toEqual(['connectionConfig'])
-    expect(useClientZustand.getState().registerMapping.holding_registers[5]?.comment).toBe(
-      'Feeder A'
-    )
+    expect(
+      selectedClient(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
+    ).toBe('Feeder A')
   })
 
   it('reports it even when every field still fits', async () => {
     const { useClientZustand: fresh } = await import('../client.zustand')
     const whole = JSON.stringify({
       state: {
-        name: '',
-        registerMapping: fresh.getInitialState().registerMapping,
-        connectionConfig: fresh.getInitialState().connectionConfig,
-        registerConfig: fresh.getInitialState().registerConfig
+        selectedUuid: fresh.getInitialState().selectedUuid,
+        clients: fresh.getInitialState().clients
       },
       version: 99
     })

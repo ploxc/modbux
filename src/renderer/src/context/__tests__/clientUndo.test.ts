@@ -4,8 +4,10 @@
 // reaches main the same way and passes the same guards. These drive the client
 // store through the renderer stub and read what the store holds after.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultClientState } from '@shared'
+import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import { stubRenderer } from './stubRenderer'
+import { patchSelectedClient } from './selectedClient'
+import { selectedClient } from '../client.zustand.helpers'
 
 vi.mock('notistack', () => ({ enqueueSnackbar: vi.fn() }))
 
@@ -52,20 +54,20 @@ const load = async (): Promise<{
 describe('a field', () => {
   it('undoes a typed run in one step and redoes it', async () => {
     const { client, clientUndo } = await load()
-    const before = client().connectionConfig.tcp.host
+    const before = selectedClient(client()).connectionConfig.tcp.host
 
     for (const typed of ['1', '10', '10.0.0.5']) await client().setHost(typed, true)
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().connectionConfig.tcp.host).toBe(before)
+    expect(selectedClient(client()).connectionConfig.tcp.host).toBe(before)
 
     expect(await clientUndo.redoClient()).toBe('done')
-    expect(client().connectionConfig.tcp.host).toBe('10.0.0.5')
+    expect(selectedClient(client()).connectionConfig.tcp.host).toBe('10.0.0.5')
   })
 
   it('starts the run from the host there was before the field was cleared', async () => {
     const { client, undo, clientUndo } = await load()
-    const before = client().connectionConfig.tcp.host
+    const before = selectedClient(client()).connectionConfig.tcp.host
 
     await client().setHost('', false)
     await client().setHost('1', true)
@@ -73,7 +75,7 @@ describe('a field', () => {
     expect(undo().client.past).toHaveLength(1)
     await clientUndo.undoClient()
 
-    expect(client().connectionConfig.tcp.host).toBe(before)
+    expect(selectedClient(client()).connectionConfig.tcp.host).toBe(before)
   })
 
   it('records nothing for a value the store held already', async () => {
@@ -89,7 +91,7 @@ describe('a field', () => {
   it('records nothing for a write that leaves the value where it was', async () => {
     const { client, undo } = await load()
 
-    await client().setPollRate(client().registerConfig.pollRate)
+    await client().setPollRate(selectedClient(client()).registerConfig.pollRate)
 
     expect(undo().client.past).toEqual([])
   })
@@ -126,17 +128,17 @@ describe('a field', () => {
 
   it('refuses a connection field while a connection stands, and keeps the step', async () => {
     const { client, undo, clientUndo, setConnected } = await load()
-    const before = client().connectionConfig.tcp.host
+    const before = selectedClient(client()).connectionConfig.tcp.host
     await client().setHost('10.0.0.5', true)
     setConnected(true)
 
     expect(await clientUndo.undoClient()).toBe('refused-connected')
-    expect(client().connectionConfig.tcp.host).toBe('10.0.0.5')
+    expect(selectedClient(client()).connectionConfig.tcp.host).toBe('10.0.0.5')
     expect(undo().client.past).toHaveLength(1)
 
     setConnected(false)
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().connectionConfig.tcp.host).toBe(before)
+    expect(selectedClient(client()).connectionConfig.tcp.host).toBe(before)
   })
 
   it('puts back an invalid value it kept, and reaches the step behind it', async () => {
@@ -147,25 +149,28 @@ describe('a field', () => {
     await client().setLength('5', true)
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().registerConfig.length).toBe(0)
+    expect(selectedClient(client()).registerConfig.length).toBe(0)
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().registerConfig.type).toBe('coils')
+    expect(selectedClient(client()).registerConfig.type).toBe('coils')
   })
 
   it('puts back a parity a config from before it existed never carried', async () => {
     const { client, clientUndo } = await load()
     const { useClientZustand } = await import('../client.zustand')
-    const { baudRate, dataBits, stopBits } = client().connectionConfig.rtu.options
-    useClientZustand.setState({
+    const { baudRate, dataBits, stopBits } = selectedClient(client()).connectionConfig.rtu.options
+    patchSelectedClient(useClientZustand, {
       connectionConfig: {
-        ...client().connectionConfig,
-        rtu: { ...client().connectionConfig.rtu, options: { baudRate, dataBits, stopBits } }
+        ...selectedClient(client()).connectionConfig,
+        rtu: {
+          ...selectedClient(client()).connectionConfig.rtu,
+          options: { baudRate, dataBits, stopBits }
+        }
       }
     })
     await client().setParity('even')
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().connectionConfig.rtu.options.parity).toBe('none')
+    expect(selectedClient(client()).connectionConfig.rtu.options.parity).toBe('none')
   })
 
   it('ends the open run on a write made while quiet', async () => {
@@ -178,7 +183,7 @@ describe('a field', () => {
     await client().setPollRate(7000)
     await clientUndo.undoClient()
 
-    expect(client().registerConfig.pollRate).toBe(6000)
+    expect(selectedClient(client()).registerConfig.pollRate).toBe(6000)
   })
 
   it('puts back a field that is no connection setting while a connection stands', async () => {
@@ -219,11 +224,13 @@ describe('a mapping entry', () => {
 
     await clientUndo.undoClient()
 
-    expect(client().registerConfig.type).toBe('holding_registers')
-    expect(client().registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedClient(client()).registerConfig.type).toBe('holding_registers')
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
 
     await clientUndo.redoClient()
-    expect(client().registerMapping.holding_registers[3]).toEqual({ comment: 'pump' })
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
+      comment: 'pump'
+    })
   })
 
   it('comes back whole after a data type of none removed it', async () => {
@@ -233,10 +240,10 @@ describe('a mapping entry', () => {
     client().setRegisterMapping(3, 'comment', 'pump')
 
     client().setRegisterMapping(3, 'dataType', 'none')
-    expect(client().registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
 
     await clientUndo.undoClient()
-    expect(client().registerMapping.holding_registers[3]).toEqual({
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
       dataType: 'int16',
       comment: 'pump'
     })
@@ -260,9 +267,11 @@ describe('Load and Clear Config', () => {
     expect(undo().client.past).toHaveLength(steps + 1)
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(client().name).toBe('boiler')
-    expect(client().registerConfig.littleEndian).toBe(true)
-    expect(client().registerMapping.holding_registers[3]).toEqual({ comment: 'pump' })
+    expect(selectedClient(client()).name).toBe('boiler')
+    expect(selectedClient(client()).registerConfig.littleEndian).toBe(true)
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
+      comment: 'pump'
+    })
   })
 
   it('leaves the byte order where it was when main refuses the mapping', async () => {
@@ -277,8 +286,8 @@ describe('Load and Clear Config', () => {
     refuse('setRegisterMapping')
 
     expect(await clientUndo.undoClient()).toBe('refused')
-    expect(client().registerConfig.littleEndian).toBe(false)
-    expect(client().registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedClient(client()).registerConfig.littleEndian).toBe(false)
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
   })
 
   it('leaves the mapping where it was when main refuses the byte order', async () => {
@@ -293,7 +302,7 @@ describe('Load and Clear Config', () => {
     refuse('updateRegisterConfig')
 
     expect(await clientUndo.undoClient()).toBe('refused')
-    expect(client().registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
   })
 
   it('records its step while an undo that started first is still quiet', async () => {
@@ -308,6 +317,7 @@ describe('Load and Clear Config', () => {
 
     expect(undo().client.past.at(-1)).toEqual({
       kind: 'configuration',
+      uuid: MAIN_CLIENT_UUID,
       value: expect.objectContaining({ name: 'boiler' })
     })
   })
@@ -325,6 +335,7 @@ describe('Load and Clear Config', () => {
 
     expect(undo().client.past.at(-1)).toEqual({
       kind: 'configuration',
+      uuid: MAIN_CLIENT_UUID,
       value: expect.objectContaining({ name: 'boiler' })
     })
   })

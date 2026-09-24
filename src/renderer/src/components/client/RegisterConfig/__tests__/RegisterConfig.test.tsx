@@ -15,18 +15,23 @@ vi.hoisted(() => {
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import {
+  getSelectedClient,
+  getSelectedSession,
+  useClientZustand
+} from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig from '../RegisterConfig'
+import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
 
 // Read configuration reads the addresses a data type was set on. What the
 // button offers has to be that same set, because a mapping it cannot read
 // leaves the user with an empty grid and two disabled fields.
 
 const seed = (type: RegisterType, mapping: Record<number, object>): void => {
-  useClientZustand.setState({
-    registerConfig: { ...useClientZustand.getState().registerConfig, type },
+  patchSelectedClient(useClientZustand, {
+    registerConfig: { ...getSelectedClient().registerConfig, type },
     registerMapping: {
       coils: {},
       discrete_inputs: {},
@@ -34,14 +39,14 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
       holding_registers: {},
       [type]: mapping
     }
-  } as never)
+  })
 }
 
 // The stub above answers `undefined` to every channel, `get_client_states`
 // included, so the store gets no client state from main. The button reads the
 // client state, so it gets one here.
 beforeEach(() => {
-  useClientZustand.setState({ ready: true, readConfiguration: false } as never)
+  patchSelectedClient(useClientZustand, {}, { ready: true, readConfiguration: false })
   useDataZustand.setState({ clientState: { ...defaultClientState } })
 })
 
@@ -153,14 +158,14 @@ describe('RegisterConfig read configuration', () => {
   // read that is about to fill it is still on the wire.
   it('leaves read configuration on while a read is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    useClientZustand.setState({ readConfiguration: true } as never)
+    patchSelectedClient(useClientZustand, {}, { readConfiguration: true })
     useDataZustand.setState({
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
     render(<RegisterConfig />)
 
-    expect(useClientZustand.getState().readConfiguration).toBe(true)
+    expect(getSelectedSession().readConfiguration).toBe(true)
   })
 })
 
@@ -207,34 +212,34 @@ describe('RegisterConfig length field', () => {
   }
 
   it('takes 2000 bits of coils', async () => {
-    useClientZustand.setState({
-      registerConfig: { ...useClientZustand.getState().registerConfig, type: 'coils', address: 0 }
-    } as never)
+    patchSelectedClient(useClientZustand, {
+      registerConfig: { ...getSelectedClient().registerConfig, type: 'coils', address: 0 }
+    })
 
     expect(await typeLength('2000')).toBe(2000)
   })
 
   it('holds a register read at 125', async () => {
-    useClientZustand.setState({
+    patchSelectedClient(useClientZustand, {
       registerConfig: {
-        ...useClientZustand.getState().registerConfig,
+        ...getSelectedClient().registerConfig,
         type: 'holding_registers',
         address: 0
       }
-    } as never)
+    })
 
     expect(await typeLength('2000')).toBe(125)
   })
 
   // The other ceiling: how many registers are left from the address.
   it('holds a read near the end of the range to what is there', async () => {
-    useClientZustand.setState({
+    patchSelectedClient(useClientZustand, {
       registerConfig: {
-        ...useClientZustand.getState().registerConfig,
+        ...getSelectedClient().registerConfig,
         type: 'coils',
         address: 65500
       }
-    } as never)
+    })
 
     expect(await typeLength('2000')).toBe(36)
   })
@@ -265,7 +270,7 @@ describe('RegisterConfig turning read configuration on', () => {
     render(<RegisterConfig />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
-    await waitFor(() => expect(useClientZustand.getState().readConfiguration).toBe(true))
+    await waitFor(() => expect(getSelectedSession().readConfiguration).toBe(true))
   })
 
   // The store is written after the round trip, so a second press inside it
@@ -295,7 +300,7 @@ describe('RegisterConfig turning read configuration on', () => {
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
     take(true)
 
-    await waitFor(() => expect(useClientZustand.getState().readConfiguration).toBe(true))
+    await waitFor(() => expect(getSelectedSession().readConfiguration).toBe(true))
     expect(setRegisterMapping).toHaveBeenCalledTimes(1)
   })
 
@@ -307,7 +312,7 @@ describe('RegisterConfig turning read configuration on', () => {
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
     await waitFor(() => expect(window.api.setRegisterMapping).toHaveBeenCalled())
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(getSelectedSession().readConfiguration).toBe(false)
     expect(window.api.setReadConfiguration).not.toHaveBeenCalled()
   })
 })

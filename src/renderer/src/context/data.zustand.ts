@@ -11,7 +11,7 @@ import { DateTime } from 'luxon'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { selectedClientUuid, useClientZustand } from './client.zustand'
+import { getSelectedClient, selectedClientUuid } from './client.zustand'
 import { onEvent } from '@renderer/events'
 import {
   ClientState,
@@ -111,8 +111,8 @@ export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>
 /** Populate grid with configured register placeholders */
 export const showMapping = (): void => {
   const registerData: RegisterData[] = []
-  const registerMapping = useClientZustand.getState().registerMapping
-  const type = useClientZustand.getState().registerConfig.type
+  const registerMapping = getSelectedClient().registerMapping
+  const type = getSelectedClient().registerConfig.type
 
   Object.entries(registerMapping[type]).forEach(([addressString, mapValue]) => {
     if (!mapValue || mapValue.dataType === 'none' || !mapValue.dataType) return
@@ -217,11 +217,12 @@ const adoptAnsweredClientState = (clientState: ClientState): void => {
 
 /**
  * Ask main what the client is doing, because a push says only that it changed.
- * Main answers for every client it holds, and this store holds
- * `MAIN_CLIENT_UUID`, the one client the client store has. The constant rather
- * than `selectedClientUuid`, which is a name across the cycle below: vitest
- * evaluates each import behind an await, so this answer can land before
- * `client.zustand` has finished, and the call threw "is not a function".
+ * Main answers for every client it holds, and this store holds one client's:
+ * this takes `MAIN_CLIENT_UUID`'s, the client a store has until a second one
+ * is added. The constant rather than `selectedClientUuid`, which is a name
+ * across the cycle below: vitest evaluates each import behind an await, so
+ * this answer can land before `client.zustand` has finished, and the call
+ * threw "is not a function".
  *
  * Main pushes `client_state` on a change, so a window opened after the last
  * one starts on the literal above: on macos the app outlives its windows, and

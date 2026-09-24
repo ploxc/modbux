@@ -2,15 +2,15 @@ import Checkbox from '@mui/material/Checkbox'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { ChangeEvent, useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 
 const MenuRegisterOptions = meme((): JSX.Element | null => {
-  const type = useClientZustand((z) => z.registerConfig.type)
+  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
 
-  const advanceMode = useClientZustand((z) => z.registerConfig.advancedMode)
-  const show64BitValues = useClientZustand((z) => z.registerConfig.show64BitValues)
+  const advanceMode = useClientZustand((z) => selectedClient(z).registerConfig.advancedMode)
+  const show64BitValues = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 
   const handleAdvancedChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
     const clientZustand = useClientZustand.getState()

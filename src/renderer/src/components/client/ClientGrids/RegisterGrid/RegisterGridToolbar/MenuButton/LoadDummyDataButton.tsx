@@ -1,6 +1,6 @@
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedClient } from '@renderer/context/client.zustand'
 import { RegisterData, getDummyRegisterData } from '@shared'
 import { useCallback } from 'react'
 import type { SetAnchorProps } from './MenuButton'
@@ -12,8 +12,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
   // Load dummy data for the configured register range so columns can be edited
   // without having to connect to the device or read registers
   const loadDummy = useCallback(() => {
-    const clientZustand = useClientZustand.getState()
-    const { address, length } = clientZustand.registerConfig
+    const { address, length } = getSelectedClient().registerConfig
     const dataZustand = useDataZustand.getState()
     const dummyData: RegisterData[] = []
 

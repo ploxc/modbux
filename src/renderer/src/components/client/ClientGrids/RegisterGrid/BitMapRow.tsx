@@ -1,7 +1,7 @@
 import { GridRow, GridRowProps } from '@mui/x-data-grid/components'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { BITMAP_DATATYPE } from '@shared'
 import { useEffect, useRef } from 'react'
 import BitMapDetailPanel from './BitMapDetailPanel/BitMapDetailPanel'
@@ -25,8 +25,10 @@ const BitMapRow = meme((props: GridRowProps): JSX.Element => {
   const isExpanded = expandedAddress === address
 
   const isBitmap =
-    useClientZustand((z) => z.registerMapping[z.registerConfig.type][address]?.dataType) ===
-    BITMAP_DATATYPE
+    useClientZustand(
+      (z) =>
+        selectedClient(z).registerMapping[selectedClient(z).registerConfig.type][address]?.dataType
+    ) === BITMAP_DATATYPE
 
   const panelRef = useRef<HTMLDivElement>(null)
 

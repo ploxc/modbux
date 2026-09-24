@@ -16,9 +16,10 @@ vi.hoisted(async () => {
 })
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, getSelectedClient } from '@renderer/context/client.zustand'
 import { emptyRegisterMapping } from '@shared'
 import ClearConfigButton from '../ClearConfigButton'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const clearRegisterMapping = vi.fn()
 
@@ -27,7 +28,8 @@ const mapped = (addresses: number[], name = 'the plant'): void => {
   const registerMapping = emptyRegisterMapping()
   for (const address of addresses)
     registerMapping.holding_registers[address] = { dataType: 'int16' }
-  useClientZustand.setState({ registerMapping, name, clearRegisterMapping } as never)
+  patchSelectedClient(useClientZustand, { registerMapping, name })
+  useClientZustand.setState({ clearRegisterMapping } as never)
 }
 
 /** What the grid leaves behind when a comment is typed and then emptied. */
@@ -36,7 +38,8 @@ const emptied = (addresses: number[]): void => {
   for (const address of addresses) {
     registerMapping.holding_registers[address] = { comment: '', groupEnd: false }
   }
-  useClientZustand.setState({ registerMapping, name: '', clearRegisterMapping } as never)
+  patchSelectedClient(useClientZustand, { registerMapping, name: '' })
+  useClientZustand.setState({ clearRegisterMapping } as never)
 }
 
 const clickClear = (): void => {
@@ -56,7 +59,7 @@ describe('a configuration with mapped registers', () => {
 
     expect(screen.getByText(/2 registers carry/)).toBeInTheDocument()
     expect(clearRegisterMapping).not.toHaveBeenCalled()
-    expect(useClientZustand.getState().name).toBe('the plant')
+    expect(getSelectedClient().name).toBe('the plant')
   })
 
   it('is kept when the dialog is dismissed', () => {
@@ -78,7 +81,7 @@ describe('a configuration with mapped registers', () => {
     fireEvent.click(screen.getByTestId('clear-config-confirm-btn'))
 
     expect(clearRegisterMapping).toHaveBeenCalled()
-    expect(useClientZustand.getState().name).toBe('')
+    expect(getSelectedClient().name).toBe('')
     expect(screen.queryByTestId('clear-config-confirm-btn')).toBe(null)
   })
 

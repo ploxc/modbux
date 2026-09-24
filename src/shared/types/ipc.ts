@@ -64,6 +64,7 @@ export interface WindowsOpen {
  */
 export const IPC_CHANNELS = [
   'create_client',
+  'delete_client',
   'update_connection_config',
   'update_register_config',
   'get_client_states',
@@ -126,6 +127,12 @@ export interface IpcHandlerSpec {
    * connected and polling included, so a second create changes nothing.
    */
   ['create_client']: {
+    args: [string]
+    return: void
+  }
+
+  /** Take a client away, disconnecting it first if it is connected. */
+  ['delete_client']: {
     args: [string]
     return: void
   }

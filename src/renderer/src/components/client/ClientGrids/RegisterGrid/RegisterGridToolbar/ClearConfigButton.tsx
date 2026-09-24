@@ -8,7 +8,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, getSelectedClient } from '@renderer/context/client.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
 import { RegisterMapping, RegisterMapValue, RegisterTypeSchema } from '@shared'
 import { useCallback, useState } from 'react'
@@ -100,9 +100,9 @@ const ClearConfigButton = meme((): JSX.Element => {
   // records of up to 65536 addresses, and a selector reading them runs on every
   // flush of a store that takes a transaction per request.
   const handleClick = useCallback(() => {
-    const clientZustand = useClientZustand.getState()
-    const mapped = mappedRegisterCount(clientZustand.registerMapping)
-    const named = (clientZustand.name ?? '') !== ''
+    const client = getSelectedClient()
+    const mapped = mappedRegisterCount(client.registerMapping)
+    const named = (client.name ?? '') !== ''
 
     // The name is typed by hand and goes with the mapping, so a configuration
     // holding only a name is one to ask about too.

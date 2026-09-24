@@ -4,7 +4,12 @@ import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  useClientZustand,
+  getSelectedClient,
+  selectedClient,
+  selectedClientUuid
+} from '@renderer/context/client.zustand'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
@@ -26,7 +31,7 @@ import { useScanRegistersZustand } from './scanRegisters.zustand'
 // Unit ID field (syncs with main connection config)
 const UnitIdField = meme((): JSX.Element => {
   const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
-  const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
+  const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
 
   const setUnitId = useClientZustand.getState().setUnitId
 
@@ -114,7 +119,7 @@ const ScanLengthField = meme((): JSX.Element => {
 const ChunkSizeField = meme((): JSX.Element => {
   const scanning = useDataZustand((z) => z.clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => z.chunkSize)
-  const type = useClientZustand((z) => z.registerConfig.type)
+  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
   // hand and the unit id scan's Length field computed nothing at all. The floor
   // is on the blur, the way Length's is: `ScanRegistersParametersSchema` takes
@@ -217,7 +222,7 @@ const ScanButton = meme((): JSX.Element => {
     clientZustand.setReadConfiguration(false)
     // A scan walks raw addresses, which is what the extra columns are for, and
     // the rows land in a grid you are now watching fill.
-    if (!clientZustand.registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
+    if (!getSelectedClient().registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
     dataZustand.setScanProgress(0)
     dropPendingScanRows()
     dataZustand.setRegisterData([])

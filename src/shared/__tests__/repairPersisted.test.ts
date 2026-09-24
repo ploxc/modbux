@@ -104,6 +104,21 @@ describe('resetMessage', () => {
     expect(message).toContain('were reset')
   })
 
+  it.each([
+    ['Client', 'the selected client'],
+    ['Server', 'the selected server']
+  ] as const)('names the selection the %s store keeps as %s', (store, label) => {
+    const message = resetMessage(store, { fields: ['selectedUuid'], savedByNewerVersion: false })
+
+    expect(message).toContain(`${label} could not be read`)
+  })
+
+  it('names the clients', () => {
+    const message = resetMessage('Client', { fields: ['clients'], savedByNewerVersion: false })
+
+    expect(message).toContain('the clients could not be read')
+  })
+
   it('names a field the labels do not know rather than dropping it', () => {
     const message = resetMessage('Client', { fields: ['whatIsThis'], savedByNewerVersion: false })
 

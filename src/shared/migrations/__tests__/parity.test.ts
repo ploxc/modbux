@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ConnectionConfigSchema, ParitySchema, SerialPortOptionsSchema } from '../../types'
 import { CURRENT_CLIENT_ZUSTAND_VERSION, migrateClientState } from '../client/zustand'
+import { MAIN_CLIENT_UUID } from '../../default'
 import { CURRENT_SERVER_ZUSTAND_VERSION, migrateServerState } from '../server/zustand'
 import { repairPersistedParity } from '../shared'
 import { defaultConnectionConfig } from '../../default'
@@ -21,9 +22,19 @@ const persistedWithParity = (parity: string): Record<string, unknown> => ({
   }
 })
 
+/**
+ * The connection config of a migrated blob. The migration folds a store from
+ * before clients were keyed by uuid into one client under `MAIN_CLIENT_UUID`,
+ * so that is where it is.
+ */
+const migratedConnectionConfig = (state: Record<string, unknown>): unknown => {
+  const clients = state.clients as Record<string, Record<string, unknown>> | undefined
+  return clients?.[MAIN_CLIENT_UUID]?.connectionConfig
+}
+
 /** The RTU options of a migrated blob, or a failure naming what is missing. */
 const migratedRtuOptions = (state: Record<string, unknown>): Record<string, unknown> => {
-  const connectionConfig = state.connectionConfig as Record<string, unknown> | undefined
+  const connectionConfig = migratedConnectionConfig(state) as Record<string, unknown> | undefined
   const rtu = connectionConfig?.rtu as Record<string, unknown> | undefined
   const options = rtu?.options as Record<string, unknown> | undefined
   if (!options) throw new Error('the migrated blob has no connectionConfig.rtu.options')
@@ -55,14 +66,17 @@ describe('a persisted parity the binding refuses', () => {
     const state = migrateClientState(persistedWithParity(parity), 2)
 
     expect(migratedRtuOptions(state).parity).toBe('none')
-    expect(ConnectionConfigSchema.safeParse(state.connectionConfig).success).toBe(true)
+    expect(ConnectionConfigSchema.safeParse(migratedConnectionConfig(state)).success).toBe(true)
   })
 
   it('leaves the com port and the baud rate beside it', () => {
     const state = migrateClientState(persistedWithParity('mark'), 2)
 
     expect(migratedRtuOptions(state).baudRate).toBe('19200')
-    const rtu = (state.connectionConfig as Record<string, unknown>).rtu as Record<string, unknown>
+    const rtu = (migratedConnectionConfig(state) as Record<string, unknown>).rtu as Record<
+      string,
+      unknown
+    >
     expect(rtu.com).toBe('/dev/ttys011')
   })
 })

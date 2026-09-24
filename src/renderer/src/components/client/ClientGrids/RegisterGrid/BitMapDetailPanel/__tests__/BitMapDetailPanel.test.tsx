@@ -27,10 +27,11 @@ vi.mock('../BitIndicator', async () => {
 })
 
 import { act, render } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { defaultClientState, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const row = (uint16: number): RegisterData =>
   ({
@@ -51,10 +52,11 @@ const poll = (uint16: number): void => {
 beforeEach(() => {
   rendered.length = 0
   useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
-  useClientZustand.setState({
-    ready: true,
-    registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
-  } as never)
+  patchSelectedClient(
+    useClientZustand,
+    { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
+    { ready: true }
+  )
   useDataZustand.setState({ registerData: [row(0)] })
 })
 

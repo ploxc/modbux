@@ -8,6 +8,7 @@
 // carries.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from './stubRenderer'
+import { selectedClient, selectedSession } from '../client.zustand.helpers'
 
 beforeEach(() => {
   vi.resetModules()
@@ -54,8 +55,8 @@ describe('the validity of a connection address off disk', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().valid.com).toBe(false)
-    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('')
+    expect(selectedSession(useClientZustand.getState()).valid.com).toBe(false)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.rtu.com).toBe('')
   })
 
   it('reads false for a host of spaces', async () => {
@@ -63,7 +64,7 @@ describe('the validity of a connection address off disk', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().valid.host).toBe(false)
+    expect(selectedSession(useClientZustand.getState()).valid.host).toBe(false)
   })
 
   it('reads true for both when both name something', async () => {
@@ -71,8 +72,8 @@ describe('the validity of a connection address off disk', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().valid.host).toBe(true)
-    expect(useClientZustand.getState().valid.com).toBe(true)
+    expect(selectedSession(useClientZustand.getState()).valid.host).toBe(true)
+    expect(selectedSession(useClientZustand.getState()).valid.com).toBe(true)
   })
 
   // The read length carries the same kind of flag, over a value the schema
@@ -83,8 +84,8 @@ describe('the validity of a connection address off disk', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().valid.length).toBe(false)
-    expect(useClientZustand.getState().registerConfig.length).toBe(0)
+    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(false)
+    expect(selectedClient(useClientZustand.getState()).registerConfig.length).toBe(0)
   })
 
   it('reads true for a read length that asks for something', async () => {
@@ -92,16 +93,17 @@ describe('the validity of a connection address off disk', () => {
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(useClientZustand.getState().valid.length).toBe(true)
+    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(true)
   })
 
   // A first launch has no blob, and the defaults are what the fields show.
   it('reads the defaults on a launch with nothing stored', async () => {
     const { useClientZustand } = await import('../client.zustand')
-    const { connectionConfig, valid } = useClientZustand.getState()
+    const { connectionConfig } = selectedClient(useClientZustand.getState())
+    const { valid } = selectedSession(useClientZustand.getState())
 
     expect(valid.host).toBe(connectionConfig.tcp.host.trim().length > 0)
     expect(valid.com).toBe(connectionConfig.rtu.com.trim().length > 0)
-    expect(valid.length).toBe(useClientZustand.getState().registerConfig.length > 0)
+    expect(valid.length).toBe(selectedClient(useClientZustand.getState()).registerConfig.length > 0)
   })
 })

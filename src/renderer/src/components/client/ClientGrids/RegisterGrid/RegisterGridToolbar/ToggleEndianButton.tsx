@@ -3,13 +3,13 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Tooltip from '@mui/material/Tooltip'
 import EndianTable from '@renderer/components/shared/inputs/EndianTable'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 
 const ToggleEndianButton = meme((): JSX.Element | null => {
-  const type = useClientZustand((z) => z.registerConfig.type)
-  const littleEndian = useClientZustand((z) => z.registerConfig.littleEndian)
+  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
+  const littleEndian = useClientZustand((z) => selectedClient(z).registerConfig.littleEndian)
 
   const handleChange = useCallback((_event: unknown, value: boolean | null): void => {
     if (value === null) return

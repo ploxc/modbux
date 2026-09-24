@@ -13,7 +13,10 @@ vi.mock('@renderer/context/client.zustand', () => ({
     (selector: (state: { registerConfig: { address: number; length: number } }) => unknown) =>
       selector({ registerConfig }),
     { getState: () => ({ registerConfig }) }
-  )
+  ),
+  // The mock holds the selected client's fields flat, so the client is the state.
+  selectedClient: <State,>(state: State): State => state,
+  getSelectedClient: (): { registerConfig: typeof registerConfig } => ({ registerConfig })
 }))
 vi.mock('@renderer/context/data.zustand', () => ({
   useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })

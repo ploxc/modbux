@@ -17,6 +17,7 @@ export {
 export { migrateClientConfig, CURRENT_CLIENT_CONFIG_VERSION } from './client/config'
 export {
   migrateClientState,
+  foldClientIntoRecord,
   carryFormerClientState,
   CURRENT_CLIENT_ZUSTAND_VERSION,
   CLIENT_ZUSTAND_STORAGE_KEY,

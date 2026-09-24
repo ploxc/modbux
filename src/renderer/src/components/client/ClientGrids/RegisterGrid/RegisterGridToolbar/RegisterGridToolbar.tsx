@@ -12,13 +12,13 @@ import ShowLogButton from './ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import RawButton from './RawButton'
 import ClearFiltersButton from './ClearFiltersButton'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import TextField from '@mui/material/TextField'
 import { ChangeEvent, useCallback } from 'react'
 
 const ClientConfigName = meme(() => {
-  const name = useClientZustand((z) => z.name ?? '')
+  const name = useClientZustand((z) => selectedClient(z).name ?? '')
 
   const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
     const clientZustand = useClientZustand.getState()

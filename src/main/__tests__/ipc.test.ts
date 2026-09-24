@@ -519,6 +519,7 @@ describe('each guarded channel got its own schema', () => {
 
   const validPayloads: Record<string, unknown> = {
     create_client: 'client-1',
+    delete_client: 'client-1',
     update_connection_config: { uuid: 'client-1', connectionConfig: { unitId: 3 } },
     update_register_config: { uuid: 'client-1', registerConfig: { address: 40, length: 10 } },
     set_register_mapping: {

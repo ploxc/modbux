@@ -34,8 +34,9 @@ const handlers = vi.hoisted(() => {
   return handlers
 })
 
-import { useClientZustand } from '../client.zustand'
+import { useClientZustand, getSelectedClient, getSelectedSession } from '../client.zustand'
 import { useDataZustand } from '../data.zustand'
+import { patchSelectedClient } from './selectedClient'
 
 const disconnected: ClientState = { ...defaultClientState }
 
@@ -63,7 +64,7 @@ const stubApi = (): void => {
 
 beforeEach(() => {
   stubApi()
-  useClientZustand.setState({ ready: false } as never)
+  patchSelectedClient(useClientZustand, {}, { ready: false })
   useDataZustand.setState({ clientState: disconnected })
 })
 
@@ -73,13 +74,13 @@ beforeEach(() => {
  */
 describe('init hands main the config this window loaded', () => {
   it('is ready, has made its client, and has pushed both configs to it', () => {
-    const connectionConfig = useClientZustand.getState().connectionConfig
-    const registerConfig = useClientZustand.getState().registerConfig
+    const connectionConfig = getSelectedClient().connectionConfig
+    const registerConfig = getSelectedClient().registerConfig
 
     useClientZustand.getState().init()
 
-    expect(useClientZustand.getState().ready).toBe(true)
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(getSelectedSession().ready).toBe(true)
+    expect(getSelectedSession().readConfiguration).toBe(false)
     const uuid = MAIN_CLIENT_UUID
     expect(window.api.createClient).toHaveBeenCalledWith(uuid)
     expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ uuid, connectionConfig })
@@ -127,11 +128,11 @@ describe('replacing the register mapping', () => {
   // configuration off before it asks. False here would leave that half of it out
   // of both tests.
   beforeEach(() => {
-    useClientZustand.setState({
-      ready: true,
-      readConfiguration: true,
-      registerMapping: mapping('the one it had')
-    } as never)
+    patchSelectedClient(
+      useClientZustand,
+      { registerMapping: mapping('the one it had') },
+      { ready: true, readConfiguration: true }
+    )
   })
 
   it('writes the new one when main took it', async () => {
@@ -139,10 +140,8 @@ describe('replacing the register mapping', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(mapping('the new one'))
 
-    expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
-      'the new one'
-    )
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(getSelectedClient().registerMapping.holding_registers[0]?.comment).toBe('the new one')
+    expect(getSelectedSession().readConfiguration).toBe(false)
   })
 
   // Main keeps the mapping it had when it refuses one, so writing here would
@@ -153,11 +152,9 @@ describe('replacing the register mapping', () => {
     await useClientZustand.getState().replaceRegisterMapping(mapping('the new one'))
 
     expect(setRegisterMapping).toHaveBeenCalled()
-    expect(useClientZustand.getState().registerMapping.holding_registers[0]?.comment).toBe(
-      'the one it had'
-    )
+    expect(getSelectedClient().registerMapping.holding_registers[0]?.comment).toBe('the one it had')
     // What the refusal costs: main and the store both hold the mapping from
     // before, and read configuration is off.
-    expect(useClientZustand.getState().readConfiguration).toBe(false)
+    expect(getSelectedSession().readConfiguration).toBe(false)
   })
 })

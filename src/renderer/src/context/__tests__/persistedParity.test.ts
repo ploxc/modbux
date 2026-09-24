@@ -6,6 +6,7 @@
 // it and the version constant has moved past the blob's own.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from './stubRenderer'
+import { selectedClient } from '../client.zustand.helpers'
 
 beforeEach(() => {
   vi.resetModules()
@@ -35,7 +36,7 @@ describe('a client config stored with a parity the serial binding refuses', () =
     )
 
     const { useClientZustand } = await import('../client.zustand')
-    const rtu = useClientZustand.getState().connectionConfig.rtu
+    const rtu = selectedClient(useClientZustand.getState()).connectionConfig.rtu
 
     expect(rtu.options.parity).toBe('none')
     expect(rtu.com).toBe('/dev/ttys011')

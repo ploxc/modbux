@@ -130,6 +130,31 @@ describe('Clients', () => {
     expect(clients.get('b')?.config.connectionConfig.unitId).not.toBe(7)
   })
 
+  it('takes a client away, and lets go of its connection first', async () => {
+    clients.create('a')
+    clients.create('b')
+    await clients.get('a')?.connect()
+    await clients.get('b')?.connect()
+    const [instance] = instances
+
+    await clients.delete('a')
+    expect(Object.keys(clients.states())).toEqual(['b'])
+    expect(instance?.close).not.toHaveBeenCalled()
+
+    await clients.delete('b')
+    expect(instance?.close).toHaveBeenCalledTimes(1)
+    expect(messages()).not.toContain('Already disconnected')
+  })
+
+  it('takes a client nobody connected away without a word', async () => {
+    clients.create('a')
+
+    await clients.delete('a')
+
+    expect(Object.keys(clients.states())).toEqual([])
+    expect(messages()).toEqual([])
+  })
+
   describe('two clients on one connection', () => {
     const connectBoth = async () => {
       clients.create('a')

@@ -33,10 +33,11 @@ vi.mock('../BitIndicator', async () => {
 })
 
 import { act, render } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { BitMapConfig, defaultClientState, emptyRegisterMapping, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const row = (uint16: number): RegisterData =>
   ({
@@ -52,15 +53,15 @@ const row = (uint16: number): RegisterData =>
 const panelOver = (bitMap: BitMapConfig): void => {
   const mapping = emptyRegisterMapping()
   mapping.holding_registers[0] = { bitMap }
-  useClientZustand.setState({ registerMapping: mapping } as never)
+  patchSelectedClient(useClientZustand, { registerMapping: mapping })
   render(<BitMapDetailPanel address={0} />)
 }
 
 const bitMapNow = (): BitMapConfig | undefined =>
-  useClientZustand.getState().registerMapping.holding_registers[0]?.bitMap
+  getSelectedClient().registerMapping.holding_registers[0]?.bitMap
 
 /** The whole mapping entry, which is what `SaveButton` writes to the file. */
-const mappingNow = (): unknown => useClientZustand.getState().registerMapping.holding_registers
+const mappingNow = (): unknown => getSelectedClient().registerMapping.holding_registers
 
 const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
   const handlers = props.get(bitIndex)
@@ -73,10 +74,11 @@ const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
 beforeEach(() => {
   props.clear()
   useDataZustand.setState({ clientState: { ...defaultClientState, connectState: 'connected' } })
-  useClientZustand.setState({
-    ready: true,
-    registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
-  } as never)
+  patchSelectedClient(
+    useClientZustand,
+    { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
+    { ready: true }
+  )
   useDataZustand.setState({ registerData: [row(0)] })
 })
 

@@ -2,7 +2,7 @@ import Checkbox from '@mui/material/Checkbox'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ChangeEvent, useCallback } from 'react'
 
@@ -10,7 +10,7 @@ import { ChangeEvent, useCallback } from 'react'
 // here in the options menu rather than as a third connection toggle. Only shown
 // when TCP is selected; serial RTU has no use for it.
 const MenuConnectionOptions = meme((): JSX.Element | null => {
-  const protocol = useClientZustand((z) => z.connectionConfig.protocol)
+  const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
   const disabled = useDataZustand((z) => z.clientState.connectState !== 'disconnected')
 
   const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {

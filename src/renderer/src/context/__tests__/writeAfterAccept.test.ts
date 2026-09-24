@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import type { RegisterData } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
+import { selectedClient, selectedSession } from '../client.zustand.helpers'
 
 const load = async (): Promise<{
   clientZustand: typeof import('../client.zustand')
@@ -43,7 +44,7 @@ describe('a payload the boundary refuses', () => {
     dataZustand.useDataZustand.getState().setRegisterData(rows)
     await useClientZustand.getState().setUnitId('1,5')
 
-    expect(useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
     expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
   })
 
@@ -56,7 +57,7 @@ describe('a payload the boundary refuses', () => {
     dataZustand.useDataZustand.getState().setRegisterData(rows)
     await useClientZustand.getState().setAddress('4,0')
 
-    expect(useClientZustand.getState().registerConfig.address).toBe(40)
+    expect(selectedClient(useClientZustand.getState()).registerConfig.address).toBe(40)
     expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
   })
 })
@@ -70,7 +71,9 @@ describe('a payload the boundary takes', () => {
 
     await clientZustand.useClientZustand.getState().setUnitId('7')
 
-    expect(clientZustand.useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(selectedClient(clientZustand.useClientZustand.getState()).connectionConfig.unitId).toBe(
+      7
+    )
     expect(dataZustand.useDataZustand.getState().registerData).toEqual([])
   })
 
@@ -105,7 +108,7 @@ describe('a payload the boundary takes', () => {
 
     await useClientZustand.getState().setUnitId('7')
 
-    expect(useClientZustand.getState().connectionConfig.unitId).toBe(7)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
     expect(dataZustand.useDataZustand.getState().registerData).toHaveLength(1)
   })
 
@@ -115,7 +118,9 @@ describe('a payload the boundary takes', () => {
 
     await clientZustand.useClientZustand.getState().setAddress('40')
 
-    expect(clientZustand.useClientZustand.getState().registerConfig.address).toBe(40)
+    expect(selectedClient(clientZustand.useClientZustand.getState()).registerConfig.address).toBe(
+      40
+    )
     expect(dataZustand.useDataZustand.getState().registerData).toEqual([])
   })
 })
@@ -132,8 +137,8 @@ describe('a value the field marks invalid', () => {
 
     await useClientZustand.getState().setHost('192.168.', false)
 
-    expect(useClientZustand.getState().connectionConfig.tcp.host).toBe('192.168.')
-    expect(useClientZustand.getState().valid.host).toBe(false)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.tcp.host).toBe('192.168.')
+    expect(selectedSession(useClientZustand.getState()).valid.host).toBe(false)
   })
 
   // `ConnectionConfigRtuSchema` types `com` as a string and takes a blank one,
@@ -147,8 +152,8 @@ describe('a value the field marks invalid', () => {
 
     await useClientZustand.getState().setCom('   ', false)
 
-    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('   ')
-    expect(useClientZustand.getState().valid.com).toBe(false)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.rtu.com).toBe('   ')
+    expect(selectedSession(useClientZustand.getState()).valid.com).toBe(false)
     expect(calls).toEqual([])
   })
 
@@ -160,8 +165,8 @@ describe('a value the field marks invalid', () => {
 
     await useClientZustand.getState().setCom('COM9', true)
 
-    expect(useClientZustand.getState().connectionConfig.rtu.com).toBe('COM9')
-    expect(useClientZustand.getState().valid.com).toBe(true)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.rtu.com).toBe('COM9')
+    expect(selectedSession(useClientZustand.getState()).valid.com).toBe(true)
     expect(calls.map(({ method, payload }) => [method, clientPayload(payload)])).toEqual([
       ['updateConnectionConfig', { rtu: { com: 'COM9' } }]
     ])
@@ -173,6 +178,6 @@ describe('a value the field marks invalid', () => {
 
     await useClientZustand.getState().setLength('', false)
 
-    expect(useClientZustand.getState().valid.length).toBe(false)
+    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(false)
   })
 })

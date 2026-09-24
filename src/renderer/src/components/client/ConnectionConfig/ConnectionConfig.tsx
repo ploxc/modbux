@@ -11,7 +11,14 @@ import RtuConfig from './RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
 import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  useClientZustand,
+  getSelectedClient,
+  getSelectedSession,
+  selectedClient,
+  selectedClientUuid,
+  selectedSession
+} from '@renderer/context/client.zustand'
 import { Protocol } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -94,14 +101,16 @@ const ConnectButton = meme(() => {
    * to reach.
    */
   const addressValid = useClientZustand((z) =>
-    z.connectionConfig.protocol === 'ModbusRtu' ? z.valid.com : z.valid.host
+    selectedClient(z).connectionConfig.protocol === 'ModbusRtu'
+      ? selectedSession(z).valid.com
+      : selectedSession(z).valid.host
   )
 
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = useDataZustand.getState().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect(selectedClientUuid())
-      if (!useClientZustand.getState().readConfiguration) {
+      if (!getSelectedSession().readConfiguration) {
         useDataZustand.getState().setRegisterData([])
       }
       return
@@ -110,7 +119,7 @@ const ConnectButton = meme(() => {
     if (currentConnectedState === 'disconnected') {
       // On RTU the port can be there and still refuse to open. Ask first and
       // say why, rather than let the connect fail on a permission error.
-      if (useClientZustand.getState().connectionConfig.protocol === 'ModbusRtu') {
+      if (getSelectedClient().connectionConfig.protocol === 'ModbusRtu') {
         const blocked = await useSerialGroupZustand.getState().check({ force: true })
         if (blocked) return
       }
@@ -159,7 +168,7 @@ const ConnectButton = meme(() => {
 //
 // Unit Id
 const UnitId = meme(() => {
-  const unitId = useClientZustand((z) => String(z.connectionConfig.unitId))
+  const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
 
   const setUnitId = useClientZustand.getState().setUnitId
 
@@ -182,7 +191,7 @@ const UnitId = meme(() => {
 })
 
 const ConnectionConfig = meme(() => {
-  const protocol = useClientZustand((z) => z.connectionConfig.protocol)
+  const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
   return (
     <>
       {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}

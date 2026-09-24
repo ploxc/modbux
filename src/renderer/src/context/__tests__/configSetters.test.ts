@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
+import { selectedClient } from '../client.zustand.helpers'
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
@@ -51,13 +52,13 @@ describe('the four serial options', () => {
     await useClientZustand.getState().setStopBits(2)
     expect(lastPayload('updateConnectionConfig')).toEqual({ rtu: { options: { stopBits: 2 } } })
 
-    const { options } = useClientZustand.getState().connectionConfig.rtu
+    const { options } = selectedClient(useClientZustand.getState()).connectionConfig.rtu
     expect(options).toEqual({ baudRate: '19200', parity: 'even', dataBits: 7, stopBits: 2 })
   })
 
   it('write nothing while a connection stands', async () => {
     const { useClientZustand, useDataZustand } = await load()
-    const before = useClientZustand.getState().connectionConfig.rtu.options.baudRate
+    const before = selectedClient(useClientZustand.getState()).connectionConfig.rtu.options.baudRate
     useDataZustand.getState().setClientState({
       ...defaultClientState,
       connectState: 'connected'
@@ -67,7 +68,9 @@ describe('the four serial options', () => {
     await useClientZustand.getState().setBaudRate('19200')
 
     expect(lastPayload('updateConnectionConfig')).toBeUndefined()
-    expect(useClientZustand.getState().connectionConfig.rtu.options.baudRate).toBe(before)
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.rtu.options.baudRate).toBe(
+      before
+    )
   })
 })
 
@@ -91,7 +94,7 @@ describe('the five register config fields', () => {
     await useClientZustand.getState().setTimeout(3000)
     expect(lastPayload('updateRegisterConfig')).toEqual({ timeout: 3000 })
 
-    const { registerConfig } = useClientZustand.getState()
+    const { registerConfig } = selectedClient(useClientZustand.getState())
     expect(registerConfig.addressBase).toBe('1')
     expect(registerConfig.show64BitValues).toBe(true)
     expect(registerConfig.advancedMode).toBe(true)
@@ -107,6 +110,6 @@ describe('the five register config fields', () => {
 
     await useClientZustand.getState().setPollRate(1500)
 
-    expect(useClientZustand.getState().registerConfig.pollRate).toBe(2000)
+    expect(selectedClient(useClientZustand.getState()).registerConfig.pollRate).toBe(2000)
   })
 })

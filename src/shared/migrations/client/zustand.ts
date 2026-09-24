@@ -1,4 +1,5 @@
-import { dropUnmappableRegisters, repairPersistedParity } from '../shared'
+import { MAIN_CLIENT_UUID } from '../../default'
+import { dropUnmappableRegisters, isRecord, objectValues, repairPersistedParity } from '../shared'
 
 /**
  * One number above what the last release wrote. 2.3.0 shipped 2, under the name
@@ -26,9 +27,10 @@ export function migrateClientState(
   // `79fa174` took that field out of the client, so a v1 store has nothing to
   // carry. `grep -rn readLocalTime src e2e` returns nothing.
 
-  // v2→v3, one step because 2 is what the last release wrote: the RTU parity
-  // the serial binding refuses, and mapping entries at an address outside the
-  // 16 bit map.
+  // v2→v3, one step because 2 is what the last release wrote: the one client
+  // folded into a record under a uuid, then, per client, the RTU parity the
+  // serial binding refuses and mapping entries at an address outside the 16
+  // bit map.
   //
   // Any version but this one, rather than the ones below it, which is the
   // reason `migrateServerState` gives for the same shape: persist calls this
@@ -37,11 +39,39 @@ export function migrateClientState(
   // value costs `repairPersisted` the whole field, and `registerMapping` is
   // the one thing in this store built by hand.
   if (version !== CURRENT_CLIENT_ZUSTAND_VERSION) {
-    repairPersistedParity(state, 'connectionConfig', 'rtu', 'options')
-    dropUnmappableRegisters(state)
+    foldClientIntoRecord(state)
+    for (const client of objectValues(state.clients)) {
+      repairPersistedParity(client, 'connectionConfig', 'rtu', 'options')
+      dropUnmappableRegisters(client)
+    }
   }
 
   return state
+}
+
+/** The four fields one client held when the store held one client. */
+const FORMER_CLIENT_FIELDS = ['name', 'connectionConfig', 'registerConfig', 'registerMapping']
+
+/**
+ * Put a store from before clients were keyed by uuid into one client under
+ * `MAIN_CLIENT_UUID`, and select it.
+ *
+ * Keyed off the shape rather than the version, because version 3 was written
+ * both ways: before this build and by it. `migrateClientState` calls it for
+ * every version but the current one, and the store's `merge` for the current
+ * one. A store that already holds `clients` is left as it is.
+ */
+export function foldClientIntoRecord(state: Record<string, unknown>): void {
+  if (isRecord(state.clients)) return
+  if (!FORMER_CLIENT_FIELDS.some((field) => field in state)) return
+
+  const client: Record<string, unknown> = {}
+  for (const field of FORMER_CLIENT_FIELDS) {
+    if (field in state) client[field] = state[field]
+    delete state[field]
+  }
+  state.clients = { [MAIN_CLIENT_UUID]: client }
+  state.selectedUuid = MAIN_CLIENT_UUID
 }
 
 /** Only what this needs of Storage, so it takes localStorage without naming it. */

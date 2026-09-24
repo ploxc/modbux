@@ -15,11 +15,12 @@ vi.hoisted(async () => {
 })
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
 import { ClientState, defaultClientState, MAIN_CLIENT_UUID, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
+import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const calls: ApiCall[] = []
 
@@ -36,10 +37,11 @@ const renderPanel = (clientState: Partial<ClientState>): void => {
   useDataZustand.setState({
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
-  useClientZustand.setState({
-    ready: true,
-    registerConfig: { ...useClientZustand.getState().registerConfig, type: 'holding_registers' }
-  } as never)
+  patchSelectedClient(
+    useClientZustand,
+    { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
+    { ready: true }
+  )
   useDataZustand.setState({ registerData: [row] })
   render(<BitMapDetailPanel address={0} />)
 }

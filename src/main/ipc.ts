@@ -94,6 +94,7 @@ type RefusableChannel = {
  */
 const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'create_client',
+  'delete_client',
   'connect',
   'disconnect',
   'read',
@@ -191,6 +192,7 @@ export const initIpc: InitIpcFn = (app, clients, server, windows) => {
 
   // Clients
   ipcHandle('create_client', (_, uuid) => clients.create(uuid), ClientUuidSchema)
+  ipcHandle('delete_client', (_, uuid) => clients.delete(uuid), ClientUuidSchema)
   ipcHandle('get_client_states', () => clients.states())
 
   // Configuration
