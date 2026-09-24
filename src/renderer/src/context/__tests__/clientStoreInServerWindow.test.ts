@@ -54,8 +54,7 @@ describe('client.zustand in the split out server window', () => {
     await settle()
 
     const methods = calls.map(({ method }) => method)
-    expect(methods).toContain('updateConnectionConfig')
-    expect(methods).toContain('updateRegisterConfig')
+    expect(methods).toContain('createClient')
     expect(methods).toContain('stopScanningUnitIds')
     const readConfiguration = calls.find(({ method }) => method === 'setReadConfiguration')
     expect(readConfiguration && clientPayload(readConfiguration.payload)).toBe(false)

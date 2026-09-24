@@ -19,6 +19,18 @@ import { ScanRegistersParametersSchema, ScanUnitIDParametersSchema, ScanUnitIDRe
  */
 export const ClientUuidSchema = z.string().min(1)
 
+/**
+ * A client to make, with the config a window holds for it. A client main holds
+ * already takes the config too, except the connection it rides on, which stays
+ * while it rides.
+ */
+export const ClientCreateSchema = z.object({
+  uuid: ClientUuidSchema,
+  connectionConfig: ConnectionConfigSchema.deepPartial(),
+  registerConfig: RegisterConfigSchema.deepPartial()
+})
+export type ClientCreate = z.infer<typeof ClientCreateSchema>
+
 export const ClientConnectionConfigUpdateSchema = z.object({
   uuid: ClientUuidSchema,
   connectionConfig: ConnectionConfigSchema.deepPartial()

@@ -83,9 +83,11 @@ describe('init hands main the config this window loaded', () => {
     expect(getSelectedSession().ready).toBe(true)
     expect(getSelectedSession().readConfiguration).toBe(false)
     const uuid = MAIN_CLIENT_UUID
-    expect(window.api.createClient).toHaveBeenCalledWith(uuid)
-    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({ uuid, connectionConfig })
-    expect(window.api.updateRegisterConfig).toHaveBeenCalledWith({ uuid, registerConfig })
+    expect(window.api.createClient).toHaveBeenCalledWith({
+      uuid,
+      connectionConfig,
+      registerConfig
+    })
     expect(window.api.setReadConfiguration).toHaveBeenCalledWith({
       uuid,
       readConfiguration: false

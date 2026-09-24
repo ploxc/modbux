@@ -6,6 +6,7 @@ import {
   ClientRegisterMappingSchema,
   ClientScanRegistersSchema,
   ClientScanUnitIdsSchema,
+  ClientCreateSchema,
   ClientUuidSchema,
   ClientWriteSchema,
   IpcHandlerMap,
@@ -191,7 +192,11 @@ export const initIpc: InitIpcFn = (app, clients, server, windows) => {
     windows.send('backend_message', message, 'main')
 
   // Clients
-  ipcHandle('create_client', (_, uuid) => clients.create(uuid), ClientUuidSchema)
+  ipcHandle(
+    'create_client',
+    (_, { uuid, ...config }) => clients.create(uuid, config),
+    ClientCreateSchema
+  )
   ipcHandle('delete_client', (_, uuid) => clients.delete(uuid), ClientUuidSchema)
   ipcHandle('get_client_states', () => clients.states())
 

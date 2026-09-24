@@ -1,15 +1,18 @@
 import type ModbusRTU from 'modbus-serial'
+import { isDeepStrictEqual } from 'util'
 import { AppState } from '../state'
 import {
   AddressGroup,
   BackendMessage,
   BaseDataType,
   ClientState,
+  ConnectionConfig,
   ConnectState,
   clientOwner,
   convertBitData,
   configuredReadGroups,
   convertRegisterData,
+  DeepPartial,
   createRegisters,
   defaultClientState,
   isBooleanRegister,
@@ -1021,5 +1024,28 @@ export class ModbusClient implements TransportClient {
   /** What main holds of this client's configuration. */
   get config(): AppState {
     return this._appState
+  }
+
+  /**
+   * Whether `update` may change this client's connection config, having said
+   * why not.
+   *
+   * A client that is not disconnected rides a connection opened on that config,
+   * so a new protocol, address or line would leave it riding one its config
+   * no longer names. The unit id goes out with each request, so it may change,
+   * and an update that changes nothing, such as a window handing main the
+   * config it loaded, is no change.
+   */
+  public mayUpdateConnection = (update: DeepPartial<ConnectionConfig>): boolean => {
+    if (this._clientState.connectState === 'disconnected') return true
+    const now = this._appState.connectionConfig
+    const after = this._appState.connectionConfigAfter(update)
+    if (isDeepStrictEqual({ ...after, unitId: now.unitId }, now)) return true
+    this._emitMessage({
+      message: 'Disconnect before changing the connection',
+      variant: 'warning',
+      error: null
+    })
+    return false
   }
 }

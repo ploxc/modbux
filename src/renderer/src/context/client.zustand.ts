@@ -305,15 +305,15 @@ export const holdSelection = async <Result>(run: () => Promise<Result>): Promise
 }
 
 /**
- * Make a client in main and hand it this store's config for it.
+ * Make a client in main with this store's config for it, in one call.
  *
- * Main handles invokes in the order they arrive and makes the client without
- * waiting on anything, so the three after it find it there.
+ * A window that comes back finds main holding its clients already, maybe
+ * connected, and a connected one keeps the connection main opened. Main
+ * handles invokes in the order they arrive and makes the client without
+ * waiting on anything, so the call after it finds it there.
  */
 const handToMain = (uuid: string, { connectionConfig, registerConfig }: PersistedClient): void => {
-  window.api.createClient(uuid)
-  window.api.updateConnectionConfig({ uuid, connectionConfig })
-  window.api.updateRegisterConfig({ uuid, registerConfig })
+  window.api.createClient({ uuid, connectionConfig, registerConfig })
   window.api.setReadConfiguration({ uuid, readConfiguration: false })
 }
 

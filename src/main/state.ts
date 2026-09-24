@@ -59,12 +59,17 @@ export class AppState {
     return this._readGeneration
   }
 
-  public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
-    if (config.unitId !== undefined) this._readGeneration++
-    this._connectionConfig = merge<ConnectionConfig, DeepPartial<ConnectionConfig>>(
+  /** The connection config `config` would leave, without leaving it. */
+  public connectionConfigAfter(config: DeepPartial<ConnectionConfig>): ConnectionConfig {
+    return merge<ConnectionConfig, DeepPartial<ConnectionConfig>>(
       this._connectionConfig,
       withoutUndefined(config)
     )
+  }
+
+  public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
+    if (config.unitId !== undefined) this._readGeneration++
+    this._connectionConfig = this.connectionConfigAfter(config)
   }
 
   public updateRegisterConfig(config: DeepPartial<RegisterConfig>): void {

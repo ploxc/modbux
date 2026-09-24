@@ -1,6 +1,7 @@
 import type {
   AddressGroupsEvent,
   ClientConnectionConfigUpdate,
+  ClientCreate,
   ClientReadConfiguration,
   ClientRegisterConfigUpdate,
   ClientRegisterMapping,
@@ -121,13 +122,15 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  */
 export interface IpcHandlerSpec {
   /**
-   * Make the client main addresses under a uuid, unless one is there already.
+   * Make the client main addresses under a uuid, on the config a window holds
+   * for it.
    *
    * A window that loads again finds its client in main as it left it,
-   * connected and polling included, so a second create changes nothing.
+   * connected and polling included. The config goes to that client too, except
+   * the connection it rides on while it rides one.
    */
   ['create_client']: {
-    args: [string]
+    args: [ClientCreate]
     return: void
   }
 

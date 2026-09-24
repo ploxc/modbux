@@ -102,6 +102,102 @@ describe('Clients', () => {
     expect(instances).toHaveLength(1)
   })
 
+  describe('a connection change while the client rides a connection', () => {
+    const connected = async () => {
+      clients.create('a')
+      await clients.get('a')?.connect()
+      expect(clients.get('a')?.state.connectState).toBe('connected')
+    }
+
+    it('is refused, and says so', async () => {
+      await connected()
+      const host = clients.get('a')?.config.connectionConfig.tcp.host
+
+      expect(
+        clients.updateConnectionConfig({
+          uuid: 'a',
+          connectionConfig: { tcp: { host: '10.0.0.9' } }
+        })
+      ).toBeUndefined()
+
+      expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe(host)
+      expect(messages().at(-1)).toBe('Disconnect before changing the connection')
+    })
+
+    it('takes a unit id, which goes out with each request', async () => {
+      await connected()
+
+      expect(clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { unitId: 9 } })).toBe(
+        true
+      )
+      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(9)
+    })
+
+    // A window that comes back hands main the config it loaded.
+    it('takes the config it already holds, and says nothing', async () => {
+      await connected()
+      const count = messages().length
+      const client = clients.get('a')
+      if (!client) throw new Error('no client a')
+      const connectionConfig = structuredClone(client.config.connectionConfig)
+
+      expect(clients.updateConnectionConfig({ uuid: 'a', connectionConfig })).toBe(true)
+      expect(messages()).toHaveLength(count)
+    })
+  })
+
+  describe('the config a window makes a client with', () => {
+    it('is the client\u2019s when main makes it', () => {
+      clients.create('a', { connectionConfig: { unitId: 7 }, registerConfig: { address: 40 } })
+
+      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(7)
+      expect(clients.get('a')?.config.registerConfig.address).toBe(40)
+    })
+
+    // A window that comes back hands over what it stored, which can hold a
+    // field it kept invalid and never sent.
+    it('leaves the connection of a client that rides one, and says nothing', async () => {
+      clients.create('a')
+      await clients.get('a')?.connect()
+      const host = clients.get('a')?.config.connectionConfig.tcp.host
+      const count = messages().length
+
+      clients.create('a', {
+        connectionConfig: { unitId: 9, tcp: { host: '' } },
+        registerConfig: { address: 40 }
+      })
+
+      expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe(host)
+      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(9)
+      expect(clients.get('a')?.config.registerConfig.address).toBe(40)
+      expect(messages()).toHaveLength(count)
+    })
+
+    // A reload after the store was cleared, which is what the e2e suite does
+    // between files.
+    it('is taken whole by a client main holds that rides nothing', () => {
+      clients.create('a', { connectionConfig: { unitId: 7 }, registerConfig: { address: 40 } })
+
+      clients.create('a', {
+        connectionConfig: { unitId: 1, tcp: { host: '10.0.0.9' } },
+        registerConfig: { address: 0 }
+      })
+
+      expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe('10.0.0.9')
+      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(1)
+      expect(clients.get('a')?.config.registerConfig.address).toBe(0)
+    })
+  })
+
+  it('takes a connection change while the client is disconnected', () => {
+    clients.create('a')
+
+    expect(
+      clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { tcp: { host: '10.0.0.9' } } })
+    ).toBe(true)
+    expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe('10.0.0.9')
+  })
+
   it('makes a client once, and leaves it alone when asked again', () => {
     clients.create('a')
     const first = clients.get('a')

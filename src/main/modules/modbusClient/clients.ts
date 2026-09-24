@@ -1,5 +1,6 @@
 import {
   ClientConnectionConfigUpdate,
+  ClientCreate,
   ClientReadConfiguration,
   ClientRegisterConfigUpdate,
   ClientRegisterMapping,
@@ -27,18 +28,30 @@ export class Clients {
     this._transports = new Transports(windows)
   }
 
-  /** Make the client under `uuid`, or leave the one already there alone. */
-  public create = (uuid: string): void => {
-    if (this._clients.has(uuid)) return
-    this._clients.set(
-      uuid,
+  /** Make the client under `uuid` if there is none, and hand it `config`. */
+  public create = (uuid: string, config?: Omit<ClientCreate, 'uuid'>): void => {
+    const client =
+      this._clients.get(uuid) ??
       new ModbusClient({
         uuid,
         appState: new AppState(),
         windows: this._windows,
         transports: this._transports
       })
+    this._clients.set(uuid, client)
+    if (!config) return
+
+    // A window that comes back hands main what it stored for a client main
+    // holds already, maybe riding a connection. What that connection was
+    // opened on stays, without the refusal an edit gets, and the unit id goes
+    // out with each request, so it is taken either way.
+    const { connectionConfig, registerConfig } = config
+    client.config.updateConnectionConfig(
+      client.state.connectState === 'disconnected'
+        ? connectionConfig
+        : { unitId: connectionConfig.unitId }
     )
+    client.config.updateRegisterConfig(registerConfig)
   }
 
   /**
@@ -88,11 +101,16 @@ export class Clients {
     return true
   }
 
+  /** Refused while the client rides a connection, where the change would move it. */
   public updateConnectionConfig = ({
     uuid,
     connectionConfig
-  }: ClientConnectionConfigUpdate): true | undefined =>
-    this._configure(uuid, (config) => config.updateConnectionConfig(connectionConfig))
+  }: ClientConnectionConfigUpdate): true | undefined => {
+    const client = this.get(uuid)
+    if (!client?.mayUpdateConnection(connectionConfig)) return undefined
+    client.config.updateConnectionConfig(connectionConfig)
+    return true
+  }
 
   public updateRegisterConfig = ({
     uuid,

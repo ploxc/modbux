@@ -139,7 +139,7 @@ describe('the clients a store holds', () => {
     await load()
 
     const created = calls.filter(({ method }) => method === 'createClient')
-    expect(created.map(({ payload }) => payload)).toEqual(['a', 'b'])
+    expect(created.map(({ payload }) => (payload as { uuid: string }).uuid)).toEqual(['a', 'b'])
   })
 
   it('adds a client, hands it to main and shows it', async () => {
@@ -148,9 +148,12 @@ describe('the clients a store holds', () => {
     const uuid = useClientZustand.getState().addClient()
 
     expect(useClientZustand.getState().selectedUuid).toBe(uuid)
-    expect(calls.some(({ method, payload }) => method === 'createClient' && payload === uuid)).toBe(
-      true
-    )
+    expect(
+      calls.some(
+        ({ method, payload }) =>
+          method === 'createClient' && (payload as { uuid: string }).uuid === uuid
+      )
+    ).toBe(true)
     expect(useClientZustand.getState().sessions[uuid]?.ready).toBe(true)
   })
 
