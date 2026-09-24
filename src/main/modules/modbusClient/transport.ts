@@ -58,7 +58,12 @@ export interface RequestTarget {
  */
 interface ModbusRTUEmitter extends ModbusRTU {
   removeAllListeners(): void
-  _port: { destroy?: (callback: () => void) => void } | undefined
+  _port:
+    | {
+        destroy?: (callback: () => void) => void
+        _client?: { once: (event: 'close', listener: () => void) => unknown }
+      }
+    | undefined
 }
 
 /** How a close ended: closed, let go of after five seconds, or thrown. */
@@ -191,12 +196,11 @@ export class Transport {
    * The connection is gone while clients ride it, so the burst puts them on
    * connecting and reconnects, or lets them go when it has no attempt left.
    *
-   * Two things say so. The port's close does, and so does a request that finds
-   * the port shut under a connected state, which is all a TCP reset leaves:
-   * `tcpport.js` emits nothing for a socket error, and the close after it
-   * finds `openFlag` false and emits nothing either. A serial port reads shut
-   * while its close is still on its way, so the second can come before the
-   * first. Whichever comes second finds the burst under way, or, once the
+   * Three things say so: the port's close, the close of the socket under a
+   * TCP port, which `_hearTheSocketClose` listens to because `ModbusRTU` does
+   * not relay it, and a request that finds the port shut under a connected
+   * state. A serial port reads shut while its close is still on its way, so
+   * the request can come before the close. Whichever comes later finds the burst under way, or, once the
    * reconnect has opened a new port, finds the port open: a close relayed
    * from the port it replaced, which modbus-serial leaves listening. Neither
    * adds anything.
@@ -212,6 +216,28 @@ export class Transport {
     // reconnect.
     this._abandonInFlight?.(new Error('Connection lost'))
     this._scheduleReconnect(true)
+  }
+
+  /**
+   * Call `lost` when the socket of the port just opened closes.
+   *
+   * A TCP reset closes the socket, and modbus-serial 8.0.25 emits nothing for
+   * it: `tcpport.js` sets `openFlag` false on the socket's error, and its
+   * close handler then finds the flag false and stays quiet (their issue
+   * #591). Without this, the drop is found by the next request instead, and
+   * whether the burst gives up then depends on how late that request comes.
+   * `_client` is private to modbus-serial, so a bump of it has to be checked
+   * against the test that resets the socket.
+   *
+   * A serial port and a telnet port relay their close to `ModbusRTU`, so
+   * `lost` hears it twice there, and adds nothing the second time. A socket a
+   * reconnect has replaced finds the port open, and `lost` ignores it.
+   */
+  private _hearTheSocketClose = (): void => {
+    const port = (this._modbus as ModbusRTUEmitter)._port
+    port?._client?.once('close', () => {
+      if (this._shouldAutoReconnect) this.lost()
+    })
   }
 
   /**
@@ -360,8 +386,7 @@ export class Transport {
     client.setConnectState('connecting')
     if (this._openInFlight || this._reconnectTimeout) return
     // Riders on a port that is shut with nothing reopening it are on a
-    // connection that went without a close, which is all a TCP reset leaves,
-    // and that is the burst's for all of them rather than a fresh open. The
+    // connection whose close has not reached `lost` yet, and that is the burst's for all of them rather than a fresh open. The
     // count starts again, because a Connect is a user asking: a burst that
     // reached its limit would otherwise let every rider go with no attempt.
     if (this._clients.size > 1) {
@@ -471,6 +496,7 @@ export class Transport {
         })
       }
 
+      this._hearTheSocketClose()
       if (this._reconnectResetTimeout) clearTimeout(this._reconnectResetTimeout)
       this._reconnectResetTimeout = setTimeout(() => {
         this._consecutiveReconnects = 0

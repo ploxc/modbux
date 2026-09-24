@@ -54,8 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reconnect then put it back on connected and started the poll again. The
   view now says it is reconnecting for as long as it is, and the poll waits it
   out and reads again once the connection is back. A TCP connection the device
-  resets is reconnected too, where the client used to go to Connect at the next
-  read, and a connection error that leaves the port working no longer shows
+  resets is reconnected too, the moment it resets, where the client used to go
+  to Connect at the next read, and a connection error that leaves the port working no longer shows
   the client as disconnected.
 - **A stopped poll stops after the request it has on the way.** Its read went
   on through every configured group and then filled the grid, so a scan

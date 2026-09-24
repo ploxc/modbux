@@ -1943,9 +1943,10 @@ describe('ModbusClient', () => {
     })
   })
 
-  // A TCP reset reaches the transport as nothing: `tcpport.js` emits no error
-  // and no close for it. The request that finds the port shut is what says
-  // the connection is lost, and the transport reconnects.
+  // A port can read shut before its close reaches the transport: a serial
+  // port does while its close is on its way. The request that finds the port
+  // shut is then what says the connection is lost, and the transport
+  // reconnects.
   describe('a port that closed under a connected state', () => {
     /** Connected as far as the state knows, and shut underneath. */
     const closedUnderneath = async (): Promise<void> => {

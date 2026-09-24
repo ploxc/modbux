@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { EventEmitter } from 'events'
 import type { ConnectionConfig, ConnectState } from '@shared'
 import { defaultConnectionConfig } from '@shared'
 import type { Windows } from '../../../windows'
@@ -22,6 +23,7 @@ const createMockModbusRTU = () => {
     // the way `apis/connection.js` does.
     connectTCP: vi.fn(async (_host: string, options: Record<string, unknown>) => {
       options.timeout = 3000
+      mock._port = { _transactionIdWrite: 1, _client: new EventEmitter() }
       mock.isOpen = true
     }),
     connectTelnet: vi.fn(),
@@ -38,7 +40,7 @@ const createMockModbusRTU = () => {
     // A serial port never moves this off 1, which is what makes one queue
     // the only thing keeping two requests' log entries apart.
     _port: { _transactionIdWrite: 1 } as
-      | { _transactionIdWrite: number; destroy?: () => void }
+      | { _transactionIdWrite: number; destroy?: () => void; _client?: EventEmitter }
       | undefined,
     isDebugEnabled: false
   }
@@ -323,8 +325,9 @@ describe('Transport', () => {
       return { client, transport }
     }
 
-    // A TCP reset shuts the port and emits nothing, so nothing calls `lost`.
-    it('rejects the read a silent reset left on the wire when the last client leaves', async () => {
+    // The port reads shut and no close has reached the transport, so nothing
+    // has called `lost`.
+    it('rejects the read on the wire of a port found shut when the last client leaves', async () => {
       const { client, transport } = await connected()
       likeTheLibrary()
       const read = track(readOn(transport, client, 1000))
@@ -861,9 +864,9 @@ describe('Transport', () => {
   })
 
   describe('a connection found lost', () => {
-    // A TCP reset leaves the port shut and says nothing, so the client on it
-    // still reads connected when the next one joins.
-    it('reconnects every rider when a client joins a port that died silently', async () => {
+    // The port reads shut and no close has reached the transport, so the
+    // client on it still reads connected when the next one joins.
+    it('reconnects every rider when a client joins a port found shut', async () => {
       const first = createClient()
       const transport = transports.acquire(tcp('10.0.0.1'))
       await transport.attach(first, tcp('10.0.0.1'))
@@ -912,7 +915,7 @@ describe('Transport', () => {
     }
 
     it.each([2, 5])(
-      'starts a fresh burst for a client that joins a port that died silently after %i reconnects',
+      'starts a fresh burst for a client that joins a port found shut after %i reconnects',
       async (times) => {
         const { first, second, transport } = await afterReconnects(times)
         mockModbusRTU.isOpen = false
@@ -996,6 +999,82 @@ describe('Transport', () => {
       expect(lastLost()).toMatchObject({
         message: 'Connection lost, too many consecutive reconnect attempts, giving up'
       })
+    })
+
+    /**
+     * A TCP reset as modbus-serial 8.0.25 leaves it: the socket closes and the
+     * port reads shut, and `ModbusRTU` emits nothing (its issue #591).
+     */
+    const socketOfThePort = () => {
+      const socket = mockModbusRTU._port?._client
+      if (!socket) throw new Error('the port has no socket')
+      return socket
+    }
+
+    const resetTheSocket = () => {
+      const socket = socketOfThePort()
+      mockModbusRTU.isOpen = false
+      socket.emit('close', true)
+    }
+
+    it('reconnects at a reset nothing else reports', async () => {
+      const client = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(client, tcp('10.0.0.1'))
+
+      resetTheSocket()
+
+      expect(lastLost()).toMatchObject({ message: 'Connection lost, reconnecting (1/5)...' })
+      expect(client.states.at(-1)).toBe('connecting')
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(client.states.at(-1)).toBe('connected')
+    })
+
+    it('gives up at a reset two seconds after the fifth reconnect, whenever a rider looks', async () => {
+      const { first } = await afterReconnects(5)
+      // The last reopen was half a second ago.
+      await vi.advanceTimersByTimeAsync(1500)
+
+      resetTheSocket()
+      await vi.advanceTimersByTimeAsync(9000)
+
+      expect(lastLost()).toMatchObject({
+        message: 'Connection lost, too many consecutive reconnect attempts, giving up'
+      })
+      expect(first.states.at(-1)).toBe('disconnected')
+    })
+
+    it('does not reconnect at the socket close a disconnect causes', async () => {
+      const client = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(client, tcp('10.0.0.1'))
+      const socket = socketOfThePort()
+      await transport.detach(client, false)
+
+      socket.emit('close', false)
+      await vi.advanceTimersByTimeAsync(3500)
+
+      expect(lostMessages()).toEqual([])
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalledTimes(1)
+    })
+
+    it('ignores the close of a socket a reconnect replaced', async () => {
+      const client = createClient()
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(client, tcp('10.0.0.1'))
+      const replaced = socketOfThePort()
+      // Down through the port's own close, so the replaced socket's listener
+      // has not fired yet.
+      mockModbusRTU.isOpen = false
+      fireHandler('close')
+      await vi.advanceTimersByTimeAsync(3500)
+      expect(client.states.at(-1)).toBe('connected')
+      const before = sent.length
+
+      replaced.emit('close', true)
+
+      expect(sent.slice(before)).toEqual([])
+      expect(client.states.at(-1)).toBe('connected')
     })
 
     // modbus-serial leaves the port a reconnect replaced listening, and its
