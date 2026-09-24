@@ -29,7 +29,7 @@ const disconnected: ClientState = { ...defaultClientState }
 /**
  * A channel whose type cannot answer `undefined` answers something here.
  *
- * `data.zustand` writes what `get_client_states` hands back, so a stub answering
+ * `live.zustand` writes what `get_client_states` hands back, so a stub answering
  * `undefined` puts that in the store and every setter reading `connectState`
  * throws a line later.
  */

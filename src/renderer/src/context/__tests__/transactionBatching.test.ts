@@ -9,7 +9,7 @@ import type { Transaction } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 import { MAIN_CLIENT_UUID } from '@shared'
 import { shownData } from './shownData'
-import { dataOf } from '../data.zustand.helpers'
+import { dataOf } from '../live.zustand.helpers'
 
 const FLUSH_MS = 100
 
@@ -41,9 +41,9 @@ const loaded = async (): Promise<{
   writes: () => number
   clear: () => void
 }> => {
-  const { useDataZustand } = await import('../data.zustand')
+  const { useLiveZustand } = await import('../live.zustand')
   let writes = 0
-  useDataZustand.subscribe((state, previous) => {
+  useLiveZustand.subscribe((state, previous) => {
     if (
       dataOf(state, MAIN_CLIENT_UUID).transactions !==
       dataOf(previous, MAIN_CLIENT_UUID).transactions
@@ -51,9 +51,9 @@ const loaded = async (): Promise<{
       writes++
   })
   return {
-    ids: () => shownData(useDataZustand).transactions.map((entry) => entry.id),
+    ids: () => shownData(useLiveZustand).transactions.map((entry) => entry.id),
     writes: () => writes,
-    clear: () => useDataZustand.getState().clearTransactions(MAIN_CLIENT_UUID)
+    clear: () => useLiveZustand.getState().clearTransactions(MAIN_CLIENT_UUID)
   }
 }
 

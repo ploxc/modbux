@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Five fields written at event rate live in `data.zustand`, which has no
+// Five fields written at event rate live in `live.zustand`, which has no
 // persist middleware. In `client.zustand` each of them serialized the whole
 // partialized state, register mapping included, because zustand's persist
 // wraps `setState` and calls `setItem` on every call with no debounce. A unit
@@ -36,10 +36,10 @@ const keysWritten: string[] = []
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
-  useDataZustand: typeof import('../data.zustand').useDataZustand
+  useLiveZustand: typeof import('../live.zustand').useLiveZustand
 }> => ({
   useClientZustand: (await import('../client.zustand')).useClientZustand,
-  useDataZustand: (await import('../data.zustand')).useDataZustand
+  useLiveZustand: (await import('../live.zustand')).useLiveZustand
 })
 
 beforeEach(() => {
@@ -54,18 +54,18 @@ beforeEach(() => {
 
 describe('what main pushes about the client', () => {
   it('reaches no storage, where a persisted field reaches it', async () => {
-    const { useClientZustand, useDataZustand } = await load()
-    const dataZustand = useDataZustand.getState()
+    const { useClientZustand, useLiveZustand } = await load()
+    const liveZustand = useLiveZustand.getState()
     keysWritten.length = 0
 
-    dataZustand.setClientState(MAIN_CLIENT_UUID, {
+    liveZustand.setClientState(MAIN_CLIENT_UUID, {
       ...defaultClientState,
       connectState: 'connected'
     })
-    dataZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
-    dataZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
-    dataZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
-    dataZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
+    liveZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
+    liveZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
+    liveZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
+    liveZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
 
     expect(keysWritten).toEqual([])
 
@@ -77,19 +77,19 @@ describe('what main pushes about the client', () => {
   })
 
   it('lands in the store all the same', async () => {
-    const { useDataZustand } = await load()
-    const dataZustand = useDataZustand.getState()
+    const { useLiveZustand } = await load()
+    const liveZustand = useLiveZustand.getState()
 
-    dataZustand.setClientState(MAIN_CLIENT_UUID, {
+    liveZustand.setClientState(MAIN_CLIENT_UUID, {
       ...defaultClientState,
       connectState: 'connected'
     })
-    dataZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
-    dataZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
-    dataZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
-    dataZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
+    liveZustand.addTransactions(MAIN_CLIENT_UUID, [transaction])
+    liveZustand.addScanUnitIdResults(MAIN_CLIENT_UUID, [scanResult])
+    liveZustand.setScanProgress(MAIN_CLIENT_UUID, 50)
+    liveZustand.setLastSuccessfulTransactionMillis(MAIN_CLIENT_UUID, 1)
 
-    const state = shownData(useDataZustand)
+    const state = shownData(useLiveZustand)
     expect(state.clientState.connectState).toBe('connected')
     expect(state.transactions).toEqual([transaction])
     expect(state.scanUnitIdResults).toEqual([scanResult])

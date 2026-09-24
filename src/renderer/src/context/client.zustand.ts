@@ -33,7 +33,7 @@ import {
   selectedClient,
   selectedSession
 } from './client.zustand.helpers'
-import { dataOf, showMapping, useDataZustand } from './data.zustand'
+import { dataOf, showMapping, useLiveZustand } from './live.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
@@ -159,7 +159,7 @@ const clearRegisterDataWhenIdle = (uuid: string, readsTheMapping: boolean): void
   const { clients, sessions } = useClientZustand.getState()
   const client = clients[uuid]
   if (!client) return
-  if (dataOf(useDataZustand.getState(), uuid).clientState.polling) return
+  if (dataOf(useLiveZustand.getState(), uuid).clientState.polling) return
   if (sessions[uuid]?.readConfiguration) {
     if (!readsTheMapping) return
     showMapping(uuid)
@@ -169,7 +169,7 @@ const clearRegisterDataWhenIdle = (uuid: string, readsTheMapping: boolean): void
     }
     return
   }
-  useDataZustand.getState().setRegisterData(uuid, [])
+  useLiveZustand.getState().setRegisterData(uuid, [])
 }
 
 /**
@@ -177,11 +177,11 @@ const clearRegisterDataWhenIdle = (uuid: string, readsTheMapping: boolean): void
  *
  * Five setters ask it: `setSerialOption` for the four serial options, and
  * `setProtocol`, `setPort`, `setHost` and `setCom`. `connectState` lives in
- * `data.zustand` with the rest of what main pushes, so they read it there
+ * `live.zustand` with the rest of what main pushes, so they read it there
  * rather than out of the state they are writing.
  */
 const isDisconnected = (uuid: string): boolean =>
-  dataOf(useDataZustand.getState(), uuid).clientState.connectState === 'disconnected'
+  dataOf(useLiveZustand.getState(), uuid).clientState.connectState === 'disconnected'
 
 /**
  * The last call of each setter that writes an invalid value at once, per
@@ -304,7 +304,7 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
  * holds after a restart and what the field leaves unsent before one.
  */
 const readWhenMainCan = (uuid: string): void => {
-  const { clientState } = dataOf(useDataZustand.getState(), uuid)
+  const { clientState } = dataOf(useLiveZustand.getState(), uuid)
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) return
   if (readsNothingOf(useClientZustand.getState(), uuid)) return
@@ -412,7 +412,7 @@ export const useClientZustand = create<
           const [first = MAIN_CLIENT_UUID] = Object.keys(state.clients)
           state.selectedUuid = first
         })
-        useDataZustand.getState().dropClient(uuid)
+        useLiveZustand.getState().dropClient(uuid)
         // A step whose client is gone has nothing to be put back into, and
         // left on the stack it would refuse every undo after it.
         const undo = useUndoZustand.getState()
@@ -793,7 +793,7 @@ export const useClientZustand = create<
         // The rows on screen were read in the other word order, and the
         // conversion happens where the reading does, so they stay that way
         // until the next read. An empty grid has nothing to put right.
-        if (dataOf(useDataZustand.getState(), uuid).registerData.length > 0) readWhenMainCan(uuid)
+        if (dataOf(useLiveZustand.getState(), uuid).registerData.length > 0) readWhenMainCan(uuid)
         return true
       },
       setReadConfiguration: (readConfiguration) => {
@@ -879,8 +879,8 @@ const clientZustand = useClientZustand.getState()
 
 /**
  * The window this module may call main from, the question its siblings ask.
- * `layout.zustand`, `server.zustand` and `data.zustand` each read it too, and
- * `data.zustand`'s tail is the other one that calls main from module scope.
+ * `layout.zustand`, `server.zustand` and `live.zustand` each read it too, and
+ * `live.zustand`'s tail is the other one that calls main from module scope.
  *
  * `App.tsx` imports `containers/Client` statically and `Client.tsx:11` imports
  * this file, so `out/renderer/assets/` holds one js file and both windows

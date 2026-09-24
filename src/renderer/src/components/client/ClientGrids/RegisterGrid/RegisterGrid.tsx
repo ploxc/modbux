@@ -8,7 +8,7 @@ import {
 } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
@@ -23,7 +23,7 @@ import {
 } from '@mui/x-data-grid/models'
 import { BITMAP_DATATYPE, RegisterData, scalableDataTypes } from '@shared'
 import { alpha } from '@mui/material/styles'
-import { showMapping } from '@renderer/context/data.zustand'
+import { showMapping } from '@renderer/context/live.zustand'
 import BitMapRow from './BitMapRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
@@ -34,7 +34,7 @@ import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 // Footer
 const Footer = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const time = useDataZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
+  const time = useLiveZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
   return (
     <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
       <Typography variant="caption" sx={{ opacity: 0.5 }}>
@@ -55,7 +55,7 @@ const Footer = meme(() => {
 // DataGrid
 const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const registerData = useDataZustand((z) => dataOf(z, selectedUuid).registerData)
+  const registerData = useLiveZustand((z) => dataOf(z, selectedUuid).registerData)
   const registerMapping = useClientZustand(
     (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type]
   )
@@ -70,7 +70,7 @@ const RegisterGridContent = meme((): JSX.Element => {
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still
   // arriving is a fight nobody wins. Scrolling and paging stay.
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   // An expanded bitmap row is taller by whatever its detail panel measures, and
   // the grid places every row below it from this answer.
@@ -111,7 +111,7 @@ const RegisterGridContent = meme((): JSX.Element => {
     } else {
       // Only clear data when transitioning from ON to OFF, not on initial mount
       if (prevReadConfigRef.current) {
-        useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
+        useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
       }
       apiRef.current?.setFilterModel({ items: [] })
     }

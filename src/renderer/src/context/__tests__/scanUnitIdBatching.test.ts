@@ -7,7 +7,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, type ScanUnitIDResult, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 import { patchShownData, shownData } from './shownData'
-import { dataOf } from '../data.zustand.helpers'
+import { dataOf } from '../live.zustand.helpers'
 
 const SCAN_FLUSH_MS = 100
 
@@ -35,10 +35,10 @@ const loaded = async (): Promise<{
   writes: () => number
   clear: () => void
 }> => {
-  const { useDataZustand } = await import('../data.zustand')
-  patchShownData(useDataZustand, { clientState: { ...defaultClientState, scanningUnitIds: true } })
+  const { useLiveZustand } = await import('../live.zustand')
+  patchShownData(useLiveZustand, { clientState: { ...defaultClientState, scanningUnitIds: true } })
   let writes = 0
-  useDataZustand.subscribe((state, previous) => {
+  useLiveZustand.subscribe((state, previous) => {
     if (
       dataOf(state, MAIN_CLIENT_UUID).scanUnitIdResults !==
       dataOf(previous, MAIN_CLIENT_UUID).scanUnitIdResults
@@ -46,9 +46,9 @@ const loaded = async (): Promise<{
       writes++
   })
   return {
-    ids: () => shownData(useDataZustand).scanUnitIdResults.map((entry) => entry.id),
+    ids: () => shownData(useLiveZustand).scanUnitIdResults.map((entry) => entry.id),
     writes: () => writes,
-    clear: () => useDataZustand.getState().clearScanUnitIdResults(MAIN_CLIENT_UUID)
+    clear: () => useLiveZustand.getState().clearScanUnitIdResults(MAIN_CLIENT_UUID)
   }
 }
 

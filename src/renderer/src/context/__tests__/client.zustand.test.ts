@@ -35,7 +35,7 @@ const handlers = vi.hoisted(() => {
 })
 
 import { useClientZustand, getSelectedClient, getSelectedSession } from '../client.zustand'
-import { useDataZustand } from '../data.zustand'
+import { useLiveZustand } from '../live.zustand'
 import { patchSelectedClient } from './selectedClient'
 import { patchShownData, shownData } from './shownData'
 
@@ -66,12 +66,12 @@ const stubApi = (): void => {
 beforeEach(() => {
   stubApi()
   patchSelectedClient(useClientZustand, {}, { ready: false })
-  patchShownData(useDataZustand, { clientState: disconnected })
+  patchShownData(useLiveZustand, { clientState: disconnected })
 })
 
 /**
  * What main answers about the client is `answeredClientState.test.ts`, because
- * `data.zustand` asks at import time rather than through `init`.
+ * `live.zustand` asks at import time rather than through `init`.
  */
 describe('init hands main the config this window loaded', () => {
   it('is ready, has made its client, and has pushed both configs to it', () => {
@@ -97,19 +97,19 @@ describe('init hands main the config this window loaded', () => {
 
 describe('the client_state listener', () => {
   it('leaves the store alone for a client it does not hold', () => {
-    const before = shownData(useDataZustand).clientState
+    const before = shownData(useLiveZustand).clientState
     const handler = handlers.get('client_state')
     if (!handler) throw new Error('no client_state listener was registered')
 
     handler(undefined, { uuid: 'another-client', clientState: connectedAndPolling })
 
-    expect(shownData(useDataZustand).clientState).toBe(before)
+    expect(shownData(useLiveZustand).clientState).toBe(before)
   })
 
   it('writes what main pushed', () => {
     pushClientState(connectedAndPolling)
 
-    expect(shownData(useDataZustand).clientState).toEqual(connectedAndPolling)
+    expect(shownData(useLiveZustand).clientState).toEqual(connectedAndPolling)
   })
 })
 

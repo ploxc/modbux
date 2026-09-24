@@ -7,7 +7,7 @@ import type { RegisterData, RegisterMapObject } from '@shared'
 
 const dataState = { addressGroups: [] as [number, number][] }
 
-vi.mock('@renderer/context/data.zustand', () => ({
+vi.mock('@renderer/context/live.zustand', () => ({
   getShownData: (): typeof dataState => dataState
 }))
 

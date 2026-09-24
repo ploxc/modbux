@@ -5,7 +5,7 @@ import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { RegisterType, RegisterData } from '@shared'
 import { ReactElement, useEffect, useRef, useState } from 'react'
 import { useClientZustand } from '@renderer/context/client.zustand'
@@ -23,7 +23,7 @@ const Action = meme(({ address, type }: ActionProps): JSX.Element => {
   const apiRef = useGridApiContext()
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const disabled = useDataZustand((z) => {
+  const disabled = useLiveZustand((z) => {
     return (
       dataOf(z, selectedUuid).clientState.polling ||
       dataOf(z, selectedUuid).clientState.connectState !== 'connected'

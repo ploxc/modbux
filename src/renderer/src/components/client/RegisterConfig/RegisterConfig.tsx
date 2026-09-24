@@ -12,7 +12,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import LengthInput from '@renderer/components/shared/inputs/LengthInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import {
   useClientZustand,
   flushRegisterMappingToMain,
@@ -23,7 +23,7 @@ import {
   selectedSession
 } from '@renderer/context/client.zustand'
 import { clientOwner, maxReadQuantity, registersFrom, RegisterType } from '@shared'
-import { showMapping } from '@renderer/context/data.zustand'
+import { showMapping } from '@renderer/context/live.zustand'
 import { ElementType, useCallback, useEffect, useRef } from 'react'
 
 // Protocol
@@ -37,11 +37,11 @@ const TypeSelect = meme(() => {
   // between the two asks a device for 2000 holding registers. The scan dialog
   // disables every field it owns while it runs; this one sits in the top bar,
   // and what kept it out of reach was the strip the dialog draws over it.
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   const handleChange = useCallback((type: RegisterType) => {
     if (!getSelectedSession().readConfiguration) {
-      useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
+      useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
     }
     useClientZustand.getState().setType(type)
   }, [])
@@ -176,7 +176,7 @@ const ReadConfiguration = meme(() => {
   // the next `_read` builds its groups out of both, so the rows arrive within
   // one poll rate with no ask of ours. Asking the whole question greyed the
   // press that turns it off as well, which asks main for nothing at all.
-  const owner = useDataZustand((z) =>
+  const owner = useLiveZustand((z) =>
     clientOwner(dataOf(z, selectedUuid).clientState, { exceptPolling: true })
   )
   const disabled = nothingConfigured || owner !== undefined

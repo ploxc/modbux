@@ -1,11 +1,11 @@
 import { MAIN_CLIENT_UUID } from '@shared'
-import type { ClientData, DataZustand } from '../data.zustand.types'
-import { dataOf, emptyClientData } from '../data.zustand.helpers'
+import type { ClientData, LiveZustand } from '../live.zustand.types'
+import { dataOf, emptyClientData } from '../live.zustand.helpers'
 
-/** The two calls of the data store this needs, so a test hands over the one it loaded. */
+/** The two calls of the live store this needs, so a test hands over the one it loaded. */
 interface DataStore {
-  getState: () => DataZustand
-  setState: (partial: Partial<DataZustand>) => void
+  getState: () => LiveZustand
+  setState: (partial: Partial<LiveZustand>) => void
 }
 
 /**

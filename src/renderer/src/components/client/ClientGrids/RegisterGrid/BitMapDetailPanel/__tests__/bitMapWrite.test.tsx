@@ -16,7 +16,7 @@ vi.hoisted(async () => {
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
 import { ClientState, defaultClientState, MAIN_CLIENT_UUID, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
@@ -35,7 +35,7 @@ const row = {
 } as unknown as RegisterData
 
 const renderPanel = (clientState: Partial<ClientState>): void => {
-  patchShownData(useDataZustand, {
+  patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   patchSelectedClient(
@@ -43,7 +43,7 @@ const renderPanel = (clientState: Partial<ClientState>): void => {
     { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
     { ready: true }
   )
-  patchShownData(useDataZustand, { registerData: [row] })
+  patchShownData(useLiveZustand, { registerData: [row] })
   render(<BitMapDetailPanel address={0} />)
 }
 

@@ -1,5 +1,5 @@
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
-import { getShownData } from '@renderer/context/data.zustand'
+import { getShownData } from '@renderer/context/live.zustand'
 import { DataType, RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
 import { round } from 'lodash'
 

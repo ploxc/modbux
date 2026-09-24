@@ -10,8 +10,8 @@ vi.mock('@renderer/context/client.zustand', () => ({
   useClientZustand: Object.assign(() => undefined, { getState: () => ({}) }),
   selectedClientUuid: (): string => 'the-client'
 }))
-vi.mock('@renderer/context/data.zustand', () => ({
-  useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
+vi.mock('@renderer/context/live.zustand', () => ({
+  useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
 }))
 
 import { WriteRegistersButton } from '../WriteModal'

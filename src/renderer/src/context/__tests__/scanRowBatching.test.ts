@@ -30,11 +30,11 @@ const loaded = async (
   addresses: () => number[]
   dropPendingScanRows: (uuid: string) => void
 }> => {
-  const { useDataZustand, dropPendingScanRows } = await import('../data.zustand')
-  patchShownData(useDataZustand, { clientState: { ...defaultClientState, scanningRegisters } })
+  const { useLiveZustand, dropPendingScanRows } = await import('../live.zustand')
+  patchShownData(useLiveZustand, { clientState: { ...defaultClientState, scanningRegisters } })
 
   return {
-    addresses: () => shownData(useDataZustand).registerData.map((row) => row.id),
+    addresses: () => shownData(useLiveZustand).registerData.map((row) => row.id),
     dropPendingScanRows
   }
 }
@@ -110,8 +110,8 @@ describe('rows a poll reads', () => {
     const { addresses } = await loaded(true)
     fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
 
-    const { useDataZustand } = await import('../data.zustand')
-    patchShownData(useDataZustand, {
+    const { useLiveZustand } = await import('../live.zustand')
+    patchShownData(useLiveZustand, {
       clientState: { ...defaultClientState, scanningRegisters: false }
     })
     fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })

@@ -37,14 +37,14 @@ const load = async (): Promise<{
 }> => {
   const { useClientZustand } = await import('../client.zustand')
   const { useUndoZustand } = await import('../undo.zustand')
-  const { useDataZustand } = await import('../data.zustand')
+  const { useLiveZustand } = await import('../live.zustand')
   const clientUndo = await import('../clientUndo')
   return {
     client: () => useClientZustand.getState(),
     undo: () => useUndoZustand.getState(),
     clientUndo,
     setConnected: (connected) =>
-      useDataZustand.getState().setClientState(MAIN_CLIENT_UUID, {
+      useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, {
         ...defaultClientState,
         connectState: connected ? 'connected' : 'disconnected'
       })

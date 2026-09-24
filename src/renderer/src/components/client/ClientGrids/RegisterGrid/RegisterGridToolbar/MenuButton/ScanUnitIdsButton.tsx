@@ -1,14 +1,14 @@
 import Button from '@mui/material/Button'
 import { useScanUnitIdZustand } from '@renderer/components/client/ScanUnitIds/scanUnitIds.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { useCallback } from 'react'
 import type { SetAnchorProps } from './MenuButton'
 import { useClientZustand } from '@renderer/context/client.zustand'
 
 const ScanUnitIdsButton = meme(({ setAnchor }: SetAnchorProps): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const disabled = useDataZustand(
+  const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'connected'
   )
 

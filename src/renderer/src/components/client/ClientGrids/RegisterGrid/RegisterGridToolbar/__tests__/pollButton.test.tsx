@@ -15,7 +15,7 @@ vi.hoisted(async () => {
 })
 
 import { render, screen } from '@testing-library/react'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import PollButton from '../PollButton'
@@ -33,7 +33,7 @@ const renderButton = (
   clientState: Partial<ClientState>,
   { lengthGiven = true, mappedGroup }: Toolbar = {}
 ): HTMLElement => {
-  patchShownData(useDataZustand, {
+  patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   const registerMapping = emptyRegisterMapping()

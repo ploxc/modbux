@@ -21,12 +21,12 @@ const connected: ClientState = { ...defaultClientState, connectState: 'connected
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
-  useDataZustand: typeof import('../data.zustand').useDataZustand
-  getShownData: typeof import('../data.zustand').getShownData
+  useLiveZustand: typeof import('../live.zustand').useLiveZustand
+  getShownData: typeof import('../live.zustand').getShownData
 }> => {
   const { useClientZustand } = await import('../client.zustand')
-  const { useDataZustand, getShownData } = await import('../data.zustand')
-  return { useClientZustand, useDataZustand, getShownData }
+  const { useLiveZustand, getShownData } = await import('../live.zustand')
+  return { useClientZustand, useLiveZustand, getShownData }
 }
 
 beforeEach(() => {
@@ -37,7 +37,7 @@ beforeEach(() => {
 
 describe('an event about a client the view does not show', () => {
   it('lands under that client and leaves the one shown alone', async () => {
-    const { useClientZustand, useDataZustand, getShownData } = await load()
+    const { useClientZustand, useLiveZustand, getShownData } = await load()
     const other = useClientZustand.getState().addClient()
     useClientZustand.getState().setSelectedUuid(MAIN_CLIENT_UUID)
 
@@ -46,8 +46,8 @@ describe('an event about a client the view does not show', () => {
 
     expect(getShownData().clientState.connectState).toBe('disconnected')
     expect(getShownData().registerData).toEqual([])
-    expect(shownData(useDataZustand, other).clientState.connectState).toBe('connected')
-    expect(shownData(useDataZustand, other).registerData.map((row) => row.id)).toEqual([5])
+    expect(shownData(useLiveZustand, other).clientState.connectState).toBe('connected')
+    expect(shownData(useLiveZustand, other).registerData.map((row) => row.id)).toEqual([5])
   })
 
   it('is what the view shows once that client is selected', async () => {
@@ -64,24 +64,24 @@ describe('an event about a client the view does not show', () => {
 
 describe('an event about a client the store does not hold', () => {
   it('lands nowhere', async () => {
-    const { useDataZustand } = await load()
+    const { useLiveZustand } = await load()
 
     fireEvent('client_state', { uuid: 'nobody', clientState: connected })
 
-    expect(Object.keys(useDataZustand.getState().clients)).not.toContain('nobody')
+    expect(Object.keys(useLiveZustand.getState().clients)).not.toContain('nobody')
   })
 
   // The disconnect a delete asks for pushes the state it leaves after the
   // store has let go of the client.
   it('lands nowhere once the client was taken away', async () => {
-    const { useClientZustand, useDataZustand } = await load()
+    const { useClientZustand, useLiveZustand } = await load()
     const other = useClientZustand.getState().addClient()
     fireEvent('client_state', { uuid: other, clientState: connected })
 
     await useClientZustand.getState().deleteClient(other)
     fireEvent('client_state', { uuid: other, clientState: defaultClientState })
 
-    expect(Object.keys(useDataZustand.getState().clients)).not.toContain(other)
+    expect(Object.keys(useLiveZustand.getState().clients)).not.toContain(other)
   })
 })
 
@@ -89,7 +89,7 @@ describe('rows two scans find at once', () => {
   it('are held apart and written to their own clients', async () => {
     vi.useFakeTimers()
     try {
-      const { useClientZustand, useDataZustand } = await load()
+      const { useClientZustand, useLiveZustand } = await load()
       const other = useClientZustand.getState().addClient()
       const scanning: ClientState = { ...connected, scanningRegisters: true }
       fireEvent('client_state', { uuid: MAIN_CLIENT_UUID, clientState: scanning })
@@ -103,7 +103,7 @@ describe('rows two scans find at once', () => {
       fireEvent('client_state', { uuid: other, clientState: connected })
 
       const ids = (uuid: string): number[] =>
-        shownData(useDataZustand, uuid).registerData.map((row) => row.id)
+        shownData(useLiveZustand, uuid).registerData.map((row) => row.id)
       expect(ids(other)).toEqual([2])
       expect(ids(MAIN_CLIENT_UUID)).toEqual([])
 
@@ -152,10 +152,10 @@ describe('what main answers about the clients it holds', () => {
           : Reflect.get(target, method)
     })
 
-    const { useDataZustand } = await load()
+    const { useLiveZustand } = await load()
     await vi.waitFor(() =>
-      expect(shownData(useDataZustand, 'b').clientState.connectState).toBe('connected')
+      expect(shownData(useLiveZustand, 'b').clientState.connectState).toBe('connected')
     )
-    expect(Object.keys(useDataZustand.getState().clients)).not.toContain('c')
+    expect(Object.keys(useLiveZustand.getState().clients)).not.toContain('c')
   })
 })

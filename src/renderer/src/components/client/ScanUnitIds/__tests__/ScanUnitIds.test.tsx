@@ -21,7 +21,7 @@ const stub = vi.hoisted(() => {
 
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import {
   defaultClientState,
   defaultConnectionConfig,
@@ -47,7 +47,7 @@ const input = (testId: string): HTMLElement =>
 beforeEach(() => {
   stub.scanUnitIds.mockClear()
   patchSelectedClient(useClientZustand, {}, { ready: true })
-  patchShownData(useDataZustand, { clientState: { ...defaultClientState } })
+  patchShownData(useLiveZustand, { clientState: { ...defaultClientState } })
   useScanUnitIdZustand.setState({
     open: true,
     address: 0,

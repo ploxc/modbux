@@ -1,7 +1,7 @@
 import { defaultClientState } from '@shared'
-import { ClientData, DataZustand } from './data.zustand.types'
+import { ClientData, LiveZustand } from './live.zustand.types'
 
-/** A client the data store has heard nothing about yet. */
+/** A client the live store has heard nothing about yet. */
 export const emptyClientData = (): ClientData => ({
   registerData: [],
   addressGroups: [],
@@ -20,5 +20,5 @@ export const emptyClientData = (): ClientData => ({
 const NO_DATA: ClientData = emptyClientData()
 
 /** The data of the client under `uuid`. */
-export const dataOf = (state: Pick<DataZustand, 'clients'>, uuid: string): ClientData =>
+export const dataOf = (state: Pick<LiveZustand, 'clients'>, uuid: string): ClientData =>
   state.clients[uuid] ?? NO_DATA

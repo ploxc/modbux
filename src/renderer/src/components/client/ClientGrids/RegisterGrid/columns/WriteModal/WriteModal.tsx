@@ -17,7 +17,7 @@ import {
   selectedClient,
   selectedClientUuid
 } from '@renderer/context/client.zustand'
-import { getShownData } from '@renderer/context/data.zustand'
+import { getShownData } from '@renderer/context/live.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'

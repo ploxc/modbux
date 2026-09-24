@@ -15,7 +15,7 @@ vi.hoisted(() => {
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions'
 import MenuConnectionOptions from '../MenuConnectionOptions'
 import { MAIN_CLIENT_UUID, defaultClientState } from '@shared'
@@ -36,7 +36,7 @@ beforeEach(() => {
   // refuses every payload and the store never moves.
   window.api = { updateConnectionConfig: vi.fn(() => Promise.resolve(true)) } as never
   patchSelectedClient(useClientZustand, {}, { ready: true })
-  patchShownData(useDataZustand, {
+  patchShownData(useLiveZustand, {
     clientState: {
       ...defaultClientState,
       connectState: 'disconnected',
@@ -130,7 +130,7 @@ describe('MenuConnectionOptions', () => {
     seed({
       connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusTcp' }
     })
-    patchShownData(useDataZustand, {
+    patchShownData(useLiveZustand, {
       clientState: {
         ...defaultClientState,
         connectState: 'connected',

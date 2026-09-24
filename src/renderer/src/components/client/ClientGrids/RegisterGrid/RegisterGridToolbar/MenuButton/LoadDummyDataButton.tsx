@@ -1,5 +1,5 @@
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import {
   getSelectedClient,
   useClientZustand,
@@ -12,7 +12,7 @@ import Button from '@mui/material/Button'
 
 const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const disabled = useDataZustand(
+  const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
   )
 
@@ -20,7 +20,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
   // without having to connect to the device or read registers
   const loadDummy = useCallback(() => {
     const { address, length } = getSelectedClient().registerConfig
-    const dataZustand = useDataZustand.getState()
+    const liveZustand = useLiveZustand.getState()
     const dummyData: RegisterData[] = []
 
     let index = 0
@@ -29,7 +29,7 @@ const LoadDummyDataButton = meme(({ setAnchor }: SetAnchorProps) => {
       index++
     }
 
-    dataZustand.setRegisterData(selectedClientUuid(), dummyData)
+    liveZustand.setRegisterData(selectedClientUuid(), dummyData)
     setAnchor(null)
   }, [setAnchor])
 

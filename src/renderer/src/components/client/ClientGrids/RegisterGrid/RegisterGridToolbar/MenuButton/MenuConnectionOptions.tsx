@@ -3,7 +3,7 @@ import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { ChangeEvent, useCallback } from 'react'
 
 // RTU over TCP (encapsulated RTU) is a niche, TCP-family transport, so it lives
@@ -12,7 +12,7 @@ import { ChangeEvent, useCallback } from 'react'
 const MenuConnectionOptions = meme((): JSX.Element | null => {
   const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const disabled = useDataZustand(
+  const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
   )
 

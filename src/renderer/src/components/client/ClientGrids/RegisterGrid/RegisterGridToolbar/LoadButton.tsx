@@ -5,7 +5,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { migrateClientConfig, resetMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
-import { showMapping } from '@renderer/context/data.zustand'
+import { showMapping } from '@renderer/context/live.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
 import { meme } from '@renderer/components/shared/inputs/meme'
 

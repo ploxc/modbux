@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 //
 // Main pushes `client_state` on a change, so a window opened after the last
-// push starts on the initial literal. `data.zustand` asks once at import time
+// push starts on the initial literal. `live.zustand` asks once at import time
 // for what main holds now, and a push that lands while that answer is in
 // flight is the newer of the two.
 //
 // The ask sits there rather than in `client.zustand`'s `init` because the two
-// modules import each other: entered through `data.zustand`, `client.zustand`
-// runs to the end of its tail while `data.zustand` is still evaluating, and a
+// modules import each other: entered through `live.zustand`, `client.zustand`
+// runs to the end of its tail while `live.zustand` is still evaluating, and a
 // name reached back across the cycle at that moment is in its temporal dead
 // zone. `init` named one and the throw went into its catch, so on macos the
 // window that came back after the last one closed read Connect over a client
@@ -92,40 +92,40 @@ beforeEach(() => {
 describe('the client state main answers with', () => {
   // Both halves of the cycle, because which one a window enters through is the
   // bundler's to decide and the answer reached the store through only one.
-  it.each(['../data.zustand', '../client.zustand'])(
+  it.each(['../live.zustand', '../client.zustand'])(
     'reaches the store through %s',
     async (entry) => {
       await import(entry)
-      const { useDataZustand } = await import('../data.zustand')
+      const { useLiveZustand } = await import('../live.zustand')
 
       answer(connectedAndPolling)
 
       await vi.waitFor(() =>
-        expect(shownData(useDataZustand).clientState).toEqual(connectedAndPolling)
+        expect(shownData(useLiveZustand).clientState).toEqual(connectedAndPolling)
       )
     }
   )
 
-  // `data.zustand` finishes before `client.zustand`'s `init`, so on a fresh
+  // `live.zustand` finishes before `client.zustand`'s `init`, so on a fresh
   // launch the ask goes out before the client exists, and main answers with
   // no client in it.
   it('leaves the state alone when main holds no client yet', async () => {
-    const { useDataZustand } = await import('../data.zustand')
-    const before = shownData(useDataZustand).clientState
+    const { useLiveZustand } = await import('../live.zustand')
+    const before = shownData(useLiveZustand).clientState
 
     answerEmpty()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(shownData(useDataZustand).clientState).toBe(before)
+    expect(shownData(useLiveZustand).clientState).toBe(before)
   })
 
   it('loses to a push that landed while it was in flight', async () => {
-    const { useDataZustand } = await import('../data.zustand')
+    const { useLiveZustand } = await import('../live.zustand')
 
     push(scanning)
     answer(connectedAndPolling)
 
-    await vi.waitFor(() => expect(shownData(useDataZustand).clientState).toEqual(scanning))
+    await vi.waitFor(() => expect(shownData(useLiveZustand).clientState).toEqual(scanning))
   })
 
   // The refusal is what this waits for, because the state it leaves behind is
@@ -133,12 +133,12 @@ describe('the client state main answers with', () => {
   // before the rejection has been handled at all.
   it('leaves the state alone when main does not answer', async () => {
     const reported = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { useDataZustand } = await import('../data.zustand')
+    const { useLiveZustand } = await import('../live.zustand')
 
     refuse(new Error('no handler registered'))
 
     await vi.waitFor(() => expect(reported).toHaveBeenCalled())
-    expect(shownData(useDataZustand).clientState).toEqual(disconnected)
+    expect(shownData(useLiveZustand).clientState).toEqual(disconnected)
     reported.mockRestore()
   })
 })
@@ -177,7 +177,7 @@ describe('the window that asks main what the client is doing', () => {
   ])('is the server window: %s, so it asks: %s', async (isServerWindow, asks) => {
     const asked = methodsAsked(isServerWindow)
 
-    await import('../data.zustand')
+    await import('../live.zustand')
 
     expect(asked.includes('getClientStates')).toBe(asks)
   })

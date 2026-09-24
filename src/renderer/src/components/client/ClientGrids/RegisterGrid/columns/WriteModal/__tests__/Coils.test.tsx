@@ -18,7 +18,7 @@ vi.mock('@renderer/context/client.zustand', () => ({
   selectedClient: <State,>(state: State): State => state,
   getSelectedClient: (): { registerConfig: typeof registerConfig } => ({ registerConfig })
 }))
-vi.mock('@renderer/context/data.zustand', () => ({
+vi.mock('@renderer/context/live.zustand', () => ({
   getShownData: (): { registerData: [] } => ({ registerData: [] })
 }))
 

@@ -34,7 +34,7 @@ vi.mock('../BitIndicator', async () => {
 
 import { act, render } from '@testing-library/react'
 import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import { BitMapConfig, defaultClientState, emptyRegisterMapping, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
@@ -74,7 +74,7 @@ const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
 
 beforeEach(() => {
   props.clear()
-  patchShownData(useDataZustand, {
+  patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected' }
   })
   patchSelectedClient(
@@ -82,7 +82,7 @@ beforeEach(() => {
     { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
     { ready: true }
   )
-  patchShownData(useDataZustand, { registerData: [row(0)] })
+  patchShownData(useLiveZustand, { registerData: [row(0)] })
 })
 
 describe('what a bit keeps in the mapping', () => {

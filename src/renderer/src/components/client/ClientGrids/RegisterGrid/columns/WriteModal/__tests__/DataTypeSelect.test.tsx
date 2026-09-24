@@ -17,8 +17,8 @@ vi.mock('@renderer/context/client.zustand', () => {
     getSelectedClient: (): typeof client => client
   }
 })
-vi.mock('@renderer/context/data.zustand', () => ({
-  useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
+vi.mock('@renderer/context/live.zustand', () => ({
+  useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
 }))
 
 import { DataTypeSelect } from '../WriteModal'

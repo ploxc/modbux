@@ -13,7 +13,7 @@ import MenuButton from './MenuButton/MenuButton'
 import RawButton from './RawButton'
 import ClearFiltersButton from './ClearFiltersButton'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import TextField from '@mui/material/TextField'
 import { ChangeEvent, useCallback } from 'react'
 
@@ -44,7 +44,7 @@ const RegisterGridToolbar = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // Read, Poll, Clear and the config buttons would each undo a scan that is
   // still running, so the strip goes quiet with the rows underneath it.
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   return (
     <Box

@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper'
 import { useGridApiContext, useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import useTransactionGridColumns from './columns'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -42,7 +42,7 @@ const ExportButton = meme((): JSX.Element => {
 // Clears the transaction log
 const ClearButton = meme((): JSX.Element => {
   const handleClick = useCallback((): void => {
-    useDataZustand.getState().clearTransactions(selectedClientUuid())
+    useLiveZustand.getState().clearTransactions(selectedClientUuid())
   }, [])
 
   return (
@@ -82,7 +82,7 @@ const TransactionGridContent = meme(() => {
   const api = useGridApiRef()
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const transactions = useDataZustand((z) => dataOf(z, selectedUuid).transactions)
+  const transactions = useLiveZustand((z) => dataOf(z, selectedUuid).transactions)
   const columns = useTransactionGridColumns()
 
   return (

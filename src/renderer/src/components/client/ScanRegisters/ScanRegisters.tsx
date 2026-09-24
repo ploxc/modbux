@@ -18,10 +18,10 @@ import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import {
   dropPendingScanRows,
-  useDataZustand,
+  useLiveZustand,
   dataOf,
   getShownData
-} from '@renderer/context/data.zustand'
+} from '@renderer/context/live.zustand'
 import ScanCloseButton from '../scan/ScanCloseButton'
 import ScanFoundCount from '../scan/ScanFoundCount'
 import ScanGridToggle from '../scan/ScanGridToggle'
@@ -37,7 +37,7 @@ import { useScanRegistersZustand } from './scanRegisters.zustand'
 // Unit ID field (syncs with main connection config)
 const UnitIdField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
   // A string or undefined, which compares equal from one read to the next.
   const outOfRange = useClientZustand((z) => unitIdOutOfRange(selectedClient(z).connectionConfig))
@@ -71,7 +71,7 @@ const UnitIdField = meme((): JSX.Element => {
 // Address field with base toggle
 const AddressField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const address = useScanRegistersZustand((z) => z.address)
 
   const setAddress = useScanRegistersZustand.getState().setAddress
@@ -92,7 +92,7 @@ const AddressField = meme((): JSX.Element => {
 // Scan Length field
 const ScanLengthField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const scanLength = useScanRegistersZustand((z) => z.scanLength)
 
   const setScanLength = useScanRegistersZustand.getState().setScanLength
@@ -132,7 +132,7 @@ const ScanLengthField = meme((): JSX.Element => {
 // Chunk Size field
 const ChunkSizeField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => z.chunkSize)
   const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
@@ -173,7 +173,7 @@ const ChunkSizeField = meme((): JSX.Element => {
 // Timeout field
 const TimeoutField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const timeout = useScanRegistersZustand((z) => z.timeout)
 
   const setTimeout = useScanRegistersZustand.getState().setTimeout
@@ -199,8 +199,8 @@ const TimeoutField = meme((): JSX.Element => {
 // polled data the rest of the time.
 const FoundCount = meme((): JSX.Element | null => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
-  const count = useDataZustand((z) => dataOf(z, selectedUuid).registerData.length)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const count = useLiveZustand((z) => dataOf(z, selectedUuid).registerData.length)
 
   if (!scanning) return null
 
@@ -226,7 +226,7 @@ const GridToggle = meme((): JSX.Element => {
 // Scan button
 const ScanButton = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   const scan = useCallback(async () => {
     if (scanning) {
@@ -236,15 +236,15 @@ const ScanButton = meme((): JSX.Element => {
 
     const scanRegistersZustand = useScanRegistersZustand.getState()
     const clientZustand = useClientZustand.getState()
-    const dataZustand = useDataZustand.getState()
+    const liveZustand = useLiveZustand.getState()
     clientZustand.setReadConfiguration(false)
     // A scan walks raw addresses, which is what the extra columns are for, and
     // the rows land in a grid you are now watching fill.
     if (!getSelectedClient().registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
     const uuid = selectedClientUuid()
-    dataZustand.setScanProgress(uuid, 0)
+    liveZustand.setScanProgress(uuid, 0)
     dropPendingScanRows(uuid)
-    dataZustand.setRegisterData(uuid, [])
+    liveZustand.setRegisterData(uuid, [])
 
     const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
@@ -284,7 +284,7 @@ const ScanRegisters = meme(() => {
   const open = useScanRegistersZustand((z) => z.open)
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
   const handleClose = useCallback(() => {
     if (getShownData().clientState.scanningRegisters) return

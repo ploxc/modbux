@@ -12,10 +12,10 @@ import { selectedClient } from '../client.zustand.helpers'
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
-  useDataZustand: typeof import('../data.zustand').useDataZustand
+  useLiveZustand: typeof import('../live.zustand').useLiveZustand
 }> => ({
   useClientZustand: (await import('../client.zustand')).useClientZustand,
-  useDataZustand: (await import('../data.zustand')).useDataZustand
+  useLiveZustand: (await import('../live.zustand')).useLiveZustand
 })
 
 let calls: ApiCall[]
@@ -57,9 +57,9 @@ describe('the four serial options', () => {
   })
 
   it('write nothing while a connection stands', async () => {
-    const { useClientZustand, useDataZustand } = await load()
+    const { useClientZustand, useLiveZustand } = await load()
     const before = selectedClient(useClientZustand.getState()).connectionConfig.rtu.options.baudRate
-    useDataZustand.getState().setClientState(MAIN_CLIENT_UUID, {
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, {
       ...defaultClientState,
       connectState: 'connected'
     })

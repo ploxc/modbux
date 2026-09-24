@@ -20,8 +20,8 @@ vi.mock('@renderer/context/client.zustand', () => ({
     registerConfig: { address: 0 }
   })
 }))
-vi.mock('@renderer/context/data.zustand', () => ({
-  useDataZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
+vi.mock('@renderer/context/live.zustand', () => ({
+  useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
 }))
 
 const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))

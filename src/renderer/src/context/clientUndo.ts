@@ -6,7 +6,7 @@ import {
   selectedClientUuid,
   useClientZustand
 } from './client.zustand'
-import { dataOf, showMapping, useDataZustand } from './data.zustand'
+import { dataOf, showMapping, useLiveZustand } from './live.zustand'
 import { replayTop, useUndoZustand } from './undo.zustand'
 import {
   clientFieldReaders,
@@ -92,7 +92,7 @@ const CONNECTION_FIELDS: ReadonlySet<ClientField> = new Set<ClientField>([
 ])
 
 const isDisconnected = (uuid: string): boolean =>
-  dataOf(useDataZustand.getState(), uuid).clientState.connectState === 'disconnected'
+  dataOf(useLiveZustand.getState(), uuid).clientState.connectState === 'disconnected'
 
 /**
  * Writes a step's value, and answers the step that would write back what was

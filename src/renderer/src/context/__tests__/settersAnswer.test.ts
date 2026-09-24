@@ -32,9 +32,9 @@ const loadClient = async (): Promise<{
   connect: () => void
 }> => {
   const { useClientZustand } = await import('../client.zustand')
-  const { useDataZustand } = await import('../data.zustand')
+  const { useLiveZustand } = await import('../live.zustand')
   const connect = (): void =>
-    useDataZustand
+    useLiveZustand
       .getState()
       .setClientState(MAIN_CLIENT_UUID, { ...defaultClientState, connectState: 'connected' })
   return { useClientZustand, connect }

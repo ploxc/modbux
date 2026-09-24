@@ -23,13 +23,13 @@ import { Protocol, unitIdOutOfRange } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
-import { useDataZustand, dataOf, getShownData } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 // Protocol
 const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const disabled = useDataZustand(
+  const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
   )
 
@@ -86,7 +86,7 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
 
 const ConnectButton = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const connectState = useDataZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
+  const connectState = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
 
   /**
    * Whether the field this protocol connects through names somewhere.
@@ -119,7 +119,7 @@ const ConnectButton = meme(() => {
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect(selectedClientUuid())
       if (!getSelectedSession().readConfiguration) {
-        useDataZustand.getState().setRegisterData(selectedClientUuid(), [])
+        useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
       }
       return
     }

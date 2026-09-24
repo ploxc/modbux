@@ -12,7 +12,7 @@ export interface ClientData {
 }
 
 /** Every client's data under the uuid the client store holds it under. */
-export interface DataZustand {
+export interface LiveZustand {
   clients: Record<string, ClientData>
 
   // Register data

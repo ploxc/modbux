@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
-import { ClientData, DataZustand } from './data.zustand.types'
-import { dataOf, emptyClientData } from './data.zustand.helpers'
+import { ClientData, LiveZustand } from './live.zustand.types'
+import { dataOf, emptyClientData } from './live.zustand.helpers'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
 // This import closes a cycle: `client.zustand.ts` imports this module for
@@ -20,10 +20,10 @@ export { dataOf }
 
 /** The data of the client the view shows, read now rather than subscribed to. */
 export const getShownData = (): ClientData =>
-  dataOf(useDataZustand.getState(), selectedClientUuid())
+  dataOf(useLiveZustand.getState(), selectedClientUuid())
 
 /** Runs `recipe` on the data under `uuid`, made first when there is none. */
-const onData = (state: DataZustand, uuid: string, recipe: (data: ClientData) => void): void => {
+const onData = (state: LiveZustand, uuid: string, recipe: (data: ClientData) => void): void => {
   const data = state.clients[uuid] ?? emptyClientData()
   state.clients[uuid] = data
   recipe(data)
@@ -47,7 +47,7 @@ const onData = (state: DataZustand, uuid: string, recipe: (data: ClientData) => 
  * at most every 100 ms, and a unit id scan sends a result per id and a
  * transaction per request.
  */
-export const useDataZustand = create<DataZustand, [['zustand/mutative', never]]>(
+export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>(
   mutative((set) => ({
     clients: {},
 
@@ -162,7 +162,7 @@ export const showMapping = (uuid: string = selectedClientUuid()): void => {
     registerData.push(row)
   })
 
-  useDataZustand.getState().setRegisterData(uuid, registerData)
+  useLiveZustand.getState().setRegisterData(uuid, registerData)
 }
 
 /** How long a batch of what main sends at event rate waits before it is written. */
@@ -210,7 +210,7 @@ const heldOnTimer = <T>(
  * the same way.
  */
 const pendingScanRows = heldOnTimer<RegisterData>((uuid, rows) =>
-  useDataZustand.getState().appendRegisterData(uuid, rows)
+  useLiveZustand.getState().appendRegisterData(uuid, rows)
 )
 
 /**
@@ -218,7 +218,7 @@ const pendingScanRows = heldOnTimer<RegisterData>((uuid, rows) =>
  * on each: a scan of 255 ids lagged behind itself.
  */
 const pendingUnitIdResults = heldOnTimer<ScanUnitIDResult>((uuid, results) =>
-  useDataZustand.getState().addScanUnitIdResults(uuid, results)
+  useLiveZustand.getState().addScanUnitIdResults(uuid, results)
 )
 
 /**
@@ -227,7 +227,7 @@ const pendingUnitIdResults = heldOnTimer<ScanUnitIDResult>((uuid, results) =>
  * write them.
  */
 const pendingTransactions = heldOnTimer<Transaction>((uuid, transactions) =>
-  useDataZustand.getState().addTransactions(uuid, transactions)
+  useLiveZustand.getState().addTransactions(uuid, transactions)
 )
 
 /** Nothing may survive into the client's next scan, which starts from an empty grid. */
@@ -265,7 +265,7 @@ if (!window.api.isServerWindow) {
     .then((clientStates) => {
       for (const [uuid, clientState] of Object.entries(clientStates)) {
         if (!isHeld(uuid) || clientStatePushed.has(uuid)) continue
-        useDataZustand.getState().setClientState(uuid, clientState)
+        useLiveZustand.getState().setClientState(uuid, clientState)
       }
     })
     .catch((error) => console.error('The client state main holds was not read:', error))
@@ -282,22 +282,22 @@ const isHeld = (uuid: string): boolean => Object.hasOwn(useClientZustand.getStat
 // Data read from the registers
 onEvent('register_data', ({ uuid, registerData }) => {
   if (!isHeld(uuid)) return
-  const dataZustand = useDataZustand.getState()
+  const liveZustand = useLiveZustand.getState()
 
-  if (dataOf(dataZustand, uuid).clientState.scanningRegisters) {
+  if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
     pendingScanRows.push(uuid, registerData)
   } else {
     // A poll replaces the grid, so anything a scan left waiting is stale.
     pendingScanRows.drop(uuid)
-    dataZustand.setRegisterData(uuid, registerData)
+    liveZustand.setRegisterData(uuid, registerData)
   }
 
-  dataZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
+  liveZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
 })
 
 onEvent('address_groups', ({ uuid, addressGroups }) => {
   if (!isHeld(uuid)) return
-  useDataZustand.getState().setAddressGroups(uuid, addressGroups)
+  useLiveZustand.getState().setAddressGroups(uuid, addressGroups)
 })
 
 // Client state, like polling, scanning, etc.
@@ -308,7 +308,7 @@ onEvent('client_state', ({ uuid, clientState }) => {
   // written before the button says the scan stopped, not up to a flush later.
   if (!clientState.scanningRegisters) pendingScanRows.flush(uuid)
   if (!clientState.scanningUnitIds) pendingUnitIdResults.flush(uuid)
-  useDataZustand.getState().setClientState(uuid, clientState)
+  useLiveZustand.getState().setClientState(uuid, clientState)
 })
 
 // Transactions from the transation log
@@ -324,5 +324,5 @@ onEvent('scan_unit_id_result', ({ uuid, result }) => {
 // Scan progress
 onEvent('scan_progress', ({ uuid, progress }) => {
   if (!isHeld(uuid)) return
-  useDataZustand.getState().setScanProgress(uuid, progress)
+  useLiveZustand.getState().setScanProgress(uuid, progress)
 })

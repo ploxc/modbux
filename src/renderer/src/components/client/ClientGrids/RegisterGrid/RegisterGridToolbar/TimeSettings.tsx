@@ -6,7 +6,7 @@ import Popover from '@mui/material/Popover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import SliderComponent from '@renderer/components/shared/SliderComponent'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { useCallback, useState } from 'react'
 
 // Polling interval slider
@@ -51,7 +51,7 @@ const Timeout = meme((): JSX.Element => {
 
 const TimeSettings = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const polling = useDataZustand((z) => dataOf(z, selectedUuid).clientState.polling)
+  const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const handleOpenMenu = useCallback(

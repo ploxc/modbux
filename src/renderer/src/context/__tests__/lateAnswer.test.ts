@@ -40,7 +40,7 @@ const holdAnswers = (method: string): { release: () => Promise<void> } => {
 
 const loadClient = async (): Promise<typeof import('../client.zustand').useClientZustand> => {
   const { useClientZustand } = await import('../client.zustand')
-  await import('../data.zustand')
+  await import('../live.zustand')
   return useClientZustand
 }
 

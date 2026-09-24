@@ -1,6 +1,6 @@
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useDataZustand, dataOf } from '@renderer/context/data.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
 import {
@@ -11,7 +11,7 @@ import {
 
 const ReadButton = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const connected = useDataZustand(
+  const connected = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState === 'connected'
   )
 
@@ -19,11 +19,11 @@ const ReadButton = meme((): JSX.Element => {
   // of every caller that puts a request on the wire. Naming a subset of it
   // left the button pressable during both scans, where it was reachable only
   // by what the two dialogs happen to draw over.
-  const owner = useDataZustand((z) => clientOwner(dataOf(z, selectedUuid).clientState))
+  const owner = useLiveZustand((z) => clientOwner(dataOf(z, selectedUuid).clientState))
 
   // A read in flight is the one state this says something about rather than
   // just refusing.
-  const reading = useDataZustand((z) => dataOf(z, selectedUuid).clientState.reading)
+  const reading = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.reading)
 
   // What main refuses as a read of no registers.
   const readsNoRegisters = useClientZustand((z) => readsNothingOf(z, z.selectedUuid))

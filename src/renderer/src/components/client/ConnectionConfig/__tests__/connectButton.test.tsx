@@ -18,7 +18,7 @@ vi.hoisted(async () => {
 
 import { cleanup, render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import { ClientState, defaultClientState, defaultConnectionConfig, Protocol } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
@@ -42,7 +42,7 @@ const renderButton = ({
     { connectionConfig: { ...defaultConnectionConfig, protocol, unitId } },
     { ready: true, valid: { host, com, length: true } }
   )
-  patchShownData(useDataZustand, { clientState: { ...defaultClientState, connectState } })
+  patchShownData(useLiveZustand, { clientState: { ...defaultClientState, connectState } })
   render(<ConnectionConfig />)
   return screen.getByTestId('connect-btn')
 }

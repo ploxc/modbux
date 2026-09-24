@@ -18,14 +18,14 @@ vi.hoisted(async () => {
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useClientZustand, getSelectedSession } from '@renderer/context/client.zustand'
-import { useDataZustand } from '@renderer/context/data.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import { defaultClientState, defaultConnectionConfig } from '@shared'
 import ConnectionConfig from '../ConnectionConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
 import { patchShownData } from '../../../../context/__tests__/shownData'
 
 const renderRtu = (): void => {
-  patchShownData(useDataZustand, {
+  patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'disconnected' }
   })
   patchSelectedClient(
