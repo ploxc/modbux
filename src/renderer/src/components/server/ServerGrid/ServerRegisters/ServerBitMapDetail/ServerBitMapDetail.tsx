@@ -80,16 +80,23 @@ const ServerBitMapDetail = meme(({ register }: ServerBitMapDetailProps): JSX.Ele
       }
       const newBitMap = Object.keys(updated).length > 0 ? updated : undefined
 
+      // `params.value` is the word a fixed register was made with. A client
+      // write moves the entry and leaves it there, so sent as it is, a comment
+      // would put that word back. A generator has no word to keep.
       serverZustand.addRegister({
         uuid,
         unitId,
-        params: {
-          ...params,
-          bitMap: newBitMap
-        }
+        params:
+          params.interval === undefined
+            ? {
+                ...params,
+                value: wordInFlight.current ?? pendingRegisterValue(uuid, unitId, register),
+                bitMap: newBitMap
+              }
+            : { ...params, bitMap: newBitMap }
       })
     },
-    [bitConfig, params, uuid, unitId]
+    [bitConfig, register, params, uuid, unitId]
   )
 
   return (

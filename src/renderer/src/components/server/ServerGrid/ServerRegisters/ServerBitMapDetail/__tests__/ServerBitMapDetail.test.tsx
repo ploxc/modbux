@@ -187,6 +187,18 @@ describe('a toggle that arrives before the one before it has landed', () => {
     answerSecond()
   })
 
+  it('lends a comment edit the word it sent', async () => {
+    const answerFirst = heldWrite()
+    render(<ServerBitMapDetail register={bitmapAt100(0)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-circle-0'))
+    await userEvent.click(screen.getByTestId('server-bit-comment-7'))
+    await userEvent.type(screen.getByRole('textbox'), 'heartbeat{Enter}')
+
+    expect(writtenParams(1).value).toBe(1)
+    answerFirst()
+  })
+
   it('goes back to the store once the answer is in', async () => {
     render(<ServerBitMapDetail register={bitmapAt100(0)} />)
 
@@ -216,5 +228,39 @@ describe('the bit comments', () => {
     expect(writtenParams().bitMap).toEqual({
       '7': { comment: 'heartbeat' }
     })
+  })
+
+  // A client write moves the entry's value and leaves `params.value` where the
+  // register was created.
+  it('keep the word a client wrote since the register was made', async () => {
+    render(<ServerBitMapDetail register={{ ...bitmapAt100(5), value: 12 }} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-comment-7'))
+    await userEvent.type(screen.getByRole('textbox'), 'heartbeat{Enter}')
+
+    expect(writtenParams().value).toBe(12)
+  })
+
+  it('leave a generator a generator', async () => {
+    const generator: ServerRegisterEntry = {
+      value: 3,
+      params: { ...bitmapAt100(3).params, value: undefined, min: 0, max: 7, interval: 1 }
+    }
+    render(<ServerBitMapDetail register={generator} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-comment-7'))
+    await userEvent.type(screen.getByRole('textbox'), 'heartbeat{Enter}')
+
+    expect(writtenParams()).toMatchObject({ value: undefined, min: 0, max: 7, interval: 1 })
+  })
+
+  it('keep the word the batcher is holding', async () => {
+    mockPendingRegisterValue.mockReturnValue(8)
+    render(<ServerBitMapDetail register={bitmapAt100(5)} />)
+
+    await userEvent.click(screen.getByTestId('server-bit-comment-7'))
+    await userEvent.type(screen.getByRole('textbox'), 'heartbeat{Enter}')
+
+    expect(writtenParams().value).toBe(8)
   })
 })

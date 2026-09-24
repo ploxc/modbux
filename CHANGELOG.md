@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Editing a bit comment keeps the register's value.** On a bitmap register
+  of the server, a comment edit put back the value the register was made
+  with, over whatever a client had written since.
 - **Opening the server in its own window leaves the RTU server running.** The
   new window started the RTU server again, which closed and reopened its serial
   port and said "RTU server stopped". The window now asks which servers are
