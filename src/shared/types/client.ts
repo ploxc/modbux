@@ -251,6 +251,8 @@ export const isReadLengthGiven = (length: number): boolean => length > 0
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),
+  /** The device left enough polls in a row unanswered that it is polled less often. */
+  offline: z.boolean(),
   scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean(),
   reading: z.boolean(),
@@ -287,6 +289,10 @@ export const RegisterConfigSchema = z.object({
   type: RegisterTypeSchema,
   pollRate: ReadTimingSchema,
   timeout: ReadTimingSchema,
+  /** How many polls in a row a device may leave unanswered before it is offline. */
+  offlineAfterTimeouts: z.number().int().min(1).max(100),
+  /** How far apart, in milliseconds, the polls of an offline device may get. */
+  maxPollInterval: z.number().int().min(1000).max(3_600_000),
   littleEndian: z.boolean(),
   advancedMode: z.boolean(),
   show64BitValues: z.boolean(),
@@ -359,4 +365,21 @@ export interface SerialPortInfo {
 export interface SerialPortValidationResult {
   valid: boolean
   message: string
+}
+
+/**
+ * How long a poll waits before the next read of a device that has left
+ * `silentPolls` polls in a row unanswered.
+ *
+ * The poll rate, until the device is offline. From then on each silent poll
+ * doubles the wait, up to `maxPollInterval`, because on a shared bus every poll
+ * of a device that is not there costs every other device on it a full timeout.
+ */
+export const pollDelay = (
+  { pollRate, offlineAfterTimeouts, maxPollInterval }: RegisterConfig,
+  silentPolls: number
+): number => {
+  if (silentPolls < offlineAfterTimeouts) return pollRate
+  const doublings = silentPolls - offlineAfterTimeouts + 1
+  return Math.min(pollRate * 2 ** doublings, Math.max(maxPollInterval, pollRate))
 }

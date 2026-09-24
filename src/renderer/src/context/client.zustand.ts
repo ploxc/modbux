@@ -244,8 +244,8 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
 /**
  * One register config field, sent and then written where main took it.
  *
- * `addressBase`, `show64BitValues`, `advancedMode`, `pollRate` and `timeout`
- * differ in nothing but the key. The four fields that are not here each end on
+ * `addressBase`, `show64BitValues`, `advancedMode`, `pollRate`, `timeout`,
+ * `offlineAfterTimeouts` and `maxPollInterval` differ in nothing but the key. The four fields that are not here each end on
  * something more: `address`, `length` and `type` clear the grid, `littleEndian`
  * reads again, and `length` carries a validity flag as well.
  */
@@ -315,6 +315,29 @@ export const holdSelection = async <Result>(run: () => Promise<Result>): Promise
 const handToMain = (uuid: string, { connectionConfig, registerConfig }: PersistedClient): void => {
   window.api.createClient({ uuid, connectionConfig, registerConfig })
   window.api.setReadConfiguration({ uuid, readConfiguration: false })
+}
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * A stored client with the defaults of what it does not carry, a field of the
+ * register config included: a store written before `offlineAfterTimeouts` and
+ * `maxPollInterval` existed holds a register config without them, and the
+ * schema would reset the whole of it for two fields nobody set.
+ */
+const withDefaults = (client: Record<string, unknown>): Record<string, unknown> => {
+  const defaults = getDefaultClient()
+  const { registerConfig } = client
+  return {
+    ...defaults,
+    ...client,
+    registerConfig: isPlainRecord(registerConfig)
+      ? { ...defaults.registerConfig, ...registerConfig }
+      : registerConfig === undefined
+        ? defaults.registerConfig
+        : registerConfig
+  }
 }
 
 carryFormerClientState(localStorage)
@@ -757,6 +780,10 @@ export const useClientZustand = create<
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),
       setTimeout: (timeout) => setRegisterConfigField(set, get, 'timeout', timeout),
+      setOfflineAfterTimeouts: (offlineAfterTimeouts) =>
+        setRegisterConfigField(set, get, 'offlineAfterTimeouts', offlineAfterTimeouts),
+      setMaxPollInterval: (maxPollInterval) =>
+        setRegisterConfigField(set, get, 'maxPollInterval', maxPollInterval),
 
       // Serial port discovery
       serialPorts: [],
@@ -802,9 +829,7 @@ export const useClientZustand = create<
               uuid,
               // An array spreads into a default client that parses, and the
               // config in it would go without a reset reported.
-              typeof client === 'object' && client !== null && !Array.isArray(client)
-                ? { ...getDefaultClient(), ...client }
-                : client
+              isPlainRecord(client) ? withDefaults(client) : client
             ])
           )
         }

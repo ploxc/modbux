@@ -25,3 +25,20 @@ export const errorText = (error: unknown): string =>
  */
 export const isModbusException = (error: unknown): boolean =>
   typeof (error as { modbusCode?: unknown })?.modbusCode === 'number'
+
+/**
+ * Silence: a request the device let run out. modbus-serial's
+ * TransactionTimedOutError is the one error it throws with this errno.
+ */
+export const isTimeout = (error: unknown): boolean =>
+  (error as { errno?: unknown })?.errno === 'ETIMEDOUT'
+
+/**
+ * A gateway saying the device behind it did not answer: exception 10, no path
+ * to it, or 11, no response from it. The spec (V1.1b3, section 7) reads both
+ * as the target missing, so for the device they are silence.
+ */
+export const isGatewaySilence = (error: unknown): boolean => {
+  const code = (error as { modbusCode?: unknown })?.modbusCode
+  return code === 10 || code === 11
+}

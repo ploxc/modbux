@@ -28,6 +28,8 @@ export const clientFieldReaders: {
   type: (client) => client.registerConfig.type,
   pollRate: (client) => client.registerConfig.pollRate,
   timeout: (client) => client.registerConfig.timeout,
+  offlineAfterTimeouts: (client) => client.registerConfig.offlineAfterTimeouts,
+  maxPollInterval: (client) => client.registerConfig.maxPollInterval,
   littleEndian: (client) => client.registerConfig.littleEndian,
   advancedMode: (client) => client.registerConfig.advancedMode,
   show64BitValues: (client) => client.registerConfig.show64BitValues,
@@ -56,6 +58,13 @@ export const clientFieldSteps: {
   type: (value, uuid) => ({ kind: 'field', uuid, field: 'type', value }),
   pollRate: (value, uuid) => ({ kind: 'field', uuid, field: 'pollRate', value }),
   timeout: (value, uuid) => ({ kind: 'field', uuid, field: 'timeout', value }),
+  offlineAfterTimeouts: (value, uuid) => ({
+    kind: 'field',
+    uuid,
+    field: 'offlineAfterTimeouts',
+    value
+  }),
+  maxPollInterval: (value, uuid) => ({ kind: 'field', uuid, field: 'maxPollInterval', value }),
   littleEndian: (value, uuid) => ({ kind: 'field', uuid, field: 'littleEndian', value }),
   advancedMode: (value, uuid) => ({ kind: 'field', uuid, field: 'advancedMode', value }),
   show64BitValues: (value, uuid) => ({ kind: 'field', uuid, field: 'show64BitValues', value }),

@@ -417,3 +417,73 @@ describe('a selection that names what every object inherits', () => {
     expect(useClientZustand.getState().selectedUuid).toBe(MAIN_CLIENT_UUID)
   })
 })
+
+describe('a stored register config from before the backoff settings', () => {
+  it('gets their defaults and loses nothing else', async () => {
+    const client = getDefaultClient()
+    const { offlineAfterTimeouts, maxPollInterval, ...older } = {
+      ...client.registerConfig,
+      address: 40
+    }
+    localStorage.setItem(
+      CLIENT_ZUSTAND_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          selectedUuid: MAIN_CLIENT_UUID,
+          clients: { [MAIN_CLIENT_UUID]: { ...client, registerConfig: older } }
+        },
+        version: CURRENT_CLIENT_ZUSTAND_VERSION
+      })
+    )
+
+    const { useClientZustand } = await load()
+    const state = useClientZustand.getState()
+
+    expect(state.configReset).toBeUndefined()
+    expect(selectedClient(state).registerConfig).toMatchObject({
+      address: 40,
+      offlineAfterTimeouts,
+      maxPollInterval
+    })
+  })
+})
+
+describe('an undo of a backoff setting', () => {
+  it.each([
+    ['offlineAfterTimeouts', 'setOfflineAfterTimeouts', 5],
+    ['maxPollInterval', 'setMaxPollInterval', 120_000]
+  ] as const)('puts %s back', async (field, setter, value) => {
+    const { useClientZustand, clientUndo } = await load()
+    const before = selectedClient(useClientZustand.getState()).registerConfig[field]
+
+    expect(await useClientZustand.getState()[setter](value)).toBe(true)
+    expect(selectedClient(useClientZustand.getState()).registerConfig[field]).toBe(value)
+    await clientUndo.undoClient()
+
+    const { offlineAfterTimeouts, maxPollInterval } = getDefaultClient().registerConfig
+    expect(before).toBe(getDefaultClient().registerConfig[field])
+    expect(selectedClient(useClientZustand.getState()).registerConfig).toMatchObject({
+      offlineAfterTimeouts,
+      maxPollInterval
+    })
+  })
+})
+
+describe('a stored register config that is not one', () => {
+  it('is reported reset rather than defaulted quietly', async () => {
+    localStorage.setItem(
+      CLIENT_ZUSTAND_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          selectedUuid: MAIN_CLIENT_UUID,
+          clients: { [MAIN_CLIENT_UUID]: { ...getDefaultClient(), registerConfig: null } }
+        },
+        version: CURRENT_CLIENT_ZUSTAND_VERSION
+      })
+    )
+
+    const { useClientZustand } = await load()
+
+    expect(useClientZustand.getState().configReset?.fields).toContain('registerConfig')
+  })
+})

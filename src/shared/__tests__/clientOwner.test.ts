@@ -32,17 +32,22 @@ describe('who owns the client', () => {
     expect(clientOwner({ ...idle, [flag]: true })).toBe(name)
   })
 
-  // Every boolean of `ClientState`, so a sixth one added later fails here
-  // rather than being let through in silence.
-  it('names every state the client reports but the connect state', () => {
+  // Every boolean of `ClientState`, so one added later fails here rather than
+  // being let through in silence.
+  it('names every state the client reports but the connect state and offline', () => {
     const flags = Object.entries(ClientStateSchema.shape)
-      .filter(([key]) => key !== 'connectState')
+      .filter(([key]) => key !== 'connectState' && key !== 'offline')
       .map(([key]) => key)
 
     expect(flags.length).toBeGreaterThan(0)
     for (const flag of flags) {
       expect(clientOwner({ ...idle, [flag]: true })).toBeDefined()
     }
+  })
+
+  // Offline says how the device answers, and a poll of it goes on.
+  it('names nothing for a device that is offline', () => {
+    expect(clientOwner({ ...idle, offline: true })).toBeUndefined()
   })
 
   // A write holds the client from its own request to the end of the read back,

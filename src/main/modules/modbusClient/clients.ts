@@ -46,12 +46,12 @@ export class Clients {
     // opened on stays, without the refusal an edit gets, and the unit id goes
     // out with each request, so it is taken either way.
     const { connectionConfig, registerConfig } = config
-    client.config.updateConnectionConfig(
+    client.updateConnectionConfig(
       client.state.connectState === 'disconnected'
         ? connectionConfig
         : { unitId: connectionConfig.unitId }
     )
-    client.config.updateRegisterConfig(registerConfig)
+    client.updateRegisterConfig(registerConfig)
   }
 
   /**
@@ -94,10 +94,13 @@ export class Clients {
    * `undefined` for a uuid it holds no client under, the answer a refused
    * payload gets too.
    */
-  private _configure = (uuid: string, change: (config: AppState) => void): true | undefined => {
+  private _configure = (
+    uuid: string,
+    change: (config: AppState, client: ModbusClient) => void
+  ): true | undefined => {
     const client = this.get(uuid)
     if (!client) return undefined
-    change(client.config)
+    change(client.config, client)
     return true
   }
 
@@ -108,7 +111,7 @@ export class Clients {
   }: ClientConnectionConfigUpdate): true | undefined => {
     const client = this.get(uuid)
     if (!client?.mayUpdateConnection(connectionConfig)) return undefined
-    client.config.updateConnectionConfig(connectionConfig)
+    client.updateConnectionConfig(connectionConfig)
     return true
   }
 
@@ -116,7 +119,7 @@ export class Clients {
     uuid,
     registerConfig
   }: ClientRegisterConfigUpdate): true | undefined =>
-    this._configure(uuid, (config) => config.updateRegisterConfig(registerConfig))
+    this._configure(uuid, (_, client) => client.updateRegisterConfig(registerConfig))
 
   public setRegisterMapping = ({
     uuid,

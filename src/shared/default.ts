@@ -41,6 +41,8 @@ export const defaultRegisterConfig: RegisterConfig = {
   type: 'holding_registers',
   pollRate: 1000,
   timeout: 5000,
+  offlineAfterTimeouts: 3,
+  maxPollInterval: 60_000,
   littleEndian: false,
   advancedMode: false,
   show64BitValues: false,
@@ -64,6 +66,7 @@ export const emptyRegisterMapping = (): RegisterMapping => ({
 export const defaultClientState: ClientState = {
   connectState: 'disconnected',
   polling: false,
+  offline: false,
   scanningUnitIds: false,
   scanningRegisters: false,
   reading: false,

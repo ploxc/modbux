@@ -17,7 +17,9 @@ import {
   defaultClientState,
   isBooleanRegister,
   maxReadQuantity,
+  pollDelay,
   readLoopOwner,
+  RegisterConfig,
   RegisterData,
   registersFrom,
   transportKey,
@@ -28,7 +30,7 @@ import {
   WriteParameters
 } from '@shared'
 import { Windows } from '../windows'
-import { errorText, isModbusException } from './modbusClient/errors'
+import { errorText, isGatewaySilence, isModbusException, isTimeout } from './modbusClient/errors'
 import { RequestTarget, Transport, TransportClient } from './modbusClient/transport'
 import { Transports } from './modbusClient/transports'
 import {
@@ -135,6 +137,12 @@ export class ModbusClient implements TransportClient {
 
   private _pollTimeout: NodeJS.Timeout | undefined
   private _pollGeneration = 0
+
+  /**
+   * How many reads in a row the device has left unanswered. Another unit id is
+   * another device, and `updateConnectionConfig` starts it from 0.
+   */
+  private _silentReads = 0
   private _totalScans = 1
   private _scansDone = 1
 
@@ -206,6 +214,8 @@ export class ModbusClient implements TransportClient {
 
   private _setDisconnected = (): void => {
     this._enter('disconnected')
+    this._silentReads = 0
+    this._clientState.offline = false
     // A scan is a read loop like polling is, so it ends here too. The loops
     // end on the ride as well, when their request settles, so what these two
     // add is the flag reaching the dialogs in the `client_state` reporting
@@ -415,7 +425,7 @@ export class ModbusClient implements TransportClient {
     this._clientState.reading = true
     this._sendClientState()
     try {
-      await this._read()
+      this._hear(await this._read())
     } finally {
       this._clientState.reading = false
       this._sendClientState()
@@ -432,10 +442,13 @@ export class ModbusClient implements TransportClient {
    * would land in whatever the stop made room for, which is a scan's result
    * list or the grid of a chain that started since, and the groups it had
    * left would go out between that chain's own on the queue.
+   *
+   * Answers true when the device answered, false for only silence, and nothing
+   * for a read that says neither, which is what `_hear` counts.
    */
-  private _read = async (pollGeneration?: number): Promise<void> => {
+  private _read = async (pollGeneration?: number): Promise<boolean | undefined> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
-    if (!transport) return
+    if (!transport) return undefined
     const ride = this._rideOn(transport)
     const stopped = (): boolean =>
       pollGeneration !== undefined && pollGeneration !== this._pollGeneration
@@ -478,16 +491,25 @@ export class ModbusClient implements TransportClient {
       Math.min(length, maxReadQuantity([type]), registersFrom(address))
     ]
     const groups = configGroups.length > 0 ? configGroups : [toolbarGroup]
+    // An exception is an answer as much as a value is: the device is there.
+    // A gateway's 10 or 11 is the gateway answering for a device that is not.
+    let answered = false
+    let silent = false
 
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
-      if (stopped()) return
+      if (stopped()) return undefined
       const settled = await this._settle(
         ride,
         this._readers[type](transport, target, groupAddress, groupLength)
       )
       // The connection went while this group waited, so nothing of this read
       // goes anywhere.
-      if (!settled) return
+      if (!settled) return undefined
+      if (settled.ok || (isModbusException(settled.error) && !isGatewaySilence(settled.error))) {
+        answered = true
+      } else if (isTimeout(settled.error) || isGatewaySilence(settled.error)) {
+        silent = true
+      }
       if (settled.ok) {
         settled.result.forEach((row) => {
           row.groupIndex = groupIndex
@@ -539,14 +561,36 @@ export class ModbusClient implements TransportClient {
     // rows drawn for the new one. The renderer cannot tell the two apart: only
     // main knows what its read asked. The transport logged the transactions
     // above either way, because they happened.
-    if (this._appState.readGeneration !== readGeneration) return
-    if (stopped()) return
+    if (this._appState.readGeneration !== readGeneration) return undefined
+    if (stopped()) return undefined
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
       this._sendGroups(groups)
       this._sendData(data)
     }
+    if (answered) return true
+    return silent ? false : undefined
+  }
+
+  /**
+   * Count what a read heard, and say when the device goes offline or comes
+   * back.
+   *
+   * A device is offline after `offlineAfterTimeouts` reads in a row that it let
+   * run out, and one answer brings it back. A read that says nothing about the
+   * device, because its connection went or it was stopped, or failed some
+   * other way, leaves the count alone. So does one that went out to a unit id
+   * the client has left since: that moves the read generation, and `_read`
+   * answers nothing for it.
+   */
+  private _hear = (answered: boolean | undefined): void => {
+    if (answered === undefined) return
+    this._silentReads = answered ? 0 : this._silentReads + 1
+    const offline = this._silentReads >= this._appState.registerConfig.offlineAfterTimeouts
+    if (offline === this._clientState.offline) return
+    this._clientState.offline = offline
+    this._sendClientState()
   }
 
   //
@@ -572,6 +616,7 @@ export class ModbusClient implements TransportClient {
 
   public stopPolling = (): void => {
     clearTimeout(this._pollTimeout)
+    this._pollTimeout = undefined
     this._pollGeneration++
     this._clientState.polling = false
     this._sendClientState()
@@ -584,15 +629,56 @@ export class ModbusClient implements TransportClient {
    * awaiting a read holds none, because `_pollTimeout` is assigned after the
    * await. It takes the generation instead: the read resolves into a number
    * that is no longer current, and the chain ends there rather than arming a
-   * timer nothing can clear.
+   * timer nothing can clear. `_pollTimeout` is undefined while the read runs,
+   * which is what `_rearmPoll` reads.
    */
   private _poll = async (generation: number): Promise<void> => {
-    await this._read(generation)
+    this._pollTimeout = undefined
+    this._hear(await this._read(generation))
     if (generation !== this._pollGeneration) return
+    this._pollArmedAt = Date.now()
     this._pollTimeout = setTimeout(
       () => this._poll(generation),
-      this._appState.registerConfig.pollRate
+      pollDelay(this._appState.registerConfig, this._silentReads)
     )
+  }
+
+  /** When the sleeping poll went to sleep, which a re-arm leaves where it is. */
+  private _pollArmedAt = 0
+
+  /**
+   * Arm a sleeping poll again for the wait it is owed now, counted from when
+   * it went to sleep: an offline device's wait runs up to `maxPollInterval`,
+   * and a new unit id or poll setting should not sit behind it. A poll whose
+   * read is running arms its own timer when the read ends.
+   */
+  private _rearmPoll = (): void => {
+    if (this._pollTimeout === undefined) return
+    clearTimeout(this._pollTimeout)
+    const generation = this._pollGeneration
+    const waited = Date.now() - this._pollArmedAt
+    const delay = pollDelay(this._appState.registerConfig, this._silentReads)
+    this._pollTimeout = setTimeout(() => this._poll(generation), Math.max(0, delay - waited))
+  }
+
+  /** Take a connection config update main accepted. */
+  public updateConnectionConfig = (update: DeepPartial<ConnectionConfig>): void => {
+    const unitId = this._appState.connectionConfig.unitId
+    this._appState.updateConnectionConfig(update)
+    if (this._appState.connectionConfig.unitId === unitId) return
+    // Another unit is another device, which has left nothing unanswered yet.
+    this._silentReads = 0
+    if (this._clientState.offline) {
+      this._clientState.offline = false
+      this._sendClientState()
+    }
+    this._rearmPoll()
+  }
+
+  /** Take a register config update, and give a sleeping poll its new wait. */
+  public updateRegisterConfig = (update: DeepPartial<RegisterConfig>): void => {
+    this._appState.updateRegisterConfig(update)
+    this._rearmPoll()
   }
 
   //

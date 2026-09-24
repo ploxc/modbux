@@ -112,6 +112,8 @@ export type ClientZustand = {
   setStopBits: (stopBits: StopBits) => Promise<boolean>
   setPollRate: (pollRate: number) => Promise<boolean>
   setTimeout: (timeout: number) => Promise<boolean>
+  setOfflineAfterTimeouts: (offlineAfterTimeouts: number) => Promise<boolean>
+  setMaxPollInterval: (maxPollInterval: number) => Promise<boolean>
   setLittleEndian: (littleEndian: boolean) => Promise<boolean>
 
   // Layout configuration settings (i want them to be persistent)

@@ -1473,6 +1473,285 @@ describe('ModbusClient', () => {
     })
   })
 
+  describe('a device that stops answering', () => {
+    /** What modbus-serial rejects a request with when the device lets it run out. */
+    const timedOut = (): Error =>
+      Object.assign(new Error('Timed out'), {
+        name: 'TransactionTimedOutError',
+        errno: 'ETIMEDOUT'
+      })
+    const answer = { data: [1], buffer: Buffer.from([0, 1]) }
+    const reads = (): number => mockModbusRTU.readHoldingRegisters.mock.calls.length
+    const offlineStates = (): boolean[] =>
+      getWindowCalls('client_state').map((call) => call[1].offline)
+
+    it('is offline after three silent polls, and polled at twice the wait each time after', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(client.state.offline).toBe(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(reads()).toBe(3)
+      expect(client.state.offline).toBe(true)
+      expect(offlineStates().at(-1)).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(reads()).toBe(3)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(reads()).toBe(4)
+      await vi.advanceTimersByTimeAsync(3999)
+      expect(reads()).toBe(4)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(reads()).toBe(5)
+
+      client.stopPolling()
+    })
+
+    it('is polled no further apart than the most the config allows', async () => {
+      appState.updateRegisterConfig({ maxPollInterval: 3000 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(2000)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(reads()).toBe(4)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(reads()).toBe(5)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(reads()).toBe(6)
+
+      client.stopPolling()
+    })
+
+    it('goes offline after as many silent polls as the config says', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(client.state.offline).toBe(true)
+      client.stopPolling()
+    })
+
+    it('is back with one answer, and polled at the poll rate again', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(client.state.offline).toBe(true)
+
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue(answer)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(client.state.offline).toBe(false)
+      const answered = reads()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(reads()).toBe(answered + 1)
+
+      client.stopPolling()
+    })
+
+    // A device that refuses a request is there to refuse it.
+    it('is never offline for refusing', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(
+        Object.assign(new Error('Illegal data address'), { modbusCode: 2 })
+      )
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(reads()).toBe(6)
+      expect(client.state.offline).toBe(false)
+      client.stopPolling()
+    })
+
+    it('is read at once when the user asks, and back once it answers', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      await client.read()
+      expect(client.state.offline).toBe(true)
+
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue(answer)
+      await client.read()
+
+      expect(reads()).toBe(2)
+      expect(client.state.offline).toBe(false)
+    })
+
+    it('counts again from nothing for another unit id', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      await client.read()
+
+      client.updateConnectionConfig({ unitId: 2 })
+      await client.read()
+
+      expect(client.state.offline).toBe(false)
+      await client.read()
+      expect(client.state.offline).toBe(true)
+    })
+
+    // A new mapping or read configuration changes what is read, not which
+    // device is asked.
+    it('stays offline through a change of what is read from it', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      await client.read()
+      await client.read()
+      expect(client.state.offline).toBe(true)
+
+      appState.setReadConfiguration(false)
+      await client.read()
+
+      const states = offlineStates()
+      expect(states.slice(states.indexOf(true))).not.toContain(false)
+    })
+
+    /** Poll until the device is offline and the next poll waits 2 s. */
+    const offlineWhilePolling = async (): Promise<void> => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(reads()).toBe(3)
+      expect(client.state.offline).toBe(true)
+    }
+
+    it('polls another unit id at the poll rate, and says it is not offline', async () => {
+      await offlineWhilePolling()
+      await vi.advanceTimersByTimeAsync(500)
+
+      client.updateConnectionConfig({ unitId: 2 })
+
+      expect(client.state.offline).toBe(false)
+      await vi.advanceTimersByTimeAsync(499)
+      expect(reads()).toBe(3)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(reads()).toBe(4)
+      client.stopPolling()
+    })
+
+    it('shortens a wait under way to a lower most', async () => {
+      await offlineWhilePolling()
+      await vi.advanceTimersByTimeAsync(4000)
+      expect(reads()).toBe(4)
+      await vi.advanceTimersByTimeAsync(1000)
+
+      client.updateRegisterConfig({ maxPollInterval: 1000 })
+
+      await vi.advanceTimersByTimeAsync(0)
+      expect(reads()).toBe(5)
+      client.stopPolling()
+    })
+
+    it('starts no second poll for a change made while a read runs', async () => {
+      await connectClient()
+      const answers: Array<() => void> = []
+      mockModbusRTU.readHoldingRegisters.mockImplementation(
+        () => new Promise((resolve) => answers.push(() => resolve(answer)))
+      )
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      answerNext(answers)
+      // The second read, running on the timer the first one armed.
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(reads()).toBe(2)
+
+      client.updateRegisterConfig({ maxPollInterval: 2000 })
+      // Every read answered as it comes, over three rounds of the poll rate:
+      // one chain reads once a round, and two would read twice.
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(0)
+        while (answers.length > 0) {
+          answerNext(answers)
+          await vi.advanceTimersByTimeAsync(0)
+        }
+        await vi.advanceTimersByTimeAsync(1000)
+      }
+
+      expect(reads()).toBe(5)
+      client.stopPolling()
+      while (answers.length > 0) answerNext(answers)
+    })
+
+    // Exception 11 is the gateway answering for a device behind it that did not.
+    it('counts a gateway saying the device did not answer as silence', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(
+        Object.assign(new Error('Gateway target device failed to respond'), { modbusCode: 11 })
+      )
+
+      await client.read()
+
+      expect(client.state.offline).toBe(true)
+    })
+
+    it('holds nothing against another unit id for a read the old one left running', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      let fail: (() => void) | undefined
+      mockModbusRTU.readHoldingRegisters.mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            fail = () => reject(timedOut())
+          })
+      )
+      const reading = client.read()
+      await vi.advanceTimersByTimeAsync(0)
+
+      client.updateConnectionConfig({ unitId: 2 })
+      if (!fail) throw new Error('the read never went out')
+      fail()
+      await reading
+
+      expect(client.state.offline).toBe(false)
+    })
+
+    // Every edit re-arms a sleeping poll, and a run of them faster than the
+    // poll rate must not keep pushing it back.
+    it('reads at the poll rate through a run of edits', async () => {
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue(answer)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(reads()).toBe(1)
+
+      for (let edit = 0; edit < 5; edit++) {
+        await vi.advanceTimersByTimeAsync(300)
+        client.updateRegisterConfig({ address: edit })
+      }
+
+      expect(reads()).toBe(2)
+      client.stopPolling()
+    })
+
+    it('is not offline once disconnected', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+      await client.read()
+      expect(client.state.offline).toBe(true)
+
+      await client.disconnect()
+
+      expect(client.state.offline).toBe(false)
+    })
+  })
+
   describe('scanning', () => {
     it('stopScanningUnitIds sets flag to false', () => {
       client.stopScanningUnitIds()

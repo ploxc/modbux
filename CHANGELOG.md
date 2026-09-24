@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A poll backs off from a device that stops answering.** After three polls
+  in a row that a device lets time out, Modbux waits twice as long before
+  each next one, up to a minute, and polls at your rate again as soon as it
+  answers. On a serial bus every poll of a device that is not there held up
+  the others for a full timeout. A device that answers with an exception is
+  answering, unless it is a gateway saying the device behind it did not.
 - **Switching read configuration reads nothing by itself.** Turning it on
   shows the mapping, and Read or the poll fills in the values. A read the
   switch started could land after you switched back, and filled the grid
