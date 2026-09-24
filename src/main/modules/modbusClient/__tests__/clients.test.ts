@@ -13,6 +13,9 @@ const createMockModbusRTU = () => {
       options.timeout = 3000
       mock.isOpen = true
     }),
+    connectRTUBuffered: vi.fn(async () => {
+      mock.isOpen = true
+    }),
     close: vi.fn((callback: () => void) => {
       mock.isOpen = false
       callback()
@@ -71,6 +74,32 @@ describe('Clients', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('keeps a client off a serial port open at other settings, and lets it on at the same', async () => {
+    const serial = (uuid: string, baudRate: '9600' | '19200') =>
+      clients.updateConnectionConfig({
+        uuid,
+        connectionConfig: { protocol: 'ModbusRtu', rtu: { com: 'COM3', options: { baudRate } } }
+      })
+    clients.create('a')
+    clients.create('b')
+    serial('a', '9600')
+    serial('b', '19200')
+    await clients.get('a')?.connect()
+
+    await clients.get('b')?.connect()
+
+    expect(clients.get('b')?.state.connectState).toBe('disconnected')
+    expect(messages().at(-1)).toBe(
+      'COM3 is open at 9600 8N1 for another client. Use the same serial settings to share it'
+    )
+
+    expect(serial('b', '9600')).toBe(true)
+    await clients.get('b')?.connect()
+
+    expect(clients.get('b')?.state.connectState).toBe('connected')
+    expect(instances).toHaveLength(1)
   })
 
   it('makes a client once, and leaves it alone when asked again', () => {

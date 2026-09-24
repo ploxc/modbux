@@ -348,7 +348,7 @@ export class ModbusClient implements TransportClient {
     // Asked before `_transport` moves: a refused connect leaves the client on
     // the transport whose close it is still waiting for.
     const transport = this._transports.acquire(connectionConfig)
-    if (transport.refuses()) return
+    if (transport.refuses(this, connectionConfig)) return
     this._transport = transport
     await transport.attach(this, connectionConfig)
   }

@@ -45,3 +45,13 @@ export const SerialPortOptionsSchema = z.object({
   parity: ParitySchema.optional()
 })
 export type SerialPortOptions = z.infer<typeof SerialPortOptionsSchema>
+
+/**
+ * A serial line as a port's settings are written, `9600 8N1`: baud rate, data
+ * bits, parity and stop bits. No parity is what the binding opens without one.
+ *
+ * Two clients on one COM port share one line, so equal strings are what lets
+ * the second one join.
+ */
+export const serialLine = ({ baudRate, dataBits, parity, stopBits }: SerialPortOptions): string =>
+  `${baudRate} ${dataBits}${(parity ?? 'none').charAt(0).toUpperCase()}${stopBits}`

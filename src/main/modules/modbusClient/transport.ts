@@ -4,7 +4,8 @@ import {
   ConnectionConfig,
   ConnectState,
   PROTOCOL_LABELS,
-  humanizeSerialError
+  humanizeSerialError,
+  serialLine
 } from '@shared'
 import { Windows } from '../../windows'
 import { errorText } from './errors'
@@ -263,23 +264,33 @@ export class Transport {
   //
   // Connect
   /**
-   * Whether a client may not ride this connection yet, having said why.
+   * Whether `client` on `config` may not ride this connection, having said why.
    *
    * A close that is still closing, or a cancelled open that is still opening,
-   * holds the port the next open would ask for. `attach` asks it, and
+   * holds the port the next open would ask for. A serial port that other
+   * clients ride is open at their line settings, and a client on other ones
+   * would talk past every device on the bus; a client that rides it already is
+   * on the line it is open at. `attach` asks it, and
    * `ModbusClient.connect` asks it first as well, because a refused connect
    * keeps the client on the transport it rode.
    */
-  public refuses = (): boolean => {
-    if (!this._closing && !(this._openInFlight && this._clients.size === 0)) return false
-    this._emitMessage({
-      message: this._closing
-        ? 'Still closing that connection, try again in a moment'
-        : 'Still finishing the connect you cancelled',
-      variant: 'warning',
-      error: null
-    })
+  public refuses = (client: TransportClient, config: ConnectionConfig): boolean => {
+    const message = this._refusal(client, config)
+    if (message === undefined) return false
+    this._emitMessage({ message, variant: 'warning', error: null })
     return true
+  }
+
+  private _refusal = (client: TransportClient, config: ConnectionConfig): string | undefined => {
+    if (this._closing) return 'Still closing that connection, try again in a moment'
+    if (this._openInFlight && this._clients.size === 0) {
+      return 'Still finishing the connect you cancelled'
+    }
+    if (this._clients.size === 0 || this._clients.has(client)) return undefined
+    if (config.protocol !== 'ModbusRtu') return undefined
+    const open = serialLine(this._config.rtu.options)
+    if (serialLine(config.rtu.options) === open) return undefined
+    return `${this._config.rtu.com} is open at ${open} for another client. Use the same serial settings to share it`
   }
 
   /**
@@ -292,7 +303,7 @@ export class Transport {
    * transport was made with can be older than what the user set since.
    */
   public attach = async (client: TransportClient, config: ConnectionConfig): Promise<void> => {
-    if (this.refuses()) return
+    if (this.refuses(client, config)) return
 
     if (this._clients.has(client) && this._modbus.isOpen) {
       this._emitMessage({ message: 'Already connected', variant: 'warning', error: null })

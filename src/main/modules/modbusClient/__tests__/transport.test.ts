@@ -425,6 +425,93 @@ describe('Transport', () => {
     })
   })
 
+  describe('a second client on an open serial port', () => {
+    const serial = (
+      options: Partial<ConnectionConfig['rtu']['options']> = {}
+    ): ConnectionConfig => ({
+      ...structuredClone(defaultConnectionConfig),
+      protocol: 'ModbusRtu',
+      rtu: {
+        com: 'COM3',
+        options: { baudRate: '9600', parity: 'none', dataBits: 8, stopBits: 1, ...options }
+      }
+    })
+
+    it('joins on the line settings the port is open at', async () => {
+      const transport = transports.acquire(serial())
+      await transport.attach(createClient(), serial())
+
+      const second = createClient()
+      await transport.attach(second, serial())
+
+      expect(second.states.at(-1)).toBe('connected')
+      expect(mockModbusRTU.connectRTUBuffered).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['baud rate', { baudRate: '19200' as const }],
+      ['parity', { parity: 'even' as const }],
+      ['data bits', { dataBits: 7 as const }],
+      ['stop bits', { stopBits: 2 as const }]
+    ])('is refused on another %s, and told the settings it is open at', async (_label, options) => {
+      const transport = transports.acquire(serial())
+      await transport.attach(createClient(), serial())
+
+      const second = createClient()
+      expect(transport.refuses(second, serial(options))).toBe(true)
+      await transport.attach(second, serial(options))
+
+      expect(second.states).toEqual([])
+      expect(transport.rides(second)).toBe(false)
+      expect(messages().at(-1)).toMatchObject({
+        message:
+          'COM3 is open at 9600 8N1 for another client. Use the same serial settings to share it',
+        variant: 'warning'
+      })
+    })
+
+    // A rider is on the line the port is open at, whatever its config says
+    // since it joined.
+    it('leaves a client that rides it alone, whatever settings it names now', async () => {
+      const first = createClient()
+      const transport = transports.acquire(serial())
+      await transport.attach(first, serial())
+      await transport.attach(createClient(), serial())
+
+      await transport.attach(first, serial({ baudRate: '19200' }))
+
+      expect(messages().at(-1)).toMatchObject({ message: 'Already connected' })
+    })
+
+    // A TCP config carries serial options too, which nothing opens.
+    it('leaves a TCP connection alone whatever serial options its clients carry', async () => {
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(createClient(), tcp('10.0.0.1'))
+      const other = tcp('10.0.0.1')
+      other.rtu.options.baudRate = '19200'
+
+      const second = createClient()
+      await transport.attach(second, other)
+
+      expect(second.states.at(-1)).toBe('connected')
+    })
+
+    it('opens on any settings once nothing rides it', async () => {
+      const first = createClient()
+      const transport = transports.acquire(serial())
+      await transport.attach(first, serial())
+      await transport.detach(first, false)
+
+      const next = transports.acquire(serial({ baudRate: '19200' }))
+      await next.attach(createClient(), serial({ baudRate: '19200' }))
+
+      expect(mockModbusRTU.connectRTUBuffered).toHaveBeenLastCalledWith(
+        'COM3',
+        expect.objectContaining({ baudRate: 19200 })
+      )
+    })
+  })
+
   describe('the transports main holds', () => {
     it('hands two configs naming one connection the same transport', () => {
       expect(transports.acquire(tcp('10.0.0.1'))).toBe(transports.acquire(tcp('10.0.0.1')))
