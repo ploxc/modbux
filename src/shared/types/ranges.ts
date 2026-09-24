@@ -4,11 +4,12 @@ import { isNumberRegister, RegisterType } from './register'
 /**
  * Ranges the protocol and the socket fix, so a schema states them once.
  *
- * A register address is 16 bit, so 0 to 65535. A unit id is one byte: 0 is the
- * broadcast address and 248 through 255 are reserved, but a field device answers
- * on whatever its vendor put there, so the byte is the range and the reserved
- * part is not refused here. A TCP port is 16 bit too, and shares no meaning
- * with a register address beyond the width.
+ * A register address is 16 bit, so 0 to 65535. A unit id is one byte, and
+ * over Modbus TCP a gateway or a device may answer on any of it, so the byte is
+ * the range a schema holds. Over a serial line 0 is the broadcast address and
+ * 248 through 255 are reserved, which `maxUnitId` answers per protocol. A TCP
+ * port is 16 bit too, and shares no meaning with a register address beyond the
+ * width.
  *
  * `PortSchema` takes 0 while `isPort` in `modbusServer/tcp.ts` refuses it, and that is two
  * questions rather than one rule written twice. 0 is the width's floor and the
@@ -19,6 +20,8 @@ import { isNumberRegister, RegisterType } from './register'
  */
 export const MAX_REGISTER_ADDRESS = 65535
 export const MAX_UNIT_ID = 255
+/** MODBUS over Serial Line V1.02, section 2.2: slave addresses are 1 to 247. */
+export const MAX_SERIAL_UNIT_ID = 247
 
 /** Modbus TCP's registered port, which is where a walk for a free one starts. */
 export const DEFAULT_MODBUS_PORT = 502

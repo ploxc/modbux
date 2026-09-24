@@ -22,7 +22,12 @@ const stub = vi.hoisted(() => {
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
-import { defaultClientState, MAIN_CLIENT_UUID, ScanUnitIDParametersSchema } from '@shared'
+import {
+  defaultClientState,
+  defaultConnectionConfig,
+  MAIN_CLIENT_UUID,
+  ScanUnitIDParametersSchema
+} from '@shared'
 import ScanUnitIds from '../ScanUnitIds'
 import { useScanUnitIdZustand } from '../scanUnitIds.zustand'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
@@ -91,6 +96,35 @@ describe('ScanUnitIds asks for a range the boundary takes', () => {
 
     expect(payload()).toMatchObject({ address: 65535, length: 1 })
     expect(ScanUnitIDParametersSchema.safeParse(payload()).success).toBe(true)
+  })
+
+  it('stops the range at 247 over RTU', () => {
+    patchSelectedClient(
+      useClientZustand,
+      { connectionConfig: { ...defaultConnectionConfig, protocol: 'ModbusRtuOverTcp' } },
+      { ready: true }
+    )
+
+    render(<ScanUnitIds />)
+
+    fireEvent.click(screen.getByTestId('scan-unitid-start-stop-btn'))
+
+    expect(payload()).toMatchObject({ range: [200, 247] })
+  })
+
+  // Main would refuse it, and the results are cleared before main is asked.
+  it('asks nothing for a Start past 247 over RTU, and draws it red', () => {
+    patchSelectedClient(
+      useClientZustand,
+      { connectionConfig: { ...defaultConnectionConfig, protocol: 'ModbusRtu' } },
+      { ready: true }
+    )
+    useScanUnitIdZustand.setState({ startUnitId: 250 })
+
+    render(<ScanUnitIds />)
+
+    expect(screen.getByTestId('scan-unitid-start-stop-btn')).toBeDisabled()
+    expect(input('scan-start-unitid-input')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('leaves a range that fits where it is', () => {

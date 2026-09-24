@@ -19,7 +19,7 @@ import {
   selectedClientUuid,
   selectedSession
 } from '@renderer/context/client.zustand'
-import { Protocol } from '@shared'
+import { Protocol, unitIdOutOfRange } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
@@ -109,6 +109,10 @@ const ConnectButton = meme(() => {
       ? selectedSession(z).valid.com
       : selectedSession(z).valid.host
   )
+  // Main refuses the connect as well; this keeps the serial check from running first.
+  const unitIdOutOfRangeNow = useClientZustand(
+    (z) => unitIdOutOfRange(selectedClient(z).connectionConfig) !== undefined
+  )
 
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = getShownData().clientState.connectState
@@ -134,7 +138,8 @@ const ConnectButton = meme(() => {
   // Only the press that connects. Disconnect and the cancel a connecting state
   // draws go through this same button, and neither is refused for a field.
   const disabled =
-    connectState === 'disconnecting' || (connectState === 'disconnected' && !addressValid)
+    connectState === 'disconnecting' ||
+    (connectState === 'disconnected' && (!addressValid || unitIdOutOfRangeNow))
 
   const color: ButtonProps['color'] = ['connecting', 'connected'].includes(connectState)
     ? 'warning'
@@ -173,24 +178,29 @@ const ConnectButton = meme(() => {
 // Unit Id
 const UnitId = meme(() => {
   const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
+  // A string or undefined, which compares equal from one read to the next.
+  const outOfRange = useClientZustand((z) => unitIdOutOfRange(selectedClient(z).connectionConfig))
 
   const setUnitId = useClientZustand.getState().setUnitId
 
   return (
-    <TextField
-      label="Unit ID"
-      variant="outlined"
-      size="small"
-      sx={{ width: 60 }}
-      value={unitId}
-      data-testid="client-unitid-input"
-      slotProps={{
-        input: {
-          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setUnitId })
-        }
-      }}
-    />
+    <Tooltip title={outOfRange ?? ''}>
+      <TextField
+        label="Unit ID"
+        variant="outlined"
+        size="small"
+        sx={{ width: 60 }}
+        error={outOfRange !== undefined}
+        value={unitId}
+        data-testid="client-unitid-input"
+        slotProps={{
+          input: {
+            inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+            inputProps: maskInputProps({ set: setUnitId })
+          }
+        }}
+      />
+    </Tooltip>
   )
 })
 

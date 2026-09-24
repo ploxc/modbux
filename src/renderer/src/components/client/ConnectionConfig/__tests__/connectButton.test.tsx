@@ -16,7 +16,7 @@ vi.hoisted(async () => {
   stubRenderer()
 })
 
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useDataZustand } from '@renderer/context/data.zustand'
 import { ClientState, defaultClientState, defaultConnectionConfig, Protocol } from '@shared'
@@ -28,16 +28,18 @@ const renderButton = ({
   connectState = 'disconnected',
   protocol = 'ModbusTcp',
   host = true,
-  com = true
+  com = true,
+  unitId = 1
 }: {
   connectState?: ClientState['connectState']
   protocol?: Protocol
   host?: boolean
   com?: boolean
+  unitId?: number
 }): HTMLElement => {
   patchSelectedClient(
     useClientZustand,
-    { connectionConfig: { ...defaultConnectionConfig, protocol } },
+    { connectionConfig: { ...defaultConnectionConfig, protocol, unitId } },
     { ready: true, valid: { host, com, length: true } }
   )
   patchShownData(useDataZustand, { clientState: { ...defaultClientState, connectState } })
@@ -75,6 +77,17 @@ describe('the Connect button', () => {
       expect(renderButton({ connectState, host: false })).toBeEnabled()
     }
   )
+
+  // Main refuses the connect, and over RTU the serial check would run first.
+  it('takes none on a unit id its protocol stops before', () => {
+    expect(renderButton({ protocol: 'ModbusRtu', unitId: 248 })).toBeDisabled()
+  })
+
+  it('takes a press on 247 over RTU and on 255 over Modbus TCP', () => {
+    expect(renderButton({ protocol: 'ModbusRtu', unitId: 247 })).toBeEnabled()
+    cleanup()
+    expect(renderButton({ unitId: 255 })).toBeEnabled()
+  })
 
   it('takes none while disconnecting', () => {
     expect(renderButton({ connectState: 'disconnecting' })).toBeDisabled()

@@ -3,6 +3,8 @@ import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { registerWidth } from '../encoding'
 import {
+  MAX_SERIAL_UNIT_ID,
+  MAX_UNIT_ID,
   MAX_WRITE_BITS,
   PortSchema,
   RegisterAddressKeySchema,
@@ -108,6 +110,28 @@ export const PROTOCOL_LABELS: Record<Protocol, string> = {
   ModbusTcp: 'Modbus TCP',
   ModbusRtu: 'Modbus RTU',
   ModbusRtuOverTcp: 'RTU over TCP'
+}
+
+/**
+ * The highest unit id a protocol addresses. RTU over TCP carries the serial
+ * frame, so it takes the serial line's range.
+ */
+export const maxUnitId = (protocol: Protocol): number =>
+  protocol === 'ModbusTcp' ? MAX_UNIT_ID : MAX_SERIAL_UNIT_ID
+
+/**
+ * Why a unit id is out of its protocol's range, or undefined when it is not.
+ *
+ * `ConnectionConfigSchema` does not refuse the pair. A 2.3.0 config holds an
+ * RTU client on 248 to 255, and switching to RTU keeps the id TCP allowed, so
+ * the config keeps it and main refuses to send it until the user changes it.
+ */
+export const unitIdOutOfRange = ({
+  protocol,
+  unitId
+}: Pick<ConnectionConfig, 'protocol' | 'unitId'>): string | undefined => {
+  const max = maxUnitId(protocol)
+  return unitId > max ? `${PROTOCOL_LABELS[protocol]} stops at ${max}` : undefined
 }
 
 /**

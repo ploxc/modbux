@@ -11,7 +11,7 @@ import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInpu
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import { useDataZustand, dataOf, getShownData } from '@renderer/context/data.zustand'
-import { MAX_UNIT_ID, maxReadQuantity, RegisterType, registersFrom } from '@shared'
+import { MAX_UNIT_ID, maxReadQuantity, maxUnitId, RegisterType, registersFrom } from '@shared'
 import { ElementType, useCallback } from 'react'
 import useScanUnitIdColumns from './columns'
 import { useScanUnitIdZustand } from './scanUnitIds.zustand'
@@ -20,7 +20,24 @@ import ScanProgress from '../scan/ScanProgress'
 import ScanStartStopButton from '../scan/ScanStartStopButton'
 import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { selectedClientUuid, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  selectedClient,
+  selectedClientUuid,
+  useClientZustand
+} from '@renderer/context/client.zustand'
+
+/**
+ * Whether Start is past the last unit id the protocol addresses.
+ *
+ * The mask stays at 255, because a mask bounded per protocol rewrites the
+ * stored value when it mounts. Main refuses such a scan, and the dialog clears
+ * its results before it asks, so the button does not ask.
+ */
+const useStartPastLastUnitId = (): boolean => {
+  const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
+  const startUnitId = useScanUnitIdZustand((z) => z.startUnitId)
+  return startUnitId > maxUnitId(protocol)
+}
 
 //
 //
@@ -29,6 +46,7 @@ const StartUnitIdField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
   const startUnitId = useScanUnitIdZustand((z) => String(z.startUnitId))
+  const startPastLast = useStartPastLastUnitId()
 
   const setStartUnitId = useScanUnitIdZustand.getState().setStartUnitId
 
@@ -39,6 +57,7 @@ const StartUnitIdField = meme((): JSX.Element => {
       variant="outlined"
       size="small"
       sx={{ width: 100 }}
+      error={startPastLast}
       value={startUnitId}
       data-testid="scan-start-unitid-input"
       slotProps={{
@@ -231,7 +250,9 @@ const SelectRegisterTypes = meme((): JSX.Element => {
 const ScanButton = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningUnitIds)
-  const disabled = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
+  const noRegisterTypes = useScanUnitIdZustand((z) => z.registerTypes.length === 0)
+  const startPastLast = useStartPastLastUnitId()
+  const disabled = noRegisterTypes || (!scanning && startPastLast)
 
   const scan = useCallback(() => {
     if (scanning) {
@@ -246,13 +267,17 @@ const ScanButton = meme((): JSX.Element => {
     dataZustand.setScanProgress(uuid, 0)
 
     const { address, length, startUnitId, count, registerTypes, timeout } = scanUnitIdZustand
+    const lastUnitId = maxUnitId(
+      selectedClient(useClientZustand.getState()).connectionConfig.protocol
+    )
 
     // Clamped where the request is built rather than left to the boundary,
     // because the boundary refuses what it is given and the results are already
     // cleared by then.
     //
     // Each field masks to its own ceiling and the request is bounded by a pair:
-    // Start caps at 255 and Count at 256, so 200 and 100 name unit id 299. The
+    // Start caps at 255 and Count at 256, so 200 and 100 name unit id 299, and
+    // over RTU the last unit id is 247, past which the button is disabled. The
     // length is the mask's, measured: selecting another register type rewrites
     // the mounted field, and 2000 typed under coils reads 125 under holding
     // registers. `maxReadQuantity` restates that bound here.
@@ -265,7 +290,7 @@ const ScanButton = meme((): JSX.Element => {
       parameters: {
         address,
         length: Math.min(Math.max(1, length), maxReadQuantity(registerTypes)),
-        range: [startUnitId, Math.min(MAX_UNIT_ID, startUnitId + Math.max(1, count) - 1)],
+        range: [startUnitId, Math.min(lastUnitId, startUnitId + Math.max(1, count) - 1)],
         registerTypes,
         timeout
       }

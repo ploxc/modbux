@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A unit id over RTU stops at 247.** Modbus RTU and RTU over TCP address
+  units up to 247, and Modbus TCP keeps 0 to 255. A client over RTU on 248 or
+  higher keeps its id, shows it red, and refuses to connect, read, poll, write
+  or scan until you change it. A unit id scan over RTU ends at 247.
+
 - **Stopping and starting the poll during a read sends one read at a time.**
   Pressing Poll off and on again while a read was on its way put a second read
   on the connection before the first had answered, which an RTU bus cannot

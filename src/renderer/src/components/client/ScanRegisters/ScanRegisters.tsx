@@ -3,6 +3,7 @@ import { InputBaseComponentProps } from '@mui/material/InputBase'
 import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import {
   useClientZustand,
@@ -28,7 +29,7 @@ import ScanProgress from '../scan/ScanProgress'
 import ScanStartStopButton from '../scan/ScanStartStopButton'
 import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { MAX_REGISTER_ADDRESS, maxReadQuantity } from '@shared'
+import { MAX_REGISTER_ADDRESS, maxReadQuantity, unitIdOutOfRange } from '@shared'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
 
 //
@@ -38,25 +39,30 @@ const UnitIdField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useDataZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
+  // A string or undefined, which compares equal from one read to the next.
+  const outOfRange = useClientZustand((z) => unitIdOutOfRange(selectedClient(z).connectionConfig))
 
   const setUnitId = useClientZustand.getState().setUnitId
 
   return (
-    <TextField
-      disabled={scanning}
-      label="Unit ID"
-      variant="outlined"
-      size="small"
-      sx={{ width: 60 }}
-      value={unitId}
-      data-testid="scan-unitid-input"
-      slotProps={{
-        input: {
-          inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
-          inputProps: maskInputProps({ set: setUnitId })
-        }
-      }}
-    />
+    <Tooltip title={outOfRange ?? ''}>
+      <TextField
+        disabled={scanning}
+        label="Unit ID"
+        variant="outlined"
+        size="small"
+        sx={{ width: 60 }}
+        error={outOfRange !== undefined}
+        value={unitId}
+        data-testid="scan-unitid-input"
+        slotProps={{
+          input: {
+            inputComponent: UnitIdInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
+            inputProps: maskInputProps({ set: setUnitId })
+          }
+        }}
+      />
+    </Tooltip>
   )
 })
 

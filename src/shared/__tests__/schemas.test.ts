@@ -3,7 +3,8 @@ import {
   ConnectionConfigSchema,
   RegisterConfigSchema,
   RegisterMapObjectSchema,
-  WriteParametersSchema
+  WriteParametersSchema,
+  unitIdOutOfRange
 } from '../types/client'
 import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
@@ -702,5 +703,19 @@ describe('isNumberRegister and isBooleanRegister', () => {
   it.each(['', 'holding', 'Coils', 'input_register'])('refuses %o', (notARegisterType) => {
     expect(isNumberRegister(notARegisterType)).toBe(false)
     expect(isBooleanRegister(notARegisterType)).toBe(false)
+  })
+})
+
+// RTU over TCP carries the serial frame, so it takes the serial line's range.
+describe('unitIdOutOfRange', () => {
+  it.each([
+    ['ModbusTcp', 255, undefined],
+    ['ModbusRtu', 247, undefined],
+    ['ModbusRtu', 248, 'Modbus RTU stops at 247'],
+    ['ModbusRtuOverTcp', 247, undefined],
+    ['ModbusRtuOverTcp', 248, 'RTU over TCP stops at 247'],
+    ['ModbusRtu', 0, undefined]
+  ] as const)('%s on %i answers %s', (protocol, unitId, reason) => {
+    expect(unitIdOutOfRange({ protocol, unitId })).toBe(reason)
   })
 })

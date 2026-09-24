@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { PROTOCOL_LABELS } from '@shared'
 import type { BackendMessage, Protocol, RawTransaction, WriteParameters } from '@shared'
 import type { Windows } from '../../windows'
 import { AppState } from '../../state'
@@ -2518,6 +2519,170 @@ describe('ModbusClient', () => {
       await client.read()
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 1)
+    })
+  })
+
+  // A 2.3.0 config may hold an RTU client on 248 to 255, and the protocol can
+  // be switched under an id TCP allowed, so main holds such a pair and keeps it.
+  describe('a unit id above 247 over RTU', () => {
+    const lastMessage = () => getWindowCalls('backend_message').at(-1)?.[1]
+
+    /** Connected over RTU over TCP on id 1, then moved to `unitId`. */
+    const connectedOverRtu = async (unitId: number) => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp' })
+      mockModbusRTU.connectTelnet.mockImplementation(
+        async (host: string, options: Record<string, unknown>) => {
+          recordConnect('connectTelnet', host, options, { timeout: 3000 })
+          mockModbusRTU.isOpen = true
+        }
+      )
+      await client.connect()
+      appState.updateConnectionConfig({ unitId })
+    }
+
+    it.each(['ModbusRtu', 'ModbusRtuOverTcp'] as const)(
+      'refuses a connect over %s, and says so',
+      async (protocol) => {
+        appState.updateConnectionConfig({ protocol, unitId: 248 })
+
+        await client.connect()
+
+        expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()
+        expect(mockModbusRTU.connectTelnet).not.toHaveBeenCalled()
+        expect(client.state.connectState).toBe('disconnected')
+        expect(lastMessage()).toMatchObject({
+          message: `Cannot connect unit id 248: ${PROTOCOL_LABELS[protocol]} stops at 247`,
+          variant: 'warning'
+        })
+      }
+    )
+
+    it('connects on 247 over RTU, and on 255 over Modbus TCP', async () => {
+      appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp', unitId: 247 })
+      await client.connect()
+      expect(mockModbusRTU.connectTelnet).toHaveBeenCalled()
+
+      await client.disconnect()
+      appState.updateConnectionConfig({ protocol: 'ModbusTcp', unitId: 255 })
+      await connectClient()
+      expect(mockModbusRTU.connectTCP).toHaveBeenCalled()
+    })
+
+    it('refuses a read, and says so', async () => {
+      await connectedOverRtu(248)
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot read unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    it('refuses a poll, and says so', async () => {
+      await connectedOverRtu(248)
+      setupHoldingRegisterReadMock([100])
+      const before = getWindowCalls('client_state').length
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      // Refused before it started, so no poll was ever said to run.
+      expect(getWindowCalls('client_state').slice(before)).toEqual([])
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot poll unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    it('stops a running poll whose unit id moved past 247, and says so', async () => {
+      await connectedOverRtu(1)
+      setupHoldingRegisterReadMock([100])
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      const reads = mockModbusRTU.readHoldingRegisters.mock.calls.length
+
+      appState.updateConnectionConfig({ unitId: 248 })
+      await vi.advanceTimersByTimeAsync(5000)
+
+      expect(client.state.polling).toBe(false)
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(reads)
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot poll unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    it('refuses a write, and says so', async () => {
+      await connectedOverRtu(248)
+
+      await client.write({
+        address: 0,
+        type: 'holding_registers',
+        value: 1,
+        dataType: 'uint16',
+        single: true
+      })
+
+      expect(mockModbusRTU.writeFC6).not.toHaveBeenCalled()
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot write unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    it('refuses a register scan, and says so', async () => {
+      await connectedOverRtu(248)
+
+      await client.scanRegisters({ addressRange: [0, 0], length: 1, timeout: 1000 })
+
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot scan unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    it('refuses a unit id scan that reaches past 247, and says so', async () => {
+      await connectedOverRtu(1)
+
+      await client.scanUnitIds({
+        range: [240, 248],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+
+      expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      expect(client.state.scanningUnitIds).toBe(false)
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot scan unit id 248: RTU over TCP stops at 247'
+      })
+    })
+
+    // The dialog ends the range at 247, so a Start past it arrives first.
+    it('refuses a unit id scan that starts past 247, and says so', async () => {
+      await connectedOverRtu(1)
+
+      await client.scanUnitIds({
+        range: [250, 247],
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 1000
+      })
+
+      expect(lastMessage()).toMatchObject({
+        message: 'Cannot scan unit id 250: RTU over TCP stops at 247'
+      })
+    })
+
+    it('reads on 247', async () => {
+      await connectedOverRtu(247)
+      setupHoldingRegisterReadMock([100])
+
+      await client.read()
+
+      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
     })
   })
 

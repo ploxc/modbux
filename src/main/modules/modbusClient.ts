@@ -29,6 +29,7 @@ import {
   ScanRegistersParameters,
   ScanUnitIDParameters,
   ScanUnitIDResult,
+  unitIdOutOfRange,
   WriteParameters
 } from '@shared'
 import { Windows } from '../windows'
@@ -336,6 +337,27 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
+   * Whether `verb` would address a unit id its protocol does not, having said so.
+   *
+   * The config keeps such an id rather than refusing it, so every path that
+   * puts the id on the wire asks here: connect, a read and a poll's every tick,
+   * a write and both scans. `unitId` is the highest a unit id scan reaches.
+   */
+  private _refusesUnitId = (
+    verb: string,
+    unitId = this._appState.connectionConfig.unitId
+  ): boolean => {
+    const reason = unitIdOutOfRange({ protocol: this._appState.connectionConfig.protocol, unitId })
+    if (reason === undefined) return false
+    this._emitMessage({
+      message: `Cannot ${verb} unit id ${unitId}: ${reason}`,
+      variant: 'warning',
+      error: null
+    })
+    return true
+  }
+
+  /**
    * Whether `verb` may go ahead, saying who has the client when it may not.
    *
    * The transport's queue keeps two requests off the wire at once; this keeps
@@ -379,6 +401,7 @@ export class ModbusClient implements TransportClient {
    * nothing rides it yet.
    */
   public connect = async (): Promise<void> => {
+    if (this._refusesUnitId('connect')) return
     const { connectionConfig } = this._appState
     // A client rides one connection, and a client that rides one is not
     // disconnected, so a connect elsewhere finds it connected or on its way.
@@ -454,7 +477,7 @@ export class ModbusClient implements TransportClient {
    * would refuse it.
    */
   private _readOwningTheClient = async (): Promise<void> => {
-    if (this._refusesLength('read')) return
+    if (this._refusesLength('read') || this._refusesUnitId('read')) return
     this._clientState.reading = true
     this._sendClientState()
     try {
@@ -489,7 +512,10 @@ export class ModbusClient implements TransportClient {
     // `startPolling` refused a poll of no registers, so a poll that gets here
     // lost its configured groups since, and it stops rather than read nothing
     // on every tick.
-    if (pollGeneration !== undefined && this._refusesLength('poll')) {
+    if (
+      pollGeneration !== undefined &&
+      (this._refusesLength('poll') || this._refusesUnitId('poll'))
+    ) {
       this.stopPolling()
       return undefined
     }
@@ -649,7 +675,7 @@ export class ModbusClient implements TransportClient {
   public startPolling = (): void => {
     if (this._clientState.polling) return
     if (!this._requireClient('poll')) return
-    if (this._refusesLength('poll')) return
+    if (this._refusesLength('poll') || this._refusesUnitId('poll')) return
 
     this._clientState.polling = true
     this._sendClientState()
@@ -792,6 +818,7 @@ export class ModbusClient implements TransportClient {
     if (!transport) return
 
     if (!this._requireClient('write')) return
+    if (this._refusesUnitId('write')) return
 
     const { address, type, value, dataType, single } = writeParameters
 
@@ -969,6 +996,7 @@ export class ModbusClient implements TransportClient {
     const transport = this._connectedTransport('scan')
     if (!transport) return
     if (!this._requireClient('scan', true)) return
+    if (this._refusesUnitId('scan', Math.max(...params.range))) return
     this.stopPolling()
 
     this._clientState.scanningUnitIds = true
@@ -1062,6 +1090,7 @@ export class ModbusClient implements TransportClient {
     const transport = this._connectedTransport('scan')
     if (!transport) return
     if (!this._requireClient('scan', true)) return
+    if (this._refusesUnitId('scan')) return
     this.stopPolling()
 
     const ride = this._rideOn(transport)
