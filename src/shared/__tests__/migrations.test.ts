@@ -888,7 +888,7 @@ describe('configMigration', () => {
     // The step is `migrateBoolShapeForUnit`, which leaves a bool record that is
     // not an object where it found it. A copy that builds a new record per bool
     // type instead turns `coils: 5` into `{}`, and the file loads.
-    it.each([5, true, 'ab'])('refuses a v1 coils holding %o', (coils) => {
+    it.each([[5], [true], ['ab'], [[]]])('refuses a v1 coils holding %o', (coils) => {
       const v1Config = JSON.stringify({
         name: 'Not A Record',
         serverRegistersPerUnit: { '1': { coils, discrete_inputs: {} } }
@@ -897,10 +897,7 @@ describe('configMigration', () => {
       expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit\.1\.coils/)
     })
 
-    // A list is left out: `isRecord` takes one, so `[]` loads as an empty unit
-    // the way it did before, and widening that guard reaches seven other
-    // callers.
-    it.each([5, true, 'ab'])('refuses a v1 unit holding %o', (unit) => {
+    it.each([[5], [true], ['ab'], [[]]])('refuses a v1 unit holding %o', (unit) => {
       const v1Config = JSON.stringify({
         name: 'Not A Unit',
         serverRegistersPerUnit: { '1': unit }
@@ -915,16 +912,19 @@ describe('configMigration', () => {
       expect(() => migrateServerConfig(v1Config)).toThrow(/serverRegistersPerUnit/)
     })
 
-    it.each([5, true, 'ab'])('refuses a v1 discrete_inputs holding %o', (discreteInputs) => {
-      const v1Config = JSON.stringify({
-        name: 'Not A Record',
-        serverRegistersPerUnit: { '1': { coils: {}, discrete_inputs: discreteInputs } }
-      })
+    it.each([[5], [true], ['ab'], [[]]])(
+      'refuses a v1 discrete_inputs holding %o',
+      (discreteInputs) => {
+        const v1Config = JSON.stringify({
+          name: 'Not A Record',
+          serverRegistersPerUnit: { '1': { coils: {}, discrete_inputs: discreteInputs } }
+        })
 
-      expect(() => migrateServerConfig(v1Config)).toThrow(
-        /serverRegistersPerUnit\.1\.discrete_inputs/
-      )
-    })
+        expect(() => migrateServerConfig(v1Config)).toThrow(
+          /serverRegistersPerUnit\.1\.discrete_inputs/
+        )
+      }
+    )
   })
 
   describe('Server Zustand Migration - Serial Defaults', () => {

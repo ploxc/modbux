@@ -42,8 +42,9 @@ export function repairPersistedParity(state: Record<string, unknown>, ...path: s
   serialOptions.parity = 'none'
 }
 
+/** An object keyed by name. A list is an object too, and not one of these. */
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
  * What a config file has to be, and the version it claims, for either migration.
@@ -74,7 +75,7 @@ export function parseConfigFile(raw: string): {
   detectedVersion: number
 } {
   const parsed: unknown = JSON.parse(raw)
-  if (!isRecord(parsed) || Array.isArray(parsed)) {
+  if (!isRecord(parsed)) {
     throw new Error('This file does not hold a Modbux configuration')
   }
 
@@ -417,6 +418,10 @@ const LEGACY_REGISTER_TYPE_KEYS: Record<string, string> = {
  * carrying one of them.
  */
 export function renameLegacyRegisterTypeKeys(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) renameLegacyRegisterTypeKeys(entry)
+    return
+  }
   if (!isRecord(value)) return
   for (const [key, entry] of Object.entries(value)) {
     renameLegacyRegisterTypeKeys(entry)
