@@ -1,5 +1,8 @@
 import {
+  BITMAP_DATATYPE,
+  BitMapConfig,
   McpToolArgs,
+  getBit,
   RegisterMapObject,
   RegisterType,
   UnitIdStringSchema,
@@ -9,6 +12,7 @@ import {
   wordOf
 } from '@shared'
 import { getConvertedValue } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
+import { getDisplayValue } from '@renderer/components/server/ServerGrid/ServerRegisters/displayValue'
 import type { PersistedClient } from '@renderer/context/client.zustand.types'
 import type { ClientData } from '@renderer/context/live.zustand.types'
 import type { PersistedServer } from '@renderer/context/server.zustand.types'
@@ -53,6 +57,30 @@ const REGISTER_TYPES: RegisterType[] = [
   'holding_registers'
 ]
 
+/**
+ * The sixteen bits of a bitmap register as its detail panel shows them: each
+ * bit's state, its comment, and on the client the colour and the inversion the
+ * panel paints it with, where `active` is the state after the inversion.
+ */
+const bitsOf = (
+  word: number,
+  bitMap: BitMapConfig | undefined,
+  side: 'client' | 'server'
+): unknown =>
+  Array.from({ length: 16 }, (_, bit) => {
+    const entry = bitMap?.[String(bit)]
+    const on = getBit(word, bit)
+    if (side === 'server') return { bit, on, comment: entry?.comment }
+    return {
+      bit,
+      on,
+      active: entry?.invert ? !on : on,
+      comment: entry?.comment,
+      color: entry?.color,
+      invert: entry?.invert
+    }
+  })
+
 export const listClients = (source: ReadSource): unknown =>
   Object.entries(source.clients).map(([id, client]) => {
     const state = stateOf(source, id)
@@ -94,6 +122,8 @@ export const listRegisters = (
               name: entry.comment ?? '',
               dataType: entry.dataType,
               scalingFactor: entry.scalingFactor,
+              interpolate: entry.interpolate,
+              groupEnd: entry.groupEnd,
               bitMap: entry.bitMap
             }
           ]
@@ -161,7 +191,12 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
         hex: row.hex,
         words,
         scalingFactor: mapping[row.id]?.scalingFactor,
+        interpolate: mapping[row.id]?.interpolate,
         value: type === 'coils' || type === 'discrete_inputs' ? row.bit : valueOf(row, words),
+        bits:
+          mapping[row.id]?.dataType === BITMAP_DATATYPE && row.words && !row.error
+            ? bitsOf(row.words.uint16, mapping[row.id]?.bitMap, 'client')
+            : undefined,
         error: row.error
       }
     })
@@ -200,6 +235,7 @@ export const listServers = (source: ReadSource): unknown =>
     id,
     name: server.name ?? '',
     mode: source.serverMode,
+    littleEndian: server.littleEndian,
     target: source.serverMode === 'rtu' ? (source.serialCom ?? '') : `port ${server.port}`,
     units: Object.keys(server.registers)
   }))
@@ -218,17 +254,25 @@ export const getUnit = (source: ReadSource, { server, unit }: McpToolArgs<'get_u
     }))
   )
   const numbers = (['input_registers', 'holding_registers'] as const).flatMap((type) =>
-    Object.entries(registers[type]).map(([address, { value, params }]) => ({
+    Object.entries(registers[type]).map(([address, register]) => ({
       type,
       address: Number(address),
-      name: params.comment,
-      dataType: params.dataType,
-      value: params.dataType === 'utf8' ? params.stringValue : value,
+      name: register.params.comment,
+      dataType: register.params.dataType,
+      value: getDisplayValue(register),
+      bits:
+        register.params.dataType === BITMAP_DATATYPE
+          ? bitsOf(Number(register.value), register.params.bitMap, 'server')
+          : undefined,
       generator:
-        params.interval !== undefined
-          ? { min: params.min, max: params.max, interval: params.interval }
+        register.params.interval !== undefined
+          ? {
+              min: register.params.min,
+              max: register.params.max,
+              interval: register.params.interval
+            }
           : undefined
     }))
   )
-  return { server, unit, registers: [...bools, ...numbers] }
+  return { server, unit, littleEndian: found.littleEndian, registers: [...bools, ...numbers] }
 }

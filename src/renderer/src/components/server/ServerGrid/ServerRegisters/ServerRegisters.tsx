@@ -4,19 +4,14 @@ import ExpandMore from '@mui/icons-material/ExpandMore'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { alpha } from '@mui/material/styles'
-import {
-  formatUnixSeconds,
-  NumberRegisters,
-  parseIEC870DateTimeValue,
-  toExact64Bits,
-  ServerRegister
-} from '@shared'
+import { NumberRegisters, ServerRegister } from '@shared'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useMemo, useState } from 'react'
 import { useAddRegisterZustand } from './AddRegister/addRegister.zustand'
 import ServerPanel from '../ServerPanel'
 import ServerBitMapDetail from './ServerBitMapDetail/ServerBitMapDetail'
+import { getDisplayValue } from './displayValue'
 
 interface RowProps {
   register: ServerRegister[number]
@@ -40,21 +35,6 @@ const RowEdit = meme(({ register }: RowProps) => {
     </IconButton>
   )
 })
-
-const getDisplayValue = (register: ServerRegister[number]): string | number => {
-  const { dataType } = register.params
-  if (dataType === 'utf8') return register.params.stringValue ?? ''
-  // A `unix` register is a uint32, so its composite is a number. The three
-  // types that hold a string are read through `toExact64Bits`.
-  if (dataType === 'unix') return formatUnixSeconds(Number(register.value))
-  // The shared decoder answers '' for a register no date can be read out of,
-  // which is what a register the server has not written yet holds.
-  if (dataType === 'datetime') {
-    const packed = toExact64Bits(register.value)
-    return (packed !== undefined && parseIEC870DateTimeValue(packed)) || '—'
-  }
-  return register.value
-}
 
 // The value was held in state behind a 10 ms timer. `ServerDelayedSetter`
 // already batches every register write on a 50 ms timer, so the second delay

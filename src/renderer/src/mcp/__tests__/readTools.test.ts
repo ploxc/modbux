@@ -329,6 +329,55 @@ describe('the read tools', () => {
     })
   })
 
+  it('list_registers carries interpolation and the end of a read group', () => {
+    const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
+    const interpolated: PersistedClient = {
+      ...meter,
+      registerMapping: {
+        ...emptyMapping(),
+        holding_registers: { 0: { dataType: 'uint16', interpolate, groupEnd: true } }
+      }
+    }
+    expect(listRegisters(source({ clients: { a: interpolated } }), { client: 'a' })).toEqual([
+      expect.objectContaining({ address: 0, interpolate, groupEnd: true })
+    ])
+  })
+
+  it('read_values says a value is interpolated, and a bitmap its bits as the panel shows them', () => {
+    const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
+    const mapped: PersistedClient = {
+      ...meter,
+      registerMapping: {
+        ...emptyMapping(),
+        holding_registers: {
+          0: { dataType: 'uint16', interpolate },
+          1: {
+            dataType: 'bitmap',
+            bitMap: {
+              '0': { comment: 'fault', color: 'error', invert: true },
+              '1': { comment: 'run' }
+            }
+          }
+        }
+      }
+    }
+    const live = liveOf({
+      registerData: [row(0, '0032', { uint16: 50 }), row(1, '0003', { uint16: 3 })]
+    })
+    const answer = readValues(source({ clients: { a: mapped }, live: { a: live } }), {
+      client: 'a'
+    }) as {
+      rows: { interpolate?: unknown; value?: unknown; bits?: unknown[] }[]
+    }
+    expect(answer.rows[0]).toMatchObject({ interpolate, value: 12 })
+    expect(answer.rows[0]?.bits).toBeUndefined()
+    expect(answer.rows[1]?.bits?.slice(0, 3)).toEqual([
+      { bit: 0, on: true, active: false, comment: 'fault', color: 'error', invert: true },
+      { bit: 1, on: true, active: true, comment: 'run', color: undefined, invert: undefined },
+      { bit: 2, on: false, active: false, comment: undefined, color: undefined, invert: undefined }
+    ])
+  })
+
   it('get_scan answers every unit id asked, lowest first, with what each type gave back', () => {
     const blank = { coils: '', discrete_inputs: '', input_registers: '', holding_registers: '' }
     const result = (
@@ -388,7 +437,14 @@ describe('the read tools', () => {
 
   it('list_servers names each server, its port and its units', () => {
     expect(listServers(source())).toEqual([
-      { id: 's', name: 'Simulated meter', mode: 'tcp', target: 'port 502', units: ['1'] }
+      {
+        id: 's',
+        name: 'Simulated meter',
+        mode: 'tcp',
+        littleEndian: false,
+        target: 'port 502',
+        units: ['1']
+      }
     ])
   })
 
@@ -402,6 +458,7 @@ describe('the read tools', () => {
     expect(getUnit(source(), { server: 's', unit: '1' })).toEqual({
       server: 's',
       unit: '1',
+      littleEndian: false,
       registers: [
         { type: 'coils', address: 4, name: 'pump', value: true },
         {
@@ -422,6 +479,64 @@ describe('the read tools', () => {
         }
       ]
     })
+  })
+
+  // What the server grid shows: a date for a unix register, and a bitmap's
+  // sixteen bits with their comments where it expands.
+  it('get_unit answers a unix register as its date and a bitmap as its bits', () => {
+    const params = {
+      registerType: 'holding_registers' as const,
+      min: undefined,
+      max: undefined,
+      interval: undefined
+    }
+    const clock: PersistedServer = {
+      ...simulator,
+      littleEndian: true,
+      registers: {
+        '1': {
+          coils: {},
+          discrete_inputs: {},
+          input_registers: {},
+          holding_registers: {
+            30: {
+              value: 1700000000,
+              params: {
+                ...params,
+                address: 30,
+                dataType: 'unix',
+                comment: 'clock',
+                value: 1700000000
+              }
+            },
+            40: {
+              value: 5,
+              params: {
+                ...params,
+                address: 40,
+                dataType: 'bitmap',
+                comment: 'status',
+                value: 5,
+                bitMap: { '2': { comment: 'door open' } }
+              }
+            }
+          }
+        }
+      }
+    }
+    const answer = getUnit(source({ servers: { s: clock } }), { server: 's', unit: '1' }) as {
+      littleEndian: boolean
+      registers: { value: unknown; bits?: { bit: number; on: boolean; comment?: string }[] }[]
+    }
+    expect(answer.littleEndian).toBe(true)
+    expect(answer.registers[0]?.value).toBe('2023/11/14 22:13:20')
+    expect(answer.registers[1]?.bits?.slice(0, 4)).toEqual([
+      { bit: 0, on: true, comment: undefined },
+      { bit: 1, on: false, comment: undefined },
+      { bit: 2, on: true, comment: 'door open' },
+      { bit: 3, on: false, comment: undefined }
+    ])
+    expect(answer.registers[1]?.bits).toHaveLength(16)
   })
 
   it('get_unit refuses a unit the server does not host', () => {
