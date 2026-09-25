@@ -4,22 +4,16 @@ import { integerMask } from '@renderer/components/shared/inputs/integerMask'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
+import { SCAN_TIMEOUT_MAX, SCAN_TIMEOUT_MIN } from '@shared'
 import { ElementType, forwardRef } from 'react'
 import { IMaskInput } from 'react-imask'
 
 /**
- * The timeout a scan gives each request, in milliseconds. Zero switches the
- * timer off in modbus-serial and the scan then hangs on the first silent unit;
- * ten seconds an address is already a long afternoon.
- *
  * The bounds stay off the mask, which rewrites what you type: clearing the
  * field stores 0, the mask commits that up to its floor, and the digits land
  * behind it. Typing 500 into an empty field gave 10000. Leaving the field is
  * late enough to correct it.
  */
-const SCAN_TIMEOUT_MIN = 100
-const SCAN_TIMEOUT_MAX = 10000
-
 export const clampScanTimeout = (timeout: number): number =>
   Math.min(SCAN_TIMEOUT_MAX, Math.max(SCAN_TIMEOUT_MIN, timeout))
 

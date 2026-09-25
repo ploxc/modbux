@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   RegisterData,
+  ScanUnitIDResult,
   defaultClientState,
   defaultConnectionConfig,
   defaultRegisterConfig
@@ -15,8 +16,16 @@ import type { ReadSource } from '../readTools'
 // `getConvertedValue` is the grid's, and its module reaches the stores, which
 // ask `window.api` as they load.
 stubRenderer()
-const { McpToolError, getClient, getUnit, listClients, listRegisters, listServers, readValues } =
-  await import('../readTools')
+const {
+  McpToolError,
+  getClient,
+  getScan,
+  getUnit,
+  listClients,
+  listRegisters,
+  listServers,
+  readValues
+} = await import('../readTools')
 
 const emptyMapping = (): PersistedClient['registerMapping'] => ({
   coils: {},
@@ -318,6 +327,61 @@ describe('the read tools', () => {
         }
       ]
     })
+  })
+
+  it('get_scan lists the unit ids that answered or refused, lowest first, and counts the rest', () => {
+    const blank = { coils: '', discrete_inputs: '', input_registers: '', holding_registers: '' }
+    const result = (
+      id: number,
+      registerTypes: ScanUnitIDResult['registerTypes'],
+      refusedRegisterTypes: ScanUnitIDResult['refusedRegisterTypes'],
+      errorMessage: Partial<ScanUnitIDResult['errorMessage']> = {}
+    ): ScanUnitIDResult => ({
+      id,
+      registerTypes,
+      refusedRegisterTypes,
+      requestedRegisterTypes: ['coils', 'holding_registers'],
+      errorMessage: { ...blank, ...errorMessage }
+    })
+    const live = liveOf({
+      clientState: { ...defaultClientState, connectState: 'connected', scanningUnitIds: true },
+      scanProgress: 40,
+      // The store keeps the newest first.
+      scanUnitIdResults: [
+        result(9, [], [], { coils: 'Timed out', holding_registers: 'Timed out' }),
+        result(7, [], ['coils'], { coils: 'Illegal data address' }),
+        result(3, ['holding_registers'], [])
+      ]
+    })
+
+    expect(getScan(source({ live: { a: live } }), { client: 'a' })).toEqual({
+      scanning: 'unit_ids',
+      progress: 40,
+      unitIdsAsked: 3,
+      unitIds: [
+        { unitId: 3, answered: ['holding_registers'], refused: [], errors: {} },
+        { unitId: 7, answered: [], refused: ['coils'], errors: { coils: 'Illegal data address' } }
+      ]
+    })
+  })
+
+  it('get_scan names a register scan, and no scan when none runs', () => {
+    const scanning = liveOf({
+      clientState: { ...defaultClientState, connectState: 'connected', scanningRegisters: true }
+    })
+    expect(getScan(source({ live: { a: scanning } }), { client: 'a' })).toMatchObject({
+      scanning: 'registers'
+    })
+    expect(getScan(source({ live: {} }), { client: 'a' })).toEqual({
+      scanning: 'none',
+      progress: 0,
+      unitIdsAsked: 0,
+      unitIds: []
+    })
+  })
+
+  it('get_scan refuses a client id nobody has', () => {
+    expect(() => getScan(source(), { client: 'x' })).toThrow('list_clients')
   })
 
   it('list_servers names each server, its port and its units', () => {

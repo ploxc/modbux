@@ -205,6 +205,7 @@ describe('McpConnector', () => {
       const { tools } = await client.listTools()
       expect(tools.map((tool) => tool.name).sort()).toEqual([
         'get_client',
+        'get_scan',
         'get_unit',
         'list_clients',
         'list_registers',

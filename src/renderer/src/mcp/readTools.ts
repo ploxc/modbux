@@ -168,6 +168,36 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
   }
 }
 
+/**
+ * Which scan runs, how far it is, and the unit ids the last unit id scan
+ * heard from, lowest first. A unit id that answered nothing is counted, not
+ * listed: a scan of 255 names mostly silence.
+ */
+export const getScan = (source: ReadSource, { client }: McpToolArgs<'get_scan'>): unknown => {
+  clientOf(source, client)
+  const live = source.live[client]
+  const state = stateOf(source, client)
+  const results = live?.scanUnitIdResults ?? []
+  const heard = results.filter(
+    (result) => result.registerTypes.length > 0 || result.refusedRegisterTypes.length > 0
+  )
+  return {
+    scanning: state.scanningUnitIds ? 'unit_ids' : state.scanningRegisters ? 'registers' : 'none',
+    progress: live?.scanProgress ?? 0,
+    unitIdsAsked: results.length,
+    unitIds: heard
+      .sort((a, b) => a.id - b.id)
+      .map((result) => ({
+        unitId: result.id,
+        answered: result.registerTypes,
+        refused: result.refusedRegisterTypes,
+        errors: Object.fromEntries(
+          Object.entries(result.errorMessage).filter(([, message]) => message !== '')
+        )
+      }))
+  }
+}
+
 export const listServers = (source: ReadSource): unknown =>
   Object.entries(source.servers).map(([id, server]) => ({
     id,

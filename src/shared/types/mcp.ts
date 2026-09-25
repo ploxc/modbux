@@ -2,8 +2,9 @@ import z from 'zod'
 import { BitMapConfigSchema } from './bitmap'
 import { ProtocolSchema, RegisterLinearInterpolationSchema } from './client'
 import { DataTypeSchema } from './datatype'
-import { PortSchema, RegisterAddressSchema } from './ranges'
+import { MAX_UNIT_ID, PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
 import { RegisterTypeSchema } from './register'
+import { SCAN_TIMEOUT_MAX, SCAN_TIMEOUT_MIN } from './scan'
 import { DataBitsSchema, ModbusBaudRateSchema, ParitySchema, StopBitsSchema } from './serial'
 
 //
@@ -64,6 +65,14 @@ export const offersLayer = (access: McpAccess, layer: McpLayer): boolean =>
 export type McpSide = 'client' | 'server'
 
 const ClientIdSchema = z.string().min(1).describe('The id list_clients answers.')
+const ScanTimeoutSchema = z
+  .number()
+  .int()
+  .min(SCAN_TIMEOUT_MIN)
+  .max(SCAN_TIMEOUT_MAX)
+  .optional()
+  .describe(`Milliseconds each request waits, ${SCAN_TIMEOUT_MIN} to ${SCAN_TIMEOUT_MAX}.`)
+
 const ServerIdSchema = z.string().min(1).describe('The id list_servers answers.')
 
 /**
@@ -97,6 +106,13 @@ export const MCP_TOOLS = {
     side: 'client',
     description:
       "What a client's grid shows now, one row per address: its raw word as hex, and for a mapped register every word it spans, its scaling and the value its data type and scaling make of them. A word that was not read is an empty string, and the value is then left out. littleEndian is the order the words of a multi-word number are composed in; the bytes in each hex word are never swapped, and a string ignores it. The answer also says when the device last answered. It answers what the last read brought and sends nothing to the device.",
+    input: { client: ClientIdSchema }
+  },
+  get_scan: {
+    layer: 'read',
+    side: 'client',
+    description:
+      "A client's scan: which one runs, if any, its progress in percent, how many unit ids the last unit id scan asked, and each one that answered or refused, with the error per register type. A register scan puts the registers it finds in the client's grid, which read_values answers.",
     input: { client: ClientIdSchema }
   },
   list_servers: {
@@ -230,6 +246,46 @@ export const MCP_TOOLS = {
     side: 'client',
     description:
       "Clear a client's name and register mapping, as the Clear button does, as one step to undo.",
+    input: { client: ClientIdSchema }
+  },
+  scan_unit_ids: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      'Find which unit ids answer on a connected client, as the Scan Unit IDs dialog does: each unit id from startUnitId, count of them, is asked for length registers at address of each register type. The dialog opens on screen with these values, and a field left out keeps what the dialog holds. It answers once the scan has started; get_scan follows it. Refused while the client polls, reads, writes or scans.',
+    input: {
+      client: ClientIdSchema,
+      startUnitId: UnitIdSchema.optional(),
+      count: z
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_UNIT_ID + 1)
+        .optional(),
+      address: RegisterAddressSchema.optional().describe('The protocol address, 0-based.'),
+      length: z.number().int().min(1).optional(),
+      registerTypes: z.array(RegisterTypeSchema).min(1).optional(),
+      timeout: ScanTimeoutSchema
+    }
+  },
+  scan_registers: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Find which registers of the client's register type hold data, as the Scan Registers dialog does: length addresses from address, read chunkSize at a time, with the client's unit id. Registers reading zero are left out. The grid empties first and read configuration is turned off. The dialog opens on screen with these values, and a field left out keeps what the dialog holds. It answers once the scan has started; get_scan follows it and read_values answers what it found. Refused while the client polls, reads, writes or scans.",
+    input: {
+      client: ClientIdSchema,
+      address: RegisterAddressSchema.optional().describe('The protocol address, 0-based.'),
+      length: z.number().int().min(1).max(65536).optional().describe('How many addresses.'),
+      chunkSize: z.number().int().min(1).optional().describe('Registers per request.'),
+      timeout: ScanTimeoutSchema
+    }
+  },
+  stop_scan: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Stop a client's scan, as the dialog's Stop button does. The request in flight finishes first.",
     input: { client: ClientIdSchema }
   }
 } as const satisfies Record<

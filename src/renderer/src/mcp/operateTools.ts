@@ -37,28 +37,29 @@ export const selectClient = (client: string): void => {
   }
 }
 
-const stateOf = (client: string): ReturnType<typeof dataOf>['clientState'] =>
+export const stateOf = (client: string): ReturnType<typeof dataOf>['clientState'] =>
   dataOf(useLiveZustand.getState(), client).clientState
 
-type ClientState = ReturnType<typeof stateOf>
+export type ClientState = ReturnType<typeof stateOf>
 
 /** How long past the client's own timeout a tool waits for main's closing event. */
 const SETTLE_MARGIN_MS = 1000
 
 /**
- * Run `act`, then wait for the client state that closes it.
+ * Run `act`, wait for the client state that closes it, and answer the states heard.
  *
  * The renderer hears main's answer to a call before the events main sent
  * during it: a read answered with no rows, and a connect with `connecting`. So the tool listens from before the call, and answers once
- * `settled` holds for the states heard since, or once the client's timeout
- * and a margin have passed, which is where a refusal main says nothing about
+ * `settled` holds for the states heard since, or once `ceilingMs` has passed,
+ * by default the client's timeout and a margin, which is where a refusal main says nothing about
  * leaves it.
  */
-const actAndSettle = async (
+export const actAndSettle = async (
   client: string,
   act: () => Promise<unknown>,
-  settled: (heard: ClientState[]) => boolean
-): Promise<void> => {
+  settled: (heard: ClientState[]) => boolean,
+  ceilingMs = getSelectedClient().registerConfig.timeout + SETTLE_MARGIN_MS
+): Promise<ClientState[]> => {
   const heard: ClientState[] = []
   let stopListening = (): void => {}
   let ceiling: ReturnType<typeof setTimeout> | undefined
@@ -67,7 +68,7 @@ const actAndSettle = async (
       heard.push(dataOf(live, client).clientState)
       if (settled(heard)) resolve()
     })
-    ceiling = setTimeout(resolve, getSelectedClient().registerConfig.timeout + SETTLE_MARGIN_MS)
+    ceiling = setTimeout(resolve, ceilingMs)
   })
   try {
     await act()
@@ -76,9 +77,10 @@ const actAndSettle = async (
     stopListening()
     clearTimeout(ceiling)
   }
+  return heard
 }
 
-const requireConnected = (client: string): void => {
+export const requireConnected = (client: string): void => {
   if (stateOf(client).connectState !== 'connected') {
     throw new McpToolError('The client is not connected; connect it first')
   }

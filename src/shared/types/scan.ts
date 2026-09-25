@@ -2,6 +2,14 @@ import { RegisterType, RegisterTypeSchema } from './register'
 import { maxReadQuantity, RegisterAddressSchema, registersFrom, UnitIdSchema } from './ranges'
 import z from 'zod'
 
+/**
+ * The timeout a scan gives each request, in milliseconds. Zero switches the
+ * timer off in modbus-serial and the scan then hangs on the first silent unit;
+ * ten seconds an address is already a long afternoon.
+ */
+export const SCAN_TIMEOUT_MIN = 100
+export const SCAN_TIMEOUT_MAX = 10000
+
 // Scan Registers
 export const ScanRegistersParametersSchema = z.object({
   addressRange: z.tuple([RegisterAddressSchema, RegisterAddressSchema]),

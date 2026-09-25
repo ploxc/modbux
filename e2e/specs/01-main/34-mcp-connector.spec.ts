@@ -105,6 +105,7 @@ test.describe.serial('The MCP connector', () => {
     const { tools } = await assistant.listTools()
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'get_client',
+      'get_scan',
       'get_unit',
       'list_clients',
       'list_registers',
@@ -149,7 +150,10 @@ test.describe.serial('The MCP connector', () => {
         'disconnect',
         'read',
         'start_polling',
-        'stop_polling'
+        'stop_polling',
+        'scan_unit_ids',
+        'scan_registers',
+        'stop_scan'
       ])
     )
   })
@@ -183,6 +187,63 @@ test.describe.serial('The MCP connector', () => {
     expect(await call(assistant, 'disconnect', { client })).toEqual({
       connectState: 'disconnected'
     })
+  })
+
+  test('an assistant scans unit ids and registers, and stops a scan', async () => {
+    if (!assistant) throw new Error('no assistant connected')
+    const mcp = assistant
+    const [first] = (await call(mcp, 'list_clients')) as { id: string }[]
+    if (!first) throw new Error('no client listed')
+    const client = first.id
+    const scanDone = async (): Promise<void> =>
+      expect
+        .poll(
+          async () => ((await call(mcp, 'get_scan', { client })) as { scanning: string }).scanning
+        )
+        .toBe('none')
+
+    expect(await call(mcp, 'connect', { client })).toEqual({ connectState: 'connected' })
+
+    expect(
+      await call(mcp, 'scan_unit_ids', {
+        client,
+        startUnitId: 0,
+        count: 4,
+        address: 0,
+        length: 1,
+        registerTypes: ['holding_registers'],
+        timeout: 200
+      })
+    ).toEqual({ started: true, range: [0, 3] })
+    await scanDone()
+    const found = (await call(mcp, 'get_scan', { client })) as {
+      unitIdsAsked: number
+      unitIds: { unitId: number; answered: string[] }[]
+    }
+    expect(found.unitIdsAsked).toBe(4)
+    expect(found.unitIds).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ unitId: 0, answered: ['holding_registers'] }),
+        expect.objectContaining({ unitId: 1, answered: ['holding_registers'] })
+      ])
+    )
+
+    expect(
+      await call(mcp, 'scan_registers', { client, address: 0, length: 30, chunkSize: 10 })
+    ).toEqual({ started: true, type: 'holding_registers', addressRange: [0, 29] })
+    await scanDone()
+    const values = (await call(mcp, 'read_values', { client })) as { rows: unknown[] }
+    expect(values.rows.length).toBeGreaterThan(0)
+
+    await call(mcp, 'start_polling', { client })
+    await expect(call(mcp, 'scan_registers', { client })).rejects.toThrow('stop_polling first')
+    await call(mcp, 'stop_polling', { client })
+
+    await call(mcp, 'scan_unit_ids', { client, startUnitId: 2, count: 250, timeout: 1000 })
+    expect(await call(mcp, 'stop_scan', { client })).toEqual({ scanning: false })
+    await expect(call(mcp, 'stop_scan', { client })).rejects.toThrow('not scanning')
+
+    expect(await call(mcp, 'disconnect', { client })).toEqual({ connectState: 'disconnected' })
   })
 
   test('an assistant adds a client, maps and opens a config, then removes it', async () => {

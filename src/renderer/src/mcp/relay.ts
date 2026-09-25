@@ -8,6 +8,7 @@ import {
   McpToolError,
   ReadSource,
   getClient,
+  getScan,
   getUnit,
   listClients,
   listRegisters,
@@ -29,6 +30,7 @@ import {
   replaceMapping,
   setMappingEntry
 } from './mappingTools'
+import { scanRegisters, scanUnitIds, stopScan } from './scanTools'
 
 /** What the stores hold now, as the read tools look at it. */
 const readSource = (): ReadSource => {
@@ -48,6 +50,7 @@ const TOOLS: { [T in McpToolName]: (args: McpToolArgs<T>) => unknown } = {
   get_client: (args) => getClient(readSource(), args),
   list_registers: (args) => listRegisters(readSource(), args),
   read_values: (args) => readValues(readSource(), args),
+  get_scan: (args) => getScan(readSource(), args),
   list_servers: () => listServers(readSource()),
   get_unit: (args) => getUnit(readSource(), args),
   set_client_config: setClientConfig,
@@ -60,7 +63,10 @@ const TOOLS: { [T in McpToolName]: (args: McpToolArgs<T>) => unknown } = {
   delete_client: deleteClient,
   set_mapping_entry: setMappingEntry,
   replace_mapping: replaceMapping,
-  clear_mapping: clearMapping
+  clear_mapping: clearMapping,
+  scan_unit_ids: scanUnitIds,
+  scan_registers: scanRegisters,
+  stop_scan: stopScan
 }
 
 const run = <T extends McpToolName>(tool: T, args: unknown): unknown =>

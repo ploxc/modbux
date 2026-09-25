@@ -7,7 +7,6 @@ import Tooltip from '@mui/material/Tooltip'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import {
   useClientZustand,
-  getSelectedClient,
   selectedClient,
   selectedClientUuid
 } from '@renderer/context/client.zustand'
@@ -16,12 +15,7 @@ import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
-import {
-  dropPendingScanRows,
-  useLiveZustand,
-  dataOf,
-  getShownData
-} from '@renderer/context/live.zustand'
+import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
 import ScanCloseButton from '../scan/ScanCloseButton'
 import ScanFoundCount from '../scan/ScanFoundCount'
 import ScanGridToggle from '../scan/ScanGridToggle'
@@ -29,8 +23,9 @@ import ScanProgress from '../scan/ScanProgress'
 import ScanStartStopButton from '../scan/ScanStartStopButton'
 import ScanTimeoutField from '../scan/ScanTimeoutField'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { MAX_REGISTER_ADDRESS, maxReadQuantity, unitIdOutOfRange } from '@shared'
+import { maxReadQuantity, unitIdOutOfRange } from '@shared'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
+import { startRegisterScan } from './startRegisterScan'
 
 //
 //
@@ -234,44 +229,7 @@ const ScanButton = meme((): JSX.Element => {
       return
     }
 
-    const scanRegistersZustand = useScanRegistersZustand.getState()
-    const clientZustand = useClientZustand.getState()
-    const liveZustand = useLiveZustand.getState()
-    clientZustand.setReadConfiguration(false)
-    // A scan walks raw addresses, which is what the extra columns are for, and
-    // the rows land in a grid you are now watching fill.
-    if (!getSelectedClient().registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
-    const uuid = selectedClientUuid()
-    liveZustand.setScanProgress(uuid, 0)
-    dropPendingScanRows(uuid)
-    liveZustand.setRegisterData(uuid, [])
-
-    const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
-
-    // Clamped where the request is built rather than left to the boundary. Read
-    // configuration is off and the grid is empty by the time the boundary
-    // answers, and `advancedMode` is persisted, so that write outlives the
-    // launch.
-    //
-    // Address and Length each stop at 65535, so 60000 and 10000 name address
-    // 69999, which `RegisterAddressSchema` refuses.
-    //
-    // The floors are here as well as on each field's blur, because Escape
-    // closes the dialog and the field unmounts without one, leaving the
-    // `Number('') === 0` of a cleared field in the store. A length of none
-    // gives a range ending before it starts, which the schema takes and the
-    // scan loop never enters.
-    await window.api.scanRegisters({
-      uuid: selectedClientUuid(),
-      parameters: {
-        addressRange: [
-          address,
-          Math.min(MAX_REGISTER_ADDRESS, address + Math.max(1, scanLength) - 1)
-        ],
-        length: Math.max(1, chunkSize),
-        timeout
-      }
-    })
+    await startRegisterScan()
   }, [scanning])
 
   return <ScanStartStopButton scanning={scanning} scan={scan} testId="scan-start-stop-btn" />
