@@ -184,6 +184,95 @@ describe('the byte order, which reads through the same rule', () => {
 })
 
 /**
+ * A read or a write in flight answers for the addressing it went out with, and
+ * main drops that answer once the addressing moved. The ask waits for it to
+ * settle instead of going unasked.
+ */
+describe('an ask that waited for the request in flight', () => {
+  it.each(['reading', 'writing'] as const)('goes out once the %s is done', async (inFlight) => {
+    const { useClientZustand, useLiveZustand } = await load()
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, [inFlight]: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+
+    expect(methods()).toEqual(['read'])
+  })
+
+  // Main's order for a write: `writing`, then its read back sets `reading` and
+  // clears it, then `writing` clears. The ask goes out at the last of them.
+  it('waits out a write’s read back', async () => {
+    const { useClientZustand, useLiveZustand } = await load()
+    const setState = (state: Partial<ClientState>): void =>
+      useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, ...state })
+    setState({ writing: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    setState({ writing: true, reading: true })
+    setState({ writing: true })
+    expect(methods()).toEqual([])
+    setState({})
+
+    expect(methods()).toEqual(['read'])
+  })
+
+  it('goes out once, however often the state is told', async () => {
+    const { useClientZustand, useLiveZustand } = await load()
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+
+    expect(methods()).toEqual(['read'])
+  })
+
+  it('is not kept while a poll runs, which reads again by itself', async () => {
+    const { useClientZustand, useLiveZustand } = await load()
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, polling: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+
+    expect(methods()).toEqual([])
+  })
+
+  it('is dropped when a poll takes over from the request it waited for', async () => {
+    const { useClientZustand, useLiveZustand } = await load()
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, polling: true })
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+
+    expect(methods()).toEqual([])
+  })
+
+  it('is dropped when the connection goes before the request settles', async () => {
+    const { useClientZustand, useLiveZustand } = await load()
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
+    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    await useClientZustand.getState().setLittleEndian(true)
+    calls.length = 0
+
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, defaultClientState)
+    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
+
+    expect(methods()).toEqual([])
+  })
+})
+
+/**
  * The unit id and the register type, which change what the grid is about.
  *
  * `clearRegisterDataWhenIdle` emptied the grid for both, and returned early

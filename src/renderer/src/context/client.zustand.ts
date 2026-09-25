@@ -18,6 +18,7 @@ import {
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
   clientOwner,
+  readLoopOwner,
   configuredReadGroups,
   emptyRegisterMapping,
   MAIN_CLIENT_UUID,
@@ -306,9 +307,46 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
 const readWhenMainCan = (uuid: string): void => {
   const { clientState } = dataOf(useLiveZustand.getState(), uuid)
   if (clientState.connectState !== 'connected') return
-  if (clientOwner(clientState)) return
+  if (clientOwner(clientState)) {
+    // A read or a write answers for the addressing it went out with, and main
+    // drops that answer once the addressing moved, so the ask waits for it to
+    // settle. A poll or a scan reads again by itself.
+    if (!readLoopOwner(clientState)) waitToRead(uuid)
+    return
+  }
   if (readsNothingOf(useClientZustand.getState(), uuid)) return
   window.api.read(uuid)
+}
+
+/** The clients whose ask for a read waits for the request they had in flight. */
+const readsWaiting = new Set<string>()
+let listening = false
+
+/**
+ * Keeps the ask until the client is free, and asks again then.
+ *
+ * Subscribed here rather than at module scope, because this module and
+ * `live.zustand` import each other: entered through that one, this body runs
+ * before `useLiveZustand` exists. A poll or a scan that took over drops the
+ * ask, because it reads by itself, and so does a connection that went.
+ */
+const waitToRead = (uuid: string): void => {
+  readsWaiting.add(uuid)
+  if (listening) return
+  listening = true
+  const stop = useLiveZustand.subscribe((state) => {
+    for (const waiting of readsWaiting) {
+      const { clientState } = dataOf(state, waiting)
+      if (clientOwner(clientState) && !readLoopOwner(clientState)) continue
+      // `readWhenMainCan` asks the connection and the owner again, and asks
+      // nothing of a poll or a scan.
+      readsWaiting.delete(waiting)
+      readWhenMainCan(waiting)
+    }
+    if (readsWaiting.size > 0) return
+    stop()
+    listening = false
+  })
 }
 
 /**
