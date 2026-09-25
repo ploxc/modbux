@@ -79,10 +79,12 @@ joined string, and split it in a `useMemo`. The renderer has zero of all of
 these and zero `useShallow`, and that is why it draws a two-thousand-row grid
 without either.
 
-`conformance.test.ts` reads the object literal, the bare call and `(z) => z`.
-It cannot read a call that builds one, because whether `f(x)` answers a fresh
-reference is not in the AST, so a selector calling anything is a reviewer's
-question.
+`conformance.test.ts` reads the object and array literals, the calls that
+always build a new one (`Object.keys`, `values`, `entries`, `fromEntries` and
+`assign`, and `.map`, `.filter`, `.slice`, `.concat`, `.split` and
+`.flatMap`), the bare call and `(z) => z`. Whether any other call answers a
+fresh reference is not in the AST, so a selector calling anything else is a
+reviewer's question.
 
 **An action is fetched where it runs, not subscribed to.** A selector that hands
 back a store function puts that function in the dependency list, and a

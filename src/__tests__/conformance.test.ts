@@ -399,9 +399,78 @@ describe('shared does not import from main', () => {
 // `Maximum update depth exceeded`. This is why the grid draws two thousand rows
 // without useShallow.
 //
-// The three object spellings below, the bare call and `(z) => z` are what an
-// AST can read. A call that builds its answer, `Object.keys(z.servers)`, is the
-// same defect and is not, so CONTRIBUTING names it as a reviewer's question.
+// What an AST can read is the object and array literals, the calls below that
+// always build a new one, the bare call and `(z) => z`. Any other call may or
+// may not answer a fresh reference, which is not in the AST, so CONTRIBUTING
+// names it as a reviewer's question.
+
+/** `Object.<name>` calls that answer a new object or array every time. */
+const BUILDING_OBJECT_CALLS = new Set(['keys', 'values', 'entries', 'fromEntries', 'assign'])
+
+/** Methods that answer a new array every time. */
+const BUILDING_METHODS = new Set(['map', 'filter', 'slice', 'concat', 'split', 'flatMap'])
+
+/** Whether `expression` hands back a new object or array on every call. */
+const buildsFresh = (expression: ts.Expression): boolean => {
+  let node = expression
+  while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)) node = node.expression
+  if (ts.isObjectLiteralExpression(node) || ts.isArrayLiteralExpression(node)) return true
+  if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return false
+  const { expression: target, name } = node.expression
+  if (ts.isIdentifier(target) && target.text === 'Object')
+    return BUILDING_OBJECT_CALLS.has(name.text)
+  return BUILDING_METHODS.has(name.text)
+}
+
+/** Whether a selector's body answers with something `buildsFresh` reads. */
+const selectorBuildsFresh = (body: ts.ConciseBody): boolean =>
+  ts.isBlock(body)
+    ? body.statements.some(
+        (statement) =>
+          ts.isReturnStatement(statement) &&
+          statement.expression !== undefined &&
+          buildsFresh(statement.expression)
+      )
+    : buildsFresh(body)
+
+// The reader's own population, because the renderer has none of these today
+// and a spelling that stops being read would otherwise stay green.
+describe('buildsFresh reads every spelling', () => {
+  const reads = (text: string): boolean => {
+    const source = ts.createSourceFile('probe.ts', `f(${text})`, ts.ScriptTarget.Latest, true)
+    const [statement] = source.statements
+    if (!statement || !ts.isExpressionStatement(statement)) throw new Error('no statement')
+    const call = statement.expression
+    if (!ts.isCallExpression(call)) throw new Error('no call')
+    const [selector] = call.arguments
+    if (!selector || !ts.isArrowFunction(selector)) throw new Error('no selector')
+    return selectorBuildsFresh(selector.body)
+  }
+
+  it.each([
+    '(z) => ({ a: z.a })',
+    '(z) => [z.a, z.b]',
+    '(z) => Object.keys(z.servers)',
+    '(z) => Object.entries(z.servers)',
+    '(z) => z.list.map((item) => item.id)',
+    '(z) => z.list.filter(Boolean)',
+    '(z) => z.text.split(",")',
+    '(z) => { return [z.a] }',
+    '(z) => (Object.values(z.servers) as string[])'
+  ])('reads %s as building its answer', (text) => {
+    expect(reads(text)).toBe(true)
+  })
+
+  it.each([
+    '(z) => z.a',
+    '(z) => Object.keys(z.servers).join(",")',
+    '(z) => Object.entries(z.collapse).every(([, value]) => value)',
+    '(z) => z.list.length',
+    '(z) => z.getUnitId(z.selectedUuid)'
+  ])('reads %s as answering what the store holds', (text) => {
+    expect(reads(text)).toBe(false)
+  })
+})
 
 describe('one store selector per field', () => {
   const files = sourceFiles(rendererRoot)
@@ -435,20 +504,7 @@ describe('one store selector per field', () => {
         }
       }
       selectorCalls.push({ file: at(file), text: callee.text })
-      const body = argument.body
-      // ({ a, b }) is a parenthesized object literal; { return { a, b } } is a
-      // block that ends in one. Both hand back a new reference every render.
-      const returnsObject =
-        (ts.isParenthesizedExpression(body) && ts.isObjectLiteralExpression(body.expression)) ||
-        ts.isObjectLiteralExpression(body) ||
-        (ts.isBlock(body) &&
-          body.statements.some(
-            (statement) =>
-              ts.isReturnStatement(statement) &&
-              statement.expression !== undefined &&
-              ts.isObjectLiteralExpression(statement.expression)
-          ))
-      if (returnsObject) objectSelectors.push(`${at(file)}\t${callee.text}`)
+      if (selectorBuildsFresh(argument.body)) objectSelectors.push(`${at(file)}\t${callee.text}`)
     })
   }
 
@@ -456,7 +512,7 @@ describe('one store selector per field', () => {
     expect(selectorCalls.length).toBeGreaterThan(100)
   })
 
-  it('has none of them returning an object', () => {
+  it('has none of them building its answer', () => {
     expect(objectSelectors).toEqual([])
   })
 
