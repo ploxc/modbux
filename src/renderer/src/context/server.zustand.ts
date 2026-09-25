@@ -127,7 +127,8 @@ export const withPendingValues = (
  */
 const keepLiveValues = (
   registers: ServerRegisters,
-  live: ServerRegisters | undefined
+  live: ServerRegisters | undefined,
+  heldNow: (entry: ServerRegisterEntry) => number
 ): ServerRegisters => {
   const bools = (type: BooleanRegisters): ServerRegisters[BooleanRegisters] =>
     Object.fromEntries(
@@ -140,8 +141,21 @@ const keepLiveValues = (
     Object.fromEntries(
       Object.entries(registers[type]).map(([address, entry]) => {
         const liveEntry = live?.[type][Number(address)]
-        const same = liveEntry !== undefined && deepEqual(liveEntry.params, entry.params)
-        return [address, same ? { ...entry, value: liveEntry.value } : entry]
+        if (liveEntry === undefined) return [address, entry]
+        if (deepEqual(liveEntry.params, entry.params)) {
+          return [address, { ...entry, value: liveEntry.value }]
+        }
+        // A step that changed a label alone gets its labels back and keeps the
+        // word, with `params.value` at that word so the step that replays this
+        // one reads it as left alone too.
+        if (labelsOnly(liveEntry, entry)) {
+          const word = heldNow(liveEntry)
+          return [
+            address,
+            { ...entry, value: liveEntry.value, params: { ...entry.params, value: word } }
+          ]
+        }
+        return [address, entry]
       })
     )
   return {
@@ -152,31 +166,50 @@ const keepLiveValues = (
   }
 }
 
+/** The params with the fields a label step can change set aside. */
+const labelsOff = { value: 0, comment: '', bitMap: undefined }
+
 /**
- * The params a restored register goes back to main with, and the word in them.
+ * Whether the step between `live` and `restored` changed a comment or a bit
+ * map and nothing else, word included.
  *
- * A value is not configuration, so a fixed register whose step left the word
- * alone goes back with the word it holds now, whatever a master wrote since.
- * A step left the word alone when the `params.value` it sent is the word the
- * register held as it was taken: a bit comment sends that word. A step that
- * set another, a toggle or a value typed in the dialog, goes back with the
- * word from before it. Anything else about the register that moved, its type,
- * its length or a generator, goes back as the step saw it, and so does a 64
- * bit integer.
+ * Main keeps a fixed register's words and none of its params, so such a step
+ * has nothing to tell it, and told anyway it encodes the params' word again:
+ * a utf8 register went back to the text the step saw over what a master wrote.
+ * A step left the word alone when the `params.value` it holds is the word the
+ * register held as it was taken, which is what a bit comment sends.
+ */
+type FixedEntry = ServerRegisterEntry & { params: { interval: undefined } }
+
+const labelsOnly = (
+  live: ServerRegisterEntry | undefined,
+  restored: ServerRegisterEntry
+): restored is FixedEntry => {
+  if (live === undefined) return false
+  if (live.params.interval !== undefined || restored.params.interval !== undefined) return false
+  if (!deepEqual({ ...live.params, ...labelsOff }, { ...restored.params, ...labelsOff }))
+    return false
+  return live.params.value === Number(restored.value)
+}
+
+/**
+ * The params a restored register goes back to main with.
+ *
+ * A value is not configuration, but a step that set one, a toggle or a value
+ * typed in the dialog, is undone with the word from before it, which is the
+ * word the register held when the step was taken. Anything else about the
+ * register that moved, its type, its length or a generator, goes back as the
+ * step saw it, and so does a 64 bit integer, which `params.value` cannot hold.
  */
 const paramsToRestore = (
   live: ServerRegisterEntry | undefined,
-  restored: ServerRegisterEntry,
-  heldNow: (entry: ServerRegisterEntry) => number | bigint
+  restored: ServerRegisterEntry
 ): RegisterParams => {
   const { params } = restored
   if (live === undefined || params.interval !== undefined) return params
-  // `params.value` is a number, and a 64 bit word above 2^53 is not one.
   if (holdsExact64Bits(params.dataType)) return params
-  const labelsOff = { value: 0, comment: '', bitMap: undefined }
   if (!deepEqual({ ...live.params, ...labelsOff }, { ...params, ...labelsOff })) return params
-  const wordMoved = live.params.value !== Number(restored.value)
-  return { ...params, value: Number(wordMoved ? restored.value : heldNow(live)) }
+  return { ...params, value: Number(restored.value) }
 }
 
 export const useServerZustand = create<
@@ -553,7 +586,9 @@ export const useServerZustand = create<
       },
       restoreUnit: async (uuid, unitId, registers) => {
         const live = get().servers[uuid]?.registers[unitId]
-        const restored = registers && keepLiveValues(registers, live)
+        const restored =
+          registers &&
+          keepLiveValues(registers, live, (entry) => pendingRegisterValue(uuid, unitId, entry))
         set((state) => {
           const server = state.servers[uuid]
           if (!server) return
@@ -587,9 +622,18 @@ export const useServerZustand = create<
         for (const registerType of ['input_registers', 'holding_registers'] as const) {
           const before = live?.[registerType] ?? {}
           const after = restored?.[registerType] ?? {}
+          // The step's own registers, because `restored` carries a label step's
+          // params at the word held now, and that is no longer the step.
+          const stepped = registers?.[registerType] ?? {}
+          const labelStep = (address: number, liveEntry: ServerRegisterEntry): boolean => {
+            const steppedEntry = stepped[address]
+            return steppedEntry !== undefined && labelsOnly(liveEntry, steppedEntry)
+          }
           // Removed first, because a moved register's two spans can overlap.
           for (const [address, entry] of Object.entries(before)) {
-            if (deepEqual(after[Number(address)]?.params, entry.params)) continue
+            const restoredEntry = after[Number(address)]
+            if (deepEqual(restoredEntry?.params, entry.params)) continue
+            if (labelStep(Number(address), entry)) continue
             const { dataType, length } = entry.params
             await window.api.removeServerRegister({
               uuid,
@@ -601,10 +645,12 @@ export const useServerZustand = create<
             })
           }
           for (const [address, entry] of Object.entries(after)) {
-            if (deepEqual(before[Number(address)]?.params, entry.params)) continue
-            const params = paramsToRestore(before[Number(address)], entry, (live) =>
-              pendingRegisterValue(uuid, unitId, live)
-            )
+            const liveEntry = before[Number(address)]
+            if (deepEqual(liveEntry?.params, entry.params)) continue
+            // Main holds the word and none of the labels, and the store took
+            // them above.
+            if (liveEntry && labelStep(Number(address), liveEntry)) continue
+            const params = paramsToRestore(liveEntry, entry)
             const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
             // The params main now holds, so the step that replays this one
             // compares against the word this one sent.

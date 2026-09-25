@@ -216,10 +216,13 @@ describe('a unit', () => {
       params: holding(10, 'b', 99)
     })
     masterWrites(server, 120)
+    calls.length = 0
 
     await serverUndo.undoServer()
 
-    expect(replaced()).toMatchObject({ comment: 'a', value: 120 })
+    expect(calls.map((call) => call.method)).not.toContain('addReplaceServerRegister')
+    const entry = server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]
+    expect(entry).toMatchObject({ value: 120, params: { comment: 'a' } })
   })
 
   it('puts back a value typed in the dialog along with its comment', async () => {
@@ -305,10 +308,13 @@ describe('a unit', () => {
     masterWrites(server, 120)
     await serverUndo.undoServer()
     masterWrites(server, 130)
+    calls.length = 0
 
     await serverUndo.redoServer()
 
-    expect(replaced()).toMatchObject({ comment: 'b', value: 130 })
+    expect(calls.map((call) => call.method)).not.toContain('addReplaceServerRegister')
+    const entry = server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]
+    expect(entry).toMatchObject({ value: 130, params: { comment: 'b' } })
   })
 
   it('leaves a register written there while main answered the restore alone', async () => {
@@ -319,7 +325,7 @@ describe('a unit', () => {
     await server().addRegister({
       uuid: MAIN_SERVER_UUID,
       unitId: '0',
-      params: holding(10, 'b', 99)
+      params: holding(10, 'a', 50)
     })
     const answers: Array<() => void> = []
     answerWith(
@@ -437,6 +443,32 @@ describe('a unit', () => {
     await serverUndo.undoServer()
 
     expect(replaced()).toMatchObject({ value: 99 })
+  })
+
+  // Main keeps the words of a fixed register and none of its params, so a step
+  // that changed a label alone has nothing to tell it. Sent anyway, a utf8
+  // register went back to the text the step saw over what a master wrote.
+  it('tells main nothing for an undo of a label, and puts the label back', async () => {
+    const { server, serverUndo } = await load()
+    const text = (comment: string): RegisterParams => ({
+      ...holding(10, comment, 0),
+      dataType: 'utf8',
+      length: 2,
+      stringValue: 'ab'
+    })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: text('a') })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: text('b') })
+    calls.length = 0
+
+    await serverUndo.undoServer()
+
+    const sent = calls.map((call) => call.method)
+    expect(sent).not.toContain('addReplaceServerRegister')
+    expect(sent).not.toContain('removeServerRegister')
+    expect(server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]).toEqual({
+      value: 0,
+      params: text('a')
+    })
   })
 
   // A toggle is a value the user set, so its undo puts back the word before it.
