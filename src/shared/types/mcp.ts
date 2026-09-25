@@ -83,7 +83,7 @@ export const MCP_TOOLS = {
     layer: 'read',
     side: 'client',
     description:
-      "What a client's grid shows now, one row per address, with the value its data type and scaling make of it. Answers what the last read brought and when the device last answered; it sends nothing to the device.",
+      "What a client's grid shows now, one row per address: its raw word as hex, and for a mapped register every word it spans, its scaling and the value its data type and scaling make of them. A word that was not read is an empty string, and the value is then left out. littleEndian is the order the words of a multi-word number are composed in; the bytes in each hex word are never swapped, and a string ignores it. The answer also says when the device last answered. It answers what the last read brought and sends nothing to the device.",
     input: { client: ClientIdSchema }
   },
   list_servers: {

@@ -197,6 +197,7 @@ describe('the read tools', () => {
   it('read_values answers what the grid shows, scaled', () => {
     expect(readValues(source(), { client: 'a' })).toEqual({
       type: 'holding_registers',
+      littleEndian: false,
       lastAnswerAt: '2026-09-25T12:00:00.000Z',
       rows: [
         {
@@ -204,6 +205,8 @@ describe('the read tools', () => {
           name: 'voltage L1',
           dataType: 'uint16',
           hex: '0908',
+          words: ['0908'],
+          scalingFactor: 0.1,
           value: 231.2,
           error: undefined
         },
@@ -212,11 +215,82 @@ describe('the read tools', () => {
           name: 'temperature',
           dataType: 'int16',
           hex: 'ffff',
+          words: ['ffff'],
+          scalingFactor: undefined,
           value: -1,
           error: undefined
         }
       ]
     })
+  })
+
+  // Enough to rebuild the value without another tool: the byte order once,
+  // and per register its scaling and every word it spans.
+  it('read_values carries the word order, the scaling and every word of a register', () => {
+    const power: PersistedClient = {
+      ...meter,
+      registerMapping: {
+        ...emptyMapping(),
+        holding_registers: {
+          10: { dataType: 'int32', scalingFactor: 0.001, comment: 'Active Power (kW)' },
+          13: { dataType: 'utf8', comment: 'Model' },
+          // An address held open inside the string, which the string reads through.
+          14: { dataType: 'none' },
+          15: { dataType: 'uint16', comment: 'after the string' }
+        }
+      },
+      registerConfig: { ...meter.registerConfig, littleEndian: true }
+    }
+    const data = liveOf({
+      registerData: [
+        row(10, '0112', { int32: 18011580 }),
+        row(11, 'd6bc', {}),
+        row(12, '0000', {}),
+        row(13, '5355', { utf8: 'SUN2000\u0000' }),
+        row(14, '4e32', {}),
+        row(15, '0001', { uint16: 1 })
+      ]
+    })
+
+    const answer = readValues(source({ clients: { a: power }, live: { a: data } }), {
+      client: 'a'
+    }) as { littleEndian: boolean; rows: Record<string, unknown>[] }
+
+    expect(answer.littleEndian).toBe(true)
+    expect(answer.rows[0]).toMatchObject({
+      address: 10,
+      scalingFactor: 0.001,
+      words: ['0112', 'd6bc']
+    })
+    expect(answer.rows[1]).toMatchObject({ address: 11, hex: 'd6bc', words: undefined })
+    expect(answer.rows[2]).toMatchObject({ address: 12, words: undefined })
+    // A string runs to the next mapped register, as the grid slices it.
+    // Client 'a' is not the one on screen, so this is sliced by its own rows.
+    expect(answer.rows[3]).toMatchObject({
+      address: 13,
+      words: ['5355', '4e32'],
+      value: 'SUN2'
+    })
+    expect(answer.rows[4]).toMatchObject({ address: 14, words: undefined })
+    expect(answer.rows[5]).toMatchObject({ address: 15, words: ['0001'], scalingFactor: undefined })
+  })
+
+  // A 0 in place of words that were not read is not a reading.
+  it('read_values answers no value for a register whose last word was not read', () => {
+    const tail: PersistedClient = {
+      ...meter,
+      registerMapping: {
+        ...emptyMapping(),
+        holding_registers: { 20: { dataType: 'int32', comment: 'cut off' } }
+      }
+    }
+    const data = liveOf({ registerData: [row(20, 'abcd', { int32: 0 })] })
+
+    const answer = readValues(source({ clients: { a: tail }, live: { a: data } }), {
+      client: 'a'
+    }) as { rows: Record<string, unknown>[] }
+
+    expect(answer.rows[0]).toMatchObject({ words: ['abcd', ''], value: undefined })
   })
 
   it('read_values answers a coil as its bit', () => {
@@ -229,6 +303,7 @@ describe('the read tools', () => {
       readValues(source({ clients: { a: coils }, live: { a: data } }), { client: 'a' })
     ).toEqual({
       type: 'coils',
+      littleEndian: false,
       lastAnswerAt: null,
       rows: [
         {
@@ -236,6 +311,8 @@ describe('the read tools', () => {
           name: 'breaker',
           dataType: undefined,
           hex: '0001',
+          words: undefined,
+          scalingFactor: undefined,
           value: true,
           error: undefined
         }

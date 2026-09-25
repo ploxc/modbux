@@ -1,4 +1,13 @@
-import { McpToolArgs, RegisterType, UnitIdStringSchema, defaultClientState } from '@shared'
+import {
+  McpToolArgs,
+  RegisterMapObject,
+  RegisterType,
+  UnitIdStringSchema,
+  defaultClientState,
+  RegisterData,
+  registerWidth,
+  wordOf
+} from '@shared'
 import { getConvertedValue } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
 import type { PersistedClient } from '@renderer/context/client.zustand.types'
 import type { ClientData } from '@renderer/context/live.zustand.types'
@@ -93,6 +102,23 @@ export const listRegisters = (
   )
 }
 
+/**
+ * How many rows the register at `address` spans. A string runs to the next
+ * mapped register, as the grid slices it; every other type is its width.
+ */
+const spanOf = (mapping: RegisterMapObject, address: number, present: Set<number>): number => {
+  const dataType = mapping[address]?.dataType
+  if (!dataType || dataType === 'none') return 0
+  if (dataType !== 'utf8') return registerWidth(dataType)
+  let span = 1
+  while (present.has(address + span)) {
+    const next = mapping[address + span]?.dataType
+    if (next && next !== 'none') break
+    span++
+  }
+  return span
+}
+
 export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_values'>): unknown => {
   const { registerMapping, registerConfig } = clientOf(source, client)
   const type = registerConfig.type
@@ -100,20 +126,45 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
   const live = source.live[client]
   const rows = live?.registerData ?? []
   const answeredAt = live?.lastSuccessfulTransactionMillis ?? null
+  const hexAt = new Map(rows.map((row) => [row.id, row.hex]))
+  const present = new Set(hexAt.keys())
+  /** Every word the register at `address` spans, in address order, as read. */
+  const wordsAt = (address: number): string[] | undefined => {
+    const span = spanOf(mapping, address, present)
+    if (span === 0) return undefined
+    return Array.from({ length: span }, (_, i) => hexAt.get(address + i) ?? '')
+  }
+  /**
+   * The value a row's words make, or none when a word was not read.
+   *
+   * A string is cut to the rows it spans here rather than by the grid, which
+   * cuts by the address groups of the client on screen, not of this one.
+   */
+  const valueOf = (row: RegisterData, words: string[] | undefined): unknown => {
+    if (words?.includes('')) return undefined
+    if (mapping[row.id]?.dataType !== 'utf8') return getConvertedValue(row, mapping, false)
+    const text = wordOf(row.words, 'utf8')
+    return text === undefined || words === undefined
+      ? undefined
+      : String(text).slice(0, words.length * 2)
+  }
   return {
     type,
+    littleEndian: registerConfig.littleEndian,
     lastAnswerAt: answeredAt === null ? null : new Date(answeredAt).toISOString(),
-    rows: rows.map((row) => ({
-      address: row.id,
-      name: mapping[row.id]?.comment ?? '',
-      dataType: mapping[row.id]?.dataType,
-      hex: row.hex,
-      value:
-        type === 'coils' || type === 'discrete_inputs'
-          ? row.bit
-          : getConvertedValue(row, mapping, false),
-      error: row.error
-    }))
+    rows: rows.map((row) => {
+      const words = wordsAt(row.id)
+      return {
+        address: row.id,
+        name: mapping[row.id]?.comment ?? '',
+        dataType: mapping[row.id]?.dataType,
+        hex: row.hex,
+        words,
+        scalingFactor: mapping[row.id]?.scalingFactor,
+        value: type === 'coils' || type === 'discrete_inputs' ? row.bit : valueOf(row, words),
+        error: row.error
+      }
+    })
   }
 }
 
