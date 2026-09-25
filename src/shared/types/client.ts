@@ -18,7 +18,7 @@ import { SerialPortOptionsSchema } from './serial'
 //
 //
 // Register Mapping
-const RegisterLinearInterpolationSchema = z.object({
+export const RegisterLinearInterpolationSchema = z.object({
   x1: z.string(),
   x2: z.string(),
   y1: z.string(),

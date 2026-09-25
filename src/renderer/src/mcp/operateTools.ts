@@ -1,5 +1,6 @@
 import {
   McpToolArgs,
+  RegisterType,
   clientOwner,
   configuredReadGroups,
   isConnectionAddressGiven,
@@ -9,6 +10,7 @@ import {
 import {
   flushRegisterMappingToMain,
   getSelectedClient,
+  getSelectedSession,
   holdSelection,
   useClientZustand
 } from '@renderer/context/client.zustand'
@@ -24,7 +26,7 @@ import { McpToolError, ReadSource, readValues } from './readTools'
  * An assistant operates the client a person would see it operate, and the
  * store's setters act on the selected one.
  */
-const selectClient = (client: string): void => {
+export const selectClient = (client: string): void => {
   const clientZustand = useClientZustand.getState()
   if (!Object.hasOwn(clientZustand.clients, client)) {
     throw new McpToolError(`No client has the id ${client}; list_clients names them`)
@@ -183,6 +185,21 @@ export const stopPolling = async ({ client }: McpToolArgs<'stop_polling'>): Prom
 const selectedId = (): string => useClientZustand.getState().selectedUuid
 
 /**
+ * What the Type select does for the client on screen: refused during a
+ * register scan, which reads the type for every chunk, and a grid of a
+ * toolbar read emptied, since its rows are of the type before.
+ */
+export const setType = (type: RegisterType): Promise<boolean> => {
+  const client = selectedId()
+  if (getSelectedClient().registerConfig.type === type) return Promise.resolve(true)
+  if (stateOf(client).scanningRegisters) return Promise.resolve(false)
+  if (!getSelectedSession().readConfiguration) {
+    useLiveZustand.getState().setRegisterData(client, [])
+  }
+  return useClientZustand.getState().setType(type)
+}
+
+/**
  * What the Read configuration toggle does, refused where it greys: while
  * anything but a poll owns the client, and, turning on, over a mapping with
  * nothing to read. Turning on hands main the mapping first and draws it.
@@ -222,7 +239,7 @@ const SETTERS: {
   dataBits: (value) => useClientZustand.getState().setDataBits(value),
   stopBits: (value) => useClientZustand.getState().setStopBits(value),
   unitId: (value) => useClientZustand.getState().setUnitId(String(value)),
-  type: (value) => useClientZustand.getState().setType(value),
+  type: setType,
   address: (value) => useClientZustand.getState().setAddress(String(value)),
   length: (value) =>
     isReadLengthGiven(value) && useClientZustand.getState().setLength(String(value), true),

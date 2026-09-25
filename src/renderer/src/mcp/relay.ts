@@ -22,6 +22,13 @@ import {
   startPolling,
   stopPolling
 } from './operateTools'
+import {
+  addClient,
+  clearMapping,
+  deleteClient,
+  replaceMapping,
+  setMappingEntry
+} from './mappingTools'
 
 /** What the stores hold now, as the read tools look at it. */
 const readSource = (): ReadSource => {
@@ -48,7 +55,12 @@ const TOOLS: { [T in McpToolName]: (args: McpToolArgs<T>) => unknown } = {
   disconnect,
   read: (args) => read(args, readSource),
   start_polling: startPolling,
-  stop_polling: stopPolling
+  stop_polling: stopPolling,
+  add_client: addClient,
+  delete_client: deleteClient,
+  set_mapping_entry: setMappingEntry,
+  replace_mapping: replaceMapping,
+  clear_mapping: clearMapping
 }
 
 const run = <T extends McpToolName>(tool: T, args: unknown): unknown =>

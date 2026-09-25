@@ -1,6 +1,8 @@
 import z from 'zod'
-import { ProtocolSchema } from './client'
-import { PortSchema } from './ranges'
+import { BitMapConfigSchema } from './bitmap'
+import { ProtocolSchema, RegisterLinearInterpolationSchema } from './client'
+import { DataTypeSchema } from './datatype'
+import { PortSchema, RegisterAddressSchema } from './ranges'
 import { RegisterTypeSchema } from './register'
 import { DataBitsSchema, ModbusBaudRateSchema, ParitySchema, StopBitsSchema } from './serial'
 
@@ -167,6 +169,59 @@ export const MCP_TOOLS = {
     layer: 'operate',
     side: 'client',
     description: 'Stop polling a client.',
+    input: { client: ClientIdSchema }
+  },
+  add_client: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Add a client with the default config, put it on screen, and answer its id.',
+    input: { name: z.string().optional() }
+  },
+  delete_client: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Remove a client, letting go of its connection first. The last client is refused.',
+    input: { client: ClientIdSchema }
+  },
+  set_mapping_entry: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Edit one register of a client's mapping, as its row in the grid does. The client's register type switches to type first, as picking it in the UI does. Each field given is set on its own, and the answer names the ones Modbux refused. A coil or discrete input takes a comment only. dataType none removes the register from the mapping, and then takes no other field.",
+    input: {
+      client: ClientIdSchema,
+      type: RegisterTypeSchema,
+      address: RegisterAddressSchema.describe('The protocol address, 0-based.'),
+      dataType: DataTypeSchema.optional(),
+      scalingFactor: z.number().optional(),
+      comment: z.string().optional().describe('The name the register goes by.'),
+      groupEnd: z
+        .boolean()
+        .optional()
+        .describe('Start a new read group after this register, under read configuration.'),
+      interpolate: RegisterLinearInterpolationSchema.optional().describe(
+        'Linear interpolation from x1..x2 to y1..y2, each a number written as a string.'
+      ),
+      bitMap: BitMapConfigSchema.optional().describe(
+        'Per bit, keyed "0" to "15": a comment, a color and whether it is inverted.'
+      )
+    }
+  },
+  replace_mapping: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Open a client config, as the Load button does with a file: its name, byte order and register mapping replace the client's, as one step to undo, and an older version is migrated. Read configuration is turned off first. config is the JSON a Save writes.",
+    input: {
+      client: ClientIdSchema,
+      config: z.record(z.string(), z.unknown())
+    }
+  },
+  clear_mapping: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Clear a client's name and register mapping, as the Clear button does, as one step to undo.",
     input: { client: ClientIdSchema }
   }
 } as const satisfies Record<

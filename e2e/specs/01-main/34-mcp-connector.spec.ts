@@ -3,10 +3,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Page } from '@playwright/test'
 import { test, expect, resetApp } from '../../fixtures/electron-app'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'path'
 import { cleanServerState, loadServerConfig, navigateToHome } from '../../fixtures/helpers'
 
 const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
+const CLIENT_CONFIG = resolve(__dirname, '../../fixtures/config-files/client-basic.json')
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -179,6 +181,38 @@ test.describe.serial('The MCP connector', () => {
     expect(await call(assistant, 'disconnect', { client })).toEqual({
       connectState: 'disconnected'
     })
+  })
+
+  test('an assistant adds a client, maps and opens a config, then removes it', async () => {
+    if (!assistant) throw new Error('no assistant connected')
+    const { client } = (await call(assistant, 'add_client', { name: 'Meter' })) as {
+      client: string
+    }
+
+    expect(
+      await call(assistant, 'set_mapping_entry', {
+        client,
+        type: 'input_registers',
+        address: 4,
+        dataType: 'float',
+        comment: 'frequency'
+      })
+    ).toEqual({ changed: ['dataType', 'comment'], refused: [] })
+
+    const config = JSON.parse(readFileSync(CLIENT_CONFIG, 'utf8')) as Record<string, unknown>
+    expect(await call(assistant, 'replace_mapping', { client, config })).toEqual({
+      migrated: false,
+      fieldsNotBroughtAcross: []
+    })
+    const registers = (await call(assistant, 'list_registers', { client })) as { name: string }[]
+    expect(registers.map((register) => register.name)).toContain('setpoint')
+
+    await call(assistant, 'clear_mapping', { client })
+    expect(await call(assistant, 'list_registers', { client })).toEqual([])
+
+    expect(await call(assistant, 'delete_client', { client })).toEqual({ deleted: client })
+    const clients = (await call(assistant, 'list_clients')) as { id: string }[]
+    expect(clients.map((listed) => listed.id)).not.toContain(client)
   })
 
   test('unticking operate takes the operate tools away', async ({ mainPage }) => {
