@@ -14,6 +14,8 @@ import {
   getUsedAddresses,
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
+  RegisterParams,
+  holdsExact64Bits,
   SyncBoolsParameters,
   UnitIdString,
   SetBooleanParameters,
@@ -113,6 +115,33 @@ const keepLiveValues = (
     input_registers: numbers('input_registers'),
     holding_registers: numbers('holding_registers')
   }
+}
+
+/**
+ * The params a restored register goes back to main with, and the word in them.
+ *
+ * A value is not configuration, so a fixed register whose step left the word
+ * alone goes back with the word it holds now, whatever a master wrote since.
+ * A step left the word alone when the `params.value` it sent is the word the
+ * register held as it was taken: a bit comment sends that word. A step that
+ * set another, a toggle or a value typed in the dialog, goes back with the
+ * word from before it. Anything else about the register that moved, its type,
+ * its length or a generator, goes back as the step saw it, and so does a 64
+ * bit integer.
+ */
+const paramsToRestore = (
+  live: ServerRegisterEntry | undefined,
+  restored: ServerRegisterEntry,
+  heldNow: (entry: ServerRegisterEntry) => number | bigint
+): RegisterParams => {
+  const { params } = restored
+  if (live === undefined || params.interval !== undefined) return params
+  // `params.value` is a number, and a 64 bit word above 2^53 is not one.
+  if (holdsExact64Bits(params.dataType)) return params
+  const labelsOff = { value: 0, comment: '', bitMap: undefined }
+  if (!deepEqual({ ...live.params, ...labelsOff }, { ...params, ...labelsOff })) return params
+  const wordMoved = live.params.value !== Number(restored.value)
+  return { ...params, value: Number(wordMoved ? restored.value : heldNow(live)) }
 }
 
 export const useServerZustand = create<
@@ -538,8 +567,20 @@ export const useServerZustand = create<
           }
           for (const [address, entry] of Object.entries(after)) {
             if (deepEqual(before[Number(address)]?.params, entry.params)) continue
-            const { params } = entry
+            const params = paramsToRestore(before[Number(address)], entry, (live) =>
+              pendingRegisterValue(uuid, unitId, live)
+            )
             const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
+            // The params main now holds, so the step that replays this one
+            // compares against the word this one sent.
+            set((state) => {
+              const restoredEntry =
+                state.servers[uuid]?.registers[unitId]?.[registerType][params.address]
+              // A register written there while main answered is not this one.
+              if (restoredEntry && deepEqual(restoredEntry.params, entry.params)) {
+                restoredEntry.params = params
+              }
+            })
             // What main now holds, folded in as `addRegister` folds it, so the
             // grid does not show the value from when the step was taken.
             for (const [offset, value] of (words ?? []).entries()) {

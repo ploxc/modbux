@@ -37,11 +37,11 @@ beforeEach(() => {
   recordApiCalls(calls)
 })
 
-const holding = (address: number, comment: string): RegisterParams => ({
+const holding = (address: number, comment: string, value = 7): RegisterParams => ({
   address,
   registerType: 'holding_registers',
   dataType: 'uint16',
-  value: 7,
+  value,
   comment
 })
 
@@ -184,6 +184,192 @@ describe('a unit', () => {
         7
       )
     )
+  })
+
+  /** A master's write into holding register 10, which is no step. */
+  const masterWrites = (
+    server: () => ReturnType<typeof import('../server.zustand').useServerZustand.getState>,
+    value: number
+  ): void =>
+    server().setRegisterValue({
+      registerType: 'holding_registers',
+      address: 10,
+      value,
+      optionalUuid: MAIN_SERVER_UUID,
+      optionalUnitId: '0'
+    })
+
+  /** The params main was handed last for a register. */
+  const replaced = (): RegisterParams =>
+    (lastPayload('addReplaceServerRegister') as { params: RegisterParams }).params
+
+  // A value is not configuration (`tmp/roadmap.md`, one register core), so a
+  // step that left the word alone hands main the word the register holds now.
+  // A bit comment is that step: it sends the word held as it is made.
+  it('puts a comment back and keeps the value a master wrote since', async () => {
+    const { server, serverUndo } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    masterWrites(server, 99)
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 99)
+    })
+    masterWrites(server, 120)
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'a', value: 120 })
+  })
+
+  it('puts back a value typed in the dialog along with its comment', async () => {
+    const { server, serverUndo } = await load()
+    // Main answers the word it encoded, which for a uint16 is the value.
+    answerWith('addReplaceServerRegister', (payload) =>
+      Promise.resolve([(payload as { params: { value: number } }).params.value])
+    )
+    recordApiCalls(calls)
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    // Main's word waits in the 50 ms batcher, and a dialog opens after it.
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 50)
+    })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'a', value: 7 })
+  })
+
+  // A number cannot carry a 64 bit word above 2^53, so the step's own params go.
+  it('puts a 64 bit register back with the params the step saw', async () => {
+    const { server, serverUndo } = await load()
+    const wide = (comment: string): RegisterParams => ({
+      ...holding(10, comment),
+      dataType: 'uint64'
+    })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: wide('a') })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: wide('b') })
+    masterWrites(server, 120)
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'a', value: 7 })
+  })
+
+  it('puts a register whose type the step changed back as the step saw it', async () => {
+    const { server, serverUndo } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    masterWrites(server, 99)
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: { ...holding(10, 'a'), dataType: 'int16' }
+    })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ dataType: 'uint16', value: 7 })
+  })
+
+  it('puts a generator back as a generator', async () => {
+    const { server, serverUndo } = await load()
+    const generator = (comment: string): RegisterParams => ({
+      address: 10,
+      registerType: 'holding_registers',
+      dataType: 'uint16',
+      comment,
+      min: 0,
+      max: 9,
+      interval: 1000
+    })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: generator('a') })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: generator('b') })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toEqual(generator('a'))
+  })
+
+  it('redoes a comment step and keeps a master write made after the undo', async () => {
+    const { server, serverUndo } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    masterWrites(server, 99)
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 99)
+    })
+    masterWrites(server, 120)
+    await serverUndo.undoServer()
+    masterWrites(server, 130)
+
+    await serverUndo.redoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'b', value: 130 })
+  })
+
+  it('leaves a register written there while main answered the restore alone', async () => {
+    const { server, serverUndo } = await load()
+    const { useServerZustand } = await import('../server.zustand')
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    masterWrites(server, 99)
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 99)
+    })
+    const answers: Array<() => void> = []
+    answerWith(
+      'addReplaceServerRegister',
+      () => new Promise((resolve) => answers.push(() => resolve([])))
+    )
+
+    const undoing = serverUndo.undoServer()
+    await vi.waitFor(() => expect(answers).toHaveLength(1))
+    useServerZustand.setState((state) => {
+      const unit = state.servers[MAIN_SERVER_UUID]?.registers['0']
+      if (!unit) throw new Error('unit 0 is gone')
+      return {
+        servers: {
+          ...state.servers,
+          [MAIN_SERVER_UUID]: {
+            ...getDefaultServer(),
+            ...state.servers[MAIN_SERVER_UUID],
+            registers: {
+              '0': {
+                ...unit,
+                holding_registers: { 10: { value: 5, params: holding(10, 'c', 5) } }
+              }
+            }
+          }
+        }
+      }
+    })
+    for (const answer of answers) answer()
+    await undoing
+
+    expect(
+      server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]?.params
+    ).toEqual(holding(10, 'c', 5))
+  })
+
+  // A toggle is a value the user set, so its undo puts back the word before it.
+  it('puts back the word a value step replaced, not the one the register was made with', async () => {
+    const { server, serverUndo } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    masterWrites(server, 99)
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'a', 50)
+    })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'a', value: 99 })
   })
 
   it('records nothing for a reset of a unit nothing was ever written into', async () => {
