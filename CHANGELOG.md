@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A connection setting waits until you disconnect, and Modbux says so, as it
   does when there is nothing left to undo. In a text field the keys undo your
   typing. Each view keeps its last 100 steps until Modbux closes.
+- **An AI assistant can read Modbux.** The settings, behind the gear on Home,
+  let an assistant such as Claude connect over the Model Context Protocol, on
+  this machine only. Tick Read and create a token, and it can list your clients,
+  servers and mappings and read the values the grid shows. The token is shown
+  once, with the command that connects Claude Code.
 
 ### Changed
 

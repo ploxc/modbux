@@ -1,5 +1,10 @@
 import type {
   AddressGroupsEvent,
+  McpCall,
+  McpResult,
+  McpSettings,
+  McpStatus,
+  McpToken,
   ClientConnectionConfigUpdate,
   ClientCreate,
   ClientReadConfiguration,
@@ -105,7 +110,9 @@ export const IPC_CHANNELS = [
   'apply_privileged_port_fix',
   'get_serial_group_status',
   'apply_serial_group_fix',
-  'request_logout'
+  'request_logout',
+  'set_mcp_settings',
+  'create_mcp_token'
 ] as const
 
 type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -411,6 +418,18 @@ interface IpcHandlerSpec {
     args: []
     return: boolean
   }
+
+  /** Hand main the connector's settings, and say whether it listens now. */
+  ['set_mcp_settings']: {
+    args: [McpSettings]
+    return: McpStatus | undefined
+  }
+
+  /** Make a new token. Only its digest is kept; the token is shown once. */
+  ['create_mcp_token']: {
+    args: []
+    return: McpToken
+  }
 }
 
 export type IpcHandlerMap = {
@@ -437,11 +456,12 @@ const EVENTS_TO_RENDERER = [
   'register_value',
   'window_update',
   'address_groups',
-  'rtu_server_status'
+  'rtu_server_status',
+  'mcp_call'
 ] as const
 
 /** The events a window pushes to main. `sendEvent` there, `onIpcEvent` here. */
-const EVENTS_TO_MAIN = ['open_server_window'] as const
+const EVENTS_TO_MAIN = ['open_server_window', 'mcp_result'] as const
 
 export type EventToRenderer = (typeof EVENTS_TO_RENDERER)[number]
 export type EventToMain = (typeof EVENTS_TO_MAIN)[number]
@@ -458,6 +478,8 @@ export interface IpcEventPayloadMap {
   ['open_server_window']: []
   ['address_groups']: [AddressGroupsEvent]
   ['rtu_server_status']: [boolean]
+  ['mcp_call']: [McpCall]
+  ['mcp_result']: [McpResult]
 }
 
 export interface BackendMessage {

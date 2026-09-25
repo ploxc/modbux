@@ -24,7 +24,8 @@ import {
   SyncBoolsParametersSchema,
   SyncRegisterValueParamsSchema,
   ServerEndiannessSchema,
-  ServerUuidSchema
+  ServerUuidSchema,
+  McpSettingsSchema
 } from '@shared'
 import { Windows } from './windows'
 import { Clients } from './modules/modbusClient/clients'
@@ -32,6 +33,8 @@ import * as serialPorts from './modules/modbusClient/serialPorts'
 import { ModbusServer } from './modules/modbusServer'
 import { applyPrivilegedPortFix, getPrivilegedPortStatus } from './modules/privilegedPort'
 import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modules/serialGroup'
+import { McpConnector } from './modules/mcp/connector'
+import { createMcpToken } from './modules/mcp/token'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
 import type { ZodType } from 'zod'
 
@@ -181,10 +184,11 @@ type InitIpcFn = (
   app: Electron.App,
   clients: Clients,
   server: ModbusServer,
-  windows: Windows
+  windows: Windows,
+  mcp: McpConnector
 ) => void
 
-export const initIpc: InitIpcFn = (app, clients, server, windows) => {
+export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
   const ipcHandle = createIpcHandle(windows)
 
   /** What a failed port enumeration says, in the window the client view is drawn in. */
@@ -321,6 +325,10 @@ export const initIpc: InitIpcFn = (app, clients, server, windows) => {
   ipcHandle('get_serial_group_status', () => getSerialGroupStatus())
   ipcHandle('apply_serial_group_fix', () => applySerialGroupFix())
   ipcHandle('request_logout', () => requestLogout())
+
+  // The MCP connector
+  ipcHandle('set_mcp_settings', (_, settings) => mcp.apply(settings), McpSettingsSchema)
+  ipcHandle('create_mcp_token', () => createMcpToken())
 
   // Serial port discovery
   ipcHandle('list_serial_ports', () => serialPorts.listSerialPorts(toMainWindow))

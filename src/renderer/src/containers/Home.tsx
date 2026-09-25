@@ -1,4 +1,6 @@
 import CallSplit from '@mui/icons-material/CallSplit'
+import SettingsIcon from '@mui/icons-material/Settings'
+import IconButton from '@mui/material/IconButton'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Fade from '@mui/material/Fade'
@@ -120,6 +122,26 @@ const SplitButton = meme((): JSX.Element => {
   )
 })
 
+/** Opens the settings, where an assistant is let in. */
+const SettingsButton = meme((): JSX.Element => {
+  const handleClick = useCallback((): void => {
+    const layoutZustand = useLayoutZustand.getState()
+    layoutZustand.setAppType('settings')
+  }, [])
+
+  return (
+    <IconButton
+      data-testid="home-settings-btn"
+      aria-label="Settings"
+      title="Settings"
+      onClick={handleClick}
+      sx={{ position: 'fixed', top: 12, right: 12 }}
+    >
+      <SettingsIcon />
+    </IconButton>
+  )
+})
+
 const bottomElementsCommonSx: SxProps = {
   position: 'fixed',
   bottom: 12,
@@ -204,6 +226,7 @@ const Home = meme(() => {
           <SplitButton />
           <ClientButton />
         </Box>
+        <SettingsButton />
         <PloxcLogo />
         <Version />
       </Box>

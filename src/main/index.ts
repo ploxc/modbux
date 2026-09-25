@@ -7,6 +7,8 @@ import { Clients } from './modules/modbusClient/clients'
 import os from 'os'
 import { ModbusServer } from './modules/modbusServer'
 import { Windows } from './windows'
+import { McpConnector } from './modules/mcp/connector'
+import { McpRelay } from './modules/mcp/relay'
 
 if (is.dev && os.platform() === 'darwin') {
   app.disableHardwareAcceleration()
@@ -21,8 +23,13 @@ const clients = new Clients(windows)
 // Initialize the modbus server
 const server = new ModbusServer({ windows })
 
+// The MCP connector, which runs every tool in the window showing its store
+const mcpRelay = new McpRelay({ windows, timeout: 5000 })
+const mcp = new McpConnector({ run: mcpRelay.run })
+onIpcEvent('mcp_result', (_, result) => mcpRelay.answer(result))
+
 // IPC
-initIpc(app, clients, server, windows)
+initIpc(app, clients, server, windows, mcp)
 
 /**
  * Say which path took the app down.

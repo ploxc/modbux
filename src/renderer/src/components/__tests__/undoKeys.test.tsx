@@ -6,6 +6,7 @@
 import { render } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from '../../context/__tests__/stubRenderer'
+import type { AppType } from '@renderer/context/layout.zustand.types'
 
 const replays = vi.hoisted(() => ({
   undoClient: vi.fn(async (): Promise<string> => 'done'),
@@ -33,7 +34,7 @@ beforeEach(() => {
   enqueueSnackbar.mockClear()
 })
 
-const mount = async (appType: 'client' | 'server' | undefined): Promise<void> => {
+const mount = async (appType: AppType | undefined): Promise<void> => {
   const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
   useLayoutZustand.getState().setAppType(appType)
   const { default: UndoKeys } = await import('../UndoKeys')
@@ -190,5 +191,17 @@ describe('on Home', () => {
     press({ key: 'z', metaKey: true })
 
     expect(ran()).toEqual([])
+  })
+})
+
+describe('on the settings page', () => {
+  it('does nothing, and throws nothing', async () => {
+    await mount('settings')
+
+    press({ key: 'z', metaKey: true })
+    press({ key: 'y', ctrlKey: true })
+
+    expect(ran()).toEqual([])
+    expect(enqueueSnackbar).not.toHaveBeenCalled()
   })
 })

@@ -4,6 +4,7 @@ import { useLayoutZustand } from './context/layout.zustand'
 import Home from './containers/Home'
 import Client from './containers/Client'
 import Server from './containers/Server'
+import Settings from './containers/Settings'
 import UpdateBanner from './components/UpdateBanner'
 import UndoKeys from './components/UndoKeys'
 
@@ -23,7 +24,15 @@ const App = meme((): JSX.Element => {
       <UndoKeys />
       <UpdateBanner />
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
-        {appType === 'client' ? <Client /> : appType === 'server' ? <Server /> : <Home />}
+        {appType === 'client' ? (
+          <Client />
+        ) : appType === 'server' ? (
+          <Server />
+        ) : appType === 'settings' ? (
+          <Settings />
+        ) : (
+          <Home />
+        )}
       </Box>
     </Box>
   )

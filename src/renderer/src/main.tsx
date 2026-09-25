@@ -15,6 +15,10 @@ import { theme } from './theme'
 import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
 import Close from '@mui/icons-material/Close'
 import App from './App'
+import { installMcpRelay } from './mcp/relay'
+
+// Both windows answer the tool calls main sends them.
+installMcpRelay()
 
 const AUTO_HIDE_MS = 3000
 

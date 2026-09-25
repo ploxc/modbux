@@ -600,13 +600,20 @@ describe('each guarded channel got its own schema', () => {
     apply_privileged_port_fix: 'persist',
     set_server_endianness: { uuid: 'server-1', littleEndian: true },
     delete_server: 'server-1',
-    reset_server: 'server-1'
+    reset_server: 'server-1',
+    set_mcp_settings: { access: { read: true, operate: false, write: false }, port: 7502 }
   }
 
   const start = (): { sent: SentMessage[] } => {
     handle.mockClear()
     const { windows, sent } = createWindows()
-    initIpc(stub() as unknown as Electron.App, stub() as never, stub() as never, windows)
+    initIpc(
+      stub() as unknown as Electron.App,
+      stub() as never,
+      stub() as never,
+      windows,
+      stub() as never
+    )
     return { sent }
   }
 
@@ -650,7 +657,13 @@ describe('each guarded channel got its own schema', () => {
     handle.mockClear()
     const { windows } = createWindows()
     const clients = { [method]: vi.fn(() => true) }
-    initIpc(stub() as unknown as Electron.App, clients as never, stub() as never, windows)
+    initIpc(
+      stub() as unknown as Electron.App,
+      clients as never,
+      stub() as never,
+      windows,
+      stub() as never
+    )
 
     expect(await invoke(channel, validPayloads[channel])).toBe(true)
   })
