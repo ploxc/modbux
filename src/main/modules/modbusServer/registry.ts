@@ -1,5 +1,7 @@
 import {
   AddRegisterParams,
+  NumberRegisters,
+  RegisterParams,
   RegisterType,
   RegisterValue,
   RemoveRegisterParams,
@@ -46,6 +48,8 @@ const setBoolsFromArray = (bools: Map<number, boolean>, states: boolean[]): void
 type ServerDataUnitMap = Map<UnitIdString, ServerData>
 type ValueGeneratorsUnitMap = Map<UnitIdString, ValueGenerators>
 
+type RegisterParamsUnitMap = Map<UnitIdString, Record<NumberRegisters, Map<number, RegisterParams>>>
+
 type ServerDataMap = Map<string, ServerDataUnitMap>
 type ValueGeneratorsMap = Map<string, ValueGeneratorsUnitMap>
 
@@ -63,7 +67,7 @@ interface ServerRegistryParams {
 /**
  * What every server holds, keyed by uuid and then by unit id.
  *
- * The three maps are the server's state and nothing else here is. A transport
+ * The maps are the server's state and nothing else here is. A transport
  * decides who may ask; the vector decides what an address answers; this decides
  * what is there. `ModbusServer` is what holds all four.
  */
@@ -81,6 +85,8 @@ export class ServerRegistry {
   private _littleEndian: Map<string, boolean> = new Map()
   private _serverData: ServerDataMap = new Map()
   private _generatorMap: ValueGeneratorsMap = new Map()
+  /** What each register was added with, by address: its data type, its comment, its generator. */
+  private _paramsMap: Map<string, RegisterParamsUnitMap> = new Map()
 
   constructor({ windows, onUnitData }: ServerRegistryParams) {
     this._windows = windows
@@ -137,6 +143,28 @@ export class ServerRegistry {
     } catch {
       return undefined
     }
+  }
+
+  private _unitParams = (
+    uuid: string,
+    unitId: UnitIdString
+  ): Record<NumberRegisters, Map<number, RegisterParams>> => {
+    const perUnitMap = this._ensureInnerMap(this._paramsMap, uuid)
+    const unitParams = perUnitMap.get(unitId) ?? {
+      input_registers: new Map(),
+      holding_registers: new Map()
+    }
+    if (!perUnitMap.has(unitId)) perUnitMap.set(unitId, unitParams)
+    return unitParams
+  }
+
+  /** What every register of a unit was added with, input registers first, by address. */
+  public registerParams(uuid: string, unitId: UnitIdString): RegisterParams[] {
+    const unitParams = this._paramsMap.get(uuid)?.get(unitId)
+    if (!unitParams) return []
+    return [unitParams.input_registers, unitParams.holding_registers].flatMap((byAddress) =>
+      [...byAddress.entries()].sort(([a], [b]) => a - b).map(([, params]) => params)
+    )
   }
 
   private _unitData = (uuid: string, unitId: UnitIdString): ServerData => {
@@ -203,7 +231,7 @@ export class ServerRegistry {
   }
 
   /**
-   * Frees the registers and the generators a uuid holds, and keeps its byte
+   * Frees the registers, their params and the generators a uuid holds, and keeps its byte
    * order, which is a setting of the server rather than of its data.
    */
   public clearData(uuid: string): void {
@@ -213,6 +241,7 @@ export class ServerRegistry {
     }
     this._generatorMap.delete(uuid)
     this._serverData.delete(uuid)
+    this._paramsMap.delete(uuid)
   }
 
   /** Sets the byte order this server encodes its registers in. */
@@ -281,6 +310,7 @@ export class ServerRegistry {
       generators.delete(address)
       const serverData = this._unitData(uuid, unitId)
       this._setServerData(uuid, unitId, serverData)
+      this._unitParams(uuid, unitId)[registerType].set(address, params)
       return serverData
     }
 
@@ -371,6 +401,7 @@ export class ServerRegistry {
     for (let i = 0; i < registerCount; i++) {
       serverData[registerType].delete(address + i)
     }
+    this._paramsMap.get(uuid)?.get(unitId)?.[registerType].delete(address)
 
     const perUnitGeneratorMap = this._ensureInnerMap<UnitIdString, ValueGenerators>(
       this._generatorMap,
@@ -419,6 +450,8 @@ export class ServerRegistry {
       generators.forEach((generator) => generator.dispose())
       generators.clear()
     }
+
+    this._paramsMap.get(uuid)?.get(unitId)?.[registerType].clear()
 
     const serverData = this._unitData(uuid, unitId)
     serverData[registerType].clear()
