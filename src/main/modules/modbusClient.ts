@@ -907,7 +907,7 @@ export class ModbusClient implements TransportClient {
     return { sent: true }
   }
 
-  private _writeCoil = async (
+  private _writeCoil = (
     ride: Ride,
     target: RequestTarget,
     address: number,
@@ -925,7 +925,7 @@ export class ModbusClient implements TransportClient {
         variant: 'warning',
         error: undefined
       })
-      return { sent: false }
+      return Promise.resolve({ sent: false })
     }
 
     return this._sendWrite(ride, target, (modbus) =>
@@ -939,7 +939,7 @@ export class ModbusClient implements TransportClient {
     )
   }
 
-  private _writeRegister = async (
+  private _writeRegister = (
     ride: Ride,
     target: RequestTarget,
     address: number,
@@ -955,7 +955,7 @@ export class ModbusClient implements TransportClient {
         variant: 'warning',
         error: undefined
       })
-      return { sent: false }
+      return Promise.resolve({ sent: false })
     }
 
     // The dialog offers UTF-8 in the same list as the numbers, and a string is
@@ -967,7 +967,7 @@ export class ModbusClient implements TransportClient {
         variant: 'warning',
         error: undefined
       })
-      return { sent: false }
+      return Promise.resolve({ sent: false })
     }
 
     const registers = createRegisters(dataType, value, littleEndian)

@@ -50,9 +50,9 @@ const show = (uuid: string): boolean => {
 const clientFieldWriters: {
   [Field in ClientField]: (value: ClientFieldValues[Field]) => Promise<boolean>
 } = {
-  name: async (value) => {
+  name: (value) => {
     useClientZustand.getState().setName(value)
-    return true
+    return Promise.resolve(true)
   },
   protocol: (value) => useClientZustand.getState().setProtocol(value),
   unitId: (value) => useClientZustand.getState().setUnitId(String(value)),

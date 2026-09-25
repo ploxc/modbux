@@ -55,9 +55,7 @@ export class TcpServers {
    * Checks if a TCP port is available for binding.
    * Returns an object with availability and optional error code (e.g. EACCES, EADDRINUSE).
    */
-  private async _isPortAvailable(
-    port: number
-  ): Promise<{ available: boolean; errorCode?: string }> {
+  private _isPortAvailable(port: number): Promise<{ available: boolean; errorCode?: string }> {
     return new Promise((resolve) => {
       const tester = net.createServer()
       tester.once('error', (err: NodeJS.ErrnoException) => {

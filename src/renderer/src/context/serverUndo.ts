@@ -30,7 +30,7 @@ const show = (uuid: string, unitId?: UnitIdString): void => {
   }
 }
 
-const replayName = async (step: ServerNameStep): Promise<ServerNameStep | UndoRefusal> => {
+const replayName = (step: ServerNameStep): ServerNameStep | UndoRefusal => {
   const server = useServerZustand.getState().servers[step.uuid]
   if (!server) return 'refused-gone'
   show(step.uuid)
@@ -61,7 +61,7 @@ const replayLittleEndian = async (
 }
 
 /** Refused for a coil that is gone since, which switching would bring back. */
-const replayBool = async (step: ServerBoolStep): Promise<ServerBoolStep | UndoRefusal> => {
+const replayBool = (step: ServerBoolStep): ServerBoolStep | UndoRefusal => {
   const entry =
     useServerZustand.getState().servers[step.uuid]?.registers[step.unitId]?.[step.registerType][
       step.address
@@ -133,13 +133,13 @@ const replayServer = async (step: ServerRecordStep): Promise<ServerRecordStep | 
 const replay = (step: ServerUndoStep): Promise<ServerUndoStep | UndoRefusal | undefined> => {
   switch (step.kind) {
     case 'name':
-      return replayName(step)
+      return Promise.resolve(replayName(step))
     case 'port':
       return replayPort(step)
     case 'littleEndian':
       return replayLittleEndian(step)
     case 'bool':
-      return replayBool(step)
+      return Promise.resolve(replayBool(step))
     case 'unit':
       return replayUnit(step)
     case 'server':
