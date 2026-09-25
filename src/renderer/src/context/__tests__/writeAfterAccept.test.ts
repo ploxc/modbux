@@ -49,6 +49,30 @@ describe('a payload the boundary refuses', () => {
     expect(shownData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
   })
 
+  // `Number('')` is 0, and unit 0 is the broadcast address on RTU.
+  it('sends nothing for a cleared unit id, and keeps the one the store had', async () => {
+    const { clientZustand } = await load()
+    const { useClientZustand } = clientZustand
+    await useClientZustand.getState().setUnitId('7')
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().setUnitId('')).toBe(false)
+
+    expect(calls).toEqual([])
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
+  })
+
+  it('still sends a unit id of 0 typed as one', async () => {
+    const { clientZustand } = await load()
+    const { useClientZustand } = clientZustand
+    await useClientZustand.getState().setUnitId('7')
+
+    expect(await useClientZustand.getState().setUnitId('0')).toBe(true)
+
+    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(0)
+  })
+
   it('leaves the address and the rows read at it', async () => {
     const { clientZustand, liveZustand } = await load()
     const { useClientZustand } = clientZustand

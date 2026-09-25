@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Clearing the Unit ID field no longer sets unit 0.** An empty field was
+  taken as 0, so the next read or poll went to unit 0, which on RTU is the
+  broadcast address. The client now keeps the unit ID it had until you type
+  another.
 - **A register scan stops at the end of its range.** Its last request read a
   whole chunk, so a scan of 0 to 10 at a chunk of 125 read 0 through 124 and
   showed addresses you did not ask for.

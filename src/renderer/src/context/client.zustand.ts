@@ -677,6 +677,9 @@ export const useClientZustand = create<
         // it is handed differs from the empty mask it mounts with, so every
         // mount of the toolbar field and of the scan dialog's calls this with
         // the id the store already holds. The rows below would go with it.
+        // A cleared field is no id. `Number('')` is 0, the broadcast address on
+        // RTU, so it is refused here and the store keeps the id it had.
+        if (unitId === '') return false
         const newUnitId = Number(unitId)
         const before = selectedClient(get()).connectionConfig.unitId
         if (newUnitId === before) return true
