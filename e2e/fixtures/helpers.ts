@@ -75,7 +75,7 @@ export function cellLocator(p: Page, rowId: number, field: string): Locator {
  * cannot hide the target. Returns at once when it is already there, which is
  * every call on a window wide enough.
  */
-export async function scrollToColumn(p: Page, field: string, rowId?: number): Promise<void> {
+async function scrollToColumn(p: Page, field: string, rowId?: number): Promise<void> {
   const grid = p.locator('.register-grid')
   const target =
     rowId === undefined
@@ -118,7 +118,7 @@ export async function expectColumn(p: Page, field: string, present: boolean): Pr
  * depends on the window and CI pins no size. A Windows runner with a smaller
  * screen renders fewer of both than this machine does.
  */
-export async function scrollToCell(p: Page, rowId: number, field: string): Promise<void> {
+async function scrollToCell(p: Page, rowId: number, field: string): Promise<void> {
   await scrollToRow(p, rowId)
   await scrollToColumn(p, field, rowId)
 }
@@ -277,14 +277,6 @@ export async function addCoils(p: Page, address: number, fast = false): Promise<
   const baseAddress = address - (address % 8)
   for (let i = baseAddress; i < baseAddress + 8; i++) {
     await addBool(p, 'coils', i, fast)
-  }
-}
-
-/** Add discrete inputs starting at the given address (adds a group of 8 for backward compat) */
-export async function addDiscreteInputs(p: Page, address: number, fast = false): Promise<void> {
-  const baseAddress = address - (address % 8)
-  for (let i = baseAddress; i < baseAddress + 8; i++) {
-    await addBool(p, 'discrete_inputs', i, fast)
   }
 }
 
@@ -550,7 +542,7 @@ export async function cleanServerState(p: Page): Promise<void> {
  * Toggle advanced mode (and 64-bit values) in the client menu.
  * Idempotent: only clicks checkboxes when their state doesn't match `enabled`.
  */
-export async function setAdvancedMode(p: Page, enabled: boolean): Promise<void> {
+async function setAdvancedMode(p: Page, enabled: boolean): Promise<void> {
   if (enabled) await selectRegisterType(p, 'Holding Registers')
 
   await p.getByTestId('menu-btn').click()
@@ -581,7 +573,7 @@ export const enableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p,
 export const disableAdvancedMode = (p: Page): Promise<void> => setAdvancedMode(p, false)
 
 /** Set readConfiguration toggle to the desired state */
-export async function setReadConfiguration(p: Page, enabled: boolean): Promise<void> {
+async function setReadConfiguration(p: Page, enabled: boolean): Promise<void> {
   const btn = p.getByTestId('reg-read-config-btn')
   const isSelected = await btn.evaluate((el) => el.classList.contains('Mui-selected'))
   if (isSelected !== enabled) {
@@ -601,7 +593,7 @@ export const enableReadConfiguration = (p: Page): Promise<void> => setReadConfig
 export const disableReadConfiguration = (p: Page): Promise<void> => setReadConfiguration(p, false)
 
 /** Set RAW toggle button to the desired state */
-export async function setClientRawMode(p: Page, enabled: boolean): Promise<void> {
+async function setClientRawMode(p: Page, enabled: boolean): Promise<void> {
   const rawBtn = p.getByTestId('raw-btn')
   const classes = await rawBtn.getAttribute('class')
   // MUI v9 split composite class names: the on-state is `contained` plus
@@ -613,9 +605,6 @@ export async function setClientRawMode(p: Page, enabled: boolean): Promise<void>
   if (enabled) await expect(rawBtn).toHaveClass(/MuiButton-colorWarning/)
   else await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
 }
-
-/** Convenience alias for setClientRawMode(p, true) */
-export const enableClientRawMode = (p: Page): Promise<void> => setClientRawMode(p, true)
 
 /** Convenience alias for setClientRawMode(p, false) */
 export const disableClientRawMode = (p: Page): Promise<void> => setClientRawMode(p, false)

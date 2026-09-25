@@ -2,7 +2,7 @@
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import { asOneServerUnitStep } from '@renderer/context/serverUndo'
-import { BaseDataType, DataType, NumberRegisters, registerWidth, ServerRegister } from '@shared'
+import { DataType, NumberRegisters, registerWidth, ServerRegister } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import {
@@ -68,8 +68,8 @@ interface AddRegisterZustand {
   addressInUse: boolean
   addressFitError: boolean
   setAddress: MaskSetFn
-  dataType: BaseDataType
-  setDataType: (dataType: BaseDataType) => void
+  dataType: DataType
+  setDataType: (dataType: DataType) => void
   value: string
   setValue: MaskSetFn
   interval: string
@@ -97,7 +97,7 @@ interface AddRegisterZustand {
    * refused. Everything the buttons do afterwards reads the store this wrote,
    * so they wait on it.
    */
-  submit: (isEdit: boolean) => Promise<{ address: number; dataType: BaseDataType } | undefined>
+  submit: (isEdit: boolean) => Promise<{ address: number; dataType: DataType } | undefined>
   /**
    * Removes the register the dialog was opened on, and nothing outside edit
    * mode.

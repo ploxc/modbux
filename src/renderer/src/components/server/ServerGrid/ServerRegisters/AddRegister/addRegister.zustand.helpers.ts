@@ -1,5 +1,4 @@
 import {
-  BaseDataType,
   DataType,
   DEFAULT_UTF8_LENGTH,
   getAddressFitError,
@@ -129,7 +128,7 @@ export interface RegisterFormValues {
   fixed: boolean
   address: string
   value: string
-  dataType: BaseDataType
+  dataType: DataType
   registerType: NumberRegisters
   min: string
   max: string

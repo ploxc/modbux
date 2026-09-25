@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["e2e/specs/**/*.spec.ts", "e2e/fixtures/generate-large-config.ts"],
+  "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+  "ignoreBinaries": ["socat"]
+}

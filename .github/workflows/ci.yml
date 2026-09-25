@@ -45,5 +45,8 @@ jobs:
       - name: Typecheck
         run: yarn typecheck
 
+      - name: Unused files, exports and dependencies
+        run: yarn knip
+
       - name: Unit tests
         run: yarn test

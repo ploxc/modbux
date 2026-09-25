@@ -76,7 +76,7 @@ function toRegisterDef(params: any): RegisterDef {
 }
 
 /** Parse a JSON server config into a ServerConfig for a specific unitId */
-export function parseServerConfig(config: JsonConfig, unitId: string, port?: number): ServerConfig {
+function parseServerConfig(config: JsonConfig, unitId: string, port?: number): ServerConfig {
   const unitData = config.serverRegistersPerUnit[unitId]
   if (!unitData) throw new Error(`Unit ${unitId} not found in config`)
 

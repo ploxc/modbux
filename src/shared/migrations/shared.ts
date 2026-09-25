@@ -114,7 +114,7 @@ export function refuseOtherSidesConfig(
 }
 
 /** The object entries of `value`, and nothing at all when it is not an object. */
-export const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
+const recordEntries = (value: unknown): [string, Record<string, unknown>][] =>
   isRecord(value)
     ? Object.entries(value).filter((entry): entry is [string, Record<string, unknown>] =>
         isRecord(entry[1])

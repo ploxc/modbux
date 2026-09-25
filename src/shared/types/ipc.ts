@@ -46,7 +46,7 @@ import type { SharedProps } from 'notistack'
  * The handles live in main's `Windows`; this is the renderer's half of that,
  * which is why it sits with the event that carries it.
  */
-export interface WindowsOpen {
+interface WindowsOpen {
   main: boolean
   server: boolean
 }
@@ -108,7 +108,7 @@ export const IPC_CHANNELS = [
   'request_logout'
 ] as const
 
-export type IpcChannel = (typeof IPC_CHANNELS)[number]
+type IpcChannel = (typeof IPC_CHANNELS)[number]
 
 /**
  * IpcHandlerMap associates each IpcChannel with:
@@ -121,7 +121,7 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number]
  * ! If you add a channel to IPC_CHANNELS, add it here.
  * ! If you remove one, remove it here. No extras allowed.
  */
-export interface IpcHandlerSpec {
+interface IpcHandlerSpec {
   /**
    * Make the client main addresses under a uuid, on the config a window holds
    * for it.
@@ -427,7 +427,7 @@ export type IpcHandlerMap = {
  * `onEvent('open_server_window', ...)` both typecheck, neither of which has
  * anything at the far end.
  */
-export const EVENTS_TO_RENDERER = [
+const EVENTS_TO_RENDERER = [
   'backend_message',
   'client_state',
   'register_data',
@@ -441,7 +441,7 @@ export const EVENTS_TO_RENDERER = [
 ] as const
 
 /** The events a window pushes to main. `sendEvent` there, `onIpcEvent` here. */
-export const EVENTS_TO_MAIN = ['open_server_window'] as const
+const EVENTS_TO_MAIN = ['open_server_window'] as const
 
 export type EventToRenderer = (typeof EVENTS_TO_RENDERER)[number]
 export type EventToMain = (typeof EVENTS_TO_MAIN)[number]

@@ -60,7 +60,7 @@ const ScanUnitIdErrorMessageSchema = z.object({
   holding_registers: z.string()
 } satisfies Record<RegisterType, z.ZodString>)
 
-export const ScanUnitIDResultSchema = z.object({
+const ScanUnitIDResultSchema = z.object({
   id: z.number(),
   /** Answered with data. */
   registerTypes: z.array(RegisterTypeSchema),

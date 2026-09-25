@@ -1,5 +1,5 @@
 import z from 'zod'
-import { BaseDataTypeSchema } from './datatype'
+import { DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { PortSchema, RegisterAddressKeySchema, RegisterAddressSchema } from './ranges'
 import { SerialPortOptionsSchema } from './serial'
@@ -112,10 +112,10 @@ export type RegisterValue<K extends RegisterType = RegisterType> = {
  * billion words instead. `getUsedAddresses` loops the same number. The ceiling
  * is `MAX_UTF8_LENGTH`, which `RegisterLengthInput` masks to.
  */
-export const RegisterParamsBasePartSchema = z.object({
+const RegisterParamsBasePartSchema = z.object({
   address: RegisterAddressSchema,
   registerType: NumberRegistersSchema,
-  dataType: BaseDataTypeSchema,
+  dataType: DataTypeSchema,
   comment: z.string(),
   length: z.number().int().min(1).max(MAX_UTF8_LENGTH).optional(),
   stringValue: z.string().optional(),
@@ -279,7 +279,7 @@ export const RemoveRegisterParamsSchema = z.object({
   unitId: UnitIdStringSchema,
   registerType: NumberRegistersSchema,
   address: RegisterAddressSchema,
-  dataType: BaseDataTypeSchema,
+  dataType: DataTypeSchema,
   // Only a string has a width the user chose, and without it the server has to
   // guess how much of the map the register occupied and erases the guess.
   // Bounded the way add and sync bound it: `removeRegister` loops

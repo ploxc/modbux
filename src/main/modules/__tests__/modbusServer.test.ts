@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { BaseDataType, RegisterParams, UnitIdString } from '@shared'
+import type { DataType, RegisterParams, UnitIdString } from '@shared'
 import type { Windows } from '../../windows'
 import { defaultSerialPortOptions } from '@shared'
 import type { IServiceVector } from 'modbus-serial/ServerTCP'
@@ -2750,7 +2750,7 @@ describe('ModbusServer', () => {
   describe('removeRegister erases what the register occupied', () => {
     const addRegister = (
       address: number,
-      dataType: BaseDataType,
+      dataType: DataType,
       extra: { value?: number; stringValue?: string; length?: number } = {}
     ): void => {
       const params: RegisterParams = {

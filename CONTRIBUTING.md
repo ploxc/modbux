@@ -254,7 +254,8 @@ Don't use `feat` for a bug fix. Don't use `fix` for a refactor. Mean what you sa
 | `yarn test:e2e:packaged`        | Same specs against the packaged app. Run before releasing.                  |
 | `yarn test:e2e:hardware`        | The `99-hardware` specs. Needs an Arduino; skips without one.               |
 | `yarn presentation`             | Build + regenerate the documentation screenshots                            |
-| `yarn verify`                   | Lint + typecheck + unit + e2e. Run this before pushing.                     |
+| `yarn knip`                     | Unused files, exports and dependencies.                                     |
+| `yarn verify`                   | Lint + typecheck + knip + unit + e2e. Run this before pushing.              |
 | `yarn test:e2e:scan-perf`       | What a mounted grid costs during a scan. A measurement, not a check.        |
 | `yarn test:e2e:privileged-port` | The port 502 modal. Linux, and someone at the keyboard.                     |
 | `yarn test:all:mac`             | Everything this platform can run, ending with the hardware specs.           |

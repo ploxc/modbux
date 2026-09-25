@@ -17,7 +17,7 @@ import type { PkexecFixResult } from './pkexec'
 export const UNPRIVILEGED_PORT_START_TARGET = 502
 
 /** The sysctl key that governs the lowest bindable port. */
-export const UNPRIVILEGED_PORT_START_KEY = 'net.ipv4.ip_unprivileged_port_start'
+const UNPRIVILEGED_PORT_START_KEY = 'net.ipv4.ip_unprivileged_port_start'
 
 /** Where the persistent variant writes its drop-in. Matches the README. */
 export const UNPRIVILEGED_PORT_CONF_PATH = '/etc/sysctl.d/50-unprivileged-ports.conf'

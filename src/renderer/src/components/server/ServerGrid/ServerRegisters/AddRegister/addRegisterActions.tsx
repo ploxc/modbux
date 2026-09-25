@@ -6,10 +6,10 @@ import { useAddRegisterZustand } from './addRegister.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback, useState } from 'react'
 import Delete from '@mui/icons-material/Delete'
-import { BaseDataType, registerWidth } from '@shared'
+import { DataType, registerWidth } from '@shared'
 import { FIELD_DEFAULTS, isFormDirty, isTimestampType } from './addRegister.zustand.helpers'
 
-type SubmitResult = { address: number; dataType: BaseDataType } | undefined
+type SubmitResult = { address: number; dataType: DataType } | undefined
 
 /**
  * Runs a submit with the buttons off, and turns them back on whatever it does.

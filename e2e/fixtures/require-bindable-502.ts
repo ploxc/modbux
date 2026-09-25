@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 
-export const PROC_PATH = '/proc/sys/net/ipv4/ip_unprivileged_port_start'
+const PROC_PATH = '/proc/sys/net/ipv4/ip_unprivileged_port_start'
 export const MODBUS_PORT = 502
 
 /**

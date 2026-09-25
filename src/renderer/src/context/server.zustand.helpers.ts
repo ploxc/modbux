@@ -405,7 +405,7 @@ export const foldWordIntoComposite = ({
   // Both switches case all eleven types that reach here, so neither carries a
   // `default`. `newComposite` is declared without a value, which is what makes
   // a twelfth `EncodableDataType` a type error rather than a silent zero:
-  // adding `probe14` to `BaseDataTypeSchema` answered TS2454 three times.
+  // adding `probe14` to `DataTypeSchema` answered TS2454 three times.
   switch (dataType) {
     case 'int16':
       view.setInt16(0, Number(currentValue) || 0, littleEndian)

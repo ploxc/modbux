@@ -2,13 +2,13 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
-import { BaseDataType } from '@shared'
+import { DataType } from '@shared'
 import { meme } from './meme'
 
 interface DataTypeSelectInputProps {
   disabled?: boolean
-  dataType: BaseDataType
-  setDataType: (dataType: BaseDataType) => void
+  dataType: DataType
+  setDataType: (dataType: DataType) => void
 }
 
 const DataTypeSelectInput = meme(
@@ -23,7 +23,7 @@ const DataTypeSelectInput = meme(
           labelId={labelId}
           value={dataType}
           label="Type"
-          onChange={(e) => setDataType(e.target.value as BaseDataType)}
+          onChange={(e) => setDataType(e.target.value as DataType)}
         >
           <MenuItem value={'int16'}>INT16</MenuItem>
           <MenuItem value={'uint16'}>UINT16</MenuItem>

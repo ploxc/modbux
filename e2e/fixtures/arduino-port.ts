@@ -10,7 +10,7 @@ import { SerialPort } from 'serialport'
  * pick up a random dongle and read nonsense off it. Add one here if you use a
  * clone; the failure message below prints what it saw, so you know what to add.
  */
-export const ARDUINO_VENDOR_IDS = ['2341', '2a03']
+const ARDUINO_VENDOR_IDS = ['2341', '2a03']
 
 export type PortChoice = { port: string; reason?: undefined } | { port?: undefined; reason: string }
 

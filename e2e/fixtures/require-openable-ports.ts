@@ -1,9 +1,9 @@
 import { accessSync, constants, readdirSync } from 'fs'
 import { join, posix } from 'path'
 
-export const DEV_DIR = '/dev'
-export const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM']
-export const SERIAL_GROUP = 'dialout'
+const DEV_DIR = '/dev'
+const SERIAL_PREFIXES = ['ttyUSB', 'ttyACM']
+const SERIAL_GROUP = 'dialout'
 
 /**
  * Throws when an adapter is plugged in that this user cannot open.

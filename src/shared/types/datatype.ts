@@ -1,6 +1,6 @@
 import z from 'zod'
 
-export const BaseDataTypeSchema = z.enum([
+export const DataTypeSchema = z.enum([
   'none',
   'int16',
   'uint16',
@@ -15,10 +15,6 @@ export const BaseDataTypeSchema = z.enum([
   'utf8',
   'bitmap'
 ])
-export type BaseDataType = z.infer<typeof BaseDataTypeSchema>
-
-// DataType is identical to BaseDataType (all types are now simulatable)
-export const DataTypeSchema = BaseDataTypeSchema
 export type DataType = z.infer<typeof DataTypeSchema>
 
 /**

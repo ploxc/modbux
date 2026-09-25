@@ -144,7 +144,7 @@ const SERVER_FIELDS = {
  * screen. Where `uuids` holds something else it is the list that is lost, so
  * the key set falls back to the union of the six.
  */
-export function foldServersIntoOneRecord(state: Record<string, unknown>): Record<string, unknown> {
+function foldServersIntoOneRecord(state: Record<string, unknown>): Record<string, unknown> {
   const folded = { ...state }
   const sources = Object.keys(SERVER_FIELDS).map((field) => state[field])
 

@@ -22,7 +22,7 @@ import {
 import { AsyncMaskSetFn, MaskSetFn } from './client.zustand.types'
 import { z } from 'zod'
 
-export const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
+const UsedAddressesSchema = z.record(NumberRegistersSchema, z.array(z.number()))
 export type UsedAddresses = z.infer<typeof UsedAddressesSchema>
 
 /**

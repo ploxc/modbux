@@ -4,7 +4,7 @@ import { AppState } from '../state'
 import {
   AddressGroup,
   BackendMessage,
-  BaseDataType,
+  DataType,
   ClientState,
   ConnectionConfig,
   ConnectState,
@@ -944,7 +944,7 @@ export class ModbusClient implements TransportClient {
     target: RequestTarget,
     address: number,
     value: number,
-    dataType: BaseDataType,
+    dataType: DataType,
     single: boolean
   ): Promise<WriteAttempt> => {
     const { littleEndian } = this._appState.registerConfig

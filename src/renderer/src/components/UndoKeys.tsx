@@ -9,7 +9,7 @@ import { useSnackbar, VariantType } from 'notistack'
 import { useEffect } from 'react'
 
 /** The keys, on any platform: Cmd or Ctrl with Z, with Shift+Z or Y for redo. */
-export const undoKeyOf = (event: KeyboardEvent): 'undo' | 'redo' | undefined => {
+const undoKeyOf = (event: KeyboardEvent): 'undo' | 'redo' | undefined => {
   if (!event.metaKey && !event.ctrlKey) return undefined
   const key = event.key.toLowerCase()
   if (key === 'z') return event.shiftKey ? 'redo' : 'undo'
@@ -22,7 +22,7 @@ export const undoKeyOf = (event: KeyboardEvent): 'undo' | 'redo' | undefined => 
  * stays: the field's history runs, and what it puts back reaches the store
  * through the field's setter.
  */
-export const holdsText = (element: Element | null): boolean => {
+const holdsText = (element: Element | null): boolean => {
   if (element instanceof HTMLTextAreaElement) return true
   if (element instanceof HTMLElement && element.isContentEditable) return true
   if (!(element instanceof HTMLInputElement)) return false
@@ -34,7 +34,7 @@ export const holdsText = (element: Element | null): boolean => {
  * happening. A refused step stays on its stack, so the message says what to
  * do for it to go through.
  */
-export const undoMessage = (
+const undoMessage = (
   outcome: UndoOutcome,
   direction: 'undo' | 'redo'
 ): { message: string; variant: VariantType } | undefined => {

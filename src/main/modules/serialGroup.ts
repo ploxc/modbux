@@ -125,7 +125,7 @@ export const readGroupEntry = async (group: string): Promise<GroupEntry | undefi
 }
 
 /** Reads one group out of /etc/group by its id. Undefined when it is not there. */
-export const readGroupById = async (
+const readGroupById = async (
   groupId: number
 ): Promise<(GroupEntry & { name: string }) | undefined> => {
   try {
@@ -151,7 +151,7 @@ export const readGroupById = async (
  * machines where it matters. Undefined when nothing refuses, or when the group id
  * that owns it has no name -- neither leaves anything useful to say.
  */
-export const blockedPortGroup = async (): Promise<(GroupEntry & { name: string }) | undefined> => {
+const blockedPortGroup = async (): Promise<(GroupEntry & { name: string }) | undefined> => {
   for (const port of await findUnreadablePorts()) {
     try {
       const group = await readGroupById((await stat(join(DEV_DIR, port))).gid)

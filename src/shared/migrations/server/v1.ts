@@ -8,12 +8,12 @@ export interface V1RegisterParams extends Omit<RegisterParams, never> {
   littleEndian: boolean
 }
 
-export interface V1ServerRegisterEntry {
+interface V1ServerRegisterEntry {
   value: number
   params: V1RegisterParams
 }
 
-export type V1ServerRegister = Record<string, V1ServerRegisterEntry>
+type V1ServerRegister = Record<string, V1ServerRegisterEntry>
 
 /**
  * The two bool records hold the entry, not the bare `boolean` a v1 file does,

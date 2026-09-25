@@ -1,5 +1,5 @@
 import z from 'zod'
-import { BaseDataTypeSchema, DataType, DataTypeSchema } from './datatype'
+import { DataType, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { registerWidth } from '../encoding'
 import {
@@ -18,7 +18,7 @@ import { SerialPortOptionsSchema } from './serial'
 //
 //
 // Register Mapping
-export const RegisterLinearInterpolationSchema = z.object({
+const RegisterLinearInterpolationSchema = z.object({
   x1: z.string(),
   x2: z.string(),
   y1: z.string(),
@@ -70,7 +70,7 @@ export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>
 //
 //
 // Transaction
-export const TransactionSchema = z.object({
+const TransactionSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
   unitId: UnitIdSchema,
@@ -98,7 +98,7 @@ export type Transaction = z.infer<typeof TransactionSchema>
 //
 //
 // Connection config
-export const ProtocolSchema = z.enum(['ModbusTcp', 'ModbusRtu', 'ModbusRtuOverTcp'])
+const ProtocolSchema = z.enum(['ModbusTcp', 'ModbusRtu', 'ModbusRtuOverTcp'])
 export type Protocol = z.infer<typeof ProtocolSchema>
 
 /**
@@ -142,17 +142,16 @@ export const unitIdOutOfRange = ({
  * port. `registerConfig.timeout` is the one a user sets, and `_read` applies it
  * per request.
  */
-export const TcpPortOptionsSchema = z.object({
+const TcpPortOptionsSchema = z.object({
   port: PortSchema
 })
-export type TcpPortOptions = z.infer<typeof TcpPortOptionsSchema>
 
-export const ConnectionConfigTcpSchema = z.object({
+const ConnectionConfigTcpSchema = z.object({
   host: z.string(),
   options: TcpPortOptionsSchema
 })
 
-export const ConnectionConfigRtuSchema = z.object({
+const ConnectionConfigRtuSchema = z.object({
   com: z.string(),
   options: SerialPortOptionsSchema
 })
@@ -219,7 +218,7 @@ export const WriteParametersSchema = z
       z.object({
         type: z.literal('holding_registers'),
         value: z.number(),
-        dataType: BaseDataTypeSchema
+        dataType: DataTypeSchema
       })
     ])
   )
@@ -241,12 +240,7 @@ export type WriteParameters = z.infer<typeof WriteParametersSchema>
 //
 //
 // Client state
-export const ConnectStateSchema = z.enum([
-  'connected',
-  'disconnected',
-  'connecting',
-  'disconnecting'
-])
+const ConnectStateSchema = z.enum(['connected', 'disconnected', 'connecting', 'disconnecting'])
 export type ConnectState = z.infer<typeof ConnectStateSchema>
 
 /**
