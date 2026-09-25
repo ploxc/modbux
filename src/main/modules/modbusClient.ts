@@ -102,15 +102,6 @@ interface ClientParams {
   transports: Transports
 }
 
-/** The rows a read sent, and what it asked for. */
-interface LastRead {
-  type: RegisterType
-  unitId: number
-  /** When the rows were sent, in milliseconds since the epoch. */
-  time: number
-  registerData: RegisterData[]
-}
-
 export class ModbusClient implements TransportClient {
   /** The uuid every event this client sends names it by. */
   readonly uuid: string
@@ -182,16 +173,6 @@ export class ModbusClient implements TransportClient {
   private _sendClientState = (): void => {
     this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
-  private _lastRead: LastRead | undefined
-
-  /**
-   * What the last read sent to the window, which a register scan is not. A
-   * read that sent no rows leaves the one before it.
-   */
-  public get lastRead(): LastRead | undefined {
-    return this._lastRead
-  }
-
   private _sendData = (registerData: RegisterData[]): void => {
     this._windows.send('register_data', { uuid: this.uuid, registerData }, 'main')
   }
@@ -654,12 +635,6 @@ export class ModbusClient implements TransportClient {
       // Send the groups so we can slice the utf8 string correctly.
       this._sendGroups(groups)
       this._sendData(data)
-      this._lastRead = {
-        type,
-        unitId: this._appState.connectionConfig.unitId,
-        time: Date.now(),
-        registerData: data
-      }
     }
     if (answered) return true
     return silent ? false : undefined
