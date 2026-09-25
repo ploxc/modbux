@@ -7,8 +7,6 @@ import {
   ResetBoolsParams,
   CreateServerParams,
   AddRegisterParams,
-  RegisterParams,
-  UnitIdString,
   StartRtuServerParams,
   ServerEndianness
 } from '@shared'
@@ -139,10 +137,6 @@ export class ModbusServer {
 
   /** Replaces both bool maps of a unit with what the renderer holds. */
   public syncBools = (params: SyncBoolsParameters): void => this._registry.syncBools(params)
-
-  /** What every register of a unit was added with. */
-  public registerParams = (uuid: string, unitId: UnitIdString): RegisterParams[] =>
-    this._registry.registerParams(uuid, unitId)
 
   /** The port of every server with a TCP listener, by uuid. */
   public serverPorts = (): Record<string, number> => this._tcp.ports()
