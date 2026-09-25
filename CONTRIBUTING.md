@@ -11,6 +11,7 @@ waiting for a reviewer.
 2. **One PR, one concern.** Don't mix a bug fix with a refactor, and don't sneak in "while I was here" changes.
 3. **Don't break the build.** Run `yarn verify` before pushing. If it doesn't pass, your PR won't be reviewed.
 4. **Match the existing style.** Don't introduce new patterns, conventions, or abstractions without discussing them first.
+5. **No new dependency without discussing it first.**
 
 ## Getting started
 
@@ -313,16 +314,6 @@ generic driver claims the device. Every `test:all:*` ends with this round, and
 4. `yarn verify` must pass. No exceptions.
 5. Screenshots for UI changes. Before and after.
 6. Don't bump the version number. That's done at release time.
-
-## What will get your PR rejected
-
-- Failing `yarn verify`
-- `any` types or disabled lint rules
-- Missing tests for new functionality
-- Unrelated changes mixed into the diff
-- New dependencies without prior discussion
-- Changes to `.editorconfig`, `.prettierrc`, or `.eslintrc` without prior discussion
-- Commit messages that don't follow the convention
 
 ## Reporting bugs
 
