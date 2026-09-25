@@ -242,9 +242,7 @@ const isServable = (registerType: RegisterType, address: string, entry: unknown)
  * v9 config whose unit had no `coils` key, which came back with every register
  * on every unit gone and `serverRegistersPerUnit` named as reset. That is the
  * cost this walk exists to avoid, so the walk is over the four types rather
- * than over the keys that happen to be there. `recordAt` writes the empty map
- * for a key holding nothing and leaves a key holding something else alone,
- * which is the one shape still able to fail the field.
+ * than over the keys that happen to be there, and each is a map afterwards.
  *
  * Walking the four also leaves a fifth register type from a newer Modbux
  * untouched, and that key costs nothing: a `z.object` strips what it does not
@@ -260,8 +258,12 @@ const dropUnservableEntries = (registersByType: unknown): void => {
   if (!isRecord(registersByType)) return
 
   for (const registerType of RegisterTypeSchema.options) {
-    const entriesByAddress = recordAt(registersByType, registerType)
-    if (!entriesByAddress) continue
+    // A type holding something that is not a map is emptied. No reading of it
+    // is a register map, and left there it fails the whole field it sits in,
+    // every register on every unit, where emptying costs this type alone.
+    const existing = registersByType[registerType]
+    const entriesByAddress = isRecord(existing) ? existing : {}
+    registersByType[registerType] = entriesByAddress
 
     for (const [address, entry] of Object.entries(entriesByAddress)) {
       if (isServable(registerType, address, entry)) continue

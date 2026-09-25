@@ -221,11 +221,10 @@ describe('the drop on its own', () => {
   // A hand-edited store is where a null in the middle of the walk comes from,
   // and reading a field off it throws rather than failing a schema.
   //
-  // A unit the walk does reach comes back with the four register types, which
-  // is what keeps one missing key off the whole field. The `coils: null` is
-  // the shape that is left where it is, because replacing it is throwing
-  // something away rather than naming what was never there.
-  it('walks past a null where a server, a unit or a register type should be', () => {
+  // A unit the walk does reach comes back with the four register types, each a
+  // map, which is what keeps one missing or unreadable key off the whole field.
+  // The `coils: null` is emptied: no reading of a null is a register map.
+  it('walks past a null where a server or a unit should be, and empties one where a register type should be', () => {
     const state: Record<string, unknown> = {
       servers: {
         u: null,
@@ -242,7 +241,7 @@ describe('the drop on its own', () => {
       w: { registers: { '1': null }, usedAddresses: {} },
       x: {
         registers: {
-          '1': { coils: null, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
+          '1': { coils: {}, discrete_inputs: {}, input_registers: {}, holding_registers: {} }
         },
         usedAddresses: { '1': { input_registers: [], holding_registers: [] } }
       }
@@ -301,15 +300,27 @@ describe('the drop on its own', () => {
     expect(ServerRegistersSchema.safeParse(unitsOf(state)['1']).success).toBe(true)
   })
 
-  it('leaves a register type holding something that is not a map where it is', () => {
-    const state: Record<string, unknown> = {
-      servers: { u: { registers: { '1': { coils: 'not a map' } } } }
-    }
-    dropUnservableRegisters(state)
+  // No reading of a string is a register map, so emptying the type throws away
+  // nothing a user configured, where leaving it cost the whole field.
+  it.each([['not a map'], [5], [[]]])(
+    'empties a register type holding %o, and keeps the rest of the server',
+    (coils) => {
+      const state: Record<string, unknown> = {
+        servers: {
+          u: {
+            registers: {
+              '1': { coils, holding_registers: { 10: { value: 1, params: params(10) } } }
+            }
+          }
+        }
+      }
+      dropUnservableRegisters(state)
 
-    const unit = unitsOf(state)['1'] as Record<string, unknown>
-    expect(unit.coils).toBe('not a map')
-  })
+      const unit = unitsOf(state)['1'] as Record<string, unknown>
+      expect(unit.coils).toEqual({})
+      expect(ServerRegistersSchema.safeParse(unit).success).toBe(true)
+    }
+  )
 })
 
 /**
