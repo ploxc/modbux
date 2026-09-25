@@ -20,7 +20,7 @@ const RULE =
   'an event, run the command for that shape in `/prose` and paste what it returned. A claim ' +
   'you did not measure does not stay. Then read the whole block you are writing into, not the ' +
   'sentence alone: a correction supersedes what it corrects, and a comment nobody reads end ' +
-  'to end only ever grows. No em dash in anything a person reads.'
+  'to end only ever grows.'
 
 const payload = await readPayload()
 const input = payload.tool_input ?? {}
