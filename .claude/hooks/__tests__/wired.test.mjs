@@ -8,11 +8,15 @@
  * Ported from `scripts/hooks/hooks.test.ts` in the ploxc repo, which pins the
  * same rule for every hook its settings wire.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+
+// Each test spawns a hook as a node process. Alone they take milliseconds; in a
+// full `yarn test` beside a hundred other files, five seconds ran out.
+vi.setConfig({ testTimeout: 30_000 })
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..')
 

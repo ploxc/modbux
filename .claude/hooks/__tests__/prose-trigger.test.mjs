@@ -7,10 +7,14 @@
  * unparseable, and the hook read that as nothing to say — which looks exactly
  * like a matcher declining.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+
+// Each test spawns a hook as a node process. Alone they take milliseconds; in a
+// full `yarn test` beside a hundred other files, five seconds ran out.
+vi.setConfig({ testTimeout: 30_000 })
 
 const HOOK = join(dirname(fileURLToPath(import.meta.url)), '..', 'prose-trigger.mjs')
 

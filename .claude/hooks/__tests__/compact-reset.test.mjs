@@ -3,10 +3,14 @@
  * stated once is not in the summary. `compact-reset` forgets which rules this
  * session has seen, so each is stated in full once more.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+
+// Each test spawns a hook as a node process. Alone they take milliseconds; in a
+// full `yarn test` beside a hundred other files, five seconds ran out.
+vi.setConfig({ testTimeout: 30_000 })
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..')
 

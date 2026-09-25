@@ -4,12 +4,16 @@
  * A matcher narrowed to kill a false positive is how the false negatives get
  * made, so every case names what must fire and what must not.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+
+// Each test spawns a hook as a node process. Alone they take milliseconds; in a
+// full `yarn test` beside a hundred other files, five seconds ran out.
+vi.setConfig({ testTimeout: 30_000 })
 
 const HOOKS = dirname(fileURLToPath(import.meta.url))
 const hook = (name) => join(HOOKS, '..', `${name}.mjs`)
