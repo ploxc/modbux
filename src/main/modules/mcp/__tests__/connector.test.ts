@@ -23,7 +23,7 @@ const freePort = (): Promise<number> =>
   })
 
 const access = (overrides: Partial<McpAccess> = {}): McpAccess => ({
-  read: false,
+  enabled: false,
   operate: false,
   write: false,
   ...overrides
@@ -36,7 +36,7 @@ describe('McpConnector', () => {
   const clients: Client[] = []
 
   const settings = (overrides: Partial<McpSettings> = {}): McpSettings => ({
-    access: access({ read: true }),
+    access: access({ enabled: true }),
     port,
     tokenHash: digest(TOKEN),
     ...overrides
@@ -90,13 +90,19 @@ describe('McpConnector', () => {
   })
 
   describe('whether it listens', () => {
-    it('listens once a box is ticked and a token is set', async () => {
+    it('listens once it is switched on and a token is set', async () => {
       expect(await connector.apply(settings())).toEqual({ listening: true })
       expect(await post({ Authorization: `Bearer ${TOKEN}` })).toBe(200)
     })
 
-    it('does not listen with every box off', async () => {
+    it('does not listen switched off', async () => {
       expect(await connector.apply(settings({ access: access() }))).toEqual({ listening: false })
+      await expect(post({ Authorization: `Bearer ${TOKEN}` })).rejects.toThrow()
+    })
+
+    it('does not listen switched off with operate and write ticked', async () => {
+      const ticked = access({ operate: true, write: true })
+      expect(await connector.apply(settings({ access: ticked }))).toEqual({ listening: false })
       await expect(post({ Authorization: `Bearer ${TOKEN}` })).rejects.toThrow()
     })
 
@@ -107,7 +113,7 @@ describe('McpConnector', () => {
       await expect(post({})).rejects.toThrow()
     })
 
-    it('stops when the last box goes off', async () => {
+    it('stops when it is switched off', async () => {
       await connector.apply(settings())
       await connector.apply(settings({ access: access() }))
       await expect(post({ Authorization: `Bearer ${TOKEN}` })).rejects.toThrow()
@@ -193,7 +199,7 @@ describe('McpConnector', () => {
   })
 
   describe('which tools it offers', () => {
-    it('offers the read tools behind the read box', async () => {
+    it('offers the read tools, and only those, switched on with no box ticked', async () => {
       await connector.apply(settings())
       const client = await connect()
       const { tools } = await client.listTools()
@@ -207,11 +213,13 @@ describe('McpConnector', () => {
       ])
     })
 
-    it('offers no read tool with the read box off', async () => {
-      await connector.apply(settings({ access: access({ write: true }) }))
+    it('offers the operate tools beside the read tools with operate ticked', async () => {
+      await connector.apply(settings({ access: access({ enabled: true, operate: true }) }))
       const client = await connect()
       const { tools } = await client.listTools()
-      expect(tools.map((tool) => tool.name)).not.toContain('list_clients')
+      expect(tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(['list_clients', 'connect'])
+      )
     })
   })
 
@@ -265,11 +273,11 @@ describe('McpConnector', () => {
     })
 
     it('is refused when its box went off after the tools were listed', async () => {
-      await connector.apply(settings())
+      await connector.apply(settings({ access: access({ enabled: true, operate: true }) }))
       const client = await connect()
-      await connector.apply(settings({ access: access({ write: true }) }))
+      await connector.apply(settings())
 
-      const answer = await client.callTool({ name: 'list_clients', arguments: {} })
+      const answer = await client.callTool({ name: 'connect', arguments: { client: 'c' } })
 
       expect(answer.isError).toBe(true)
       expect(run).not.toHaveBeenCalled()

@@ -601,7 +601,7 @@ describe('each guarded channel got its own schema', () => {
     set_server_endianness: { uuid: 'server-1', littleEndian: true },
     delete_server: 'server-1',
     reset_server: 'server-1',
-    set_mcp_settings: { access: { read: true, operate: false, write: false }, port: 7502 }
+    set_mcp_settings: { access: { enabled: true, operate: false, write: false }, port: 7502 }
   }
 
   const start = (): { sent: SentMessage[] } => {

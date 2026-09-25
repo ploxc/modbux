@@ -29,7 +29,7 @@ describe('the MCP settings store', () => {
   it('hands main every box off, the default port and no token on a first start', async () => {
     const { useMcpZustand } = await load()
     expect(settingsSent()).toEqual([
-      { access: { read: false, operate: false, write: false }, port: 7502, tokenHash: undefined }
+      { access: { enabled: false, operate: false, write: false }, port: 7502, tokenHash: undefined }
     ])
     expect(useMcpZustand.getState().status).toEqual({ listening: false })
   })
@@ -39,17 +39,17 @@ describe('the MCP settings store', () => {
       'mcp.zustand',
       JSON.stringify({
         state: {
-          access: { read: true, operate: false, write: false },
+          access: { enabled: true, operate: false, write: false },
           port: 7600,
           tokenHash: 'b'.repeat(64)
         },
-        version: 1
+        version: 2
       })
     )
     await load()
     expect(settingsSent()).toEqual([
       {
-        access: { read: true, operate: false, write: false },
+        access: { enabled: true, operate: false, write: false },
         port: 7600,
         tokenHash: 'b'.repeat(64)
       }
@@ -62,17 +62,21 @@ describe('the MCP settings store', () => {
       JSON.stringify({ state: { access: { read: 'yes' }, port: 7600 }, version: 1 })
     )
     const { useMcpZustand } = await load()
-    expect(useMcpZustand.getState().access).toEqual({ read: false, operate: false, write: false })
+    expect(useMcpZustand.getState().access).toEqual({
+      enabled: false,
+      operate: false,
+      write: false
+    })
     expect(useMcpZustand.getState().port).toBe(7502)
   })
 
-  it('listens once a token is made and a box is ticked, and says so', async () => {
+  it('listens once a token is made and it is switched on, and says so', async () => {
     const { useMcpZustand } = await load()
     await useMcpZustand.getState().createToken()
-    await useMcpZustand.getState().setAccess('read', true)
+    await useMcpZustand.getState().setAccess('enabled', true)
 
     expect(settingsSent().at(-1)).toEqual({
-      access: { read: true, operate: false, write: false },
+      access: { enabled: true, operate: false, write: false },
       port: 7502,
       tokenHash: 'a'.repeat(64)
     })
@@ -86,6 +90,52 @@ describe('the MCP settings store', () => {
     const stored = localStorage.getItem('mcp.zustand') ?? ''
     expect(stored).toContain('a'.repeat(64))
     expect(stored).not.toContain('mbx_test')
+  })
+
+  // Version 1 listened while any of its three boxes was ticked.
+  it.each([
+    [
+      { read: true, operate: false, write: false },
+      { enabled: true, operate: false, write: false }
+    ],
+    [
+      { read: false, operate: true, write: false },
+      { enabled: true, operate: true, write: false }
+    ],
+    [
+      { read: false, operate: false, write: true },
+      { enabled: true, operate: false, write: true }
+    ],
+    [
+      { read: false, operate: false, write: false },
+      { enabled: false, operate: false, write: false }
+    ]
+  ])('switches a version 1 %o on as it listened', async (stored, migrated) => {
+    localStorage.setItem(
+      'mcp.zustand',
+      JSON.stringify({
+        state: { access: stored, port: 7600, tokenHash: 'b'.repeat(64) },
+        version: 1
+      })
+    )
+    await load()
+    expect(settingsSent()).toEqual([{ access: migrated, port: 7600, tokenHash: 'b'.repeat(64) }])
+  })
+
+  it('starts switched off when what it stored at version 2 does not parse', async () => {
+    localStorage.setItem(
+      'mcp.zustand',
+      JSON.stringify({
+        state: { access: { read: true, operate: false, write: false } },
+        version: 2
+      })
+    )
+    const { useMcpZustand } = await load()
+    expect(useMcpZustand.getState().access).toEqual({
+      enabled: false,
+      operate: false,
+      write: false
+    })
   })
 
   it('forgets the token it showed', async () => {
@@ -105,7 +155,7 @@ describe('the MCP settings store', () => {
   // would have the one that loaded last decide.
   it('hands main nothing from the split out server window', async () => {
     const { useMcpZustand } = await load({ isServerWindow: true })
-    await useMcpZustand.getState().setAccess('read', true)
+    await useMcpZustand.getState().setAccess('enabled', true)
     expect(settingsSent()).toEqual([])
   })
 })

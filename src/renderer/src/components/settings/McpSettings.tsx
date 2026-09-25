@@ -3,6 +3,7 @@ import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Paper from '@mui/material/Paper'
+import Switch from '@mui/material/Switch'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -20,7 +21,7 @@ const McpStatusLine = meme((): JSX.Element => {
 
   const text = listening
     ? `Listening on http://127.0.0.1:${port}/mcp`
-    : (error ?? 'Off. Tick a box and create a token to let an assistant in.')
+    : (error ?? 'Off. Switch it on and create a token to let an assistant in.')
 
   return (
     <Typography
@@ -33,23 +34,27 @@ const McpStatusLine = meme((): JSX.Element => {
   )
 })
 
-const ReadCheckbox = meme((): JSX.Element => {
-  const read = useMcpZustand((z) => z.access.read)
+/** The endpoint's on and off, which lets an assistant see everything once it is on. */
+const EnabledSwitch = meme((): JSX.Element => {
+  const enabled = useMcpZustand((z) => z.access.enabled)
   const handleChange = useCallback((_: ChangeEvent<HTMLInputElement>, checked: boolean) => {
     const mcpZustand = useMcpZustand.getState()
-    void mcpZustand.setAccess('read', checked)
+    void mcpZustand.setAccess('enabled', checked)
   }, [])
 
   return (
     <FormControlLabel
-      control={<Checkbox data-testid="mcp-read-checkbox" checked={read} onChange={handleChange} />}
-      label="Read: see clients, servers, mappings and the values the grid shows"
+      control={
+        <Switch data-testid="mcp-enabled-switch" checked={enabled} onChange={handleChange} />
+      }
+      label="On: an assistant sees clients, servers, mappings and the values the grid shows"
     />
   )
 })
 
 const OperateCheckbox = meme((): JSX.Element => {
   const operate = useMcpZustand((z) => z.access.operate)
+  const enabled = useMcpZustand((z) => z.access.enabled)
   const handleChange = useCallback((_: ChangeEvent<HTMLInputElement>, checked: boolean) => {
     const mcpZustand = useMcpZustand.getState()
     void mcpZustand.setAccess('operate', checked)
@@ -58,7 +63,12 @@ const OperateCheckbox = meme((): JSX.Element => {
   return (
     <FormControlLabel
       control={
-        <Checkbox data-testid="mcp-operate-checkbox" checked={operate} onChange={handleChange} />
+        <Checkbox
+          data-testid="mcp-operate-checkbox"
+          checked={operate}
+          disabled={!enabled}
+          onChange={handleChange}
+        />
       }
       label="Operate: connect, change settings, read and poll, as you would. Nothing is written to a device."
     />
@@ -176,7 +186,7 @@ const McpSettings = meme(
         What it may do is set here for the whole app.
       </Typography>
       <McpStatusLine />
-      <ReadCheckbox />
+      <EnabledSwitch />
       <OperateCheckbox />
       <PortField />
       <TokenSection />

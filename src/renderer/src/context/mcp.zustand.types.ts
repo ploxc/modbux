@@ -1,4 +1,4 @@
-import { McpAccess, McpLayer, McpStatus } from '@shared'
+import { McpAccess, McpStatus } from '@shared'
 
 export interface McpZustand {
   access: McpAccess
@@ -9,7 +9,7 @@ export interface McpZustand {
   status: McpStatus
   /** The token just made, shown until the page is left. It is never persisted. */
   shownToken: string | undefined
-  setAccess: (layer: McpLayer, ticked: boolean) => Promise<void>
+  setAccess: (box: keyof McpAccess, ticked: boolean) => Promise<void>
   setPort: (port: number) => Promise<void>
   createToken: () => Promise<void>
   forgetShownToken: () => void

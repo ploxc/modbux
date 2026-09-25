@@ -47,13 +47,13 @@ const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   getRtuServerStatus: () => Promise.resolve(false),
   getServerPorts: () => Promise.resolve({}),
   listSerialPorts: () => Promise.resolve([]),
-  // Main listens once a box is ticked and a token is set.
+  // Main listens once it is switched on and a token is set.
   setMcpSettings: (payload: unknown) => {
     const parsed = McpSettingsSchema.safeParse(payload)
     if (!parsed.success) return Promise.resolve(undefined)
     const { access, tokenHash } = parsed.data
     return Promise.resolve({
-      listening: tokenHash !== undefined && Object.values(access).some((ticked) => ticked)
+      listening: tokenHash !== undefined && access.enabled
     })
   },
   createMcpToken: () => Promise.resolve({ token: 'mbx_test', tokenHash: 'a'.repeat(64) })

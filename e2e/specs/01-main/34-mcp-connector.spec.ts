@@ -76,15 +76,17 @@ test.describe.serial('The MCP connector', () => {
     await navigateToHome(mainPage)
     await mainPage.getByTestId('home-settings-btn').click()
     await expect(mainPage.getByTestId('mcp-status')).toContainText('Off')
-    await expect(mainPage.getByTestId('mcp-read-checkbox').locator('input')).not.toBeChecked()
+    await expect(mainPage.getByTestId('mcp-enabled-switch').locator('input')).not.toBeChecked()
+    await expect(mainPage.getByTestId('mcp-operate-checkbox').locator('input')).toBeDisabled()
   })
 
-  test('a port and the read box leave it off while there is no token', async ({ mainPage }) => {
+  test('a port and the switch leave it off while there is no token', async ({ mainPage }) => {
     port = await freePort()
     const portInput = mainPage.getByTestId('mcp-port-input')
     await portInput.fill(String(port))
     await portInput.press('Enter')
-    await mainPage.getByTestId('mcp-read-checkbox').click()
+    await mainPage.getByTestId('mcp-enabled-switch').click()
+    await expect(mainPage.getByTestId('mcp-operate-checkbox').locator('input')).toBeEnabled()
     await expect(mainPage.getByTestId('mcp-status')).toContainText('Off')
   })
 
@@ -231,8 +233,8 @@ test.describe.serial('The MCP connector', () => {
     await expect(mainPage.getByTestId('mcp-create-token-btn')).toHaveText('Replace token')
   })
 
-  test('unticking read turns it off, and the assistant is refused', async ({ mainPage }) => {
-    await mainPage.getByTestId('mcp-read-checkbox').click()
+  test('switching it off turns it off, and the assistant is refused', async ({ mainPage }) => {
+    await mainPage.getByTestId('mcp-enabled-switch').click()
     await expect(mainPage.getByTestId('mcp-status')).toContainText('Off')
     await expect(connect()).rejects.toThrow()
   })

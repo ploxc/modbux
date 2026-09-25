@@ -1,8 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { mutative } from 'zustand-mutative'
+import z from 'zod'
 import { DEFAULT_MCP_PORT, McpSettings, McpSettingsSchema } from '@shared'
 import { McpZustand } from './mcp.zustand.types'
+
+const McpSettingsV1Schema = McpSettingsSchema.extend({
+  access: z.object({ read: z.boolean(), operate: z.boolean(), write: z.boolean() })
+})
+
+const DEFAULT_SETTINGS: McpSettings = {
+  access: { enabled: false, operate: false, write: false },
+  port: DEFAULT_MCP_PORT
+}
 
 const isServerWindow = window.api.isServerWindow
 
@@ -28,14 +38,13 @@ export const useMcpZustand = create<
 >(
   persist(
     mutative((set) => ({
-      access: { read: false, operate: false, write: false },
-      port: DEFAULT_MCP_PORT,
+      ...DEFAULT_SETTINGS,
       tokenHash: undefined,
       status: { listening: false },
       shownToken: undefined,
-      setAccess: async (layer, ticked): Promise<void> => {
+      setAccess: async (box, ticked): Promise<void> => {
         set((state) => {
-          state.access[layer] = ticked
+          state.access[box] = ticked
         })
         await push()
       },
@@ -61,7 +70,16 @@ export const useMcpZustand = create<
     })),
     {
       name: 'mcp.zustand',
-      version: 1,
+      version: 2,
+      // Version 1 had a read box where the switch is now, and listened while
+      // any box was ticked; it still does. A blob that does not parse leaves
+      // the defaults, as `merge` does.
+      migrate: (persisted, version) => {
+        const v1 = McpSettingsV1Schema.safeParse(persisted)
+        if (version !== 1 || !v1.success) return DEFAULT_SETTINGS
+        const { read, operate, write } = v1.data.access
+        return { ...v1.data, access: { enabled: read || operate || write, operate, write } }
+      },
       // A stored blob that does not parse leaves the defaults, which is every
       // box off: an endpoint that stays shut is the safe answer to a broken file.
       merge: (persisted, current) => {

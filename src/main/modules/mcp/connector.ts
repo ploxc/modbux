@@ -10,7 +10,15 @@ import {
   Tool
 } from '@modelcontextprotocol/sdk/types.js'
 import z from 'zod'
-import { MCP_TOOLS, McpSettings, McpSide, McpStatus, McpToolName, formatZodError } from '@shared'
+import {
+  MCP_TOOLS,
+  McpSettings,
+  McpSide,
+  McpStatus,
+  McpToolName,
+  formatZodError,
+  offersLayer
+} from '@shared'
 
 /** What running a tool in a window answered. */
 export type ToolAnswer = { ok: true; result: unknown } | { ok: false; error: string }
@@ -32,7 +40,7 @@ const digest = (value: string): Buffer => createHash('sha256').update(value).dig
 /**
  * The MCP endpoint: Streamable HTTP on loopback, behind one bearer token.
  *
- * It listens while a box is ticked and a token is set, and not otherwise. Each
+ * It listens while it is switched on and a token is set, and not otherwise. Each
  * request gets a server of its own built from the settings as they are then,
  * so a box turned off takes its tools away from the next request, including a
  * call to a tool that was listed before.
@@ -64,8 +72,7 @@ export class McpConnector {
 
   private _apply = async (settings: McpSettings): Promise<McpStatus> => {
     this._settings = settings
-    const wanted =
-      settings.tokenHash !== undefined && Object.values(settings.access).some((ticked) => ticked)
+    const wanted = settings.tokenHash !== undefined && settings.access.enabled
     if (!wanted) {
       await this.stop()
       return { listening: false }
@@ -154,7 +161,9 @@ export class McpConnector {
       { capabilities: { tools: {} } }
     )
     const access = this._settings?.access
-    const offered = Object.entries(MCP_TOOLS).filter(([, tool]) => access?.[tool.layer])
+    const offered = Object.entries(MCP_TOOLS).filter(
+      ([, tool]) => access && offersLayer(access, tool.layer)
+    )
 
     server.setRequestHandler(ListToolsRequestSchema, () => ({
       tools: offered.map(

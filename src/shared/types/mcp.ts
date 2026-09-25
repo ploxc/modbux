@@ -10,9 +10,13 @@ import { DataBitsSchema, ModbusBaudRateSchema, ParitySchema, StopBitsSchema } fr
 //
 // Settings
 
-/** What an assistant may do, one box each, all off until ticked. */
+/**
+ * What an assistant may do, all off until ticked. `enabled` is the switch for
+ * the endpoint and brings the read tools with it; operate and write are a box
+ * each on top of it.
+ */
 const McpAccessSchema = z.object({
-  read: z.boolean(),
+  enabled: z.boolean(),
   operate: z.boolean(),
   write: z.boolean()
 })
@@ -50,7 +54,11 @@ export const DEFAULT_MCP_PORT = 7502
 //
 // Tools
 
-export type McpLayer = keyof McpAccess
+export type McpLayer = 'read' | 'operate' | 'write'
+
+/** Whether the tools of `layer` are offered under `access`. */
+export const offersLayer = (access: McpAccess, layer: McpLayer): boolean =>
+  access.enabled && (layer === 'read' || access[layer])
 
 /** Which window runs a tool: the one showing the client, or the one showing the server. */
 export type McpSide = 'client' | 'server'
