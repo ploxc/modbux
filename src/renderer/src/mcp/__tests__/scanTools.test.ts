@@ -31,6 +31,7 @@ window.api = new Proxy(
 const { answerCall } = await import('../relay')
 const { useClientZustand } = await import('@renderer/context/client.zustand')
 const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 const { useScanUnitIdZustand } =
   await import('@renderer/components/client/ScanUnitIds/scanUnitIds.zustand')
 const { useScanRegistersZustand } =
@@ -125,6 +126,29 @@ describe('scan_unit_ids', () => {
     ])
   })
 
+  // From home, the dialog is only on screen once the client view is.
+  it('opens the client view, and closes the register scan dialog', async () => {
+    useLayoutZustand.getState().setAppType(undefined)
+    useScanRegistersZustand.getState().setOpen(true)
+    connected()
+    eventsAfter.set('scanUnitIds', [(): void => connected({ scanningUnitIds: true })])
+    await run('scan_unit_ids', { client })
+    expect(useLayoutZustand.getState().appType).toBe('client')
+    expect(useScanRegistersZustand.getState().open).toBe(false)
+    expect(useScanUnitIdZustand.getState().open).toBe(true)
+  })
+
+  it('shows the dialog before it asks main', async () => {
+    connected()
+    eventsAfter.set('scanUnitIds', [(): void => connected({ scanningUnitIds: true })])
+    const answer = run('scan_unit_ids', { client })
+    await vi.waitFor(() => expect(useScanUnitIdZustand.getState().open).toBe(true))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(sent('scanUnitIds')).toEqual([])
+    await answer
+    expect(sent('scanUnitIds')).toHaveLength(1)
+  })
+
   it('ends the range at the last unit id the protocol addresses', async () => {
     connected()
     eventsAfter.set('scanUnitIds', [(): void => connected({ scanningUnitIds: true })])
@@ -187,7 +211,7 @@ describe('scan_unit_ids', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     connected()
     const answer = run('scan_unit_ids', { client })
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(3500)
     expect(await answer).toMatchObject({ started: false })
   })
 })
@@ -227,6 +251,15 @@ describe('scan_registers', () => {
         parameters: { addressRange: [60000, 65535], length: 100, timeout: 500 }
       }
     ])
+  })
+
+  it('closes the unit id scan dialog', async () => {
+    useScanUnitIdZustand.getState().setOpen(true)
+    connected()
+    eventsAfter.set('scanRegisters', [(): void => connected({ scanningRegisters: true })])
+    await run('scan_registers', { client })
+    expect(useScanUnitIdZustand.getState().open).toBe(false)
+    expect(useScanRegistersZustand.getState().open).toBe(true)
   })
 
   it('refuses a chunk past what one read of the register type answers', async () => {

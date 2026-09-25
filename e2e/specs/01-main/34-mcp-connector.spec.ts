@@ -158,7 +158,9 @@ test.describe.serial('The MCP connector', () => {
     )
   })
 
-  test('an assistant connects a client to the server on 502, reads and polls it', async () => {
+  test('an assistant connects a client to the server on 502, reads and polls it', async ({
+    mainPage
+  }) => {
     if (!assistant) throw new Error('no assistant connected')
     const [first] = (await call(assistant, 'list_clients')) as { id: string }[]
     if (!first) throw new Error('no client listed')
@@ -176,6 +178,7 @@ test.describe.serial('The MCP connector', () => {
       })
     ).toMatchObject({ refused: [] })
     expect(await call(assistant, 'connect', { client })).toEqual({ connectState: 'connected' })
+    await expect(mainPage.getByTestId('connect-btn')).toBeVisible()
 
     const read = (await call(assistant, 'read', { client })) as { rows: unknown[] }
     expect(read.rows).toHaveLength(5)
@@ -189,7 +192,7 @@ test.describe.serial('The MCP connector', () => {
     })
   })
 
-  test('an assistant scans unit ids and registers, and stops a scan', async () => {
+  test('an assistant scans unit ids and registers, and stops a scan', async ({ mainPage }) => {
     if (!assistant) throw new Error('no assistant connected')
     const mcp = assistant
     const [first] = (await call(mcp, 'list_clients')) as { id: string }[]
@@ -215,6 +218,9 @@ test.describe.serial('The MCP connector', () => {
         timeout: 200
       })
     ).toEqual({ started: true, range: [0, 3] })
+    // The client view opens with the tool's dialog, and only that one.
+    await expect(mainPage.getByTestId('scan-unitid-close-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-registers-close-btn')).toHaveCount(0)
     await scanDone()
     const found = (await call(mcp, 'get_scan', { client })) as {
       unitIdsAsked: number
@@ -231,6 +237,8 @@ test.describe.serial('The MCP connector', () => {
     expect(
       await call(mcp, 'scan_registers', { client, address: 0, length: 30, chunkSize: 10 })
     ).toEqual({ started: true, type: 'holding_registers', addressRange: [0, 29] })
+    await expect(mainPage.getByTestId('scan-registers-close-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('scan-unitid-close-btn')).toHaveCount(0)
     await scanDone()
     const values = (await call(mcp, 'read_values', { client })) as { rows: unknown[] }
     expect(values.rows.length).toBeGreaterThan(0)
@@ -242,6 +250,7 @@ test.describe.serial('The MCP connector', () => {
     await call(mcp, 'scan_unit_ids', { client, startUnitId: 2, count: 250, timeout: 1000 })
     expect(await call(mcp, 'stop_scan', { client })).toEqual({ scanning: false })
     await expect(call(mcp, 'stop_scan', { client })).rejects.toThrow('not scanning')
+    await mainPage.getByTestId('scan-unitid-close-btn').click()
 
     expect(await call(mcp, 'disconnect', { client })).toEqual({ connectState: 'disconnected' })
   })
@@ -279,6 +288,9 @@ test.describe.serial('The MCP connector', () => {
   })
 
   test('unticking operate takes the operate tools away', async ({ mainPage }) => {
+    // The tools opened the client view.
+    await navigateToHome(mainPage)
+    await mainPage.getByTestId('home-settings-btn').click()
     await mainPage.getByTestId('mcp-operate-checkbox').click()
     await assistant?.close()
     assistant = await connect()

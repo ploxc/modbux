@@ -25,6 +25,7 @@ const { answerCall } = await import('../relay')
 const { holdSelection, useClientZustand } = await import('@renderer/context/client.zustand')
 const { undoClient } = await import('@renderer/context/clientUndo')
 const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 
 const client = MAIN_CLIENT_UUID
 
@@ -76,6 +77,12 @@ beforeEach(async () => {
 })
 
 describe('add_client and delete_client', () => {
+  it('opens the client view when it adds a client', async () => {
+    useLayoutZustand.getState().setAppType(undefined)
+    await run('add_client', {})
+    expect(useLayoutZustand.getState().appType).toBe('client')
+  })
+
   it('adds a client, puts it on screen and names it', async () => {
     const { client: added } = (await run('add_client', { name: 'Inverter' })) as { client: string }
 

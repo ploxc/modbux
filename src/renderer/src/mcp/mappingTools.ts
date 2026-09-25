@@ -3,7 +3,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
 import { showMapping } from '@renderer/context/live.zustand'
 import { McpToolError } from './readTools'
-import { selectClient, setType } from './operateTools'
+import { selectClient, setType, showClientView } from './operateTools'
 
 export const addClient = ({ name }: McpToolArgs<'add_client'>): unknown => {
   const clientZustand = useClientZustand.getState()
@@ -13,6 +13,7 @@ export const addClient = ({ name }: McpToolArgs<'add_client'>): unknown => {
     throw new McpToolError(`Added ${client}, but Modbux is busy with another client; name it later`)
   }
   if (name !== undefined) clientZustand.setName(name)
+  showClientView()
   return { client }
 }
 

@@ -22,6 +22,15 @@ import { McpToolError } from './readTools'
 const SCAN_SETTLE_MS = 3000
 
 /**
+ * How long the dialog shows what the tool filled in before the scan starts.
+ * A scan of a few unit ids ends before a person looking at the screen sees
+ * the dialog, let alone its progress bar.
+ */
+const DIALOG_PAUSE_MS = 500
+
+const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
  * Why main would refuse a scan of this client. A poll refuses it too, which
  * the Start buttons do not yet: they stop the poll.
  */
@@ -66,7 +75,10 @@ export const scanUnitIds = async ({
   dialog.setLength(String(length))
   dialog.setRegisterTypes(registerTypes)
   dialog.setTimeout(String(timeout))
+  // One scan dialog at a time.
+  useScanRegistersZustand.getState().setOpen(false)
   dialog.setOpen(true)
+  await pause(DIALOG_PAUSE_MS)
 
   const heard = await actAndSettle(
     client,
@@ -104,7 +116,9 @@ export const scanRegisters = async ({
   dialog.setScanLength(String(length))
   dialog.setChunkSize(String(chunkSize))
   dialog.setTimeout(String(timeout))
+  useScanUnitIdZustand.getState().setOpen(false)
   dialog.setOpen(true)
+  await pause(DIALOG_PAUSE_MS)
 
   // The scan answers when it ends; the tool answers when it has begun.
   let scan: Promise<void> = Promise.resolve()

@@ -36,6 +36,7 @@ window.api = new Proxy(
 const { answerCall } = await import('../relay')
 const { holdSelection, useClientZustand } = await import('@renderer/context/client.zustand')
 const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 const { useSerialGroupZustand } =
   await import('@renderer/components/client/SerialGroupModal/serialGroupModal.zustand')
 
@@ -116,6 +117,26 @@ afterEach(() => {
 /** A holding register mapped with a data type, which main hears of after a debounce. */
 const mapOneRegister = (): void =>
   useClientZustand.getState().setRegisterMapping(0, 'dataType', 'int16')
+
+describe('a client tool', () => {
+  it('opens the client view from home', async () => {
+    useLayoutZustand.getState().setAppType(undefined)
+    await run('set_client_config', { client, length: 5 })
+    expect(useLayoutZustand.getState().appType).toBe('client')
+  })
+
+  it('opens the client view from the settings', async () => {
+    useLayoutZustand.getState().setAppType('settings')
+    await run('set_client_config', { client, length: 5 })
+    expect(useLayoutZustand.getState().appType).toBe('client')
+  })
+
+  it('leaves the view alone for a client nobody has', async () => {
+    useLayoutZustand.getState().setAppType(undefined)
+    await expect(run('set_client_config', { client: 'nobody', length: 5 })).rejects.toThrow()
+    expect(useLayoutZustand.getState().appType).toBeUndefined()
+  })
+})
 
 describe('set_client_config', () => {
   it('sets each field through its setter, in order, and names what it took', async () => {

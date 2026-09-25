@@ -15,13 +15,18 @@ import {
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { readsNothingOf } from '@renderer/context/client.zustand.helpers'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { showMapping, useLiveZustand } from '@renderer/context/live.zustand'
 import { dataOf } from '@renderer/context/live.zustand.helpers'
 import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import { McpToolError, ReadSource, readValues } from './readTools'
 
+/** Open the client view, as the Client button on home does. */
+export const showClientView = (): void => useLayoutZustand.getState().setAppType('client')
+
 /**
- * Put `client` on screen, as a click on it in the list would.
+ * Put `client` on screen, as a click on it in the list would, with the client
+ * view open.
  *
  * An assistant operates the client a person would see it operate, and the
  * store's setters act on the selected one.
@@ -35,6 +40,7 @@ export const selectClient = (client: string): void => {
   if (useClientZustand.getState().selectedUuid !== client) {
     throw new McpToolError('Modbux is busy with another client; try again in a moment')
   }
+  showClientView()
 }
 
 export const stateOf = (client: string): ReturnType<typeof dataOf>['clientState'] =>
