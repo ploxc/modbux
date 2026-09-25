@@ -223,16 +223,15 @@ test.describe.serial('The MCP connector', () => {
     await expect(mainPage.getByTestId('scan-registers-close-btn')).toHaveCount(0)
     await scanDone()
     const found = (await call(mcp, 'get_scan', { client })) as {
-      unitIdsAsked: number
-      unitIds: { unitId: number; answered: string[] }[]
+      unitIds: { unitId: number; holding_registers: string }[]
     }
-    expect(found.unitIdsAsked).toBe(4)
-    expect(found.unitIds).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ unitId: 0, answered: ['holding_registers'] }),
-        expect.objectContaining({ unitId: 1, answered: ['holding_registers'] })
-      ])
-    )
+    expect(found.unitIds.map((answer) => answer.unitId)).toEqual([0, 1, 2, 3])
+    expect(found.unitIds.slice(0, 2)).toEqual([
+      { unitId: 0, holding_registers: 'data' },
+      { unitId: 1, holding_registers: 'data' }
+    ])
+    // The server refuses a unit id it does not host, as a gateway does.
+    expect(found.unitIds[2]?.holding_registers).toContain('exception 11')
 
     expect(
       await call(mcp, 'scan_registers', { client, address: 0, length: 30, chunkSize: 10 })

@@ -112,7 +112,7 @@ export const MCP_TOOLS = {
     layer: 'read',
     side: 'client',
     description:
-      "A client's scan: which one runs, if any, its progress in percent, how many unit ids the last unit id scan asked, and each one that answered or refused, with the error per register type. A register scan puts the registers it finds in the client's grid, which read_values answers.",
+      "A client's scan: which one runs, if any, its progress in percent, and for every unit id the last unit id scan asked, what each register type gave back: data, or the error, a Modbus exception or a timeout. A register scan puts the registers it finds in the client's grid, which read_values answers.",
     input: { client: ClientIdSchema }
   },
   list_servers: {

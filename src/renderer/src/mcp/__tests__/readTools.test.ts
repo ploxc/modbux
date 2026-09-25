@@ -329,17 +329,16 @@ describe('the read tools', () => {
     })
   })
 
-  it('get_scan lists the unit ids that answered or refused, lowest first, and counts the rest', () => {
+  it('get_scan answers every unit id asked, lowest first, with what each type gave back', () => {
     const blank = { coils: '', discrete_inputs: '', input_registers: '', holding_registers: '' }
     const result = (
       id: number,
       registerTypes: ScanUnitIDResult['registerTypes'],
-      refusedRegisterTypes: ScanUnitIDResult['refusedRegisterTypes'],
       errorMessage: Partial<ScanUnitIDResult['errorMessage']> = {}
     ): ScanUnitIDResult => ({
       id,
       registerTypes,
-      refusedRegisterTypes,
+      refusedRegisterTypes: [],
       requestedRegisterTypes: ['coils', 'holding_registers'],
       errorMessage: { ...blank, ...errorMessage }
     })
@@ -348,19 +347,23 @@ describe('the read tools', () => {
       scanProgress: 40,
       // The store keeps the newest first.
       scanUnitIdResults: [
-        result(9, [], [], { coils: 'Timed out', holding_registers: 'Timed out' }),
-        result(7, [], ['coils'], { coils: 'Illegal data address' }),
-        result(3, ['holding_registers'], [])
+        result(9, [], { coils: 'Timed out', holding_registers: 'Timed out' }),
+        result(7, ['holding_registers'], { coils: 'Modbus exception 2: Illegal data address' }),
+        result(3, ['coils', 'holding_registers'])
       ]
     })
 
     expect(getScan(source({ live: { a: live } }), { client: 'a' })).toEqual({
       scanning: 'unit_ids',
       progress: 40,
-      unitIdsAsked: 3,
       unitIds: [
-        { unitId: 3, answered: ['holding_registers'], refused: [], errors: {} },
-        { unitId: 7, answered: [], refused: ['coils'], errors: { coils: 'Illegal data address' } }
+        { unitId: 3, coils: 'data', holding_registers: 'data' },
+        {
+          unitId: 7,
+          coils: 'Modbus exception 2: Illegal data address',
+          holding_registers: 'data'
+        },
+        { unitId: 9, coils: 'Timed out', holding_registers: 'Timed out' }
       ]
     })
   })
@@ -375,7 +378,6 @@ describe('the read tools', () => {
     expect(getScan(source({ live: {} }), { client: 'a' })).toEqual({
       scanning: 'none',
       progress: 0,
-      unitIdsAsked: 0,
       unitIds: []
     })
   })
