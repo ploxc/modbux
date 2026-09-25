@@ -14,6 +14,14 @@ import {
   listServers,
   readValues
 } from './readTools'
+import {
+  connect,
+  disconnect,
+  read,
+  setClientConfig,
+  startPolling,
+  stopPolling
+} from './operateTools'
 
 /** What the stores hold now, as the read tools look at it. */
 const readSource = (): ReadSource => {
@@ -34,7 +42,13 @@ const TOOLS: { [T in McpToolName]: (args: McpToolArgs<T>) => unknown } = {
   list_registers: (args) => listRegisters(readSource(), args),
   read_values: (args) => readValues(readSource(), args),
   list_servers: () => listServers(readSource()),
-  get_unit: (args) => getUnit(readSource(), args)
+  get_unit: (args) => getUnit(readSource(), args),
+  set_client_config: setClientConfig,
+  connect,
+  disconnect,
+  read: (args) => read(args, readSource),
+  start_polling: startPolling,
+  stop_polling: stopPolling
 }
 
 const run = <T extends McpToolName>(tool: T, args: unknown): unknown =>

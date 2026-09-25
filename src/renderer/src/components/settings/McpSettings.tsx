@@ -48,6 +48,23 @@ const ReadCheckbox = meme((): JSX.Element => {
   )
 })
 
+const OperateCheckbox = meme((): JSX.Element => {
+  const operate = useMcpZustand((z) => z.access.operate)
+  const handleChange = useCallback((_: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const mcpZustand = useMcpZustand.getState()
+    void mcpZustand.setAccess('operate', checked)
+  }, [])
+
+  return (
+    <FormControlLabel
+      control={
+        <Checkbox data-testid="mcp-operate-checkbox" checked={operate} onChange={handleChange} />
+      }
+      label="Operate: connect, change settings, read and poll, as you would. Nothing is written to a device."
+    />
+  )
+})
+
 /** The port, taken on blur or Enter, and put back when it is not one. */
 const PortField = meme((): JSX.Element => {
   const port = useMcpZustand((z) => z.port)
@@ -153,6 +170,7 @@ const McpSettings = meme(
       </Typography>
       <McpStatusLine />
       <ReadCheckbox />
+      <OperateCheckbox />
       <PortField />
       <TokenSection />
     </Paper>

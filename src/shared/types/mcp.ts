@@ -1,5 +1,8 @@
 import z from 'zod'
+import { ProtocolSchema } from './client'
 import { PortSchema } from './ranges'
+import { RegisterTypeSchema } from './register'
+import { DataBitsSchema, ModbusBaudRateSchema, ParitySchema, StopBitsSchema } from './serial'
 
 //
 //
@@ -101,6 +104,70 @@ export const MCP_TOOLS = {
       server: ServerIdSchema,
       unit: z.string().regex(/^\d+$/).describe('The unit id, as list_servers answers it.')
     }
+  },
+  set_client_config: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      "Change a client's settings, as its fields in the UI do. Each field given is set on its own, in the order listed here, and the answer names the ones Modbux refused. Connection fields (protocol, host, port, com and the serial settings) are refused while the client is connected. The client is selected on screen first. address is the protocol address, 0-based, whatever addressBase shows.",
+    input: {
+      client: ClientIdSchema,
+      protocol: ProtocolSchema.optional(),
+      host: z.string().optional(),
+      port: z.number().int().optional(),
+      com: z.string().optional().describe('A serial port path, as get_client shows it.'),
+      baudRate: ModbusBaudRateSchema.optional(),
+      parity: ParitySchema.optional(),
+      dataBits: DataBitsSchema.optional(),
+      stopBits: StopBitsSchema.optional(),
+      unitId: z.number().int().optional(),
+      type: RegisterTypeSchema.optional(),
+      address: z.number().int().optional(),
+      length: z.number().int().optional(),
+      littleEndian: z.boolean().optional(),
+      addressBase: z.enum(['0', '1']).optional(),
+      readConfiguration: z
+        .boolean()
+        .optional()
+        .describe('Read the mapped registers rather than address and length.'),
+      pollRate: z
+        .number()
+        .int()
+        .optional()
+        .describe('Milliseconds, 1000 to 10000 in steps of 1000.'),
+      timeout: z.number().int().optional().describe('Milliseconds, 1000 to 10000 in steps of 1000.')
+    }
+  },
+  connect: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Connect a client, as its Connect button does, and answer its state after.',
+    input: { client: ClientIdSchema }
+  },
+  disconnect: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Disconnect a client, as its Disconnect button does, and answer its state after.',
+    input: { client: ClientIdSchema }
+  },
+  read: {
+    layer: 'operate',
+    side: 'client',
+    description:
+      'Read a connected client once, as its Read button does, and answer what read_values would. Refused while it polls, scans or writes, as the button is. To read other registers, change type, address and length, or readConfiguration, with set_client_config first.',
+    input: { client: ClientIdSchema }
+  },
+  start_polling: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Start polling a connected client, as its Poll button does.',
+    input: { client: ClientIdSchema }
+  },
+  stop_polling: {
+    layer: 'operate',
+    side: 'client',
+    description: 'Stop polling a client.',
+    input: { client: ClientIdSchema }
   }
 } as const satisfies Record<
   string,

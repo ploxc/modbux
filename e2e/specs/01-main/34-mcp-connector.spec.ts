@@ -3,7 +3,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Page } from '@playwright/test'
 import { test, expect, resetApp } from '../../fixtures/electron-app'
-import { navigateToHome } from '../../fixtures/helpers'
+import { resolve } from 'path'
+import { cleanServerState, loadServerConfig, navigateToHome } from '../../fixtures/helpers'
+
+const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-integration.json')
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -60,6 +63,11 @@ test.describe.serial('The MCP connector', () => {
 
   test.afterAll(async () => {
     await assistant?.close()
+  })
+
+  test('the server on 502 holds registers to read', async ({ mainPage }) => {
+    await cleanServerState(mainPage)
+    await loadServerConfig(mainPage, SERVER_CONFIG)
   })
 
   test('the settings open from home, with the connector off', async ({ mainPage }) => {
@@ -121,6 +129,64 @@ test.describe.serial('The MCP connector', () => {
     await expect(call(assistant, 'get_client', { client: 'nobody' })).rejects.toThrow(
       'list_clients'
     )
+  })
+
+  test('the operate box adds the operate tools', async ({ mainPage }) => {
+    await mainPage.getByTestId('mcp-operate-checkbox').click()
+    await expect(mainPage.getByTestId('mcp-operate-checkbox').locator('input')).toBeChecked()
+    await assistant?.close()
+    assistant = await connect()
+    const { tools } = await assistant.listTools()
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'set_client_config',
+        'connect',
+        'disconnect',
+        'read',
+        'start_polling',
+        'stop_polling'
+      ])
+    )
+  })
+
+  test('an assistant connects a client to the server on 502, reads and polls it', async () => {
+    if (!assistant) throw new Error('no assistant connected')
+    const [first] = (await call(assistant, 'list_clients')) as { id: string }[]
+    if (!first) throw new Error('no client listed')
+    const client = first.id
+
+    expect(
+      await call(assistant, 'set_client_config', {
+        client,
+        host: '127.0.0.1',
+        port: 502,
+        unitId: 0,
+        type: 'holding_registers',
+        address: 0,
+        length: 5
+      })
+    ).toMatchObject({ refused: [] })
+    expect(await call(assistant, 'connect', { client })).toEqual({ connectState: 'connected' })
+
+    const read = (await call(assistant, 'read', { client })) as { rows: unknown[] }
+    expect(read.rows).toHaveLength(5)
+
+    await expect(call(assistant, 'connect', { client })).rejects.toThrow('connected already')
+    expect(await call(assistant, 'start_polling', { client })).toEqual({ polling: true })
+    await expect(call(assistant, 'read', { client })).rejects.toThrow('during a poll')
+    expect(await call(assistant, 'stop_polling', { client })).toEqual({ polling: false })
+    expect(await call(assistant, 'disconnect', { client })).toEqual({
+      connectState: 'disconnected'
+    })
+  })
+
+  test('unticking operate takes the operate tools away', async ({ mainPage }) => {
+    await mainPage.getByTestId('mcp-operate-checkbox').click()
+    await assistant?.close()
+    assistant = await connect()
+    const { tools } = await assistant.listTools()
+    expect(tools.map((tool) => tool.name)).not.toContain('connect')
+    expect(tools.map((tool) => tool.name)).toContain('read_values')
   })
 
   test('leaving the page forgets the token it showed', async ({ mainPage }) => {
