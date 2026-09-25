@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { RegisterType } from '@shared'
+import { RegisterType, RegisterTypeSchema } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
@@ -27,7 +27,26 @@ const useServerGridZustand = create<
         })
     })),
     {
-      name: 'server-grid.zustand'
+      name: 'server-grid.zustand',
+      // A view preference, so a type whose saved value is not a boolean takes
+      // its default rather than a whole server view reading `collapse[type]`
+      // off something that is not there.
+      merge: (persisted, current) => {
+        const saved =
+          typeof persisted === 'object' && persisted !== null
+            ? (persisted as { collapse?: unknown }).collapse
+            : undefined
+        const readable =
+          typeof saved === 'object' && saved !== null && !Array.isArray(saved)
+            ? (saved as Record<string, unknown>)
+            : {}
+        const collapse = { ...current.collapse }
+        for (const type of RegisterTypeSchema.options) {
+          const value = readable[type]
+          if (typeof value === 'boolean') collapse[type] = value
+        }
+        return { ...current, collapse }
+      }
     }
   )
 )
