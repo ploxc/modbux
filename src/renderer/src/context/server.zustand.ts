@@ -81,7 +81,42 @@ const recordUnit = (
 ): void => {
   const after = get().servers[uuid]?.registers[unitId]
   if (deepEqual(unitStructure(before), unitStructure(after))) return
-  useUndoZustand.getState().recordServer({ kind: 'unit', uuid, unitId, value: before })
+  useUndoZustand
+    .getState()
+    .recordServer({ kind: 'unit', uuid, unitId, value: withPendingValues(uuid, unitId, before) })
+}
+
+/**
+ * A unit's registers with the values the batchers still hold for it.
+ *
+ * Main's words reach an entry after 50 ms of quiet, so a unit read off the
+ * store inside that window is a word behind, and a step recorded from it would
+ * put back the word before the one that had already arrived.
+ */
+export const withPendingValues = (
+  uuid: string,
+  unitId: UnitIdString,
+  registers: ServerRegisters | undefined
+): ServerRegisters | undefined => {
+  if (registers === undefined) return undefined
+  // The parameters rather than the pending composite: they hold the value in
+  // the store's own form, where a 64 bit composite is a bigint and the store
+  // keeps its decimal string.
+  // Bools need none of it: `keepLiveValues` puts a bool back at the value the
+  // store holds when the step replays, and a bool still pending then reaches
+  // the store and main on its own flush after.
+  const numbers = (type: NumberRegisters): ServerRegisters[NumberRegisters] =>
+    Object.fromEntries(
+      Object.entries(registers[type]).map(([address, entry]) => {
+        const pending = delayedRegister.getParameter(batchKey(uuid, unitId, type, Number(address)))
+        return [address, pending === undefined ? entry : { ...entry, value: pending.value }]
+      })
+    )
+  return {
+    ...registers,
+    input_registers: numbers('input_registers'),
+    holding_registers: numbers('holding_registers')
+  }
 }
 
 /**

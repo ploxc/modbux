@@ -1,7 +1,7 @@
 import { UnitIdString } from '@shared'
 import { deepEqual } from 'fast-equals'
 import { enqueueSnackbar } from 'notistack'
-import { useServerZustand } from './server.zustand'
+import { useServerZustand, withPendingValues } from './server.zustand'
 import { PersistedServer } from './server.zustand.types'
 import { replayTop, useUndoZustand } from './undo.zustand'
 import { pushStep, serverStepKey, unitStructure } from './undo.zustand.helpers'
@@ -83,7 +83,10 @@ const replayUnit = async (step: ServerUnitStep): Promise<ServerUnitStep | UndoRe
   const server = useServerZustand.getState().servers[step.uuid]
   if (!server) return 'refused-gone'
   show(step.uuid, step.unitId)
-  const replaced: ServerUnitStep = { ...step, value: server.registers[step.unitId] }
+  const replaced: ServerUnitStep = {
+    ...step,
+    value: withPendingValues(step.uuid, step.unitId, server.registers[step.unitId])
+  }
   await useServerZustand.getState().restoreUnit(step.uuid, step.unitId, step.value)
   return replaced
 }

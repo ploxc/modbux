@@ -356,6 +356,89 @@ describe('a unit', () => {
     ).toEqual(holding(10, 'c', 5))
   })
 
+  // Main's words reach the entry through a 50 ms batcher, and a step taken
+  // inside that window records the word the batcher holds.
+  it('puts back the word a toggle replaced while it still waited in the batcher', async () => {
+    const { server, serverUndo } = await load()
+    answerWith('addReplaceServerRegister', (payload) =>
+      Promise.resolve([(payload as { params: { value: number } }).params.value])
+    )
+    recordApiCalls(calls)
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    fireEvent('register_value', {
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      registerType: 'holding_registers',
+      address: 10,
+      value: 99
+    })
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'a', 50)
+    })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ comment: 'a', value: 99 })
+  })
+
+  // One word of a two register type, folded into the value the flush writes.
+  it('records a float waiting in the batcher at the value the word makes', async () => {
+    const { server, serverUndo } = await load()
+    const float = (value: number): RegisterParams => ({
+      ...holding(10, 'a', value),
+      dataType: 'float'
+    })
+    answerWith('addReplaceServerRegister', () => Promise.resolve([0, 0]))
+    recordApiCalls(calls)
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: float(0) })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    fireEvent('register_value', {
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      registerType: 'holding_registers',
+      address: 10,
+      value: 0x3fc0
+    })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: float(2) })
+
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ value: 1.5 })
+  })
+
+  it('redoes onto the word that waited in the batcher when the undo ran', async () => {
+    const { server, serverUndo } = await load()
+    answerWith('addReplaceServerRegister', (payload) =>
+      Promise.resolve([(payload as { params: { value: number } }).params.value])
+    )
+    recordApiCalls(calls)
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'a', 50)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    await serverUndo.undoServer()
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    fireEvent('register_value', {
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      registerType: 'holding_registers',
+      address: 10,
+      value: 99
+    })
+
+    await serverUndo.redoServer()
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    await serverUndo.undoServer()
+
+    expect(replaced()).toMatchObject({ value: 99 })
+  })
+
   // A toggle is a value the user set, so its undo puts back the word before it.
   it('puts back the word a value step replaced, not the one the register was made with', async () => {
     const { server, serverUndo } = await load()

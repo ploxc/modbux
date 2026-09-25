@@ -352,6 +352,11 @@ export class ServerDelayedSetter<T, P> {
     this._parameterMap.set(cacheKey, parameters)
   }
 
+  /** The parameters waiting for the next flush under `cacheKey`, if any. */
+  public getParameter(cacheKey: string): P | undefined {
+    return this._parameterMap.get(cacheKey)
+  }
+
   public setValue(cacheKey: string, value: T): void {
     this._pending.set(cacheKey, value)
   }
