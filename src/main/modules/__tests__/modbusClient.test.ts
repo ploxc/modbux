@@ -1891,6 +1891,35 @@ describe('ModbusClient', () => {
       expect(asked.length).toBe(8)
     })
 
+    it.each([
+      [[0, 10], [[0, 11]]],
+      [
+        [0, 299],
+        [
+          [0, 125],
+          [125, 125],
+          [250, 50]
+        ]
+      ]
+    ] as const)('reads no address past the end of %j', async (addressRange, reads) => {
+      await connectClient()
+      appState.updateRegisterConfig({ type: 'holding_registers' })
+      mockModbusRTU.readHoldingRegisters.mockResolvedValue({
+        data: [0],
+        buffer: Buffer.alloc(2)
+      })
+
+      const scanPromise = client.scanRegisters({
+        addressRange: [...addressRange],
+        length: 125,
+        timeout: 1000
+      })
+      await vi.advanceTimersByTimeAsync(5000)
+      await scanPromise
+
+      expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual(reads)
+    })
+
     it('scanUnitIds refuses while disconnected', async () => {
       await client.scanUnitIds({
         range: [1, 3],
@@ -5049,7 +5078,6 @@ describe('ModbusClient', () => {
       expect(messages.some((m) => m[1].message === 'scan read error')).toBe(true)
     })
 
-    // ! Coverage-only: exercises address+length clamping in _scanRegister
     it('clamps length when address + length exceeds 65536', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
@@ -5062,8 +5090,8 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(1000)
       await scanPromise
 
-      // The first read starts at 65530 with length 10, but 65530+10=65540 > 65536
-      // so length should be clamped to 65536 - 65530 = 6
+      // The range ends at 65535, the last address there is, so the read of 10
+      // at 65530 is clamped to the 6 addresses left.
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65530, 6)
     })
 

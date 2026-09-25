@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A register scan stops at the end of its range.** Its last request read a
+  whole chunk, so a scan of 0 to 10 at a chunk of 125 read 0 through 124 and
+  showed addresses you did not ask for.
 - **Editing a bit comment keeps the register's value.** On a bitmap register
   of the server, a comment edit put back the value the register was made
   with, over whatever a client had written since.

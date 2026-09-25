@@ -1114,7 +1114,7 @@ export class ModbusClient implements TransportClient {
     const scan = ++this._scanGeneration
 
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
-      if (!(await this._scanRegister(ride, scan, target, address, length))) break
+      if (!(await this._scanRegister(ride, scan, target, address, length, addressRange[1]))) break
       this._countScanStep()
       if (!this._stillScanning('scanningRegisters', scan)) break
     }
@@ -1134,13 +1134,15 @@ export class ModbusClient implements TransportClient {
     scan: number,
     target: RequestTarget,
     address: number,
-    length: number
+    length: number,
+    lastAddress: number
   ): Promise<boolean> => {
     const type = this._appState.registerConfig.type
     // The last chunk alone, so the stride its caller walks is untouched. What
     // one response carries is clamped there, where the same number is the
-    // stride and the progress divisor.
-    length = Math.min(length, registersFrom(address))
+    // stride and the progress divisor. It stops at the range's last address,
+    // and `lastAddress` is at most 65535, so the map's end bounds it too.
+    length = Math.min(length, lastAddress - address + 1)
 
     const settled = await this._settle(
       ride,
