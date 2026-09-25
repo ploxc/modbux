@@ -15,6 +15,7 @@ import {
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
   RegisterParams,
+  RegisterParamsSchema,
   holdsExact64Bits,
   SyncBoolsParameters,
   UnitIdString,
@@ -190,6 +191,27 @@ const labelsOnly = (
   if (!deepEqual({ ...live.params, ...labelsOff }, { ...restored.params, ...labelsOff }))
     return false
   return live.params.value === Number(restored.value)
+}
+
+/**
+ * Whether `params` edits a fixed register's comment or bit map and nothing
+ * else: a label moved, and the value it carries is the one the register was
+ * given or the word it holds now, which is what the dialog and a bit comment
+ * send.
+ */
+const editsLabelsAlone = (
+  existing: ServerRegisterEntry,
+  params: RegisterParams,
+  heldNow: (entry: ServerRegisterEntry) => number
+): params is RegisterParams & { interval: undefined } => {
+  if (existing.params.interval !== undefined || params.interval !== undefined) return false
+  if (!deepEqual({ ...existing.params, ...labelsOff }, { ...params, ...labelsOff })) return false
+  // A toggle moves no label and a value of its own, and it has to reach main
+  // whatever that value happens to equal.
+  const labelMoved =
+    existing.params.comment !== params.comment || !deepEqual(existing.params.bitMap, params.bitMap)
+  if (!labelMoved) return false
+  return params.value === existing.params.value || params.value === heldNow(existing)
 }
 
 /**
@@ -501,6 +523,26 @@ export const useServerZustand = create<
         // Whether it was taken goes back out to the caller, because Add & Next
         // asks for the next free address and that reads the map written below.
         const before = get().servers[uuid]?.registers[unitId]
+
+        // An edit of a comment or a bit map, with the value left as it was or
+        // at the word held now, has nothing to tell main, which keeps the words
+        // and no params: sent, it encoded the value or the text over what a
+        // master had written. The schema main would have asked is asked here.
+        const existing = before?.[params.registerType][params.address]
+        if (
+          existing &&
+          editsLabelsAlone(existing, params, (entry) => pendingRegisterValue(uuid, unitId, entry))
+        ) {
+          if (!RegisterParamsSchema.safeParse(params).success) return false
+          const word = pendingRegisterValue(uuid, unitId, existing)
+          set((state) => {
+            const entry = unitRegisters(state, uuid, unitId)?.[params.registerType][params.address]
+            if (entry) entry.params = { ...params, value: word }
+          })
+          recordUnit(get, uuid, unitId, before)
+          return true
+        }
+
         const words = await window.api.addReplaceServerRegister({ uuid, unitId, params })
         if (words === undefined) return false
 

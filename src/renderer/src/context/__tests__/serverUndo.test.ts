@@ -540,6 +540,124 @@ const handedOverStack = (writer: 'main' | 'server'): string =>
     openKey: undefined
   })
 
+// Main keeps the words of a fixed register and none of its params, so an edit
+// of a label has nothing to tell it. Sent anyway, main encoded the params'
+// word or text over what a master had written.
+describe('an edit of a label alone', () => {
+  it('tells main nothing, and keeps the text a utf8 register holds', async () => {
+    const { server } = await load()
+    const text = (comment: string): RegisterParams => ({
+      ...holding(10, comment, 0),
+      dataType: 'utf8',
+      length: 2,
+      stringValue: 'ab'
+    })
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: text('a') })
+    calls.length = 0
+
+    expect(
+      await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: text('b') })
+    ).toBe(true)
+
+    expect(calls.map((call) => call.method)).not.toContain('addReplaceServerRegister')
+    expect(
+      server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]?.params.comment
+    ).toBe('b')
+  })
+
+  it('keeps the word a master wrote when the dialog sends the value unchanged', async () => {
+    const { server } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    server().setRegisterValue({
+      registerType: 'holding_registers',
+      address: 10,
+      value: 99,
+      optionalUuid: MAIN_SERVER_UUID,
+      optionalUnitId: '0'
+    })
+    calls.length = 0
+
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'b') })
+
+    expect(calls.map((call) => call.method)).not.toContain('addReplaceServerRegister')
+    expect(server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]).toMatchObject(
+      {
+        value: 99,
+        params: { comment: 'b' }
+      }
+    )
+  })
+
+  // A bit comment sends the word held now as the value.
+  it('tells main nothing when the value sent is the word held now', async () => {
+    const { server } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    server().setRegisterValue({
+      registerType: 'holding_registers',
+      address: 10,
+      value: 99,
+      optionalUuid: MAIN_SERVER_UUID,
+      optionalUnitId: '0'
+    })
+    calls.length = 0
+
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 99)
+    })
+
+    expect(calls.map((call) => call.method)).not.toContain('addReplaceServerRegister')
+  })
+
+  // A toggle moves no label, so it reaches main whatever value it carries.
+  it('hands main a toggle back to the value the register was given', async () => {
+    const { server } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a', 1) })
+    server().setRegisterValue({
+      registerType: 'holding_registers',
+      address: 10,
+      value: 0,
+      optionalUuid: MAIN_SERVER_UUID,
+      optionalUnitId: '0'
+    })
+    calls.length = 0
+
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a', 1) })
+
+    expect(calls.map((call) => call.method)).toContain('addReplaceServerRegister')
+  })
+
+  // Main would have refused it at the boundary, so the store asks the schema.
+  it('refuses a label the schema refuses, and keeps the one it had', async () => {
+    const { server } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+
+    const refused = { ...holding(10, 'a'), comment: 5 as unknown as string }
+    expect(
+      await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: refused })
+    ).toBe(false)
+
+    expect(
+      server().servers[MAIN_SERVER_UUID]?.registers['0']?.holding_registers[10]?.params.comment
+    ).toBe('a')
+  })
+
+  it('still hands main a value the dialog changed', async () => {
+    const { server } = await load()
+    await server().addRegister({ uuid: MAIN_SERVER_UUID, unitId: '0', params: holding(10, 'a') })
+    calls.length = 0
+
+    await server().addRegister({
+      uuid: MAIN_SERVER_UUID,
+      unitId: '0',
+      params: holding(10, 'b', 50)
+    })
+
+    expect(calls.map((call) => call.method)).toContain('addReplaceServerRegister')
+  })
+})
+
 describe('the main window, as the server view leaves and comes back', () => {
   it('hands its steps over when the view leaves, and keeps none', async () => {
     const { server, undo } = await load()

@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scan waited 10 ms after every request, so a device that answers quickly was
   asked at a fraction of its pace. A register scan of 10,000 addresses in
   chunks of 10 took 13 seconds against Modbux's own server and now takes about
-  2. A slow device scans as fast as before, and the progress bar still moves.
+  two. A slow device scans as fast as before, and the progress bar still moves.
 
 ### Fixed
 
@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A register scan stops at the end of its range.** Its last request read a
   whole chunk, so a scan of 0 to 10 at a chunk of 125 read 0 through 124 and
   showed addresses you did not ask for.
+- **Editing a register's comment keeps what a client wrote into it.** Saving
+  the edit dialog with only the comment changed wrote the register's value, or
+  a UTF-8 register's text, back over whatever a client had written since.
 - **Editing a bit comment keeps the register's value.** On a bitmap register
   of the server, a comment edit put back the value the register was made
   with, over whatever a client had written since.
