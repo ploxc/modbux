@@ -12,6 +12,9 @@
   ],
   "compilerOptions": {
     "strict": true,
+    // `@electron-toolkit/tsconfig` sets this false, and a sub-flag set in the
+    // base wins over `strict`.
+    "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "moduleResolution": "bundler",
     // "node" for the fixtures' fs/os/path use, "electron-vite/node" for the

@@ -1,6 +1,12 @@
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
 import { getShownData } from '@renderer/context/live.zustand'
-import { DataType, RegisterData, RegisterLinearInterpolation, RegisterMapObject } from '@shared'
+import {
+  DataType,
+  RegisterData,
+  RegisterLinearInterpolation,
+  RegisterMapObject,
+  wordOf
+} from '@shared'
 import { round } from 'lodash'
 
 // Linear interpolation function
@@ -84,7 +90,7 @@ export const getConvertedValue = (
   // input, and those rows outlive a switch of the register type while a read
   // loop owns the grid. A UTF-8 register drew the same word cut to the group it
   // sits in, which is `"undefine"` over four registers.
-  const word = dataType && dataType !== 'none' ? row.words?.[dataType] : undefined
+  const word = wordOf(row.words, dataType)
   if (word === undefined || word === '') return undefined
   const value = String(word)
 

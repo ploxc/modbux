@@ -155,13 +155,9 @@ const useSave: UseSaveHook = () => {
     if (!server) return
     const name = server.name ?? ''
 
-    const serverRegistersPerUnit: ServerRegistersPerUnit = {}
-    const registersPerUnit = server.registers
-
-    Object.entries(registersPerUnit).forEach(([unitId, registers]) => {
-      if (!checkHasConfig(registers)) return
-      serverRegistersPerUnit[unitId] = registers
-    })
+    const serverRegistersPerUnit: ServerRegistersPerUnit = Object.fromEntries(
+      Object.entries(server.registers).filter(([, registers]) => checkHasConfig(registers))
+    )
 
     // The store reads the version once at startup; it cannot change after that
     const modbuxVersion = useLayoutZustand.getState().version

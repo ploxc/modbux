@@ -2,7 +2,6 @@ import {
   ServerConfigSchema,
   ServerConfig,
   RegisterParams,
-  ServerRegistersPerUnit,
   ServerRegisters
 } from '../../types/server'
 import { MigrationResult, Migration } from '../types'
@@ -57,7 +56,9 @@ function migrateServerV1toV2(v1Config: unknown): ServerConfig & { wasMixedEndian
   migrateBoolShapeInConfig(v1Registers)
   const { endianness, wasMixed } = extractGlobalEndianness(v1Registers)
 
-  const migratedRegisters: ServerRegistersPerUnit = {}
+  // Keyed by what the file holds; the final `safeParse` is what reads a key as
+  // a unit id.
+  const migratedRegisters: Record<string, ServerRegisters> = {}
 
   // Each unit is read as `unknown` and named after the check, because the V1
   // types describe a file that parsed rather than one that was validated.

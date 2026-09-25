@@ -58,6 +58,7 @@ export interface RequestTarget {
  */
 interface ModbusRTUEmitter extends ModbusRTU {
   removeAllListeners(): void
+  isDebugEnabled: boolean
   _port:
     | {
         destroy?: (callback: () => void) => void
@@ -447,7 +448,7 @@ export class Transport {
     this._modbus.setTimeout(3000)
 
     // Enables storing transaction requests and responses for logging purposes
-    this._modbus['isDebugEnabled'] = true
+    ;(this._modbus as ModbusRTUEmitter).isDebugEnabled = true
 
     this._openInFlight = true
     try {

@@ -8,6 +8,9 @@
   ],
   "compilerOptions": {
     "strict": true,
+    // `@electron-toolkit/tsconfig` sets this false, and a sub-flag set in the
+    // base wins over `strict`.
+    "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "composite": true,
     "moduleResolution": "bundler",

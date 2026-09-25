@@ -136,7 +136,7 @@ export class RtuServer {
           // callback when one is passed and emits `error` on the port when none
           // is. The same callback carries the success, with null in place of an
           // error.
-          openCallback: (err): void => {
+          openCallback: (err: Error | null): void => {
             if (err) this._reportDown(generation, `RTU server error: ${err.message}`)
           }
         },

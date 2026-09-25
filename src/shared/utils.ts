@@ -16,7 +16,8 @@ export const humanizeSerialError = (error: Error, port?: string): string => {
   if (msg.includes('file not found')) return `${prefix}Port not found or not available`
   if (msg.includes('access denied') || msg.includes('permission denied'))
     return `${prefix}Port access denied (already in use?)`
-  return `${prefix}${error.message || `Connection failed${error['code'] ? ` (${error['code']})` : ''}`}`
+  const code = 'code' in error && error.code ? ` (${String(error.code)})` : ''
+  return `${prefix}${error.message || `Connection failed${code}`}`
 }
 
 /**

@@ -45,9 +45,7 @@ type IServiceVectorSet<T> = (addr: number, value: T, unitID: number, cb: FCallba
  * Helper for returning a Modbus error via callback.
  */
 const mbError = <T>(code: number, cb: FCallbackVal<T>, value: T): void => {
-  const err = new Error()
-  err['modbusErrorCode'] = code
-  cb(err, value)
+  cb(Object.assign(new Error(), { modbusErrorCode: code }), value)
 }
 
 /**

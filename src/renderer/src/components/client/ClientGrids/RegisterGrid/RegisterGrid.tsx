@@ -21,7 +21,8 @@ import {
   GridRowHeightParams,
   GridRowHeightReturnValue
 } from '@mui/x-data-grid/models'
-import { BITMAP_DATATYPE, RegisterData, scalableDataTypes } from '@shared'
+import { BITMAP_DATATYPE, DataTypeSchema, RegisterData, scalableDataTypes } from '@shared'
+import z from 'zod'
 import { alpha } from '@mui/material/styles'
 import { showMapping } from '@renderer/context/live.zustand'
 import BitMapRow from './BitMapRow'
@@ -53,6 +54,18 @@ const Footer = meme(() => {
 //
 //
 // DataGrid
+/**
+ * The mapping fields an edited grid row carries, which the grid writes onto the
+ * row beside its `RegisterData`. Each reads as nothing when it is not one, so
+ * one bad field does not cost the others.
+ */
+const EditedRowSchema = z.object({
+  dataType: DataTypeSchema.optional().catch(undefined),
+  scalingFactor: z.number().optional().catch(undefined),
+  comment: z.string().optional().catch(undefined),
+  groupEnd: z.boolean().optional().catch(undefined)
+})
+
 const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const registerData = useLiveZustand((z) => dataOf(z, selectedUuid).registerData)
@@ -121,26 +134,28 @@ const RegisterGridContent = meme((): JSX.Element => {
   const handleRowUpdate = useCallback(
     (newRow: RegisterData, oldRow: RegisterData): RegisterData => {
       const clientZustand = useClientZustand.getState()
+      const edited = EditedRowSchema.parse(newRow)
+      const before = EditedRowSchema.parse(oldRow)
 
       // Update datatype
-      if (newRow['dataType'] && newRow['dataType'] !== oldRow['dataType']) {
-        clientZustand.setRegisterMapping(newRow.id, 'dataType', newRow['dataType'])
+      if (edited.dataType && edited.dataType !== before.dataType) {
+        clientZustand.setRegisterMapping(newRow.id, 'dataType', edited.dataType)
       }
 
       // Update scaling factor
       // This will ignore zero too, if you don't want to ignore zero compare with undefined
-      if (newRow['scalingFactor'] && newRow['scalingFactor'] !== oldRow['scalingFactor']) {
-        clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', newRow['scalingFactor'])
+      if (edited.scalingFactor && edited.scalingFactor !== before.scalingFactor) {
+        clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', edited.scalingFactor)
       }
 
       // Update comment
-      if (typeof newRow['comment'] === 'string' && newRow['comment'] !== oldRow['comment']) {
-        clientZustand.setRegisterMapping(newRow.id, 'comment', newRow['comment'])
+      if (typeof edited.comment === 'string' && edited.comment !== before.comment) {
+        clientZustand.setRegisterMapping(newRow.id, 'comment', edited.comment)
       }
 
       // Update group end
-      if (typeof newRow['groupEnd'] === 'boolean' && newRow['groupEnd'] !== oldRow['groupEnd']) {
-        clientZustand.setRegisterMapping(newRow.id, 'groupEnd', newRow['groupEnd'])
+      if (typeof edited.groupEnd === 'boolean' && edited.groupEnd !== before.groupEnd) {
+        clientZustand.setRegisterMapping(newRow.id, 'groupEnd', edited.groupEnd)
       }
 
       return newRow

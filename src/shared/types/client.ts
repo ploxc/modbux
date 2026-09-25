@@ -1,5 +1,5 @@
 import z from 'zod'
-import { BaseDataTypeSchema, DataTypeSchema } from './datatype'
+import { BaseDataTypeSchema, DataType, DataTypeSchema } from './datatype'
 import { BitMapConfigSchema } from './bitmap'
 import { registerWidth } from '../encoding'
 import {
@@ -350,6 +350,22 @@ export interface RegisterDataWords {
   ['double']: number
   ['datetime']: string
   ['utf8']: string
+}
+
+/**
+ * The word a row carries for `dataType`, or nothing.
+ *
+ * `none` and `bitmap` carry no word; every other data type is a key of
+ * `RegisterDataWords`, and a data type added without its word is a type error
+ * here.
+ */
+export const wordOf = (
+  words: RegisterDataWords | undefined,
+  dataType: DataType | undefined
+): RegisterDataWords[keyof RegisterDataWords] | undefined => {
+  if (words === undefined || dataType === undefined) return undefined
+  if (dataType === 'none' || dataType === 'bitmap') return undefined
+  return words[dataType]
 }
 
 export interface RawTransaction {

@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box'
 import { GridColDef } from '@mui/x-data-grid/models'
-import { DataType, RegisterData, RegisterDataWords } from '@shared'
+import { RegisterData, RegisterDataWords } from '@shared'
 
 const registerValueToString = (
   value: number | bigint
@@ -10,8 +10,13 @@ const registerValueToString = (
   return { numberString, irrelevant: numberString === '0' }
 }
 
+/** The data types whose word is a number, which is what this column draws. */
+type NumberWord = {
+  [K in keyof RegisterDataWords]: RegisterDataWords[K] extends number | bigint ? K : never
+}[keyof RegisterDataWords]
+
 export const valueColumn = (
-  key: DataType,
+  key: NumberWord,
   width: number
 ): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
   type: 'number',
