@@ -24,6 +24,7 @@ const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..')
  */
 const WIRED = [
   'bulk-edit-guard.mjs',
+  'compact-reset.mjs',
   'git-restore-guard.mjs',
   'precommit-trigger.mjs',
   'prose-trigger.mjs',

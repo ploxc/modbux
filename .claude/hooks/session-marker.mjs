@@ -23,8 +23,25 @@ const WEEK = 7 * 24 * 60 * 60 * 1000
  * write the marker somewhere else or fail silently.
  */
 function markerPath(hook, sessionId) {
-  const session = String(sessionId ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_')
-  return join(tmpdir(), `modbux-${hook}-${session}`)
+  return join(tmpdir(), `modbux-${hook}-${sessionName(sessionId)}`)
+}
+
+function sessionName(sessionId) {
+  return String(sessionId ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_')
+}
+
+/**
+ * Forget every rule this session was told, so each hook states it in full on
+ * its next firing. A compaction's summary does not carry a rule a hook stated,
+ * and the marker would otherwise keep the full text from coming back.
+ */
+export function forgetThisSession(sessionId) {
+  const suffix = `-${sessionName(sessionId)}`
+  for (const name of readdirSync(tmpdir())) {
+    if (name.startsWith('modbux-') && name.endsWith(suffix)) {
+      rmSync(join(tmpdir(), name), { force: true })
+    }
+  }
 }
 
 export function firstThisSession(hook, sessionId) {
