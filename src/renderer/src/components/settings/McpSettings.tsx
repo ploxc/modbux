@@ -124,6 +124,10 @@ const TokenSection = meme((): JSX.Element => {
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(command).catch(() => undefined)
   }, [command])
+  // A client set up by hand needs the token without the command around it.
+  const handleCopyToken = useCallback(() => {
+    navigator.clipboard.writeText(shownToken ?? '').catch(() => undefined)
+  }, [shownToken])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -152,6 +156,9 @@ const TokenSection = meme((): JSX.Element => {
           <Box>
             <Button data-testid="mcp-copy-command-btn" size="small" onClick={handleCopy}>
               Copy command
+            </Button>
+            <Button data-testid="mcp-copy-token-btn" size="small" onClick={handleCopyToken}>
+              Copy token
             </Button>
           </Box>
         </Box>

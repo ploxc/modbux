@@ -93,6 +93,7 @@ test.describe.serial('The MCP connector', () => {
     )
     token = await shownToken(mainPage)
     await expect(mainPage.getByTestId('mcp-connect-command')).toContainText(`127.0.0.1:${port}/mcp`)
+    await expect(mainPage.getByTestId('mcp-copy-token-btn')).toBeVisible()
   })
 
   test('an assistant with the token sees the read tools', async () => {
