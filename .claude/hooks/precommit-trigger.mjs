@@ -2,16 +2,17 @@
 /**
  * The trigger for `/precommit` that does not depend on anyone remembering it.
  *
- * The checklist hangs on `git commit`, and the shape that keeps recurring is
- * earlier than a commit: a whole-project command is run on its own, as "is my
- * work finished". By the time the checklist is opened it reads as a repetition
- * of work already done, and step 1 is skipped again. So the trigger is the
- * *command*. Running one of these is being in the checklist, whether or not it
- * was opened.
+ * It fires on two kinds of command. A `git commit` or `git merge`, because the
+ * skill fires on what the user types, and a commit run through the Bash tool
+ * is read by nobody: without this hook every commit an agent makes skips the
+ * checklist. And a whole-project check run on its own, as "is my work
+ * finished", because by the time the checklist is opened after one it reads
+ * as a repetition of work already done, and step 1 is skipped again.
  *
- * It is a reminder, never a block, and it fires once per session. These
- * commands are legitimate mid-work too, and a hook that argues with you is a
- * hook you learn to ignore.
+ * It is a reminder, never a block, and it fires on every match: the full text
+ * the first time in a session, a short question each time after. A reminder
+ * that went quiet after the first commit would miss the second and every one
+ * after it.
  *
  * Reads the hook payload on stdin, writes hook JSON on stdout.
  */
@@ -57,6 +58,22 @@ const RUNS_IT = new RegExp(
   String.raw`(^|&&|\|\||\||;|\(|\n)\s*yarn (${WATCHED.join('|')})(?![A-Za-z0-9:_-])`
 )
 
+/**
+ * A commit or a merge where a shell would run one: at the start or after a
+ * separator, and ending where the subcommand ends, so `git commit-tree` and a
+ * grep quoting "git commit" stay quiet. A separator with a backslash before it
+ * is a grep alternation's `\|`, not a pipe.
+ */
+const COMMITS = /(?:^|(?<!\\)[;&|]\s*)git\s+(?:commit|merge)(?![\w-])/
+
+const COMMIT_REMINDER =
+  'This command commits or merges. The `/precommit` checklist is what a commit is made ' +
+  'through: invoke `/precommit` and run it from step 1, reading the diff, before this ' +
+  'command runs. A commit you run through the Bash tool triggers no skill by itself.'
+
+/** Every commit after the first in a session gets the question. */
+const COMMIT_SHORT = 'did /precommit run for this commit?'
+
 const REMINDER =
   'This command is a step of the `/precommit` checklist. Running it means you are in the ' +
   'checklist, so if this is you finishing work rather than checking one change, invoke ' +
@@ -69,11 +86,23 @@ const SHORT = 'precommit: finishing work, or checking one change?'
 const payload = await readPayload()
 
 const command = payload.tool_input?.command ?? ''
-if (!RUNS_IT.test(command)) process.exit(0)
-const first = firstThisSession('precommit-trigger', payload.session_id)
+const commits = COMMITS.test(command)
+if (!commits && !RUNS_IT.test(command)) process.exit(0)
+
+// Two markers, because a check and a commit are two questions: a lint early in
+// the session would otherwise spend the commit's full text.
+const first = firstThisSession(
+  commits ? 'precommit-trigger-commit' : 'precommit-trigger',
+  payload.session_id
+)
+const additionalContext = commits
+  ? first
+    ? COMMIT_REMINDER
+    : COMMIT_SHORT
+  : first
+    ? REMINDER
+    : SHORT
 
 console.log(
-  JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: first ? REMINDER : SHORT }
-  })
+  JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext } })
 )

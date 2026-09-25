@@ -1,6 +1,6 @@
 ---
 name: precommit
-description: Run the checklist before committing or merging — read the diff, lint, typecheck, the unit suite, the e2e specs the change touches, then report and commit. Use when the user says "commit", "committen", "precommit", "merge" or "mergen", and when you run yarn lint, yarn typecheck, yarn test or yarn test:e2e to find out whether your work is finished. Do NOT use to decide which tests a change needs — that is test.
+description: Run the checklist before committing or merging — read the diff, lint, typecheck, the unit suite, the e2e specs the change touches, then report and commit. Use when the user says "commit", "committen", "precommit", "merge" or "mergen", before you run git commit or git merge yourself, and when you run yarn lint, yarn typecheck, yarn test or yarn test:e2e to find out whether your work is finished. Do NOT use to decide which tests a change needs — that is test.
 ---
 
 # Precommit

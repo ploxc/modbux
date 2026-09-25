@@ -71,6 +71,65 @@ describe('precommit-trigger', () => {
     expect(again('yarn lint')).toContain('start at step 1')
     expect(again('yarn test')).toBe('precommit: finishing work, or checking one change?')
   })
+
+  // A skill fires on what the user types. A commit run through the Bash tool
+  // is read by nobody, so the commit itself is the trigger.
+  it('fires on a commit and a merge, however they are spelled', () => {
+    for (const command of [
+      'git commit -F -',
+      'git merge --no-ff x',
+      'git add . && git commit -m x',
+      'cd repo; git commit -q -F - <<EOF\nmessage\nEOF',
+      'git status || git commit --amend'
+    ]) {
+      expect(fire('precommit-trigger', { command }), command).toContain('/precommit')
+    }
+  })
+
+  it('stays quiet on a command that only names a commit', () => {
+    for (const command of [
+      "rg 'git commit' .",
+      // A grep alternation's `\|` is not a shell pipe.
+      'grep -n "hook\\|git commit" CLAUDE.md',
+      'git log --oneline',
+      'npx vitest run .claude/hooks',
+      'git commit-tree HEAD^{tree}',
+      'echo "run git commit later"'
+    ]) {
+      expect(fire('precommit-trigger', { command }), command).toBe('')
+    }
+  })
+
+  it('fires on every commit of a session, the first in full and each after as a question', () => {
+    const session = `commits-${Math.random()}`
+    const commit = (command) => {
+      const payload = JSON.stringify({ session_id: session, tool_input: { command } })
+      const out = execFileSync('node', [hook('precommit-trigger')], {
+        input: payload,
+        encoding: 'utf8'
+      })
+      return out.trim() ? JSON.parse(out).hookSpecificOutput.additionalContext : ''
+    }
+    expect(commit('git commit -m one')).toContain('invoke `/precommit`')
+    expect(commit('git commit -m two')).toBe('did /precommit run for this commit?')
+    expect(commit('git merge x')).toBe('did /precommit run for this commit?')
+  })
+
+  // Checking a change and committing one are two questions, so a lint earlier
+  // in the session does not spend the commit's full text.
+  it('states the commit rule in full after a lint already fired', () => {
+    const session = `lint-then-commit-${Math.random()}`
+    const run = (command) => {
+      const payload = JSON.stringify({ session_id: session, tool_input: { command } })
+      const out = execFileSync('node', [hook('precommit-trigger')], {
+        input: payload,
+        encoding: 'utf8'
+      })
+      return out.trim() ? JSON.parse(out).hookSpecificOutput.additionalContext : ''
+    }
+    expect(run('yarn lint')).toContain('start at step 1')
+    expect(run('git commit -m x')).toContain('invoke `/precommit`')
+  })
 })
 
 describe('bulk-edit-guard', () => {
