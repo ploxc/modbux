@@ -93,5 +93,6 @@ export const answerCall = async ({ id, tool, args }: McpCall): Promise<McpResult
 /** Answer every tool call main sends this window. */
 export const installMcpRelay = (): (() => void) =>
   onEvent('mcp_call', (call) => {
+    sendEvent('mcp_ack', call.id)
     void answerCall(call).then((result) => sendEvent('mcp_result', result))
   })

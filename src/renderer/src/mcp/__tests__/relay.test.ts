@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
-import { stubRenderer } from '@renderer/context/__tests__/stubRenderer'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, stubRenderer } from '@renderer/context/__tests__/stubRenderer'
 
 stubRenderer()
-const { answerCall } = await import('../relay')
+const { answerCall, installMcpRelay } = await import('../relay')
 const { useClientZustand } = await import('@renderer/context/client.zustand')
 
 describe('answerCall', () => {
@@ -27,5 +27,20 @@ describe('answerCall', () => {
     const answer = await answerCall({ id: 'call-3', tool: 'get_client', args: { client: 7 } })
     expect(answer).toMatchObject({ id: 'call-3', ok: false })
     expect(answer.ok || answer.error.startsWith('get_client failed in Modbux:')).toBe(true)
+  })
+})
+
+describe('installMcpRelay', () => {
+  it('takes a call before it answers it, so main waits for the tool rather than for a window', async () => {
+    const sent: unknown[][] = []
+    const ipcRenderer = (window as unknown as { electron: { ipcRenderer: { send: unknown } } })
+      .electron.ipcRenderer
+    ipcRenderer.send = (...args: unknown[]): void => void sent.push(args)
+    installMcpRelay()
+
+    fireEvent('mcp_call', { id: 'call-4', tool: 'list_clients', args: {} })
+    expect(sent).toEqual([['mcp_ack', 'call-4']])
+    await vi.waitFor(() => expect(sent).toHaveLength(2))
+    expect(sent[1]).toMatchObject(['mcp_result', { id: 'call-4', ok: true }])
   })
 })

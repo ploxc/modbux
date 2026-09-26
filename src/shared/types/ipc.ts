@@ -461,7 +461,7 @@ const EVENTS_TO_RENDERER = [
 ] as const
 
 /** The events a window pushes to main. `sendEvent` there, `onIpcEvent` here. */
-const EVENTS_TO_MAIN = ['open_server_window', 'mcp_result'] as const
+const EVENTS_TO_MAIN = ['open_server_window', 'mcp_ack', 'mcp_result'] as const
 
 export type EventToRenderer = (typeof EVENTS_TO_RENDERER)[number]
 export type EventToMain = (typeof EVENTS_TO_MAIN)[number]
@@ -479,6 +479,8 @@ export interface IpcEventPayloadMap {
   ['address_groups']: [AddressGroupsEvent]
   ['rtu_server_status']: [boolean]
   ['mcp_call']: [McpCall]
+  /** The id of a call the window has taken, sent before it runs the tool. */
+  ['mcp_ack']: [string]
   ['mcp_result']: [McpResult]
 }
 

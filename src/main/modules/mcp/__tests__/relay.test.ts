@@ -17,7 +17,11 @@ describe('McpRelay', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     send = vi.fn()
-    relay = new McpRelay({ windows: { send } as unknown as Windows, timeout: 5000 })
+    relay = new McpRelay({
+      windows: { send } as unknown as Windows,
+      ackTimeout: 5000,
+      answerTimeout: 30000
+    })
   })
 
   afterEach(() => {
@@ -83,6 +87,33 @@ describe('McpRelay', () => {
     await vi.advanceTimersByTimeAsync(4999)
     relay.answer({ id, ok: true, result: 'in time' })
     await expect(answer).resolves.toEqual({ ok: true, result: 'in time' })
+  })
+
+  it('waits for the answer of a call the window took, past the time to take it', async () => {
+    const answer = relay.run('client', 'read', { client: 'a' })
+    const { id } = lastSent().call
+    relay.acknowledge(id)
+    await vi.advanceTimersByTimeAsync(11000)
+    relay.answer({ id, ok: true, result: 'read' })
+    await expect(answer).resolves.toEqual({ ok: true, result: 'read' })
+  })
+
+  it('says so when a window took a call and never answered it', async () => {
+    const answer = relay.run('client', 'read', { client: 'a' })
+    relay.acknowledge(lastSent().call.id)
+    await vi.advanceTimersByTimeAsync(30000)
+    await expect(answer).resolves.toEqual({
+      ok: false,
+      error: 'read gave no answer within 30 s; it may still be running in Modbux'
+    })
+  })
+
+  it('leaves no timer behind once a call it took is answered', () => {
+    void relay.run('client', 'read', { client: 'a' })
+    const { id } = lastSent().call
+    relay.acknowledge(id)
+    relay.answer({ id, ok: true, result: [] })
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('leaves no timer behind once answered', () => {

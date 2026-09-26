@@ -23,9 +23,12 @@ const clients = new Clients(windows)
 // Initialize the modbus server
 const server = new ModbusServer({ windows })
 
-// The MCP connector, which runs every tool in the window showing its store
-const mcpRelay = new McpRelay({ windows, timeout: 5000 })
+// The MCP connector, which runs every tool in the window showing its store. A
+// window that took a call gets 30 s to answer it: `read` waits for the client's
+// timeout, up to 10 s, and a second past it.
+const mcpRelay = new McpRelay({ windows, ackTimeout: 5000, answerTimeout: 30000 })
 const mcp = new McpConnector({ run: mcpRelay.run })
+onIpcEvent('mcp_ack', (_, id) => mcpRelay.acknowledge(id))
 onIpcEvent('mcp_result', (_, result) => mcpRelay.answer(result))
 
 // IPC
