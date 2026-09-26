@@ -19,8 +19,8 @@ import { useLiveZustand } from '@renderer/context/live.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import PollButton from '../PollButton'
-import { patchShownData } from '../../../../../../context/__tests__/shownData'
-import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import { patchShownData } from '@renderer/context/__tests__/shownData'
+import { patchSelectedClient } from '@renderer/context/__tests__/selectedClient'
 
 interface Toolbar {
   /** What the Length field's validity flag reads. */

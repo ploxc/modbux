@@ -19,7 +19,8 @@ import {
   connectClientRTU,
   disconnectClient,
   navigateToClient,
-  navigateToServer
+  navigateToServer,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
@@ -114,7 +115,7 @@ test.describe.serial('Cancelling a connect', () => {
   })
 
   test('cleanup: back to TCP, stop socat', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await navigateToServer(mainPage)
     await mainPage.getByTestId('server-mode-tcp-btn').click()
 

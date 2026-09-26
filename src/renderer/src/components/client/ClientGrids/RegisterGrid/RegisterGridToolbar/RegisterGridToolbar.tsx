@@ -1,9 +1,7 @@
 import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import PollButton from './PollButton'
 import ReadButton from './ReadButton'
 import ToggleEndianButton from './ToggleEndianButton'
-import TimeSettings from './TimeSettings'
 import LoadButton from './LoadButton'
 import SaveButton from './SaveButton'
 import ClearConfigButton from './ClearConfigButton'
@@ -69,10 +67,8 @@ const RegisterGridToolbar = meme(() => {
       })}
     >
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <PollButton />
         <ReadButton />
         <ToggleEndianButton />
-        <TimeSettings />
         <RawButton />
         <ClearFiltersButton />
       </Box>

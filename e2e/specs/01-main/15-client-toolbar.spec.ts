@@ -546,16 +546,23 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await disableReadConfiguration(mainPage)
   })
 
-  // ─── Time settings ──────────────────────────────────────────────────
+  // ─── Poll rate and timeout ──────────────────────────────────────────────────
 
-  test('time settings opens popover', async ({ mainPage }) => {
-    await mainPage.getByTestId('time-settings-btn').click()
+  test('poll rate and timeout are picked in the top bar', async ({ mainPage }) => {
+    await mainPage.getByTestId('poll-rate-select').click()
+    await mainPage.getByRole('option', { name: '2 s', exact: true }).click()
+    await expect(mainPage.getByTestId('poll-rate-select')).toContainText('2 s')
 
-    const popover = mainPage.getByTestId('time-settings-popover')
-    await expect(popover).toBeVisible()
+    await mainPage.getByTestId('timeout-select').click()
+    await mainPage.getByRole('option', { name: '3 s', exact: true }).click()
+    await expect(mainPage.getByTestId('timeout-select')).toContainText('3 s')
 
-    // Close popover
-    await mainPage.keyboard.press('Escape')
-    await expect(popover).not.toBeVisible()
+    await mainPage.getByTestId('timeout-select').click()
+    await mainPage.getByRole('option', { name: '5 s', exact: true }).click()
+    await expect(mainPage.getByTestId('timeout-select')).toContainText('5 s')
+
+    await mainPage.getByTestId('poll-rate-select').click()
+    await mainPage.getByRole('option', { name: '1 s', exact: true }).click()
+    await expect(mainPage.getByTestId('poll-rate-select')).toContainText('1 s')
   })
 })

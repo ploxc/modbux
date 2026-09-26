@@ -18,7 +18,9 @@ import {
   disableReadConfiguration,
   loadClientConfig,
   scrollCell,
-  expectCellContains
+  expectCellContains,
+  selectProtocol,
+  expectProtocol
 } from '../../fixtures/helpers'
 import { launchElectron, evaluateMain } from '../../fixtures/launch'
 
@@ -116,10 +118,10 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
 
     // Navigate to client
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 
     // Switch to RTU
-    await page.getByTestId('protocol-rtu-btn').click()
+    await selectProtocol(page, 'ModbusRtu')
 
     // Set unit ID
     const unitIdInput = page.getByTestId('client-unitid-input').locator('input')
@@ -155,8 +157,8 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
 
     // Navigate to client
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-rtu-btn')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByTestId('protocol-rtu-btn')).toHaveClass(/Mui-selected/)
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
+    await expectProtocol(page, 'ModbusRtu')
   })
 
   test('session 2 — connect and read', async () => {
@@ -175,8 +177,8 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await launchApp(false)
 
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-rtu-btn')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByTestId('protocol-rtu-btn')).toHaveClass(/Mui-selected/)
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
+    await expectProtocol(page, 'ModbusRtu')
   })
 
   test('session 3 — connect and read', async () => {
@@ -194,7 +196,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await expect(page.getByTestId('connect-btn')).toContainText('Connect', { timeout: 15000 })
 
     // Switch back to TCP
-    await page.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(page, 'ModbusTcp')
     await expect(page.getByTestId('tcp-host-input')).toBeVisible()
   })
 })

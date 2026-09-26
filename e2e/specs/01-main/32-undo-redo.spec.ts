@@ -15,7 +15,8 @@ import {
   navigateToHome,
   navigateToServer,
   selectRegisterType,
-  splitOutServerWindow
+  splitOutServerWindow,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { evaluateMain } from '../../fixtures/launch'
 
@@ -45,7 +46,7 @@ test.beforeAll(async ({ electronApp, mainPage }) => {
 test.describe.serial('Undo and redo in a focused field', () => {
   test('open the client view over TCP', async ({ mainPage }) => {
     await navigateToClient(mainPage)
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
   })
 
   test('the host field undoes and redoes what was typed, and the config follows', async ({

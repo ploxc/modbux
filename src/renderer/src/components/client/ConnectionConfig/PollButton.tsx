@@ -39,7 +39,7 @@ const PollButton = meme((): JSX.Element => {
     <Button
       data-testid="poll-btn"
       disabled={disabled}
-      size="small"
+      size="large"
       color={color}
       variant={variant}
       onClick={togglePolling}

@@ -2,7 +2,6 @@ import { useScanRegistersZustand } from '@renderer/components/client/ScanRegiste
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useRef, useState } from 'react'
 import LoadDummyDataButton from './LoadDummyDataButton'
-import MenuConnectionOptions from './MenuConnectionOptions'
 import MenuRegisterOptions from './MenuRegisterOptions'
 import ScanRegistersButton from './ScanRegistersButton'
 import ScanUnitIdsButton from './ScanUnitIdsButton'
@@ -20,7 +19,6 @@ const MenuContent = meme(({ setAnchor }: SetAnchorProps) => {
   return (
     <FormGroup>
       <MenuRegisterOptions />
-      <MenuConnectionOptions />
       <ScanUnitIdsButton setAnchor={setAnchor} />
       <ScanRegistersButton setAnchor={setAnchor} />
       <LoadDummyDataButton setAnchor={setAnchor} />

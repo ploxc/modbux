@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { test, expect, resetApp } from '../../fixtures/electron-app'
-import { navigateToClient } from '../../fixtures/helpers'
+import { navigateToClient, selectProtocol } from '../../fixtures/helpers'
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -16,14 +16,14 @@ test.describe.serial('A unit id above 247 over RTU', () => {
   })
 
   test('250 over Modbus TCP is not red', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await unitIdField(mainPage).locator('input').fill('250')
     await expect(unitIdField(mainPage).locator('input')).toHaveValue('250')
     await expect(unitIdField(mainPage).locator('input')).toHaveAttribute('aria-invalid', 'false')
   })
 
   test('switching to RTU keeps 250 and turns it red', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-rtu-btn').click()
+    await selectProtocol(mainPage, 'ModbusRtu')
     await expect(unitIdField(mainPage).locator('input')).toHaveValue('250')
     await expect(unitIdField(mainPage).locator('input')).toHaveAttribute('aria-invalid', 'true')
   })
@@ -35,7 +35,7 @@ test.describe.serial('A unit id above 247 over RTU', () => {
 
   test('back to Modbus TCP on unit id 1', async ({ mainPage }) => {
     await unitIdField(mainPage).locator('input').fill('1')
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await expect(unitIdField(mainPage).locator('input')).toHaveValue('1')
   })
 })

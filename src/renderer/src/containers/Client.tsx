@@ -54,8 +54,9 @@ const Client = meme(() => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
-            flexWrap: 'wrap'
+            gap: 1.5,
+            flexWrap: 'nowrap',
+            '& > *': { flexShrink: 0 }
           }}
         >
           <Box sx={{ display: 'flex', gap: 1 }}>

@@ -13,28 +13,24 @@ vi.hoisted(() => {
   w.api = new Proxy({}, { get: () => () => Promise.resolve(undefined) })
 })
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import MenuRegisterOptions from '../MenuRegisterOptions'
-import MenuConnectionOptions from '../MenuConnectionOptions'
-import { MAIN_CLIENT_UUID, defaultClientState } from '@shared'
+import { defaultClientState } from '@shared'
 import { patchSelectedClient } from '../../../../../../../context/__tests__/selectedClient'
 import { patchShownData } from '../../../../../../../context/__tests__/shownData'
 
-// The options menu groups register options / connection options / actions,
+// The options menu groups register options and actions,
 // each section carrying its own trailing divider so empty sections never
-// leave a stray separator. These tests guard that null-behaviour and the
-// RTU-over-TCP toggle without needing a real Modbus server.
+// leave a stray separator. These tests guard that null-behaviour without
+// needing a real Modbus server.
 
 const seed = (client: Parameters<typeof patchSelectedClient>[1]): void => {
   patchSelectedClient(useClientZustand, client)
 }
 
 beforeEach(() => {
-  // The setter writes what main accepted, so a stub answering `undefined`
-  // refuses every payload and the store never moves.
-  window.api = { updateConnectionConfig: vi.fn(() => Promise.resolve(true)) } as never
   patchSelectedClient(useClientZustand, {}, { ready: true })
   patchShownData(useLiveZustand, {
     clientState: {
@@ -67,81 +63,5 @@ describe('MenuRegisterOptions', () => {
 
     expect(screen.queryByTestId('advanced-mode-checkbox')).not.toBeInTheDocument()
     expect(container.querySelectorAll('hr')).toHaveLength(0)
-  })
-})
-
-describe('MenuConnectionOptions', () => {
-  it('renders the RTU-over-TCP checkbox with a trailing divider when TCP is selected', () => {
-    seed({
-      connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusTcp' }
-    })
-
-    const { container } = render(<MenuConnectionOptions />)
-
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
-    expect(container.querySelectorAll('hr')).toHaveLength(1)
-  })
-
-  it('checks the box when the protocol is RTU over TCP', () => {
-    seed({
-      connectionConfig: {
-        ...getSelectedClient().connectionConfig,
-        protocol: 'ModbusRtuOverTcp'
-      }
-    })
-
-    render(<MenuConnectionOptions />)
-
-    expect(screen.getByRole('checkbox')).toBeChecked()
-  })
-
-  it('renders nothing (no checkbox, no divider) for serial RTU', () => {
-    seed({
-      connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusRtu' }
-    })
-
-    const { container } = render(<MenuConnectionOptions />)
-
-    expect(screen.queryByTestId('rtu-over-tcp-checkbox')).not.toBeInTheDocument()
-    expect(container.querySelectorAll('hr')).toHaveLength(0)
-  })
-
-  it('toggles the protocol between TCP and RTU-over-TCP via the checkbox', async () => {
-    seed({
-      connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusTcp' }
-    })
-
-    render(<MenuConnectionOptions />)
-
-    fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    await waitFor(() =>
-      expect(getSelectedClient().connectionConfig.protocol).toBe('ModbusRtuOverTcp')
-    )
-    expect(window.api.updateConnectionConfig).toHaveBeenCalledWith({
-      uuid: MAIN_CLIENT_UUID,
-      connectionConfig: { protocol: 'ModbusRtuOverTcp' }
-    })
-
-    fireEvent.click(screen.getByTestId('rtu-over-tcp-checkbox'))
-    await waitFor(() => expect(getSelectedClient().connectionConfig.protocol).toBe('ModbusTcp'))
-  })
-
-  it('disables the checkbox while not disconnected', () => {
-    seed({
-      connectionConfig: { ...getSelectedClient().connectionConfig, protocol: 'ModbusTcp' }
-    })
-    patchShownData(useLiveZustand, {
-      clientState: {
-        ...defaultClientState,
-        connectState: 'connected',
-        polling: false,
-        scanningUnitIds: false,
-        scanningRegisters: false
-      }
-    })
-
-    render(<MenuConnectionOptions />)
-
-    expect(screen.getByRole('checkbox')).toBeDisabled()
   })
 })

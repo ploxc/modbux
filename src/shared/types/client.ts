@@ -285,8 +285,8 @@ export type ClientState = z.infer<typeof ClientStateSchema>
 /**
  * A poll rate and a read timeout, in milliseconds.
  *
- * Both come from `SliderComponent`, which runs 1 to 10 with a step of 1 and
- * multiplies by a thousand. Stating that here is what lets `setPollRate` and
+ * Both come from a select in the client top bar offering 1000 to 10000 in
+ * steps of 1000. Stating that here is what lets `setPollRate` and
  * `setTimeout` drop the copy of it they each carried.
  */
 const ReadTimingSchema = z.number().int().min(1000).max(10000).multipleOf(1000)

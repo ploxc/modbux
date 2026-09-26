@@ -18,7 +18,8 @@ import {
   selectRegisterType,
   selectUnitId,
   expectCell,
-  sectionCount
+  sectionCount,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -467,7 +468,7 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
   })
 
   test('switch client back to TCP', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
   })
 

@@ -4,8 +4,11 @@ import { ButtonProps } from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
 import TextField from '@mui/material/TextField'
-import ToggleButton from '@mui/material/ToggleButton'
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import Divider from '@mui/material/Divider'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Select, { SelectChangeEvent } from '@mui/material/Select'
 import Tooltip from '@mui/material/Tooltip'
 import RtuConfig from './RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
@@ -19,68 +22,61 @@ import {
   selectedClientUuid,
   selectedSession
 } from '@renderer/context/client.zustand'
-import { Protocol, unitIdOutOfRange } from '@shared'
+import { Protocol, PROTOCOL_LABELS, unitIdOutOfRange } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import ProtocolIcon from '@renderer/components/client/ClientSidebar/ProtocolIcon'
+import PollButton from './PollButton'
+import { PollRateSelect, TimeoutSelect } from './ReadTiming'
 
 // Protocol
-const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
+const PROTOCOLS: Protocol[] = ['ModbusTcp', 'ModbusRtuOverTcp', 'ModbusRtu']
+
+const ProtocolOption = meme(({ protocol }: { protocol: Protocol }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+    <ProtocolIcon protocol={protocol} />
+    {PROTOCOL_LABELS[protocol]}
+  </Box>
+))
+
+const renderProtocol = (protocol: Protocol): JSX.Element => <ProtocolOption protocol={protocol} />
+
+const ProtocolSelect = meme(() => {
+  const labelId = 'protocol-select'
+  const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
   )
 
-  const handleChange = useCallback((_event: unknown, value: Protocol | null): void => {
-    if (value === null) return
+  const handleChange = useCallback((event: SelectChangeEvent<Protocol>): void => {
     const clientZustand = useClientZustand.getState()
-    clientZustand.setProtocol(value)
+    clientZustand.setProtocol(event.target.value as Protocol)
   }, [])
 
-  // RTU over TCP is a TCP-family transport (toggled from the options menu),
-  // so the TCP button stays highlighted for it -- but in warning colour, since
-  // it reuses the same host and port and would otherwise be indistinguishable
-  // from plain TCP.
-  //
-  // Switching to serial RTU and back lands on plain TCP by design: the mode
-  // lives in the single `protocol` value, and silently restoring the
-  // encapsulated variant would make "TCP doesn't work" hard to diagnose.
-  // Anyone who wants it ticks the box again.
-  const rtuOverTcp = protocol === 'ModbusRtuOverTcp'
-  const toggleValue: Protocol = protocol === 'ModbusRtu' ? 'ModbusRtu' : 'ModbusTcp'
-
-  const tcpButton = (
-    <ToggleButton
-      value={'ModbusTcp'}
-      data-testid="protocol-tcp-btn"
-      color={rtuOverTcp ? 'warning' : 'primary'}
-    >
-      TCP
-    </ToggleButton>
-  )
-
   return (
-    <ToggleButtonGroup
-      disabled={disabled}
-      size="large"
-      exclusive
-      color="primary"
-      value={toggleValue}
-      onChange={handleChange}
-    >
-      {rtuOverTcp ? (
-        <Tooltip title="RTU over TCP is on: raw RTU frames over the socket, not Modbus TCP. Turn it off in the cog menu.">
-          {tcpButton}
-        </Tooltip>
-      ) : (
-        tcpButton
-      )}
-      <ToggleButton value={'ModbusRtu'} data-testid="protocol-rtu-btn">
-        RTU
-      </ToggleButton>
-    </ToggleButtonGroup>
+    <FormControl size="large" sx={{ width: 180 }}>
+      <InputLabel id={labelId}>Protocol</InputLabel>
+      <Select
+        disabled={disabled}
+        size="large"
+        labelId={labelId}
+        label="Protocol"
+        value={protocol}
+        renderValue={renderProtocol}
+        onChange={handleChange}
+        data-testid="protocol-select"
+      >
+        {PROTOCOLS.map((option) => (
+          <MenuItem key={option} value={option} data-testid={`protocol-option-${option}`}>
+            <ProtocolOption protocol={option} />
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   )
 })
 
@@ -209,15 +205,17 @@ const ConnectionConfig = meme(() => {
   const protocol = useClientZustand((z) => selectedClient(z).connectionConfig.protocol)
   return (
     <>
+      <ProtocolSelect />
       {/* RTU over TCP reuses the TCP host/port inputs; only serial RTU uses the COM form. */}
       {protocol === 'ModbusRtu' ? <RtuConfig /> : <TcpConfig />}
       {/* Serial RTU is the only mode that needs a group membership to work. */}
       <SerialGroupModal active={protocol === 'ModbusRtu'} />
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <ProtocolSelect protocol={protocol} />
-        <UnitId />
-        <ConnectButton />
-      </Box>
+      <UnitId />
+      <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
+      <PollRateSelect />
+      <TimeoutSelect />
+      <PollButton />
+      <ConnectButton />
     </>
   )
 })

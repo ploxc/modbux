@@ -419,6 +419,26 @@ export async function disconnectClient(p: Page): Promise<void> {
  * Does NOT set COM port — that must be done manually (e.g. via page.pause()).
  * After calling this, click connect-btn separately once the COM port is set.
  */
+const PROTOCOL_NAMES = {
+  ModbusTcp: 'Modbus TCP',
+  ModbusRtu: 'Modbus RTU',
+  ModbusRtuOverTcp: 'RTU over TCP'
+} as const
+
+type ProtocolName = keyof typeof PROTOCOL_NAMES
+
+/** Pick a protocol in the client top bar. */
+export async function selectProtocol(p: Page, protocol: ProtocolName): Promise<void> {
+  await p.getByTestId('protocol-select').click()
+  await p.getByTestId(`protocol-option-${protocol}`).click()
+  await expectProtocol(p, protocol)
+}
+
+/** The protocol the client top bar shows. */
+export async function expectProtocol(p: Page, protocol: ProtocolName): Promise<void> {
+  await expect(p.getByTestId('protocol-select')).toContainText(PROTOCOL_NAMES[protocol])
+}
+
 export async function connectClientRTU(
   p: Page,
   unitId: string,
@@ -427,7 +447,7 @@ export async function connectClientRTU(
   databits = '8',
   stopbits = '1'
 ): Promise<void> {
-  await p.getByTestId('protocol-rtu-btn').click()
+  await selectProtocol(p, 'ModbusRtu')
   await expect(p.getByTestId('rtu-baudrate-select')).toBeVisible()
 
   // Set baudrate
@@ -493,7 +513,7 @@ export async function navigateToClient(p: Page): Promise<void> {
   }
 
   // Wait for client view to be ready (use protocol-agnostic element)
-  await expect(p.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+  await expect(p.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 }
 
 /** Navigate to Home from any view */

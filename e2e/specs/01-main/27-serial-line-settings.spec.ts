@@ -5,7 +5,8 @@ import {
   navigateToClient,
   cleanServerState,
   connectClientRTU,
-  disconnectClient
+  disconnectClient,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { spawn, execSync, type ChildProcess } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
@@ -223,7 +224,7 @@ test.describe.serial('Serial line settings — what reaches the port', () => {
 
   test('disconnect the client and switch it back to TCP', async ({ mainPage }) => {
     await disconnectClient(mainPage)
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
   })
 

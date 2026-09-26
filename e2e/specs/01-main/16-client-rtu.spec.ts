@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect, resetApp } from '../../fixtures/electron-app'
-import { navigateToClient } from '../../fixtures/helpers'
+import { navigateToClient, selectProtocol, expectProtocol } from '../../fixtures/helpers'
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -11,19 +11,17 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await navigateToClient(mainPage)
   })
 
-  // ─── Protocol toggle ────────────────────────────────────────────────
+  // ─── Protocol select ────────────────────────────────────────────────
 
   test('default protocol is TCP', async ({ mainPage }) => {
-    const tcpBtn = mainPage.getByTestId('protocol-tcp-btn')
-    await expect(tcpBtn).toBeVisible()
-    await expect(tcpBtn).toHaveClass(/Mui-selected/)
+    await expectProtocol(mainPage, 'ModbusTcp')
 
     // TCP fields should be visible
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
   })
 
   test('switch to RTU hides TCP fields and shows RTU fields', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-rtu-btn').click()
+    await selectProtocol(mainPage, 'ModbusRtu')
 
     // TCP fields should be hidden
     await expect(mainPage.getByTestId('tcp-host-input')).not.toBeVisible()
@@ -35,9 +33,7 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await expect(mainPage.getByTestId('rtu-stopbits-select')).toBeVisible()
     await expect(mainPage.getByTestId('rtu-com-input')).toBeVisible()
 
-    // RTU button should now be selected
-    const rtuBtn = mainPage.getByTestId('protocol-rtu-btn')
-    await expect(rtuBtn).toHaveClass(/Mui-selected/)
+    await expectProtocol(mainPage, 'ModbusRtu')
   })
 
   test('default RTU values are correct', async ({ mainPage }) => {
@@ -136,7 +132,7 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
 
     // Verify the page is still functional
     await expect(mainPage.getByTestId('rtu-baudrate-select')).toBeVisible()
-    await expect(mainPage.getByTestId('protocol-rtu-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('protocol-select')).toBeVisible()
   })
 
   test('validate button works without crash', async ({ mainPage }) => {
@@ -150,7 +146,7 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
   // ─── Protocol switching ─────────────────────────────────────────────
 
   test('switch to TCP hides RTU fields', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
 
     // TCP fields should be visible again
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
@@ -159,11 +155,11 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
     await expect(mainPage.getByTestId('rtu-baudrate-select')).not.toBeVisible()
 
     // TCP button should be selected
-    await expect(mainPage.getByTestId('protocol-tcp-btn')).toHaveClass(/Mui-selected/)
+    await expectProtocol(mainPage, 'ModbusTcp')
   })
 
   test('switching back to RTU preserves changed values', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-rtu-btn').click()
+    await selectProtocol(mainPage, 'ModbusRtu')
 
     // Previously changed values should still be set
     await expect(mainPage.getByTestId('rtu-baudrate-select')).toContainText('115200')
@@ -175,8 +171,8 @@ test.describe.serial('Client RTU — serial protocol configuration', () => {
   // ─── Cleanup: restore TCP mode ──────────────────────────────────────
 
   test('switch back to TCP mode for next spec', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
-    await expect(mainPage.getByTestId('protocol-tcp-btn')).toHaveClass(/Mui-selected/)
+    await expectProtocol(mainPage, 'ModbusTcp')
   })
 })

@@ -9,7 +9,8 @@ import {
   readRegisters,
   selectRegisterType,
   selectUnitId,
-  expectCell
+  expectCell,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -108,17 +109,14 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
   test('navigate to client and enable RTU over TCP', async ({ mainPage }) => {
     await navigateToClient(mainPage)
 
-    // Ensure a TCP baseline (state persists across specs in the same worker),
-    // then enable RTU over TCP + advanced mode from the ⚙ options menu. Both
-    // must be set while disconnected — the RTU-over-TCP toggle is disabled once
-    // connected. `.check()` is idempotent, so prior state can't flip it off.
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    // The protocol select is disabled once connected, so it is set first.
+    // `.check()` is idempotent, so prior state can't flip advanced mode off.
+    await selectProtocol(mainPage, 'ModbusRtuOverTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
 
     await selectRegisterType(mainPage, 'Holding Registers')
 
     await mainPage.getByTestId('menu-btn').click()
-    await mainPage.getByTestId('rtu-over-tcp-checkbox').locator('input').check()
     await mainPage.getByTestId('advanced-mode-checkbox').locator('input').check()
     await mainPage.keyboard.press('Escape')
   })
@@ -167,10 +165,7 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
   })
 
   test('disable RTU over TCP (back to plain TCP)', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage.getByTestId('rtu-over-tcp-checkbox').locator('input').uncheck()
-    await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('protocol-tcp-btn')).toHaveClass(/Mui-selected/)
+    await selectProtocol(mainPage, 'ModbusTcp')
   })
 
   test('switch server back to TCP', async ({ mainPage }) => {

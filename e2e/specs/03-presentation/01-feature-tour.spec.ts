@@ -35,7 +35,8 @@ import {
   disableClientRawMode,
   expectCell,
   expectCellContains,
-  splitOutServerWindow
+  splitOutServerWindow,
+  selectProtocol
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
@@ -435,13 +436,13 @@ test.describe.serial('Act III — Going Live', () => {
   })
 
   test('scene 17b — poll rate and timeout', async ({ mainPage }) => {
-    await mainPage.getByTestId('time-settings-btn').click()
+    await mainPage.getByTestId('poll-rate-select').click()
     await beat(mainPage, 400)
+    await snap(mainPage, 'client-time-settings')
 
-    const popover = mainPage.getByTestId('time-settings-popover').locator('.MuiPaper-root').first()
-    await popover.screenshot({ path: resolve(SHOTS, 'client-time-settings.png') })
-
-    await mainPage.keyboard.press('Escape')
+    // Picking the value it holds closes the menu without changing it.
+    await mainPage.getByRole('option', { name: '1 s', exact: true }).click()
+    await expect(mainPage.getByRole('listbox')).toBeHidden()
     await beat(mainPage, 300)
   })
 
@@ -896,32 +897,19 @@ test.describe.serial('Act IV — Interaction', () => {
 let serverPage: Page
 
 test.describe.serial('Act V — Side by Side', () => {
-  test('scene 30 — RTU over TCP in the cog menu', async ({ mainPage }) => {
+  test('scene 30 — RTU over TCP in the protocol select', async ({ mainPage }) => {
     // Only reachable while disconnected: the transport cannot change mid-session.
-    // The warning colour is the whole point -- it is what turns the TCP button
-    // warning too, and that is the only thing telling the two TCP transports
-    // apart, since RTU over TCP reuses the same host and port.
     await disconnectClient(mainPage)
-    await mainPage.getByTestId('menu-btn').click()
-    await beat(mainPage, 300)
-
-    const popover = mainPage.locator('.MuiPopover-paper')
-    const rtuOverTcp = mainPage.getByTestId('rtu-over-tcp-checkbox')
-    await rtuOverTcp.click()
-    // Park the pointer and the focus away from the checkbox: the hover ripple
-    // it leaves behind otherwise dominates the shot. The popover closes on
-    // click, not on mouse-out, so moving away is safe.
-    await mainPage.mouse.move(5, 5)
-    await mainPage.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await mainPage.getByTestId('protocol-select').click()
     await beat(mainPage, 400)
-    await popover.screenshot({ path: resolve(SHOTS, 'cog-menu-rtu-over-tcp.png') })
+    await snap(mainPage, 'protocol-select')
 
-    await rtuOverTcp.click()
-    await beat(mainPage, 200)
-    await mainPage.keyboard.press('Escape')
+    await mainPage.getByTestId('protocol-option-ModbusRtuOverTcp').click()
+    await beat(mainPage, 400)
+    await snap(mainPage, 'client-rtu-over-tcp')
+
+    await selectProtocol(mainPage, 'ModbusTcp')
     await beat(mainPage, 300)
-
-    // The TCP button back on primary, ready for the split view scenes.
     await snap(mainPage, 'client-rtu-over-tcp-off')
   })
 

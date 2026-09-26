@@ -60,7 +60,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await page.getByTestId('home-btn').click()
     await expect(page.getByTestId('home-server-btn')).toBeVisible({ timeout: 5000 })
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
     // Fill in connection config
     const hostInput = page.getByTestId('tcp-host-input').locator('input')
     await hostInput.fill('192.168.1.100')
@@ -85,7 +85,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
   test('verify client connection settings persisted', async () => {
     // Navigate to client
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
     const hostInput = page.getByTestId('tcp-host-input').locator('input')
     await expect(hostInput).toHaveValue('192.168.1.100')
     const portInput = page.getByTestId('tcp-port-input').locator('input')
@@ -136,7 +136,7 @@ test.describe.serial('Persistence — a config saved under the former key', () =
   test('write a config, then put it back under the old key', async () => {
     await launchApp(true)
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 
     await page.getByTestId('tcp-host-input').locator('input').fill('10.9.8.7')
     await page.getByTestId('client-unitid-input').locator('input').fill('9')
@@ -163,7 +163,7 @@ test.describe.serial('Persistence — a config saved under the former key', () =
   test('reopen and find the config carried over', async () => {
     await launchApp(false)
     await page.getByTestId('home-client-btn').click()
-    await expect(page.getByTestId('protocol-tcp-btn')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 
     await expect(page.getByTestId('tcp-host-input').locator('input')).toHaveValue('10.9.8.7')
     await expect(page.getByTestId('client-unitid-input').locator('input')).toHaveValue('9')

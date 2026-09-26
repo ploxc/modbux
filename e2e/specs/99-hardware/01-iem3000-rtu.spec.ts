@@ -20,7 +20,9 @@ import {
   disableReadConfiguration,
   scrollCell,
   expectCellContains,
-  clearData
+  clearData,
+  selectProtocol,
+  expectProtocol
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { findArduinoPort, selectComPort } from '../../fixtures/arduino-port'
@@ -216,8 +218,8 @@ test.describe.serial('Hardware — iEM3000 RTU (Arduino emulator)', () => {
   })
 
   test('switch back to TCP mode', async ({ mainPage }) => {
-    await mainPage.getByTestId('protocol-tcp-btn').click()
+    await selectProtocol(mainPage, 'ModbusTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
-    await expect(mainPage.getByTestId('protocol-tcp-btn')).toHaveClass(/Mui-selected/)
+    await expectProtocol(mainPage, 'ModbusTcp')
   })
 })
