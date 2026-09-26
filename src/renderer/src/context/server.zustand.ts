@@ -14,9 +14,7 @@ import {
   getUsedAddresses,
   MAIN_SERVER_UUID,
   ServerRegisterEntry,
-  RegisterParams,
   RegisterParamsSchema,
-  holdsExact64Bits,
   SyncBoolsParameters,
   UnitIdString,
   SetBooleanParameters,
@@ -26,11 +24,8 @@ import {
   registerWidth,
   MAX_NUMBER_REGISTER_WIDTH,
   ModbusBaudRate,
-  RegisterType,
   RegisterValue,
-  ServerRegisters,
-  BooleanRegisters,
-  NumberRegisters
+  ServerRegisters
 } from '@shared'
 import { onEvent } from '@renderer/events'
 import { enqueueSnackbar } from 'notistack'
@@ -48,8 +43,14 @@ import {
   portToOpen,
   restartRtuServer,
   setSerialOption,
-  ServerDelayedSetter
+  ServerDelayedSetter,
+  batchKey,
+  editsLabelsAlone,
+  keepLiveValues,
+  labelsOnly,
+  paramsToRestore
 } from './server.zustand.helpers'
+import { recordUnit } from './server.zustand.actions'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
@@ -68,171 +69,6 @@ import { deepEqual } from 'fast-equals'
  * `repairPersisted` answers a reset on `savedByNewerVersion` alone.
  */
 let persistedVersion: number | undefined
-
-/**
- * Records what a unit held, when an action changed which addresses it has or
- * what they are. A value a master or a generator wrote is no step, so the
- * comparison leaves the values out.
- */
-const recordUnit = (
-  get: () => ServerZustand,
-  uuid: string,
-  unitId: UnitIdString,
-  before: ServerRegisters | undefined
-): void => {
-  const after = get().servers[uuid]?.registers[unitId]
-  if (deepEqual(unitStructure(before), unitStructure(after))) return
-  useUndoZustand
-    .getState()
-    .recordServer({ kind: 'unit', uuid, unitId, value: withPendingValues(uuid, unitId, before) })
-}
-
-/**
- * A unit's registers with the values the batchers still hold for it.
- *
- * Main's words reach an entry after 50 ms of quiet, so a unit read off the
- * store inside that window is a word behind, and a step recorded from it would
- * put back the word before the one that had already arrived.
- */
-export const withPendingValues = (
-  uuid: string,
-  unitId: UnitIdString,
-  registers: ServerRegisters | undefined
-): ServerRegisters | undefined => {
-  if (registers === undefined) return undefined
-  // The parameters rather than the pending composite: they hold the value in
-  // the store's own form, where a 64 bit composite is a bigint and the store
-  // keeps its decimal string.
-  // Bools need none of it: `keepLiveValues` puts a bool back at the value the
-  // store holds when the step replays, and a bool still pending then reaches
-  // the store and main on its own flush after.
-  const numbers = (type: NumberRegisters): ServerRegisters[NumberRegisters] =>
-    Object.fromEntries(
-      Object.entries(registers[type]).map(([address, entry]) => {
-        const pending = delayedRegister.getParameter(batchKey(uuid, unitId, type, Number(address)))
-        return [address, pending === undefined ? entry : { ...entry, value: pending.value }]
-      })
-    )
-  return {
-    ...registers,
-    input_registers: numbers('input_registers'),
-    holding_registers: numbers('holding_registers')
-  }
-}
-
-/**
- * A unit's registers with the values it holds now kept, so putting a unit back
- * puts back its addresses and what they are, not a value a master or a
- * generator has written since. A register keeps its value only where it is the
- * same register, with the same params.
- */
-const keepLiveValues = (
-  registers: ServerRegisters,
-  live: ServerRegisters | undefined,
-  heldNow: (entry: ServerRegisterEntry) => number
-): ServerRegisters => {
-  const bools = (type: BooleanRegisters): ServerRegisters[BooleanRegisters] =>
-    Object.fromEntries(
-      Object.entries(registers[type]).map(([address, entry]) => [
-        address,
-        { ...entry, value: live?.[type][Number(address)]?.value ?? entry.value }
-      ])
-    )
-  const numbers = (type: NumberRegisters): ServerRegisters[NumberRegisters] =>
-    Object.fromEntries(
-      Object.entries(registers[type]).map(([address, entry]) => {
-        const liveEntry = live?.[type][Number(address)]
-        if (liveEntry === undefined) return [address, entry]
-        if (deepEqual(liveEntry.params, entry.params)) {
-          return [address, { ...entry, value: liveEntry.value }]
-        }
-        // A step that changed a label alone gets its labels back and keeps the
-        // word, with `params.value` at that word so the step that replays this
-        // one reads it as left alone too.
-        if (labelsOnly(liveEntry, entry)) {
-          const word = heldNow(liveEntry)
-          return [
-            address,
-            { ...entry, value: liveEntry.value, params: { ...entry.params, value: word } }
-          ]
-        }
-        return [address, entry]
-      })
-    )
-  return {
-    coils: bools('coils'),
-    discrete_inputs: bools('discrete_inputs'),
-    input_registers: numbers('input_registers'),
-    holding_registers: numbers('holding_registers')
-  }
-}
-
-/** The params with the fields a label step can change set aside. */
-const labelsOff = { value: 0, comment: '', bitMap: undefined }
-
-/**
- * Whether the step between `live` and `restored` changed a comment or a bit
- * map and nothing else, word included.
- *
- * Main keeps a fixed register's words and none of its params, so such a step
- * has nothing to tell it, and told anyway it encodes the params' word again:
- * a utf8 register went back to the text the step saw over what a master wrote.
- * A step left the word alone when the `params.value` it holds is the word the
- * register held as it was taken, which is what a bit comment sends.
- */
-type FixedEntry = ServerRegisterEntry & { params: { interval: undefined } }
-
-const labelsOnly = (
-  live: ServerRegisterEntry | undefined,
-  restored: ServerRegisterEntry
-): restored is FixedEntry => {
-  if (live === undefined) return false
-  if (live.params.interval !== undefined || restored.params.interval !== undefined) return false
-  if (!deepEqual({ ...live.params, ...labelsOff }, { ...restored.params, ...labelsOff }))
-    return false
-  return live.params.value === Number(restored.value)
-}
-
-/**
- * Whether `params` edits a fixed register's comment or bit map and nothing
- * else: a label moved, and the value it carries is the one the register was
- * given or the word it holds now, which is what the dialog and a bit comment
- * send.
- */
-const editsLabelsAlone = (
-  existing: ServerRegisterEntry,
-  params: RegisterParams,
-  heldNow: (entry: ServerRegisterEntry) => number
-): params is RegisterParams & { interval: undefined } => {
-  if (existing.params.interval !== undefined || params.interval !== undefined) return false
-  if (!deepEqual({ ...existing.params, ...labelsOff }, { ...params, ...labelsOff })) return false
-  // A toggle moves no label and a value of its own, and it has to reach main
-  // whatever that value happens to equal.
-  const labelMoved =
-    existing.params.comment !== params.comment || !deepEqual(existing.params.bitMap, params.bitMap)
-  if (!labelMoved) return false
-  return params.value === existing.params.value || params.value === heldNow(existing)
-}
-
-/**
- * The params a restored register goes back to main with.
- *
- * A value is not configuration, but a step that set one, a toggle or a value
- * typed in the dialog, is undone with the word from before it, which is the
- * word the register held when the step was taken. Anything else about the
- * register that moved, its type, its length or a generator, goes back as the
- * step saw it, and so does a 64 bit integer, which `params.value` cannot hold.
- */
-const paramsToRestore = (
-  live: ServerRegisterEntry | undefined,
-  restored: ServerRegisterEntry
-): RegisterParams => {
-  const { params } = restored
-  if (live === undefined || params.interval !== undefined) return params
-  if (holdsExact64Bits(params.dataType)) return params
-  if (!deepEqual({ ...live.params, ...labelsOff }, { ...params, ...labelsOff })) return params
-  return { ...params, value: Number(restored.value) }
-}
 
 export const useServerZustand = create<
   ServerZustand,
@@ -931,18 +767,12 @@ const delayedBool = new ServerDelayedSetter<boolean, SetBoolParameters>({
   set: serverZustand.setBool
 })
 
-const delayedRegister = new ServerDelayedSetter<number | bigint, SetRegisterValueParameters>({
-  maxCount: 250,
-  set: serverZustand.setRegisterValue
-})
-
-/** What a value pending in either batcher is filed under. */
-const batchKey = (
-  uuid: string,
-  unitId: UnitIdString,
-  registerType: RegisterType,
-  address: number
-): string => `${uuid}-${unitId}-${registerType}-${address}`
+export const delayedRegister = new ServerDelayedSetter<number | bigint, SetRegisterValueParameters>(
+  {
+    maxCount: 250,
+    set: serverZustand.setRegisterValue
+  }
+)
 
 /**
  * The value the entry is about to hold, for a reader that cannot wait.

@@ -1,4 +1,5 @@
 import {
+  BooleanRegisters,
   checkHasConfig,
   DEFAULT_MODBUS_PORT,
   defaultSerialPortOptions,
@@ -7,11 +8,14 @@ import {
   getUsedAddresses,
   holdsExact64Bits,
   MAIN_SERVER_UUID,
+  NumberRegisters,
   PortSchema,
   RegisterParams,
   repairPersisted,
   registerWidth,
+  RegisterType,
   SerialPortOptions,
+  ServerRegisterEntry,
   ServerRegisters,
   ServerRegistersPerUnit,
   ServerRegisterValue,
@@ -20,6 +24,7 @@ import {
   UnitIdString
 } from '@shared'
 import { round } from 'lodash'
+import { deepEqual } from 'fast-equals'
 import {
   PersistedServer,
   PersistedServerSchema,
@@ -492,4 +497,126 @@ export const foldWordIntoComposite = ({
     : round(Number(newComposite), ['float', 'double'].includes(dataType) ? 3 : 0)
 
   return { composite: newComposite, value }
+}
+
+/** What a value pending in either batcher is filed under. */
+export const batchKey = (
+  uuid: string,
+  unitId: UnitIdString,
+  registerType: RegisterType,
+  address: number
+): string => `${uuid}-${unitId}-${registerType}-${address}`
+
+/**
+ * A unit's registers with the values it holds now kept, so putting a unit back
+ * puts back its addresses and what they are, not a value a master or a
+ * generator has written since. A register keeps its value only where it is the
+ * same register, with the same params.
+ */
+export const keepLiveValues = (
+  registers: ServerRegisters,
+  live: ServerRegisters | undefined,
+  heldNow: (entry: ServerRegisterEntry) => number
+): ServerRegisters => {
+  const bools = (type: BooleanRegisters): ServerRegisters[BooleanRegisters] =>
+    Object.fromEntries(
+      Object.entries(registers[type]).map(([address, entry]) => [
+        address,
+        { ...entry, value: live?.[type][Number(address)]?.value ?? entry.value }
+      ])
+    )
+  const numbers = (type: NumberRegisters): ServerRegisters[NumberRegisters] =>
+    Object.fromEntries(
+      Object.entries(registers[type]).map(([address, entry]) => {
+        const liveEntry = live?.[type][Number(address)]
+        if (liveEntry === undefined) return [address, entry]
+        if (deepEqual(liveEntry.params, entry.params)) {
+          return [address, { ...entry, value: liveEntry.value }]
+        }
+        // A step that changed a label alone gets its labels back and keeps the
+        // word, with `params.value` at that word so the step that replays this
+        // one reads it as left alone too.
+        if (labelsOnly(liveEntry, entry)) {
+          const word = heldNow(liveEntry)
+          return [
+            address,
+            { ...entry, value: liveEntry.value, params: { ...entry.params, value: word } }
+          ]
+        }
+        return [address, entry]
+      })
+    )
+  return {
+    coils: bools('coils'),
+    discrete_inputs: bools('discrete_inputs'),
+    input_registers: numbers('input_registers'),
+    holding_registers: numbers('holding_registers')
+  }
+}
+
+/** The params with the fields a label step can change set aside. */
+const labelsOff = { value: 0, comment: '', bitMap: undefined }
+
+/**
+ * Whether the step between `live` and `restored` changed a comment or a bit
+ * map and nothing else, word included.
+ *
+ * Main keeps a fixed register's words and none of its params, so such a step
+ * has nothing to tell it, and told anyway it encodes the params' word again:
+ * a utf8 register went back to the text the step saw over what a master wrote.
+ * A step left the word alone when the `params.value` it holds is the word the
+ * register held as it was taken, which is what a bit comment sends.
+ */
+type FixedEntry = ServerRegisterEntry & { params: { interval: undefined } }
+
+export const labelsOnly = (
+  live: ServerRegisterEntry | undefined,
+  restored: ServerRegisterEntry
+): restored is FixedEntry => {
+  if (live === undefined) return false
+  if (live.params.interval !== undefined || restored.params.interval !== undefined) return false
+  if (!deepEqual({ ...live.params, ...labelsOff }, { ...restored.params, ...labelsOff }))
+    return false
+  return live.params.value === Number(restored.value)
+}
+
+/**
+ * Whether `params` edits a fixed register's comment or bit map and nothing
+ * else: a label moved, and the value it carries is the one the register was
+ * given or the word it holds now, which is what the dialog and a bit comment
+ * send.
+ */
+export const editsLabelsAlone = (
+  existing: ServerRegisterEntry,
+  params: RegisterParams,
+  heldNow: (entry: ServerRegisterEntry) => number
+): params is RegisterParams & { interval: undefined } => {
+  if (existing.params.interval !== undefined || params.interval !== undefined) return false
+  if (!deepEqual({ ...existing.params, ...labelsOff }, { ...params, ...labelsOff })) return false
+  // A toggle moves no label and a value of its own, and it has to reach main
+  // whatever that value happens to equal.
+  const labelMoved =
+    existing.params.comment !== params.comment || !deepEqual(existing.params.bitMap, params.bitMap)
+  if (!labelMoved) return false
+  return params.value === existing.params.value || params.value === heldNow(existing)
+}
+
+/**
+ * The params a restored register goes back to main with.
+ *
+ * A value is not configuration, but a step that set one, a toggle or a value
+ * typed in the dialog, is undone with the word from before it, which is the
+ * word the register held when the step was taken. Anything else about the
+ * register that moved, its type, its length or a generator, goes back as the
+ * step saw it, and so does a 64 bit integer, which `params.value` cannot hold.
+ */
+export const paramsToRestore = (
+  live: ServerRegisterEntry | undefined,
+  restored: ServerRegisterEntry
+): RegisterParams => {
+  const { params } = restored
+  if (live === undefined || params.interval !== undefined) return params
+  if (holdsExact64Bits(params.dataType)) return params
+  if (!deepEqual({ ...live.params, ...labelsOff }, { ...params, ...labelsOff })) return params
+  return { ...params, value: Number(restored.value) }
 }
