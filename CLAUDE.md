@@ -54,5 +54,7 @@ yarn lint && yarn typecheck && yarn test    # about 75 seconds, most of it typec
 yarn test:e2e                               # builds first, then minutes
 ```
 
-Run the e2e specs a change touches while you work, and the suite once, at the
-end. `e2e/specs/01-main/` is numbered in the order it runs.
+Run the e2e specs a change touches, and only those: every spec starts with
+`resetApp`, so a spec the change does not reach says nothing about it. Run the
+whole suite only when asked. `e2e/specs/01-main/` is numbered in the order it
+runs.

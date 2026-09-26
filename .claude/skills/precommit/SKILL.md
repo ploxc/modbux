@@ -73,10 +73,11 @@ touches `03-server-config`, `04-add-register-modal` and `08-polling-generators`;
 a change to writing touches `09-write-operations`; a change to config shapes
 touches `05-file-io` and `14-client-config-io`.
 
-## 4. The full suite, once
+## 4. The full suite, only when asked
 
-`yarn test:e2e` at the end of a branch, not per commit. It builds first and runs
-for minutes, and running it per commit is how a branch stops being worked on.
+Not per commit and not at the end of a branch. Every spec starts with
+`resetApp`, so step 3 is the whole e2e answer for a change. `yarn test:e2e`
+builds first and runs for minutes; run it when Jens asks for it.
 
 **A packaging or dependency change is measured on the artefact**, never on
 `package.json`: `asar list` says what ships.
