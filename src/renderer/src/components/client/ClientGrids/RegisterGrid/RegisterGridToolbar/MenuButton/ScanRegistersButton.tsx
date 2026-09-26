@@ -1,7 +1,7 @@
 import Button from '@mui/material/Button'
 import { useScanRegistersZustand } from '@renderer/components/client/ScanRegisters/scanRegisters.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
+import { shownType, useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
@@ -12,7 +12,7 @@ const ScanRegistersButton = meme(({ setAnchor }: SetAnchorProps) => {
   const disabled = useLiveZustand(
     (z) => dataOf(z, selectedUuid).clientState.connectState !== 'connected'
   )
-  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
+  const type = useClientZustand((z) => shownType(z))
   const registers16Bit = isNumberRegister(type)
 
   const handleOpen = useCallback(() => {

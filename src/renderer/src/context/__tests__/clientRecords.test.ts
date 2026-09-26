@@ -9,7 +9,8 @@ import {
   CLIENT_ZUSTAND_STORAGE_KEY,
   CURRENT_CLIENT_ZUSTAND_VERSION,
   MAIN_CLIENT_UUID,
-  defaultConnectionConfig
+  defaultConnectionConfig,
+  emptyRegisterMapping
 } from '@shared'
 import { ApiCall, clientPayload, recordApiCalls, stubRenderer } from './stubRenderer'
 import {
@@ -48,8 +49,16 @@ const flat = (version: number): string =>
     state: {
       name: 'boiler',
       connectionConfig: { ...defaultConnectionConfig, unitId: 7 },
-      registerConfig: getDefaultClient().registerConfig,
-      registerMapping: getDefaultClient().registerMapping
+      // The unit's fields sat in the register config then.
+      registerConfig: {
+        ...getDefaultClient().registerConfig,
+        type: 'holding_registers',
+        address: 0,
+        length: 10,
+        littleEndian: false,
+        addressBase: '0'
+      },
+      registerMapping: emptyRegisterMapping()
     },
     version
   })
@@ -57,7 +66,7 @@ const flat = (version: number): string =>
 describe('a store from before clients were keyed by uuid', () => {
   it.each([
     ['2.3.0 wrote', 2],
-    ['this version wrote before the fold', CURRENT_CLIENT_ZUSTAND_VERSION]
+    ['version 3 wrote before the fold', 3]
   ])('comes back as one client, selected, when %s it', async (_label, version) => {
     localStorage.setItem(CLIENT_ZUSTAND_STORAGE_KEY, flat(version))
 
@@ -67,7 +76,26 @@ describe('a store from before clients were keyed by uuid', () => {
     expect(state.selectedUuid).toBe(MAIN_CLIENT_UUID)
     expect(Object.keys(state.clients)).toEqual([MAIN_CLIENT_UUID])
     expect(selectedClient(state).name).toBe('boiler')
-    expect(selectedClient(state).connectionConfig.unitId).toBe(7)
+    expect(selectedClient(state).units[0]?.unitId).toBe(7)
+    expect(state.configReset).toBeUndefined()
+  })
+  // A store that never set a register config or a mapping carried neither. The
+  // unit they fold into takes the defaults, as the client's own missing fields
+  // do, and nothing is reported.
+  it('fills a unit a store carried no register fields for, and reports nothing', async () => {
+    localStorage.setItem(
+      CLIENT_ZUSTAND_STORAGE_KEY,
+      JSON.stringify({
+        state: { name: 'boiler', connectionConfig: { ...defaultConnectionConfig, unitId: 7 } },
+        version: 2
+      })
+    )
+
+    const { useClientZustand } = await load()
+    const state = useClientZustand.getState()
+
+    expect(selectedClient(state).units[0]?.unitId).toBe(7)
+    expect(selectedClient(state).units[0]?.littleEndian).toBe(false)
     expect(state.configReset).toBeUndefined()
   })
 })
@@ -197,11 +225,12 @@ describe('a setter whose answer lands after the view moved on', () => {
     await setting
 
     const { clients } = useClientZustand.getState()
-    expect(clients[MAIN_CLIENT_UUID]?.connectionConfig.unitId).toBe(9)
-    expect(clients[other]?.connectionConfig.unitId).not.toBe(9)
-    const sent = calls.filter(({ method }) => method === 'updateConnectionConfig').at(-1)
+    expect(clients[MAIN_CLIENT_UUID]?.units[0]?.unitId).toBe(9)
+    expect(clients[other]?.units[0]?.unitId).not.toBe(9)
+    const sent = calls.filter(({ method }) => method === 'setUnits').at(-1)
     expect((sent?.payload as { uuid: string }).uuid).toBe(MAIN_CLIENT_UUID)
-    expect(sent && clientPayload(sent.payload)).toEqual({ unitId: 9 })
+    const units = (sent && clientPayload(sent.payload)) as Array<{ unitId: number }>
+    expect(units.map(({ unitId }) => unitId)).toEqual([9])
   })
 })
 
@@ -215,9 +244,7 @@ describe('an undo of another client’s change', () => {
     await clientUndo.undoClient()
 
     expect(useClientZustand.getState().selectedUuid).toBe(MAIN_CLIENT_UUID)
-    expect(useClientZustand.getState().clients[MAIN_CLIENT_UUID]?.connectionConfig.unitId).not.toBe(
-      9
-    )
+    expect(useClientZustand.getState().clients[MAIN_CLIENT_UUID]?.units[0]?.unitId).not.toBe(9)
   })
 
   // Left on the stack, it would refuse every undo after it.

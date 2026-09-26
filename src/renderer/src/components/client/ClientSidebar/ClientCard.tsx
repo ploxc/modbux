@@ -30,7 +30,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
   })
   const connectState = useLiveZustand((z) => dataOf(z, uuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
-  const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offline)
+  const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 

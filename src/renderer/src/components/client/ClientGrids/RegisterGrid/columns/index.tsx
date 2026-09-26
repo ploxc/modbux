@@ -1,5 +1,11 @@
 import { GridColDef } from '@mui/x-data-grid/models'
-import { useClientZustand, selectedClient, selectedSession } from '@renderer/context/client.zustand'
+import {
+  selectedClient,
+  selectedSession,
+  selectedUnit,
+  shownType,
+  useClientZustand
+} from '@renderer/context/client.zustand'
 import { RegisterData, isNumberRegister } from '@shared'
 import { useMemo } from 'react'
 import { addressColumn } from './address'
@@ -21,10 +27,10 @@ import { bitmapValueColumn } from './bitmapValueColumn'
 //
 // COLUMNS
 const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
-  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
-  const registerMap = useClientZustand((z) => selectedClient(z).registerMapping[type])
+  const type = useClientZustand((z) => shownType(z))
+  const registerMap = useClientZustand((z) => selectedUnit(z).registerMapping[type])
 
-  const addressBase = useClientZustand((z) => selectedClient(z).registerConfig.addressBase)
+  const addressBase = useClientZustand((z) => selectedUnit(z).addressBase)
   const advanced = useClientZustand((z) => selectedClient(z).registerConfig.advancedMode)
   const show64Bit = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 

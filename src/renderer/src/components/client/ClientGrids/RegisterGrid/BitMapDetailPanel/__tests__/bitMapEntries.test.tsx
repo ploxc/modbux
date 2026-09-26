@@ -33,12 +33,15 @@ vi.mock('../BitIndicator', async () => {
 })
 
 import { act, render } from '@testing-library/react'
-import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { BitMapConfig, defaultClientState, emptyRegisterMapping, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
-import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
-import { patchShownData } from '../../../../../../context/__tests__/shownData'
+import {
+  patchSelectedClient,
+  patchSelectedUnit
+} from '../../../../../../context/__tests__/selectedClient'
+import { patchShownData, patchShownSection } from '../../../../../../context/__tests__/shownData'
 
 const row = (uint16: number): RegisterData =>
   ({
@@ -54,15 +57,15 @@ const row = (uint16: number): RegisterData =>
 const panelOver = (bitMap: BitMapConfig): void => {
   const mapping = emptyRegisterMapping()
   mapping.holding_registers[0] = { bitMap }
-  patchSelectedClient(useClientZustand, { registerMapping: mapping })
+  patchSelectedUnit(useClientZustand, { registerMapping: mapping })
   render(<BitMapDetailPanel address={0} />)
 }
 
 const bitMapNow = (): BitMapConfig | undefined =>
-  getSelectedClient().registerMapping.holding_registers[0]?.bitMap
+  getSelectedUnit().registerMapping.holding_registers[0]?.bitMap
 
 /** The whole mapping entry, which is what `SaveButton` writes to the file. */
-const mappingNow = (): unknown => getSelectedClient().registerMapping.holding_registers
+const mappingNow = (): unknown => getSelectedUnit().registerMapping.holding_registers
 
 const call = (bitIndex: number, handler: string, ...args: unknown[]): void => {
   const handlers = props.get(bitIndex)
@@ -77,12 +80,8 @@ beforeEach(() => {
   patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected' }
   })
-  patchSelectedClient(
-    useClientZustand,
-    { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
-    { ready: true }
-  )
-  patchShownData(useLiveZustand, { registerData: [row(0)] })
+  patchSelectedClient(useClientZustand, {}, { ready: true, shownType: 'holding_registers' })
+  patchShownSection(useLiveZustand, { registerData: [row(0)] })
 })
 
 describe('what a bit keeps in the mapping', () => {

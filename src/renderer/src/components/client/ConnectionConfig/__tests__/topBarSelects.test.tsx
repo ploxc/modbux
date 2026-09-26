@@ -29,7 +29,7 @@ const seed = (clientState: Partial<ClientState> = {}): void => {
   patchSelectedClient(
     useClientZustand,
     { connectionConfig: { ...defaultConnectionConfig, protocol: 'ModbusTcp' } },
-    { valid: { host: true, com: true, length: true } }
+    { valid: { host: true, com: true } }
   )
 }
 

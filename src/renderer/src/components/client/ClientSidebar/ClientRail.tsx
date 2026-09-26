@@ -19,7 +19,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
   const protocol = useClientZustand((z) => z.clients[uuid]?.connectionConfig.protocol)
   const connectState = useLiveZustand((z) => dataOf(z, uuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
-  const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offline)
+  const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
 
   const handleSelect = useCallback(() => {
     const clientZustand = useClientZustand.getState()

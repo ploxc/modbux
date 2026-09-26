@@ -6,9 +6,13 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
-import { patchShownData, shownData } from './shownData'
+import { patchShownData, shownSectionData } from './shownData'
+import { MAIN_UNIT_UUID } from '../client.zustand.helpers'
 
 const SCAN_FLUSH_MS = 100
+
+/** The default client's one unit, its holding registers: the section the view shows. */
+const at = { uuid: MAIN_CLIENT_UUID, unit: MAIN_UNIT_UUID, type: 'holding_registers' } as const
 
 const rows = (addresses: number[]): unknown[] => addresses.map(getDummyRegisterData)
 
@@ -28,13 +32,13 @@ const loaded = async (
   scanningRegisters: boolean
 ): Promise<{
   addresses: () => number[]
-  dropPendingScanRows: (uuid: string) => void
+  dropPendingScanRows: typeof import('../live.zustand').dropPendingScanRows
 }> => {
   const { useLiveZustand, dropPendingScanRows } = await import('../live.zustand')
   patchShownData(useLiveZustand, { clientState: { ...defaultClientState, scanningRegisters } })
 
   return {
-    addresses: () => shownData(useLiveZustand).registerData.map((row) => row.id),
+    addresses: () => shownSectionData(useLiveZustand).registerData.map((row) => row.id),
     dropPendingScanRows
   }
 }
@@ -43,8 +47,8 @@ describe('rows a scan finds', () => {
   it('reach the grid in one write per flush', async () => {
     const { addresses } = await loaded(true)
 
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([2]) })
+    fireEvent('register_data', { ...at, registerData: rows([0, 1]) })
+    fireEvent('register_data', { ...at, registerData: rows([2]) })
     expect(addresses()).toEqual([])
 
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
@@ -54,9 +58,9 @@ describe('rows a scan finds', () => {
 
   it('are dropped when the scan is asked to forget them', async () => {
     const { addresses, dropPendingScanRows } = await loaded(true)
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
+    fireEvent('register_data', { ...at, registerData: rows([0, 1]) })
 
-    dropPendingScanRows(MAIN_CLIENT_UUID)
+    dropPendingScanRows(at.uuid, at.unit, at.type)
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
 
     expect(addresses()).toEqual([])
@@ -68,7 +72,7 @@ describe('rows a scan finds', () => {
 describe('rows a scan found when it ends', () => {
   it('reach the grid with the state that ends it', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
+    fireEvent('register_data', { ...at, registerData: rows([0, 1]) })
 
     fireEvent('client_state', {
       uuid: MAIN_CLIENT_UUID,
@@ -82,7 +86,7 @@ describe('rows a scan found when it ends', () => {
 
   it('wait for the flush while a state says the scan still runs', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
+    fireEvent('register_data', { ...at, registerData: rows([0, 1]) })
 
     fireEvent('client_state', {
       uuid: MAIN_CLIENT_UUID,
@@ -101,20 +105,20 @@ describe('rows a poll reads', () => {
   it('replace the grid at once', async () => {
     const { addresses } = await loaded(false)
 
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })
+    fireEvent('register_data', { ...at, registerData: rows([7]) })
 
     expect(addresses()).toEqual([7])
   })
 
   it('take what the scan had waiting with them', async () => {
     const { addresses } = await loaded(true)
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([0, 1]) })
+    fireEvent('register_data', { ...at, registerData: rows([0, 1]) })
 
     const { useLiveZustand } = await import('../live.zustand')
     patchShownData(useLiveZustand, {
       clientState: { ...defaultClientState, scanningRegisters: false }
     })
-    fireEvent('register_data', { uuid: MAIN_CLIENT_UUID, registerData: rows([7]) })
+    fireEvent('register_data', { ...at, registerData: rows([7]) })
     vi.advanceTimersByTime(SCAN_FLUSH_MS)
 
     expect(addresses()).toEqual([7])

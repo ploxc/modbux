@@ -7,7 +7,7 @@ import {
   registersFrom,
   unitIdOutOfRange
 } from '@shared'
-import { getSelectedClient } from '@renderer/context/client.zustand'
+import { getSelectedClient, getShownType, getSelectedUnit } from '@renderer/context/client.zustand'
 import { useScanRegistersZustand } from '@renderer/components/client/ScanRegisters/scanRegisters.zustand'
 import { startRegisterScan } from '@renderer/components/client/ScanRegisters/startRegisterScan'
 import { useScanUnitIdZustand } from '@renderer/components/client/ScanUnitIds/scanUnitIds.zustand'
@@ -98,7 +98,10 @@ export const scanRegisters = async ({
 }: McpToolArgs<'scan_registers'>): Promise<unknown> => {
   selectClient(client)
   refuseScan(client)
-  const outOfRange = unitIdOutOfRange(getSelectedClient().connectionConfig)
+  const outOfRange = unitIdOutOfRange({
+    protocol: getSelectedClient().connectionConfig.protocol,
+    unitId: getSelectedUnit().unitId
+  })
   if (outOfRange) throw new McpToolError(outOfRange)
   const dialog = useScanRegistersZustand.getState()
   const address = fields.address ?? dialog.address
@@ -106,7 +109,7 @@ export const scanRegisters = async ({
   const chunkSize = fields.chunkSize ?? dialog.chunkSize
   const timeout = fields.timeout ?? dialog.timeout
 
-  const { type } = getSelectedClient().registerConfig
+  const type = getShownType()
   const maxChunk = maxReadQuantity([type])
   if (chunkSize > maxChunk) {
     throw new McpToolError(`One read of ${type} answers at most ${maxChunk}`)

@@ -1,5 +1,6 @@
+import type { ClientSection, ClientUnit } from '@shared'
 import type { ClientSession, ClientZustand, PersistedClient } from '../client.zustand.types'
-import { getDefaultClient, readySession } from '../client.zustand.helpers'
+import { getDefaultClient, readySession, unitOf } from '../client.zustand.helpers'
 
 /** The two calls of a zustand store this needs, so a test hands over the one it loaded. */
 interface ClientStore {
@@ -30,4 +31,36 @@ export const patchSelectedClient = (
     clients: { ...state.clients, [uuid]: { ...current, ...client } },
     sessions: { ...state.sessions, [uuid]: { ...currentSession, ...session } }
   })
+}
+
+/**
+ * Write fields into the unit the store shows, and into the section of the
+ * register type it shows, and leave everything else where the test found it.
+ * The store is an argument for the reason `patchSelectedClient` gives.
+ */
+export const patchSelectedUnit = (
+  store: ClientStore,
+  unit: Partial<ClientUnit> = {},
+  section: Partial<ClientSection> = {}
+): void => {
+  const state = store.getState()
+  const uuid = state.selectedUuid
+  const client = state.clients[uuid] ?? getDefaultClient()
+  const session = state.sessions[uuid] ?? readySession(client)
+  const shown = unitOf(client, session)
+  const type = session.shownType
+  const changed: ClientUnit = {
+    ...shown,
+    ...unit,
+    sections: {
+      ...shown.sections,
+      ...unit.sections,
+      [type]: { ...(unit.sections ?? shown.sections)[type], ...section }
+    }
+  }
+  patchSelectedClient(
+    store,
+    { units: client.units.map((each) => (each.uuid === shown.uuid ? changed : each)) },
+    { selectedUnit: shown.uuid }
+  )
 }

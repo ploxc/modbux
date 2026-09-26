@@ -51,6 +51,7 @@ vi.mock('modbus-serial', () => {
 })
 
 import { Clients } from '../clients'
+import { newClientUnit } from '@shared'
 
 let sent: Array<[string, Record<string, unknown>]> = []
 const windows = {
@@ -124,13 +125,11 @@ describe('Clients', () => {
       expect(messages().at(-1)).toBe('Disconnect before changing the connection')
     })
 
-    it('takes a unit id, which goes out with each request', async () => {
+    it('takes the units, whose unit ids go out with each request', async () => {
       await connected()
 
-      expect(clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { unitId: 9 } })).toBe(
-        true
-      )
-      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(9)
+      expect(clients.setUnits({ uuid: 'a', units: [newClientUnit('u', 9)] })).toBe(true)
+      expect(clients.get('a')?.config.unit('u')?.unitId).toBe(9)
     })
 
     // A window that comes back hands main the config it loaded.
@@ -148,10 +147,15 @@ describe('Clients', () => {
 
   describe('the config a window makes a client with', () => {
     it('is the client\u2019s when main makes it', () => {
-      clients.create('a', { connectionConfig: { unitId: 7 }, registerConfig: { address: 40 } })
+      clients.create('a', {
+        connectionConfig: { tcp: { host: '10.0.0.7' } },
+        registerConfig: { pollRate: 4000 },
+        units: [newClientUnit('u', 7)]
+      })
 
-      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(7)
-      expect(clients.get('a')?.config.registerConfig.address).toBe(40)
+      expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe('10.0.0.7')
+      expect(clients.get('a')?.config.registerConfig.pollRate).toBe(4000)
+      expect(clients.get('a')?.config.unit('u')?.unitId).toBe(7)
     })
 
     // A window that comes back hands over what it stored, which can hold a
@@ -163,29 +167,35 @@ describe('Clients', () => {
       const count = messages().length
 
       clients.create('a', {
-        connectionConfig: { unitId: 9, tcp: { host: '' } },
-        registerConfig: { address: 40 }
+        connectionConfig: { tcp: { host: '' } },
+        registerConfig: { pollRate: 4000 },
+        units: [newClientUnit('u', 9)]
       })
 
       expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe(host)
-      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(9)
-      expect(clients.get('a')?.config.registerConfig.address).toBe(40)
+      expect(clients.get('a')?.config.unit('u')?.unitId).toBe(9)
+      expect(clients.get('a')?.config.registerConfig.pollRate).toBe(4000)
       expect(messages()).toHaveLength(count)
     })
 
     // A reload after the store was cleared, which is what the e2e suite does
     // between files.
     it('is taken whole by a client main holds that rides nothing', () => {
-      clients.create('a', { connectionConfig: { unitId: 7 }, registerConfig: { address: 40 } })
+      clients.create('a', {
+        connectionConfig: { tcp: { host: '10.0.0.7' } },
+        registerConfig: { pollRate: 4000 },
+        units: [newClientUnit('u', 7)]
+      })
 
       clients.create('a', {
-        connectionConfig: { unitId: 1, tcp: { host: '10.0.0.9' } },
-        registerConfig: { address: 0 }
+        connectionConfig: { tcp: { host: '10.0.0.9' } },
+        registerConfig: { pollRate: 1000 },
+        units: [newClientUnit('v', 1)]
       })
 
       expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe('10.0.0.9')
-      expect(clients.get('a')?.config.connectionConfig.unitId).toBe(1)
-      expect(clients.get('a')?.config.registerConfig.address).toBe(0)
+      expect(clients.get('a')?.config.units.map((unit) => unit.uuid)).toEqual(['v'])
+      expect(clients.get('a')?.config.registerConfig.pollRate).toBe(1000)
     })
   })
 
@@ -211,7 +221,7 @@ describe('Clients', () => {
     expect(clients.get('nobody')).toBeUndefined()
     expect(clients.updateConnectionConfig({ uuid: 'nobody', connectionConfig: {} })).toBeUndefined()
     expect(
-      clients.setReadConfiguration({ uuid: 'nobody', readConfiguration: true })
+      clients.setReadConfiguration({ uuid: 'nobody', unit: 'u', readConfiguration: true })
     ).toBeUndefined()
     expect(messages()).toEqual([
       'That client does not exist, nothing was changed',
@@ -226,33 +236,31 @@ describe('Clients', () => {
   it('answers true for a config it took', () => {
     clients.create('a')
 
-    expect(clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { unitId: 3 } })).toBe(
+    expect(
+      clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { tcp: { host: '10.0.0.3' } } })
+    ).toBe(true)
+    expect(clients.updateRegisterConfig({ uuid: 'a', registerConfig: { pollRate: 4000 } })).toBe(
       true
     )
-    expect(clients.updateRegisterConfig({ uuid: 'a', registerConfig: { address: 40 } })).toBe(true)
-    expect(
-      clients.setRegisterMapping({
-        uuid: 'a',
-        registerMapping: {
-          coils: {},
-          discrete_inputs: {},
-          input_registers: {},
-          holding_registers: {}
-        }
-      })
-    ).toBe(true)
-    expect(clients.setReadConfiguration({ uuid: 'a', readConfiguration: true })).toBe(true)
-    expect(clients.get('a')?.config.connectionConfig.unitId).toBe(3)
-    expect(clients.get('a')?.config.registerConfig.address).toBe(40)
+    expect(clients.setUnits({ uuid: 'a', units: [newClientUnit('u', 3)] })).toBe(true)
+    expect(clients.setReadConfiguration({ uuid: 'a', unit: 'u', readConfiguration: true })).toBe(
+      true
+    )
+    expect(clients.get('a')?.config.connectionConfig.tcp.host).toBe('10.0.0.3')
+    expect(clients.get('a')?.config.registerConfig.pollRate).toBe(4000)
+    expect(clients.get('a')?.config.unit('u')?.unitId).toBe(3)
+    expect(clients.get('a')?.config.readConfiguration('u')).toBe(true)
   })
 
   it('keeps one client’s config out of another’s', () => {
     clients.create('a')
     clients.create('b')
 
-    clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { unitId: 7 } })
+    clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { tcp: { host: '10.0.0.7' } } })
+    clients.setUnits({ uuid: 'a', units: [newClientUnit('u', 7)] })
 
-    expect(clients.get('b')?.config.connectionConfig.unitId).not.toBe(7)
+    expect(clients.get('b')?.config.connectionConfig.tcp.host).not.toBe('10.0.0.7')
+    expect(clients.get('b')?.config.units).toEqual([])
   })
 
   it('takes a client away, and lets go of its connection first', async () => {
@@ -284,8 +292,8 @@ describe('Clients', () => {
     const connectBoth = async () => {
       clients.create('a')
       clients.create('b')
-      clients.updateConnectionConfig({ uuid: 'a', connectionConfig: { unitId: 1 } })
-      clients.updateConnectionConfig({ uuid: 'b', connectionConfig: { unitId: 2 } })
+      clients.setUnits({ uuid: 'a', units: [newClientUnit('ua', 1)] })
+      clients.setUnits({ uuid: 'b', units: [newClientUnit('ub', 2)] })
       await clients.get('a')?.connect()
       await clients.get('b')?.connect()
     }
@@ -302,7 +310,10 @@ describe('Clients', () => {
     it('reads each client under its own unit id, and names it on what comes back', async () => {
       await connectBoth()
 
-      await Promise.all([clients.get('a')?.read(), clients.get('b')?.read()])
+      await Promise.all([
+        clients.get('a')?.read('ua', 'holding_registers'),
+        clients.get('b')?.read('ub', 'holding_registers')
+      ])
 
       expect(instances[0]?.setID.mock.calls).toEqual([[1], [2]])
       const named = (event: string) =>
@@ -330,8 +341,8 @@ describe('Clients', () => {
       const a = clients.get('a')
       if (!a || !b) throw new Error('both clients were created')
 
-      const bRead = b.read()
-      const aRead = a.read()
+      const bRead = b.read('ub', 'holding_registers')
+      const aRead = a.read('ua', 'holding_registers')
       await vi.advanceTimersByTimeAsync(0)
       await a.disconnect()
       await a.connect()

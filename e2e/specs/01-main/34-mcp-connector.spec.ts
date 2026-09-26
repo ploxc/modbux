@@ -269,8 +269,9 @@ test.describe.serial('The MCP connector', () => {
     ).toEqual({ changed: ['dataType', 'comment'], refused: [] })
 
     const config = JSON.parse(readFileSync(CLIENT_CONFIG, 'utf8')) as Record<string, unknown>
+    // The fixture is a version 2 file, which opens as a version 3 device.
     expect(await call(assistant, 'replace_mapping', { client, config })).toEqual({
-      migrated: false,
+      migrated: true,
       fieldsNotBroughtAcross: []
     })
     const registers = (await call(assistant, 'list_registers', { client })) as { name: string }[]

@@ -14,6 +14,10 @@ import { CLIENT_UUID } from '../../fixtures/client-uuid'
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-large-config.json')
 
+// The default client's one unit after a reset, `MAIN_UNIT_UUID` in the client
+// store. Written out because a spec importing the renderer does not load.
+const UNIT_UUID = 'c3a1bd62-9d7e-4e8e-9d3e-5b0f6f1f0a01'
+
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
 })
@@ -39,9 +43,12 @@ test.describe.serial('Read after config load — init readConfiguration sync', (
   test('inject readConfiguration=true into backend and clear grid', async ({ mainPage }) => {
     // Simulate the init() desync: backend gets readConfiguration=true
     // but frontend has it false. Backend has no registerMapping.
-    await mainPage.evaluate((uuid) => {
-      window.api.setReadConfiguration({ uuid, readConfiguration: true })
-    }, CLIENT_UUID)
+    await mainPage.evaluate(
+      ({ uuid, unit }) => {
+        window.api.setReadConfiguration({ uuid, unit, readConfiguration: true })
+      },
+      { uuid: CLIENT_UUID, unit: UNIT_UUID }
+    )
     await mainPage.waitForTimeout(200)
 
     // Clear the grid so we can verify the next read actually produces data

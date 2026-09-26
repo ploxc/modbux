@@ -2,13 +2,14 @@ import z from 'zod'
 import {
   AddressGroup,
   ClientState,
+  ClientUnitSchema,
   ConnectionConfigSchema,
   RegisterConfigSchema,
   RegisterData,
-  RegisterMappingSchema,
   Transaction,
   WriteParametersSchema
 } from './client'
+import { RegisterType, RegisterTypeSchema } from './register'
 import { ScanRegistersParametersSchema, ScanUnitIDParametersSchema, ScanUnitIDResult } from './scan'
 
 /**
@@ -27,7 +28,8 @@ export const ClientUuidSchema = z.string().min(1)
 export const ClientCreateSchema = z.object({
   uuid: ClientUuidSchema,
   connectionConfig: ConnectionConfigSchema.deepPartial(),
-  registerConfig: RegisterConfigSchema.deepPartial()
+  registerConfig: RegisterConfigSchema.deepPartial(),
+  units: z.array(ClientUnitSchema)
 })
 export type ClientCreate = z.infer<typeof ClientCreateSchema>
 
@@ -43,20 +45,41 @@ export const ClientRegisterConfigUpdateSchema = z.object({
 })
 export type ClientRegisterConfigUpdate = z.infer<typeof ClientRegisterConfigUpdateSchema>
 
-export const ClientRegisterMappingSchema = z.object({
+/**
+ * Every unit a client talks to, replacing the ones main held. A unit's uuid
+ * appears once: two entries under one uuid would be one unit read twice.
+ */
+export const ClientUnitsSchema = z.object({
   uuid: ClientUuidSchema,
-  registerMapping: RegisterMappingSchema
+  units: z
+    .array(ClientUnitSchema)
+    .refine((units) => new Set(units.map((unit) => unit.uuid)).size === units.length, {
+      message: 'A unit appears twice'
+    })
 })
-export type ClientRegisterMapping = z.infer<typeof ClientRegisterMappingSchema>
+export type ClientUnits = z.infer<typeof ClientUnitsSchema>
+
+/** A unit of a client, by the unit's uuid. */
+const UnitUuidSchema = z.string().min(1)
 
 export const ClientReadConfigurationSchema = z.object({
   uuid: ClientUuidSchema,
+  unit: UnitUuidSchema,
   readConfiguration: z.boolean()
 })
 export type ClientReadConfiguration = z.infer<typeof ClientReadConfigurationSchema>
 
+/** One read of a unit's register type: its window, or its mapped groups. */
+export const ClientReadSchema = z.object({
+  uuid: ClientUuidSchema,
+  unit: UnitUuidSchema,
+  type: RegisterTypeSchema
+})
+export type ClientRead = z.infer<typeof ClientReadSchema>
+
 export const ClientWriteSchema = z.object({
   uuid: ClientUuidSchema,
+  unit: UnitUuidSchema,
   parameters: WriteParametersSchema
 })
 export type ClientWrite = z.infer<typeof ClientWriteSchema>
@@ -69,6 +92,8 @@ export type ClientScanUnitIds = z.infer<typeof ClientScanUnitIdsSchema>
 
 export const ClientScanRegistersSchema = z.object({
   uuid: ClientUuidSchema,
+  unit: UnitUuidSchema,
+  type: RegisterTypeSchema,
   parameters: ScanRegistersParametersSchema
 })
 export type ClientScanRegisters = z.infer<typeof ClientScanRegistersSchema>
@@ -83,11 +108,15 @@ export interface ClientStateEvent {
 
 export interface RegisterDataEvent {
   uuid: string
+  unit: string
+  type: RegisterType
   registerData: RegisterData[]
 }
 
 export interface AddressGroupsEvent {
   uuid: string
+  unit: string
+  type: RegisterType
   addressGroups: AddressGroup[]
 }
 

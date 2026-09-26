@@ -4,19 +4,24 @@ import {
   clientOwner,
   configuredReadGroups,
   isConnectionAddressGiven,
-  isReadLengthGiven,
-  unitIdOutOfRange
+  isReadLengthGiven
 } from '@shared'
 import {
-  flushRegisterMappingToMain,
+  flushUnitsToMain,
   getSelectedClient,
-  getSelectedSession,
+  getSelectedUnit,
+  getShownType,
   holdSelection,
+  readsConfiguration,
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { readsNothingOf } from '@renderer/context/client.zustand.helpers'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { showMapping, useLiveZustand } from '@renderer/context/live.zustand'
+import {
+  setShownRegisterData,
+  showShownMapping,
+  useLiveZustand
+} from '@renderer/context/live.zustand'
 import { dataOf } from '@renderer/context/live.zustand.helpers'
 import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import { McpToolError, ReadSource, readValues } from './readTools'
@@ -103,8 +108,6 @@ export const connect = async ({ client }: McpToolArgs<'connect'>): Promise<unkno
   const { connectionConfig } = clientZustand.clients[client] ?? {}
   const session = clientZustand.sessions[client]
   if (!connectionConfig || !session) throw new McpToolError('The client is still loading')
-  const outOfRange = unitIdOutOfRange(connectionConfig)
-  if (outOfRange) throw new McpToolError(outOfRange)
   const rtu = connectionConfig.protocol === 'ModbusRtu'
   if (rtu ? !session.valid.com : !session.valid.host) {
     throw new McpToolError(rtu ? 'The client names no COM port' : 'The client names no host')
@@ -134,10 +137,8 @@ export const disconnect = async ({ client }: McpToolArgs<'disconnect'>): Promise
     () => window.api.disconnect(client),
     (heard) => heard.at(-1)?.connectState === 'disconnected'
   )
-  // What the Disconnect button does: the grid of a toolbar read empties.
-  if (!useClientZustand.getState().sessions[client]?.readConfiguration) {
-    useLiveZustand.getState().setRegisterData(client, [])
-  }
+  // What the Disconnect button does: the grid of a window read empties.
+  if (!readsConfiguration(useClientZustand.getState())) setShownRegisterData([])
   return { connectState: stateOf(client).connectState }
 }
 
@@ -161,7 +162,7 @@ export const read = async (
   refuseReading(client, 'read')
   await actAndSettle(
     client,
-    () => window.api.read(client),
+    () => window.api.read({ uuid: client, unit: getSelectedUnit().uuid, type: getShownType() }),
     (heard) => heard.some((state) => state.reading) && heard.at(-1)?.reading === false
   )
   return readValues(source(), { client })
@@ -193,18 +194,14 @@ export const stopPolling = async ({ client }: McpToolArgs<'stop_polling'>): Prom
 const selectedId = (): string => useClientZustand.getState().selectedUuid
 
 /**
- * What the Type select does for the client on screen: refused during a
- * register scan, which reads the type for every chunk, and a grid of a
- * toolbar read emptied, since its rows are of the type before.
+ * What the type buttons do for the client on screen: refused during a
+ * register scan, which reads the type for every chunk.
  */
-export const setType = (type: RegisterType): Promise<boolean> => {
-  const client = selectedId()
-  if (getSelectedClient().registerConfig.type === type) return Promise.resolve(true)
-  if (stateOf(client).scanningRegisters) return Promise.resolve(false)
-  if (!getSelectedSession().readConfiguration) {
-    useLiveZustand.getState().setRegisterData(client, [])
-  }
-  return useClientZustand.getState().setType(type)
+export const setType = (type: RegisterType): boolean => {
+  if (getShownType() === type) return true
+  if (stateOf(selectedId()).scanningRegisters) return false
+  useClientZustand.getState().setType(type)
+  return true
 }
 
 /**
@@ -215,13 +212,16 @@ export const setType = (type: RegisterType): Promise<boolean> => {
 const setReadConfiguration = async (client: string, value: boolean): Promise<boolean> => {
   if (clientOwner(stateOf(client), { exceptPolling: true })) return false
   if (value) {
-    const { registerConfig, registerMapping } = getSelectedClient()
-    if (configuredReadGroups(true, registerConfig.type, registerMapping).length === 0) return false
-    if (!(await flushRegisterMappingToMain(client, registerMapping))) return false
-    showMapping(client)
+    const { registerMapping } = getSelectedUnit()
+    const readable = (['input_registers', 'holding_registers'] as const).some(
+      (type) => configuredReadGroups(true, type, registerMapping).length > 0
+    )
+    if (!readable) return false
+    if (!(await flushUnitsToMain(client, getSelectedClient().units))) return false
+    showShownMapping()
   }
   useClientZustand.getState().setReadConfiguration(value)
-  return useClientZustand.getState().sessions[client]?.readConfiguration === value
+  return readsConfiguration(useClientZustand.getState()) === value
 }
 
 type ConfigField = Exclude<keyof McpToolArgs<'set_client_config'>, 'client'>
@@ -250,7 +250,7 @@ const SETTERS: {
   type: setType,
   address: (value) => useClientZustand.getState().setAddress(String(value)),
   length: (value) =>
-    isReadLengthGiven(value) && useClientZustand.getState().setLength(String(value), true),
+    isReadLengthGiven(value) && useClientZustand.getState().setLength(String(value)),
   littleEndian: (value) => useClientZustand.getState().setLittleEndian(value),
   addressBase: (value) => useClientZustand.getState().setAddressBase(value),
   readConfiguration: (value) => setReadConfiguration(selectedId(), value),

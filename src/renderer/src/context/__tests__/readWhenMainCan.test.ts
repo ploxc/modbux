@@ -9,7 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, emptyRegisterMapping, MAIN_CLIENT_UUID } from '@shared'
 import type { ClientState, RegisterData } from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer } from './stubRenderer'
-import { shownData } from './shownData'
+import { shownSectionData } from './shownData'
+import { MAIN_UNIT_UUID } from '../client.zustand.helpers'
 
 const calls: ApiCall[] = []
 
@@ -81,37 +82,42 @@ describe('the byte order, which reads through the same rule', () => {
   it('asks for a read when rows are on screen', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig', 'read'])
+    expect(methods()).toEqual(['setUnits', 'read'])
   })
 
-  // Main refuses a read of no registers, and after a restart it holds the 0
-  // the Length field kept.
-  it('asks for nothing while the Length field holds a length it refused', async () => {
+  // Main refuses a read of no registers, and a cleared Length field sends it 0.
+  it('asks for nothing while the section holds a length of 0', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
-    await useClientZustand.getState().setLength('0', false)
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
+    await useClientZustand.getState().setLength('0')
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing on an empty grid', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing disconnected', async () => {
@@ -119,67 +125,79 @@ describe('the byte order, which reads through the same rule', () => {
     useLiveZustand
       .getState()
       .setClientState(MAIN_CLIENT_UUID, { ...idle, connectState: 'disconnected' })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing while polling', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, polling: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing while a register scan runs', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, scanningRegisters: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing while a unit id scan runs', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, scanningUnitIds: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing while a read is in flight', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 
   it('asks for nothing while a write is in flight', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, writing: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setLittleEndian(true)
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
+    expect(methods()).toEqual(['setUnits'])
   })
 })
 
@@ -192,7 +210,9 @@ describe('an ask that waited for the request in flight', () => {
   it.each(['reading', 'writing'] as const)('goes out once the %s is done', async (inFlight) => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, [inFlight]: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -208,7 +228,9 @@ describe('an ask that waited for the request in flight', () => {
     const setState = (state: Partial<ClientState>): void =>
       useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, ...state })
     setState({ writing: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -223,7 +245,9 @@ describe('an ask that waited for the request in flight', () => {
   it('goes out once, however often the state is told', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -236,7 +260,9 @@ describe('an ask that waited for the request in flight', () => {
   it('is not kept while a poll runs, which reads again by itself', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, polling: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -248,7 +274,9 @@ describe('an ask that waited for the request in flight', () => {
   it('is dropped when a poll takes over from the request it waited for', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -261,7 +289,9 @@ describe('an ask that waited for the request in flight', () => {
   it('is dropped when the connection goes before the request settles', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, reading: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     await useClientZustand.getState().setLittleEndian(true)
     calls.length = 0
 
@@ -273,29 +303,20 @@ describe('an ask that waited for the request in flight', () => {
 })
 
 /**
- * The unit id and the register type, which change what the grid is about.
+ * The unit id, which changes what the grid is about.
  *
- * `clearRegisterDataWhenIdle` emptied the grid for both, and returned early
- * with read configuration on because the grid is drawn from the mapping there.
- * So the old unit's values stayed in the named rows under the new unit id, and
- * a type change left the rows of the type before it: `RegisterGrid` redraws
- * the mapping on a change of `readConfiguration` and not of `type`.
+ * `clearRegisterDataWhenIdle` emptied the grid for it, and returned early with
+ * read configuration on because the grid is drawn from the mapping there. So
+ * the old unit's values stayed in the named rows under the new unit id.
  */
 describe('read configuration on, and the question the grid answers changes', () => {
-  /**
-   * The mapping with a holding register, an input register and a coil.
-   *
-   * The coil carries a data type, which no press can put there: the grid
-   * mounts that column for the two number types alone. A config file can, and
-   * that is the entry `_read` ignores while `showMapping` draws it.
-   */
+  /** The mapping with a holding register and an input register, read configuration on. */
   const withMapping = async (
     useClientZustand: typeof import('../client.zustand').useClientZustand
   ): Promise<void> => {
     const mapping = emptyRegisterMapping()
     mapping.holding_registers['0'] = { dataType: 'uint16', comment: 'holding' }
     mapping.input_registers['9'] = { dataType: 'uint16', comment: 'input' }
-    mapping.coils['4'] = { dataType: 'uint16', comment: 'coil' }
     await useClientZustand.getState().replaceRegisterMapping(mapping)
     useClientZustand.getState().setReadConfiguration(true)
   }
@@ -304,64 +325,17 @@ describe('read configuration on, and the question the grid answers changes', () 
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
     await withMapping(useClientZustand)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [{ ...row, hex: 'BEEF' }])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [
+        { ...row, hex: 'BEEF' }
+      ])
     calls.length = 0
 
     await useClientZustand.getState().setUnitId('3')
 
-    expect(methods()).toEqual(['updateConnectionConfig', 'read'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['0000'])
-  })
-
-  it('a new register type draws that type and asks main to read it', async () => {
-    const { useClientZustand, useLiveZustand } = await load()
-    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    await withMapping(useClientZustand)
-    calls.length = 0
-
-    await useClientZustand.getState().setType('input_registers')
-
-    expect(methods()).toEqual(['updateRegisterConfig', 'read'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.id)).toEqual([9])
-  })
-
-  /**
-   * A bit type, where main reads the toolbar's block rather than the mapping.
-   *
-   * `_read` groups by data type for the two number types alone, so a read
-   * asked for here comes back as `length` coils from `address` and replaces
-   * the rows `showMapping` just drew. Both fields hold whatever was in them
-   * when read configuration went on, because both are disabled under it.
-   */
-  it('a bit type draws the mapping and asks for nothing', async () => {
-    const { useClientZustand, useLiveZustand } = await load()
-    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    await withMapping(useClientZustand)
-    calls.length = 0
-
-    await useClientZustand.getState().setType('coils')
-
-    expect(methods()).toEqual(['updateRegisterConfig'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.id)).toEqual([4])
-  })
-
-  // The same fallback, reached the other way: a groupable type the mapping
-  // configures nothing for. `RegisterConfig`'s `nothingConfigured` effect turns
-  // read configuration off a render later and the grid clears, so a read asked
-  // for here is answered into a grid that is about to go.
-  it('a type the mapping configures nothing for asks for nothing', async () => {
-    const { useClientZustand, useLiveZustand } = await load()
-    useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    const mapping = emptyRegisterMapping()
-    mapping.holding_registers['0'] = { dataType: 'uint16', comment: 'holding' }
-    await useClientZustand.getState().replaceRegisterMapping(mapping)
-    useClientZustand.getState().setReadConfiguration(true)
-    calls.length = 0
-
-    await useClientZustand.getState().setType('input_registers')
-
-    expect(methods()).toEqual(['updateRegisterConfig'])
-    expect(shownData(useLiveZustand).registerData).toEqual([])
+    expect(methods()).toEqual(['setUnits', 'read'])
+    expect(shownSectionData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['0000'])
   })
 
   // The refusal rule is the same one, so a state main would refuse costs the
@@ -371,13 +345,17 @@ describe('read configuration on, and the question the grid answers changes', () 
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
     await withMapping(useClientZustand)
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, polling: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [{ ...row, hex: 'BEEF' }])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [
+        { ...row, hex: 'BEEF' }
+      ])
     calls.length = 0
 
     await useClientZustand.getState().setUnitId('3')
 
-    expect(methods()).toEqual(['updateConnectionConfig'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
+    expect(methods()).toEqual(['setUnits'])
+    expect(shownSectionData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
   })
 
   it('a new unit id while a write is in flight redraws and asks for nothing', async () => {
@@ -385,13 +363,17 @@ describe('read configuration on, and the question the grid answers changes', () 
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
     await withMapping(useClientZustand)
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, { ...idle, writing: true })
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [{ ...row, hex: 'BEEF' }])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [
+        { ...row, hex: 'BEEF' }
+      ])
     calls.length = 0
 
     await useClientZustand.getState().setUnitId('3')
 
-    expect(methods()).toEqual(['updateConnectionConfig'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['0000'])
+    expect(methods()).toEqual(['setUnits'])
+    expect(shownSectionData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['0000'])
   })
 
   /**
@@ -407,26 +389,34 @@ describe('read configuration on, and the question the grid answers changes', () 
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
     await withMapping(useClientZustand)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [{ ...row, hex: 'BEEF' }])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [
+        { ...row, hex: 'BEEF' }
+      ])
     calls.length = 0
 
     await useClientZustand.getState().setAddress('7')
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
+    expect(methods()).toEqual(['setUnits'])
+    expect(shownSectionData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
   })
 
   it('a new length leaves the rows and asks for nothing', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
     await withMapping(useClientZustand)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [{ ...row, hex: 'BEEF' }])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [
+        { ...row, hex: 'BEEF' }
+      ])
     calls.length = 0
 
-    await useClientZustand.getState().setLength('7', true)
+    await useClientZustand.getState().setLength('7')
 
-    expect(methods()).toEqual(['updateRegisterConfig'])
-    expect(shownData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
+    expect(methods()).toEqual(['setUnits'])
+    expect(shownSectionData(useLiveZustand).registerData.map((data) => data.hex)).toEqual(['BEEF'])
   })
 
   // With read configuration off the grid still empties, which is what the two
@@ -434,12 +424,14 @@ describe('read configuration on, and the question the grid answers changes', () 
   it('a new unit id with read configuration off empties the grid', async () => {
     const { useClientZustand, useLiveZustand } = await load()
     useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, idle)
-    useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, [row])
+    useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', [row])
     calls.length = 0
 
     await useClientZustand.getState().setUnitId('3')
 
-    expect(methods()).toEqual(['updateConnectionConfig'])
-    expect(shownData(useLiveZustand).registerData).toEqual([])
+    expect(methods()).toEqual(['setUnits'])
+    expect(shownSectionData(useLiveZustand).registerData).toEqual([])
   })
 })

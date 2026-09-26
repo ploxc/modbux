@@ -25,10 +25,11 @@ const savedConnection = async (p: Page): Promise<{ host: string; unitId: number 
   p.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('client.zustand') ?? '{}')
     // The store keeps its clients under a uuid, and the one shown is selected.
-    const connectionConfig = saved.state?.clients?.[saved.state?.selectedUuid]?.connectionConfig
+    // A fresh client has one unit, which carries the unit id.
+    const client = saved.state?.clients?.[saved.state?.selectedUuid]
     return {
-      host: connectionConfig?.tcp?.host,
-      unitId: connectionConfig?.unitId
+      host: client?.connectionConfig?.tcp?.host,
+      unitId: client?.units?.[0]?.unitId
     }
   })
 
@@ -114,7 +115,7 @@ test.describe.serial('Undo and redo outside a field', () => {
     const savedLittleEndian = (): Promise<boolean> =>
       mainPage.evaluate(() => {
         const saved = JSON.parse(localStorage.getItem('client.zustand') ?? '{}')
-        return saved.state?.clients?.[saved.state?.selectedUuid]?.registerConfig?.littleEndian
+        return saved.state?.clients?.[saved.state?.selectedUuid]?.units?.[0]?.littleEndian
       })
     await mainPage.getByTestId('endian-be-btn').click()
     await expect.poll(savedLittleEndian).toBe(false)

@@ -1,13 +1,19 @@
 import {
+  ClientSection,
+  ClientUnit,
+  ClientUnitSchema,
   defaultConnectionConfig,
   defaultRegisterConfig,
-  emptyRegisterMapping,
   isConnectionAddressGiven,
   isReadLengthGiven,
   MAIN_CLIENT_UUID,
+  newClientUnit,
   readsNothing,
+  RegisterType,
+  RegisterTypeSchema,
   repairPersisted
 } from '@shared'
+import { v4 } from 'uuid'
 import {
   ClientSession,
   PersistedClient,
@@ -15,29 +21,38 @@ import {
   PersistedClientZustand
 } from './client.zustand.types'
 
-/** A client with the default config, which is what a new one and a repair start from. */
-export const getDefaultClient = (): PersistedClient => ({
+/** The uuid the default client's one unit is created under. */
+export const MAIN_UNIT_UUID = 'c3a1bd62-9d7e-4e8e-9d3e-5b0f6f1f0a01'
+
+/**
+ * A client with the default config and one unit, unit id 1, which is what a
+ * new one and a repair start from. `unit` names the unit; the default client
+ * of a fresh store takes `MAIN_UNIT_UUID`.
+ */
+export const getDefaultClient = (unit: string = v4()): PersistedClient => ({
   name: '',
   connectionConfig: structuredClone(defaultConnectionConfig),
   registerConfig: structuredClone(defaultRegisterConfig),
-  registerMapping: emptyRegisterMapping()
+  units: [newClientUnit(unit, 1)]
 })
 
 /**
- * The session a client has once main holds its config.
+ * The session a client has once main holds its config: its first unit
+ * selected, holding registers shown.
  *
- * `valid` is read off the values, because the host, COM and length fields
- * keep a value they refuse in the store rather than sending it, and disk
- * carries the value and not the flag: a blank COM port typed before a quit
- * came back with the flag reading true, and Connect took a press on it.
+ * `valid` is read off the values, because the host and COM fields keep a
+ * value they refuse in the store rather than sending it, and disk carries the
+ * value and not the flag: a blank COM port typed before a quit came back with
+ * the flag reading true, and Connect took a press on it.
  */
 export const readySession = (client: PersistedClient): ClientSession => ({
   ready: true,
-  readConfiguration: false,
+  selectedUnit: client.units[0]?.uuid ?? '',
+  shownType: 'holding_registers',
+  readConfiguration: {},
   valid: {
     host: isConnectionAddressGiven(client.connectionConfig.tcp.host),
-    com: isConnectionAddressGiven(client.connectionConfig.rtu.com),
-    length: isReadLengthGiven(client.registerConfig.length)
+    com: isConnectionAddressGiven(client.connectionConfig.rtu.com)
   }
 })
 
@@ -50,14 +65,18 @@ export const readySession = (client: PersistedClient): ClientSession => ({
  * compares. `repairClients` keeps the selected uuid on a client, so what
  * reaches these is a state set another way.
  */
-const NO_CLIENT: PersistedClient = getDefaultClient()
+const NO_CLIENT: PersistedClient = getDefaultClient(MAIN_UNIT_UUID)
 const NO_SESSION: ClientSession = {
   ready: false,
-  readConfiguration: false,
-  valid: { host: true, com: true, length: true }
+  selectedUnit: '',
+  shownType: 'holding_registers',
+  readConfiguration: {},
+  valid: { host: true, com: true }
 }
+const [NO_UNIT = newClientUnit(MAIN_UNIT_UUID, 1)] = NO_CLIENT.units
 
 type Selection = Pick<PersistedClientZustand, 'selectedUuid' | 'clients'>
+type WithSessions = Selection & { sessions: Record<string, ClientSession> }
 
 /** The client the view shows. */
 export const selectedClient = (state: Selection): PersistedClient =>
@@ -69,9 +88,31 @@ export const selectedSession = (
 ): ClientSession => state.sessions[state.selectedUuid] ?? NO_SESSION
 
 /**
- * Whether a read of `uuid` would ask for no registers, which main refuses:
- * the question `readsNothing` asks, of that client's config and its Length
- * field's flag.
+ * The unit of `client` that `session` selects, or its first where the
+ * selection names none of them. A client has at least one unit.
+ */
+export const unitOf = (client: PersistedClient, session: ClientSession): ClientUnit =>
+  client.units.find((unit) => unit.uuid === session.selectedUnit) ?? client.units[0] ?? NO_UNIT
+
+/** The unit the view shows. */
+export const selectedUnit = (state: WithSessions): ClientUnit =>
+  unitOf(selectedClient(state), selectedSession(state))
+
+/** The register type the view shows. */
+export const shownType = (state: WithSessions): RegisterType => selectedSession(state).shownType
+
+/** The read window of the register type the view shows, on the unit it shows. */
+export const shownSection = (state: WithSessions): ClientSection =>
+  selectedUnit(state).sections[shownType(state)]
+
+/** Whether read configuration is on for the unit the view shows. */
+export const readsConfiguration = (state: WithSessions): boolean =>
+  selectedSession(state).readConfiguration[selectedUnit(state).uuid] ?? false
+
+/**
+ * Whether a read of the register type `uuid` shows, on the unit it shows,
+ * would ask for no registers, which main refuses: the question `readsNothing`
+ * asks, of that unit's mapping and window.
  */
 export const readsNothingOf = (
   state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
@@ -79,12 +120,64 @@ export const readsNothingOf = (
 ): boolean => {
   const client = state.clients[uuid] ?? NO_CLIENT
   const session = state.sessions[uuid] ?? NO_SESSION
+  const unit = unitOf(client, session)
+  const type = session.shownType
   return readsNothing(
-    session.readConfiguration,
-    client.registerConfig.type,
-    client.registerMapping,
-    session.valid.length
+    session.readConfiguration[unit.uuid] ?? false,
+    type,
+    unit.registerMapping,
+    isReadLengthGiven(unit.sections[type].length)
   )
+}
+
+/**
+ * Whether a poll of `uuid` would read nothing at all, which main refuses:
+ * the question `_polledTypes` asks of every unit. Under a unit's read
+ * configuration, a type the mapping has a group for; otherwise a polled
+ * section whose read asks for registers.
+ */
+export const pollsNothingOf = (
+  state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
+  uuid: string
+): boolean => {
+  const client = state.clients[uuid] ?? NO_CLIENT
+  const session = state.sessions[uuid] ?? NO_SESSION
+  return client.units.every((unit) => {
+    const readConfiguration = session.readConfiguration[unit.uuid] ?? false
+    return RegisterTypeSchema.options.every((type) =>
+      readConfiguration
+        ? readsNothing(true, type, unit.registerMapping, false)
+        : !unit.sections[type].polled ||
+          readsNothing(
+            false,
+            type,
+            unit.registerMapping,
+            isReadLengthGiven(unit.sections[type].length)
+          )
+    )
+  })
+}
+
+/**
+ * One client's units read back one at a time, so a unit the schema refuses
+ * costs that unit's fields rather than every unit. A unit that is not an
+ * object is dropped, and a client left with none gets a default one.
+ */
+const repairUnits = (units: unknown): { units: ClientUnit[]; reset: boolean } => {
+  if (!Array.isArray(units)) return { units: [newClientUnit(v4(), 1)], reset: true }
+  let reset = false
+  const repaired: ClientUnit[] = []
+  for (const unit of units) {
+    const uuid =
+      typeof unit === 'object' && unit !== null && 'uuid' in unit && typeof unit.uuid === 'string'
+        ? unit.uuid
+        : v4()
+    const repair = repairPersisted(ClientUnitSchema, unit, newClientUnit(uuid, 1))
+    if (repair.reset) reset = true
+    repaired.push(repair.state)
+  }
+  if (repaired.length === 0) return { units: [newClientUnit(v4(), 1)], reset: true }
+  return { units: repaired, reset }
 }
 
 /**
@@ -93,10 +186,11 @@ export const readsNothingOf = (
  *
  * `repairPersisted` works a top level field at a time, and `clients` is one
  * field holding every client, so read whole, one register the schema refuses
- * would cost every client's config. A store with no client left gets the
- * default one under `MAIN_CLIENT_UUID`, because the view always shows one.
- * Undefined for a `clients` that is not a record, which the store's own
- * repair then answers with the default.
+ * would cost every client's config. The units are read back one at a time for
+ * the same reason. A store with no client left gets the default one under
+ * `MAIN_CLIENT_UUID`, because the view always shows one. Undefined for a
+ * `clients` that is not a record, which the store's own repair then answers
+ * with the default.
  */
 export const repairClients = (
   state: Selection
@@ -107,14 +201,20 @@ export const repairClients = (
   const repaired: Record<string, PersistedClient> = {}
   const fields = new Set<string>()
   for (const [uuid, client] of Object.entries(clients)) {
-    const repair = repairPersisted(PersistedClientSchema, client, getDefaultClient())
+    const units = repairUnits((client as { units?: unknown } | undefined)?.units)
+    const repair = repairPersisted(
+      PersistedClientSchema,
+      { ...(client as object), units: units.units },
+      getDefaultClient()
+    )
     repaired[uuid] = repair.state
     for (const field of repair.reset?.fields ?? []) fields.add(field)
+    if (units.reset) fields.add('units')
   }
 
   const [first] = Object.keys(repaired)
   if (first === undefined) {
-    repaired[MAIN_CLIENT_UUID] = getDefaultClient()
+    repaired[MAIN_CLIENT_UUID] = getDefaultClient(MAIN_UNIT_UUID)
     fields.add('clients')
   }
   const selectedUuid = Object.hasOwn(repaired, state.selectedUuid)

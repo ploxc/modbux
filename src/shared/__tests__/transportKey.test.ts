@@ -8,10 +8,9 @@ const config = (change: Partial<ConnectionConfig>): ConnectionConfig => ({
 })
 
 describe('transportKey', () => {
-  it('names one serial port the same whatever the unit id or the line settings', () => {
+  it('names one serial port the same whatever the line settings', () => {
     const first = config({
       protocol: 'ModbusRtu',
-      unitId: 1,
       rtu: {
         com: 'COM3',
         options: { baudRate: '9600', parity: 'none', dataBits: 8, stopBits: 1 }
@@ -19,7 +18,6 @@ describe('transportKey', () => {
     })
     const second = config({
       protocol: 'ModbusRtu',
-      unitId: 2,
       rtu: {
         com: 'COM3',
         options: { baudRate: '19200', parity: 'even', dataBits: 8, stopBits: 1 }
@@ -38,7 +36,7 @@ describe('transportKey', () => {
   it('names one host and port the same, and the port apart', () => {
     const at = (port: number): ConnectionConfig =>
       config({ protocol: 'ModbusTcp', tcp: { host: '10.0.0.1', options: { port } } })
-    expect(transportKey({ ...at(502), unitId: 7 })).toBe(transportKey(at(502)))
+    expect(transportKey(at(502))).toBe(transportKey(at(502)))
     expect(transportKey(at(502))).not.toBe(transportKey(at(503)))
   })
 

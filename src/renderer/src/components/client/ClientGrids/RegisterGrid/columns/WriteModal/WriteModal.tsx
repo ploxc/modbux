@@ -12,12 +12,13 @@ import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSele
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import {
+  selectedClientUuid,
+  shownSection,
   useClientZustand,
-  getSelectedClient,
-  selectedClient,
-  selectedClientUuid
+  getShownType,
+  getSelectedUnit
 } from '@renderer/context/client.zustand'
-import { getShownData } from '@renderer/context/live.zustand'
+import { getShownSection } from '@renderer/context/live.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { MAX_WRITE_BITS, notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } from 'react'
@@ -83,12 +84,11 @@ export const DataTypeSelect = meme(({ address }: { address: number }) => {
   // nothing about gets the default rather than the last address's type.
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const {
-      registerMapping,
-      registerConfig: { type }
-    } = getSelectedClient()
+    const { registerMapping } = getSelectedUnit()
 
-    valueInputZustand.setDataType(writeDataTypeFor(registerMapping[type][address]?.dataType))
+    valueInputZustand.setDataType(
+      writeDataTypeFor(registerMapping[getShownType()][address]?.dataType)
+    )
   }, [address])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
@@ -104,6 +104,7 @@ export const WriteRegistersButton = meme(() => {
     (single: boolean) => {
       window.api.write({
         uuid: selectedClientUuid(),
+        unit: getSelectedUnit().uuid,
         parameters: {
           address,
           dataType,
@@ -152,7 +153,7 @@ export const WriteRegistersButton = meme(() => {
 export const CoilFunctionSelect = meme(() => {
   const { enqueueSnackbar } = useSnackbar()
   const address = useValueInputZustand((z) => z.address)
-  const registerConfigAddress = useClientZustand((z) => selectedClient(z).registerConfig.address)
+  const registerConfigAddress = useClientZustand((z) => shownSection(z).address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
@@ -183,6 +184,7 @@ export const CoilFunctionSelect = meme(() => {
     }
     window.api.write({
       uuid: selectedClientUuid(),
+      unit: getSelectedUnit().uuid,
       parameters: {
         address,
         type: 'coils',
@@ -261,15 +263,15 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 })
 
 export const Coils = meme(() => {
-  const length = useClientZustand((z) => selectedClient(z).registerConfig.length)
-  const registerConfigAddress = useClientZustand((z) => selectedClient(z).registerConfig.address)
+  const length = useClientZustand((z) => shownSection(z).length)
+  const registerConfigAddress = useClientZustand((z) => shownSection(z).address)
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const { registerData } = getShownData()
+    const { registerData } = getShownSection()
     valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
   }, [length, registerConfigAddress])
 

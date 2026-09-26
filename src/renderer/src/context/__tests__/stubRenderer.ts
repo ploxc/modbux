@@ -2,7 +2,7 @@ import {
   AddRegisterParamsSchema,
   ClientConnectionConfigUpdateSchema,
   ClientRegisterConfigUpdateSchema,
-  ClientRegisterMappingSchema,
+  ClientUnitsSchema,
   ClientState,
   defaultClientState,
   MAIN_CLIENT_UUID,
@@ -37,7 +37,7 @@ const disconnected: ClientState = { ...defaultClientState }
 const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   updateConnectionConfig: answerConfig(ClientConnectionConfigUpdateSchema),
   updateRegisterConfig: answerConfig(ClientRegisterConfigUpdateSchema),
-  setRegisterMapping: answerConfig(ClientRegisterMappingSchema),
+  setUnits: answerConfig(ClientUnitsSchema),
   // The words main answers with, which for a payload it refuses is nothing at
   // all rather than an empty list.
   addReplaceServerRegister: (payload: unknown): Promise<number[] | undefined> =>

@@ -1,5 +1,5 @@
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
-import { getShownData } from '@renderer/context/live.zustand'
+import { getShownSection } from '@renderer/context/live.zustand'
 import {
   DataType,
   RegisterData,
@@ -97,7 +97,7 @@ export const getConvertedValue = (
   // For strings we must calculate the length until the next defined datatype
   let count = 1
   if (dataType === 'utf8') {
-    const groups = getShownData().addressGroups
+    const groups = getShownSection().addressGroups
 
     // Find the current group that contains the address
     const currentGroup = groups.find(

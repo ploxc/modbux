@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAIN_CLIENT_UUID, RegisterData, defaultClientState } from '@shared'
+import { ClientUnit, MAIN_CLIENT_UUID, RegisterData, defaultClientState } from '@shared'
 import {
   ApiCall,
   fireEvent,
@@ -35,7 +35,9 @@ window.api = new Proxy(
 ) as never
 const { answerCall } = await import('../relay')
 const { holdSelection, useClientZustand } = await import('@renderer/context/client.zustand')
-const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { sectionOf, useLiveZustand } = await import('@renderer/context/live.zustand')
+const { MAIN_UNIT_UUID, readsConfiguration, shownType } =
+  await import('@renderer/context/client.zustand')
 const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 const { useSerialGroupZustand } =
   await import('@renderer/components/client/SerialGroupModal/serialGroupModal.zustand')
@@ -51,6 +53,14 @@ const run = async (
   if (!answer.ok) throw new Error(answer.error)
   return answer.result
 }
+
+/** The one unit of a client, which is the one its view shows. */
+const unitOf = (uuid: string = client): ClientUnit | undefined =>
+  useClientZustand.getState().clients[uuid]?.units[0]
+
+/** The rows of the default unit's holding registers. */
+const shownRows = (): RegisterData[] =>
+  sectionOf(useLiveZustand.getState(), client, MAIN_UNIT_UUID, 'holding_registers').registerData
 
 const setState = (state: Partial<typeof defaultClientState>): void =>
   useLiveZustand.getState().setClientState(client, { ...defaultClientState, ...state })
@@ -83,7 +93,13 @@ const mainEvents = (): void => {
   eventsAfter.set('read', [
     echo,
     (): void => setState({ connectState: 'connected', reading: true }),
-    (): void => fireEvent('register_data', { uuid: client, registerData: [row(0, '002a')] }),
+    (): void =>
+      fireEvent('register_data', {
+        uuid: client,
+        unit: MAIN_UNIT_UUID,
+        type: 'holding_registers',
+        registerData: [row(0, '002a')]
+      }),
     (): void => setState({ connectState: 'connected' })
   ])
   eventsAfter.set('startPolling', [
@@ -101,11 +117,13 @@ beforeEach(async () => {
   setState({})
   // The session is made ready by `init`, which the stub's answers let run.
   await useClientZustand.getState().init()
-  // A session outlives the test, and tests leave the length invalid, read
-  // configuration on or a register mapped.
-  await useClientZustand.getState().setLength('10', true)
+  // A session outlives the test, and tests leave another type shown, the
+  // length at 0, read configuration on or a register mapped.
+  useClientZustand.getState().setType('holding_registers')
+  await useClientZustand.getState().setLength('10')
   useClientZustand.getState().setReadConfiguration(false)
   await useClientZustand.getState().clearRegisterMapping()
+  useLiveZustand.getState().setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [])
   calls.length = 0
   mainEvents()
 })
@@ -150,14 +168,11 @@ describe('set_client_config', () => {
     })
     const persisted = useClientZustand.getState().clients[client]
     expect(persisted?.connectionConfig).toMatchObject({
-      unitId: 3,
       tcp: { host: '10.0.0.9', options: { port: 1502 } }
     })
-    expect(persisted?.registerConfig).toMatchObject({
-      type: 'input_registers',
-      address: 30000,
-      length: 20
-    })
+    expect(unitOf()?.unitId).toBe(3)
+    expect(shownType(useClientZustand.getState())).toBe('input_registers')
+    expect(unitOf()?.sections.input_registers).toMatchObject({ address: 30000, length: 20 })
   })
 
   // A connection field is greyed while connected; the tool is refused the same.
@@ -174,28 +189,25 @@ describe('set_client_config', () => {
     const answer = await run('set_client_config', { client, length: 0, host: '' })
     expect(answer).toEqual({ changed: [], refused: ['host', 'length'] })
     const persisted = useClientZustand.getState().clients[client]
-    expect(persisted?.registerConfig.length).toBe(10)
+    expect(unitOf()?.sections.holding_registers.length).toBe(10)
     expect(persisted?.connectionConfig.tcp.host).not.toBe('')
-    expect(useClientZustand.getState().sessions[client]?.valid).toMatchObject({
-      host: true,
-      length: true
-    })
+    expect(useClientZustand.getState().sessions[client]?.valid).toMatchObject({ host: true })
   })
 
   it('turns read configuration on once main has the mapping, and draws it', async () => {
     mapOneRegister()
     const answer = await run('set_client_config', { client, readConfiguration: true })
     expect(answer).toEqual({ changed: ['readConfiguration'], refused: [] })
-    expect(useClientZustand.getState().sessions[client]?.readConfiguration).toBe(true)
-    expect(calls.map((call) => call.method)).toEqual(['setRegisterMapping', 'setReadConfiguration'])
-    expect(useLiveZustand.getState().clients[client]?.registerData).toHaveLength(1)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(true)
+    expect(calls.map((call) => call.method)).toEqual(['setUnits', 'setReadConfiguration'])
+    expect(shownRows()).toHaveLength(1)
   })
 
   it('refuses read configuration over a mapping with nothing to read', async () => {
     useClientZustand.getState().setRegisterMapping(0, 'comment', 'a note')
     const answer = await run('set_client_config', { client, readConfiguration: true })
     expect(answer).toEqual({ changed: [], refused: ['readConfiguration'] })
-    expect(useClientZustand.getState().sessions[client]?.readConfiguration).toBe(false)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(false)
   })
 
   it('refuses read configuration during a scan, and takes it during a poll', async () => {
@@ -235,8 +247,8 @@ describe('set_client_config', () => {
     useClientZustand.getState().setSelectedUuid(other)
     await answer
 
-    expect(useClientZustand.getState().clients[client]?.registerConfig.length).toBe(7)
-    expect(useClientZustand.getState().clients[other]?.registerConfig.length).not.toBe(7)
+    expect(unitOf()?.sections.holding_registers.length).toBe(7)
+    expect(unitOf(other)?.sections.holding_registers.length).not.toBe(7)
   })
 
   it('refuses a client it cannot put on screen while another call holds the selection', async () => {
@@ -245,7 +257,7 @@ describe('set_client_config', () => {
     await holdSelection(async () => {
       await expect(run('set_client_config', { client: other, length: 5 })).rejects.toThrow('busy')
     })
-    expect(useClientZustand.getState().clients[other]?.registerConfig.length).not.toBe(5)
+    expect(unitOf(other)?.sections.holding_registers.length).not.toBe(5)
   })
 
   it('refuses a client id nobody has', async () => {
@@ -271,14 +283,6 @@ describe('connect and disconnect', () => {
     setState({ connectState: 'connecting' })
     await expect(run('connect', { client })).rejects.toThrow('connecting already')
     expect(sent('connect')).toEqual([])
-  })
-
-  it('refuses to connect a unit id past what the protocol takes', async () => {
-    await run('set_client_config', { client, unitId: 250, com: 'COM1' })
-    await run('set_client_config', { client, protocol: 'ModbusRtu' })
-    await expect(run('connect', { client })).rejects.toThrow('stops at 247')
-    expect(sent('connect')).toEqual([])
-    await run('set_client_config', { client, protocol: 'ModbusTcp', unitId: 1 })
   })
 
   it('holds off a serial connect while the serial group dialog is up', async () => {
@@ -309,9 +313,11 @@ describe('connect and disconnect', () => {
 
   it('empties the grid of a toolbar read on disconnect', async () => {
     setState({ connectState: 'connected' })
-    useLiveZustand.getState().setRegisterData(client, [{ id: 0 }] as never)
+    useLiveZustand
+      .getState()
+      .setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [{ id: 0 }] as never)
     await run('disconnect', { client })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toEqual([])
+    expect(shownRows()).toEqual([])
   })
 
   it('keeps the grid of a mapping on disconnect', async () => {
@@ -319,7 +325,7 @@ describe('connect and disconnect', () => {
     mapOneRegister()
     await run('set_client_config', { client, readConfiguration: true })
     await run('disconnect', { client })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toHaveLength(1)
+    expect(shownRows()).toHaveLength(1)
   })
 
   it('refuses to disconnect a client that is not connected', async () => {
@@ -331,7 +337,9 @@ describe('read and poll', () => {
   it('reads a connected client and answers what read_values would', async () => {
     setState({ connectState: 'connected' })
     const answer = await run('read', { client })
-    expect(sent('read')).toEqual([client])
+    expect(sent('read')).toEqual([
+      { uuid: client, unit: MAIN_UNIT_UUID, type: 'holding_registers' }
+    ])
     expect(answer).toMatchObject({ rows: [{ address: 0, hex: '002a' }] })
   })
 
@@ -361,7 +369,7 @@ describe('read and poll', () => {
   it('refuses a read of no registers', async () => {
     setState({ connectState: 'connected' })
     // What the field leaves when it is emptied.
-    await useClientZustand.getState().setLength('', false)
+    await useClientZustand.getState().setLength('')
     await expect(run('read', { client })).rejects.toThrow('reads no registers')
     expect(sent('read')).toEqual([])
   })

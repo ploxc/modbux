@@ -3,7 +3,8 @@ import {
   ClientConnectionConfigUpdateSchema,
   ClientReadConfigurationSchema,
   ClientRegisterConfigUpdateSchema,
-  ClientRegisterMappingSchema,
+  ClientUnitsSchema,
+  ClientReadSchema,
   ClientScanRegistersSchema,
   ClientScanUnitIdsSchema,
   ClientCreateSchema,
@@ -111,7 +112,7 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'stop_scanning_registers',
   'update_connection_config',
   'update_register_config',
-  'set_register_mapping',
+  'set_units',
   'set_read_configuration'
 ]
 
@@ -215,11 +216,7 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
     (_, update) => clients.updateRegisterConfig(update),
     ClientRegisterConfigUpdateSchema
   )
-  ipcHandle(
-    'set_register_mapping',
-    (_, update) => clients.setRegisterMapping(update),
-    ClientRegisterMappingSchema
-  )
+  ipcHandle('set_units', (_, update) => clients.setUnits(update), ClientUnitsSchema)
   // Read configuration (session-only toggle)
   ipcHandle(
     'set_read_configuration',
@@ -232,14 +229,18 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
   ipcHandle('disconnect', (_, uuid) => clients.get(uuid)?.disconnect(), ClientUuidSchema)
 
   // Read Actions
-  ipcHandle('read', (_, uuid) => clients.get(uuid)?.read(), ClientUuidSchema)
+  ipcHandle(
+    'read',
+    (_, { uuid, unit, type }) => clients.get(uuid)?.read(unit, type),
+    ClientReadSchema
+  )
   ipcHandle('start_polling', (_, uuid) => clients.get(uuid)?.startPolling(), ClientUuidSchema)
   ipcHandle('stop_polling', (_, uuid) => clients.get(uuid)?.stopPolling(), ClientUuidSchema)
 
   // Write Actions
   ipcHandle(
     'write',
-    (_, { uuid, parameters }) => clients.get(uuid)?.write(parameters),
+    (_, { uuid, unit, parameters }) => clients.get(uuid)?.write(unit, parameters),
     ClientWriteSchema
   )
 
@@ -258,7 +259,8 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
   // Scan Registers Actions
   ipcHandle(
     'scan_registers',
-    (_, { uuid, parameters }) => clients.get(uuid)?.scanRegisters(parameters),
+    (_, { uuid, unit, type, parameters }) =>
+      clients.get(uuid)?.scanRegisters(unit, type, parameters),
     ClientScanRegistersSchema
   )
   ipcHandle(

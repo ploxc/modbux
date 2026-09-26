@@ -2,7 +2,9 @@ import { MAX_REGISTER_ADDRESS } from '@shared'
 import {
   getSelectedClient,
   selectedClientUuid,
-  useClientZustand
+  useClientZustand,
+  getShownType,
+  getSelectedUnit
 } from '@renderer/context/client.zustand'
 import { dropPendingScanRows, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScanRegistersZustand } from './scanRegisters.zustand'
@@ -20,9 +22,11 @@ export const startRegisterScan = async (): Promise<void> => {
   // the rows land in a grid you are now watching fill.
   if (!getSelectedClient().registerConfig.advancedMode) clientZustand.setAdvancedMode(true)
   const uuid = selectedClientUuid()
+  const unit = getSelectedUnit().uuid
+  const type = getShownType()
   liveZustand.setScanProgress(uuid, 0)
-  dropPendingScanRows(uuid)
-  liveZustand.setRegisterData(uuid, [])
+  dropPendingScanRows(uuid, unit, type)
+  liveZustand.setRegisterData(uuid, unit, type, [])
 
   const { address, scanLength, chunkSize, timeout } = scanRegistersZustand
 
@@ -40,7 +44,9 @@ export const startRegisterScan = async (): Promise<void> => {
   // gives a range ending before it starts, which the schema takes and the
   // scan loop never enters.
   await window.api.scanRegisters({
-    uuid: selectedClientUuid(),
+    uuid,
+    unit,
+    type,
     parameters: {
       addressRange: [
         address,

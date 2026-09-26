@@ -16,35 +16,35 @@ vi.hoisted(async () => {
 
 import { render, screen } from '@testing-library/react'
 import { useLiveZustand } from '@renderer/context/live.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import PollButton from '../PollButton'
 import { patchShownData } from '@renderer/context/__tests__/shownData'
-import { patchSelectedClient } from '@renderer/context/__tests__/selectedClient'
+import { patchSelectedClient, patchSelectedUnit } from '@renderer/context/__tests__/selectedClient'
 
 interface Toolbar {
-  /** What the Length field's validity flag reads. */
+  /** Whether the shown section's length reads any registers. */
   lengthGiven?: boolean
+  /** Whether a poll reads the shown section. */
+  polled?: boolean
   /** Read configuration on, with a group for the register type or without. */
   mappedGroup?: boolean
 }
 
 const renderButton = (
   clientState: Partial<ClientState>,
-  { lengthGiven = true, mappedGroup }: Toolbar = {}
+  { lengthGiven = true, mappedGroup, polled = true }: Toolbar = {}
 ): HTMLElement => {
   patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   const registerMapping = emptyRegisterMapping()
   if (mappedGroup) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
+  patchSelectedUnit(useClientZustand, { registerMapping }, { length: lengthGiven ? 10 : 0, polled })
   patchSelectedClient(
     useClientZustand,
-    { registerMapping },
-    {
-      readConfiguration: mappedGroup !== undefined,
-      valid: { host: true, com: true, length: lengthGiven }
-    }
+    {},
+    { readConfiguration: { [getSelectedUnit().uuid]: mappedGroup !== undefined } }
   )
   render(<PollButton />)
   return screen.getByTestId('poll-btn')
@@ -95,10 +95,14 @@ describe('the Poll button', () => {
     expect(renderButton({ connectState: 'connecting' })).toBeDisabled()
   })
 
-  // Main refuses a poll of no registers, which is the toolbar's block at a
-  // length the field refused and kept.
+  // Main refuses a poll of no registers, which a polled section of length 0
+  // and a client with no polled section both are.
   it('takes no press that starts one at a length the field refused', () => {
     expect(renderButton({}, { lengthGiven: false })).toBeDisabled()
+  })
+
+  it('takes no press that starts one when no section is polled', () => {
+    expect(renderButton({}, { polled: false })).toBeDisabled()
   })
 
   it('takes the press that stops a poll at that length', () => {

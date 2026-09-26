@@ -6,7 +6,9 @@ import { useCallback } from 'react'
 import {
   readsNothingOf,
   selectedClientUuid,
-  useClientZustand
+  useClientZustand,
+  getShownType,
+  getSelectedUnit
 } from '@renderer/context/client.zustand'
 
 const ReadButton = meme((): JSX.Element => {
@@ -29,7 +31,11 @@ const ReadButton = meme((): JSX.Element => {
   const readsNoRegisters = useClientZustand((z) => readsNothingOf(z, z.selectedUuid))
 
   const handleRead = useCallback(() => {
-    window.api.read(selectedClientUuid())
+    window.api.read({
+      uuid: selectedClientUuid(),
+      unit: getSelectedUnit().uuid,
+      type: getShownType()
+    })
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'

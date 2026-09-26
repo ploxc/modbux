@@ -19,27 +19,37 @@ import {
   CLIENT_ZUSTAND_STORAGE_KEY,
   clientOwner,
   readLoopOwner,
+  ClientUnit,
   configuredReadGroups,
+  newClientUnit,
   emptyRegisterMapping,
   MAIN_CLIENT_UUID,
   RegisterConfig,
-  RegisterMapping,
+  RegisterType,
+  RegisterTypeSchema,
   SerialPortOptions
 } from '@shared'
 import {
   getDefaultClient,
+  MAIN_UNIT_UUID,
+  pollsNothingOf,
+  readsConfiguration,
   readsNothingOf,
   readySession,
   repairClients,
   selectedClient,
-  selectedSession
+  selectedSession,
+  selectedUnit,
+  shownSection,
+  shownType,
+  unitOf
 } from './client.zustand.helpers'
-import { dataOf, showMapping, useLiveZustand } from './live.zustand'
+import { dataOf, sectionOf, showMapping, useLiveZustand } from './live.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
 import { clientFieldReaders, clientFieldSteps } from './undo.zustand.helpers'
-import { ClientField, ClientFieldValues } from './undo.zustand.types'
+import { ClientField, ClientFieldValues, ClientStepView } from './undo.zustand.types'
 
 /**
  * The uuid of the client the view shows, which every client channel a view
@@ -53,7 +63,37 @@ export const getSelectedClient = (): PersistedClient => selectedClient(useClient
 /** Its session, read now rather than subscribed to. */
 export const getSelectedSession = (): ClientSession => selectedSession(useClientZustand.getState())
 
-export { readsNothingOf, selectedClient, selectedSession }
+/** The unit the view shows, read now rather than subscribed to. */
+export const getSelectedUnit = (): ClientUnit => selectedUnit(useClientZustand.getState())
+
+/** The register type the view shows, read now rather than subscribed to. */
+export const getShownType = (): RegisterType => shownType(useClientZustand.getState())
+
+/** The unit the view shows in `state`, or undefined where no client is selected. */
+export const selectedUnitOf = (state: ClientZustand): ClientUnit | undefined => {
+  const client = state.clients[state.selectedUuid]
+  const session = state.sessions[state.selectedUuid]
+  return client && session ? unitOf(client, session) : undefined
+}
+
+/** Where the view stands now, which a step records and a replay shows again. */
+const viewOf = (state: ClientZustand): ClientStepView => ({
+  uuid: state.selectedUuid,
+  unit: selectedUnit(state).uuid,
+  type: shownType(state)
+})
+
+export {
+  MAIN_UNIT_UUID,
+  pollsNothingOf,
+  readsConfiguration,
+  readsNothingOf,
+  selectedClient,
+  selectedSession,
+  selectedUnit,
+  shownSection,
+  shownType
+}
 
 /**
  * The client and the session under `uuid`, as the recipe finds them, or
@@ -84,93 +124,112 @@ let persistedVersion: number | undefined
 /**
  * A mapping edit reaches main 150 ms after the last one, per client, so a
  * run of cell edits is one message. A timer per uuid, because an edit to one
- * client must not hold back or replace another's.
+ * client must not hold back or replace another's. What goes is the client's
+ * units, whole, as the store holds them then.
  */
-const mappingTimers = new Map<string, ReturnType<typeof setTimeout>>()
-function syncRegisterMappingToMain(uuid: string): void {
-  clearTimeout(mappingTimers.get(uuid))
-  mappingTimers.set(
+const unitTimers = new Map<string, ReturnType<typeof setTimeout>>()
+function syncUnitsToMain(uuid: string): void {
+  clearTimeout(unitTimers.get(uuid))
+  unitTimers.set(
     uuid,
     setTimeout(() => {
-      mappingTimers.delete(uuid)
+      unitTimers.delete(uuid)
       const client = useClientZustand.getState().clients[uuid]
       if (!client) return
       // Nothing waits on a cell edit reaching main, so the answer has nobody
       // to stop. A refusal reports itself as a `backend_message` and costs
-      // main the edit, and the next edit sends the whole mapping again.
-      void window.api.setRegisterMapping({ uuid, registerMapping: client.registerMapping })
+      // main the edit, and the next edit sends the units again.
+      void window.api.setUnits({ uuid, units: client.units })
     }, 150)
   )
 }
 
 /**
- * Sends `registerMapping` now instead of in 150 ms, and answers whether main
- * took it.
+ * Sends `units` now, and answers whether main took them.
  *
- * For a caller that needs the backend to hold the mapping before its next
- * request. Turning on read configuration reads straight afterwards, and the
- * debounce would let that read go out against the mapping from before.
- *
- * It takes the mapping rather than reading the store, because a caller that
- * writes only once main has it has nothing in the store to send yet.
+ * A send carries every mapping edit the store holds, so one waiting on the
+ * timer goes with it and the timer is dropped. It takes the units rather than
+ * reading the store, because a caller that writes only once main has them has
+ * nothing in the store to send yet.
  */
-export const flushRegisterMappingToMain = async (
-  uuid: string,
-  registerMapping: RegisterMapping
-): Promise<boolean> => {
-  clearTimeout(mappingTimers.get(uuid))
-  mappingTimers.delete(uuid)
-  return (await window.api.setRegisterMapping({ uuid, registerMapping })) ?? false
+export const flushUnitsToMain = async (uuid: string, units: ClientUnit[]): Promise<boolean> => {
+  clearTimeout(unitTimers.get(uuid))
+  unitTimers.delete(uuid)
+  return (await window.api.setUnits({ uuid, units })) ?? false
+}
+
+/**
+ * The selected unit changed by `change`, sent to main with the client's other
+ * units, and written where main took it. Answers the view it changed, or
+ * undefined for a store with no session yet and for a refusal.
+ *
+ * The write applies `change` to the unit the store holds then, rather than
+ * writing the copy that was sent, so a mapping edit that landed while main
+ * answered stays.
+ */
+const changeUnit = async (
+  set: ClientSet,
+  get: () => ClientZustand,
+  change: (unit: ClientUnit) => void
+): Promise<ClientStepView | undefined> => {
+  const state = get()
+  if (!selectedSession(state).ready) return undefined
+  const view = viewOf(state)
+  const after = structuredClone(selectedUnit(state))
+  change(after)
+  const units = selectedClient(state).units.map((unit) => (unit.uuid === view.unit ? after : unit))
+  if (!(await flushUnitsToMain(view.uuid, units))) return undefined
+
+  set((draft) =>
+    onClient(draft, view.uuid, ({ client }) => {
+      const unit = client.units.find(({ uuid }) => uuid === view.unit)
+      if (unit) change(unit)
+    })
+  )
+  return view
 }
 
 /**
  * Answer a question the rows on screen no longer answer.
  *
- * Address, length and type each change what a read asks for, and the unit id
- * changes which device answers it, so the rows from the last read are about
- * something else now. A poll puts new ones there on its own.
+ * A section's address and length change what a read of it asks for, so the
+ * rows of that section are about something else now. The unit id changes
+ * which device answers every section of the unit, so all four go. A poll puts
+ * new ones there on its own.
  *
- * With read configuration on, emptying the grid is the wrong answer, because
- * the grid is drawn from the mapping there and the configured rows would go
- * with it. Whether there is a right one depends on the field, which is what
- * `readsTheMapping` names.
- *
- * The unit id and the type change what the mapping is read from, so the rows
- * are redrawn and main is asked to fill them: leaving them alone left the old
- * unit's values in the named rows, and after a type change left the rows of
- * the type before it, because `RegisterGrid` redraws the mapping on a change
- * of `readConfiguration` and not of `type`. That is what `setReadConfiguration`
- * does when it is switched on and what `setLittleEndian` does for its own
- * question.
- *
- * The address and the length change nothing there. `_read` builds its groups
- * from the mapping and falls back to the toolbar's group only when the mapping
- * has none, so the rows still answer the same question, and redrawing them
- * would trade values a device answered for `showMapping`'s zeros. Both fields
+ * With read configuration on, emptying the grid is the wrong answer for the
+ * unit id, because the grid is drawn from the mapping there and the configured
+ * rows would go with it: the rows are redrawn and main is asked to fill the one
+ * on screen. The address and the length change nothing there. `_readSection`
+ * builds its groups from the mapping and falls back to the window only when the
+ * mapping has none, so the rows still answer the same question. Both fields
  * are disabled while read configuration is on, so this is the rule rather than
  * a state to reach.
  *
  * `configuredReadGroups` is that same fallback asked before the ask. A bit
  * type configures nothing main will read, and neither does a type with no
- * group under it, so a read there comes back as the toolbar's block over the
- * mapping just drawn. The redraw still happens, because the mapping is what
- * the grid is about; the ask does not.
+ * group under it, so a read there comes back as the window over the mapping
+ * just drawn. The redraw still happens, because the mapping is what the grid
+ * is about; the ask does not.
  */
-const clearRegisterDataWhenIdle = (uuid: string, readsTheMapping: boolean): void => {
+const clearRegisterDataWhenIdle = (
+  { uuid, unit, type }: ClientStepView,
+  wholeUnit: boolean
+): void => {
   const { clients, sessions } = useClientZustand.getState()
-  const client = clients[uuid]
-  if (!client) return
+  const found = clients[uuid]?.units.find((candidate) => candidate.uuid === unit)
+  if (!found) return
   if (dataOf(useLiveZustand.getState(), uuid).clientState.polling) return
-  if (sessions[uuid]?.readConfiguration) {
-    if (!readsTheMapping) return
-    showMapping(uuid)
-    const { registerConfig, registerMapping } = client
-    if (configuredReadGroups(true, registerConfig.type, registerMapping).length > 0) {
-      readWhenMainCan(uuid)
+  const types = wholeUnit ? RegisterTypeSchema.options : [type]
+  if (sessions[uuid]?.readConfiguration[unit]) {
+    if (!wholeUnit) return
+    for (const each of types) showMapping(uuid, unit, each)
+    if (configuredReadGroups(true, type, found.registerMapping).length > 0) {
+      readWhenMainCan({ uuid, unit, type })
     }
     return
   }
-  useLiveZustand.getState().setRegisterData(uuid, [])
+  for (const each of types) useLiveZustand.getState().setRegisterData(uuid, unit, each, [])
 }
 
 /**
@@ -194,12 +253,12 @@ const latestCall = new Map<string, number>()
  * Starts a call of `field` on `uuid`, and answers whether it is still the
  * latest one.
  *
- * `setHost`, `setCom` and `setLength` write an invalid value at once and a
+ * `setHost` and `setCom` write an invalid value at once and a
  * valid one after main answers, so a valid key's answer can arrive after a
  * later invalid key was written. Written then, it would put the older value
  * back in the store while the field shows the newer.
  */
-const startCall = (uuid: string, field: 'host' | 'com' | 'length'): (() => boolean) => {
+const startCall = (uuid: string, field: 'host' | 'com'): (() => boolean) => {
   const key = `${uuid}:${field}`
   const call = (latestCall.get(key) ?? 0) + 1
   latestCall.set(key, call)
@@ -218,15 +277,22 @@ const startCall = (uuid: string, field: 'host' | 'com' | 'length'): (() => boole
  * below it.
  */
 const recordField = <Field extends ClientField>(
-  uuid: string,
+  view: ClientStepView,
   field: Field,
   before: ClientFieldValues[Field],
   after: ClientFieldValues[Field]
 ): void => {
   if (before === after) return
-  if (!useClientZustand.getState().clients[uuid]) return
-  useUndoZustand.getState().recordClient(clientFieldSteps[field](before, uuid))
+  if (!useClientZustand.getState().clients[view.uuid]) return
+  useUndoZustand.getState().recordClient(clientFieldSteps[field](before, view))
 }
+
+/** What the view shows now, as `clientFieldReaders` reads it. */
+const viewedOf = (state: ClientZustand) => ({
+  client: selectedClient(state),
+  unit: selectedUnit(state),
+  section: shownSection(state)
+})
 
 /**
  * One serial option, sent and then written where main took it.
@@ -245,7 +311,8 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
   if (!selectedSession(get()).ready) return false
   if (!isDisconnected(uuid)) return false
 
-  const before = clientFieldReaders[key](selectedClient(get()))
+  const view = viewOf(get())
+  const before = clientFieldReaders[key](viewedOf(get()))
   if (
     !(await window.api.updateConnectionConfig({
       uuid,
@@ -259,19 +326,20 @@ const setSerialOption = async <Key extends keyof SerialPortOptions>(
       client.connectionConfig.rtu.options[key] = value
     })
   )
-  const client = get().clients[uuid]
-  if (client)
-    recordField<keyof SerialPortOptions>(uuid, key, before, clientFieldReaders[key](client))
+  if (get().clients[uuid])
+    recordField<keyof SerialPortOptions>(
+      view,
+      key,
+      before,
+      clientFieldReaders[key](viewedOf(get()))
+    )
   return true
 }
 
 /**
  * One register config field, sent and then written where main took it.
  *
- * `addressBase`, `show64BitValues`, `advancedMode`, `pollRate`, `timeout`,
- * `offlineAfterTimeouts` and `maxPollInterval` differ in nothing but the key. The four fields that are not here each end on
- * something more: `address`, `length` and `type` clear the grid, `littleEndian`
- * reads again, and `length` carries a validity flag as well.
+ * Every field of `RegisterConfig` differs in nothing but the key.
  */
 const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
   set: ClientSet,
@@ -281,6 +349,7 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
 ): Promise<boolean> => {
   const uuid = get().selectedUuid
   if (!selectedSession(get()).ready) return false
+  const view = viewOf(get())
   const before = selectedClient(get()).registerConfig[key]
   if (!(await window.api.updateRegisterConfig({ uuid, registerConfig: { [key]: value } })))
     return false
@@ -290,7 +359,7 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
       client.registerConfig[key] = value
     })
   )
-  recordField<keyof RegisterConfig>(uuid, key, before, value)
+  recordField<keyof RegisterConfig>(view, key, before, value)
   return true
 }
 
@@ -304,22 +373,22 @@ const setRegisterConfigField = async <Key extends keyof RegisterConfig>(
  * main's length question of what the Length field shows, which is what main
  * holds after a restart and what the field leaves unsent before one.
  */
-const readWhenMainCan = (uuid: string): void => {
-  const { clientState } = dataOf(useLiveZustand.getState(), uuid)
+const readWhenMainCan = (target: ClientStepView): void => {
+  const { clientState } = dataOf(useLiveZustand.getState(), target.uuid)
   if (clientState.connectState !== 'connected') return
   if (clientOwner(clientState)) {
     // A read or a write answers for the addressing it went out with, and main
     // drops that answer once the addressing moved, so the ask waits for it to
     // settle. A poll or a scan reads again by itself.
-    if (!readLoopOwner(clientState)) waitToRead(uuid)
+    if (!readLoopOwner(clientState)) waitToRead(target)
     return
   }
-  if (readsNothingOf(useClientZustand.getState(), uuid)) return
-  window.api.read(uuid)
+  if (readsNothingOf(useClientZustand.getState(), target.uuid)) return
+  window.api.read(target)
 }
 
-/** The clients whose ask for a read waits for the request they had in flight. */
-const readsWaiting = new Set<string>()
+/** The asks for a read that wait for the request they had in flight, one per client. */
+const readsWaiting = new Map<string, ClientStepView>()
 let listening = false
 
 /**
@@ -330,17 +399,17 @@ let listening = false
  * before `useLiveZustand` exists. A poll or a scan that took over drops the
  * ask, because it reads by itself, and so does a connection that went.
  */
-const waitToRead = (uuid: string): void => {
-  readsWaiting.add(uuid)
+const waitToRead = (target: ClientStepView): void => {
+  readsWaiting.set(target.uuid, target)
   if (listening) return
   listening = true
   const stop = useLiveZustand.subscribe((state) => {
-    for (const waiting of readsWaiting) {
-      const { clientState } = dataOf(state, waiting)
+    for (const [uuid, waiting] of readsWaiting) {
+      const { clientState } = dataOf(state, uuid)
       if (clientOwner(clientState) && !readLoopOwner(clientState)) continue
       // `readWhenMainCan` asks the connection and the owner again, and asks
       // nothing of a poll or a scan.
-      readsWaiting.delete(waiting)
+      readsWaiting.delete(uuid)
       readWhenMainCan(waiting)
     }
     if (readsWaiting.size > 0) return
@@ -376,9 +445,14 @@ export const holdSelection = async <Result>(run: () => Promise<Result>): Promise
  * handles invokes in the order they arrive and makes the client without
  * waiting on anything, so the call after it finds it there.
  */
-const handToMain = (uuid: string, { connectionConfig, registerConfig }: PersistedClient): void => {
-  window.api.createClient({ uuid, connectionConfig, registerConfig })
-  window.api.setReadConfiguration({ uuid, readConfiguration: false })
+const handToMain = (
+  uuid: string,
+  { connectionConfig, registerConfig, units }: PersistedClient
+): void => {
+  window.api.createClient({ uuid, connectionConfig, registerConfig, units })
+  for (const unit of units) {
+    window.api.setReadConfiguration({ uuid, unit: unit.uuid, readConfiguration: false })
+  }
 }
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
@@ -392,10 +466,19 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
  */
 const withDefaults = (client: Record<string, unknown>): Record<string, unknown> => {
   const defaults = getDefaultClient()
-  const { registerConfig } = client
+  const { registerConfig, units } = client
   return {
     ...defaults,
     ...client,
+    // A unit is filled the same way: a field a store did not carry gets its
+    // default rather than costing the unit a reset.
+    units: Array.isArray(units)
+      ? units.map((unit) =>
+          isPlainRecord(unit) && typeof unit.uuid === 'string'
+            ? { ...newClientUnit(unit.uuid, 1), ...unit }
+            : unit
+        )
+      : (units ?? defaults.units),
     registerConfig: isPlainRecord(registerConfig)
       ? { ...defaults.registerConfig, ...registerConfig }
       : registerConfig === undefined
@@ -414,7 +497,7 @@ export const useClientZustand = create<
     mutative((set, get) => ({
       // Clients
       selectedUuid: MAIN_CLIENT_UUID,
-      clients: { [MAIN_CLIENT_UUID]: getDefaultClient() },
+      clients: { [MAIN_CLIENT_UUID]: getDefaultClient(MAIN_UNIT_UUID) },
       sessions: {},
       setSelectedUuid: (uuid) => {
         if (selectionHeld()) return
@@ -477,14 +560,14 @@ export const useClientZustand = create<
         })
       },
       setName: (name) => {
-        const uuid = get().selectedUuid
+        const view = viewOf(get())
         const before = selectedClient(get()).name
         set((state) =>
-          onClient(state, uuid, ({ client }) => {
+          onClient(state, view.uuid, ({ client }) => {
             client.name = name
           })
         )
-        recordField(uuid, 'name', before, name)
+        recordField(view, 'name', before, name)
       },
       configReset: undefined,
       acknowledgeConfigReset: () =>
@@ -492,14 +575,15 @@ export const useClientZustand = create<
           state.configReset = undefined
         }),
       setRegisterMapping: (register, key, value) => {
-        const uuid = get().selectedUuid
-        const { registerConfig, registerMapping } = selectedClient(get())
-        const type = registerConfig.type
-        const before = registerMapping[type][register]
+        const view = viewOf(get())
+        const { type } = view
+        const before = selectedUnit(get()).registerMapping[type][register]
 
         set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            const mapping = client.registerMapping[type]
+          onClient(state, view.uuid, ({ client }) => {
+            const unit = client.units.find(({ uuid }) => uuid === view.unit)
+            if (!unit) return
+            const mapping = unit.registerMapping[type]
             // Remove register from mapping when data type is set to 'none'
             if (key === 'dataType' && value === 'none') {
               delete mapping[register]
@@ -516,44 +600,40 @@ export const useClientZustand = create<
           })
         )
 
-        if (selectedClient(get()).registerMapping[type][register] !== before) {
+        if (selectedUnit(get()).registerMapping[type][register] !== before) {
           useUndoZustand
             .getState()
-            .recordClient({ kind: 'mapping', uuid, type, register, column: key, value: before })
+            .recordClient({ ...view, kind: 'mapping', register, column: key, value: before })
         }
-        syncRegisterMappingToMain(uuid)
+        syncUnitsToMain(view.uuid)
       },
       setMappingEntry: (type, register, entry) => {
-        const uuid = get().selectedUuid
+        const view = viewOf(get())
         set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            if (entry === undefined) delete client.registerMapping[type][register]
-            else client.registerMapping[type][register] = entry
+          onClient(state, view.uuid, ({ client }) => {
+            const unit = client.units.find(({ uuid }) => uuid === view.unit)
+            if (!unit) return
+            if (entry === undefined) delete unit.registerMapping[type][register]
+            else unit.registerMapping[type][register] = entry
           })
         )
-        syncRegisterMappingToMain(uuid)
+        syncUnitsToMain(view.uuid)
       },
       replaceRegisterMapping: async (registerMapping) => {
-        const uuid = get().selectedUuid
         // Read configuration is the one thing that makes main read the mapping,
         // so turning it off first leaves no read answering out of the mapping
-        // this call throws away. `syncRegisterMappingToMain` debounces for
-        // rapid cell edits, and a whole new mapping is not one.
+        // this call throws away.
         get().setReadConfiguration(false)
 
-        // Main keeps the mapping it had when it refuses one, so a write here
+        // Main keeps the units it had when it refuses them, so a write here
         // would leave the grid showing registers main is not holding. What a
         // refusal costs is read configuration, which is off by the line above
         // and stays off: both sides hold the mapping from before, and the
         // message main sends names the channel.
-        if (!(await flushRegisterMappingToMain(uuid, registerMapping))) return false
-
-        set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            client.registerMapping = registerMapping
-          })
-        )
-        return true
+        const view = await changeUnit(set, get, (unit) => {
+          unit.registerMapping = registerMapping
+        })
+        return view !== undefined
       },
       clearRegisterMapping: () => get().replaceRegisterMapping(emptyRegisterMapping()),
 
@@ -577,6 +657,7 @@ export const useClientZustand = create<
       // convert, a validity flag, a grid to clear, a read to ask for.
       setProtocol: async (protocol) => {
         const uuid = get().selectedUuid
+        const view = viewOf(get())
         if (!selectedSession(get()).ready) return false
         if (!isDisconnected(uuid)) return false
 
@@ -589,7 +670,7 @@ export const useClientZustand = create<
             client.connectionConfig.protocol = protocol
           })
         )
-        recordField(uuid, 'protocol', before, protocol)
+        recordField(view, 'protocol', before, protocol)
         return true
       },
       //
@@ -597,6 +678,7 @@ export const useClientZustand = create<
       // TCP
       setPort: async (port) => {
         const uuid = get().selectedUuid
+        const view = viewOf(get())
         if (!selectedSession(get()).ready) return false
         if (!isDisconnected(uuid)) return false
 
@@ -615,11 +697,12 @@ export const useClientZustand = create<
             client.connectionConfig.tcp.options.port = newPort
           })
         )
-        recordField(uuid, 'port', before, newPort)
+        recordField(view, 'port', before, newPort)
         return true
       },
       setHost: async (host, valid) => {
         const uuid = get().selectedUuid
+        const view = viewOf(get())
         if (!selectedSession(get()).ready) return false
         if (!isDisconnected(uuid)) return false
 
@@ -635,7 +718,7 @@ export const useClientZustand = create<
               client.connectionConfig.tcp.host = host
             })
           )
-          recordField(uuid, 'host', before, host)
+          recordField(view, 'host', before, host)
           return false
         }
 
@@ -651,7 +734,7 @@ export const useClientZustand = create<
             client.connectionConfig.tcp.host = host
           })
         )
-        recordField(uuid, 'host', before, host)
+        recordField(view, 'host', before, host)
         return true
       },
       //
@@ -659,6 +742,7 @@ export const useClientZustand = create<
       // RTU
       setCom: async (com, valid) => {
         const uuid = get().selectedUuid
+        const view = viewOf(get())
         if (!selectedSession(get()).ready) return false
         if (!isDisconnected(uuid)) return false
 
@@ -675,7 +759,7 @@ export const useClientZustand = create<
               client.connectionConfig.rtu.com = com
             })
           )
-          recordField(uuid, 'com', before, com)
+          recordField(view, 'com', before, com)
           return false
         }
 
@@ -691,7 +775,7 @@ export const useClientZustand = create<
             client.connectionConfig.rtu.com = com
           })
         )
-        recordField(uuid, 'com', before, com)
+        recordField(view, 'com', before, com)
         return true
       },
       setBaudRate: (baudRate) => setSerialOption(set, get, 'baudRate', baudRate),
@@ -701,16 +785,12 @@ export const useClientZustand = create<
       //
       //
       // Layout configuration settings
-      setAddressBase: (addressBase) => setRegisterConfigField(set, get, 'addressBase', addressBase),
       setShow64BitValues: (show64BitValues) =>
         setRegisterConfigField(set, get, 'show64BitValues', show64BitValues),
       setAdvancedMode: (advancedMode) =>
         setRegisterConfigField(set, get, 'advancedMode', advancedMode),
-      // Addressing
+      // Addressing, on the unit the view shows
       setUnitId: async (unitId) => {
-        const uuid = get().selectedUuid
-        if (!selectedSession(get()).ready) return false
-
         // `UnitIdInput` is an `IMaskInput`, which fires `accept` when the value
         // it is handed differs from the empty mask it mounts with, so every
         // mount of the toolbar field and of the scan dialog's calls this with
@@ -719,136 +799,116 @@ export const useClientZustand = create<
         // RTU, so it is refused here and the store keeps the id it had.
         if (unitId === '') return false
         const newUnitId = Number(unitId)
-        const before = selectedClient(get()).connectionConfig.unitId
+        const before = selectedUnit(get()).unitId
         if (newUnitId === before) return true
 
-        if (
-          !(await window.api.updateConnectionConfig({
-            uuid,
-            connectionConfig: { unitId: newUnitId }
-          }))
-        )
-          return false
-
-        set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            client.connectionConfig.unitId = newUnitId
-          })
-        )
-        recordField(uuid, 'unitId', before, newUnitId)
-        clearRegisterDataWhenIdle(uuid, true)
+        const view = await changeUnit(set, get, (unit) => {
+          unit.unitId = newUnitId
+        })
+        if (!view) return false
+        recordField(view, 'unitId', before, newUnitId)
+        clearRegisterDataWhenIdle(view, true)
         return true
       },
       setAddress: async (address) => {
-        const uuid = get().selectedUuid
-        if (!selectedSession(get()).ready) return false
-
         const newAddress = Number(address)
-        const before = selectedClient(get()).registerConfig.address
+        const type = shownType(get())
+        const before = shownSection(get()).address
         if (newAddress === before) return true
 
-        if (
-          !(await window.api.updateRegisterConfig({
-            uuid,
-            registerConfig: { address: newAddress }
-          }))
-        )
-          return false
-
-        set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            client.registerConfig.address = newAddress
-          })
-        )
-        recordField(uuid, 'address', before, newAddress)
-        clearRegisterDataWhenIdle(uuid, false)
+        const view = await changeUnit(set, get, (unit) => {
+          unit.sections[type].address = newAddress
+        })
+        if (!view) return false
+        recordField(view, 'address', before, newAddress)
+        clearRegisterDataWhenIdle(view, false)
         return true
       },
-      setLength: async (length, valid) => {
-        const uuid = get().selectedUuid
-        if (!selectedSession(get()).ready) return false
-
+      // A cleared field is a length of 0, which the schema takes and main
+      // refuses to read, so it is sent like any other.
+      setLength: async (length) => {
         const newLength = Number(length)
-        const before = selectedClient(get()).registerConfig.length
-        const isLatest = startCall(uuid, 'length')
+        const type = shownType(get())
+        const before = shownSection(get()).length
+        if (newLength === before) return true
 
-        // The field reads its length from the store, so an empty or zero one is
-        // kept here and never sent.
-        if (!valid) {
-          set((state) =>
-            onClient(state, uuid, ({ client, session }) => {
-              session.valid.length = false
-              client.registerConfig.length = newLength
-            })
-          )
-          recordField(uuid, 'length', before, newLength)
-          return false
-        }
-
-        if (
-          !(await window.api.updateRegisterConfig({ uuid, registerConfig: { length: newLength } }))
-        )
-          return false
-        if (!isLatest()) return false
-
-        set((state) =>
-          onClient(state, uuid, ({ client, session }) => {
-            session.valid.length = true
-            client.registerConfig.length = newLength
-          })
-        )
-        recordField(uuid, 'length', before, newLength)
-        clearRegisterDataWhenIdle(uuid, false)
+        const view = await changeUnit(set, get, (unit) => {
+          unit.sections[type].length = newLength
+        })
+        if (!view) return false
+        recordField(view, 'length', before, newLength)
+        clearRegisterDataWhenIdle(view, false)
         return true
       },
-      setType: async (type) => {
-        const uuid = get().selectedUuid
-        if (!selectedSession(get()).ready) return false
-        const before = selectedClient(get()).registerConfig.type
-        if (!(await window.api.updateRegisterConfig({ uuid, registerConfig: { type } })))
-          return false
-
+      setPolled: async (type, polled) => {
+        const before = selectedUnit(get()).sections[type].polled
+        if (polled === before) return true
+        const view = await changeUnit(set, get, (unit) => {
+          unit.sections[type].polled = polled
+        })
+        if (!view) return false
+        recordField({ ...view, type }, 'polled', before, polled)
+        return true
+      },
+      selectUnit: (unit) => {
+        const { selectedUuid } = get()
         set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            client.registerConfig.type = type
+          onClient(state, selectedUuid, ({ client, session }) => {
+            if (client.units.some(({ uuid }) => uuid === unit)) session.selectedUnit = unit
           })
         )
-        recordField(uuid, 'type', before, type)
-        clearRegisterDataWhenIdle(uuid, true)
-        return true
+      },
+      setType: (type) => {
+        const { selectedUuid } = get()
+        set((state) =>
+          onClient(state, selectedUuid, ({ session }) => {
+            session.shownType = type
+          })
+        )
       },
       setLittleEndian: async (littleEndian) => {
-        const uuid = get().selectedUuid
-        if (!selectedSession(get()).ready) return false
-        const before = selectedClient(get()).registerConfig.littleEndian
-        if (!(await window.api.updateRegisterConfig({ uuid, registerConfig: { littleEndian } })))
-          return false
-
-        set((state) =>
-          onClient(state, uuid, ({ client }) => {
-            client.registerConfig.littleEndian = littleEndian
-          })
-        )
-        recordField(uuid, 'littleEndian', before, littleEndian)
+        const before = selectedUnit(get()).littleEndian
+        if (littleEndian === before) return true
+        const view = await changeUnit(set, get, (unit) => {
+          unit.littleEndian = littleEndian
+        })
+        if (!view) return false
+        recordField(view, 'littleEndian', before, littleEndian)
 
         // The rows on screen were read in the other word order, and the
         // conversion happens where the reading does, so they stay that way
         // until the next read. An empty grid has nothing to put right.
-        if (dataOf(useLiveZustand.getState(), uuid).registerData.length > 0) readWhenMainCan(uuid)
+        const { registerData } = sectionOf(
+          useLiveZustand.getState(),
+          view.uuid,
+          view.unit,
+          view.type
+        )
+        if (registerData.length > 0) readWhenMainCan(view)
+        return true
+      },
+      setAddressBase: async (addressBase) => {
+        const before = selectedUnit(get()).addressBase
+        if (addressBase === before) return true
+        const view = await changeUnit(set, get, (unit) => {
+          unit.addressBase = addressBase
+        })
+        if (!view) return false
+        recordField(view, 'addressBase', before, addressBase)
         return true
       },
       setReadConfiguration: (readConfiguration) => {
-        const uuid = get().selectedUuid
+        const { uuid, unit } = viewOf(get())
         if (!selectedSession(get()).ready) return
         set((state) =>
           onClient(state, uuid, ({ session }) => {
-            session.readConfiguration = readConfiguration
+            session.readConfiguration[unit] = readConfiguration
           })
         )
         // No read follows. One fired by the switch could land after the switch
-        // went back, and a read of the toolbar's range then filled a grid
-        // drawing the mapping. The next Read or poll brings the values.
-        window.api.setReadConfiguration({ uuid, readConfiguration })
+        // went back, and a read of the window then filled a grid drawing the
+        // mapping. The next Read or poll brings the values.
+        window.api.setReadConfiguration({ uuid, unit, readConfiguration })
       },
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),

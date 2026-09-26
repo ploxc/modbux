@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { AppState, withoutUndefined } from '../state'
-import { ConnectionConfigSchema, defaultConnectionConfig, defaultRegisterConfig } from '@shared'
+import {
+  ClientUnit,
+  ConnectionConfigSchema,
+  defaultConnectionConfig,
+  defaultRegisterConfig,
+  newClientUnit
+} from '@shared'
 
 describe('withoutUndefined', () => {
   it('drops a key set to undefined and keeps the rest', () => {
@@ -23,6 +29,16 @@ describe('withoutUndefined', () => {
   })
 })
 
+const mapped = (uuid: string): ClientUnit => ({
+  ...newClientUnit(uuid, 1),
+  registerMapping: {
+    coils: {},
+    discrete_inputs: {},
+    input_registers: {},
+    holding_registers: { 0: { dataType: 'int16', scalingFactor: 1 } }
+  }
+})
+
 describe('AppState', () => {
   let state: AppState
 
@@ -39,8 +55,8 @@ describe('AppState', () => {
       expect(state.registerConfig).toEqual(defaultRegisterConfig)
     })
 
-    it('has no register mapping initially', () => {
-      expect(state.registerMapping).toBeUndefined()
+    it('has no units initially', () => {
+      expect(state.units).toEqual([])
     })
 
     // Every nested object, because a spread would copy the top level and leave
@@ -70,20 +86,15 @@ describe('AppState', () => {
       expect(state.connectionConfig.rtu.com).toBe('COM3')
     })
 
-    it('updates unitId', () => {
-      state.updateConnectionConfig({ unitId: 42 })
-      expect(state.connectionConfig.unitId).toBe(42)
-    })
-
     it('updates protocol', () => {
       state.updateConnectionConfig({ protocol: 'ModbusRtu' })
       expect(state.connectionConfig.protocol).toBe('ModbusRtu')
     })
 
     it('preserves unmodified fields after multiple updates', () => {
-      state.updateConnectionConfig({ unitId: 5 })
+      state.updateConnectionConfig({ tcp: { options: { port: 5020 } } })
       state.updateConnectionConfig({ tcp: { host: '192.168.0.1' } })
-      expect(state.connectionConfig.unitId).toBe(5)
+      expect(state.connectionConfig.tcp.options.port).toBe(5020)
       expect(state.connectionConfig.tcp.host).toBe('192.168.0.1')
       expect(state.connectionConfig.protocol).toBe('ModbusTcp')
     })
@@ -116,23 +127,18 @@ describe('AppState', () => {
     })
 
     it('still writes the fields that carry a value', () => {
-      state.updateConnectionConfig({ unitId: undefined, tcp: { host: '10.0.0.2' } })
+      state.updateConnectionConfig({ protocol: undefined, tcp: { host: '10.0.0.2' } })
 
       expect(state.connectionConfig.tcp.host).toBe('10.0.0.2')
-      expect(state.connectionConfig.unitId).toBe(defaultConnectionConfig.unitId)
+      expect(state.connectionConfig.protocol).toBe(defaultConnectionConfig.protocol)
     })
   })
 
   describe('updateRegisterConfig', () => {
     it('deep merges partial register config', () => {
-      state.updateRegisterConfig({ address: 100 })
-      expect(state.registerConfig.address).toBe(100)
-      expect(state.registerConfig.length).toBe(10) // default preserved
-    })
-
-    it('updates register type', () => {
-      state.updateRegisterConfig({ type: 'input_registers' })
-      expect(state.registerConfig.type).toBe('input_registers')
+      state.updateRegisterConfig({ timeout: 3000 })
+      expect(state.registerConfig.timeout).toBe(3000)
+      expect(state.registerConfig.pollRate).toBe(defaultRegisterConfig.pollRate)
     })
 
     it('updates poll rate', () => {
@@ -140,59 +146,113 @@ describe('AppState', () => {
       expect(state.registerConfig.pollRate).toBe(5000)
     })
 
-    it('toggles littleEndian', () => {
-      state.updateRegisterConfig({ littleEndian: true })
-      expect(state.registerConfig.littleEndian).toBe(true)
+    it('toggles show64BitValues', () => {
+      state.updateRegisterConfig({ show64BitValues: true })
+      expect(state.registerConfig.show64BitValues).toBe(true)
     })
   })
 
   describe('setReadConfiguration', () => {
     it('defaults to false', () => {
-      expect(state.readConfiguration).toBe(false)
+      expect(state.readConfiguration('u')).toBe(false)
     })
 
-    it('sets readConfiguration to true', () => {
-      state.setReadConfiguration(true)
-      expect(state.readConfiguration).toBe(true)
+    it('sets readConfiguration to true for that unit only', () => {
+      state.setReadConfiguration('u', true)
+      expect(state.readConfiguration('u')).toBe(true)
+      expect(state.readConfiguration('v')).toBe(false)
     })
 
     it('sets readConfiguration back to false', () => {
-      state.setReadConfiguration(true)
-      state.setReadConfiguration(false)
-      expect(state.readConfiguration).toBe(false)
+      state.setReadConfiguration('u', true)
+      state.setReadConfiguration('u', false)
+      expect(state.readConfiguration('u')).toBe(false)
     })
   })
 
-  describe('setRegisterMapping', () => {
-    it('sets register mapping', () => {
-      const mapping = {
-        coils: {},
-        discrete_inputs: {},
-        input_registers: {},
-        holding_registers: {
-          0: { dataType: 'int16' as const, scalingFactor: 1 }
-        }
-      }
-      state.setRegisterMapping(mapping)
-      expect(state.registerMapping).toEqual(mapping)
+  describe('setUnits', () => {
+    it('sets the units, mapping and all', () => {
+      const unit = mapped('u')
+      state.setUnits([unit])
+      expect(state.units).toEqual([unit])
+      expect(state.unit('u')).toEqual(unit)
     })
 
-    it('overwrites previous mapping', () => {
-      const mapping1 = {
-        coils: {},
-        discrete_inputs: {},
-        input_registers: {},
-        holding_registers: { 0: { dataType: 'int16' as const } }
-      }
-      const mapping2 = {
-        coils: {},
-        discrete_inputs: {},
-        input_registers: { 10: { dataType: 'float' as const } },
-        holding_registers: {}
-      }
-      state.setRegisterMapping(mapping1)
-      state.setRegisterMapping(mapping2)
-      expect(state.registerMapping).toEqual(mapping2)
+    it('replaces the previous units', () => {
+      state.setUnits([mapped('u')])
+      state.setUnits([newClientUnit('v', 2)])
+      expect(state.units.map((unit) => unit.uuid)).toEqual(['v'])
+      expect(state.unit('u')).toBeUndefined()
+    })
+
+    it('takes a unit that left out of read configuration', () => {
+      state.setUnits([mapped('u')])
+      state.setReadConfiguration('u', true)
+      state.setUnits([])
+      expect(state.readConfiguration('u')).toBe(false)
+    })
+  })
+
+  describe('readGeneration', () => {
+    const units = (): ClientUnit[] => [newClientUnit('u', 1), newClientUnit('v', 2)]
+
+    it('moves for the unit whose unit id changed, and for no other', () => {
+      state.setUnits(units())
+      const [u, v] = [state.readGeneration('u'), state.readGeneration('v')]
+
+      state.setUnits(units().map((unit) => (unit.uuid === 'u' ? { ...unit, unitId: 9 } : unit)))
+
+      expect(state.readGeneration('u')).toBe(u + 1)
+      expect(state.readGeneration('v')).toBe(v)
+    })
+
+    it('moves for a unit whose section or mapping changed', () => {
+      state.setUnits(units())
+      const before = state.readGeneration('u')
+      const [first, second] = units()
+      if (!first || !second) throw new Error('units() makes two')
+
+      state.setUnits([
+        {
+          ...first,
+          sections: { ...first.sections, coils: { address: 5, length: 1, polled: true } }
+        },
+        second
+      ])
+      state.setUnits([{ ...first, registerMapping: mapped('u').registerMapping }, second])
+
+      expect(state.readGeneration('u')).toBe(before + 2)
+    })
+
+    it('stands still for a name, byte order or address base', () => {
+      state.setUnits(units())
+      const before = state.readGeneration('u')
+
+      state.setUnits(
+        units().map((unit) => ({ ...unit, name: 'meter', littleEndian: true, addressBase: '1' }))
+      )
+
+      expect(state.readGeneration('u')).toBe(before)
+    })
+
+    it('moves for a unit that left, and for no unit that stayed', () => {
+      state.setUnits(units())
+      const [u, v] = [state.readGeneration('u'), state.readGeneration('v')]
+
+      state.setUnits(units().filter((unit) => unit.uuid === 'v'))
+
+      expect(state.readGeneration('u')).toBe(u + 1)
+      expect(state.readGeneration('v')).toBe(v)
+    })
+
+    it('moves for the unit whose read configuration is set, and for no other', () => {
+      state.setUnits(units())
+      const [u, v] = [state.readGeneration('u'), state.readGeneration('v')]
+
+      state.setReadConfiguration('u', true)
+
+      expect(state.readGeneration('u')).toBe(u + 1)
+      expect(state.readGeneration('v')).toBe(v)
     })
   })
 })

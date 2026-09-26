@@ -4,6 +4,7 @@ import { AppState } from '../state'
 import {
   AddressGroup,
   BackendMessage,
+  ClientUnit,
   DataType,
   ClientState,
   ConnectionConfig,
@@ -26,6 +27,7 @@ import {
   registersFrom,
   transportKey,
   RegisterType,
+  RegisterTypeSchema,
   ScanRegistersParameters,
   ScanUnitIDParameters,
   ScanUnitIDResult,
@@ -50,7 +52,8 @@ type ReadRegisters = (
   transport: Transport,
   target: RequestTarget,
   address: number,
-  length: number
+  length: number,
+  littleEndian: boolean
 ) => Promise<RegisterData[]>
 
 /** Answers whether the scan may go on: no once it was stopped or its ride ended. */
@@ -142,10 +145,18 @@ export class ModbusClient implements TransportClient {
   private _pollGeneration = 0
 
   /**
-   * How many reads in a row the device has left unanswered. Another unit id is
-   * another device, and `updateConnectionConfig` starts it from 0.
+   * How many reads in a row each unit has left unanswered, by the unit's uuid.
+   * A unit whose unit id changes is another device, and `setUnits` starts it
+   * from 0.
    */
-  private _silentReads = 0
+  private _silentReads = new Map<string, number>()
+
+  /**
+   * How many poll rounds each offline unit sits out before it is read again,
+   * by the unit's uuid. `pollDelay` says how long an offline unit waits, and a
+   * round is one poll rate long.
+   */
+  private _roundsToSkip = new Map<string, number>()
   private _totalScans = 1
   private _scansDone = 1
 
@@ -173,15 +184,15 @@ export class ModbusClient implements TransportClient {
   private _sendClientState = (): void => {
     this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
-  private _sendData = (registerData: RegisterData[]): void => {
-    this._windows.send('register_data', { uuid: this.uuid, registerData }, 'main')
+  private _sendData = (unit: string, type: RegisterType, registerData: RegisterData[]): void => {
+    this._windows.send('register_data', { uuid: this.uuid, unit, type, registerData }, 'main')
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
     this._windows.send('scan_unit_id_result', { uuid: this.uuid, result }, 'main')
   }
 
-  private _sendGroups = (addressGroups: AddressGroup[]): void => {
-    this._windows.send('address_groups', { uuid: this.uuid, addressGroups }, 'main')
+  private _sendGroups = (unit: string, type: RegisterType, addressGroups: AddressGroup[]): void => {
+    this._windows.send('address_groups', { uuid: this.uuid, unit, type, addressGroups }, 'main')
   }
 
   /**
@@ -217,8 +228,9 @@ export class ModbusClient implements TransportClient {
 
   private _setDisconnected = (): void => {
     this._enter('disconnected')
-    this._silentReads = 0
-    this._clientState.offline = false
+    this._silentReads.clear()
+    this._roundsToSkip.clear()
+    this._clientState.offlineUnits = []
     // A scan is a read loop like polling is, so it ends here too. The loops
     // end on the ride as well, when their request settles, so what these two
     // add is the flag reaching the dialogs in the `client_state` reporting
@@ -318,20 +330,27 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
+   * Whether a read of `type` on `unit` asks for no registers: a window of
+   * length 0, where read configuration has no groups for the type to read
+   * instead.
+   */
+  private _readsNothing = (unit: ClientUnit, type: RegisterType): boolean =>
+    readsNothing(
+      this._appState.readConfiguration(unit.uuid),
+      type,
+      unit.registerMapping,
+      isReadLengthGiven(unit.sections[type].length)
+    )
+
+  /**
    * Whether `verb` would ask for no registers, having said so.
    *
-   * The length field keeps a 0 it refused rather than sending it, but `init`
-   * hands main the whole stored register config, so after a restart main holds
-   * the 0 the field showed. A read and the read back of a write ask it before
-   * they own the client, `startPolling` before a poll starts, and a poll's own
-   * read on every tick.
+   * The length field keeps a 0 rather than refusing it, and main is handed it
+   * with the rest of the unit. A read and the read back of a write ask this
+   * before they own the client.
    */
-  private _refusesLength = (verb: string): boolean => {
-    const { readConfiguration, registerMapping, registerConfig } = this._appState
-    const lengthGiven = isReadLengthGiven(registerConfig.length)
-    if (!readsNothing(readConfiguration, registerConfig.type, registerMapping, lengthGiven)) {
-      return false
-    }
+  private _refusesLength = (verb: string, unit: ClientUnit, type: RegisterType): boolean => {
+    if (!this._readsNothing(unit, type)) return false
     this._emitMessage({ message: `Cannot ${verb} a length of 0`, variant: 'warning', error: null })
     return true
   }
@@ -339,14 +358,11 @@ export class ModbusClient implements TransportClient {
   /**
    * Whether `verb` would address a unit id its protocol does not, having said so.
    *
-   * The config keeps such an id rather than refusing it, so every path that
-   * puts the id on the wire asks here: connect, a read and a poll's every tick,
-   * a write and both scans. `unitId` is the highest a unit id scan reaches.
+   * A unit keeps such an id rather than refusing it, so every path that puts
+   * the id on the wire asks here: a read, a poll's start and its every round, a
+   * write and both scans. A unit id scan asks with the highest id it reaches.
    */
-  private _refusesUnitId = (
-    verb: string,
-    unitId = this._appState.connectionConfig.unitId
-  ): boolean => {
+  private _refusesUnitId = (verb: string, unitId: number): boolean => {
     const reason = unitIdOutOfRange({ protocol: this._appState.connectionConfig.protocol, unitId })
     if (reason === undefined) return false
     this._emitMessage({
@@ -355,6 +371,23 @@ export class ModbusClient implements TransportClient {
       error: null
     })
     return true
+  }
+
+  /**
+   * The unit a channel names, having said so when there is none.
+   *
+   * Both windows load the same renderer and every channel reaches here, so a
+   * uuid can arrive after its unit was removed.
+   */
+  private _unitOrSay = (verb: string, uuid: string): ClientUnit | undefined => {
+    const unit = this._appState.unit(uuid)
+    if (!unit)
+      this._emitMessage({
+        message: `Cannot ${verb}, no such unit`,
+        variant: 'warning',
+        error: null
+      })
+    return unit
   }
 
   /**
@@ -401,7 +434,6 @@ export class ModbusClient implements TransportClient {
    * nothing rides it yet.
    */
   public connect = async (): Promise<void> => {
-    if (this._refusesUnitId('connect')) return
     const { connectionConfig } = this._appState
     // A client rides one connection, and a client that rides one is not
     // disconnected, so a connect elsewhere finds it connected or on its way.
@@ -462,26 +494,28 @@ export class ModbusClient implements TransportClient {
    * poll is. The loops do not go through here, so a poll blocks a read without
    * a read ever blocking a poll.
    */
-  public read = async (): Promise<void> => {
+  public read = async (unit: string, type: RegisterType): Promise<void> => {
     if (!this._requireClient('read')) return
+    const found = this._unitOrSay('read', unit)
+    if (!found) return
 
-    await this._readOwningTheClient()
+    await this._readOwningTheClient(found, type)
   }
 
   /**
-   * `_read`, with `reading` around it.
+   * `_readSection`, with `reading` around it.
    *
    * `read` asks whether it may and this does the owning, because a write reads
    * back what it wrote and that read is the write's rather than a caller's: it
    * passed the question once already, and asking again during its own write
    * would refuse it.
    */
-  private _readOwningTheClient = async (): Promise<void> => {
-    if (this._refusesLength('read') || this._refusesUnitId('read')) return
+  private _readOwningTheClient = async (unit: ClientUnit, type: RegisterType): Promise<void> => {
+    if (this._refusesLength('read', unit, type) || this._refusesUnitId('read', unit.unitId)) return
     this._clientState.reading = true
     this._sendClientState()
     try {
-      this._hear(await this._read())
+      this._hear(unit.uuid, await this._readSection(unit, type))
     } finally {
       this._clientState.reading = false
       this._sendClientState()
@@ -489,75 +523,58 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
-   * One read of the toolbar's block or of the configured groups, sent as one
-   * `register_data`.
+   * One read of a unit's register type, its window or its configured groups,
+   * sent as one `register_data` for that unit and type.
    *
    * `pollGeneration` is the chain a poll's read belongs to. A stopped poll
    * lets go after the request it has on the wire, and neither sends nor says
-   * anything about it: the rows
-   * would land in whatever the stop made room for, which is a scan's result
-   * list or the grid of a chain that started since, and the groups it had
-   * left would go out between that chain's own on the queue.
+   * anything about it: the rows would land in whatever the stop made room for,
+   * which is a scan's result list or the grid of a chain that started since,
+   * and the groups it had left would go out between that chain's own on the
+   * queue.
    *
    * Answers true when the device answered, false for only silence, and nothing
    * for a read that says neither, which is what `_hear` counts.
    */
-  private _read = async (pollGeneration?: number): Promise<boolean | undefined> => {
+  private _readSection = async (
+    unit: ClientUnit,
+    type: RegisterType,
+    pollGeneration?: number
+  ): Promise<boolean | undefined> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
     if (!transport) return undefined
     const ride = this._rideOn(transport)
     const stopped = (): boolean =>
       pollGeneration !== undefined && pollGeneration !== this._pollGeneration
 
-    // `startPolling` refused a poll of no registers, so a poll that gets here
-    // lost its configured groups since, and it stops rather than read nothing
-    // on every tick.
-    if (
-      pollGeneration !== undefined &&
-      (this._refusesLength('poll') || this._refusesUnitId('poll'))
-    ) {
-      this.stopPolling()
-      return undefined
-    }
-
     // What this read is addressed to, taken before the first request goes out.
-    const readGeneration = this._appState.readGeneration
-    const target = this._target(
-      ride,
-      this._appState.connectionConfig.unitId,
-      this._appState.registerConfig.timeout
-    )
+    const readGeneration = this._appState.readGeneration(unit.uuid)
+    const target = this._target(ride, unit.unitId, this._appState.registerConfig.timeout)
+    const readConfiguration = this._appState.readConfiguration(unit.uuid)
 
     const data: RegisterData[] = []
 
-    const { type, address, length } = this._appState.registerConfig
+    const { address, length } = unit.sections[type]
 
     // Read configuration groups by data type, and a bit type carries none.
     // `configuredReadGroups` is that question, in `@shared` because the
-    // renderer asks it too: `clearRegisterDataWhenIdle` draws the mapping and
-    // asks for a read, and an empty answer here is the toolbar's group coming
-    // back instead of what it drew.
-    const configGroups = configuredReadGroups(
-      this._appState.readConfiguration,
-      type,
-      this._appState.registerMapping
-    )
-    // The toolbar's group is bounded by neither ceiling. `RegisterConfigSchema`
-    // takes a length of 65535 at any address, so a persisted store carries a
-    // read past the last register there is; and the type and the length are two
-    // channels, so main holds the old length for one round trip when the type
-    // changes under it, which is how 2000 coils became 2000 holding registers.
+    // renderer asks it too: it draws the mapping and asks for a read, and an
+    // empty answer here is the window coming back instead of what it drew.
+    const configGroups = configuredReadGroups(readConfiguration, type, unit.registerMapping)
+    // The window is bounded by neither ceiling. `ClientSectionSchema` takes a
+    // length of 65535 at any address, so a persisted store carries a read past
+    // the last register there is, and 2000 coils is no read of registers.
     //
     // A configured group is left whole on purpose. Its length is the data
     // type's width, so cutting it reads part of a value: an int64 at 65534 came
     // back as 2 registers, and `convertRegisterData` answers 0 to a 64 bit type
     // it has not got the registers for. Refused, the address gets an error row
     // instead, which is the truth about a mapping that runs off the end.
-    const toolbarGroup: AddressGroup = [
+    const window: AddressGroup = [
       address,
       Math.min(length, maxReadQuantity([type]), registersFrom(address))
     ]
-    const groups = configGroups.length > 0 ? configGroups : [toolbarGroup]
+    const groups = configGroups.length > 0 ? configGroups : [window]
     // An exception is an answer as much as a value is: the device is there.
     // A gateway's 10 or 11 is the gateway answering for a device that is not.
     let answered = false
@@ -567,7 +584,7 @@ export class ModbusClient implements TransportClient {
       if (stopped()) return undefined
       const settled = await this._settle(
         ride,
-        this._readers[type](transport, target, groupAddress, groupLength)
+        this._readers[type](transport, target, groupAddress, groupLength, unit.littleEndian)
       )
       // The connection went while this group waited, so nothing of this read
       // goes anywhere.
@@ -586,34 +603,31 @@ export class ModbusClient implements TransportClient {
         const { error } = settled
         const errorMessage = errorText(error)
 
-        if (this._appState.readConfiguration) {
+        if (readConfiguration) {
           // Generate error placeholder rows for configured addresses in this failed group
-          const mapping = this._appState.registerMapping?.[type]
-          if (mapping) {
-            for (const [addressKey, mapValue] of Object.entries(mapping)) {
-              const mappedAddress = Number(addressKey)
-              if (
-                mappedAddress >= groupAddress &&
-                mappedAddress < groupAddress + groupLength &&
-                mapValue?.dataType &&
-                mapValue.dataType !== 'none'
-              ) {
-                data.push({
-                  id: mappedAddress,
-                  buffer: new Uint8Array(2),
-                  hex: '0000',
-                  words: undefined,
-                  bit: false,
-                  isScanned: false,
-                  error: errorMessage,
-                  groupIndex
-                })
-              }
+          for (const [addressKey, mapValue] of Object.entries(unit.registerMapping[type])) {
+            const mappedAddress = Number(addressKey)
+            if (
+              mappedAddress >= groupAddress &&
+              mappedAddress < groupAddress + groupLength &&
+              mapValue?.dataType &&
+              mapValue.dataType !== 'none'
+            ) {
+              data.push({
+                id: mappedAddress,
+                buffer: new Uint8Array(2),
+                hex: '0000',
+                words: undefined,
+                bit: false,
+                isScanned: false,
+                error: errorMessage,
+                groupIndex
+              })
             }
           }
         } else if (!stopped()) {
           this._emitMessage({
-            message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${this._appState.connectionConfig.unitId}]`,
+            message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${unit.unitId}]`,
             variant: 'error',
             error
           })
@@ -621,42 +635,61 @@ export class ModbusClient implements TransportClient {
       }
     }
 
-    // A reply describes the unit id, type, address and length the requests
-    // went out under, and carries none of them. `register_data` replaces the
-    // grid with what arrives, and `clearRegisterDataWhenIdle` has emptied it or
-    // drawn the new mapping by then, so the old unit's values would land in the
+    // A reply describes the unit id, window and mapping the requests went out
+    // under, and carries none of them. `register_data` replaces that unit's
+    // grid with what arrives, so the old unit id's values would land in the
     // rows drawn for the new one. The renderer cannot tell the two apart: only
     // main knows what its read asked. The transport logged the transactions
     // above either way, because they happened.
-    if (this._appState.readGeneration !== readGeneration) return undefined
+    if (this._appState.readGeneration(unit.uuid) !== readGeneration) return undefined
     if (stopped()) return undefined
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
-      this._sendGroups(groups)
-      this._sendData(data)
+      this._sendGroups(unit.uuid, type, groups)
+      this._sendData(unit.uuid, type, data)
     }
     if (answered) return true
     return silent ? false : undefined
   }
 
   /**
-   * Count what a read heard, and say when the device goes offline or comes
-   * back.
+   * Count what a read of a unit heard, and say when the unit goes offline or
+   * comes back.
    *
-   * A device is offline after `offlineAfterTimeouts` reads in a row that it let
+   * A unit is offline after `offlineAfterTimeouts` reads in a row that it let
    * run out, and one answer brings it back. A read that says nothing about the
-   * device, because its connection went or it was stopped, or failed some
-   * other way, leaves the count alone. So does one that went out to a unit id
-   * the client has left since: that moves the read generation, and `_read`
+   * unit, because its connection went or it was stopped, or failed some other
+   * way, leaves the count alone. So does one that went out under a unit id the
+   * unit has left since: that moves the read generation, and `_readSection`
    * answers nothing for it.
    */
-  private _hear = (answered: boolean | undefined): void => {
+  private _hear = (unit: string, answered: boolean | undefined): void => {
     if (answered === undefined) return
-    this._silentReads = answered ? 0 : this._silentReads + 1
-    const offline = this._silentReads >= this._appState.registerConfig.offlineAfterTimeouts
-    if (offline === this._clientState.offline) return
-    this._clientState.offline = offline
+    const silentReads = answered ? 0 : (this._silentReads.get(unit) ?? 0) + 1
+    this._silentReads.set(unit, silentReads)
+    const offline = silentReads >= this._appState.registerConfig.offlineAfterTimeouts
+    this._roundsToSkip.set(unit, offline ? this._roundsOffline(unit) : 0)
+    this._setOffline(unit, offline)
+  }
+
+  /**
+   * How many rounds an offline unit sits out: `pollDelay` for its silent reads,
+   * in poll rates, less the round that reads it.
+   */
+  private _roundsOffline = (unit: string): number => {
+    const { registerConfig } = this._appState
+    const delay = pollDelay(registerConfig, this._silentReads.get(unit) ?? 0)
+    return Math.ceil(delay / registerConfig.pollRate) - 1
+  }
+
+  /** Put a unit in or out of `offlineUnits`, and say so when that changes it. */
+  private _setOffline = (unit: string, offline: boolean): void => {
+    const { offlineUnits } = this._clientState
+    if (offlineUnits.includes(unit) === offline) return
+    this._clientState.offlineUnits = offline
+      ? [...offlineUnits, unit]
+      : offlineUnits.filter((uuid) => uuid !== unit)
     this._sendClientState()
   }
 
@@ -666,16 +699,39 @@ export class ModbusClient implements TransportClient {
   //
   // Polling
   /**
+   * The register types a poll reads of `unit`: under read configuration every
+   * type the mapping has groups for, otherwise every polled section. A type
+   * that would read nothing is left out.
+   */
+  private _polledTypes = (unit: ClientUnit): RegisterType[] => {
+    const readConfiguration = this._appState.readConfiguration(unit.uuid)
+    return RegisterTypeSchema.options.filter((type) =>
+      readConfiguration
+        ? configuredReadGroups(true, type, unit.registerMapping).length > 0
+        : unit.sections[type].polled && !this._readsNothing(unit, type)
+    )
+  }
+
+  /**
    * Start a poll chain, unless one is already running.
    *
-   * A chain is a read, a wait, and the next read, so a second chain is a second
-   * read of the same registers in every round. `start_polling` passes on
+   * A chain is a round, a wait, and the next round, so a second chain is a
+   * second read of the same registers in every round. `start_polling` passes on
    * whatever the renderer sends, so a start can arrive while a chain runs.
    */
   public startPolling = (): void => {
     if (this._clientState.polling) return
     if (!this._requireClient('poll')) return
-    if (this._refusesLength('poll') || this._refusesUnitId('poll')) return
+    const polled = this._appState.units.filter((unit) => this._polledTypes(unit).length > 0)
+    if (polled.length === 0) {
+      this._emitMessage({
+        message: 'Cannot poll, no section is polled',
+        variant: 'warning',
+        error: null
+      })
+      return
+    }
+    if (polled.some((unit) => this._refusesUnitId('poll', unit.unitId))) return
 
     this._clientState.polling = true
     this._sendClientState()
@@ -691,23 +747,57 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
-   * Read, then arm the next read, as long as this chain is still the current one.
+   * One poll round: every unit in turn, each of its polled types in turn, one
+   * request at a time. An offline unit sits out the rounds `_hear` gave it, so
+   * a unit that is not there costs the others one timeout per read of it rather
+   * than one per round.
+   *
+   * The units are the ones main holds when the round starts. A unit whose unit
+   * id went out of range since stops the poll, as the start would have refused
+   * it.
+   */
+  private _pollRound = async (generation: number): Promise<void> => {
+    for (const unit of this._appState.units) {
+      if (generation !== this._pollGeneration) return
+      const skip = this._roundsToSkip.get(unit.uuid) ?? 0
+      if (skip > 0) {
+        this._roundsToSkip.set(unit.uuid, skip - 1)
+        continue
+      }
+      const types = this._polledTypes(unit)
+      if (types.length === 0) continue
+      if (this._refusesUnitId('poll', unit.unitId)) {
+        this.stopPolling()
+        return
+      }
+      let answered: boolean | undefined
+      for (const type of types) {
+        const heard = await this._readSection(unit, type, generation)
+        if (heard === true || (heard === false && answered === undefined)) answered = heard
+      }
+      this._hear(unit.uuid, answered)
+    }
+  }
+
+  /**
+   * Run a round, then arm the next one a poll rate later, as long as this chain
+   * is still the current one.
    *
    * `stopPolling` clears the handle a sleeping chain holds, and a chain that is
-   * awaiting a read holds none, because `_pollTimeout` is assigned after the
-   * await. It takes the generation instead: the read resolves into a number
+   * awaiting a round holds none, because `_pollTimeout` is assigned after the
+   * await. It takes the generation instead: the round resolves into a number
    * that is no longer current, and the chain ends there rather than arming a
-   * timer nothing can clear. `_pollTimeout` is undefined while the read runs,
+   * timer nothing can clear. `_pollTimeout` is undefined while the round runs,
    * which is what `_rearmPoll` reads.
    */
   private _poll = async (generation: number): Promise<void> => {
     this._pollTimeout = undefined
-    this._hear(await this._read(generation))
+    await this._pollRound(generation)
     if (generation !== this._pollGeneration) return
     this._pollArmedAt = Date.now()
     this._pollTimeout = setTimeout(
       () => this._poll(generation),
-      pollDelay(this._appState.registerConfig, this._silentReads)
+      this._appState.registerConfig.pollRate
     )
   }
 
@@ -715,38 +805,57 @@ export class ModbusClient implements TransportClient {
   private _pollArmedAt = 0
 
   /**
-   * Arm a sleeping poll again for the wait it is owed now, counted from when
-   * it went to sleep: an offline device's wait runs up to `maxPollInterval`,
-   * and a new unit id or poll setting should not sit behind it. A poll whose
-   * read is running arms its own timer when the read ends.
+   * Arm a sleeping poll again for a new poll rate, counted from when it went to
+   * sleep. A poll whose round is running arms its own timer when it ends.
    */
   private _rearmPoll = (): void => {
     if (this._pollTimeout === undefined) return
     clearTimeout(this._pollTimeout)
     const generation = this._pollGeneration
     const waited = Date.now() - this._pollArmedAt
-    const delay = pollDelay(this._appState.registerConfig, this._silentReads)
+    const delay = this._appState.registerConfig.pollRate
     this._pollTimeout = setTimeout(() => this._poll(generation), Math.max(0, delay - waited))
   }
 
   /** Take a connection config update main accepted. */
   public updateConnectionConfig = (update: DeepPartial<ConnectionConfig>): void => {
-    const unitId = this._appState.connectionConfig.unitId
     this._appState.updateConnectionConfig(update)
-    if (this._appState.connectionConfig.unitId === unitId) return
-    // Another unit is another device, which has left nothing unanswered yet.
-    this._silentReads = 0
-    if (this._clientState.offline) {
-      this._clientState.offline = false
-      this._sendClientState()
+  }
+
+  /**
+   * Take a register config update, and give a sleeping poll its new wait. An
+   * offline unit's rounds to sit out are counted again under the new settings,
+   * kept at what it had where that is fewer: a lower `maxPollInterval` applies
+   * to a unit waiting already, rather than after the wait it was given.
+   */
+  public updateRegisterConfig = (update: DeepPartial<RegisterConfig>): void => {
+    this._appState.updateRegisterConfig(update)
+    for (const [unit, skip] of this._roundsToSkip) {
+      this._roundsToSkip.set(unit, Math.min(skip, this._roundsOffline(unit)))
     }
     this._rearmPoll()
   }
 
-  /** Take a register config update, and give a sleeping poll its new wait. */
-  public updateRegisterConfig = (update: DeepPartial<RegisterConfig>): void => {
-    this._appState.updateRegisterConfig(update)
-    this._rearmPoll()
+  /**
+   * Take the units main accepted. A unit whose unit id changed is another
+   * device, which has left nothing unanswered yet, and so is a unit that is new.
+   */
+  public setUnits = (units: ClientUnit[]): void => {
+    const before = new Map(this._appState.units.map((unit) => [unit.uuid, unit.unitId]))
+    this._appState.setUnits(units)
+    const kept = new Set(units.map((unit) => unit.uuid))
+    for (const uuid of [...this._silentReads.keys(), ...this._clientState.offlineUnits]) {
+      const unit = this._appState.unit(uuid)
+      if (kept.has(uuid) && unit && before.get(uuid) === unit.unitId) continue
+      this._silentReads.delete(uuid)
+      this._roundsToSkip.delete(uuid)
+      this._setOffline(uuid, false)
+    }
+  }
+
+  /** Turn read configuration on or off for one unit. */
+  public setReadConfiguration = (unit: string, value: boolean): void => {
+    this._appState.setReadConfiguration(unit, value)
   }
 
   //
@@ -772,45 +881,45 @@ export class ModbusClient implements TransportClient {
         address,
         length
       ),
-    input_registers: async (transport, target, address, length) =>
+    input_registers: async (transport, target, address, length, littleEndian) =>
       this._toRegisters(
         await transport.request(target, (modbus) => modbus.readInputRegisters(address, length)),
-        address
+        address,
+        littleEndian
       ),
-    holding_registers: async (transport, target, address, length) =>
+    holding_registers: async (transport, target, address, length, littleEndian) =>
       this._toRegisters(
         await transport.request(target, (modbus) => modbus.readHoldingRegisters(address, length)),
-        address
+        address,
+        littleEndian
       )
   }
 
   /**
    * One row per bit that was asked for.
    *
-   * The length is the read's own, not `registerConfig.length`. modbus-serial
-   * answers a bit read with eight booleans per byte, so a read of three comes
-   * back as eight and the row count has to come from the request. Even the
-   * toolbar's own group is not `registerConfig.length` any more: it is that
-   * length under both read ceilings, so 2000 coils asked for at 65500 is a
-   * group of 36.
+   * The length is the read's own, not the section's. modbus-serial answers a
+   * bit read with eight booleans per byte, so a read of three comes back as
+   * eight and the row count has to come from the request. Even the window is
+   * not the section's length: it is that length under both read ceilings, so
+   * 2000 coils asked for at 65500 is a group of 36.
    */
   private _toBits = (result: ReadCoilResult, address: number, length: number): RegisterData[] =>
     convertBitData(result, address, length, this._clientState.scanningRegisters)
 
-  private _toRegisters = (result: ReadRegisterResult, address: number): RegisterData[] =>
-    convertRegisterData(
-      result,
-      address,
-      this._appState.registerConfig.littleEndian,
-      this._clientState.scanningRegisters
-    )
+  private _toRegisters = (
+    result: ReadRegisterResult,
+    address: number,
+    littleEndian: boolean
+  ): RegisterData[] =>
+    convertRegisterData(result, address, littleEndian, this._clientState.scanningRegisters)
 
   //
   //
   //
   //
   // Write
-  public write = async (writeParameters: WriteParameters): Promise<void> => {
+  public write = async (unit: string, writeParameters: WriteParameters): Promise<void> => {
     // `writeFC5`, `writeFC6`, `writeFC15` and `writeFC16` answer a closed port
     // with a `PortNotOpenError` before they file a transaction, so a write down
     // a closed port has nothing of its own to log.
@@ -818,7 +927,9 @@ export class ModbusClient implements TransportClient {
     if (!transport) return
 
     if (!this._requireClient('write')) return
-    if (this._refusesUnitId('write')) return
+    const found = this._unitOrSay('write', unit)
+    if (!found) return
+    if (this._refusesUnitId('write', found.unitId)) return
 
     const { address, type, value, dataType, single } = writeParameters
 
@@ -827,11 +938,7 @@ export class ModbusClient implements TransportClient {
     // 3000 ms an open sets, rather than the 1000 ms the toolbar's own floor
     // promises.
     const ride = this._rideOn(transport)
-    const target = this._target(
-      ride,
-      this._appState.connectionConfig.unitId,
-      this._appState.registerConfig.timeout
-    )
+    const target = this._target(ride, found.unitId, this._appState.registerConfig.timeout)
 
     this._clientState.writing = true
     this._sendClientState()
@@ -843,7 +950,15 @@ export class ModbusClient implements TransportClient {
           attempt = await this._writeCoil(ride, target, address, value, single)
           break
         case 'holding_registers':
-          attempt = await this._writeRegister(ride, target, address, value, dataType, single)
+          attempt = await this._writeRegister(
+            ride,
+            target,
+            address,
+            value,
+            dataType,
+            single,
+            found.littleEndian
+          )
           break
       }
 
@@ -854,7 +969,7 @@ export class ModbusClient implements TransportClient {
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this
       // write owns the client, so nothing else can have set it.
-      if (!readLoopOwner(this._clientState)) await this._readOwningTheClient()
+      if (!readLoopOwner(this._clientState)) await this._readOwningTheClient(found, type)
     } finally {
       this._clientState.writing = false
       this._sendClientState()
@@ -945,10 +1060,9 @@ export class ModbusClient implements TransportClient {
     address: number,
     value: number,
     dataType: DataType,
-    single: boolean
+    single: boolean,
+    littleEndian: boolean
   ): Promise<WriteAttempt> => {
-    const { littleEndian } = this._appState.registerConfig
-
     if (single && !['int16', 'uint16'].includes(dataType)) {
       this._emitMessage({
         message: 'Single register only supported for 16 bit values',
@@ -1058,7 +1172,8 @@ export class ModbusClient implements TransportClient {
           ride.transport,
           this._target(ride, id, timeout),
           address,
-          length
+          length,
+          false
         )
       )
       // A connection that went is not an id that did not answer, so the id
@@ -1086,15 +1201,21 @@ export class ModbusClient implements TransportClient {
   //
   //
   // Scan Registers
-  public scanRegisters = async (params: ScanRegistersParameters): Promise<void> => {
+  public scanRegisters = async (
+    unit: string,
+    type: RegisterType,
+    params: ScanRegistersParameters
+  ): Promise<void> => {
     const transport = this._connectedTransport('scan')
     if (!transport) return
     if (!this._requireClient('scan', true)) return
-    if (this._refusesUnitId('scan')) return
+    const found = this._unitOrSay('scan', unit)
+    if (!found) return
+    if (this._refusesUnitId('scan', found.unitId)) return
     this.stopPolling()
 
     const ride = this._rideOn(transport)
-    const target = this._target(ride, this._appState.connectionConfig.unitId, params.timeout)
+    const target = this._target(ride, found.unitId, params.timeout)
 
     // The chunk is the stride, the divisor of the progress and the quantity of
     // every request, so it is one number here. `ScanRegistersParametersSchema`
@@ -1102,7 +1223,7 @@ export class ModbusClient implements TransportClient {
     // register type selected, so a chunk of 2000 typed under coils reaches this
     // with holding registers selected.
     const { addressRange } = params
-    const length = Math.min(params.length, maxReadQuantity([this._appState.registerConfig.type]))
+    const length = Math.min(params.length, maxReadQuantity([type]))
 
     this._totalScans = Math.ceil((addressRange[1] - addressRange[0] + 1) / length)
     this._scansDone = 0
@@ -1114,7 +1235,16 @@ export class ModbusClient implements TransportClient {
     const scan = ++this._scanGeneration
 
     for (let address = addressRange[0]; address <= addressRange[1]; address += length) {
-      if (!(await this._scanRegister(ride, scan, target, address, length, addressRange[1]))) break
+      const next = await this._scanRegister(
+        ride,
+        scan,
+        target,
+        { unit: found, type },
+        address,
+        length,
+        addressRange[1]
+      )
+      if (!next) break
       this._countScanStep()
       if (!this._stillScanning('scanningRegisters', scan)) break
     }
@@ -1133,11 +1263,11 @@ export class ModbusClient implements TransportClient {
     ride: Ride,
     scan: number,
     target: RequestTarget,
+    { unit, type }: { unit: ClientUnit; type: RegisterType },
     address: number,
     length: number,
     lastAddress: number
   ): Promise<boolean> => {
-    const type = this._appState.registerConfig.type
     // The last chunk alone, so the stride its caller walks is untouched. What
     // one response carries is clamped there, where the same number is the
     // stride and the progress divisor. It stops at the range's last address,
@@ -1146,7 +1276,7 @@ export class ModbusClient implements TransportClient {
 
     const settled = await this._settle(
       ride,
-      this._readers[type](ride.transport, target, address, length)
+      this._readers[type](ride.transport, target, address, length, unit.littleEndian)
     )
     if (!settled) return false
     if (scan !== this._scanGeneration) return false
@@ -1162,7 +1292,7 @@ export class ModbusClient implements TransportClient {
     const data = settled.result.filter((row) =>
       isBooleanRegister(type) ? row.bit : row.hex !== '0000'
     )
-    this._sendData(data)
+    this._sendData(unit.uuid, type, data)
     return true
   }
 
@@ -1187,15 +1317,13 @@ export class ModbusClient implements TransportClient {
    *
    * A client that is not disconnected rides a connection opened on that config,
    * so a new protocol, address or line would leave it riding one its config
-   * no longer names. The unit id goes out with each request, so it may change,
-   * and an update that changes nothing, such as a window handing main the
-   * config it loaded, is no change.
+   * no longer names. An update that changes nothing, such as a window handing
+   * main the config it loaded, is no change.
    */
   public mayUpdateConnection = (update: DeepPartial<ConnectionConfig>): boolean => {
     if (this._clientState.connectState === 'disconnected') return true
     const now = this._appState.connectionConfig
-    const after = this._appState.connectionConfigAfter(update)
-    if (isDeepStrictEqual({ ...after, unitId: now.unitId }, now)) return true
+    if (isDeepStrictEqual(this._appState.connectionConfigAfter(update), now)) return true
     this._emitMessage({
       message: 'Disconnect before changing the connection',
       variant: 'warning',

@@ -4,7 +4,7 @@ import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
 import {
-  readsNothingOf,
+  pollsNothingOf,
   selectedClientUuid,
   useClientZustand
 } from '@renderer/context/client.zustand'
@@ -22,10 +22,10 @@ const PollButton = meme((): JSX.Element => {
     clientOwner(dataOf(z, selectedUuid).clientState, { exceptPolling: true })
   )
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
-  // What main refuses as a poll of no registers.
-  const readsNoRegisters = useClientZustand((z) => readsNothingOf(z, z.selectedUuid))
+  // What main refuses as a poll of no registers: no unit has a section to read.
+  const pollsNothing = useClientZustand((z) => pollsNothingOf(z, z.selectedUuid))
   // A poll goes on through a reconnect, so the press that stops it does too.
-  const disabled = (!polling && (notConnected || readsNoRegisters)) || owner !== undefined
+  const disabled = (!polling && (notConnected || pollsNothing)) || owner !== undefined
 
   const togglePolling = useCallback(() => {
     const uuid = selectedClientUuid()

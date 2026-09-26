@@ -27,7 +27,6 @@ export const defaultSerialPortOptions: SerialPortOptions = {
 }
 
 export const defaultConnectionConfig: ConnectionConfig = {
-  unitId: 1,
   protocol: 'ModbusTcp',
   tcp: {
     host: '192.168.1.10',
@@ -39,17 +38,12 @@ export const defaultConnectionConfig: ConnectionConfig = {
   }
 }
 export const defaultRegisterConfig: RegisterConfig = {
-  address: 0,
-  length: 10,
-  type: 'holding_registers',
   pollRate: 1000,
   timeout: 5000,
   offlineAfterTimeouts: 3,
   maxPollInterval: 60_000,
-  littleEndian: false,
   advancedMode: false,
-  show64BitValues: false,
-  addressBase: '0'
+  show64BitValues: false
 }
 
 /**
@@ -97,7 +91,7 @@ export const newClientUnit = (uuid: string, unitId: number): ClientUnit => ({
 export const defaultClientState: ClientState = {
   connectState: 'disconnected',
   polling: false,
-  offline: false,
+  offlineUnits: [],
   scanningUnitIds: false,
   scanningRegisters: false,
   reading: false,

@@ -12,7 +12,7 @@ import {
   UnitIdSchema,
   registersFrom
 } from './ranges'
-import { RegisterType, RegisterTypeSchema } from './register'
+import { RegisterType } from './register'
 import { SerialPortOptionsSchema } from './serial'
 
 //
@@ -49,7 +49,7 @@ export const RegisterMapObjectSchema = z.record(
 )
 export type RegisterMapObject = Record<number, RegisterMapValue | undefined>
 
-export const RegisterMappingSchema = z.object({
+const RegisterMappingSchema = z.object({
   coils: RegisterMapObjectSchema,
   discrete_inputs: RegisterMapObjectSchema,
   input_registers: RegisterMapObjectSchema,
@@ -137,7 +137,10 @@ export const maxUnitId = (protocol: Protocol): number =>
 export const unitIdOutOfRange = ({
   protocol,
   unitId
-}: Pick<ConnectionConfig, 'protocol' | 'unitId'>): string | undefined => {
+}: {
+  protocol: Protocol
+  unitId: number
+}): string | undefined => {
   const max = maxUnitId(protocol)
   return unitId > max ? `${PROTOCOL_LABELS[protocol]} stops at ${max}` : undefined
 }
@@ -165,16 +168,11 @@ const ConnectionConfigRtuSchema = z.object({
 })
 
 /**
- * The unit id and the port the client sends, on the range the protocol fixes.
- *
- * The server checks every unit id that arrives, with `UnitIdStringSchema` in
- * every getter and setter, and it is the same byte going the other way. The
- * mask inputs hold both fields to these ranges, so what is left for a schema to
- * refuse is the persisted store and `update_connection_config`.
+ * Where a client connects. The unit ids it asks are its units', one per
+ * request, so none of them is part of the connection.
  */
 export const ConnectionConfigSchema = z.object({
   protocol: ProtocolSchema,
-  unitId: UnitIdSchema,
   tcp: ConnectionConfigTcpSchema,
   rtu: ConnectionConfigRtuSchema
 })
@@ -277,8 +275,8 @@ export const isReadLengthGiven = (length: number): boolean => length > 0
 export const ClientStateSchema = z.object({
   connectState: ConnectStateSchema,
   polling: z.boolean(),
-  /** The device left enough polls in a row unanswered that it is polled less often. */
-  offline: z.boolean(),
+  /** The units that left enough polls in a row unanswered that they are polled less often. */
+  offlineUnits: z.array(z.string()),
   scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean(),
   reading: z.boolean(),
@@ -300,29 +298,22 @@ export type ClientState = z.infer<typeof ClientStateSchema>
 const ReadTimingSchema = z.number().int().min(1000).max(10000).multipleOf(1000)
 
 /**
- * What the client reads, and how long it gives the device to answer.
+ * How often a client polls its units, how long it gives each to answer, and
+ * which value columns its grids show.
  *
- * This is both the `update_register_config` payload and the persisted half of
- * the client store, so the rules here decide what a hand-edited `localStorage`
- * blob keeps. `length` admits 0 for that reason: emptying the length field
- * keeps the value in the store and marks it invalid rather than sending it, so
- * 0 is a shipped state and 65536 is not. A length above the 16 bit range
- * reached `buf.writeUInt16BE` and threw a Node range error into a snackbar.
+ * This is both the `update_register_config` payload and part of the persisted
+ * client store, so the rules here decide what a hand-edited `localStorage`
+ * blob keeps.
  */
 export const RegisterConfigSchema = z.object({
-  address: RegisterAddressSchema,
-  length: z.number().int().min(0).max(65535),
-  type: RegisterTypeSchema,
   pollRate: ReadTimingSchema,
   timeout: ReadTimingSchema,
   /** How many polls in a row a device may leave unanswered before it is offline. */
   offlineAfterTimeouts: z.number().int().min(1).max(100),
   /** How far apart, in milliseconds, the polls of an offline device may get. */
   maxPollInterval: z.number().int().min(1000).max(3_600_000),
-  littleEndian: z.boolean(),
   advancedMode: z.boolean(),
-  show64BitValues: z.boolean(),
-  addressBase: z.enum(['0', '1'])
+  show64BitValues: z.boolean()
 })
 export type RegisterConfig = z.infer<typeof RegisterConfigSchema>
 
@@ -343,7 +334,7 @@ export const ClientSectionSchema = z.object({
 })
 export type ClientSection = z.infer<typeof ClientSectionSchema>
 
-export const ClientSectionsSchema = z.object({
+const ClientSectionsSchema = z.object({
   coils: ClientSectionSchema,
   discrete_inputs: ClientSectionSchema,
   input_registers: ClientSectionSchema,

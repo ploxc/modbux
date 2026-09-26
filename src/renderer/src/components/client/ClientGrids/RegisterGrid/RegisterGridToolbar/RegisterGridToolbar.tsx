@@ -9,6 +9,7 @@ import ClearButton from './ClearButton'
 import ShowLogButton from './ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import BitWidthButtons from './BitWidthButtons'
+import SectionPollSwitch from './SectionPollSwitch'
 import RegisterConfig, {
   RegisterTypeTabs
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
@@ -90,6 +91,7 @@ const RegisterGridToolbar = meme(() => {
         <ClearFiltersButton />
         <Box sx={{ flex: 1 }} />
         <BitWidthButtons />
+        <SectionPollSwitch />
       </Box>
     </Box>
   )

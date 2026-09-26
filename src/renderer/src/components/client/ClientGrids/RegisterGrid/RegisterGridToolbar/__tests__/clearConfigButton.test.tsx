@@ -19,7 +19,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { useClientZustand, getSelectedClient } from '@renderer/context/client.zustand'
 import { emptyRegisterMapping } from '@shared'
 import ClearConfigButton from '../ClearConfigButton'
-import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import {
+  patchSelectedClient,
+  patchSelectedUnit
+} from '../../../../../../context/__tests__/selectedClient'
 
 const clearRegisterMapping = vi.fn()
 
@@ -28,7 +31,8 @@ const mapped = (addresses: number[], name = 'the plant'): void => {
   const registerMapping = emptyRegisterMapping()
   for (const address of addresses)
     registerMapping.holding_registers[address] = { dataType: 'int16' }
-  patchSelectedClient(useClientZustand, { registerMapping, name })
+  patchSelectedUnit(useClientZustand, { registerMapping })
+  patchSelectedClient(useClientZustand, { name })
   useClientZustand.setState({ clearRegisterMapping } as never)
 }
 
@@ -38,7 +42,8 @@ const emptied = (addresses: number[]): void => {
   for (const address of addresses) {
     registerMapping.holding_registers[address] = { comment: '', groupEnd: false }
   }
-  patchSelectedClient(useClientZustand, { registerMapping, name: '' })
+  patchSelectedUnit(useClientZustand, { registerMapping })
+  patchSelectedClient(useClientZustand, { name: '' })
   useClientZustand.setState({ clearRegisterMapping } as never)
 }
 

@@ -3,6 +3,7 @@ import {
   BitMapConfig,
   McpToolArgs,
   getBit,
+  ClientUnit,
   RegisterMapObject,
   RegisterType,
   UnitIdStringSchema,
@@ -13,7 +14,9 @@ import {
 } from '@shared'
 import { getConvertedValue } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
 import { getDisplayValue } from '@renderer/components/server/ServerGrid/ServerRegisters/displayValue'
-import type { PersistedClient } from '@renderer/context/client.zustand.types'
+import type { ClientSession, PersistedClient } from '@renderer/context/client.zustand.types'
+import { readySession, unitOf } from '@renderer/context/client.zustand.helpers'
+import { sectionOf } from '@renderer/context/live.zustand.helpers'
 import type { ClientData } from '@renderer/context/live.zustand.types'
 import type { PersistedServer } from '@renderer/context/server.zustand.types'
 
@@ -23,6 +26,7 @@ export class McpToolError extends Error {}
 /** What the read tools look at: the persisted halves of the three stores. */
 export interface ReadSource {
   clients: Record<string, PersistedClient>
+  sessions: Record<string, ClientSession>
   live: Record<string, ClientData>
   servers: Record<string, PersistedServer>
   serverMode: 'tcp' | 'rtu'
@@ -43,6 +47,31 @@ const serverOf = (source: ReadSource, id: string): PersistedServer => {
 
 const stateOf = (source: ReadSource, id: string): ClientData['clientState'] =>
   source.live[id]?.clientState ?? defaultClientState
+
+/**
+ * The unit and the register type a client's screen shows, which is what a
+ * read tool answers about. A client the window holds no session for yet shows
+ * its first unit and its holding registers.
+ */
+const shownOf = (
+  source: ReadSource,
+  id: string,
+  client: PersistedClient
+): { unit: ClientUnit; type: RegisterType } => {
+  const session = source.sessions[id] ?? readySession(client)
+  return { unit: unitOf(client, session), type: session.shownType }
+}
+
+/** Each unit of a client, as the list and get tools name them. */
+const unitsOf = (client: PersistedClient): unknown =>
+  client.units.map(({ uuid, unitId, name, littleEndian, addressBase, sections }) => ({
+    id: uuid,
+    unitId,
+    name,
+    littleEndian,
+    addressBase,
+    sections
+  }))
 
 /** Where a client connects, the way its toolbar shows it. */
 const targetOf = ({ connectionConfig }: PersistedClient): string =>
@@ -89,10 +118,11 @@ export const listClients = (source: ReadSource): unknown =>
       name: client.name,
       protocol: client.connectionConfig.protocol,
       target: targetOf(client),
-      unitId: client.connectionConfig.unitId,
+      unitId: shownOf(source, id, client).unit.unitId,
+      units: unitsOf(client),
       connectState: state.connectState,
       polling: state.polling,
-      offline: state.offline
+      offline: state.offlineUnits.length > 0
     }
   })
 
@@ -103,6 +133,7 @@ export const getClient = (source: ReadSource, { client }: McpToolArgs<'get_clien
     name: found.name,
     connectionConfig: found.connectionConfig,
     registerConfig: found.registerConfig,
+    units: unitsOf(found),
     state: stateOf(source, client)
   }
 }
@@ -111,7 +142,7 @@ export const listRegisters = (
   source: ReadSource,
   { client }: McpToolArgs<'list_registers'>
 ): unknown => {
-  const { registerMapping } = clientOf(source, client)
+  const { registerMapping } = shownOf(source, client, clientOf(source, client)).unit
   return REGISTER_TYPES.flatMap((type) =>
     Object.entries(registerMapping[type]).flatMap(([address, entry]) =>
       entry
@@ -150,11 +181,10 @@ const spanOf = (mapping: RegisterMapObject, address: number, present: Set<number
 }
 
 export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_values'>): unknown => {
-  const { registerMapping, registerConfig } = clientOf(source, client)
-  const type = registerConfig.type
-  const mapping = registerMapping[type]
+  const { unit, type } = shownOf(source, client, clientOf(source, client))
+  const mapping = unit.registerMapping[type]
   const live = source.live[client]
-  const rows = live?.registerData ?? []
+  const rows = sectionOf({ clients: source.live }, client, unit.uuid, type).registerData
   const answeredAt = live?.lastSuccessfulTransactionMillis ?? null
   const hexAt = new Map(rows.map((row) => [row.id, row.hex]))
   const present = new Set(hexAt.keys())
@@ -180,7 +210,7 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
   }
   return {
     type,
-    littleEndian: registerConfig.littleEndian,
+    littleEndian: unit.littleEndian,
     lastAnswerAt: answeredAt === null ? null : new Date(answeredAt).toISOString(),
     rows: rows.map((row) => {
       const words = wordsAt(row.id)

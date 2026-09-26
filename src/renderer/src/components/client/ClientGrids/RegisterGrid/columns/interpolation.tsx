@@ -13,11 +13,7 @@ import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import {
-  useClientZustand,
-  getSelectedClient,
-  selectedClient
-} from '@renderer/context/client.zustand'
+import { getSelectedUnit, selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { MaskSetFn } from '@renderer/context/client.zustand.types'
 import { RegisterData, RegisterLinearInterpolation, RegisterType, scalableDataTypes } from '@shared'
 import { deepEqual } from 'fast-equals'
@@ -107,7 +103,7 @@ const useInterpolateValue = (
   address: number
 ): string =>
   useClientZustand((z) => {
-    const interpolate = selectedClient(z).registerMapping[type][address]?.interpolate
+    const interpolate = selectedUnit(z).registerMapping[type][address]?.interpolate
     return interpolate !== undefined ? interpolate[key] : defaultInterpolation[key]
   })
 
@@ -123,7 +119,7 @@ const InterpolationModal = meme(
     const handleChange = useCallback(
       (key: keyof RegisterLinearInterpolation, value: string) => {
         const clientZustand = useClientZustand.getState()
-        const interpolate: RegisterLinearInterpolation = getSelectedClient().registerMapping[type][
+        const interpolate: RegisterLinearInterpolation = getSelectedUnit().registerMapping[type][
           address
         ]?.interpolate || { ...defaultInterpolation }
         clientZustand.setRegisterMapping(address, 'interpolate', { ...interpolate, [key]: value })
@@ -191,9 +187,7 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   const actionCellRef = useRef<HTMLButtonElement>(null)
   const apiRef = useGridApiContext()
 
-  const dataType = useClientZustand(
-    (z) => selectedClient(z).registerMapping[type][address]?.dataType
-  )
+  const dataType = useClientZustand((z) => selectedUnit(z).registerMapping[type][address]?.dataType)
   const enabled = dataType && scalableDataTypes.includes(dataType)
   // Setting an interpolation leaves `dataType` alone, so a `getState()` read
   // here subscribed to nothing that moved. It answered right anyway: three
@@ -204,7 +198,7 @@ const Action = meme(({ type, address }: ActionProps): JSX.Element => {
   // store flush and `isDefaultInterpolation` inside one is a `deepEqual` per
   // mounted row per poll.
   const interpolate = useClientZustand(
-    (z) => selectedClient(z).registerMapping[type][address]?.interpolate
+    (z) => selectedUnit(z).registerMapping[type][address]?.interpolate
   )
   const isDefault = useMemo(() => isDefaultInterpolation(interpolate), [interpolate])
 

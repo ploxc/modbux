@@ -29,8 +29,8 @@ window.api = new Proxy(
   }
 ) as never
 const { answerCall } = await import('../relay')
-const { useClientZustand } = await import('@renderer/context/client.zustand')
-const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { MAIN_UNIT_UUID, useClientZustand } = await import('@renderer/context/client.zustand')
+const { sectionOf, useLiveZustand } = await import('@renderer/context/live.zustand')
 const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 const { useScanUnitIdZustand } =
   await import('@renderer/components/client/ScanUnitIds/scanUnitIds.zustand')
@@ -219,7 +219,7 @@ describe('scan_unit_ids', () => {
 describe('scan_registers', () => {
   it('opens the dialog, empties the grid, asks main, and answers once the scan runs', async () => {
     connected()
-    useLiveZustand.getState().setRegisterData(client, [
+    useLiveZustand.getState().setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [
       {
         id: 0,
         buffer: new Uint8Array(2),
@@ -244,10 +244,14 @@ describe('scan_registers', () => {
       scanLength: 10000,
       chunkSize: 100
     })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toEqual([])
+    expect(
+      sectionOf(useLiveZustand.getState(), client, MAIN_UNIT_UUID, 'holding_registers').registerData
+    ).toEqual([])
     expect(sent('scanRegisters')).toEqual([
       {
         uuid: client,
+        unit: MAIN_UNIT_UUID,
+        type: 'holding_registers',
         parameters: { addressRange: [60000, 65535], length: 100, timeout: 500 }
       }
     ])

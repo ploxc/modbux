@@ -1,14 +1,21 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import {
+  ClientUnit,
   RegisterData,
   ScanUnitIDResult,
   defaultClientState,
   defaultConnectionConfig,
-  defaultRegisterConfig
+  defaultRegisterConfig,
+  emptyRegisterMapping,
+  newClientUnit,
+  RegisterMapping,
+  RegisterType
 } from '@shared'
 import type { PersistedClient } from '@renderer/context/client.zustand.types'
 import type { ClientData } from '@renderer/context/live.zustand.types'
+import { readySession } from '@renderer/context/client.zustand.helpers'
+import { sectionKey } from '@renderer/context/live.zustand.helpers'
 import type { PersistedServer } from '@renderer/context/server.zustand.types'
 import { stubRenderer } from '@renderer/context/__tests__/stubRenderer'
 import type { ReadSource } from '../readTools'
@@ -27,15 +34,13 @@ const {
   readValues
 } = await import('../readTools')
 
-const emptyMapping = (): PersistedClient['registerMapping'] => ({
-  coils: {},
-  discrete_inputs: {},
-  input_registers: {},
-  holding_registers: {}
-})
+const emptyMapping = emptyRegisterMapping
 
-const meter: PersistedClient = {
-  name: 'SDM630',
+/** The one unit every client here has. */
+const UNIT = 'u1'
+
+const meterUnit: ClientUnit = {
+  ...newClientUnit(UNIT, 7),
   registerMapping: {
     ...emptyMapping(),
     holding_registers: {
@@ -45,14 +50,24 @@ const meter: PersistedClient = {
       2: undefined
     },
     coils: { 3: { comment: 'breaker' } }
-  },
+  }
+}
+
+const meter: PersistedClient = {
+  name: 'SDM630',
   connectionConfig: {
     ...defaultConnectionConfig,
-    unitId: 7,
     tcp: { ...defaultConnectionConfig.tcp, host: '10.0.0.5' }
   },
-  registerConfig: { ...defaultRegisterConfig, type: 'holding_registers' }
+  registerConfig: { ...defaultRegisterConfig },
+  units: [meterUnit]
 }
+
+/** The meter with its one unit changed. */
+const withUnit = (unit: {
+  registerMapping?: RegisterMapping
+  littleEndian?: boolean
+}): PersistedClient => ({ ...meter, units: [{ ...meterUnit, ...unit }] })
 
 const row = (id: number, hex: string, words: Partial<RegisterData['words']>): RegisterData => ({
   id,
@@ -63,9 +78,13 @@ const row = (id: number, hex: string, words: Partial<RegisterData['words']>): Re
   isScanned: false
 })
 
-const liveOf = (overrides: Partial<ClientData>): ClientData => ({
-  registerData: [],
-  addressGroups: [],
+/** The live data of a client whose unit shows `registerData` under `type`. */
+const liveOf = ({
+  registerData = [],
+  type = 'holding_registers',
+  ...overrides
+}: Partial<ClientData> & { registerData?: RegisterData[]; type?: RegisterType }): ClientData => ({
+  sections: { [sectionKey(UNIT, type)]: { registerData, addressGroups: [] } },
   clientState: defaultClientState,
   transactions: [],
   lastSuccessfulTransactionMillis: null,
@@ -119,6 +138,7 @@ const simulator: PersistedServer = {
 
 const source = (overrides: Partial<ReadSource> = {}): ReadSource => ({
   clients: { a: meter },
+  sessions: {},
   live: {
     a: liveOf({
       clientState: { ...defaultClientState, connectState: 'connected', polling: true },
@@ -141,6 +161,16 @@ describe('the read tools', () => {
         protocol: 'ModbusTcp',
         target: `10.0.0.5:${defaultConnectionConfig.tcp.options.port}`,
         unitId: 7,
+        units: [
+          {
+            id: UNIT,
+            unitId: 7,
+            name: '',
+            littleEndian: false,
+            addressBase: '0',
+            sections: meterUnit.sections
+          }
+        ],
         connectState: 'connected',
         polling: true,
         offline: false
@@ -236,8 +266,8 @@ describe('the read tools', () => {
   // Enough to rebuild the value without another tool: the byte order once,
   // and per register its scaling and every word it spans.
   it('read_values carries the word order, the scaling and every word of a register', () => {
-    const power: PersistedClient = {
-      ...meter,
+    const power = withUnit({
+      littleEndian: true,
       registerMapping: {
         ...emptyMapping(),
         holding_registers: {
@@ -247,9 +277,8 @@ describe('the read tools', () => {
           14: { dataType: 'none' },
           15: { dataType: 'uint16', comment: 'after the string' }
         }
-      },
-      registerConfig: { ...meter.registerConfig, littleEndian: true }
-    }
+      }
+    })
     const data = liveOf({
       registerData: [
         row(10, '0112', { int32: 18011580 }),
@@ -286,13 +315,12 @@ describe('the read tools', () => {
 
   // A 0 in place of words that were not read is not a reading.
   it('read_values answers no value for a register whose last word was not read', () => {
-    const tail: PersistedClient = {
-      ...meter,
+    const tail = withUnit({
       registerMapping: {
         ...emptyMapping(),
         holding_registers: { 20: { dataType: 'int32', comment: 'cut off' } }
       }
-    }
+    })
     const data = liveOf({ registerData: [row(20, 'abcd', { int32: 0 })] })
 
     const answer = readValues(source({ clients: { a: tail }, live: { a: data } }), {
@@ -303,14 +331,9 @@ describe('the read tools', () => {
   })
 
   it('read_values answers a coil as its bit', () => {
-    const coils: PersistedClient = {
-      ...meter,
-      registerConfig: { ...meter.registerConfig, type: 'coils' }
-    }
-    const data = liveOf({ registerData: [{ ...row(3, '0001', {}), bit: true }] })
-    expect(
-      readValues(source({ clients: { a: coils }, live: { a: data } }), { client: 'a' })
-    ).toEqual({
+    const sessions = { a: { ...readySession(meter), shownType: 'coils' as const } }
+    const data = liveOf({ type: 'coils', registerData: [{ ...row(3, '0001', {}), bit: true }] })
+    expect(readValues(source({ sessions, live: { a: data } }), { client: 'a' })).toEqual({
       type: 'coils',
       littleEndian: false,
       lastAnswerAt: null,
@@ -331,13 +354,12 @@ describe('the read tools', () => {
 
   it('list_registers carries interpolation and the end of a read group', () => {
     const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
-    const interpolated: PersistedClient = {
-      ...meter,
+    const interpolated = withUnit({
       registerMapping: {
         ...emptyMapping(),
         holding_registers: { 0: { dataType: 'uint16', interpolate, groupEnd: true } }
       }
-    }
+    })
     expect(listRegisters(source({ clients: { a: interpolated } }), { client: 'a' })).toEqual([
       expect.objectContaining({ address: 0, interpolate, groupEnd: true })
     ])
@@ -345,8 +367,7 @@ describe('the read tools', () => {
 
   it('read_values says a value is interpolated, and a bitmap its bits as the panel shows them', () => {
     const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
-    const mapped: PersistedClient = {
-      ...meter,
+    const mapped = withUnit({
       registerMapping: {
         ...emptyMapping(),
         holding_registers: {
@@ -360,7 +381,7 @@ describe('the read tools', () => {
           }
         }
       }
-    }
+    })
     const live = liveOf({
       registerData: [row(0, '0032', { uint16: 50 }), row(1, '0003', { uint16: 3 })]
     })

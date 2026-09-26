@@ -28,6 +28,7 @@ vi.mock('../modules/serialGroup', () => ({
 }))
 
 import {
+  newClientUnit,
   AddRegisterParamsSchema,
   ClientScanUnitIdsSchema,
   ConnectionConfigSchema,
@@ -490,8 +491,10 @@ describe('the config updates, which arrive one field at a time', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects a unit id that is not a number, even nested in a partial', () => {
-    const result = ConnectionConfigSchema.deepPartial().safeParse({ unitId: 'one' })
+  it('rejects a port that is not a number, even nested in a partial', () => {
+    const result = ConnectionConfigSchema.deepPartial().safeParse({
+      tcp: { options: { port: 'one' } }
+    })
     expect(result.success).toBe(false)
   })
 })
@@ -520,35 +523,31 @@ describe('each guarded channel got its own schema', () => {
   const validPayloads: Record<string, unknown> = {
     create_client: {
       uuid: 'client-1',
-      connectionConfig: { unitId: 3 },
-      registerConfig: { address: 40 }
+      connectionConfig: { tcp: { host: '10.0.0.4' } },
+      registerConfig: { pollRate: 2000 },
+      units: [newClientUnit('unit-1', 3)]
     },
     delete_client: 'client-1',
-    update_connection_config: { uuid: 'client-1', connectionConfig: { unitId: 3 } },
-    update_register_config: { uuid: 'client-1', registerConfig: { address: 40, length: 10 } },
-    set_register_mapping: {
-      uuid: 'client-1',
-      registerMapping: {
-        coils: {},
-        discrete_inputs: {},
-        input_registers: {},
-        holding_registers: {}
-      }
-    },
-    set_read_configuration: { uuid: 'client-1', readConfiguration: true },
+    update_connection_config: { uuid: 'client-1', connectionConfig: { tcp: { host: '10.0.0.4' } } },
+    update_register_config: { uuid: 'client-1', registerConfig: { pollRate: 2000 } },
+    set_units: { uuid: 'client-1', units: [newClientUnit('unit-1', 3)] },
+    set_read_configuration: { uuid: 'client-1', unit: 'unit-1', readConfiguration: true },
     connect: 'client-1',
     disconnect: 'client-1',
-    read: 'client-1',
+    read: { uuid: 'client-1', unit: 'unit-1', type: 'holding_registers' },
     start_polling: 'client-1',
     stop_polling: 'client-1',
     stop_scanning_unit_ids: 'client-1',
     stop_scanning_registers: 'client-1',
     write: {
       uuid: 'client-1',
+      unit: 'unit-1',
       parameters: { address: 4, single: true, type: 'coils', value: [true] }
     },
     scan_registers: {
       uuid: 'client-1',
+      unit: 'unit-1',
+      type: 'holding_registers',
       parameters: { addressRange: [0, 100], length: 10, timeout: 500 }
     },
     scan_unit_ids: {
@@ -651,7 +650,7 @@ describe('each guarded channel got its own schema', () => {
   it.each([
     ['update_connection_config', 'updateConnectionConfig'],
     ['update_register_config', 'updateRegisterConfig'],
-    ['set_register_mapping', 'setRegisterMapping'],
+    ['set_units', 'setUnits'],
     ['set_read_configuration', 'setReadConfiguration']
   ])('%s answers what the clients answered', async (channel, method) => {
     handle.mockClear()

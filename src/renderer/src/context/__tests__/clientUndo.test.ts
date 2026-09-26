@@ -7,18 +7,35 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import { stubRenderer } from './stubRenderer'
 import { patchSelectedClient } from './selectedClient'
-import { selectedClient } from '../client.zustand.helpers'
+import {
+  MAIN_UNIT_UUID,
+  selectedClient,
+  selectedUnit,
+  shownSection,
+  shownType
+} from '../client.zustand.helpers'
 
 vi.mock('notistack', () => ({ enqueueSnackbar: vi.fn() }))
 
-/** Main answers `undefined` on one channel from here on, as it does for a payload it refuses. */
-const refuse = (method: string): void => {
+/**
+ * Main answers `undefined` to the `refused`th call of one channel from here on,
+ * counting from 1, as it does for a payload it refuses, and answers the rest.
+ */
+const refuseCall = (method: string, refused: number): void => {
   const underneath = window.api as unknown as Record<string, unknown>
+  let calls = 0
   window.api = new Proxy(
     {},
     {
-      get: (_target, name: string): unknown =>
-        name === method ? (): Promise<undefined> => Promise.resolve(undefined) : underneath[name]
+      get: (_target, name: string): unknown => {
+        const answer = underneath[name]
+        if (name !== method || typeof answer !== 'function') return answer
+        return (payload: unknown): unknown => {
+          calls++
+          if (calls === refused) return Promise.resolve(undefined)
+          return (answer as (payload: unknown) => unknown)(payload)
+        }
+      }
     }
   ) as never
 }
@@ -141,17 +158,21 @@ describe('a field', () => {
     expect(selectedClient(client()).connectionConfig.tcp.host).toBe(before)
   })
 
-  it('puts back an invalid value it kept, and reaches the step behind it', async () => {
+  it('puts a length back in the section it was typed in, and shows that section', async () => {
     const { client, clientUndo } = await load()
-    await client().setType('coils')
-    await client().setLength('0', false)
-    await client().setType('holding_registers')
-    await client().setLength('5', true)
+    const before = shownSection(client()).length
+    client().setType('coils')
+    await client().setLength('0')
+    client().setType('holding_registers')
+    await client().setLength('5')
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(selectedClient(client()).registerConfig.length).toBe(0)
+    expect(shownType(client())).toBe('holding_registers')
+    expect(shownSection(client()).length).toBe(before)
+    expect(selectedUnit(client()).sections.coils.length).toBe(0)
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(selectedClient(client()).registerConfig.type).toBe('coils')
+    expect(shownType(client())).toBe('coils')
+    expect(shownSection(client()).length).toBe(before)
   })
 
   it('puts back a parity a config from before it existed never carried', async () => {
@@ -215,35 +236,35 @@ describe('a field', () => {
 describe('a mapping entry', () => {
   it('goes back under the type it was edited in, and shows that type', async () => {
     const { client, undo, clientUndo } = await load()
-    await client().setType('holding_registers')
+    client().setType('holding_registers')
     client().setRegisterMapping(3, 'comment', 'pump')
     // Another type on screen, with no step of its own in between.
     undo().beginQuiet()
-    await client().setType('coils')
+    client().setType('coils')
     undo().endQuiet()
 
     await clientUndo.undoClient()
 
-    expect(selectedClient(client()).registerConfig.type).toBe('holding_registers')
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
+    expect(shownType(client())).toBe('holding_registers')
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toBeUndefined()
 
     await clientUndo.redoClient()
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       comment: 'pump'
     })
   })
 
   it('comes back whole after a data type of none removed it', async () => {
     const { client, clientUndo } = await load()
-    await client().setType('holding_registers')
+    client().setType('holding_registers')
     client().setRegisterMapping(3, 'dataType', 'int16')
     client().setRegisterMapping(3, 'comment', 'pump')
 
     client().setRegisterMapping(3, 'dataType', 'none')
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toBeUndefined()
 
     await clientUndo.undoClient()
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       dataType: 'int16',
       comment: 'pump'
     })
@@ -253,7 +274,7 @@ describe('a mapping entry', () => {
 describe('Load and Clear Config', () => {
   it('are one step that puts the name, the byte order and the mapping back', async () => {
     const { client, undo, clientUndo } = await load()
-    await client().setType('holding_registers')
+    client().setType('holding_registers')
     client().setName('boiler')
     client().setRegisterMapping(3, 'comment', 'pump')
     await client().setLittleEndian(true)
@@ -268,41 +289,42 @@ describe('Load and Clear Config', () => {
 
     expect(await clientUndo.undoClient()).toBe('done')
     expect(selectedClient(client()).name).toBe('boiler')
-    expect(selectedClient(client()).registerConfig.littleEndian).toBe(true)
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toEqual({
+    expect(selectedUnit(client()).littleEndian).toBe(true)
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       comment: 'pump'
     })
   })
 
   it('leaves the byte order where it was when main refuses the mapping', async () => {
     const { client, clientUndo } = await load()
-    await client().setType('holding_registers')
+    client().setType('holding_registers')
     client().setRegisterMapping(3, 'comment', 'pump')
     await client().setLittleEndian(true)
     await clientUndo.asOneClientStep(async () => {
       await client().setLittleEndian(false)
       await client().clearRegisterMapping()
     })
-    refuse('setRegisterMapping')
+    // The byte order goes out first and is taken, then the mapping is refused.
+    refuseCall('setUnits', 2)
 
     expect(await clientUndo.undoClient()).toBe('refused')
-    expect(selectedClient(client()).registerConfig.littleEndian).toBe(false)
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedUnit(client()).littleEndian).toBe(false)
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toBeUndefined()
   })
 
   it('leaves the mapping where it was when main refuses the byte order', async () => {
     const { client, clientUndo } = await load()
-    await client().setType('holding_registers')
+    client().setType('holding_registers')
     client().setRegisterMapping(3, 'comment', 'pump')
     await client().setLittleEndian(true)
     await clientUndo.asOneClientStep(async () => {
       await client().setLittleEndian(false)
       await client().clearRegisterMapping()
     })
-    refuse('updateRegisterConfig')
+    refuseCall('setUnits', 1)
 
     expect(await clientUndo.undoClient()).toBe('refused')
-    expect(selectedClient(client()).registerMapping.holding_registers[3]).toBeUndefined()
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toBeUndefined()
   })
 
   it('records its step while an undo that started first is still quiet', async () => {
@@ -318,6 +340,8 @@ describe('Load and Clear Config', () => {
     expect(undo().client.past.at(-1)).toEqual({
       kind: 'configuration',
       uuid: MAIN_CLIENT_UUID,
+      unit: MAIN_UNIT_UUID,
+      type: 'holding_registers',
       value: expect.objectContaining({ name: 'boiler' })
     })
   })
@@ -336,6 +360,8 @@ describe('Load and Clear Config', () => {
     expect(undo().client.past.at(-1)).toEqual({
       kind: 'configuration',
       uuid: MAIN_CLIENT_UUID,
+      unit: MAIN_UNIT_UUID,
+      type: 'holding_registers',
       value: expect.objectContaining({ name: 'boiler' })
     })
   })

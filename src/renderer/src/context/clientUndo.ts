@@ -1,14 +1,20 @@
-import { isConnectionAddressGiven, isReadLengthGiven } from '@shared'
+import { isConnectionAddressGiven } from '@shared'
 import { deepEqual } from 'fast-equals'
 import {
   getSelectedClient,
+  getSelectedUnit,
+  getShownType,
   holdSelection,
   selectedClientUuid,
+  selectedClient,
+  selectedUnit,
+  shownSection,
   useClientZustand
 } from './client.zustand'
 import { dataOf, showMapping, useLiveZustand } from './live.zustand'
 import { replayTop, useUndoZustand } from './undo.zustand'
 import {
+  ClientView,
   clientFieldReaders,
   clientFieldSteps,
   clientStepKey,
@@ -22,6 +28,7 @@ import {
   ClientFieldStepOf,
   ClientFieldValues,
   ClientMappingStep,
+  ClientStepView,
   ClientUndoStep,
   UndoOutcome,
   UndoRefusal,
@@ -29,17 +36,27 @@ import {
 } from './undo.zustand.types'
 
 /**
- * Shows the client a step is about, and answers whether there is one.
+ * Shows the client, the unit and the register type a step is about, and
+ * answers whether they are there.
  *
- * Every setter a replay goes through acts on the client the view shows, and
- * the stack holds the steps of every client it has shown. It runs before the
- * replay, because the replay holds the selection where it is.
+ * Every setter a replay goes through acts on what the view shows, and the
+ * stack holds the steps of every client, unit and type it has shown. It runs
+ * before the replay, because the replay holds the selection where it is.
  */
-const show = (uuid: string): boolean => {
+const show = ({ uuid, unit, type }: ClientStepView): boolean => {
   const clientZustand = useClientZustand.getState()
-  if (!clientZustand.clients[uuid]) return false
+  const client = clientZustand.clients[uuid]
+  if (!client?.units.some((candidate) => candidate.uuid === unit)) return false
   if (clientZustand.selectedUuid !== uuid) clientZustand.setSelectedUuid(uuid)
+  clientZustand.selectUnit(unit)
+  clientZustand.setType(type)
   return true
+}
+
+/** What the view shows now, as `clientFieldReaders` reads it. */
+const viewed = (): ClientView => {
+  const state = useClientZustand.getState()
+  return { client: selectedClient(state), unit: selectedUnit(state), section: shownSection(state) }
 }
 
 /**
@@ -64,8 +81,8 @@ const clientFieldWriters: {
   dataBits: (value) => useClientZustand.getState().setDataBits(value),
   stopBits: (value) => useClientZustand.getState().setStopBits(value),
   address: (value) => useClientZustand.getState().setAddress(String(value)),
-  length: (value) => useClientZustand.getState().setLength(String(value), isReadLengthGiven(value)),
-  type: (value) => useClientZustand.getState().setType(value),
+  length: (value) => useClientZustand.getState().setLength(String(value)),
+  polled: (value) => useClientZustand.getState().setPolled(getShownType(), value),
   pollRate: (value) => useClientZustand.getState().setPollRate(value),
   timeout: (value) => useClientZustand.getState().setTimeout(value),
   offlineAfterTimeouts: (value) => useClientZustand.getState().setOfflineAfterTimeouts(value),
@@ -107,31 +124,24 @@ const replayField = async <Field extends ClientField>(
 ): Promise<ClientFieldStep | UndoRefusal | undefined> => {
   if (CONNECTION_FIELDS.has(step.field) && !isDisconnected(step.uuid)) return 'refused-connected'
   const read = clientFieldReaders[step.field]
-  const replaced = clientFieldSteps[step.field](read(getSelectedClient()), step.uuid)
+  const replaced = clientFieldSteps[step.field](read(viewed()), step)
   await clientFieldWriters[step.field](step.value)
-  return read(getSelectedClient()) === step.value ? replaced : undefined
+  return read(viewed()) === step.value ? replaced : undefined
 }
 
-/** Shows the register type the entry belongs to first, so the change is on screen. */
-const replayMapping = async (step: ClientMappingStep): Promise<ClientMappingStep | undefined> => {
-  if (
-    getSelectedClient().registerConfig.type !== step.type &&
-    !(await useClientZustand.getState().setType(step.type))
-  ) {
-    return undefined
-  }
-
+/** `show` has put the unit and the type on screen, so the change is where it is seen. */
+const replayMapping = (step: ClientMappingStep): Promise<ClientMappingStep | undefined> => {
   const replaced: ClientMappingStep = {
     ...step,
-    value: getSelectedClient().registerMapping[step.type][step.register]
+    value: getSelectedUnit().registerMapping[step.type][step.register]
   }
   useClientZustand.getState().setMappingEntry(step.type, step.register, step.value)
-  return replaced
+  return Promise.resolve(replaced)
 }
 
 const currentConfiguration = (): ClientConfiguration => {
-  const { name, registerConfig, registerMapping } = getSelectedClient()
-  return { name, littleEndian: registerConfig.littleEndian, registerMapping }
+  const { littleEndian, registerMapping } = getSelectedUnit()
+  return { name: getSelectedClient().name, littleEndian, registerMapping }
 }
 
 /**
@@ -144,11 +154,7 @@ const currentConfiguration = (): ClientConfiguration => {
 const replayConfiguration = async (
   step: ClientConfigurationStep
 ): Promise<ClientConfigurationStep | undefined> => {
-  const replaced: ClientConfigurationStep = {
-    kind: 'configuration',
-    uuid: step.uuid,
-    value: currentConfiguration()
-  }
+  const replaced: ClientConfigurationStep = { ...step, value: currentConfiguration() }
   const client = useClientZustand.getState()
 
   if (!(await client.setLittleEndian(step.value.littleEndian))) return undefined
@@ -157,7 +163,7 @@ const replayConfiguration = async (
     return undefined
   }
   client.setName(step.value.name)
-  showMapping(step.uuid)
+  showMapping(step.uuid, step.unit, step.type)
   return replaced
 }
 
@@ -182,7 +188,7 @@ const move = (direction: 'undo' | 'redo'): Promise<UndoOutcome> =>
     clientStack,
     direction,
     (step) => holdSelection(() => replay(step)),
-    (step) => show(step.uuid)
+    (step) => show(step)
   )
 
 export const undoClient = (): Promise<UndoOutcome> => move('undo')
@@ -199,7 +205,11 @@ export const redoClient = (): Promise<UndoOutcome> => move('redo')
  * still quiet.
  */
 export const asOneClientStep = async (action: () => Promise<void>): Promise<void> => {
-  const uuid = selectedClientUuid()
+  const view: ClientStepView = {
+    uuid: selectedClientUuid(),
+    unit: getSelectedUnit().uuid,
+    type: getShownType()
+  }
   const before = currentConfiguration()
   const undo = useUndoZustand.getState()
   undo.beginQuiet()
@@ -212,7 +222,7 @@ export const asOneClientStep = async (action: () => Promise<void>): Promise<void
     // By content, because Clear Config hands over a new empty mapping every
     // time, and one that was empty already is no step.
     if (!deepEqual(currentConfiguration(), before)) {
-      const step: ClientConfigurationStep = { kind: 'configuration', uuid, value: before }
+      const step: ClientConfigurationStep = { ...view, kind: 'configuration', value: before }
       undo.setClient(pushStep(useUndoZustand.getState().client, step, clientStepKey(step)))
     }
   }

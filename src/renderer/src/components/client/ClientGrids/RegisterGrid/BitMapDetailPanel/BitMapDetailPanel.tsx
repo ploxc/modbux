@@ -1,9 +1,11 @@
 import Box from '@mui/material/Box'
-import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
+import { useLiveZustand, dataOf, getShownSection, sectionOf } from '@renderer/context/live.zustand'
 import {
-  useClientZustand,
-  selectedClient,
-  selectedClientUuid
+  getSelectedUnit,
+  selectedClientUuid,
+  selectedUnit,
+  shownType,
+  useClientZustand
 } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useCallback } from 'react'
@@ -22,15 +24,19 @@ const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 
 const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const type = useClientZustand((z) => shownType(z))
   const uint16 = useLiveZustand(
-    (z) => dataOf(z, selectedUuid).registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
+    (z) =>
+      sectionOf(z, selectedUuid, unit, type).registerData.find((r) => r.id === address)?.words
+        ?.uint16 ?? 0
   )
 
   const bitConfig = useClientZustand(
-    (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type][address]?.bitMap
+    (z) => selectedUnit(z).registerMapping[shownType(z)][address]?.bitMap
   )
 
-  const registerType = useClientZustand((z) => selectedClient(z).registerConfig.type)
+  const registerType = useClientZustand((z) => shownType(z))
   const writable = registerType === 'holding_registers'
   const connectState = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
@@ -45,12 +51,13 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
     (bitIndex: number, currentValue: boolean) => {
       if (!canWrite) return
       const currentUint16 =
-        getShownData().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
+        getShownSection().registerData.find((r) => r.id === address)?.words?.uint16 ?? 0
       const newUint16 = currentValue
         ? currentUint16 & ~(1 << bitIndex) // clear bit
         : currentUint16 | (1 << bitIndex) // set bit
       window.api.write({
         uuid: selectedClientUuid(),
+        unit: getSelectedUnit().uuid,
         parameters: {
           address,
           dataType: 'uint16',

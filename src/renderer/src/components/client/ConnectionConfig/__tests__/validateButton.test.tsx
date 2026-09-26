@@ -37,7 +37,7 @@ const renderRtu = (): void => {
         rtu: { ...defaultConnectionConfig.rtu, com: '/tmp/ttyV1' }
       }
     },
-    { ready: true, valid: { host: true, com: true, length: true } }
+    { ready: true, valid: { host: true, com: true } }
   )
   useClientZustand.setState({
     serialPorts: [],

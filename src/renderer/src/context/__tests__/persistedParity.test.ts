@@ -29,6 +29,24 @@ describe('a client config stored with a parity the serial binding refuses', () =
               com: '/dev/ttys011',
               options: { baudRate: '19200', dataBits: 8, stopBits: 1, parity: 'mark' }
             }
+          },
+          // The migration builds the client's unit out of these two.
+          registerConfig: {
+            type: 'holding_registers',
+            address: 0,
+            length: 10,
+            pollRate: 1000,
+            timeout: 1000,
+            littleEndian: false,
+            addressBase: '0',
+            show64BitValues: false,
+            advancedMode: false
+          },
+          registerMapping: {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
           }
         },
         version: 2

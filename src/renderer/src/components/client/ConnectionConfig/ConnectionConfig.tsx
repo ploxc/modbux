@@ -15,18 +15,24 @@ import SerialGroupModal from '@renderer/components/client/SerialGroupModal/Seria
 import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig'
 import {
-  useClientZustand,
   getSelectedClient,
-  getSelectedSession,
   selectedClient,
   selectedClientUuid,
-  selectedSession
+  selectedSession,
+  selectedUnit,
+  useClientZustand,
+  readsConfiguration
 } from '@renderer/context/client.zustand'
 import { Protocol, PROTOCOL_LABELS, unitIdOutOfRange } from '@shared'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
-import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
+import {
+  useLiveZustand,
+  dataOf,
+  getShownData,
+  setShownRegisterData
+} from '@renderer/context/live.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import ProtocolIcon from '@renderer/components/client/ClientSidebar/ProtocolIcon'
 import PollButton from './PollButton'
@@ -105,18 +111,12 @@ const ConnectButton = meme(() => {
       ? selectedSession(z).valid.com
       : selectedSession(z).valid.host
   )
-  // Main refuses the connect as well; this keeps the serial check from running first.
-  const unitIdOutOfRangeNow = useClientZustand(
-    (z) => unitIdOutOfRange(selectedClient(z).connectionConfig) !== undefined
-  )
 
   const action = useCallback(async (): Promise<void> => {
     const currentConnectedState = getShownData().clientState.connectState
     if (['connecting', 'connected'].includes(currentConnectedState)) {
       window.api.disconnect(selectedClientUuid())
-      if (!getSelectedSession().readConfiguration) {
-        useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
-      }
+      if (!readsConfiguration(useClientZustand.getState())) setShownRegisterData([])
       return
     }
 
@@ -134,8 +134,7 @@ const ConnectButton = meme(() => {
   // Only the press that connects. Disconnect and the cancel a connecting state
   // draws go through this same button, and neither is refused for a field.
   const disabled =
-    connectState === 'disconnecting' ||
-    (connectState === 'disconnected' && (!addressValid || unitIdOutOfRangeNow))
+    connectState === 'disconnecting' || (connectState === 'disconnected' && !addressValid)
 
   const color: ButtonProps['color'] = ['connecting', 'connected'].includes(connectState)
     ? 'warning'
@@ -174,9 +173,14 @@ const ConnectButton = meme(() => {
 //
 // Unit Id
 const UnitId = meme(() => {
-  const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
+  const unitId = useClientZustand((z) => String(selectedUnit(z).unitId))
   // A string or undefined, which compares equal from one read to the next.
-  const outOfRange = useClientZustand((z) => unitIdOutOfRange(selectedClient(z).connectionConfig))
+  const outOfRange = useClientZustand((z) =>
+    unitIdOutOfRange({
+      protocol: selectedClient(z).connectionConfig.protocol,
+      unitId: selectedUnit(z).unitId
+    })
+  )
 
   const setUnitId = useClientZustand.getState().setUnitId
 

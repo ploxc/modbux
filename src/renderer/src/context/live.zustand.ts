@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
-import { ClientData, LiveZustand } from './live.zustand.types'
-import { dataOf, emptyClientData } from './live.zustand.helpers'
+import { ClientData, LiveZustand, SectionData } from './live.zustand.types'
+import { dataOf, emptyClientData, sectionKey, sectionOf } from './live.zustand.helpers'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
 // This import closes a cycle: `client.zustand.ts` imports this module for
@@ -12,15 +12,39 @@ import { DateTime } from 'luxon'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { selectedClientUuid, useClientZustand } from './client.zustand'
+import { selectedClientUuid, selectedUnitOf, useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
-import { RegisterData, ScanUnitIDResult, Transaction, dummyWords } from '@shared'
+import {
+  RegisterData,
+  RegisterType,
+  RegisterTypeSchema,
+  ScanUnitIDResult,
+  Transaction,
+  dummyWords
+} from '@shared'
 
-export { dataOf }
+export { dataOf, sectionKey, sectionOf }
 
 /** The data of the client the view shows, read now rather than subscribed to. */
 export const getShownData = (): ClientData =>
   dataOf(useLiveZustand.getState(), selectedClientUuid())
+
+/**
+ * The rows and groups of the unit and register type the view shows, read now
+ * rather than subscribed to.
+ */
+export const getShownSection = (): SectionData => {
+  const clientState = useClientZustand.getState()
+  const session = clientState.sessions[clientState.selectedUuid]
+  const unit = selectedUnitOf(clientState)
+  if (!session || !unit) return sectionOf(useLiveZustand.getState(), '', '', 'holding_registers')
+  return sectionOf(
+    useLiveZustand.getState(),
+    clientState.selectedUuid,
+    unit.uuid,
+    session.shownType
+  )
+}
 
 /** Runs `recipe` on the data under `uuid`, made first when there is none. */
 const onData = (state: LiveZustand, uuid: string, recipe: (data: ClientData) => void): void => {
@@ -28,6 +52,21 @@ const onData = (state: LiveZustand, uuid: string, recipe: (data: ClientData) => 
   state.clients[uuid] = data
   recipe(data)
 }
+
+/** Runs `recipe` on one unit's register type under `uuid`, made first when there is none. */
+const onSection = (
+  state: LiveZustand,
+  uuid: string,
+  unit: string,
+  type: RegisterType,
+  recipe: (section: SectionData) => void
+): void =>
+  onData(state, uuid, (data) => {
+    const key = sectionKey(unit, type)
+    const section = data.sections[key] ?? { registerData: [], addressGroups: [] }
+    data.sections[key] = section
+    recipe(section)
+  })
 
 /**
  * What main pushes about each client, held for as long as the window lives,
@@ -52,22 +91,22 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
     clients: {},
 
     // Register data
-    setRegisterData: (uuid, registerData) =>
+    setRegisterData: (uuid, unit, type, registerData) =>
       set((state) =>
-        onData(state, uuid, (data) => {
-          data.registerData = registerData
+        onSection(state, uuid, unit, type, (section) => {
+          section.registerData = registerData
         })
       ),
-    appendRegisterData: (uuid, registerData) =>
+    appendRegisterData: (uuid, unit, type, registerData) =>
       set((state) =>
-        onData(state, uuid, (data) => {
-          data.registerData.push(...registerData)
+        onSection(state, uuid, unit, type, (section) => {
+          section.registerData.push(...registerData)
         })
       ),
-    setAddressGroups: (uuid, addressGroups) =>
+    setAddressGroups: (uuid, unit, type, addressGroups) =>
       set((state) =>
-        onData(state, uuid, (data) => {
-          data.addressGroups = addressGroups
+        onSection(state, uuid, unit, type, (section) => {
+          section.addressGroups = addressGroups
         })
       ),
 
@@ -128,7 +167,7 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
       ),
 
     dropClient: (uuid) => {
-      pendingScanRows.drop(uuid)
+      for (const key of scanRowKeysOf(uuid)) pendingScanRows.drop(key)
       pendingUnitIdResults.drop(uuid)
       pendingTransactions.drop(uuid)
       clientStatePushed.delete(uuid)
@@ -139,15 +178,16 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
   }))
 )
 
-/** Populate a client's grid with its configured register placeholders */
-export const showMapping = (uuid: string = selectedClientUuid()): void => {
-  const client = useClientZustand.getState().clients[uuid]
-  if (!client) return
+/**
+ * Draw one unit's configured registers of `type` into its grid, as rows with
+ * no value yet.
+ */
+export const showMapping = (uuid: string, unit: string, type: RegisterType): void => {
+  const found = useClientZustand.getState().clients[uuid]?.units.find(({ uuid }) => uuid === unit)
+  if (!found) return
   const registerData: RegisterData[] = []
-  const { registerMapping } = client
-  const { type } = client.registerConfig
 
-  Object.entries(registerMapping[type]).forEach(([addressString, mapValue]) => {
+  Object.entries(found.registerMapping[type]).forEach(([addressString, mapValue]) => {
     if (!mapValue || mapValue.dataType === 'none' || !mapValue.dataType) return
     const address = parseInt(addressString, 10)
 
@@ -162,7 +202,25 @@ export const showMapping = (uuid: string = selectedClientUuid()): void => {
     registerData.push(row)
   })
 
-  useLiveZustand.getState().setRegisterData(uuid, registerData)
+  useLiveZustand.getState().setRegisterData(uuid, unit, type, registerData)
+}
+
+/** Replace the rows of the unit and register type the view shows. */
+export const setShownRegisterData = (registerData: RegisterData[]): void => {
+  const state = useClientZustand.getState()
+  const unit = selectedUnitOf(state)
+  const type = state.sessions[state.selectedUuid]?.shownType
+  if (unit && type) {
+    useLiveZustand.getState().setRegisterData(state.selectedUuid, unit.uuid, type, registerData)
+  }
+}
+
+/** The same, for the unit and register type the view shows. */
+export const showShownMapping = (): void => {
+  const state = useClientZustand.getState()
+  const unit = selectedUnitOf(state)
+  const type = state.sessions[state.selectedUuid]?.shownType
+  if (unit && type) showMapping(state.selectedUuid, unit.uuid, type)
 }
 
 /** How long a batch of what main sends at event rate waits before it is written. */
@@ -179,6 +237,7 @@ const heldOnTimer = <T>(
   push: (uuid: string, items: T[]) => void
   flush: (uuid: string) => void
   drop: (uuid: string) => void
+  keys: () => string[]
 } => {
   const pending = new Map<string, { items: T[]; timeout: NodeJS.Timeout }>()
   const drop = (uuid: string): void => {
@@ -198,7 +257,7 @@ const heldOnTimer = <T>(
     }
     pending.set(uuid, { items: [...items], timeout: setTimeout(() => flush(uuid), SCAN_FLUSH_MS) })
   }
-  return { push, flush, drop }
+  return { push, flush, drop, keys: () => [...pending.keys()] }
 }
 
 /**
@@ -209,9 +268,15 @@ const heldOnTimer = <T>(
  * stopped answering for most of it. The server view solves the same problem
  * the same way.
  */
-const pendingScanRows = heldOnTimer<RegisterData>((uuid, rows) =>
-  useLiveZustand.getState().appendRegisterData(uuid, rows)
-)
+const pendingScanRows = heldOnTimer<RegisterData>((key, rows) => {
+  const [uuid = '', unit = '', type] = key.split('|')
+  const parsed = RegisterTypeSchema.safeParse(type)
+  if (parsed.success) useLiveZustand.getState().appendRegisterData(uuid, unit, parsed.data, rows)
+})
+
+/** The key a scan's rows wait under: the client, the unit and the type. */
+const scanRowsKey = (uuid: string, unit: string, type: RegisterType): string =>
+  `${uuid}|${unit}|${type}`
 
 /**
  * A unit id scan sends a result per unit id, and the table drew itself again
@@ -230,8 +295,13 @@ const pendingTransactions = heldOnTimer<Transaction>((uuid, transactions) =>
   useLiveZustand.getState().addTransactions(uuid, transactions)
 )
 
-/** Nothing may survive into the client's next scan, which starts from an empty grid. */
-export const dropPendingScanRows = (uuid: string): void => pendingScanRows.drop(uuid)
+/** Nothing may survive into the next scan of a section, which starts from an empty grid. */
+export const dropPendingScanRows = (uuid: string, unit: string, type: RegisterType): void =>
+  pendingScanRows.drop(scanRowsKey(uuid, unit, type))
+
+/** The scan rows waiting under `uuid`, for every section they were read into. */
+const scanRowKeysOf = (uuid: string): string[] =>
+  pendingScanRows.keys().filter((key) => key.startsWith(`${uuid}|`))
 
 /** The clients a `client_state` push has landed for since the module was evaluated. */
 const clientStatePushed = new Set<string>()
@@ -280,24 +350,25 @@ if (!window.api.isServerWindow) {
 const isHeld = (uuid: string): boolean => Object.hasOwn(useClientZustand.getState().clients, uuid)
 
 // Data read from the registers
-onEvent('register_data', ({ uuid, registerData }) => {
+onEvent('register_data', ({ uuid, unit, type, registerData }) => {
   if (!isHeld(uuid)) return
   const liveZustand = useLiveZustand.getState()
+  const key = scanRowsKey(uuid, unit, type)
 
   if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
-    pendingScanRows.push(uuid, registerData)
+    pendingScanRows.push(key, registerData)
   } else {
     // A poll replaces the grid, so anything a scan left waiting is stale.
-    pendingScanRows.drop(uuid)
-    liveZustand.setRegisterData(uuid, registerData)
+    pendingScanRows.drop(key)
+    liveZustand.setRegisterData(uuid, unit, type, registerData)
   }
 
   liveZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
 })
 
-onEvent('address_groups', ({ uuid, addressGroups }) => {
+onEvent('address_groups', ({ uuid, unit, type, addressGroups }) => {
   if (!isHeld(uuid)) return
-  useLiveZustand.getState().setAddressGroups(uuid, addressGroups)
+  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups)
 })
 
 // Client state, like polling, scanning, etc.
@@ -306,7 +377,8 @@ onEvent('client_state', ({ uuid, clientState }) => {
   clientStatePushed.add(uuid)
   // Main sends a scan's last rows before the state that ends it, so they are
   // written before the button says the scan stopped, not up to a flush later.
-  if (!clientState.scanningRegisters) pendingScanRows.flush(uuid)
+  if (!clientState.scanningRegisters)
+    for (const key of scanRowKeysOf(uuid)) pendingScanRows.flush(key)
   if (!clientState.scanningUnitIds) pendingUnitIdResults.flush(uuid)
   useLiveZustand.getState().setClientState(uuid, clientState)
 })

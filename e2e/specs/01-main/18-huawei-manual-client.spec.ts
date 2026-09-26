@@ -368,7 +368,8 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     const content = await fs.readFile(savePath, 'utf-8')
     const saved = JSON.parse(content)
 
-    expect(saved.version).toBe(2)
+    expect(saved.kind).toBe('client-device')
+    expect(saved.version).toBe(3)
     expect(saved.registerMapping).toBeDefined()
 
     const hr = saved.registerMapping.holding_registers

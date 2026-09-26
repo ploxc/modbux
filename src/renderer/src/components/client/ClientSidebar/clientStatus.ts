@@ -9,15 +9,16 @@ export interface ClientStatus {
 }
 
 /**
- * What a client card says about its connection. A client main has stopped
- * hearing from is polled less often but stays connected, so it reads as a
- * timeout rather than as polling.
+ * What a client card says about its connection. `offline` is whether any of
+ * its units main has stopped hearing from: such a unit is polled less often
+ * but the client stays connected, so it reads as a timeout rather than as
+ * polling.
  */
 export const clientStatus = ({
   connectState,
   polling,
   offline
-}: Pick<ClientState, 'connectState' | 'polling' | 'offline'>): ClientStatus => {
+}: Pick<ClientState, 'connectState' | 'polling'> & { offline: boolean }): ClientStatus => {
   if (connectState === 'connecting') return { label: 'Connecting', tone: 'busy' }
   if (connectState === 'disconnecting') return { label: 'Disconnecting', tone: 'busy' }
   if (connectState === 'disconnected') return { label: 'Disconnected', tone: 'idle' }

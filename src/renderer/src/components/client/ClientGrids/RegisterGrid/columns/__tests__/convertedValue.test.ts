@@ -8,7 +8,7 @@ import type { RegisterData, RegisterMapObject } from '@shared'
 const dataState = { addressGroups: [] as [number, number][] }
 
 vi.mock('@renderer/context/live.zustand', () => ({
-  getShownData: (): typeof dataState => dataState
+  getShownSection: (): typeof dataState => dataState
 }))
 
 import { convertedValueColumn } from '../convertedValue'

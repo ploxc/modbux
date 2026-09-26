@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { MAIN_CLIENT_UUID, defaultClientState, emptyRegisterMapping } from '@shared'
+import {
+  ClientUnit,
+  MAIN_CLIENT_UUID,
+  RegisterData,
+  RegisterType,
+  defaultClientState,
+  emptyRegisterMapping
+} from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer } from '@renderer/context/__tests__/stubRenderer'
 import type { PersistedClient } from '@renderer/context/client.zustand.types'
 
@@ -9,14 +16,14 @@ stubRenderer()
 const calls: ApiCall[] = []
 recordApiCalls(calls)
 
-/** Main refuses the next mapping it is handed while this is set, as it does one it cannot parse. */
+/** Main refuses the units it is handed while this is set, as it does ones it cannot parse. */
 let mainRefusesMapping = false
 const answering = window.api as unknown as Record<string, unknown>
 window.api = new Proxy(
   {},
   {
     get: (_target, method: string): unknown =>
-      method === 'setRegisterMapping' && mainRefusesMapping
+      method === 'setUnits' && mainRefusesMapping
         ? (): Promise<undefined> => Promise.resolve(undefined)
         : answering[method]
   }
@@ -24,7 +31,9 @@ window.api = new Proxy(
 const { answerCall } = await import('../relay')
 const { holdSelection, useClientZustand } = await import('@renderer/context/client.zustand')
 const { undoClient } = await import('@renderer/context/clientUndo')
-const { useLiveZustand } = await import('@renderer/context/live.zustand')
+const { sectionOf, useLiveZustand } = await import('@renderer/context/live.zustand')
+const { MAIN_UNIT_UUID, readsConfiguration, shownType } =
+  await import('@renderer/context/client.zustand')
 const { useLayoutZustand } = await import('@renderer/context/layout.zustand')
 
 const client = MAIN_CLIENT_UUID
@@ -48,6 +57,13 @@ const sent = (method: string): unknown[] =>
 const clientOf = (uuid: string = client): PersistedClient | undefined =>
   useClientZustand.getState().clients[uuid]
 
+/** The one unit of a client, which is the one its view shows. */
+const unitOf = (uuid: string = client): ClientUnit | undefined => clientOf(uuid)?.units[0]
+
+/** The rows of the default unit's `type`. */
+const rowsOf = (type: RegisterType): RegisterData[] =>
+  sectionOf(useLiveZustand.getState(), client, MAIN_UNIT_UUID, type).registerData
+
 /** A config file as a Save writes it. */
 const savedConfig = {
   kind: 'client-device',
@@ -69,7 +85,7 @@ beforeEach(async () => {
   }
   clientZustand.setSelectedUuid(client)
   await clientZustand.init()
-  await clientZustand.setType('holding_registers')
+  clientZustand.setType('holding_registers')
   await clientZustand.setLittleEndian(false)
   clientZustand.setName('')
   await clientZustand.clearRegisterMapping()
@@ -139,8 +155,8 @@ describe('set_mapping_entry', () => {
     })
 
     expect(answer).toEqual({ changed: ['dataType', 'scalingFactor', 'comment'], refused: [] })
-    expect(clientOf()?.registerConfig.type).toBe('input_registers')
-    expect(clientOf()?.registerMapping.input_registers[7]).toEqual({
+    expect(shownType(useClientZustand.getState())).toBe('input_registers')
+    expect(unitOf()?.registerMapping.input_registers[7]).toEqual({
       dataType: 'float',
       scalingFactor: 0.1,
       comment: 'frequency'
@@ -157,7 +173,7 @@ describe('set_mapping_entry', () => {
     })
 
     expect(answer).toEqual({ changed: ['comment'], refused: ['dataType'] })
-    expect(clientOf()?.registerMapping.coils[2]).toEqual({ comment: 'pump' })
+    expect(unitOf()?.registerMapping.coils[2]).toEqual({ comment: 'pump' })
   })
 
   it('removes a register for dataType none, and takes nothing else with it', async () => {
@@ -172,52 +188,40 @@ describe('set_mapping_entry', () => {
     })
 
     expect(answer).toEqual({ changed: ['dataType'], refused: ['comment'] })
-    expect(clientOf()?.registerMapping.holding_registers[3]).toBeUndefined()
+    expect(unitOf()?.registerMapping.holding_registers[3]).toBeUndefined()
   })
 
   it('refuses another type during a register scan, and leaves the grid', async () => {
     setState({ connectState: 'connected', scanningRegisters: true })
-    useLiveZustand.getState().setRegisterData(client, [{ id: 0 }] as never)
+    useLiveZustand
+      .getState()
+      .setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [{ id: 0 }] as never)
 
     await expect(
       run('set_mapping_entry', { client, type: 'coils', address: 0, comment: 'x' })
     ).rejects.toThrow('register scan')
-    expect(clientOf()?.registerConfig.type).toBe('holding_registers')
-    expect(useLiveZustand.getState().clients[client]?.registerData).toHaveLength(1)
+    expect(shownType(useClientZustand.getState())).toBe('holding_registers')
+    expect(rowsOf('holding_registers')).toHaveLength(1)
   })
 })
 
 describe('the type switch set_client_config shares', () => {
-  it('empties the grid of a toolbar read when the type changes', async () => {
-    useLiveZustand.getState().setRegisterData(client, [{ id: 0 }] as never)
+  it('shows the type named, and keeps the rows of the type before', async () => {
+    useLiveZustand
+      .getState()
+      .setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [{ id: 0 }] as never)
     await run('set_client_config', { client, type: 'coils' })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toEqual([])
-  })
-
-  it('empties the grid during a poll too, as the Type select does', async () => {
-    setState({ connectState: 'connected', polling: true })
-    useLiveZustand.getState().setRegisterData(client, [{ id: 0 }] as never)
-    await run('set_client_config', { client, type: 'coils' })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toEqual([])
-  })
-
-  it('keeps the grid of a mapping during a poll', async () => {
-    await run('set_mapping_entry', {
-      client,
-      type: 'holding_registers',
-      address: 0,
-      dataType: 'int16'
-    })
-    await run('set_client_config', { client, readConfiguration: true })
-    setState({ connectState: 'connected', polling: true })
-    await run('set_client_config', { client, type: 'input_registers' })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toHaveLength(1)
+    expect(shownType(useClientZustand.getState())).toBe('coils')
+    expect(rowsOf('coils')).toEqual([])
+    expect(rowsOf('holding_registers')).toHaveLength(1)
   })
 
   it('leaves the grid when the type is the one it has', async () => {
-    useLiveZustand.getState().setRegisterData(client, [{ id: 0 }] as never)
+    useLiveZustand
+      .getState()
+      .setRegisterData(client, MAIN_UNIT_UUID, 'holding_registers', [{ id: 0 }] as never)
     await run('set_client_config', { client, type: 'holding_registers' })
-    expect(useLiveZustand.getState().clients[client]?.registerData).toHaveLength(1)
+    expect(rowsOf('holding_registers')).toHaveLength(1)
   })
 })
 
@@ -226,14 +230,12 @@ describe('replace_mapping and clear_mapping', () => {
     const answer = await run('replace_mapping', { client, config: savedConfig })
 
     expect(answer).toEqual({ migrated: false, fieldsNotBroughtAcross: [] })
-    expect(clientOf()).toMatchObject({
-      name: 'Meter',
-      registerConfig: { littleEndian: true },
+    expect(clientOf()?.name).toBe('Meter')
+    expect(unitOf()).toMatchObject({
+      littleEndian: true,
       registerMapping: { holding_registers: { 3: { dataType: 'int16', comment: 'power' } } }
     })
-    expect(useLiveZustand.getState().clients[client]?.registerData.map((row) => row.id)).toEqual([
-      3
-    ])
+    expect(rowsOf('holding_registers').map((row) => row.id)).toEqual([3])
   })
 
   it('turns read configuration off before it hands main the mapping', async () => {
@@ -249,19 +251,19 @@ describe('replace_mapping and clear_mapping', () => {
     await run('replace_mapping', { client, config: savedConfig })
 
     expect(calls.map((call) => call.method)).toEqual([
-      'updateRegisterConfig',
+      'setUnits',
       'setReadConfiguration',
-      'setRegisterMapping'
+      'setUnits'
     ])
-    expect(useClientZustand.getState().sessions[client]?.readConfiguration).toBe(false)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(false)
   })
 
   it('is one step to undo', async () => {
     await run('replace_mapping', { client, config: savedConfig })
     await undoClient()
-    expect(clientOf()).toMatchObject({
-      name: '',
-      registerConfig: { littleEndian: false },
+    expect(clientOf()?.name).toBe('')
+    expect(unitOf()).toMatchObject({
+      littleEndian: false,
       registerMapping: emptyRegisterMapping()
     })
   })
@@ -272,7 +274,7 @@ describe('replace_mapping and clear_mapping', () => {
       config: { ...emptyRegisterMapping(), holding_registers: { 5: { dataType: 'uint16' } } }
     })
     expect(answer).toMatchObject({ migrated: true })
-    expect(clientOf()?.registerMapping.holding_registers[5]).toEqual({ dataType: 'uint16' })
+    expect(unitOf()?.registerMapping.holding_registers[5]).toEqual({ dataType: 'uint16' })
   })
 
   it('refuses a config that is not one, and keeps the mapping', async () => {
@@ -281,7 +283,7 @@ describe('replace_mapping and clear_mapping', () => {
     await expect(
       run('replace_mapping', { client, config: { version: 2, registerMapping: 'nope' } })
     ).rejects.toThrow('The config was refused')
-    expect(clientOf()?.registerMapping.holding_registers[3]).toBeDefined()
+    expect(unitOf()?.registerMapping.holding_registers[3]).toBeDefined()
   })
 
   it('answers an error when main refuses the mapping, which stays as it was', async () => {
@@ -289,19 +291,20 @@ describe('replace_mapping and clear_mapping', () => {
     await expect(run('replace_mapping', { client, config: savedConfig })).rejects.toThrow(
       'refused the mapping'
     )
-    expect(clientOf()?.registerMapping).toEqual(emptyRegisterMapping())
+    expect(unitOf()?.registerMapping).toEqual(emptyRegisterMapping())
   })
 
   it('clears the name and the mapping, as one step to undo', async () => {
     await run('replace_mapping', { client, config: savedConfig })
 
     await run('clear_mapping', { client })
-    expect(clientOf()).toMatchObject({ name: '', registerMapping: emptyRegisterMapping() })
+    expect(clientOf()?.name).toBe('')
+    expect(unitOf()?.registerMapping).toEqual(emptyRegisterMapping())
 
     await undoClient()
-    expect(clientOf()).toMatchObject({
-      name: 'Meter',
-      registerMapping: { holding_registers: { 3: { dataType: 'int16' } } }
+    expect(clientOf()?.name).toBe('Meter')
+    expect(unitOf()?.registerMapping).toMatchObject({
+      holding_registers: { 3: { dataType: 'int16' } }
     })
   })
 })

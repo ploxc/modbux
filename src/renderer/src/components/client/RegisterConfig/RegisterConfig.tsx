@@ -11,15 +11,22 @@ import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import {
   useClientZustand,
-  flushRegisterMappingToMain,
+  flushUnitsToMain,
   getSelectedClient,
-  getSelectedSession,
-  selectedClient,
+  readsConfiguration,
   selectedClientUuid,
-  selectedSession
+  selectedUnit,
+  shownSection,
+  shownType
 } from '@renderer/context/client.zustand'
-import { clientOwner, maxReadQuantity, registersFrom, RegisterType } from '@shared'
-import { showMapping } from '@renderer/context/live.zustand'
+import {
+  clientOwner,
+  configuredReadGroups,
+  maxReadQuantity,
+  registersFrom,
+  RegisterType
+} from '@shared'
+import { showShownMapping } from '@renderer/context/live.zustand'
 import { ElementType, useCallback, useEffect, useRef } from 'react'
 
 // Register type
@@ -31,7 +38,7 @@ const REGISTER_TYPES: { type: RegisterType; label: string; color: string }[] = [
 ]
 
 export const RegisterTypeTabs = meme(() => {
-  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
+  const type = useClientZustand((z) => shownType(z))
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // A register scan reads this field once, for the chunk size one response
@@ -39,11 +46,9 @@ export const RegisterTypeTabs = meme(() => {
   // between the two asks a device for 2000 holding registers.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
+  // Each type keeps its own rows, so showing another one clears nothing.
   const handleChange = useCallback((_event: unknown, value: RegisterType | null) => {
     if (value === null) return
-    if (!getSelectedSession().readConfiguration) {
-      useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
-    }
     useClientZustand.getState().setType(value)
   }, [])
 
@@ -75,8 +80,8 @@ export const RegisterTypeTabs = meme(() => {
 //
 // Address
 const Address = meme(() => {
-  const address = useClientZustand((z) => selectedClient(z).registerConfig.address)
-  const readConfiguration = useClientZustand((z) => selectedSession(z).readConfiguration)
+  const address = useClientZustand((z) => shownSection(z).address)
+  const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   const setAddress = useClientZustand.getState().setAddress
 
@@ -96,11 +101,10 @@ const Address = meme(() => {
 //
 // Length
 const Length = meme(() => {
-  const length = useClientZustand((z) => String(selectedClient(z).registerConfig.length))
-  const lengthValid = useClientZustand((z) => selectedSession(z).valid.length)
-  const address = useClientZustand((z) => selectedClient(z).registerConfig.address)
-  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
-  const readConfiguration = useClientZustand((z) => selectedSession(z).readConfiguration)
+  const length = useClientZustand((z) => shownSection(z).length)
+  const address = useClientZustand((z) => shownSection(z).address)
+  const type = useClientZustand((z) => shownType(z))
+  const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   const setLength = useClientZustand.getState().setLength
 
@@ -117,9 +121,9 @@ const Length = meme(() => {
       variant="outlined"
       size="medium"
       sx={{ width: 60 }}
-      value={length}
+      value={String(length)}
       data-testid="reg-length-input"
-      error={!lengthValid}
+      error={length === 0}
       slotProps={{
         input: {
           inputComponent: LengthInput as unknown as ElementType<InputBaseComponentProps, 'input'>,
@@ -131,7 +135,7 @@ const Length = meme(() => {
 })
 
 const ReadConfiguration = meme(() => {
-  const readConfiguration = useClientZustand((z) => !!selectedSession(z).readConfiguration)
+  const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   // The store is written once main has the mapping, so between the press and
   // that answer the toggle still reads off and a second press arrives as one
@@ -148,9 +152,8 @@ const ReadConfiguration = meme(() => {
       if (handingOver.current) return
       handingOver.current = true
       try {
-        const { registerMapping } = getSelectedClient()
-        if (!(await flushRegisterMappingToMain(selectedClientUuid(), registerMapping))) return
-        showMapping()
+        if (!(await flushUnitsToMain(selectedClientUuid(), getSelectedClient().units))) return
+        showShownMapping()
       } finally {
         handingOver.current = false
       }
@@ -158,17 +161,18 @@ const ReadConfiguration = meme(() => {
     useClientZustand.getState().setReadConfiguration(toggleState)
   }, [])
 
-  // The same question `showMapping` and `groupAddressInfos` ask: an entry with
-  // no data type configures nothing to read. Counting keys instead put the
-  // button on a mapping that carries only comments, and pressing it there
-  // emptied the grid and disabled the address and length fields. A bit type
-  // reaches that first, because the grid mounts the data type column for input
-  // and holding registers alone and a comment is all it writes into a coil.
-  const nothingConfigured = useClientZustand((z) =>
-    Object.values(selectedClient(z).registerMapping[selectedClient(z).registerConfig.type]).every(
-      (entry) => !entry?.dataType || entry.dataType === 'none'
+  // The question `_polledTypes` asks of a unit under read configuration: a
+  // type the mapping has a group for. Counting keys instead put the button on
+  // a mapping that carries only comments, and pressing it emptied the grid and
+  // disabled the address and length fields. A bit type configures no group,
+  // because the grid mounts the data type column for input and holding
+  // registers alone and a comment is all it writes into a coil.
+  const nothingConfigured = useClientZustand((z) => {
+    const { registerMapping } = selectedUnit(z)
+    return (['input_registers', 'holding_registers'] as const).every(
+      (type) => configuredReadGroups(true, type, registerMapping).length === 0
     )
-  )
+  })
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // Switching draws the mapping into the grid, or empties it, and a read, a
@@ -191,7 +195,7 @@ const ReadConfiguration = meme(() => {
   // the read is about to fill.
   useEffect(() => {
     if (!nothingConfigured) return
-    if (getSelectedSession().readConfiguration) {
+    if (readsConfiguration(useClientZustand.getState())) {
       useClientZustand.getState().setReadConfiguration(false)
     }
   }, [nothingConfigured])

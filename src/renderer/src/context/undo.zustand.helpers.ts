@@ -1,74 +1,82 @@
-import { ServerRegisters } from '@shared'
+import { ClientSection, ClientUnit, ServerRegisters } from '@shared'
 import { PersistedClient } from './client.zustand.types'
 import {
   ClientField,
   ClientFieldStepMap,
   ClientFieldValues,
+  ClientStepView,
   ClientUndoStep,
   ServerUndoStep,
   UndoStack
 } from './undo.zustand.types'
 
+/** What the view shows: a client, the unit it shows and that unit's shown section. */
+export interface ClientView {
+  client: PersistedClient
+  unit: ClientUnit
+  section: ClientSection
+}
+
 /** What the store holds for each field, as a step records it. */
 export const clientFieldReaders: {
-  [Field in ClientField]: (client: PersistedClient) => ClientFieldValues[Field]
+  [Field in ClientField]: (view: ClientView) => ClientFieldValues[Field]
 } = {
-  name: (client) => client.name,
-  protocol: (client) => client.connectionConfig.protocol,
-  unitId: (client) => client.connectionConfig.unitId,
-  host: (client) => client.connectionConfig.tcp.host,
-  port: (client) => client.connectionConfig.tcp.options.port,
-  com: (client) => client.connectionConfig.rtu.com,
-  baudRate: (client) => client.connectionConfig.rtu.options.baudRate,
-  parity: (client) => client.connectionConfig.rtu.options.parity ?? 'none',
-  dataBits: (client) => client.connectionConfig.rtu.options.dataBits,
-  stopBits: (client) => client.connectionConfig.rtu.options.stopBits,
-  address: (client) => client.registerConfig.address,
-  length: (client) => client.registerConfig.length,
-  type: (client) => client.registerConfig.type,
-  pollRate: (client) => client.registerConfig.pollRate,
-  timeout: (client) => client.registerConfig.timeout,
-  offlineAfterTimeouts: (client) => client.registerConfig.offlineAfterTimeouts,
-  maxPollInterval: (client) => client.registerConfig.maxPollInterval,
-  littleEndian: (client) => client.registerConfig.littleEndian,
-  advancedMode: (client) => client.registerConfig.advancedMode,
-  show64BitValues: (client) => client.registerConfig.show64BitValues,
-  addressBase: (client) => client.registerConfig.addressBase
+  name: ({ client }) => client.name,
+  protocol: ({ client }) => client.connectionConfig.protocol,
+  host: ({ client }) => client.connectionConfig.tcp.host,
+  port: ({ client }) => client.connectionConfig.tcp.options.port,
+  com: ({ client }) => client.connectionConfig.rtu.com,
+  baudRate: ({ client }) => client.connectionConfig.rtu.options.baudRate,
+  parity: ({ client }) => client.connectionConfig.rtu.options.parity ?? 'none',
+  dataBits: ({ client }) => client.connectionConfig.rtu.options.dataBits,
+  stopBits: ({ client }) => client.connectionConfig.rtu.options.stopBits,
+  pollRate: ({ client }) => client.registerConfig.pollRate,
+  timeout: ({ client }) => client.registerConfig.timeout,
+  offlineAfterTimeouts: ({ client }) => client.registerConfig.offlineAfterTimeouts,
+  maxPollInterval: ({ client }) => client.registerConfig.maxPollInterval,
+  advancedMode: ({ client }) => client.registerConfig.advancedMode,
+  show64BitValues: ({ client }) => client.registerConfig.show64BitValues,
+  unitId: ({ unit }) => unit.unitId,
+  littleEndian: ({ unit }) => unit.littleEndian,
+  addressBase: ({ unit }) => unit.addressBase,
+  address: ({ section }) => section.address,
+  length: ({ section }) => section.length,
+  polled: ({ section }) => section.polled
 }
 
 /** Makes the step for a field, typed to the value that field's setter takes. */
 export const clientFieldSteps: {
   [Field in ClientField]: (
     value: ClientFieldStepMap[Field]['value'],
-    uuid: string
+    view: ClientStepView
   ) => ClientFieldStepMap[Field]
 } = {
-  name: (value, uuid) => ({ kind: 'field', uuid, field: 'name', value }),
-  protocol: (value, uuid) => ({ kind: 'field', uuid, field: 'protocol', value }),
-  unitId: (value, uuid) => ({ kind: 'field', uuid, field: 'unitId', value }),
-  host: (value, uuid) => ({ kind: 'field', uuid, field: 'host', value }),
-  port: (value, uuid) => ({ kind: 'field', uuid, field: 'port', value }),
-  com: (value, uuid) => ({ kind: 'field', uuid, field: 'com', value }),
-  baudRate: (value, uuid) => ({ kind: 'field', uuid, field: 'baudRate', value }),
-  parity: (value, uuid) => ({ kind: 'field', uuid, field: 'parity', value }),
-  dataBits: (value, uuid) => ({ kind: 'field', uuid, field: 'dataBits', value }),
-  stopBits: (value, uuid) => ({ kind: 'field', uuid, field: 'stopBits', value }),
-  address: (value, uuid) => ({ kind: 'field', uuid, field: 'address', value }),
-  length: (value, uuid) => ({ kind: 'field', uuid, field: 'length', value }),
-  type: (value, uuid) => ({ kind: 'field', uuid, field: 'type', value }),
-  pollRate: (value, uuid) => ({ kind: 'field', uuid, field: 'pollRate', value }),
-  timeout: (value, uuid) => ({ kind: 'field', uuid, field: 'timeout', value }),
-  offlineAfterTimeouts: (value, uuid) => ({
+  name: (value, view) => ({ ...view, kind: 'field', field: 'name', value }),
+  protocol: (value, view) => ({ ...view, kind: 'field', field: 'protocol', value }),
+  host: (value, view) => ({ ...view, kind: 'field', field: 'host', value }),
+  port: (value, view) => ({ ...view, kind: 'field', field: 'port', value }),
+  com: (value, view) => ({ ...view, kind: 'field', field: 'com', value }),
+  baudRate: (value, view) => ({ ...view, kind: 'field', field: 'baudRate', value }),
+  parity: (value, view) => ({ ...view, kind: 'field', field: 'parity', value }),
+  dataBits: (value, view) => ({ ...view, kind: 'field', field: 'dataBits', value }),
+  stopBits: (value, view) => ({ ...view, kind: 'field', field: 'stopBits', value }),
+  pollRate: (value, view) => ({ ...view, kind: 'field', field: 'pollRate', value }),
+  timeout: (value, view) => ({ ...view, kind: 'field', field: 'timeout', value }),
+  offlineAfterTimeouts: (value, view) => ({
+    ...view,
     kind: 'field',
-    uuid,
     field: 'offlineAfterTimeouts',
     value
   }),
-  maxPollInterval: (value, uuid) => ({ kind: 'field', uuid, field: 'maxPollInterval', value }),
-  littleEndian: (value, uuid) => ({ kind: 'field', uuid, field: 'littleEndian', value }),
-  advancedMode: (value, uuid) => ({ kind: 'field', uuid, field: 'advancedMode', value }),
-  show64BitValues: (value, uuid) => ({ kind: 'field', uuid, field: 'show64BitValues', value }),
-  addressBase: (value, uuid) => ({ kind: 'field', uuid, field: 'addressBase', value })
+  maxPollInterval: (value, view) => ({ ...view, kind: 'field', field: 'maxPollInterval', value }),
+  advancedMode: (value, view) => ({ ...view, kind: 'field', field: 'advancedMode', value }),
+  show64BitValues: (value, view) => ({ ...view, kind: 'field', field: 'show64BitValues', value }),
+  unitId: (value, view) => ({ ...view, kind: 'field', field: 'unitId', value }),
+  littleEndian: (value, view) => ({ ...view, kind: 'field', field: 'littleEndian', value }),
+  addressBase: (value, view) => ({ ...view, kind: 'field', field: 'addressBase', value }),
+  address: (value, view) => ({ ...view, kind: 'field', field: 'address', value }),
+  length: (value, view) => ({ ...view, kind: 'field', field: 'length', value }),
+  polled: (value, view) => ({ ...view, kind: 'field', field: 'polled', value })
 }
 
 /** How many steps a stack keeps; the oldest goes first. */
@@ -82,7 +90,8 @@ export const emptyStack = <Step>(): UndoStack<Step> => ({
 
 /**
  * The run a client step merges into, or undefined for a step that never merges.
- * A run is one client's, so a host typed into another client is its own step.
+ * A run is one client's, unit's and shown type's, so a host typed into another
+ * client, or an address typed on another unit, is its own step.
  *
  * A mapping step is keyed by its column, so typing into one scaling factor is
  * one step while the entry it carries is the whole register. Load and Clear
@@ -91,9 +100,9 @@ export const emptyStack = <Step>(): UndoStack<Step> => ({
 export const clientStepKey = (step: ClientUndoStep): string | undefined => {
   switch (step.kind) {
     case 'field':
-      return `field.${step.field}.${step.uuid}`
+      return `field.${step.field}.${step.uuid}.${step.unit}.${step.type}`
     case 'mapping':
-      return `mapping.${step.type}.${step.register}.${step.column}.${step.uuid}`
+      return `mapping.${step.type}.${step.register}.${step.column}.${step.uuid}.${step.unit}`
     case 'configuration':
       return undefined
   }

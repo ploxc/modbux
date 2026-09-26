@@ -14,12 +14,11 @@ vi.mock('@renderer/context/client.zustand', () => ({
       selector({ registerConfig }),
     { getState: () => ({ registerConfig }) }
   ),
-  // The mock holds the selected client's fields flat, so the client is the state.
-  selectedClient: <State,>(state: State): State => state,
-  getSelectedClient: (): { registerConfig: typeof registerConfig } => ({ registerConfig })
+  // The mock holds the shown section flat, under one key.
+  shownSection: <Section,>(state: { registerConfig: Section }): Section => state.registerConfig
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
-  getShownData: (): { registerData: [] } => ({ registerData: [] })
+  getShownSection: (): { registerData: [] } => ({ registerData: [] })
 }))
 
 import { Coils } from '../WriteModal'

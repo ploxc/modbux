@@ -7,13 +7,13 @@ describe('readsNothingOf', () => {
   it('answers for the client under the uuid it names', () => {
     const client = getDefaultClient()
     const session = readySession(client)
-    session.valid.length = false
+    for (const unit of client.units) unit.sections[session.shownType].length = 0
 
     expect(readsNothingOf({ clients: { a: client }, sessions: { a: session } }, 'a')).toBe(true)
   })
 
-  // Answered out of the session a selector falls back to, whose Length flag
-  // reads true, so a uuid with nothing under it greys nothing.
+  // Answered out of the client a selector falls back to, whose default window
+  // asks for registers, so a uuid with nothing under it greys nothing.
   it('answers false for a uuid that holds no client', () => {
     expect(readsNothingOf({ clients: {}, sessions: {} }, 'gone')).toBe(false)
   })

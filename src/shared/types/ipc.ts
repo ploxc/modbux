@@ -9,7 +9,8 @@ import type {
   ClientCreate,
   ClientReadConfiguration,
   ClientRegisterConfigUpdate,
-  ClientRegisterMapping,
+  ClientUnits,
+  ClientRead,
   ClientScanRegisters,
   ClientScanUnitIds,
   ClientStateEvent,
@@ -74,7 +75,7 @@ export const IPC_CHANNELS = [
   'update_connection_config',
   'update_register_config',
   'get_client_states',
-  'set_register_mapping',
+  'set_units',
   'connect',
   'disconnect',
   'read',
@@ -179,9 +180,9 @@ interface IpcHandlerSpec {
     return: Record<string, ClientState>
   }
 
-  /** Set a client's RegisterMapping, and say whether it was taken. */
-  ['set_register_mapping']: {
-    args: [ClientRegisterMapping]
+  /** Replace a client's units, and say whether it was taken. */
+  ['set_units']: {
+    args: [ClientUnits]
     return: true | undefined
   }
 
@@ -197,9 +198,9 @@ interface IpcHandlerSpec {
     return: void
   }
 
-  /** Read a client's registers. The rows come back as a `register_data` event. */
+  /** Read one register type of one unit. The rows come back as a `register_data` event. */
   ['read']: {
-    args: [string]
+    args: [ClientRead]
     return: void
   }
 

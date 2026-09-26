@@ -16,14 +16,17 @@ vi.hoisted(async () => {
 
 import { render, screen } from '@testing-library/react'
 import { useLiveZustand } from '@renderer/context/live.zustand'
-import { useClientZustand } from '@renderer/context/client.zustand'
+import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import ReadButton from '../ReadButton'
 import { patchShownData } from '../../../../../../context/__tests__/shownData'
-import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import {
+  patchSelectedClient,
+  patchSelectedUnit
+} from '../../../../../../context/__tests__/selectedClient'
 
 interface Toolbar {
-  /** What the Length field's validity flag reads. */
+  /** Whether the shown section's length reads any registers. */
   lengthGiven?: boolean
   /** Read configuration on, with a group for the register type or without. */
   mappedGroup?: boolean
@@ -38,13 +41,11 @@ const renderButton = (
   })
   const registerMapping = emptyRegisterMapping()
   if (mappedGroup) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
+  patchSelectedUnit(useClientZustand, { registerMapping }, { length: lengthGiven ? 10 : 0 })
   patchSelectedClient(
     useClientZustand,
-    { registerMapping },
-    {
-      readConfiguration: mappedGroup !== undefined,
-      valid: { host: true, com: true, length: lengthGiven }
-    }
+    {},
+    { readConfiguration: { [getSelectedUnit().uuid]: mappedGroup !== undefined } }
   )
   render(<ReadButton />)
   return screen.getByTestId('read-btn')
@@ -85,8 +86,7 @@ describe('the Read button', () => {
     expect(renderButton({ connectState: 'disconnected' })).toBeDisabled()
   })
 
-  // Main refuses a read of no registers, which is the toolbar's block at a
-  // length the field refused and kept.
+  // Main refuses a read of no registers, which a length of 0 is.
   it('takes none at a length the field refused', () => {
     expect(renderButton({}, { lengthGiven: false })).toBeDisabled()
   })

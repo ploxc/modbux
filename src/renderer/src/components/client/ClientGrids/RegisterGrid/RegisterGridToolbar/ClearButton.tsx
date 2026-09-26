@@ -1,18 +1,25 @@
 import Button from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
+import {
+  useLiveZustand,
+  dataOf,
+  sectionOf,
+  setShownRegisterData
+} from '@renderer/context/live.zustand'
 import { useCallback } from 'react'
-import { useClientZustand, selectedClientUuid } from '@renderer/context/client.zustand'
+import { useClientZustand, selectedUnit, shownType } from '@renderer/context/client.zustand'
 
 const ClearButton = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const noData = useLiveZustand((z) => dataOf(z, selectedUuid).registerData.length === 0)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const type = useClientZustand((z) => shownType(z))
+  const noData = useLiveZustand(
+    (z) => sectionOf(z, selectedUuid, unit, type).registerData.length === 0
+  )
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
   const disabled = noData || polling
 
-  const handleClear = useCallback((): void => {
-    useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
-  }, [])
+  const handleClear = useCallback((): void => setShownRegisterData([]), [])
 
   return (
     <Button

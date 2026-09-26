@@ -21,7 +21,11 @@ const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
 vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar }) }))
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
+import {
+  getSelectedClient,
+  getSelectedUnit,
+  useClientZustand
+} from '@renderer/context/client.zustand'
 import LoadButton from '../LoadButton'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
@@ -80,7 +84,7 @@ describe('a file that reads', () => {
     // The mapping is what the file was for, and `replaceRegisterMapping` writes
     // it only where main took it. `stubRenderer` answers that channel with the
     // schema `main/ipc.ts` guards it with.
-    expect(getSelectedClient().registerMapping.holding_registers[0]).toEqual({
+    expect(getSelectedUnit().registerMapping.holding_registers[0]).toEqual({
       dataType: 'int16'
     })
     expect(getSelectedClient().name).toBe('Test Client')

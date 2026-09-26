@@ -5,7 +5,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { migrateClientConfig, resetMessage } from '@shared'
 import { useSnackbar } from 'notistack'
 import { useRef, useState, useCallback } from 'react'
-import { showMapping } from '@renderer/context/live.zustand'
+import { showShownMapping } from '@renderer/context/live.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
@@ -69,7 +69,7 @@ const LoadButton = meme((): JSX.Element => {
         // Inside the `try`, because it draws the grid from the mapping: on a
         // file that was refused the mapping is the one already there, and the
         // rows it builds would drop the values a read loop had put in them.
-        showMapping()
+        showShownMapping()
       } catch (error) {
         const tError = error as Error
         enqueueSnackbar({ variant: 'error', message: `Failed to load config: ${tError.message}` })

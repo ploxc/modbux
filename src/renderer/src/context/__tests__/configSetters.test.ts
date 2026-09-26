@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
-import { selectedClient } from '../client.zustand.helpers'
+import { selectedClient, selectedUnit } from '../client.zustand.helpers'
 
 const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
@@ -74,13 +74,10 @@ describe('the four serial options', () => {
   })
 })
 
-describe('the five register config fields', () => {
+describe('the register config fields', () => {
   it('each send their own key and write it back', async () => {
     const { useClientZustand } = await load()
     recordApiCalls(calls)
-
-    await useClientZustand.getState().setAddressBase('1')
-    expect(lastPayload('updateRegisterConfig')).toEqual({ addressBase: '1' })
 
     await useClientZustand.getState().setShow64BitValues(true)
     expect(lastPayload('updateRegisterConfig')).toEqual({ show64BitValues: true })
@@ -95,11 +92,23 @@ describe('the five register config fields', () => {
     expect(lastPayload('updateRegisterConfig')).toEqual({ timeout: 3000 })
 
     const { registerConfig } = selectedClient(useClientZustand.getState())
-    expect(registerConfig.addressBase).toBe('1')
     expect(registerConfig.show64BitValues).toBe(true)
     expect(registerConfig.advancedMode).toBe(true)
     expect(registerConfig.pollRate).toBe(2000)
     expect(registerConfig.timeout).toBe(3000)
+  })
+
+  // The address base is the unit's, so it goes out with the client's units.
+  it('send the address base with the units rather than the register config', async () => {
+    const { useClientZustand } = await load()
+    recordApiCalls(calls)
+
+    await useClientZustand.getState().setAddressBase('1')
+
+    expect(lastPayload('updateRegisterConfig')).toBeUndefined()
+    const units = lastPayload('setUnits') as Array<{ addressBase: string }>
+    expect(units.map(({ addressBase }) => addressBase)).toEqual(['1'])
+    expect(selectedUnit(useClientZustand.getState()).addressBase).toBe('1')
   })
 
   // `ReadTimingSchema` is `multipleOf(1000)`, so 1500 is a value the boundary

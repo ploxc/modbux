@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// An invalid host, port name or length is written at once and a valid one only
-// once main answers, so the answer to a valid key can arrive after a later
+// An invalid host or port name is written at once and a valid one only once
+// main answers, so the answer to a valid key can arrive after a later
 // invalid key has been written.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from './stubRenderer'
@@ -67,18 +67,6 @@ describe('an answer a later invalid value has superseded', () => {
 
     expect(await valid).toBe(false)
     expect(selectedClient(useClientZustand.getState()).connectionConfig.rtu.com).toBe('')
-  })
-
-  it('leaves the length the field shows', async () => {
-    const useClientZustand = await loadClient()
-    const { release } = holdAnswers('updateRegisterConfig')
-
-    const valid = useClientZustand.getState().setLength('12', true)
-    await useClientZustand.getState().setLength('0', false)
-    await release()
-
-    expect(await valid).toBe(false)
-    expect(selectedClient(useClientZustand.getState()).registerConfig.length).toBe(0)
   })
 })
 

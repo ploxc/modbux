@@ -8,9 +8,11 @@ import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import {
-  useClientZustand,
   selectedClient,
-  selectedClientUuid
+  selectedClientUuid,
+  selectedUnit,
+  shownType,
+  useClientZustand
 } from '@renderer/context/client.zustand'
 import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
@@ -18,7 +20,7 @@ import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
 import DialogHeading from '@renderer/components/shared/DialogHeading'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
-import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
+import { useLiveZustand, dataOf, getShownData, sectionOf } from '@renderer/context/live.zustand'
 import ScanCloseButton from '../scan/ScanCloseButton'
 import ScanFoundCount from '../scan/ScanFoundCount'
 import ScanGridToggle from '../scan/ScanGridToggle'
@@ -36,9 +38,14 @@ import { startRegisterScan } from './startRegisterScan'
 const UnitIdField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
-  const unitId = useClientZustand((z) => String(selectedClient(z).connectionConfig.unitId))
+  const unitId = useClientZustand((z) => String(selectedUnit(z).unitId))
   // A string or undefined, which compares equal from one read to the next.
-  const outOfRange = useClientZustand((z) => unitIdOutOfRange(selectedClient(z).connectionConfig))
+  const outOfRange = useClientZustand((z) =>
+    unitIdOutOfRange({
+      protocol: selectedClient(z).connectionConfig.protocol,
+      unitId: selectedUnit(z).unitId
+    })
+  )
 
   const setUnitId = useClientZustand.getState().setUnitId
 
@@ -132,7 +139,7 @@ const ChunkSizeField = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
   const chunkSize = useScanRegistersZustand((z) => z.chunkSize)
-  const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
+  const type = useClientZustand((z) => shownType(z))
   // The protocol's pair, stated once in `ranges.ts`: this field computed it by
   // hand and the unit id scan's Length field computed nothing at all. The floor
   // is on the blur, the way Length's is: `ScanRegistersParametersSchema` takes
@@ -198,7 +205,9 @@ const TimeoutField = meme((): JSX.Element => {
 const FoundCount = meme((): JSX.Element | null => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
-  const count = useLiveZustand((z) => dataOf(z, selectedUuid).registerData.length)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const type = useClientZustand((z) => shownType(z))
+  const count = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).registerData.length)
 
   if (!scanning) return null
 

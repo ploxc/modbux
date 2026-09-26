@@ -3,8 +3,8 @@ import {
   ClientCreate,
   ClientReadConfiguration,
   ClientRegisterConfigUpdate,
-  ClientRegisterMapping,
-  ClientState
+  ClientState,
+  ClientUnits
 } from '@shared'
 import { AppState } from '../../state'
 import { Windows } from '../../windows'
@@ -43,15 +43,14 @@ export class Clients {
 
     // A window that comes back hands main what it stored for a client main
     // holds already, maybe riding a connection. What that connection was
-    // opened on stays, without the refusal an edit gets, and the unit id goes
-    // out with each request, so it is taken either way.
-    const { connectionConfig, registerConfig } = config
-    client.updateConnectionConfig(
-      client.state.connectState === 'disconnected'
-        ? connectionConfig
-        : { unitId: connectionConfig.unitId }
-    )
+    // opened on stays, without the refusal an edit gets, and the units go out
+    // with each request, so they are taken either way.
+    const { connectionConfig, registerConfig, units } = config
+    if (client.state.connectState === 'disconnected') {
+      client.updateConnectionConfig(connectionConfig)
+    }
     client.updateRegisterConfig(registerConfig)
+    client.setUnits(units)
   }
 
   /**
@@ -121,15 +120,13 @@ export class Clients {
   }: ClientRegisterConfigUpdate): true | undefined =>
     this._configure(uuid, (_, client) => client.updateRegisterConfig(registerConfig))
 
-  public setRegisterMapping = ({
-    uuid,
-    registerMapping
-  }: ClientRegisterMapping): true | undefined =>
-    this._configure(uuid, (config) => config.setRegisterMapping(registerMapping))
+  public setUnits = ({ uuid, units }: ClientUnits): true | undefined =>
+    this._configure(uuid, (_, client) => client.setUnits(units))
 
   public setReadConfiguration = ({
     uuid,
+    unit,
     readConfiguration
   }: ClientReadConfiguration): true | undefined =>
-    this._configure(uuid, (config) => config.setReadConfiguration(readConfiguration))
+    this._configure(uuid, (_, client) => client.setReadConfiguration(unit, readConfiguration))
 }

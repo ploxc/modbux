@@ -9,16 +9,14 @@ import { MAX_WRITE_BITS } from '@shared'
 // on import. This one reads the address the toolbar last read from.
 vi.mock('@renderer/context/client.zustand', () => ({
   useClientZustand: Object.assign(
-    (selector: (state: { registerConfig: { address: number } }) => unknown) =>
-      selector({ registerConfig: { address: 0 } }),
+    (selector: (state: { section: { address: number } }) => unknown) =>
+      selector({ section: { address: 0 } }),
     { getState: () => ({}) }
   ),
   selectedClientUuid: (): string => 'the-client',
-  // The mock holds the selected client's fields flat, so the client is the state.
-  selectedClient: <State,>(state: State): State => state,
-  getSelectedClient: (): { registerConfig: { address: number } } => ({
-    registerConfig: { address: 0 }
-  })
+  // The mock holds the shown section flat, under one key.
+  shownSection: <Section,>(state: { section: Section }): Section => state.section,
+  getSelectedUnit: (): { uuid: string } => ({ uuid: 'the-unit' })
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
   useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })

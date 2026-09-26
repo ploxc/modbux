@@ -839,12 +839,14 @@ describe('a persisted mapping entry outside the map', () => {
   /**
    * The holding registers of a mapping, whether the blob holds one client flat,
    * as `dropUnmappableRegisters` is handed it, or the migration has folded it
-   * into a client under `MAIN_CLIENT_UUID`.
+   * into a client under `MAIN_CLIENT_UUID` and that client into one unit.
    */
   const holdingRegisters = (state: Record<string, unknown>): Record<string, unknown> => {
     const clients = state.clients as Record<string, Record<string, unknown>> | undefined
-    const client = clients?.[MAIN_CLIENT_UUID] ?? state
-    const mapping = client.registerMapping as Record<string, Record<string, unknown>>
+    const client = clients?.[MAIN_CLIENT_UUID]
+    const [unit] = (client?.units ?? []) as Record<string, unknown>[]
+    const holder = unit ?? state
+    const mapping = holder.registerMapping as Record<string, Record<string, unknown>>
     return mapping.holding_registers as Record<string, unknown>
   }
 

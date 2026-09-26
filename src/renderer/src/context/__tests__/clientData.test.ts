@@ -12,8 +12,8 @@ import {
 } from '@shared'
 import type { ClientState } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
-import { shownData } from './shownData'
-import { getDefaultClient } from '../client.zustand.helpers'
+import { shownData, shownSectionData } from './shownData'
+import { getDefaultClient, MAIN_UNIT_UUID } from '../client.zustand.helpers'
 
 vi.mock('notistack', () => ({ enqueueSnackbar: vi.fn() }))
 
@@ -23,10 +23,23 @@ const load = async (): Promise<{
   useClientZustand: typeof import('../client.zustand').useClientZustand
   useLiveZustand: typeof import('../live.zustand').useLiveZustand
   getShownData: typeof import('../live.zustand').getShownData
+  getShownSection: typeof import('../live.zustand').getShownSection
 }> => {
   const { useClientZustand } = await import('../client.zustand')
-  const { useLiveZustand, getShownData } = await import('../live.zustand')
-  return { useClientZustand, useLiveZustand, getShownData }
+  const { useLiveZustand, getShownData, getShownSection } = await import('../live.zustand')
+  return { useClientZustand, useLiveZustand, getShownData, getShownSection }
+}
+
+const type = 'holding_registers'
+
+/** The uuid of the one unit a client made by `addClient` holds. */
+const firstUnitOf = (
+  useClientZustand: typeof import('../client.zustand').useClientZustand,
+  uuid: string
+): string => {
+  const [unit] = useClientZustand.getState().clients[uuid]?.units ?? []
+  if (!unit) throw new Error(`client ${uuid} holds no unit`)
+  return unit.uuid
 }
 
 beforeEach(() => {
@@ -37,17 +50,27 @@ beforeEach(() => {
 
 describe('an event about a client the view does not show', () => {
   it('lands under that client and leaves the one shown alone', async () => {
-    const { useClientZustand, useLiveZustand, getShownData } = await load()
+    const { useClientZustand, useLiveZustand, getShownData, getShownSection } = await load()
     const other = useClientZustand.getState().addClient()
+    const unit = firstUnitOf(useClientZustand, other)
     useClientZustand.getState().setSelectedUuid(MAIN_CLIENT_UUID)
 
     fireEvent('client_state', { uuid: other, clientState: connected })
-    fireEvent('register_data', { uuid: other, registerData: [getDummyRegisterData(5)] })
+    fireEvent('register_data', {
+      uuid: other,
+      unit,
+      type,
+      registerData: [getDummyRegisterData(5)]
+    })
 
     expect(getShownData().clientState.connectState).toBe('disconnected')
-    expect(getShownData().registerData).toEqual([])
+    expect(getShownSection().registerData).toEqual([])
     expect(shownData(useLiveZustand, other).clientState.connectState).toBe('connected')
-    expect(shownData(useLiveZustand, other).registerData.map((row) => row.id)).toEqual([5])
+    expect(
+      shownSectionData(useLiveZustand, { uuid: other, unit, type }).registerData.map(
+        (row) => row.id
+      )
+    ).toEqual([5])
   })
 
   it('is what the view shows once that client is selected', async () => {
@@ -91,24 +114,32 @@ describe('rows two scans find at once', () => {
     try {
       const { useClientZustand, useLiveZustand } = await load()
       const other = useClientZustand.getState().addClient()
+      const unit = firstUnitOf(useClientZustand, other)
       const scanning: ClientState = { ...connected, scanningRegisters: true }
       fireEvent('client_state', { uuid: MAIN_CLIENT_UUID, clientState: scanning })
       fireEvent('client_state', { uuid: other, clientState: scanning })
 
       fireEvent('register_data', {
         uuid: MAIN_CLIENT_UUID,
+        unit: MAIN_UNIT_UUID,
+        type,
         registerData: [getDummyRegisterData(1)]
       })
-      fireEvent('register_data', { uuid: other, registerData: [getDummyRegisterData(2)] })
+      fireEvent('register_data', {
+        uuid: other,
+        unit,
+        type,
+        registerData: [getDummyRegisterData(2)]
+      })
       fireEvent('client_state', { uuid: other, clientState: connected })
 
-      const ids = (uuid: string): number[] =>
-        shownData(useLiveZustand, uuid).registerData.map((row) => row.id)
-      expect(ids(other)).toEqual([2])
-      expect(ids(MAIN_CLIENT_UUID)).toEqual([])
+      const ids = (uuid: string, unit: string): number[] =>
+        shownSectionData(useLiveZustand, { uuid, unit, type }).registerData.map((row) => row.id)
+      expect(ids(other, unit)).toEqual([2])
+      expect(ids(MAIN_CLIENT_UUID, MAIN_UNIT_UUID)).toEqual([])
 
       await vi.advanceTimersByTimeAsync(100)
-      expect(ids(MAIN_CLIENT_UUID)).toEqual([1])
+      expect(ids(MAIN_CLIENT_UUID, MAIN_UNIT_UUID)).toEqual([1])
     } finally {
       vi.useRealTimers()
     }

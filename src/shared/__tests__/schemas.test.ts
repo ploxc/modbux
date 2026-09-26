@@ -1,12 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import {
+  ClientSectionSchema,
+  ClientUnitSchema,
   ConnectionConfigSchema,
   RegisterConfigSchema,
   RegisterMapObjectSchema,
   WriteParametersSchema,
   unitIdOutOfRange
 } from '../types/client'
-import { defaultConnectionConfig, defaultRegisterConfig } from '../default'
+import {
+  defaultConnectionConfig,
+  defaultRegisterConfig,
+  defaultSection,
+  newClientUnit
+} from '../default'
 import { BitColorSchema, BitMapEntrySchema, BitMapConfigSchema } from '../types/bitmap'
 import { RegisterParamsSchema, RemoveRegisterParamsSchema } from '../types/server'
 import { DataBitsSchema, SerialPortOptionsSchema, StopBitsSchema } from '../types/serial'
@@ -204,7 +211,6 @@ describe('BitMapConfigSchema', () => {
 })
 
 describe('ConnectionConfigSchema', () => {
-  const withUnitId = (unitId: unknown): unknown => ({ ...defaultConnectionConfig, unitId })
   const withPort = (port: unknown): unknown => ({
     ...defaultConnectionConfig,
     tcp: {
@@ -215,16 +221,6 @@ describe('ConnectionConfigSchema', () => {
 
   it('accepts the config the app starts on', () => {
     expect(ConnectionConfigSchema.safeParse(defaultConnectionConfig).success).toBe(true)
-  })
-
-  it.each([0, 1, 255])('accepts unit id %s', (unitId) => {
-    expect(ConnectionConfigSchema.safeParse(withUnitId(unitId)).success).toBe(true)
-  })
-
-  // 3.7 is in the list because `writeUInt8` truncates it to 3 rather than
-  // throwing: an unchecked fractional id polls the wrong unit and says nothing.
-  it.each([256, 999, -5, 3.7, Infinity])('refuses unit id %s', (unitId) => {
-    expect(ConnectionConfigSchema.safeParse(withUnitId(unitId)).success).toBe(false)
   })
 
   it.each([0, 502, 65535])('accepts port %s', (port) => {
@@ -253,14 +249,57 @@ describe('ConnectionConfigSchema', () => {
   })
 
   // `update_connection_config` guards on the partial, which is the door a
-  // renderer reaches. Both ranges have to survive `deepPartial`.
-  it('carries both ranges into the partial the ipc channel guards on', () => {
+  // renderer reaches. The port range has to survive `deepPartial`.
+  it('carries the port range into the partial the ipc channel guards on', () => {
     const partial = ConnectionConfigSchema.deepPartial()
 
-    expect(partial.safeParse({ unitId: 255 }).success).toBe(true)
-    expect(partial.safeParse({ unitId: 999 }).success).toBe(false)
     expect(partial.safeParse({ tcp: { options: { port: 502 } } }).success).toBe(true)
     expect(partial.safeParse({ tcp: { options: { port: 65536 } } }).success).toBe(false)
+  })
+})
+
+describe('ClientUnitSchema', () => {
+  const withUnitId = (unitId: unknown): unknown => ({ ...newClientUnit('unit', 1), unitId })
+
+  it('accepts the unit a new client starts with', () => {
+    expect(ClientUnitSchema.safeParse(newClientUnit('unit', 1)).success).toBe(true)
+  })
+
+  it.each([0, 1, 255])('accepts unit id %s', (unitId) => {
+    expect(ClientUnitSchema.safeParse(withUnitId(unitId)).success).toBe(true)
+  })
+
+  // 3.7 is in the list because `writeUInt8` truncates it to 3 rather than
+  // throwing: an unchecked fractional id polls the wrong unit and says nothing.
+  it.each([256, 999, -5, 3.7, Infinity])('refuses unit id %s', (unitId) => {
+    expect(ClientUnitSchema.safeParse(withUnitId(unitId)).success).toBe(false)
+  })
+})
+
+describe('ClientSectionSchema', () => {
+  const withField = (field: string, value: unknown): unknown => ({
+    ...defaultSection(),
+    [field]: value
+  })
+
+  // A cleared length field is sent as 0, which main refuses to read, so a
+  // persisted 0 is a shipped state and has to survive a restart.
+  it('accepts the length a cleared field leaves behind', () => {
+    expect(ClientSectionSchema.safeParse(withField('length', 0)).success).toBe(true)
+  })
+
+  // 1e6 is the one that reached `buf.writeUInt16BE` and threw a Node range
+  // error into a snackbar.
+  it.each([1e6, 65536, -5, 1.5])('refuses length %s', (length) => {
+    expect(ClientSectionSchema.safeParse(withField('length', length)).success).toBe(false)
+  })
+
+  it.each([0, 65535])('accepts address %s', (address) => {
+    expect(ClientSectionSchema.safeParse(withField('address', address)).success).toBe(true)
+  })
+
+  it.each([65536, -1, 1.5])('refuses address %s', (address) => {
+    expect(ClientSectionSchema.safeParse(withField('address', address)).success).toBe(false)
   })
 })
 
@@ -274,32 +313,12 @@ describe('RegisterConfigSchema', () => {
     expect(RegisterConfigSchema.safeParse(defaultRegisterConfig).success).toBe(true)
   })
 
-  // Emptying the length field keeps 0 in the store and marks it invalid, so a
-  // persisted 0 is a shipped state and has to survive a restart.
-  it('accepts the length an emptied field leaves behind', () => {
-    expect(RegisterConfigSchema.safeParse(withField('length', 0)).success).toBe(true)
-  })
-
-  // 1e6 is the one that reached `buf.writeUInt16BE` and threw a Node range
-  // error into a snackbar.
-  it.each([1e6, 65536, -5, 1.5])('refuses length %s', (length) => {
-    expect(RegisterConfigSchema.safeParse(withField('length', length)).success).toBe(false)
-  })
-
-  it.each([0, 65535])('accepts address %s', (address) => {
-    expect(RegisterConfigSchema.safeParse(withField('address', address)).success).toBe(true)
-  })
-
-  it.each([65536, -1, 1.5])('refuses address %s', (address) => {
-    expect(RegisterConfigSchema.safeParse(withField('address', address)).success).toBe(false)
-  })
-
-  it.each(['pollRate', 'timeout'])('accepts %s at both ends of the slider', (field) => {
+  it.each(['pollRate', 'timeout'])('accepts %s at both ends of the select', (field) => {
     expect(RegisterConfigSchema.safeParse(withField(field, 1000)).success).toBe(true)
     expect(RegisterConfigSchema.safeParse(withField(field, 10000)).success).toBe(true)
   })
 
-  it.each(['pollRate', 'timeout'])('refuses %s off the slider', (field) => {
+  it.each(['pollRate', 'timeout'])('refuses %s off the select', (field) => {
     expect(RegisterConfigSchema.safeParse(withField(field, 0)).success).toBe(false)
     expect(RegisterConfigSchema.safeParse(withField(field, 1500)).success).toBe(false)
     expect(RegisterConfigSchema.safeParse(withField(field, 11000)).success).toBe(false)
@@ -312,10 +331,6 @@ describe('RegisterConfigSchema', () => {
   it('carries the ranges into the partial the ipc channel guards on', () => {
     const partial = RegisterConfigSchema.deepPartial()
 
-    expect(partial.safeParse({ length: 10 }).success).toBe(true)
-    expect(partial.safeParse({ length: 1e6 }).success).toBe(false)
-    expect(partial.safeParse({ address: 65535 }).success).toBe(true)
-    expect(partial.safeParse({ address: 65536 }).success).toBe(false)
     expect(partial.safeParse({ pollRate: 10000 }).success).toBe(true)
     expect(partial.safeParse({ pollRate: 1500 }).success).toBe(false)
     expect(partial.safeParse({ timeout: 11000 }).success).toBe(false)

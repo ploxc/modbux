@@ -20,9 +20,11 @@ import BitWidthButtons from '../BitWidthButtons'
 import { patchSelectedClient } from '@renderer/context/__tests__/selectedClient'
 
 const seed = (type: RegisterType, advancedMode = false, show64BitValues = false): void => {
-  patchSelectedClient(useClientZustand, {
-    registerConfig: { ...getSelectedClient().registerConfig, type, advancedMode, show64BitValues }
-  })
+  patchSelectedClient(
+    useClientZustand,
+    { registerConfig: { ...getSelectedClient().registerConfig, advancedMode, show64BitValues } },
+    { shownType: type }
+  )
 }
 
 describe('the 32 and 64 buttons', () => {

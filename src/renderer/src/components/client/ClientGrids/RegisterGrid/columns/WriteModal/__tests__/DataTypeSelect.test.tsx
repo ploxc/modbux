@@ -6,15 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Address 10 is mapped as a float and address 11 is not mapped at all, which is
 // the pair the dialog has to tell apart.
 vi.mock('@renderer/context/client.zustand', () => {
-  const client = {
-    registerMapping: { holding_registers: { 10: { dataType: 'float' } } },
-    registerConfig: { type: 'holding_registers' }
-  }
+  const unit = { registerMapping: { holding_registers: { 10: { dataType: 'float' } } } }
   return {
-    useClientZustand: Object.assign(() => undefined, { getState: () => client }),
-    // The mock holds the selected client's fields flat, so the client is the state.
-    selectedClient: <State,>(state: State): State => state,
-    getSelectedClient: (): typeof client => client
+    useClientZustand: Object.assign(() => undefined, { getState: () => ({}) }),
+    getSelectedUnit: (): typeof unit => unit,
+    getShownType: (): string => 'holding_registers'
   }
 })
 vi.mock('@renderer/context/live.zustand', () => ({

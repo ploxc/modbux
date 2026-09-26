@@ -1,5 +1,7 @@
 import {
   BooleanRegisters,
+  ClientSection,
+  ClientUnit,
   ConnectionConfig,
   Parity,
   RegisterConfig,
@@ -20,11 +22,12 @@ import { PersistedServer } from './server.zustand.types'
  * holding `undefined` would be put back as `none` and never compare equal.
  */
 export type ClientFieldValues = RegisterConfig &
-  Omit<SerialPortOptions, 'parity'> & {
+  Omit<SerialPortOptions, 'parity'> &
+  Pick<ClientUnit, 'unitId' | 'littleEndian' | 'addressBase'> &
+  ClientSection & {
     parity: Parity
     name: string
     protocol: ConnectionConfig['protocol']
-    unitId: ConnectionConfig['unitId']
     host: string
     port: number
     com: string
@@ -33,14 +36,21 @@ export type ClientFieldValues = RegisterConfig &
 export type ClientField = keyof ClientFieldValues
 
 /**
- * One field, the value it had before the run of writes this step stands for,
- * of the client under `uuid`. Every client step names its client, because the
- * stack holds the steps of every client the view has shown.
+ * Where the view stood when a step was taken: the client, the unit and the
+ * register type it showed. Every client step carries it, because the stack
+ * holds the steps of every client, unit and type the view has shown, and a
+ * replay shows it again before it writes.
  */
+export interface ClientStepView {
+  uuid: string
+  unit: string
+  type: RegisterType
+}
+
+/** One field, the value it had before the run of writes this step stands for. */
 export type ClientFieldStepMap = {
-  [Field in ClientField]: {
+  [Field in ClientField]: ClientStepView & {
     kind: 'field'
-    uuid: string
     field: Field
     value: ClientFieldValues[Field]
   }
@@ -64,10 +74,8 @@ export type ClientFieldStep = ClientFieldStepOf
  * The entry rather than the column, because setting a data type of `none`
  * deletes the entry and every other column in it goes with it.
  */
-export interface ClientMappingStep {
+export interface ClientMappingStep extends ClientStepView {
   kind: 'mapping'
-  uuid: string
-  type: RegisterType
   register: number
   column: keyof RegisterMapValue
   value: RegisterMapValue | undefined
@@ -80,9 +88,8 @@ export interface ClientConfiguration {
   registerMapping: RegisterMapping
 }
 
-export interface ClientConfigurationStep {
+export interface ClientConfigurationStep extends ClientStepView {
   kind: 'configuration'
-  uuid: string
   value: ClientConfiguration
 }
 

@@ -2,14 +2,20 @@ import Paper from '@mui/material/Paper'
 import { panelShadow } from '@renderer/theme'
 import Typography from '@mui/material/Typography'
 import {
-  useClientZustand,
-  selectedClient,
-  selectedSession,
-  selectedClientUuid
+  readsConfiguration,
+  selectedUnit,
+  shownType,
+  useClientZustand
 } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
+import {
+  useLiveZustand,
+  dataOf,
+  getShownSection,
+  sectionOf,
+  showMapping
+} from '@renderer/context/live.zustand'
 import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
@@ -22,10 +28,15 @@ import {
   GridRowHeightParams,
   GridRowHeightReturnValue
 } from '@mui/x-data-grid/models'
-import { BITMAP_DATATYPE, DataTypeSchema, RegisterData, scalableDataTypes } from '@shared'
+import {
+  BITMAP_DATATYPE,
+  DataTypeSchema,
+  RegisterData,
+  RegisterTypeSchema,
+  scalableDataTypes
+} from '@shared'
 import z from 'zod'
 import { alpha } from '@mui/material/styles'
-import { showMapping } from '@renderer/context/live.zustand'
 import BitMapRow from './BitMapRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
@@ -69,17 +80,17 @@ const EditedRowSchema = z.object({
 
 const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  const registerData = useLiveZustand((z) => dataOf(z, selectedUuid).registerData)
-  const registerMapping = useClientZustand(
-    (z) => selectedClient(z).registerMapping[selectedClient(z).registerConfig.type]
-  )
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const type = useClientZustand((z) => shownType(z))
+  const registerData = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).registerData)
+  const registerMapping = useClientZustand((z) => selectedUnit(z).registerMapping[shownType(z)])
   const columns = useRegisterGridColumns()
 
   const apiRef = useGridApiRef()
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
-  const readConfiguration = useClientZustand((z) => selectedSession(z).readConfiguration)
+  const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   // While a scan fills the grid, the rows are there to watch, not to work on:
   // a cell put into edit mode or a column menu opened over data that is still
@@ -113,24 +124,29 @@ const RegisterGridContent = meme((): JSX.Element => {
     apiRef.current?.resetRowHeights()
   }, [apiRef, expandedBitmap, detailHeight])
 
-  const prevReadConfigRef = useRef(readConfiguration)
+  // The unit the switch was last seen on, so turning it off clears the unit it
+  // was on, and moving to another unit clears nothing.
+  const previous = useRef({ readConfiguration, unit })
   useEffect(() => {
     const filterModel: GridFilterModel = {
       items: [{ id: 1, field: 'dataType', operator: 'not', value: 'none' }],
       logicOperator: GridLogicOperator.And
     }
     if (readConfiguration) {
-      showMapping()
+      // Each type keeps its rows, so a type a poll already filled keeps them.
+      if (getShownSection().registerData.length === 0) showMapping(selectedUuid, unit, type)
       apiRef.current?.setFilterModel(filterModel)
     } else {
       // Only clear data when transitioning from ON to OFF, not on initial mount
-      if (prevReadConfigRef.current) {
-        useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
+      if (previous.current.readConfiguration && previous.current.unit === unit) {
+        for (const each of RegisterTypeSchema.options) {
+          useLiveZustand.getState().setRegisterData(selectedUuid, unit, each, [])
+        }
       }
       apiRef.current?.setFilterModel({ items: [] })
     }
-    prevReadConfigRef.current = readConfiguration
-  }, [apiRef, readConfiguration])
+    previous.current = { readConfiguration, unit }
+  }, [apiRef, readConfiguration, selectedUuid, unit, type])
 
   const handleRowUpdate = useCallback(
     (newRow: RegisterData, oldRow: RegisterData): RegisterData => {

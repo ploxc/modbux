@@ -8,7 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // on import. The buttons read neither.
 vi.mock('@renderer/context/client.zustand', () => ({
   useClientZustand: Object.assign(() => undefined, { getState: () => ({}) }),
-  selectedClientUuid: (): string => 'the-client'
+  selectedClientUuid: (): string => 'the-client',
+  getSelectedUnit: (): { uuid: string } => ({ uuid: 'the-unit' })
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
   useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
@@ -36,6 +37,7 @@ describe('the register write buttons', () => {
 
     expect(mockWrite).toHaveBeenCalledWith({
       uuid: 'the-client',
+      unit: 'the-unit',
       parameters: {
         address: 4,
         dataType: 'int16',
@@ -83,6 +85,7 @@ describe('the register write buttons', () => {
 
     expect(mockWrite).toHaveBeenCalledWith({
       uuid: 'the-client',
+      unit: 'the-unit',
       parameters: {
         address: 4,
         dataType: 'int16',

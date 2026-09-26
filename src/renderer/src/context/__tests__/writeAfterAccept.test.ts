@@ -8,8 +8,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, MAIN_CLIENT_UUID } from '@shared'
 import type { RegisterData } from '@shared'
 import { recordApiCalls, stubRenderer, type ApiCall, clientPayload } from './stubRenderer'
-import { selectedClient, selectedSession } from '../client.zustand.helpers'
-import { shownData } from './shownData'
+import {
+  MAIN_UNIT_UUID,
+  selectedClient,
+  selectedSession,
+  selectedUnit,
+  shownSection
+} from '../client.zustand.helpers'
+import { shownSectionData } from './shownData'
 
 const load = async (): Promise<{
   clientZustand: typeof import('../client.zustand')
@@ -42,11 +48,13 @@ describe('a payload the boundary refuses', () => {
     const { useClientZustand } = clientZustand
 
     await useClientZustand.getState().setUnitId('7')
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
     await useClientZustand.getState().setUnitId('1,5')
 
-    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
-    expect(shownData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
+    expect(selectedUnit(useClientZustand.getState()).unitId).toBe(7)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
   })
 
   // `Number('')` is 0, and unit 0 is the broadcast address on RTU.
@@ -60,7 +68,7 @@ describe('a payload the boundary refuses', () => {
     expect(await useClientZustand.getState().setUnitId('')).toBe(false)
 
     expect(calls).toEqual([])
-    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
+    expect(selectedUnit(useClientZustand.getState()).unitId).toBe(7)
   })
 
   it('still sends a unit id of 0 typed as one', async () => {
@@ -70,20 +78,24 @@ describe('a payload the boundary refuses', () => {
 
     expect(await useClientZustand.getState().setUnitId('0')).toBe(true)
 
-    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(0)
+    expect(selectedUnit(useClientZustand.getState()).unitId).toBe(0)
   })
 
   it('leaves the address and the rows read at it', async () => {
     const { clientZustand, liveZustand } = await load()
     const { useClientZustand } = clientZustand
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
 
     await useClientZustand.getState().setAddress('40')
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
     await useClientZustand.getState().setAddress('4,0')
 
-    expect(selectedClient(useClientZustand.getState()).registerConfig.address).toBe(40)
-    expect(shownData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
+    expect(shownSection(useClientZustand.getState()).address).toBe(40)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
   })
 })
 
@@ -92,14 +104,14 @@ describe('a payload the boundary takes', () => {
   // are about another device.
   it('writes the unit id and drops the rows the old one answered', async () => {
     const { clientZustand, liveZustand } = await load()
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
 
     await clientZustand.useClientZustand.getState().setUnitId('7')
 
-    expect(selectedClient(clientZustand.useClientZustand.getState()).connectionConfig.unitId).toBe(
-      7
-    )
-    expect(shownData(liveZustand.useLiveZustand).registerData).toEqual([])
+    expect(selectedUnit(clientZustand.useClientZustand.getState()).unitId).toBe(7)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toEqual([])
   })
 
   // A mount of the masked field hands the setter the id the store already
@@ -109,13 +121,15 @@ describe('a payload the boundary takes', () => {
     const { clientZustand, liveZustand } = await load()
     const { useClientZustand } = clientZustand
     await useClientZustand.getState().setUnitId('7')
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
     const calls: ApiCall[] = []
     recordApiCalls(calls)
 
     await useClientZustand.getState().setUnitId('7')
 
-    expect(shownData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
     expect(calls).toEqual([])
   })
 
@@ -124,7 +138,9 @@ describe('a payload the boundary takes', () => {
   it('keeps the rows while a poll is running', async () => {
     const { clientZustand, liveZustand } = await load()
     const { useClientZustand } = clientZustand
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
     liveZustand.useLiveZustand.getState().setClientState(MAIN_CLIENT_UUID, {
       ...defaultClientState,
       connectState: 'connected',
@@ -133,28 +149,28 @@ describe('a payload the boundary takes', () => {
 
     await useClientZustand.getState().setUnitId('7')
 
-    expect(selectedClient(useClientZustand.getState()).connectionConfig.unitId).toBe(7)
-    expect(shownData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
+    expect(selectedUnit(useClientZustand.getState()).unitId).toBe(7)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toHaveLength(1)
   })
 
   it('writes the address and drops the rows read at the old one', async () => {
     const { clientZustand, liveZustand } = await load()
-    liveZustand.useLiveZustand.getState().setRegisterData(MAIN_CLIENT_UUID, rows)
+    liveZustand.useLiveZustand
+      .getState()
+      .setRegisterData(MAIN_CLIENT_UUID, MAIN_UNIT_UUID, 'holding_registers', rows)
 
     await clientZustand.useClientZustand.getState().setAddress('40')
 
-    expect(selectedClient(clientZustand.useClientZustand.getState()).registerConfig.address).toBe(
-      40
-    )
-    expect(shownData(liveZustand.useLiveZustand).registerData).toEqual([])
+    expect(shownSection(clientZustand.useClientZustand.getState()).address).toBe(40)
+    expect(shownSectionData(liveZustand.useLiveZustand).registerData).toEqual([])
   })
 })
 
 describe('a value the field marks invalid', () => {
   /**
-   * The host, the COM port and the length are the three the field reads back
-   * out of the store, so they are written without being sent and the input
-   * keeps what was typed.
+   * The host and the COM port are the two the field reads back out of the
+   * store, so they are written without being sent and the input keeps what
+   * was typed.
    */
   it('keeps the half-typed host in the store and marks it invalid', async () => {
     const { clientZustand } = await load()
@@ -196,13 +212,20 @@ describe('a value the field marks invalid', () => {
       ['updateConnectionConfig', { rtu: { com: 'COM9' } }]
     ])
   })
+})
 
-  it('keeps an empty length in the store and marks it invalid', async () => {
+// A cleared Length field is a length of 0, which the schema takes and main
+// refuses to read, so it goes out like any other.
+describe('a cleared length', () => {
+  it('is written and sent as a length of 0', async () => {
     const { clientZustand } = await load()
     const { useClientZustand } = clientZustand
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
 
-    await useClientZustand.getState().setLength('', false)
+    expect(await useClientZustand.getState().setLength('')).toBe(true)
 
-    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(false)
+    expect(shownSection(useClientZustand.getState()).length).toBe(0)
+    expect(calls.map(({ method }) => method)).toEqual(['setUnits'])
   })
 })

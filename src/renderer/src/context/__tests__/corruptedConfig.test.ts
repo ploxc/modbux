@@ -6,9 +6,9 @@
 // rest of the file with it: no init, no event listeners, and no render, so the
 // window came up blank with no UI left to clear the bad config from.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CURRENT_CLIENT_ZUSTAND_VERSION } from '@shared'
 import { stubRenderer } from './stubRenderer'
-import { selectedClient } from '../client.zustand.helpers'
+import { CURRENT_CLIENT_ZUSTAND_VERSION, MAIN_CLIENT_UUID, newClientUnit } from '@shared'
+import { MAIN_UNIT_UUID, selectedClient, selectedUnit } from '../client.zustand.helpers'
 
 beforeEach(() => {
   vi.resetModules()
@@ -22,6 +22,17 @@ const mapping = {
   discrete_inputs: {},
   input_registers: {},
   holding_registers: { '5': { dataType: 'uint16', comment: 'Feeder A' } }
+}
+
+/** The default client with a broken connection config, and a unit holding `mapping`. */
+const clientsWithBrokenConnection = {
+  selectedUuid: MAIN_CLIENT_UUID,
+  clients: {
+    [MAIN_CLIENT_UUID]: {
+      connectionConfig: {},
+      units: [{ ...newClientUnit(MAIN_UNIT_UUID, 1), registerMapping: mapping }]
+    }
+  }
 }
 
 describe('a persisted client config with one field that fails its schema', () => {
@@ -62,7 +73,7 @@ describe('a persisted client config with one field that fails its schema', () =>
     localStorage.setItem(
       'client.zustand',
       JSON.stringify({
-        state: { connectionConfig: {}, registerMapping: mapping },
+        state: clientsWithBrokenConnection,
         version: CURRENT_CLIENT_ZUSTAND_VERSION
       })
     )
@@ -70,7 +81,7 @@ describe('a persisted client config with one field that fails its schema', () =>
     const { useClientZustand } = await import('../client.zustand')
 
     expect(
-      selectedClient(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
+      selectedUnit(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
     ).toBe('Feeder A')
   })
 
@@ -99,7 +110,7 @@ describe('a persisted client config from a newer version', () => {
   it('keeps the fields that still fit and says where it came from', async () => {
     localStorage.setItem(
       'client.zustand',
-      JSON.stringify({ state: { registerMapping: mapping, connectionConfig: {} }, version: 99 })
+      JSON.stringify({ state: clientsWithBrokenConnection, version: 99 })
     )
 
     const { useClientZustand } = await import('../client.zustand')
@@ -108,7 +119,7 @@ describe('a persisted client config from a newer version', () => {
     expect(reset?.savedByNewerVersion).toBe(true)
     expect(reset?.fields).toEqual(['connectionConfig'])
     expect(
-      selectedClient(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
+      selectedUnit(useClientZustand.getState()).registerMapping.holding_registers[5]?.comment
     ).toBe('Feeder A')
   })
 

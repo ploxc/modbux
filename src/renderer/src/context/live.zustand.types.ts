@@ -1,9 +1,22 @@
-import { AddressGroup, ClientState, RegisterData, ScanUnitIDResult, Transaction } from '@shared'
+import {
+  AddressGroup,
+  ClientState,
+  RegisterData,
+  RegisterType,
+  ScanUnitIDResult,
+  Transaction
+} from '@shared'
+
+/** The rows of one unit's register type, and the groups they were read in. */
+export interface SectionData {
+  registerData: RegisterData[]
+  addressGroups: AddressGroup[]
+}
 
 /** What main pushed about one client, and the rows the view drew from it. */
 export interface ClientData {
-  registerData: RegisterData[]
-  addressGroups: AddressGroup[]
+  /** Each unit's register types, keyed by `sectionKey`. */
+  sections: Record<string, SectionData>
   clientState: ClientState
   transactions: Transaction[]
   lastSuccessfulTransactionMillis: number | null
@@ -16,9 +29,9 @@ export interface LiveZustand {
   clients: Record<string, ClientData>
 
   // Register data
-  setRegisterData: (uuid: string, data: RegisterData[]) => void
-  appendRegisterData: (uuid: string, data: RegisterData[]) => void
-  setAddressGroups: (uuid: string, groups: AddressGroup[]) => void
+  setRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
+  appendRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
+  setAddressGroups: (uuid: string, unit: string, type: RegisterType, groups: AddressGroup[]) => void
 
   // State
   setClientState: (uuid: string, clientState: ClientState) => void

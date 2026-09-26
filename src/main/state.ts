@@ -1,12 +1,13 @@
 import {
+  ClientUnit,
   ConnectionConfig,
   RegisterConfig,
   DeepPartial,
   defaultConnectionConfig,
-  defaultRegisterConfig,
-  RegisterMapping
+  defaultRegisterConfig
 } from '@shared'
 import merge from 'deepmerge'
+import { isDeepStrictEqual } from 'util'
 
 /**
  * The same value without the keys whose value is `undefined`.
@@ -37,26 +38,29 @@ export class AppState {
   // that export, until the first update replaces the tree.
   private _connectionConfig = structuredClone(defaultConnectionConfig)
   private _registerConfig = structuredClone(defaultRegisterConfig)
-  private _registerMapping?: RegisterMapping
-  private _readConfiguration = false
-  private _readGeneration = 0
+  private _units: ClientUnit[] = []
+  private _readConfiguration = new Set<string>()
+  private _readGenerations = new Map<string, number>()
 
   /**
-   * How often what a read is addressed to has changed.
+   * How often what a read of `unit` is addressed to has changed.
    *
-   * A read puts its requests on the wire under the unit id, register type,
-   * address and length this state held when it started, and read configuration
-   * decides whether the mapping or the toolbar's block is what it asks for.
-   * Change one of those while the read is in flight and the reply describes the
-   * old one, so `_read` takes this number before its first request and drops
-   * what comes back once it has moved.
+   * A read puts its requests on the wire under the unit id, the sections and
+   * the mapping this state held when it started, and read configuration decides
+   * whether the mapping or a section's window is what it asks for. Change one
+   * of those while the read is in flight and the reply describes the old one,
+   * so a read takes this number before its first request and drops what comes
+   * back once it has moved.
    *
-   * The rest of both configs is not counted. A poll rate, a timeout or an
-   * address base changes what the grid does with a read or when the next one
-   * goes out, not what this one asked the device.
+   * A unit's name, byte order and address base are not counted: they change
+   * what the grid does with a read, not what this one asked the device.
    */
-  get readGeneration(): number {
-    return this._readGeneration
+  readGeneration(unit: string): number {
+    return this._readGenerations.get(unit) ?? 0
+  }
+
+  private _bump(unit: string): void {
+    this._readGenerations.set(unit, this.readGeneration(unit) + 1)
   }
 
   /** The connection config `config` would leave, without leaving it. */
@@ -68,22 +72,34 @@ export class AppState {
   }
 
   public updateConnectionConfig(config: DeepPartial<ConnectionConfig>): void {
-    if (config.unitId !== undefined) this._readGeneration++
     this._connectionConfig = this.connectionConfigAfter(config)
   }
 
   public updateRegisterConfig(config: DeepPartial<RegisterConfig>): void {
-    if (config.type !== undefined || config.address !== undefined || config.length !== undefined)
-      this._readGeneration++
     this._registerConfig = merge<RegisterConfig, DeepPartial<RegisterConfig>>(
       this._registerConfig,
       withoutUndefined(config)
     )
   }
 
-  public setRegisterMapping(mapping: RegisterMapping): void {
-    this._readGeneration++
-    this._registerMapping = mapping
+  /**
+   * Replace the units, moving the read generation of each whose unit id,
+   * sections or mapping changed, and of each that left. A unit that left is
+   * out of read configuration too.
+   */
+  public setUnits(units: ClientUnit[]): void {
+    const before = new Map(this._units.map((unit) => [unit.uuid, unit]))
+    for (const unit of units) {
+      const previous = before.get(unit.uuid)
+      before.delete(unit.uuid)
+      if (previous && isDeepStrictEqual(addressed(previous), addressed(unit))) continue
+      this._bump(unit.uuid)
+    }
+    for (const left of before.keys()) {
+      this._bump(left)
+      this._readConfiguration.delete(left)
+    }
+    this._units = units
   }
 
   get connectionConfig(): ConnectionConfig {
@@ -94,16 +110,29 @@ export class AppState {
     return this._registerConfig
   }
 
-  get registerMapping(): RegisterMapping | undefined {
-    return this._registerMapping
+  get units(): ClientUnit[] {
+    return this._units
   }
 
-  public setReadConfiguration(value: boolean): void {
-    this._readGeneration++
-    this._readConfiguration = value
+  /** The unit under `uuid`, or undefined for a uuid no unit has. */
+  unit(uuid: string): ClientUnit | undefined {
+    return this._units.find((unit) => unit.uuid === uuid)
   }
 
-  get readConfiguration(): boolean {
-    return this._readConfiguration
+  public setReadConfiguration(unit: string, value: boolean): void {
+    this._bump(unit)
+    if (value) this._readConfiguration.add(unit)
+    else this._readConfiguration.delete(unit)
+  }
+
+  readConfiguration(unit: string): boolean {
+    return this._readConfiguration.has(unit)
   }
 }
+
+/** What a read of a unit is addressed to, the part `readGeneration` counts. */
+const addressed = ({ unitId, sections, registerMapping }: ClientUnit): unknown => ({
+  unitId,
+  sections,
+  registerMapping
+})

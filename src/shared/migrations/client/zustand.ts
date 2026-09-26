@@ -3,10 +3,10 @@ import { RegisterTypeSchema } from '../../types/register'
 import { dropUnmappableRegisters, isRecord, objectValues, repairPersistedParity } from '../shared'
 
 /**
- * One number above what the last release wrote. 2.3.0 shipped 2, under the name
- * `CURRENT_ROOT_ZUSTAND_VERSION` and the key `root.zustand`.
+ * 2.3.0 shipped 2, under the name `CURRENT_ROOT_ZUSTAND_VERSION` and the key
+ * `root.zustand`. 3 keyed clients by uuid, and 4 put each into units.
  */
-export const CURRENT_CLIENT_ZUSTAND_VERSION = 3
+export const CURRENT_CLIENT_ZUSTAND_VERSION = 4
 
 /** Where the client store keeps its state. */
 export const CLIENT_ZUSTAND_STORAGE_KEY = 'client.zustand'
@@ -39,11 +39,19 @@ export function migrateClientState(
   // where a parity this enum does not name comes from. Without it one such
   // value costs `repairPersisted` the whole field, and `registerMapping` is
   // the one thing in this store built by hand.
+  //
+  // v3→v4: each client into one unit, which `foldClientIntoUnits` keys off the
+  // shape, so the mapping is cleaned of unmappable entries on the client first
+  // and on each unit after.
   if (version !== CURRENT_CLIENT_ZUSTAND_VERSION) {
     foldClientIntoRecord(state)
     for (const client of objectValues(state.clients)) {
       repairPersistedParity(client, 'connectionConfig', 'rtu', 'options')
       dropUnmappableRegisters(client)
+      foldClientIntoUnits(client)
+      if (Array.isArray(client.units)) {
+        for (const unit of client.units) if (isRecord(unit)) dropUnmappableRegisters(unit)
+      }
     }
   }
 
@@ -107,14 +115,20 @@ export function foldClientIntoUnits(
     sections[type.data] = { address: register.address, length: register.length, polled: true }
   }
 
+  // A field the client did not carry is left out rather than set to
+  // undefined, so the store's `merge` gives it its default, as it gave the
+  // client's own missing fields theirs.
+  const carried = {
+    unitId: connection.unitId,
+    littleEndian: register.littleEndian,
+    addressBase: register.addressBase,
+    registerMapping: client.registerMapping
+  }
   client.units = [
     {
       uuid: newUuid(),
-      unitId: connection.unitId,
       name: '',
-      littleEndian: register.littleEndian,
-      addressBase: register.addressBase,
-      registerMapping: client.registerMapping,
+      ...Object.fromEntries(Object.entries(carried).filter(([, value]) => value !== undefined)),
       sections
     }
   ]

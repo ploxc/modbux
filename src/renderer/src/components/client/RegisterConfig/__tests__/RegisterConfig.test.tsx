@@ -16,14 +16,17 @@ vi.hoisted(() => {
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import {
-  getSelectedClient,
-  getSelectedSession,
+  getSelectedUnit,
+  readsConfiguration,
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { defaultClientState, RegisterType } from '@shared'
 import RegisterConfig, { RegisterTypeTabs } from '../RegisterConfig'
-import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
+import {
+  patchSelectedClient,
+  patchSelectedUnit
+} from '../../../../context/__tests__/selectedClient'
 import { patchShownData } from '../../../../context/__tests__/shownData'
 
 // Read configuration reads the addresses a data type was set on. What the
@@ -31,8 +34,8 @@ import { patchShownData } from '../../../../context/__tests__/shownData'
 // leaves the user with an empty grid and two disabled fields.
 
 const seed = (type: RegisterType, mapping: Record<number, object>): void => {
-  patchSelectedClient(useClientZustand, {
-    registerConfig: { ...getSelectedClient().registerConfig, type },
+  patchSelectedClient(useClientZustand, {}, { shownType: type })
+  patchSelectedUnit(useClientZustand, {
     registerMapping: {
       coils: {},
       discrete_inputs: {},
@@ -47,7 +50,7 @@ const seed = (type: RegisterType, mapping: Record<number, object>): void => {
 // included, so the store gets no client state from main. The button reads the
 // client state, so it gets one here.
 beforeEach(() => {
-  patchSelectedClient(useClientZustand, {}, { ready: true, readConfiguration: false })
+  patchSelectedClient(useClientZustand, {}, { ready: true, readConfiguration: {} })
   patchShownData(useLiveZustand, { clientState: { ...defaultClientState } })
 })
 
@@ -159,14 +162,18 @@ describe('RegisterConfig read configuration', () => {
   // read that is about to fill it is still on the wire.
   it('leaves read configuration on while a read is in flight', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
-    patchSelectedClient(useClientZustand, {}, { readConfiguration: true })
+    patchSelectedClient(
+      useClientZustand,
+      {},
+      { readConfiguration: { [getSelectedUnit().uuid]: true } }
+    )
     patchShownData(useLiveZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
     render(<RegisterConfig />)
 
-    expect(getSelectedSession().readConfiguration).toBe(true)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(true)
   })
 })
 
@@ -184,8 +191,6 @@ describe('RegisterConfig type tabs', () => {
     expect(screen.getByTestId('reg-type-coils-btn')).toBeDisabled()
   })
 
-  // The stub refuses every payload, so the store never moves: what is
-  // asserted is the setter the press asks.
   it('ask for the register type pressed when no scan runs', () => {
     seed('holding_registers', {})
     const setType = vi.spyOn(useClientZustand.getState(), 'setType')
@@ -214,34 +219,23 @@ describe('RegisterConfig length field', () => {
   }
 
   it('takes 2000 bits of coils', async () => {
-    patchSelectedClient(useClientZustand, {
-      registerConfig: { ...getSelectedClient().registerConfig, type: 'coils', address: 0 }
-    })
+    patchSelectedClient(useClientZustand, {}, { shownType: 'coils' })
+    patchSelectedUnit(useClientZustand, {}, { address: 0 })
 
     expect(await typeLength('2000')).toBe(2000)
   })
 
   it('holds a register read at 125', async () => {
-    patchSelectedClient(useClientZustand, {
-      registerConfig: {
-        ...getSelectedClient().registerConfig,
-        type: 'holding_registers',
-        address: 0
-      }
-    })
+    patchSelectedClient(useClientZustand, {}, { shownType: 'holding_registers' })
+    patchSelectedUnit(useClientZustand, {}, { address: 0 })
 
     expect(await typeLength('2000')).toBe(125)
   })
 
   // The other ceiling: how many registers are left from the address.
   it('holds a read near the end of the range to what is there', async () => {
-    patchSelectedClient(useClientZustand, {
-      registerConfig: {
-        ...getSelectedClient().registerConfig,
-        type: 'coils',
-        address: 65500
-      }
-    })
+    patchSelectedClient(useClientZustand, {}, { shownType: 'coils' })
+    patchSelectedUnit(useClientZustand, {}, { address: 65500 })
 
     expect(await typeLength('2000')).toBe(36)
   })
@@ -255,7 +249,7 @@ describe('RegisterConfig turning read configuration on', () => {
   const answerWith = (answer: true | undefined): void => {
     const stubbed = window.api as unknown as Record<string, unknown>
     const named: Record<string, unknown> = {
-      setRegisterMapping: vi.fn(() => Promise.resolve(answer)),
+      setUnits: vi.fn(() => Promise.resolve(answer)),
       setReadConfiguration: vi.fn(),
       read: vi.fn()
     }
@@ -272,7 +266,7 @@ describe('RegisterConfig turning read configuration on', () => {
     render(<RegisterConfig />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
-    await waitFor(() => expect(getSelectedSession().readConfiguration).toBe(true))
+    await waitFor(() => expect(readsConfiguration(useClientZustand.getState())).toBe(true))
   })
 
   // The store is written after the round trip, so a second press inside it
@@ -280,7 +274,7 @@ describe('RegisterConfig turning read configuration on', () => {
   it('takes one press while the first is still in flight', async () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
     let take: (answer: true) => void = () => {}
-    const setRegisterMapping = vi.fn(
+    const setUnits = vi.fn(
       () =>
         new Promise<true>((resolve) => {
           take = resolve
@@ -288,7 +282,7 @@ describe('RegisterConfig turning read configuration on', () => {
     )
     const stubbed = window.api as unknown as Record<string, unknown>
     const named: Record<string, unknown> = {
-      setRegisterMapping,
+      setUnits,
       setReadConfiguration: vi.fn(),
       read: vi.fn()
     }
@@ -302,8 +296,8 @@ describe('RegisterConfig turning read configuration on', () => {
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
     take(true)
 
-    await waitFor(() => expect(getSelectedSession().readConfiguration).toBe(true))
-    expect(setRegisterMapping).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(readsConfiguration(useClientZustand.getState())).toBe(true))
+    expect(setUnits).toHaveBeenCalledTimes(1)
   })
 
   it('stays off when main refuses the mapping', async () => {
@@ -313,8 +307,8 @@ describe('RegisterConfig turning read configuration on', () => {
     render(<RegisterConfig />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
-    await waitFor(() => expect(window.api.setRegisterMapping).toHaveBeenCalled())
-    expect(getSelectedSession().readConfiguration).toBe(false)
+    await waitFor(() => expect(window.api.setUnits).toHaveBeenCalled())
+    expect(readsConfiguration(useClientZustand.getState())).toBe(false)
     expect(window.api.setReadConfiguration).not.toHaveBeenCalled()
   })
 })

@@ -37,6 +37,7 @@ const readSource = (): ReadSource => {
   const server = useServerZustand.getState()
   return {
     clients: useClientZustand.getState().clients,
+    sessions: useClientZustand.getState().sessions,
     live: useLiveZustand.getState().clients,
     servers: server.servers,
     serverMode: server.serverMode ?? 'tcp',

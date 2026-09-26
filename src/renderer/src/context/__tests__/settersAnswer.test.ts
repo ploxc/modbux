@@ -75,7 +75,6 @@ describe('a client setter', () => {
 
     expect(await client.setHost('', false)).toBe(false)
     expect(await client.setCom('', false)).toBe(false)
-    expect(await client.setLength('0', false)).toBe(false)
   })
 
   it('answers false for a connection field while a connection stands', async () => {
@@ -94,7 +93,7 @@ describe('a client setter', () => {
     const client = useClientZustand.getState()
 
     expect(await client.setPollRate(5000)).toBe(false)
-    expect(await client.setType('coils')).toBe(false)
+    expect(await client.setLength('7')).toBe(false)
   })
 })
 

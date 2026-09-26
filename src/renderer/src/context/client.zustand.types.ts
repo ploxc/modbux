@@ -1,11 +1,11 @@
 import {
+  ClientUnitSchema,
   Protocol,
   RegisterType,
   ModbusBaudRate,
   Parity,
   RegisterMapping,
   RegisterMapValue,
-  RegisterMappingSchema,
   ConnectionConfigSchema,
   RegisterConfigSchema,
   SerialPortInfo,
@@ -19,20 +19,19 @@ import z from 'zod'
 interface Valid {
   host: boolean
   com: boolean
-  length: boolean
 }
 
 /**
  * Everything one client holds on disk, under the uuid that names it.
  *
  * Taking the key out takes all four, the way `PersistedServerSchema` holds a
- * server.
+ * server. A client has at least one unit: the view always shows one.
  */
 export const PersistedClientSchema = z.object({
   name: z.string(),
-  registerMapping: RegisterMappingSchema,
   connectionConfig: ConnectionConfigSchema,
-  registerConfig: RegisterConfigSchema
+  registerConfig: RegisterConfigSchema,
+  units: z.array(ClientUnitSchema).min(1)
 })
 export type PersistedClient = z.infer<typeof PersistedClientSchema>
 
@@ -47,13 +46,17 @@ export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema
 /**
  * What a client holds for as long as the window lives and no longer.
  *
- * `ready` says main has the client's config, `readConfiguration` is the
- * session-only switch, and `valid` is what the host, COM and length fields
- * decided about a value, which `init` reads off the value again at load.
+ * `ready` says main has the client's config. `selectedUnit` and `shownType`
+ * are the unit and register type the view shows, which every unit setter acts
+ * on. `readConfiguration` is the session-only switch, per unit's uuid, and
+ * `valid` is what the host and COM fields decided about a value, which `init`
+ * reads off the value again at load.
  */
 export interface ClientSession {
   ready: boolean
-  readConfiguration: boolean
+  selectedUnit: string
+  shownType: RegisterType
+  readConfiguration: Record<string, boolean>
   valid: Valid
 }
 
@@ -105,7 +108,12 @@ export type ClientZustand = {
   setUnitId: AsyncMaskSetFn
   setAddress: AsyncMaskSetFn
   setLength: AsyncMaskSetFn
-  setType: (type: RegisterType) => Promise<boolean>
+  /** Shows another unit of the selected client. Main is not asked. */
+  selectUnit: (unit: string) => void
+  /** Shows another register type of the selected unit. Main is not asked. */
+  setType: (type: RegisterType) => void
+  /** Whether a poll reads `type` of the selected unit. */
+  setPolled: (type: RegisterType, polled: boolean) => Promise<boolean>
   setCom: AsyncMaskSetFn
   setBaudRate: (baudRate: ModbusBaudRate) => Promise<boolean>
   setParity: (parity: Parity) => Promise<boolean>
@@ -122,7 +130,7 @@ export type ClientZustand = {
   setAdvancedMode: (advancedMode: boolean) => Promise<boolean>
   setShow64BitValues: (show64BitValues: boolean) => Promise<boolean>
 
-  // Read configuration
+  // Read configuration, of the selected unit
   setReadConfiguration: (readConfiguration: boolean) => void
   // Version
 

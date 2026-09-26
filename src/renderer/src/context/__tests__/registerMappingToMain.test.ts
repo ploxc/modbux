@@ -5,9 +5,9 @@
 // edit; replacing or clearing the whole mapping sent nothing, so main kept
 // grouping its reads out of the mapping the renderer had thrown away.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RegisterMapping } from '@shared'
+import type { ClientUnit, RegisterMapping } from '@shared'
 import { ApiCall, recordApiCalls, stubRenderer, clientPayload } from './stubRenderer'
-import { selectedClient, selectedSession } from '../client.zustand.helpers'
+import { readsConfiguration, selectedUnit } from '../client.zustand.helpers'
 
 const calls: ApiCall[] = []
 
@@ -18,6 +18,17 @@ const lastPayload = (method: string): unknown => {
   const call = calls.findLast((candidate) => candidate.method === method)
   if (!call) throw new Error(`${method} was never called`)
   return clientPayload(call.payload)
+}
+
+/** The mapping of the one unit main was last handed. */
+const sentMapping = (): RegisterMapping | undefined =>
+  (lastPayload('setUnits') as ClientUnit[])[0]?.registerMapping
+
+/** What the last `setReadConfiguration` asked main to hold. */
+const sentReadConfiguration = (): unknown => {
+  const call = calls.findLast((candidate) => candidate.method === 'setReadConfiguration')
+  if (!call) throw new Error('setReadConfiguration was never called')
+  return (call.payload as { readConfiguration: unknown }).readConfiguration
 }
 
 /**
@@ -54,7 +65,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    expect(lastPayload('setRegisterMapping')).toEqual(loaded)
+    expect(sentMapping()).toEqual(loaded)
   })
 
   it('reaches main before the debounce a cell edit is on', async () => {
@@ -63,7 +74,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    expect(methods()).toContain('setRegisterMapping')
+    expect(methods()).toContain('setUnits')
   })
 
   it('turns read configuration off first, so no read answers out of the old one', async () => {
@@ -73,9 +84,9 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
-    expect(lastPayload('setReadConfiguration')).toBe(false)
-    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(false)
+    expect(methods()).toEqual(['setReadConfiguration', 'setUnits'])
+    expect(sentReadConfiguration()).toBe(false)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(false)
   })
 
   it('is what the store holds', async () => {
@@ -83,7 +94,7 @@ describe('a mapping that replaces the whole of the previous one', () => {
 
     await useClientZustand.getState().replaceRegisterMapping(loaded)
 
-    expect(selectedClient(useClientZustand.getState()).registerMapping).toEqual(loaded)
+    expect(selectedUnit(useClientZustand.getState()).registerMapping).toEqual(loaded)
   })
 })
 
@@ -95,7 +106,7 @@ describe('a cleared mapping', () => {
 
     await useClientZustand.getState().clearRegisterMapping()
 
-    expect(lastPayload('setRegisterMapping')).toEqual({
+    expect(sentMapping()).toEqual({
       coils: {},
       discrete_inputs: {},
       holding_registers: {},
@@ -111,8 +122,8 @@ describe('a cleared mapping', () => {
 
     await useClientZustand.getState().clearRegisterMapping()
 
-    expect(methods()).toEqual(['setReadConfiguration', 'setRegisterMapping'])
-    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(false)
+    expect(methods()).toEqual(['setReadConfiguration', 'setUnits'])
+    expect(readsConfiguration(useClientZustand.getState())).toBe(false)
   })
 
   it('leaves the store holding four empty records', async () => {
@@ -121,7 +132,7 @@ describe('a cleared mapping', () => {
 
     await useClientZustand.getState().clearRegisterMapping()
 
-    expect(selectedClient(useClientZustand.getState()).registerMapping).toEqual({
+    expect(selectedUnit(useClientZustand.getState()).registerMapping).toEqual({
       coils: {},
       discrete_inputs: {},
       holding_registers: {},
@@ -137,11 +148,11 @@ describe('a single cell edit', () => {
 
     useClientZustand.getState().setRegisterMapping(42, 'dataType', 'int16')
 
-    expect(methods()).not.toContain('setRegisterMapping')
+    expect(methods()).not.toContain('setUnits')
 
     vi.advanceTimersByTime(150)
 
-    expect(lastPayload('setRegisterMapping')).toEqual({
+    expect(sentMapping()).toEqual({
       coils: {},
       discrete_inputs: {},
       holding_registers: { 42: { dataType: 'int16' } },
@@ -158,6 +169,6 @@ describe('a single cell edit', () => {
     useClientZustand.getState().setRegisterMapping(43, 'dataType', 'int16')
     vi.advanceTimersByTime(150)
 
-    expect(selectedSession(useClientZustand.getState()).readConfiguration).toBe(true)
+    expect(readsConfiguration(useClientZustand.getState())).toBe(true)
   })
 })

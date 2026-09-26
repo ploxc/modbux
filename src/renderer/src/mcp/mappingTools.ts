@@ -1,7 +1,7 @@
 import { McpToolArgs, RegisterMapValue, isNumberRegister, migrateClientConfig } from '@shared'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
-import { showMapping } from '@renderer/context/live.zustand'
+import { showShownMapping } from '@renderer/context/live.zustand'
 import { McpToolError } from './readTools'
 import { selectClient, setType, showClientView } from './operateTools'
 
@@ -89,7 +89,7 @@ export const replaceMapping = async ({
     replaced = await clientZustand.replaceRegisterMapping(opened.registerMapping)
   })
   if (!replaced) throw new McpToolError('Modbux refused the mapping; the one before stays')
-  showMapping(client)
+  showShownMapping()
   return { migrated, fieldsNotBroughtAcross: futureVersion?.fields ?? [] }
 }
 

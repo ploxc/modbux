@@ -15,13 +15,14 @@ vi.hoisted(async () => {
 })
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
 import { ClientState, defaultClientState, MAIN_CLIENT_UUID, RegisterData } from '@shared'
 import BitMapDetailPanel from '../BitMapDetailPanel'
+import { MAIN_UNIT_UUID } from '@renderer/context/client.zustand.helpers'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
-import { patchShownData } from '../../../../../../context/__tests__/shownData'
+import { patchShownData, patchShownSection } from '../../../../../../context/__tests__/shownData'
 
 const calls: ApiCall[] = []
 
@@ -38,12 +39,8 @@ const renderPanel = (clientState: Partial<ClientState>): void => {
   patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
-  patchSelectedClient(
-    useClientZustand,
-    { registerConfig: { ...getSelectedClient().registerConfig, type: 'holding_registers' } },
-    { ready: true }
-  )
-  patchShownData(useLiveZustand, { registerData: [row] })
+  patchSelectedClient(useClientZustand, {}, { ready: true, shownType: 'holding_registers' })
+  patchShownSection(useLiveZustand, { registerData: [row] })
   render(<BitMapDetailPanel address={0} />)
 }
 
@@ -63,6 +60,7 @@ describe('the bit a toggle writes', () => {
         method: 'write',
         payload: {
           uuid: MAIN_CLIENT_UUID,
+          unit: MAIN_UNIT_UUID,
           parameters: {
             address: 0,
             dataType: 'uint16',

@@ -1,8 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PROTOCOL_LABELS } from '@shared'
-import type { BackendMessage, Protocol, RawTransaction, WriteParameters } from '@shared'
+import { newClientUnit } from '@shared'
+import type {
+  BackendMessage,
+  ClientUnit,
+  Protocol,
+  RawTransaction,
+  RegisterMapping,
+  RegisterType,
+  WriteParameters
+} from '@shared'
 import type { Windows } from '../../windows'
 import { AppState } from '../../state'
 
@@ -217,11 +225,57 @@ describe('ModbusClient', () => {
     appState = new AppState()
     transports = new Transports(windows)
     client = new ModbusClient({ uuid: 'client-1', appState, windows, transports })
+    unitType = 'holding_registers'
+    client.setUnits([newClientUnit(UNIT, 1)])
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
+
+  /** The uuid of the one unit every client in this file is given first. */
+  const UNIT = 'u1'
+
+  /** The register type a test reads, scans and polls of `UNIT`. */
+  let unitType: RegisterType = 'holding_registers'
+
+  /** `UNIT` as main holds it, or a failure naming it missing. */
+  const theUnit = (): ClientUnit => {
+    const unit = appState.unit(UNIT)
+    if (!unit) throw new Error(`no unit ${UNIT}`)
+    return unit
+  }
+
+  /**
+   * Change `UNIT` the way the renderer would hand main the whole unit.
+   *
+   * A `type` makes that section the only one polled, taking the address and
+   * length the section read before unless new ones are given, which is what the
+   * one type, address and length a client held used to mean.
+   */
+  const configureUnit = (
+    change: Partial<Pick<ClientUnit, 'unitId' | 'littleEndian' | 'registerMapping'>> & {
+      type?: RegisterType
+      address?: number
+      length?: number
+    }
+  ): void => {
+    const { type = unitType, address, length, ...fields } = change
+    const unit = theUnit()
+    const before = unit.sections[unitType]
+    const sections = structuredClone(unit.sections)
+    for (const section of Object.values(sections)) section.polled = false
+    sections[type] = {
+      address: address ?? before.address,
+      length: length ?? before.length,
+      polled: true
+    }
+    unitType = type
+    client.setUnits([{ ...unit, ...fields, sections }])
+  }
+
+  const setRegisterMapping = (registerMapping: RegisterMapping): void =>
+    configureUnit({ registerMapping })
 
   /** Connect over TCP and leave the port open, which `isOpen` is read for. */
   const connectClient = async () => {
@@ -316,7 +370,9 @@ describe('ModbusClient', () => {
   }
 
   /**
-   * Hold every holding-register read open until the test lets it answer.
+   * Hold every holding-register and coil read open until the test lets it
+   * answer. A write reads back the type it wrote, so a coil write's read back
+   * is a coil read.
    *
    * A poll chain is only observable while its read is in flight: that is where
    * a second `startPolling` finds it and where `stopPolling` leaves it holding
@@ -328,6 +384,12 @@ describe('ModbusClient', () => {
       () =>
         new Promise((resolve) => {
           gates.push(() => resolve({ data: [100], buffer: Buffer.from([0x00, 0x64]) }))
+        })
+    )
+    mockModbusRTU.readCoils.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          gates.push(() => resolve({ data: [true], buffer: Buffer.from([0x01]) }))
         })
     )
     return {
@@ -559,7 +621,7 @@ describe('ModbusClient', () => {
       expect(client.state.connectState).toBe('connected')
 
       setupHoldingRegisterReadMock([100])
-      await client.read()
+      await client.read(UNIT, unitType)
       expect(getWindowCalls('register_data')).toHaveLength(1)
     })
 
@@ -672,7 +734,7 @@ describe('ModbusClient', () => {
     // The unit id belongs to a request rather than to the connection, which
     // every client riding it sets for its own requests.
     it('opens with a 3000 ms timeout and names the unit id on each request', async () => {
-      appState.updateConnectionConfig({ unitId: 42 })
+      configureUnit({ unitId: 42 })
 
       await connectClient()
 
@@ -680,7 +742,7 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.setID).not.toHaveBeenCalled()
 
       setupHoldingRegisterReadMock([100])
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.setID).toHaveBeenCalledWith(42)
       expect(firstCallOrder(mockModbusRTU.setID, 'setID')).toBeLessThan(
@@ -735,7 +797,7 @@ describe('ModbusClient', () => {
     it('names this client on every event it sends', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
-      await client.read()
+      await client.read(UNIT, unitType)
       await client.scanUnitIds({
         range: [1, 1],
         address: 0,
@@ -763,7 +825,7 @@ describe('ModbusClient', () => {
     it('addresses every one of them to the main window', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100, 200])
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const unitIdScan = client.scanUnitIds({
         range: [5, 6],
@@ -775,7 +837,7 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(1000)
       await unitIdScan
 
-      const registerScan = client.scanRegisters({
+      const registerScan = client.scanRegisters(UNIT, unitType, {
         addressRange: [50, 69],
         length: 10,
         timeout: 1000
@@ -978,7 +1040,7 @@ describe('ModbusClient', () => {
         Object.assign(new Error(LIBRARY), { modbusCode: 11 })
       )
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message').map((message) => message[1].message)
       expect(messages.some((message) => message.startsWith(SPEC))).toBe(true)
@@ -1001,7 +1063,7 @@ describe('ModbusClient', () => {
         Object.assign(new Error(busy), { modbusCode: 6 })
       )
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message').map((message) => message[1].message)
       expect(messages.some((message) => message.startsWith(busy))).toBe(true)
@@ -1330,7 +1392,7 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(100)
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot read during a poll')).toBe(true)
@@ -1352,7 +1414,7 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(0)
       expect(client.state.scanningUnitIds).toBe(true)
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot read during a unit id scan')).toBe(true)
@@ -1433,8 +1495,8 @@ describe('ModbusClient', () => {
   // read goes nowhere.
   describe('a poll stopped during a read', () => {
     const twoGroups = (): void => {
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -1519,7 +1581,11 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
 
-      const scan = client.scanRegisters({ addressRange: [5, 5], length: 1, timeout: 1000 })
+      const scan = client.scanRegisters(UNIT, unitType, {
+        addressRange: [5, 5],
+        length: 1,
+        timeout: 1000
+      })
       expect(client.state.scanningRegisters).toBe(true)
       await gates.resolveAll()
       await gates.resolveAll()
@@ -1540,7 +1606,7 @@ describe('ModbusClient', () => {
     const answer = { data: [1], buffer: Buffer.from([0, 1]) }
     const reads = (): number => mockModbusRTU.readHoldingRegisters.mock.calls.length
     const offlineStates = (): boolean[] =>
-      getWindowCalls('client_state').map((call) => call[1].offline)
+      getWindowCalls('client_state').map((call) => call[1].offlineUnits.includes(UNIT))
 
     it('is offline after three silent polls, and polled at twice the wait each time after', async () => {
       await connectClient()
@@ -1549,10 +1615,10 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
       await vi.advanceTimersByTimeAsync(1000)
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
       await vi.advanceTimersByTimeAsync(1000)
       expect(reads()).toBe(3)
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
       expect(offlineStates().at(-1)).toBe(true)
 
       await vi.advanceTimersByTimeAsync(1999)
@@ -1593,7 +1659,7 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
       client.stopPolling()
     })
 
@@ -1603,11 +1669,11 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
       await vi.advanceTimersByTimeAsync(2000)
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
 
       mockModbusRTU.readHoldingRegisters.mockResolvedValue(answer)
       await vi.advanceTimersByTimeAsync(2000)
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
       const answered = reads()
       await vi.advanceTimersByTimeAsync(1000)
       expect(reads()).toBe(answered + 1)
@@ -1627,7 +1693,7 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(reads()).toBe(6)
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
       client.stopPolling()
     })
 
@@ -1635,28 +1701,28 @@ describe('ModbusClient', () => {
       appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
-      await client.read()
-      expect(client.state.offline).toBe(true)
+      await client.read(UNIT, unitType)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
 
       mockModbusRTU.readHoldingRegisters.mockResolvedValue(answer)
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(reads()).toBe(2)
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
     })
 
     it('counts again from nothing for another unit id', async () => {
       appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
-      await client.read()
+      await client.read(UNIT, unitType)
 
-      client.updateConnectionConfig({ unitId: 2 })
-      await client.read()
+      configureUnit({ unitId: 2 })
+      await client.read(UNIT, unitType)
 
-      expect(client.state.offline).toBe(false)
-      await client.read()
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
+      await client.read(UNIT, unitType)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
     })
 
     // A new mapping or read configuration changes what is read, not which
@@ -1665,12 +1731,12 @@ describe('ModbusClient', () => {
       appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
-      await client.read()
-      await client.read()
-      expect(client.state.offline).toBe(true)
+      await client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
 
-      appState.setReadConfiguration(false)
-      await client.read()
+      appState.setReadConfiguration(UNIT, false)
+      await client.read(UNIT, unitType)
 
       const states = offlineStates()
       expect(states.slice(states.indexOf(true))).not.toContain(false)
@@ -1684,16 +1750,16 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(0)
       await vi.advanceTimersByTimeAsync(2000)
       expect(reads()).toBe(3)
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
     }
 
     it('polls another unit id at the poll rate, and says it is not offline', async () => {
       await offlineWhilePolling()
       await vi.advanceTimersByTimeAsync(500)
 
-      client.updateConnectionConfig({ unitId: 2 })
+      configureUnit({ unitId: 2 })
 
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
       await vi.advanceTimersByTimeAsync(499)
       expect(reads()).toBe(3)
       await vi.advanceTimersByTimeAsync(1)
@@ -1701,16 +1767,20 @@ describe('ModbusClient', () => {
       client.stopPolling()
     })
 
+    // Reads at 0, 1000 and 2000 go silent, and the unit is offline. It sits out
+    // one round, is read at 4000, sits out three, and is read at 8000, after
+    // which it would sit out seven.
     it('shortens a wait under way to a lower most', async () => {
       await offlineWhilePolling()
-      await vi.advanceTimersByTimeAsync(4000)
-      expect(reads()).toBe(4)
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(reads()).toBe(5)
       await vi.advanceTimersByTimeAsync(1000)
 
       client.updateRegisterConfig({ maxPollInterval: 1000 })
 
-      await vi.advanceTimersByTimeAsync(0)
-      expect(reads()).toBe(5)
+      // A poll reads in rounds, so the shorter wait starts at the next one.
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(reads()).toBe(6)
       client.stopPolling()
     })
 
@@ -1752,9 +1822,9 @@ describe('ModbusClient', () => {
         Object.assign(new Error('Gateway target device failed to respond'), { modbusCode: 11 })
       )
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
-      expect(client.state.offline).toBe(true)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
     })
 
     it('holds nothing against another unit id for a read the old one left running', async () => {
@@ -1767,15 +1837,15 @@ describe('ModbusClient', () => {
             fail = () => reject(timedOut())
           })
       )
-      const reading = client.read()
+      const reading = client.read(UNIT, unitType)
       await vi.advanceTimersByTimeAsync(0)
 
-      client.updateConnectionConfig({ unitId: 2 })
+      configureUnit({ unitId: 2 })
       if (!fail) throw new Error('the read never went out')
       fail()
       await reading
 
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
     })
 
     // Every edit re-arms a sleeping poll, and a run of them faster than the
@@ -1789,7 +1859,7 @@ describe('ModbusClient', () => {
 
       for (let edit = 0; edit < 5; edit++) {
         await vi.advanceTimersByTimeAsync(300)
-        client.updateRegisterConfig({ address: edit })
+        configureUnit({ address: edit })
       }
 
       expect(reads()).toBe(2)
@@ -1800,12 +1870,109 @@ describe('ModbusClient', () => {
       appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
-      await client.read()
-      expect(client.state.offline).toBe(true)
+      await client.read(UNIT, unitType)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(true)
 
       await client.disconnect()
 
-      expect(client.state.offline).toBe(false)
+      expect(client.state.offlineUnits.includes(UNIT)).toBe(false)
+    })
+  })
+
+  describe('polling several units', () => {
+    const timedOut = (): Error =>
+      Object.assign(new Error('Timed out'), {
+        name: 'TransactionTimedOutError',
+        errno: 'ETIMEDOUT'
+      })
+
+    /** `UNIT` at address 0 and a second unit, id 2, at address 100, both on holding registers. */
+    const twoUnits = (second: Partial<ClientUnit> = {}): void => {
+      const other = newClientUnit('u2', 2)
+      client.setUnits([
+        theUnit(),
+        {
+          ...other,
+          sections: {
+            ...other.sections,
+            holding_registers: { address: 100, length: 10, polled: true }
+          },
+          ...second
+        }
+      ])
+    }
+
+    const readAddresses = (): number[] =>
+      mockModbusRTU.readHoldingRegisters.mock.calls.map(([address]) => address)
+
+    it('reads every unit in one round, in order', async () => {
+      await connectClient()
+      twoUnits()
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(readAddresses()).toEqual([0, 100])
+
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(readAddresses()).toEqual([0, 100, 0, 100])
+      client.stopPolling()
+    })
+
+    it('sends each unit its own rows', async () => {
+      await connectClient()
+      twoUnits()
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+
+      const sends = vi
+        .mocked(windows.send)
+        .mock.calls.filter(([event]) => event === 'register_data')
+        .map(([, payload]) => (payload as { unit: string; type: string }).unit)
+      expect(sends).toEqual([UNIT, 'u2'])
+    })
+
+    it('skips a unit with no polled section', async () => {
+      await connectClient()
+      const other = newClientUnit('u2', 2)
+      twoUnits({
+        sections: {
+          ...other.sections,
+          holding_registers: { address: 100, length: 10, polled: false }
+        }
+      })
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(readAddresses()).toEqual([0, 0])
+      client.stopPolling()
+    })
+
+    it('reads the other unit every round while one is offline', async () => {
+      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      await connectClient()
+      twoUnits()
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async (address: number) => {
+        if (address === 0) throw timedOut()
+        return { data: [1], buffer: Buffer.from([0, 1]) }
+      })
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.state.offlineUnits).toEqual([UNIT])
+
+      await vi.advanceTimersByTimeAsync(3000)
+
+      const addresses = readAddresses()
+      expect(addresses.filter((address) => address === 100)).toHaveLength(4)
+      expect(addresses.filter((address) => address === 0).length).toBeLessThan(4)
+      expect(client.state.offlineUnits).toEqual([UNIT])
+      client.stopPolling()
     })
   })
 
@@ -1853,7 +2020,7 @@ describe('ModbusClient', () => {
 
       // The poll reads address 0 for 10 registers, so a scan that starts at 50
       // is the only thing that can have asked for these two.
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [50, 69],
         length: 10,
         timeout: 1000
@@ -1871,13 +2038,13 @@ describe('ModbusClient', () => {
     // reports itself done and leaves seven eighths of the range unread.
     it('walks the range in chunks one response can carry', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'holding_registers' })
+      configureUnit({ type: 'holding_registers' })
       mockModbusRTU.readHoldingRegisters.mockResolvedValue({
         data: [0],
         buffer: Buffer.alloc(2)
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 999],
         length: 1000,
         timeout: 1000
@@ -1903,13 +2070,13 @@ describe('ModbusClient', () => {
       ]
     ] as const)('reads no address past the end of %j', async (addressRange, reads) => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'holding_registers' })
+      configureUnit({ type: 'holding_registers' })
       mockModbusRTU.readHoldingRegisters.mockResolvedValue({
         data: [0],
         buffer: Buffer.alloc(2)
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [...addressRange],
         length: 125,
         timeout: 1000
@@ -1936,7 +2103,11 @@ describe('ModbusClient', () => {
     })
 
     it('scanRegisters refuses while disconnected', async () => {
-      await client.scanRegisters({ addressRange: [0, 99], length: 10, timeout: 1000 })
+      await client.scanRegisters(UNIT, unitType, {
+        addressRange: [0, 99],
+        length: 10,
+        timeout: 1000
+      })
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
@@ -1951,7 +2122,11 @@ describe('ModbusClient', () => {
       fireClientEvent('close')
       expect(client.state.connectState).toBe('connecting')
 
-      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      await client.scanRegisters(UNIT, unitType, {
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot scan, not connected')).toBe(true)
@@ -1963,7 +2138,11 @@ describe('ModbusClient', () => {
       setupHoldingRegisterReadMock([0])
       mockModbusRTU.isOpen = false
 
-      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      await client.scanRegisters(UNIT, unitType, {
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
 
       const messages = getWindowCalls('backend_message').map((m) => m[1].message)
       expect(messages.some((message) => message.startsWith('Connection lost'))).toBe(true)
@@ -1996,13 +2175,17 @@ describe('ModbusClient', () => {
 
     it('a refused write reports the connection lost', async () => {
       await closedUnderneath()
-      await client.write({ address: 5, type: 'coils', value: [true], single: true })
+      await client.write(UNIT, { address: 5, type: 'coils', value: [true], single: true })
       lostAndReconnecting()
     })
 
     it('a refused register scan reports the connection lost', async () => {
       await closedUnderneath()
-      await client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      await client.scanRegisters(UNIT, unitType, {
+        addressRange: [50, 69],
+        length: 10,
+        timeout: 1000
+      })
       lostAndReconnecting()
     })
 
@@ -2036,7 +2219,7 @@ describe('ModbusClient', () => {
     it('a read the user asked for says the connection was lost, and only that', async () => {
       await closedUnderneath()
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message').map((m) => m[1].message)
       expect(messages.filter((message) => message.startsWith('Connection lost'))).toHaveLength(1)
@@ -2050,8 +2233,8 @@ describe('ModbusClient', () => {
       let fail: () => void = () => {
         throw new Error('the read was never sent')
       }
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2063,7 +2246,7 @@ describe('ModbusClient', () => {
             fail = () => reject(new Error('Timed out'))
           })
       )
-      const reading = client.read()
+      const reading = client.read(UNIT, unitType)
       await vi.advanceTimersByTimeAsync(0)
 
       await client.disconnect()
@@ -2168,10 +2351,18 @@ describe('ModbusClient', () => {
               answers.push(() => resolve({ data: [1], buffer: Buffer.from([0, 1]) }))
             })
         )
-        const stopped = client.scanRegisters({ addressRange: [1, 3], length: 1, timeout: 1000 })
+        const stopped = client.scanRegisters(UNIT, unitType, {
+          addressRange: [1, 3],
+          length: 1,
+          timeout: 1000
+        })
         await vi.advanceTimersByTimeAsync(0)
         client.stopScanningRegisters()
-        const next = client.scanRegisters({ addressRange: [10, 10], length: 1, timeout: 1000 })
+        const next = client.scanRegisters(UNIT, unitType, {
+          addressRange: [10, 10],
+          length: 1,
+          timeout: 1000
+        })
         await vi.advanceTimersByTimeAsync(0)
 
         answerNext(answers)
@@ -2217,8 +2408,8 @@ describe('ModbusClient', () => {
 
       it('sends no half grid for a read that found the port shut part way', async () => {
         await connectClient()
-        appState.setReadConfiguration(true)
-        appState.setRegisterMapping({
+        appState.setReadConfiguration(UNIT, true)
+        setRegisterMapping({
           coils: {},
           discrete_inputs: {},
           input_registers: {},
@@ -2231,7 +2422,7 @@ describe('ModbusClient', () => {
             throw new Error('Port Not Open')
           })
 
-        await client.read()
+        await client.read(UNIT, unitType)
 
         expect(getWindowCalls('register_data')).toEqual([])
       })
@@ -2247,7 +2438,7 @@ describe('ModbusClient', () => {
               fail = () => reject(new Error('Timed out'))
             })
         )
-        const reading = client.read()
+        const reading = client.read(UNIT, unitType)
         await vi.advanceTimersByTimeAsync(0)
         await client.disconnect()
         appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
@@ -2274,7 +2465,7 @@ describe('ModbusClient', () => {
               fail = () => reject(new Error('Timed out'))
             })
         )
-        const reading = client.read()
+        const reading = client.read(UNIT, unitType)
         await vi.advanceTimersByTimeAsync(0)
 
         mockModbusRTU.isOpen = false
@@ -2299,7 +2490,12 @@ describe('ModbusClient', () => {
             fail = () => next(new Error('Timed out'))
           }
         )
-        const writing = client.write({ address: 5, type: 'coils', value: [true], single: true })
+        const writing = client.write(UNIT, {
+          address: 5,
+          type: 'coils',
+          value: [true],
+          single: true
+        })
         await vi.advanceTimersByTimeAsync(0)
 
         mockModbusRTU.isOpen = false
@@ -2324,7 +2520,12 @@ describe('ModbusClient', () => {
             answer = () => next(null)
           }
         )
-        const writing = client.write({ address: 5, type: 'coils', value: [true], single: true })
+        const writing = client.write(UNIT, {
+          address: 5,
+          type: 'coils',
+          value: [true],
+          single: true
+        })
         await vi.advanceTimersByTimeAsync(0)
 
         fireClientEvent('close')
@@ -2398,7 +2599,11 @@ describe('ModbusClient', () => {
               answer = () => resolve({ data: [7], buffer: Buffer.from([0, 7]) })
             })
         )
-        const scanning = client.scanRegisters({ addressRange: [0, 0], length: 1, timeout: 1000 })
+        const scanning = client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 0],
+          length: 1,
+          timeout: 1000
+        })
         await vi.advanceTimersByTimeAsync(0)
         await client.disconnect()
         appState.updateConnectionConfig({ tcp: { host: '192.168.1.11' } })
@@ -2415,8 +2620,8 @@ describe('ModbusClient', () => {
     it('starts one reconnect for two requests that find it shut', async () => {
       await closedUnderneath()
 
-      await client.read()
-      await client.read()
+      await client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
 
       const lost = getWindowCalls('backend_message').filter((m) =>
         m[1].message.startsWith('Connection lost, reconnecting')
@@ -2432,11 +2637,11 @@ describe('ModbusClient', () => {
 
     it('refuses a read, and says so', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
+      configureUnit({ length: 0 })
       setupHoldingRegisterReadMock([100])
       const before = getWindowCalls('client_state').length
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       // Refused before it owned the client, so no read was ever said to run.
       expect(getWindowCalls('client_state').slice(before)).toEqual([])
@@ -2451,14 +2656,14 @@ describe('ModbusClient', () => {
 
     it('refuses a poll, and says so', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
+      configureUnit({ length: 0 })
       setupHoldingRegisterReadMock([100])
 
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
 
       expect(lastMessage()).toMatchObject({
-        message: 'Cannot poll a length of 0',
+        message: 'Cannot poll, no section is polled',
         variant: 'warning'
       })
       expect(client.state.polling).toBe(false)
@@ -2467,9 +2672,9 @@ describe('ModbusClient', () => {
 
     it('reads the configured groups, which the length is not part of', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      configureUnit({ length: 0 })
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2477,17 +2682,17 @@ describe('ModbusClient', () => {
       })
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 1)
     })
 
     it('refuses a read under read configuration with no group for the type', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
-      appState.setReadConfiguration(true)
+      configureUnit({ length: 0 })
+      appState.setReadConfiguration(UNIT, true)
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(lastMessage()).toMatchObject({ message: 'Cannot read a length of 0' })
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
@@ -2495,12 +2700,12 @@ describe('ModbusClient', () => {
 
     it('reads nothing back after a write, and says so', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
+      configureUnit({ length: 0 })
       mockModbusRTU.writeFC6.mockImplementation(
         (_unit: number, _address: number, _value: number, next: (error: null) => void) => next(null)
       )
 
-      await client.write({
+      await client.write(UNIT, {
         address: 0,
         type: 'holding_registers',
         value: 1,
@@ -2513,11 +2718,13 @@ describe('ModbusClient', () => {
       expect(lastMessage()).toMatchObject({ message: 'Cannot read a length of 0' })
     })
 
-    it('stops a poll whose groups went since it started, and says so', async () => {
+    // A round leaves out a type that would read nothing, the way the start
+    // does, and the chain goes on for whatever else is polled.
+    it('leaves out a unit whose groups went since the poll started', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 0 })
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      configureUnit({ length: 0 })
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2529,24 +2736,21 @@ describe('ModbusClient', () => {
       const reads = mockModbusRTU.readHoldingRegisters.mock.calls.length
       const said = getWindowCalls('backend_message').length
 
-      appState.setReadConfiguration(false)
+      appState.setReadConfiguration(UNIT, false)
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBe(reads)
-      expect(
-        getWindowCalls('backend_message')
-          .slice(said)
-          .map((call) => call[1].message)
-      ).toEqual(['Cannot poll a length of 0'])
-      expect(client.state.polling).toBe(false)
+      expect(getWindowCalls('backend_message').slice(said)).toEqual([])
+      expect(client.state.polling).toBe(true)
+      client.stopPolling()
     })
 
     it('reads a length of 1', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ length: 1 })
+      configureUnit({ length: 1 })
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 1)
     })
@@ -2567,42 +2771,25 @@ describe('ModbusClient', () => {
         }
       )
       await client.connect()
-      appState.updateConnectionConfig({ unitId })
+      configureUnit({ unitId })
     }
 
-    it.each(['ModbusRtu', 'ModbusRtuOverTcp'] as const)(
-      'refuses a connect over %s, and says so',
-      async (protocol) => {
-        appState.updateConnectionConfig({ protocol, unitId: 248 })
+    // A connection carries no unit id, so what a unit holds is asked when a
+    // request goes out rather than when the port opens.
+    it('connects over RTU while a unit holds 248', async () => {
+      configureUnit({ unitId: 248 })
+      appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp' })
 
-        await client.connect()
-
-        expect(mockModbusRTU.connectRTUBuffered).not.toHaveBeenCalled()
-        expect(mockModbusRTU.connectTelnet).not.toHaveBeenCalled()
-        expect(client.state.connectState).toBe('disconnected')
-        expect(lastMessage()).toMatchObject({
-          message: `Cannot connect unit id 248: ${PROTOCOL_LABELS[protocol]} stops at 247`,
-          variant: 'warning'
-        })
-      }
-    )
-
-    it('connects on 247 over RTU, and on 255 over Modbus TCP', async () => {
-      appState.updateConnectionConfig({ protocol: 'ModbusRtuOverTcp', unitId: 247 })
       await client.connect()
-      expect(mockModbusRTU.connectTelnet).toHaveBeenCalled()
 
-      await client.disconnect()
-      appState.updateConnectionConfig({ protocol: 'ModbusTcp', unitId: 255 })
-      await connectClient()
-      expect(mockModbusRTU.connectTCP).toHaveBeenCalled()
+      expect(mockModbusRTU.connectTelnet).toHaveBeenCalled()
     })
 
     it('refuses a read, and says so', async () => {
       await connectedOverRtu(248)
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
       expect(lastMessage()).toMatchObject({
@@ -2633,7 +2820,7 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(0)
       const reads = mockModbusRTU.readHoldingRegisters.mock.calls.length
 
-      appState.updateConnectionConfig({ unitId: 248 })
+      configureUnit({ unitId: 248 })
       await vi.advanceTimersByTimeAsync(5000)
 
       expect(client.state.polling).toBe(false)
@@ -2646,7 +2833,7 @@ describe('ModbusClient', () => {
     it('refuses a write, and says so', async () => {
       await connectedOverRtu(248)
 
-      await client.write({
+      await client.write(UNIT, {
         address: 0,
         type: 'holding_registers',
         value: 1,
@@ -2663,7 +2850,7 @@ describe('ModbusClient', () => {
     it('refuses a register scan, and says so', async () => {
       await connectedOverRtu(248)
 
-      await client.scanRegisters({ addressRange: [0, 0], length: 1, timeout: 1000 })
+      await client.scanRegisters(UNIT, unitType, { addressRange: [0, 0], length: 1, timeout: 1000 })
 
       expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
       expect(lastMessage()).toMatchObject({
@@ -2710,7 +2897,7 @@ describe('ModbusClient', () => {
       await connectedOverRtu(247)
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
     })
@@ -2721,7 +2908,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100, 200])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
@@ -2732,7 +2919,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const groupCalls = getWindowCalls('address_groups')
       expect(groupCalls.length).toBe(1)
@@ -2740,13 +2927,13 @@ describe('ModbusClient', () => {
 
     it('reads coils and sends data', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils' })
+      configureUnit({ type: 'coils' })
       mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
         mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
         return { data: [true, false, true], buffer: Buffer.from([0x05]) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
@@ -2756,7 +2943,7 @@ describe('ModbusClient', () => {
     // row count is that length whatever the device padded its answer to.
     it('reads the configured length of coils, not what the byte held', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils', address: 0, length: 3 })
+      configureUnit({ type: 'coils', address: 0, length: 3 })
       mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
         mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
         return {
@@ -2765,7 +2952,7 @@ describe('ModbusClient', () => {
         }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const sent = getWindowCalls('register_data')[0]?.[1]
       expect(sent.map((row: { id: number }) => row.id)).toEqual([0, 1, 2])
@@ -2773,7 +2960,7 @@ describe('ModbusClient', () => {
 
     it('reads discrete inputs and sends data', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'discrete_inputs' })
+      configureUnit({ type: 'discrete_inputs' })
       mockModbusRTU.readDiscreteInputs.mockImplementation(
         async (address: number, length: number) => {
           mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
@@ -2781,7 +2968,7 @@ describe('ModbusClient', () => {
         }
       )
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
@@ -2789,7 +2976,7 @@ describe('ModbusClient', () => {
 
     it('reads input registers and sends data', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'input_registers' })
+      configureUnit({ type: 'input_registers' })
       mockModbusRTU.readInputRegisters.mockImplementation(
         async (address: number, length: number) => {
           mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
@@ -2797,7 +2984,7 @@ describe('ModbusClient', () => {
         }
       )
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
@@ -2810,9 +2997,9 @@ describe('ModbusClient', () => {
       // readConfiguration is true but registerMapping was never synced to backend.
       // The backend should fall back to [[address, length]] instead of silently
       // producing no data.
-      appState.setReadConfiguration(true)
+      appState.setReadConfiguration(UNIT, true)
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBe(1)
@@ -2821,8 +3008,8 @@ describe('ModbusClient', () => {
 
     it('uses group-based reads when readConfiguration is true', async () => {
       await connectClient()
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2837,7 +3024,7 @@ describe('ModbusClient', () => {
         buffer: Buffer.from([0x00, 0x64])
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       // Two groups: [0,1] and [100,1]
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(2)
@@ -2851,20 +3038,20 @@ describe('ModbusClient', () => {
     // for one round trip when the type changes under it.
     it('stops the toolbar read at the last register', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'holding_registers', address: 65500, length: 125 })
+      configureUnit({ type: 'holding_registers', address: 65500, length: 125 })
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65500, 36)
     })
 
     it('stops the toolbar read at what one response carries', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'holding_registers', address: 0, length: 2000 })
+      configureUnit({ type: 'holding_registers', address: 0, length: 2000 })
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(0, 125)
     })
@@ -2875,8 +3062,8 @@ describe('ModbusClient', () => {
     // an error row, which is the truth about a mapping that runs off the end.
     it('leaves a configured group that runs off the end whole', async () => {
       await connectClient()
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2889,7 +3076,7 @@ describe('ModbusClient', () => {
         buffer: Buffer.from([0x00, 0x64])
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65534, 4)
     })
@@ -2899,9 +3086,9 @@ describe('ModbusClient', () => {
     // it is the only way a bit mapping gets one.
     it('reads the toolbar window for a bit type, whatever the mapping carries', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils', address: 0, length: 10 })
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      configureUnit({ type: 'coils', address: 0, length: 10 })
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {
           0: { dataType: 'uint16' },
           100: { dataType: 'uint16' }
@@ -2915,7 +3102,7 @@ describe('ModbusClient', () => {
         buffer: Buffer.from([0x01])
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readCoils).toHaveBeenCalledTimes(1)
       expect(mockModbusRTU.readCoils).toHaveBeenCalledWith(0, 10)
@@ -2923,8 +3110,8 @@ describe('ModbusClient', () => {
 
     it('handles read error and continues to next group', async () => {
       await connectClient()
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2941,7 +3128,7 @@ describe('ModbusClient', () => {
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       // In readConfiguration mode, errors go into data rows, not snackbar messages
       const dataCalls = getWindowCalls('register_data')
@@ -2963,8 +3150,8 @@ describe('ModbusClient', () => {
 
     it('sets groupIndex on readConfiguration rows', async () => {
       await connectClient()
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -2980,7 +3167,7 @@ describe('ModbusClient', () => {
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const dataCalls = getWindowCalls('register_data')
       expect(dataCalls.length).toBeGreaterThan(0)
@@ -2994,7 +3181,7 @@ describe('ModbusClient', () => {
     })
 
     it('emits "not connected" warning when disconnected', async () => {
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message.includes('not connected'))).toBe(true)
@@ -3009,8 +3196,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReads()
 
-      const first = client.read()
-      await client.read()
+      const first = client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
       const messages = getWindowCalls('backend_message')
@@ -3027,7 +3214,7 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReads()
 
-      const first = client.read()
+      const first = client.read(UNIT, unitType)
       expect(client.state.reading).toBe(true)
       expect(getLastClientState().reading).toBe(true)
 
@@ -3046,7 +3233,7 @@ describe('ModbusClient', () => {
         () =>
           new Promise((_resolve, reject) => setTimeout(() => reject(new Error('Timed out')), 10000))
       )
-      void client.read()
+      void client.read(UNIT, unitType)
       await vi.advanceTimersByTimeAsync(0)
 
       fireClientEvent('close')
@@ -3061,8 +3248,8 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      await client.read()
-      await client.read()
+      await client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
 
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(2)
     })
@@ -3071,8 +3258,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReads()
 
-      const first = client.read()
-      await client.write({
+      const first = client.read(UNIT, unitType)
+      await client.write(UNIT, {
         address: 0,
         type: 'holding_registers',
         value: 1,
@@ -3123,8 +3310,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.updateConnectionConfig({ unitId: 3 })
+      const read = client.read(UNIT, unitType)
+      configureUnit({ unitId: 3 })
       await gate.resolveAll()
       await read
 
@@ -3137,8 +3324,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.updateRegisterConfig({ type: 'coils' })
+      const read = client.read(UNIT, unitType)
+      configureUnit({ type: 'coils' })
       await gate.resolveAll()
       await read
 
@@ -3150,8 +3337,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.updateRegisterConfig({ address: 40 })
+      const read = client.read(UNIT, unitType)
+      configureUnit({ address: 40 })
       await gate.resolveAll()
       await read
 
@@ -3163,8 +3350,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.updateRegisterConfig({ length: 3 })
+      const read = client.read(UNIT, unitType)
+      configureUnit({ length: 3 })
       await gate.resolveAll()
       await read
 
@@ -3176,8 +3363,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.setRegisterMapping({
+      const read = client.read(UNIT, unitType)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -3194,8 +3381,8 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReadsFilingTransactions()
 
-      const read = client.read()
-      appState.setReadConfiguration(true)
+      const read = client.read(UNIT, unitType)
+      appState.setReadConfiguration(UNIT, true)
       await gate.resolveAll()
       await read
 
@@ -3210,7 +3397,7 @@ describe('ModbusClient', () => {
       await connectClient()
       const gate = gateTheReads()
 
-      const read = client.read()
+      const read = client.read(UNIT, unitType)
       appState.updateRegisterConfig({ pollRate: 2000, timeout: 4000 })
       await gate.resolveAll()
       await read
@@ -3226,7 +3413,7 @@ describe('ModbusClient', () => {
 
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
-      appState.updateConnectionConfig({ unitId: 3 })
+      configureUnit({ unitId: 3 })
       await gate.resolveAll()
       await vi.advanceTimersByTimeAsync(1100)
       await gate.resolveAll()
@@ -3255,7 +3442,7 @@ describe('ModbusClient', () => {
         return { data: new Array(10).fill(0), buffer: Buffer.alloc(20) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
@@ -3280,7 +3467,7 @@ describe('ModbusClient', () => {
     // Every `writeFCx` puts the address at bytes 2 and 3 of the frame.
     it('reads the address off the request frame when the library files none', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils', address: 300, length: 4 })
+      configureUnit({ type: 'coils', address: 300, length: 4 })
       mockModbusRTU.readCoils.mockImplementation(async () => {
         fileTransaction({
           nextAddress: 1,
@@ -3294,7 +3481,7 @@ describe('ModbusClient', () => {
         return { data: [false, false, false, false], buffer: Buffer.from([0x00]) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const tx = getWindowCalls('transaction')[0]?.[1]
       expect(tx.code).toBe(1)
@@ -3315,7 +3502,7 @@ describe('ModbusClient', () => {
         return { data: new Array(10).fill(0), buffer: Buffer.alloc(20) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(getWindowCalls('transaction')[0]?.[1].address).toBeUndefined()
     })
@@ -3324,7 +3511,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([0])
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(Object.keys(mockModbusRTU._transactions)).toEqual([])
     })
@@ -3340,8 +3527,8 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
-      await client.read()
+      await client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
 
       expect(getWindowCalls('transaction')).toHaveLength(1)
     })
@@ -3357,7 +3544,7 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       expect(Object.keys(mockModbusRTU._transactions)).toEqual(['1'])
       expect(getWindowCalls('transaction')).toHaveLength(1)
@@ -3371,7 +3558,7 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(0)
@@ -3384,7 +3571,7 @@ describe('ModbusClient', () => {
         throw new Error('Timed out')
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
@@ -3406,7 +3593,7 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.length).toBe(1)
@@ -3422,8 +3609,8 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
-      await client.read()
+      await client.read(UNIT, unitType)
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls.map((call) => call[1].id.split('__')[0])).toEqual(['1', '1'])
@@ -3434,8 +3621,8 @@ describe('ModbusClient', () => {
     // error the transaction it produced is logged with.
     const readTwoGroups = async (failFirst: boolean) => {
       await connectClient()
-      appState.setReadConfiguration(true)
-      appState.setRegisterMapping({
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
         coils: {},
         discrete_inputs: {},
         input_registers: {},
@@ -3453,7 +3640,7 @@ describe('ModbusClient', () => {
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
       return getWindowCalls('transaction').map((c) => c[1])
     }
 
@@ -3480,7 +3667,7 @@ describe('ModbusClient', () => {
         return { data: [0], buffer: Buffer.alloc(2) }
       })
 
-      await client.read()
+      await client.read(UNIT, unitType)
 
       const txCalls = getWindowCalls('transaction')
       expect(txCalls[0]?.[1].timeout).toBe(true)
@@ -3495,7 +3682,7 @@ describe('ModbusClient', () => {
           (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => cb(null)
         )
 
-        await client.write({ address: 5, type: 'coils', value: [true], single: true })
+        await client.write(UNIT, { address: 5, type: 'coils', value: [true], single: true })
 
         expect(mockModbusRTU.writeFC5).toHaveBeenCalledWith(1, 5, true, expect.any(Function))
       })
@@ -3504,7 +3691,7 @@ describe('ModbusClient', () => {
         await connectClient()
 
         // The schema accepts an empty list, and FC5 takes the first coil of it.
-        await client.write({ address: 5, type: 'coils', value: [], single: true })
+        await client.write(UNIT, { address: 5, type: 'coils', value: [], single: true })
 
         expect(mockModbusRTU.writeFC5).not.toHaveBeenCalled()
         const messages = getWindowCalls('backend_message')
@@ -3517,7 +3704,7 @@ describe('ModbusClient', () => {
           (_uid: number, _addr: number, _val: boolean[], cb: (err: null) => void) => cb(null)
         )
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'coils',
           value: [true, false, true],
@@ -3539,7 +3726,7 @@ describe('ModbusClient', () => {
             cb(new Error('write failed'))
         )
 
-        await client.write({ address: 0, type: 'coils', value: [true], single: true })
+        await client.write(UNIT, { address: 0, type: 'coils', value: [true], single: true })
 
         const messages = getWindowCalls('backend_message')
         expect(messages.some((m) => m[1].message === 'write failed')).toBe(true)
@@ -3553,7 +3740,7 @@ describe('ModbusClient', () => {
             cb(new Error('FC15 failed'))
         )
 
-        await client.write({ address: 0, type: 'coils', value: [true, false], single: false })
+        await client.write(UNIT, { address: 0, type: 'coils', value: [true, false], single: false })
 
         const messages = getWindowCalls('backend_message')
         expect(messages.some((m) => m[1].message === 'FC15 failed')).toBe(true)
@@ -3567,7 +3754,7 @@ describe('ModbusClient', () => {
           (_uid: number, _addr: number, _val: number, cb: (err: null) => void) => cb(null)
         )
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -3584,7 +3771,7 @@ describe('ModbusClient', () => {
           (_uid: number, _addr: number, _val: number[], cb: (err: null) => void) => cb(null)
         )
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 70000,
@@ -3603,7 +3790,7 @@ describe('ModbusClient', () => {
       it('rejects single write for non-16-bit data types', async () => {
         await connectClient()
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 70000,
@@ -3624,7 +3811,7 @@ describe('ModbusClient', () => {
       it('refuses a write the value field cannot be encoded as', async () => {
         await connectClient()
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -3642,7 +3829,7 @@ describe('ModbusClient', () => {
       it('refuses a write for an address the mapping gives no type', async () => {
         await connectClient()
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -3664,7 +3851,7 @@ describe('ModbusClient', () => {
             cb(new Error('write failed'))
         )
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -3684,7 +3871,7 @@ describe('ModbusClient', () => {
             cb(new Error('FC6 failed'))
         )
 
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 100,
@@ -3733,7 +3920,7 @@ describe('ModbusClient', () => {
         mockModbusRTU.writeFC6.mockImplementation(
           (_uid: number, _addr: number, _val: number, cb: (err: null) => void) => cb(null)
         )
-        await client.write({
+        await client.write(UNIT, {
           address: 0,
           type: 'holding_registers',
           value: 1,
@@ -3749,7 +3936,11 @@ describe('ModbusClient', () => {
           buffer: Buffer.alloc(2)
         })
 
-        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 100 })
+        const scan = client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 1],
+          length: 1,
+          timeout: 100
+        })
         await vi.advanceTimersByTimeAsync(1000)
         await scan
         expect(mockModbusRTU.setTimeout).toHaveBeenLastCalledWith(100)
@@ -3799,7 +3990,7 @@ describe('ModbusClient', () => {
        * then. `afterEach` lets the read answer and waits for the write.
        */
       const writeUpToTheReadBack = async (parameters: WriteParameters): Promise<void> => {
-        writeInFlight = client.write(parameters)
+        writeInFlight = client.write(UNIT, parameters)
         await vi.advanceTimersByTimeAsync(0)
       }
 
@@ -3980,7 +4171,7 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(100)
 
-      await client.write({ address: 0, type: 'coils', value: [true], single: true })
+      await client.write(UNIT, { address: 0, type: 'coils', value: [true], single: true })
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot write during a poll')).toBe(true)
@@ -3996,11 +4187,11 @@ describe('ModbusClient', () => {
         (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => cb(null)
       )
 
-      client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      client.scanRegisters(UNIT, unitType, { addressRange: [50, 69], length: 10, timeout: 1000 })
       await vi.advanceTimersByTimeAsync(0)
       expect(client.state.scanningRegisters).toBe(true)
 
-      await client.write({ address: 0, type: 'coils', value: [true], single: true })
+      await client.write(UNIT, { address: 0, type: 'coils', value: [true], single: true })
 
       const messages = getWindowCalls('backend_message')
       expect(messages.some((m) => m[1].message === 'Cannot write during a register scan')).toBe(
@@ -4030,10 +4221,15 @@ describe('ModbusClient', () => {
         }
       )
 
-      const writePromise = client.write({ address: 0, type: 'coils', value: [true], single: true })
+      const writePromise = client.write(UNIT, {
+        address: 0,
+        type: 'coils',
+        value: [true],
+        single: true
+      })
       await vi.advanceTimersByTimeAsync(0)
 
-      client.scanRegisters({ addressRange: [50, 69], length: 10, timeout: 1000 })
+      client.scanRegisters(UNIT, unitType, { addressRange: [50, 69], length: 10, timeout: 1000 })
       await vi.advanceTimersByTimeAsync(0)
 
       expect(client.state.scanningRegisters).toBe(false)
@@ -4049,7 +4245,7 @@ describe('ModbusClient', () => {
       await gated.resolveAll()
       await writePromise
 
-      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
+      expect(mockModbusRTU.readCoils).toHaveBeenCalledTimes(1)
     })
 
     /**
@@ -4071,7 +4267,7 @@ describe('ModbusClient', () => {
       /** The client in one owned state, and the state left over afterwards. */
       const whileReading = async (): Promise<void> => {
         gateTheReads()
-        void client.read()
+        void client.read(UNIT, unitType)
         await vi.advanceTimersByTimeAsync(0)
         expect(client.state.reading).toBe(true)
       }
@@ -4118,7 +4314,11 @@ describe('ModbusClient', () => {
         await connectClient()
         await whileScanningUnitIds()
 
-        await client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+        await client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 1],
+          length: 1,
+          timeout: 1000
+        })
 
         expect(client.state.scanningRegisters).toBe(false)
         expect(getWindowCalls('backend_message').map((m) => m[1].message)).toContain(
@@ -4155,7 +4355,11 @@ describe('ModbusClient', () => {
         await vi.advanceTimersByTimeAsync(100)
         expect(client.state.polling).toBe(true)
 
-        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+        const scan = client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 1],
+          length: 1,
+          timeout: 1000
+        })
         await vi.advanceTimersByTimeAsync(1000)
         await scan
 
@@ -4177,7 +4381,11 @@ describe('ModbusClient', () => {
         await vi.advanceTimersByTimeAsync(0)
         expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledTimes(1)
 
-        const scan = client.scanRegisters({ addressRange: [0, 1], length: 1, timeout: 1000 })
+        const scan = client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 1],
+          length: 1,
+          timeout: 1000
+        })
         await vi.advanceTimersByTimeAsync(1000)
 
         // The poll's read has not answered, so the scan has put nothing on the
@@ -4219,7 +4427,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      await client.write({
+      await client.write(UNIT, {
         address: 0,
         type: 'holding_registers',
         value: 100,
@@ -4242,12 +4450,12 @@ describe('ModbusClient', () => {
         (_uid: number, _addr: number, _val: boolean, cb: (err: null) => void) => cb(null)
       )
 
-      await client.write({ address: 0, type: 'coils', value: [true], single: true })
+      await client.write(UNIT, { address: 0, type: 'coils', value: [true], single: true })
       // Let the fire-and-forget read complete
       await vi.advanceTimersByTimeAsync(100)
 
-      // A read was triggered (readHoldingRegisters was called from the auto-read)
-      expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalled()
+      // The read back asks for the type the write wrote.
+      expect(mockModbusRTU.readCoils).toHaveBeenCalled()
     })
 
     describe('a write while a write is in flight', () => {
@@ -4284,9 +4492,9 @@ describe('ModbusClient', () => {
         setupHoldingRegisterReadMock([100])
         const gate = gateTheRegisterWrites()
 
-        const first = client.write(aRegisterWrite)
+        const first = client.write(UNIT, aRegisterWrite)
         await vi.advanceTimersByTimeAsync(0)
-        await client.write({ ...aRegisterWrite, value: 2 })
+        await client.write(UNIT, { ...aRegisterWrite, value: 2 })
 
         expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(1)
         expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
@@ -4303,7 +4511,7 @@ describe('ModbusClient', () => {
         setupHoldingRegisterReadMock([100])
         const gate = gateTheRegisterWrites()
 
-        const first = client.write(aRegisterWrite)
+        const first = client.write(UNIT, aRegisterWrite)
         await vi.advanceTimersByTimeAsync(0)
         expect(client.state.writing).toBe(true)
         expect(getLastClientState()?.writing).toBe(true)
@@ -4320,9 +4528,9 @@ describe('ModbusClient', () => {
         setupHoldingRegisterReadMock([100])
         const gate = gateTheRegisterWrites()
 
-        const first = client.write(aRegisterWrite)
+        const first = client.write(UNIT, aRegisterWrite)
         await vi.advanceTimersByTimeAsync(0)
-        await client.read()
+        await client.read(UNIT, unitType)
 
         expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
         expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
@@ -4345,14 +4553,14 @@ describe('ModbusClient', () => {
         const reads = gateTheReads()
         const writes = gateTheRegisterWrites()
 
-        const first = client.write(aRegisterWrite)
+        const first = client.write(UNIT, aRegisterWrite)
         await vi.advanceTimersByTimeAsync(0)
         await writes.resolveAll()
         await vi.advanceTimersByTimeAsync(0)
 
         expect(client.state.reading).toBe(true)
         expect(client.state.writing).toBe(true)
-        await client.write({ ...aRegisterWrite, value: 2 })
+        await client.write(UNIT, { ...aRegisterWrite, value: 2 })
         expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(1)
         expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
           message: 'Cannot write during another write',
@@ -4372,8 +4580,8 @@ describe('ModbusClient', () => {
             callback(null)
         )
 
-        await client.write(aRegisterWrite)
-        await client.write({ ...aRegisterWrite, value: 2 })
+        await client.write(UNIT, aRegisterWrite)
+        await client.write(UNIT, { ...aRegisterWrite, value: 2 })
 
         expect(mockModbusRTU.writeFC6).toHaveBeenCalledTimes(2)
       })
@@ -4824,7 +5032,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [50, 69],
         length: 10,
         timeout: 1000
@@ -4840,9 +5048,9 @@ describe('ModbusClient', () => {
     it('sets unit ID before scanning', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
-      appState.updateConnectionConfig({ unitId: 42 })
+      configureUnit({ unitId: 42 })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 5],
         length: 5,
         timeout: 1000
@@ -4856,13 +5064,13 @@ describe('ModbusClient', () => {
     it('calls setID before the first read operation', async () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
-      appState.updateConnectionConfig({ unitId: 99 })
+      configureUnit({ unitId: 99 })
 
       // Clear mocks after connect (which also calls setID)
       mockModbusRTU.setID.mockClear()
       mockModbusRTU.readHoldingRegisters.mockClear()
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 5],
         length: 5,
         timeout: 1000
@@ -4880,7 +5088,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 20],
         length: 10,
         timeout: 1000
@@ -4902,7 +5110,7 @@ describe('ModbusClient', () => {
         }
       )
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 5],
         length: 1,
         timeout: 1000
@@ -4922,7 +5130,11 @@ describe('ModbusClient', () => {
         await connectClient()
         setupHoldingRegisterReadMock([100])
 
-        await client.scanRegisters({ addressRange: [0, 999], length: 10, timeout: 1000 })
+        await client.scanRegisters(UNIT, unitType, {
+          addressRange: [0, 999],
+          length: 10,
+          timeout: 1000
+        })
 
         expect(mockModbusRTU.readHoldingRegisters.mock.calls.length).toBe(100)
         expect(client.state.scanningRegisters).toBe(false)
@@ -4935,7 +5147,7 @@ describe('ModbusClient', () => {
           return { data: new Array(10).fill(100), buffer: Buffer.alloc(20) }
         })
 
-        const scanPromise = client.scanRegisters({
+        const scanPromise = client.scanRegisters(UNIT, unitType, {
           addressRange: [0, 9999],
           length: 10,
           timeout: 1000
@@ -4977,7 +5189,7 @@ describe('ModbusClient', () => {
         return { data: new Array(10).fill(100), buffer: Buffer.alloc(20) }
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 1000],
         length: 10,
         timeout: 1000
@@ -5023,7 +5235,7 @@ describe('ModbusClient', () => {
       })
       mockModbusRTU.readHoldingRegisters.mockClear()
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 999],
         length: 10,
         timeout: 1000
@@ -5046,7 +5258,7 @@ describe('ModbusClient', () => {
         return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 999],
         length: 10,
         timeout: 1000
@@ -5066,7 +5278,7 @@ describe('ModbusClient', () => {
         throw new Error('scan read error')
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 5],
         length: 5,
         timeout: 1000
@@ -5082,7 +5294,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [65530, 65535],
         length: 10,
         timeout: 1000
@@ -5098,13 +5310,13 @@ describe('ModbusClient', () => {
     // ! Coverage-only: exercises d.bit filter branch in _scanRegister
     it('filters by bit value when scanning coils', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils' })
+      configureUnit({ type: 'coils' })
       mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
         mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
         return { data: [true, false, true], buffer: Buffer.from([0x05]) }
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 3],
         length: 3,
         timeout: 1000
@@ -5123,7 +5335,7 @@ describe('ModbusClient', () => {
     // the chunk is what goes on the wire.
     it('sends every coil a chunk read, not the grid length', async () => {
       await connectClient()
-      appState.updateRegisterConfig({ type: 'coils', length: 10 })
+      configureUnit({ type: 'coils', length: 10 })
       mockModbusRTU.readCoils.mockImplementation(async (address: number, length: number) => {
         mockModbusRTU._transactions = { '1': createMockTransaction(address, length) }
         return {
@@ -5132,7 +5344,7 @@ describe('ModbusClient', () => {
         }
       })
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 99],
         length: 100,
         timeout: 1000
@@ -5150,7 +5362,7 @@ describe('ModbusClient', () => {
       await connectClient()
       setupHoldingRegisterReadMock([100])
 
-      const scanPromise = client.scanRegisters({
+      const scanPromise = client.scanRegisters(UNIT, unitType, {
         addressRange: [0, 10],
         length: 5,
         timeout: 1000

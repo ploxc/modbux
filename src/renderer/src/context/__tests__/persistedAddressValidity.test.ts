@@ -8,7 +8,7 @@
 // carries.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from './stubRenderer'
-import { selectedClient, selectedSession } from '../client.zustand.helpers'
+import { selectedClient, selectedSession, selectedUnit } from '../client.zustand.helpers'
 
 beforeEach(() => {
   vi.resetModules()
@@ -76,24 +76,13 @@ describe('the validity of a connection address off disk', () => {
     expect(selectedSession(useClientZustand.getState()).valid.com).toBe(true)
   })
 
-  // The read length carries the same kind of flag, over a value the schema
-  // takes: `RegisterConfigSchema` accepts 0 and `setLength` keeps a cleared
-  // field in the store without sending it.
-  it('reads false for a read length of zero', async () => {
+  // A read length of zero is a value the schema takes, and the section keeps it.
+  it('keeps a read length of zero in the section it was read in', async () => {
     stored('127.0.0.1', '/dev/ttys011', 0)
 
     const { useClientZustand } = await import('../client.zustand')
 
-    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(false)
-    expect(selectedClient(useClientZustand.getState()).registerConfig.length).toBe(0)
-  })
-
-  it('reads true for a read length that asks for something', async () => {
-    stored('127.0.0.1', '/dev/ttys011', 10)
-
-    const { useClientZustand } = await import('../client.zustand')
-
-    expect(selectedSession(useClientZustand.getState()).valid.length).toBe(true)
+    expect(selectedUnit(useClientZustand.getState()).sections.holding_registers.length).toBe(0)
   })
 
   // A first launch has no blob, and the defaults are what the fields show.
@@ -104,6 +93,5 @@ describe('the validity of a connection address off disk', () => {
 
     expect(valid.host).toBe(connectionConfig.tcp.host.trim().length > 0)
     expect(valid.com).toBe(connectionConfig.rtu.com.trim().length > 0)
-    expect(valid.length).toBe(selectedClient(useClientZustand.getState()).registerConfig.length > 0)
   })
 })
