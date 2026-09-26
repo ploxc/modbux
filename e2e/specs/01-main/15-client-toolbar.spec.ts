@@ -15,7 +15,8 @@ import {
   expectColumn,
   openColumnMenu,
   clearClientConfig,
-  loadClientConfig
+  loadClientConfig,
+  setBitWidth
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 
@@ -46,85 +47,44 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await readRegisters(mainPage, '0', '40')
   })
 
-  // ─── Advanced mode & 64-bit toggle ────────────────────────────────
+  // ─── 32 and 64 bit columns ────────────────────────────────
 
-  test('disable advanced mode — no value columns visible', async ({ mainPage }) => {
-    // Ensure advanced mode is off
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage
-      .getByTestId('advanced-mode-checkbox')
-      .waitFor({ state: 'visible', timeout: 5000 })
-
-    const advInput = mainPage
-      .getByTestId('advanced-mode-checkbox')
-      .locator('input[type="checkbox"]')
-    if (await advInput.isChecked()) {
-      await mainPage.getByTestId('advanced-mode-checkbox').click()
-    }
-
-    // 64-bit checkbox should be disabled when advanced mode is off
-    const show64Checkbox = mainPage.getByTestId('show-64bit-checkbox')
-    await expect(show64Checkbox).toHaveClass(/Mui-disabled/)
-
-    await mainPage.keyboard.press('Escape')
+  test('with 32 and 64 off no value columns are visible', async ({ mainPage }) => {
+    await setBitWidth(mainPage, '32', false)
+    await setBitWidth(mainPage, '64', false)
 
     await expectColumn(mainPage, 'word_int16', false)
     await expectColumn(mainPage, 'word_uint16', false)
     await expectColumn(mainPage, 'word_float', false)
   })
 
-  test('enabling advanced mode shows value columns', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage
-      .getByTestId('advanced-mode-checkbox')
-      .waitFor({ state: 'visible', timeout: 5000 })
-    await mainPage.getByTestId('advanced-mode-checkbox').click()
-    await mainPage.waitForTimeout(200)
-
-    // Ensure 64-bit is off
-    const show64Input = mainPage
-      .getByTestId('show-64bit-checkbox')
-      .locator('input[type="checkbox"]')
-    if (await show64Input.isChecked()) {
-      await mainPage.getByTestId('show-64bit-checkbox').click()
-      await mainPage.waitForTimeout(200)
-    }
-
-    await mainPage.keyboard.press('Escape')
+  test('32 shows the 16 and 32 bit value columns', async ({ mainPage }) => {
+    await setBitWidth(mainPage, '32', true)
 
     await expectColumn(mainPage, 'word_int16', true)
     await expectColumn(mainPage, 'word_uint16', true)
     await expectColumn(mainPage, 'word_int32', true)
     await expectColumn(mainPage, 'word_uint32', true)
     await expectColumn(mainPage, 'word_float', true)
-
-    // 64-bit columns should not be there (explicitly disabled above)
     await expectColumn(mainPage, 'word_int64', false)
   })
 
-  test('enabling 64-bit shows int64, uint64, double columns', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage.getByTestId('show-64bit-checkbox').waitFor({ state: 'visible', timeout: 5000 })
-    await mainPage.getByTestId('show-64bit-checkbox').click()
-    await mainPage.waitForTimeout(200)
-    await mainPage.keyboard.press('Escape')
+  test('64 shows int64, uint64, double columns', async ({ mainPage }) => {
+    await setBitWidth(mainPage, '64', true)
 
     await expectColumn(mainPage, 'word_int64', true)
     await expectColumn(mainPage, 'word_uint64', true)
     await expectColumn(mainPage, 'word_double', true)
   })
 
-  test('disabling advanced mode hides all value columns', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage
-      .getByTestId('advanced-mode-checkbox')
-      .waitFor({ state: 'visible', timeout: 5000 })
-    await mainPage.getByTestId('advanced-mode-checkbox').click()
-    await mainPage.waitForTimeout(200)
-    await mainPage.keyboard.press('Escape')
+  test('32 off leaves the 64 bit columns', async ({ mainPage }) => {
+    await setBitWidth(mainPage, '32', false)
 
     await expectColumn(mainPage, 'word_int16', false)
     await expectColumn(mainPage, 'word_float', false)
+    await expectColumn(mainPage, 'word_int64', true)
+
+    await setBitWidth(mainPage, '64', false)
     await expectColumn(mainPage, 'word_int64', false)
   })
 
@@ -181,16 +141,15 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByTestId('reg-base-1-btn').click()
     await mainPage.waitForTimeout(300)
 
-    // Grid should still have data
-    const rowCountAfter = await mainPage.locator('.MuiDataGrid-row').count()
-    expect(rowCountAfter).toBe(rowCount)
+    // The grid virtualises, so the rendered row count follows the layout
+    // rather than the data: what is asserted is that rows are still there.
+    await expectCell(mainPage, 0, 'id', '1')
 
     // Switch back to base 0
     await mainPage.getByTestId('reg-base-0-btn').click()
     await mainPage.waitForTimeout(300)
 
-    const rowCountReset = await mainPage.locator('.MuiDataGrid-row').count()
-    expect(rowCountReset).toBe(rowCount)
+    await expectCell(mainPage, 0, 'id', '0')
   })
 
   test('address change clears grid', async ({ mainPage }) => {
@@ -303,7 +262,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   // ─── Register read config toggle ──────────────────────────────────
 
-  for (const regType of ['Holding Registers', 'Input Registers']) {
+  for (const regType of ['Holding Registers', 'Input Registers'] as const) {
     test(`[${regType}] read config: clear config → button disabled`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
 
@@ -358,7 +317,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   // ─── Coils & Discrete Inputs — toolbar differences ─────────────────
 
-  for (const regType of ['Coils', 'Discrete Inputs']) {
+  for (const regType of ['Coils', 'Discrete Inputs'] as const) {
     test(`[${regType}] no raw button visible`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
 
@@ -372,13 +331,9 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       await expect(mainPage.getByTestId('endian-le-btn')).not.toBeVisible()
     })
 
-    test(`[${regType}] no advanced mode or 64-bit options in menu`, async ({ mainPage }) => {
-      await mainPage.getByTestId('menu-btn').click()
-
-      await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
-      await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
-
-      await mainPage.keyboard.press('Escape')
+    test(`[${regType}] no 32 or 64 bit buttons`, async ({ mainPage }) => {
+      await expect(mainPage.getByTestId('bits-32-btn')).not.toBeVisible()
+      await expect(mainPage.getByTestId('bits-64-btn')).not.toBeVisible()
     })
 
     test(`[${regType}] scan button says "Scan TRUE Bits"`, async ({ mainPage }) => {
@@ -413,13 +368,13 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   })
 
   // Verify 16-bit register features are back after switching
-  test('[Holding Registers] endian toggle and advanced mode return', async ({ mainPage }) => {
+  test('[Holding Registers] endian toggle and 32/64 return', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Holding Registers')
 
     await expect(mainPage.getByTestId('endian-be-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('bits-32-btn')).toBeVisible()
 
     await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('advanced-mode-checkbox')).toBeVisible()
     await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
     await mainPage.keyboard.press('Escape')
   })

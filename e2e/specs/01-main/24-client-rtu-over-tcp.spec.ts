@@ -10,7 +10,8 @@ import {
   selectRegisterType,
   selectUnitId,
   expectCell,
-  selectProtocol
+  selectProtocol,
+  setBitWidth
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { spawn, type ChildProcess } from 'child_process'
@@ -110,15 +111,12 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
     await navigateToClient(mainPage)
 
     // The protocol select is disabled once connected, so it is set first.
-    // `.check()` is idempotent, so prior state can't flip advanced mode off.
     await selectProtocol(mainPage, 'ModbusRtuOverTcp')
     await expect(mainPage.getByTestId('tcp-host-input')).toBeVisible()
 
     await selectRegisterType(mainPage, 'Holding Registers')
 
-    await mainPage.getByTestId('menu-btn').click()
-    await mainPage.getByTestId('advanced-mode-checkbox').locator('input').check()
-    await mainPage.keyboard.press('Escape')
+    await setBitWidth(mainPage, '32', true)
   })
 
   test('connect to the gateway over TCP', async ({ mainPage }) => {

@@ -1,10 +1,6 @@
 import List from '@mui/icons-material/List'
 import Box from '@mui/material/Box'
-import FormControl from '@mui/material/FormControl'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
@@ -26,44 +22,52 @@ import { clientOwner, maxReadQuantity, registersFrom, RegisterType } from '@shar
 import { showMapping } from '@renderer/context/live.zustand'
 import { ElementType, useCallback, useEffect, useRef } from 'react'
 
-// Protocol
-const TypeSelect = meme(() => {
-  const labelId = 'register-type-select'
+// Register type
+const REGISTER_TYPES: { type: RegisterType; label: string; color: string }[] = [
+  { type: 'holding_registers', label: 'Holding', color: '#7fb59b' },
+  { type: 'input_registers', label: 'Input', color: '#8fb0dd' },
+  { type: 'coils', label: 'Coils', color: '#e0b36a' },
+  { type: 'discrete_inputs', label: 'Discrete', color: '#c49bd6' }
+]
+
+export const RegisterTypeTabs = meme(() => {
   const type = useClientZustand((z) => selectedClient(z).registerConfig.type)
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   // A register scan reads this field once, for the chunk size one response
   // carries, and `_scanRegister` reads it again for every chunk. Changing it
-  // between the two asks a device for 2000 holding registers. The scan dialog
-  // disables every field it owns while it runs; this one sits in the top bar,
-  // and what kept it out of reach was the strip the dialog draws over it.
+  // between the two asks a device for 2000 holding registers.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
-  const handleChange = useCallback((type: RegisterType) => {
+  const handleChange = useCallback((_event: unknown, value: RegisterType | null) => {
+    if (value === null) return
     if (!getSelectedSession().readConfiguration) {
       useLiveZustand.getState().setRegisterData(selectedClientUuid(), [])
     }
-    useClientZustand.getState().setType(type)
+    useClientZustand.getState().setType(value)
   }, [])
 
   return (
-    <FormControl size="large">
-      <InputLabel id={labelId}>Type</InputLabel>
-      <Select
-        disabled={scanning}
-        size="large"
-        labelId={labelId}
-        value={type}
-        label="Type"
-        onChange={(e) => handleChange(e.target.value as RegisterType)}
-        data-testid="reg-type-select"
-      >
-        <MenuItem value={'coils'}>Coils</MenuItem>
-        <MenuItem value={'discrete_inputs'}>Discrete Inputs</MenuItem>
-        <MenuItem value={'input_registers'}>Input Registers</MenuItem>
-        <MenuItem value={'holding_registers'}>Holding Registers</MenuItem>
-      </Select>
-    </FormControl>
+    <ToggleButtonGroup
+      disabled={scanning}
+      size="medium"
+      exclusive
+      value={type}
+      onChange={handleChange}
+      aria-label="Register type"
+    >
+      {REGISTER_TYPES.map(({ type: option, label, color }) => (
+        <ToggleButton
+          key={option}
+          value={option}
+          data-testid={`reg-type-${option}-btn`}
+          sx={{ gap: 0.75, px: 1.5 }}
+        >
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+          {label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
   )
 })
 
@@ -83,7 +87,7 @@ const Address = meme(() => {
       setAddress={setAddress}
       testId="reg-address-input"
       baseTestId="reg-base"
-      size="large"
+      size="medium"
     />
   )
 })
@@ -111,7 +115,7 @@ const Length = meme(() => {
       disabled={readConfiguration}
       label="Length"
       variant="outlined"
-      size="large"
+      size="medium"
       sx={{ width: 60 }}
       value={length}
       data-testid="reg-length-input"
@@ -196,7 +200,7 @@ const ReadConfiguration = meme(() => {
     <ToggleButtonGroup
       disabled={disabled}
       color="primary"
-      size="large"
+      size="medium"
       exclusive
       value={readConfiguration}
       onChange={handleChange}
@@ -216,12 +220,9 @@ const ReadConfiguration = meme(() => {
 const RegisterConfig = meme(() => {
   return (
     <>
-      <TypeSelect />
-      <Box sx={{ display: 'flex', gap: 2, marginRight: 'auto' }}>
-        <Address />
-        <Length />
-        <ReadConfiguration />
-      </Box>
+      <Address />
+      <Length />
+      <ReadConfiguration />
     </>
   )
 })

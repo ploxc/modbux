@@ -26,12 +26,28 @@ export async function selectUnitId(p: Page, unitId: string, fast = false): Promi
   await p.waitForTimeout(t(200, fast))
 }
 
-/** Select a register type in the client RegisterConfig */
-export async function selectRegisterType(p: Page, name: string): Promise<void> {
-  await p.getByTestId('reg-type-select').click()
-  await p.waitForTimeout(200)
-  await p.getByRole('option', { name }).click()
-  await p.waitForTimeout(200)
+const REGISTER_TYPE_NAMES = {
+  'Holding Registers': 'holding_registers',
+  'Input Registers': 'input_registers',
+  Coils: 'coils',
+  'Discrete Inputs': 'discrete_inputs'
+} as const
+
+/** Press a register type in the client grid toolbar */
+export async function selectRegisterType(
+  p: Page,
+  name: keyof typeof REGISTER_TYPE_NAMES
+): Promise<void> {
+  const button = p.getByTestId(`reg-type-${REGISTER_TYPE_NAMES[name]}-btn`)
+  await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', 'true')
+}
+
+/** Turn the 32 or the 64 bit columns on or off in the client grid toolbar */
+export async function setBitWidth(p: Page, width: '32' | '64', on: boolean): Promise<void> {
+  const button = p.getByTestId(`bits-${width}-btn`)
+  if ((await button.getAttribute('aria-pressed')) !== String(on)) await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', String(on))
 }
 
 /**
@@ -558,32 +574,11 @@ export async function cleanServerState(p: Page): Promise<void> {
   await p.waitForTimeout(500)
 }
 
-/**
- * Toggle advanced mode (and 64-bit values) in the client menu.
- * Idempotent: only clicks checkboxes when their state doesn't match `enabled`.
- */
+/** Turn the 32 and 64 bit columns on together, or both off. */
 async function setAdvancedMode(p: Page, enabled: boolean): Promise<void> {
   if (enabled) await selectRegisterType(p, 'Holding Registers')
-
-  await p.getByTestId('menu-btn').click()
-  await p.getByTestId('advanced-mode-checkbox').waitFor({ state: 'visible', timeout: 5000 })
-
-  const advInput = p.getByTestId('advanced-mode-checkbox').locator('input[type="checkbox"]')
-  if ((await advInput.isChecked()) !== enabled) {
-    await p.getByTestId('advanced-mode-checkbox').click()
-    await p.waitForTimeout(200)
-  }
-
-  if (enabled) {
-    const show64Input = p.getByTestId('show-64bit-checkbox').locator('input[type="checkbox"]')
-    if (!(await show64Input.isChecked())) {
-      await p.getByTestId('show-64bit-checkbox').click()
-      await p.waitForTimeout(200)
-    }
-  }
-
-  await p.keyboard.press('Escape')
-  await p.waitForTimeout(200)
+  await setBitWidth(p, '32', enabled)
+  await setBitWidth(p, '64', enabled)
 }
 
 /** Convenience alias for setAdvancedMode(p, true) */

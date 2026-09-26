@@ -36,7 +36,8 @@ import {
   expectCell,
   expectCellContains,
   splitOutServerWindow,
-  selectProtocol
+  selectProtocol,
+  setBitWidth
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
@@ -412,16 +413,10 @@ test.describe.serial('Act III — Going Live', () => {
     await snap(mainPage, 'client-raw-data')
   })
 
-  test('scene 16 — register type dropdown', async ({ mainPage }) => {
-    await mainPage.getByTestId('reg-type-select').click()
+  test('scene 16 — register type tabs', async ({ mainPage }) => {
+    await selectRegisterType(mainPage, 'Holding Registers')
     await beat(mainPage, 300)
-
-    const listbox = mainPage.getByRole('listbox')
-    await listbox.screenshot({ path: resolve(SHOTS, 'register-type-dropdown.png') })
-
-    // Close dropdown (re-select Holding Registers)
-    await mainPage.getByRole('option', { name: 'Holding Registers' }).click()
-    await beat(mainPage, 200)
+    await snap(mainPage, 'register-type-tabs')
   })
 
   test('scene 17 — cog menu', async ({ mainPage }) => {
@@ -460,41 +455,17 @@ test.describe.serial('Act III — Going Live', () => {
     await beat(mainPage, 400)
   })
 
-  test('scene 18 — advanced mode', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
-    const advCheckbox = mainPage.getByTestId('advanced-mode-checkbox')
-    await advCheckbox.waitFor({ state: 'visible', timeout: 5000 })
-    const advInput = advCheckbox.locator('input[type="checkbox"]')
-    if (!(await advInput.isChecked())) {
-      await advCheckbox.click()
-      await mainPage.waitForTimeout(200)
-    }
-    const bit64Checkbox = mainPage.getByTestId('show-64bit-checkbox')
-    const bit64Input = bit64Checkbox.locator('input[type="checkbox"]')
-    if (!(await bit64Input.isChecked())) {
-      await bit64Checkbox.click()
-      await mainPage.waitForTimeout(200)
-    }
-
-    // Close menu and blur cog button
-    await mainPage.keyboard.press('Escape')
-    await beat(mainPage, 200)
-    await mainPage.getByTestId('menu-btn').evaluate((el) => (el as HTMLElement).blur())
+  test('scene 18 — 32 and 64 bit values', async ({ mainPage }) => {
+    await setBitWidth(mainPage, '32', true)
+    await setBitWidth(mainPage, '64', true)
+    await mainPage.mouse.move(0, 0)
     await beat(mainPage)
     await snap(mainPage, 'client-advanced-mode')
   })
 
   test('scene 19 — client config with decoded values', async ({ mainPage }) => {
-    // Disable advanced mode
-    await mainPage.getByTestId('menu-btn').click()
-    const advCheckbox = mainPage.getByTestId('advanced-mode-checkbox')
-    const advInput = advCheckbox.locator('input[type="checkbox"]')
-    if (await advInput.isChecked()) {
-      await advCheckbox.click()
-      await mainPage.waitForTimeout(200)
-    }
-    await mainPage.keyboard.press('Escape')
-    await mainPage.waitForTimeout(200)
+    await setBitWidth(mainPage, '32', false)
+    await setBitWidth(mainPage, '64', false)
 
     // Load client config
     await loadClientConfig(mainPage, CLIENT_CONFIG)

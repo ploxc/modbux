@@ -56,7 +56,6 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
       )
     }
 
-    // Advanced mode columns
     if (advanced && registers16Bit) {
       columns.push(
         valueColumn('int16', 70),
@@ -67,8 +66,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
       )
     }
 
-    // Show 64 bit columns only in advanced mode, these are not very common, but they are there
-    if (advanced && show64Bit && registers16Bit) {
+    if (show64Bit && registers16Bit) {
       columns.push(
         valueColumn('int64', 160),
         valueColumn('uint64', 160),

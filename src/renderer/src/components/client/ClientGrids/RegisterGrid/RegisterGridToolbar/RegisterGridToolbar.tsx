@@ -8,6 +8,10 @@ import ClearConfigButton from './ClearConfigButton'
 import ClearButton from './ClearButton'
 import ShowLogButton from './ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
+import BitWidthButtons from './BitWidthButtons'
+import RegisterConfig, {
+  RegisterTypeTabs
+} from '@renderer/components/client/RegisterConfig/RegisterConfig'
 import RawButton from './RawButton'
 import ClearFiltersButton from './ClearFiltersButton'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
@@ -39,7 +43,7 @@ const ClientConfigName = meme(() => {
 
 const RegisterGridToolbar = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  // Read, Poll, Clear and the config buttons would each undo a scan that is
+  // Read, Clear, the register fields and the config buttons would each undo a scan that is
   // still running, so the strip goes quiet with the rows underneath it.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
@@ -50,9 +54,9 @@ const RegisterGridToolbar = meme(() => {
           pointerEvents: 'none',
           opacity: theme.palette.action.disabledOpacity
         }),
-        pt: 1,
-        px: 1,
-        pb: 0.5,
+        pt: 1.5,
+        px: 1.5,
+        pb: 1,
         // The Data Grid renders the toolbar slot bare -- no wrapper, no
         // background -- so it would otherwise show the grid's own base colour.
         // The theme points DataGrid.headerBg at this same value, so the toolbar
@@ -61,19 +65,14 @@ const RegisterGridToolbar = meme(() => {
         // Palette.)
         background: theme.palette.background.default,
         display: 'flex',
-        //justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 1
+        flexDirection: 'column',
+        gap: 1.5
       })}
     >
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <ReadButton />
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <RegisterTypeTabs />
+        <Box sx={{ flex: 1 }} />
         <ToggleEndianButton />
-        <RawButton />
-        <ClearFiltersButton />
-      </Box>
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: 1 }}>
-        <Box sx={{ flex: '1 1 0' }}></Box>
         <Box sx={{ display: 'flex' }}>
           <LoadButton />
           <SaveButton />
@@ -83,6 +82,14 @@ const RegisterGridToolbar = meme(() => {
         <ClearButton />
         <ShowLogButton />
         <MenuButton />
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <RegisterConfig />
+        <ReadButton />
+        <RawButton />
+        <ClearFiltersButton />
+        <Box sx={{ flex: 1 }} />
+        <BitWidthButtons />
       </Box>
     </Box>
   )

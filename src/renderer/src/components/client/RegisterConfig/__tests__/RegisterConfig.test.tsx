@@ -22,7 +22,7 @@ import {
 } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { defaultClientState, RegisterType } from '@shared'
-import RegisterConfig from '../RegisterConfig'
+import RegisterConfig, { RegisterTypeTabs } from '../RegisterConfig'
 import { patchSelectedClient } from '../../../../context/__tests__/selectedClient'
 import { patchShownData } from '../../../../context/__tests__/shownData'
 
@@ -173,26 +173,27 @@ describe('RegisterConfig read configuration', () => {
 // A scan reads the register type once for the chunk size one response carries,
 // and again for every chunk. Changing it in between asks a device for 2000
 // holding registers.
-describe('RegisterConfig type select', () => {
-  it('is off while a register scan runs', () => {
+describe('RegisterConfig type tabs', () => {
+  it('are off while a register scan runs', () => {
     patchShownData(useLiveZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', scanningRegisters: true }
     })
 
-    render(<RegisterConfig />)
+    render(<RegisterTypeTabs />)
 
-    expect(within(screen.getByTestId('reg-type-select')).getByRole('combobox')).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    )
+    expect(screen.getByTestId('reg-type-coils-btn')).toBeDisabled()
   })
 
-  it('is there to press when no scan runs', () => {
-    render(<RegisterConfig />)
+  // The stub refuses every payload, so the store never moves: what is
+  // asserted is the setter the press asks.
+  it('ask for the register type pressed when no scan runs', () => {
+    seed('holding_registers', {})
+    const setType = vi.spyOn(useClientZustand.getState(), 'setType')
+    render(<RegisterTypeTabs />)
 
-    expect(within(screen.getByTestId('reg-type-select')).getByRole('combobox')).not.toHaveAttribute(
-      'aria-disabled'
-    )
+    fireEvent.click(screen.getByTestId('reg-type-coils-btn'))
+
+    expect(setType).toHaveBeenCalledWith('coils')
   })
 })
 

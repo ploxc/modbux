@@ -71,22 +71,18 @@ test.describe.serial('Client-Server Integration', () => {
     await enableAdvancedMode(mainPage)
   })
 
-  // ─── Advanced mode checkboxes visibility ───────────────────────────
+  // ─── 32 and 64 bit buttons visibility ───────────────────────────
 
-  test('advanced mode checkboxes hidden on Coils', async ({ mainPage }) => {
+  test('32 and 64 bit buttons hidden on Coils', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Coils')
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
-    await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
-    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.getByTestId('bits-32-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('bits-64-btn')).not.toBeVisible()
   })
 
-  test('advanced mode checkboxes hidden on Discrete Inputs', async ({ mainPage }) => {
+  test('32 and 64 bit buttons hidden on Discrete Inputs', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Discrete Inputs')
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('advanced-mode-checkbox')).not.toBeVisible()
-    await expect(mainPage.getByTestId('show-64bit-checkbox')).not.toBeVisible()
-    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.getByTestId('bits-32-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('bits-64-btn')).not.toBeVisible()
   })
 
   // ─── Server 1, Unit 0 reads ────────────────────────────────────────
