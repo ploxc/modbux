@@ -1,4 +1,5 @@
-import Box from '@mui/material/Box'
+import ResizeHandle from '@renderer/components/shared/ResizeHandle'
+import { Group, Panel } from 'react-resizable-panels'
 import TransactionGrid from '@renderer/components/client/ClientGrids/TransactionGrid/TransactionGrid'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
@@ -22,21 +23,21 @@ const ClientGrids = meme((): JSX.Element | null => {
   if (scanning && !showWhileScanning) return null
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        width: '100%',
-        minHeight: 0,
-        gap: 2
-      }}
-    >
-      <RegisterGrid />
+    <Group orientation="vertical" id="client-grids" style={{ height: '100%' }}>
+      <Panel id="client-register-grid" minSize={160}>
+        <RegisterGrid />
+      </Panel>
       {/* The log takes a row per chunk, so during a scan it is a second grid
           rendering thousands of times over rows nobody is reading. */}
-      {showLog && !scanning && <TransactionGrid />}
-    </Box>
+      {showLog && !scanning && (
+        <>
+          <ResizeHandle orientation="horizontal" testId="client-log-handle" />
+          <Panel id="client-log" minSize={120} defaultSize={260}>
+            <TransactionGrid />
+          </Panel>
+        </>
+      )}
+    </Group>
   )
 })
 

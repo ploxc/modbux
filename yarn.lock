@@ -7132,6 +7132,7 @@ __metadata:
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     react-imask: "npm:^7.6.1"
+    react-resizable-panels: "npm:4.13.3"
     serialport: "npm:13.0.0"
     typescript: "npm:^5.9.3"
     uuid: "npm:^11.1.1"
@@ -8068,6 +8069,16 @@ __metadata:
   version: 0.18.0
   resolution: "react-refresh@npm:0.18.0"
   checksum: 10c0/34a262f7fd803433a534f50deb27a148112a81adcae440c7d1cbae7ef14d21ea8f2b3d783e858cb7698968183b77755a38b4d4b5b1d79b4f4689c2f6d358fff2
+  languageName: node
+  linkType: hard
+
+"react-resizable-panels@npm:4.13.3":
+  version: 4.13.3
+  resolution: "react-resizable-panels@npm:4.13.3"
+  peerDependencies:
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  checksum: 10c0/3cc85f4271aba5f92bc4814dfd6d07e7b222829f3522e9e893f236a476f28cf539544c729c8983df79d1933ebe021554f8794ce3d2464c95c03f94470959f313
   languageName: node
   linkType: hard
 

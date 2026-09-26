@@ -2,6 +2,7 @@ import Edit from '@mui/icons-material/Edit'
 import ExpandLess from '@mui/icons-material/ExpandLess'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import Box from '@mui/material/Box'
+import { lineColor } from '@renderer/theme'
 import IconButton from '@mui/material/IconButton'
 import { alpha } from '@mui/material/styles'
 import { NumberRegisters, ServerRegister } from '@shared'
@@ -74,7 +75,7 @@ const ServerRegisterRow = meme(({ type, registerKey }: ServerRegisterRowProps) =
         sx={(theme) => ({
           width: '100%',
           height: 28,
-          borderBottom: expanded ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+          borderBottom: expanded ? 'none' : `1px solid ${lineColor}`,
           pl: 1,
 
           display: 'flex',
@@ -118,7 +119,7 @@ const ServerRegisterRow = meme(({ type, registerKey }: ServerRegisterRowProps) =
         <RowEdit register={register} />
       </Box>
       {isBitmap && expanded && (
-        <Box sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)' }}>
+        <Box sx={{ borderBottom: `1px solid ${lineColor}` }}>
           <ServerBitMapDetail register={register} />
         </Box>
       )}

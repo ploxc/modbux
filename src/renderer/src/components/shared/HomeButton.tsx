@@ -19,7 +19,7 @@ const HomeButton = meme((): JSX.Element | null => {
       title="Return to home"
       variant="outlined"
       size="large"
-      sx={{ borderColor: 'rgba(255, 255, 255, 0.23)' }}
+      sx={{ borderColor: 'divider' }}
       color="info"
       onClick={handleClick}
     >

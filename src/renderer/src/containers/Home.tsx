@@ -1,6 +1,4 @@
 import CallSplit from '@mui/icons-material/CallSplit'
-import SettingsIcon from '@mui/icons-material/Settings'
-import IconButton from '@mui/material/IconButton'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Fade from '@mui/material/Fade'
@@ -8,8 +6,8 @@ import Typography from '@mui/material/Typography'
 import { SxProps } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { useCallback, useState } from 'react'
-import Settings from '@renderer/components/settings/Settings'
+import { useCallback } from 'react'
+import SettingsButton from '@renderer/components/settings/SettingsButton'
 import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
@@ -126,28 +124,6 @@ const SplitButton = meme((): JSX.Element => {
   )
 })
 
-/** Opens the settings, where an assistant is let in. */
-const SettingsButton = meme((): JSX.Element => {
-  const [open, setOpen] = useState(false)
-  const handleOpen = useCallback((): void => setOpen(true), [])
-  const handleClose = useCallback((): void => setOpen(false), [])
-
-  return (
-    <>
-      <IconButton
-        data-testid="home-settings-btn"
-        aria-label="Settings"
-        title="Settings"
-        onClick={handleOpen}
-        sx={{ position: 'fixed', top: 12, right: 12 }}
-      >
-        <SettingsIcon />
-      </IconButton>
-      <Settings open={open} onClose={handleClose} />
-    </>
-  )
-})
-
 const bottomElementsCommonSx: SxProps = {
   position: 'fixed',
   bottom: 12,
@@ -232,7 +208,7 @@ const Home = meme(() => {
           <SplitButton />
           <ClientButton />
         </Box>
-        <SettingsButton />
+        <SettingsButton testId="home-settings-btn" sx={{ position: 'fixed', top: 12, right: 12 }} />
         <PloxcLogo />
         <Version />
       </Box>

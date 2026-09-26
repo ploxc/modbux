@@ -32,6 +32,15 @@ const dialogBand = '#1b1b1b'
 const dialogBandBorder = '#2a2a2a'
 const dialogDanger = '#e0735f'
 
+/**
+ * The one colour every border takes: fields, outlined and toggle buttons,
+ * cards, dividers, and the data grids inside and out.
+ */
+export const lineColor = '#333333'
+
+/** What a field's border turns to under the pointer. */
+const lineHoverColor = '#4a4a4a'
+
 /** The round badge in front of a dialog's title, which the text indents past. */
 export const DIALOG_ICON_SIZE = 36
 
@@ -84,6 +93,7 @@ const base = createTheme({
   },
   palette: {
     mode: 'dark',
+    divider: lineColor,
     background: {
       default: '#181818',
       paper: '#1F1F1F'
@@ -114,6 +124,7 @@ const base = createTheme({
         root: {
           minWidth: 0,
           lineHeight: 1,
+          textTransform: 'none',
           variants: bySize((size) => ({
             height: size.height,
             padding: `0 ${size.padding}px`,
@@ -129,10 +140,14 @@ const base = createTheme({
       styleOverrides: {
         root: {
           lineHeight: 1,
+          textTransform: 'none',
+          borderColor: lineColor,
           variants: bySize((size) => ({
             height: size.height,
             padding: `0 ${size.inset}px`,
-            fontSize: size.fontSize,
+            // Most of its labels are acronyms in capitals, which read a step
+            // larger than a Button's mixed case at the same size.
+            fontSize: size.fontSize - 1,
             '& .MuiSvgIcon-root': { fontSize: size.icon }
           }))
         }
@@ -154,7 +169,10 @@ const base = createTheme({
     // A multiline field grows with its text, so only a single line takes a height.
     MuiOutlinedInput: {
       styleOverrides: {
+        notchedOutline: { borderColor: lineColor },
         root: {
+          [`&:hover:not(.Mui-focused):not(.Mui-error):not(.Mui-disabled) .MuiOutlinedInput-notchedOutline`]:
+            { borderColor: lineHoverColor },
           variants: bySize((size) => ({
             fontSize: size.fontSize,
             '&:not(.MuiInputBase-multiline)': { height: size.height },
@@ -183,10 +201,35 @@ const base = createTheme({
               transform: `translate(${size.inset + 1}px, ${(size.height - labelLineHeight) / 2}px) scale(1)`
             },
             '&.MuiInputLabel-outlined.MuiInputLabel-shrink': {
-              transform: `translate(${size.inset + 1}px, -8px) scale(0.75)`
+              transform: `translate(${size.inset + 1}px, -${(labelLineHeight * 0.75) / 2}px) scale(0.75)`
             }
           }))
         }
+      }
+    },
+    // The grid draws its outer edge and every row and column line in one variable.
+    MuiDataGrid: {
+      styleOverrides: {
+        // The grid writes its variables in a <style> tag of its own, after this
+        // one, so the override takes a second class to win.
+        root: { '&&': { '--DataGrid-t-color-border-base': lineColor } }
+      }
+    },
+    // A tooltip is drawn like a small dialog: the same surface, border and shadow.
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: ({ theme }) => ({
+          background: theme.palette.background.paper,
+          border: `1px solid ${dialogBorder}`,
+          borderRadius: 6,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          padding: '6px 10px',
+          fontSize: 12,
+          fontWeight: 400,
+          lineHeight: '16px',
+          color: '#e6e6e6'
+        }),
+        arrow: { color: dialogBorder }
       }
     },
     // Dialog gives its Paper elevation 24, which in dark mode Paper renders as a
@@ -266,6 +309,9 @@ const base = createTheme({
 // not Palette, so the value cannot be read back off the theme. It is named here
 // instead, and both sides read the name.
 export const gridSurface = '#2A2A2A'
+
+/** The shadow a grid panel casts on the app background. */
+export const panelShadow = '0 6px 20px rgba(0, 0, 0, 0.45)'
 
 // headerBg puts just the column headers back on the app background. bg is the
 // value the grid already computed, pinned so the panels can share it.

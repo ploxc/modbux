@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Paper from '@mui/material/Paper'
+import { panelShadow } from '@renderer/theme'
 import { useGridApiContext, useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
@@ -126,7 +127,7 @@ const TransactionGrid = meme((): JSX.Element => {
   return (
     <Paper
       data-testid="transaction-log-panel"
-      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}
+      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%', boxShadow: panelShadow }}
     >
       <TransactionGridContent />
     </Paper>

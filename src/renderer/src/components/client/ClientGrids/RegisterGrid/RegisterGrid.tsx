@@ -1,4 +1,5 @@
 import Paper from '@mui/material/Paper'
+import { panelShadow } from '@renderer/theme'
 import Typography from '@mui/material/Typography'
 import {
   useClientZustand,
@@ -285,7 +286,9 @@ const RegisterGridContent = meme((): JSX.Element => {
 // DataGrid paper
 const RegisterGrid = meme((): JSX.Element => {
   return (
-    <Paper sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%' }}>
+    <Paper
+      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%', boxShadow: panelShadow }}
+    >
       <RegisterGridContent />
     </Paper>
   )

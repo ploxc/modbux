@@ -1,5 +1,6 @@
 import { DeleteFilled, PlusCircleFilled } from '@ant-design/icons'
 import Box from '@mui/material/Box'
+import { lineColor } from '@renderer/theme'
 import IconButton from '@mui/material/IconButton'
 import { alpha } from '@mui/material/styles'
 import { RegisterType } from '@shared'
@@ -121,7 +122,7 @@ const ServerPartTitle = meme(
           justifyContent: 'space-between',
           alignItems: 'center',
           background: theme.palette.background.default,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
+          borderBottom: `1px solid ${lineColor}`
         })}
       >
         {!collapse && (

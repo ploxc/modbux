@@ -96,8 +96,7 @@ const ModeToggle = meme((): JSX.Element => {
       sx={{
         alignSelf: 'flex-start',
         // 8 px down to the command's label rather than the content's 14.
-        mb: -0.75,
-        '& .MuiToggleButton-root': { textTransform: 'none' }
+        mb: -0.75
       }}
     >
       <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
