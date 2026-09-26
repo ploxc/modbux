@@ -1,5 +1,5 @@
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import TextField from '@mui/material/TextField'
+import TextField, { TextFieldProps } from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useClientZustand, selectedClient } from '@renderer/context/client.zustand'
@@ -15,10 +15,18 @@ interface AddressBaseInputProps {
   setAddress: MaskSetFn
   testId: string
   baseTestId: string
+  size?: TextFieldProps['size']
 }
 
 const AddressBaseInput = meme(
-  ({ disabled, address, setAddress, testId, baseTestId }: AddressBaseInputProps): JSX.Element => {
+  ({
+    disabled,
+    address,
+    setAddress,
+    testId,
+    baseTestId,
+    size = 'small'
+  }: AddressBaseInputProps): JSX.Element => {
     const addressBase = useClientZustand((z) => selectedClient(z).registerConfig.addressBase)
 
     const handleBaseChange = useCallback((_event: unknown, value: '0' | '1' | null): void => {
@@ -40,7 +48,7 @@ const AddressBaseInput = meme(
         disabled={disabled}
         label="Address"
         variant="outlined"
-        size="small"
+        size={size}
         sx={{ width: 110, '& .MuiInputBase-root': { pr: 0 } }}
         value={displayValue}
         data-testid={testId}

@@ -15,7 +15,7 @@ import ToggleButton from '@mui/material/ToggleButton'
 const SelectServerToggle = meme(({ uuid }: { uuid: string }) => {
   const port = useServerZustand((z) => z.servers[uuid]?.port)
   return (
-    <ToggleButton data-testid={`select-server-${port}`} value={uuid} sx={{ px: 1.5 }}>
+    <ToggleButton data-testid={`select-server-${port}`} value={uuid}>
       {port}
     </ToggleButton>
   )
@@ -73,7 +73,7 @@ const SelectServer = meme(() => {
 
   return (
     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-      <ButtonGroup variant="contained" color="primary" sx={{ height: 36 }}>
+      <ButtonGroup variant="contained" color="primary" size="large">
         <Button
           data-testid="add-server-btn"
           aria-label="Add server"
@@ -95,7 +95,7 @@ const SelectServer = meme(() => {
         </Button>
       </ButtonGroup>
       <ToggleButtonGroup
-        size="small"
+        size="large"
         color="primary"
         value={selectedUuid}
         exclusive

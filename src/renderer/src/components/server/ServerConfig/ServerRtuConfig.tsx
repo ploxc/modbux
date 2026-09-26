@@ -135,7 +135,7 @@ const ComActions = meme(() => {
 
   return (
     <ToggleButtonGroup
-      size="small"
+      size="large"
       sx={{
         '& .MuiToggleButton-root:first-of-type': {
           borderTopLeftRadius: 0,

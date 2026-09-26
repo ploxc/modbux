@@ -57,7 +57,7 @@ export const ComTextField = meme(
         {...rest}
         label={comLabel}
         variant="outlined"
-        size="small"
+        size="large"
         title={rest.slotProps.htmlInput.value as string}
         error={comError}
         sx={{
@@ -140,11 +140,11 @@ export const BaudRateSelect = meme(
     const labelId = `${testId}-label`
 
     return (
-      <FormControl size="small">
+      <FormControl size="large">
         <InputLabel id={labelId}>Baud Rate</InputLabel>
         <Select
           disabled={disabled}
-          size="small"
+          size="large"
           labelId={labelId}
           value={value}
           label="Baud Rate"
@@ -178,11 +178,11 @@ export const ParitySelect = meme(
     const labelId = `${testId}-label`
 
     return (
-      <FormControl size="small">
+      <FormControl size="large">
         <InputLabel id={labelId}>Parity</InputLabel>
         <Select
           disabled={disabled}
-          size="small"
+          size="large"
           labelId={labelId}
           value={value}
           label="Parity"
@@ -218,11 +218,11 @@ export const DataBitsSelect = meme(
     const labelId = `${testId}-label`
 
     return (
-      <FormControl size="small">
+      <FormControl size="large">
         <InputLabel id={labelId}>Data</InputLabel>
         <Select
           disabled={disabled}
-          size="small"
+          size="large"
           labelId={labelId}
           value={value}
           label="Data Bits"
@@ -258,11 +258,11 @@ export const StopBitsSelect = meme(
     const labelId = `${testId}-label`
 
     return (
-      <FormControl size="small">
+      <FormControl size="large">
         <InputLabel id={labelId}>Stop</InputLabel>
         <Select
           disabled={disabled}
-          size="small"
+          size="large"
           labelId={labelId}
           value={value}
           label="Stop Bits"

@@ -24,7 +24,7 @@ const ServerName = meme(() => {
     <TextField
       data-testid="server-name-input"
       sx={{ flex: 1, minWidth: 160 }}
-      size="small"
+      size="large"
       // variant="filled"
       color="primary"
       placeholder="Server Name"

@@ -47,11 +47,11 @@ const TypeSelect = meme(() => {
   }, [])
 
   return (
-    <FormControl size="small">
+    <FormControl size="large">
       <InputLabel id={labelId}>Type</InputLabel>
       <Select
         disabled={scanning}
-        size="small"
+        size="large"
         labelId={labelId}
         value={type}
         label="Type"
@@ -83,6 +83,7 @@ const Address = meme(() => {
       setAddress={setAddress}
       testId="reg-address-input"
       baseTestId="reg-base"
+      size="large"
     />
   )
 })
@@ -110,7 +111,7 @@ const Length = meme(() => {
       disabled={readConfiguration}
       label="Length"
       variant="outlined"
-      size="small"
+      size="large"
       sx={{ width: 60 }}
       value={length}
       data-testid="reg-length-input"
@@ -195,7 +196,7 @@ const ReadConfiguration = meme(() => {
     <ToggleButtonGroup
       disabled={disabled}
       color="primary"
-      size="small"
+      size="large"
       exclusive
       value={readConfiguration}
       onChange={handleChange}

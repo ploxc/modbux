@@ -25,7 +25,7 @@ const Host = meme(() => {
       disabled={disabled}
       label="Host"
       variant="outlined"
-      size="small"
+      size="large"
       sx={{ width: 180 }}
       error={!hostValid}
       value={host}
@@ -57,7 +57,7 @@ const Port = meme(() => {
       disabled={disabled}
       label="Port"
       variant="outlined"
-      size="small"
+      size="large"
       sx={{ width: 60 }}
       value={port}
       data-testid="tcp-port-input"

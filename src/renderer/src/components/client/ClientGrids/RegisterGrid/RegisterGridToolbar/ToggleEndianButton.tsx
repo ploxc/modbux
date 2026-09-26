@@ -27,7 +27,6 @@ const ToggleEndianButton = meme((): JSX.Element | null => {
       enterDelay={1000}
     >
       <ToggleButtonGroup
-        sx={{ height: 29.5 }}
         size="small"
         exclusive
         color="primary"

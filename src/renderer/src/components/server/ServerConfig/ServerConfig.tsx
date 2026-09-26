@@ -33,7 +33,7 @@ const ModeToggle = meme(() => {
 
   return (
     <ToggleButtonGroup
-      size="small"
+      size="large"
       exclusive
       color="primary"
       value={serverMode}
@@ -62,7 +62,7 @@ const EndianToggle = meme(() => {
 
   return (
     <ToggleButtonGroup
-      size="small"
+      size="large"
       exclusive
       color="primary"
       value={littleEndian}
@@ -73,7 +73,7 @@ const EndianToggle = meme(() => {
         data-testid="server-endian-be-btn"
         aria-label="Big Endian"
         value={false}
-        sx={{ whiteSpace: 'nowrap', px: 1.5 }}
+        sx={{ whiteSpace: 'nowrap' }}
         title="Big-Endian (Modbus standard)"
       >
         BE
@@ -82,7 +82,6 @@ const EndianToggle = meme(() => {
         data-testid="server-endian-le-btn"
         aria-label="Little Endian"
         value={true}
-        sx={{ px: 1.5 }}
         title="Little-Endian (rare, check device docs)"
       >
         LE
@@ -110,6 +109,8 @@ const UnitIdMenuItem = meme(({ unitId }: UnitIdMenuItemProps) => {
         opacity: hasConfig ? 1 : 0.5,
         width: '100%',
         height: '100%',
+        display: 'flex',
+        alignItems: 'center',
         borderRadius: 2
       })}
     >
@@ -133,16 +134,15 @@ const UnitId = meme(() => {
   }, [])
 
   return (
-    <FormControl size="small" sx={{ minWidth: 80 }}>
+    <FormControl size="large" sx={{ minWidth: 80 }}>
       <InputLabel id={labelId}>Unit ID</InputLabel>
       <Select
         data-testid="server-unitid-select"
-        size="small"
+        size="large"
         labelId={labelId}
         value={unitId}
         label="Unit ID"
         onChange={handleChange}
-        slotProps={{ input: { sx: { pr: 0, pl: 1 } } }}
       >
         {UnitIdStringSchema.options.map((unitId) => (
           <MenuItem value={unitId} key={`unit_id_${unitId}`} sx={{ p: 0 }}>
@@ -204,7 +204,7 @@ const Port = meme(() => {
       data-testid="server-port-input"
       label={`Port ${port}`}
       variant="outlined"
-      size="small"
+      size="large"
       sx={{ width: 80 }}
       value={port}
       slotProps={{

@@ -19,6 +19,7 @@ import Ploxc from '@renderer/svg/Ploxc'
 import GithubCat from '@renderer/svg/GithubCat'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
+import { CUSTOM_SIZE } from '@renderer/theme'
 
 //
 //
@@ -113,6 +114,8 @@ const SplitButton = meme((): JSX.Element => {
   return (
     <Button
       data-testid="home-split-btn"
+      className={CUSTOM_SIZE}
+      sx={{ height: 'auto', minWidth: 64, padding: '6px 16px' }}
       aria-label="Open server in separate window"
       title="Open server in separate window"
       disabled={!initialized}

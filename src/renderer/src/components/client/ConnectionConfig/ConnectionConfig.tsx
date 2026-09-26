@@ -64,7 +64,7 @@ const ProtocolSelect = meme(({ protocol }: { protocol: Protocol }) => {
   return (
     <ToggleButtonGroup
       disabled={disabled}
-      size="small"
+      size="large"
       exclusive
       color="primary"
       value={toggleValue}
@@ -162,6 +162,7 @@ const ConnectButton = meme(() => {
 
   return (
     <Button
+      size="large"
       sx={{ width: 100 }}
       disabled={disabled}
       onClick={action}
@@ -188,7 +189,7 @@ const UnitId = meme(() => {
       <TextField
         label="Unit ID"
         variant="outlined"
-        size="small"
+        size="large"
         sx={{ width: 60 }}
         error={outOfRange !== undefined}
         value={unitId}

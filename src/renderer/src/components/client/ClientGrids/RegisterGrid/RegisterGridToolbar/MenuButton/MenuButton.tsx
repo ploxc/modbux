@@ -44,7 +44,6 @@ const MenuButton = meme((): JSX.Element => {
         size="small"
         variant={'outlined'}
         onClick={() => setAnchor(buttonRef.current)}
-        sx={{ minWidth: 40 }}
       >
         <Settings />
       </Button>

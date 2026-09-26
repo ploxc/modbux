@@ -61,7 +61,7 @@ const BitSettingsPopover = meme(
               data-testid="bit-invert-toggle"
               value={true}
               onChange={() => onInvertChange(!invert)}
-              sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}
+              sx={{ textTransform: 'none' }}
             >
               Invert
             </ToggleButton>

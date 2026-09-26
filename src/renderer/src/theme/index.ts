@@ -2,6 +2,28 @@
 import '@mui/x-data-grid/themeAugmentation'
 import { createTheme } from '@mui/material/styles'
 
+// Scale A has a large field, for the top bar; MUI's fields stop at medium.
+declare module '@mui/material/TextField' {
+  interface TextFieldPropsSizeOverrides {
+    large: true
+  }
+}
+declare module '@mui/material/InputBase' {
+  interface InputBasePropsSizeOverrides {
+    large: true
+  }
+}
+declare module '@mui/material/FormControl' {
+  interface FormControlPropsSizeOverrides {
+    large: true
+  }
+}
+declare module '@mui/material/InputLabel' {
+  interface InputLabelPropsSizeOverrides {
+    large: true
+  }
+}
+
 // The dialogs as drawn on the 3.0 dialogs canvas.
 const dialogShade = 'rgba(0,0,0,0.62)'
 const dialogBorder = '#303030'
@@ -12,6 +34,41 @@ const dialogDanger = '#e0735f'
 
 /** The round badge in front of a dialog's title, which the text indents past. */
 export const DIALOG_ICON_SIZE = 36
+
+// Scale A on the client canvas's "Control sizes" artboard. Every Button,
+// ToggleButton, IconButton and outlined field takes its height from its `size`;
+// a Button carrying CUSTOM_SIZE keeps one of its own.
+const controlSizes = {
+  small: { height: 24, fontSize: 11.5, padding: 10, inset: 7, icon: 14 },
+  medium: { height: 28, fontSize: 12.5, padding: 11, inset: 8, icon: 16 },
+  large: { height: 32, fontSize: 13, padding: 13, inset: 10, icon: 18 }
+} as const
+
+type ControlSize = keyof typeof controlSizes
+
+/** The class a Button carries to keep a size of its own, outside the scale. */
+export const CUSTOM_SIZE = 'custom-size'
+
+/** A Button whose only element child is an icon, beside the ripple every Button carries. */
+const iconOnly = `&:not(.${CUSTOM_SIZE}):has(> .MuiSvgIcon-root):not(:has(> :not(.MuiSvgIcon-root, .MuiTouchRipple-root)))`
+
+/** The label's line box; a resting label is centred on the field with it. */
+const labelLineHeight = 16
+
+/**
+ * One style per size, as MUI's `variants` wants them. A field outside a
+ * FormControl carries no size at all, so a missing size reads as medium.
+ */
+const bySize = (
+  style: (size: (typeof controlSizes)[ControlSize]) => Record<string, unknown>
+): {
+  props: (props: { size?: string; ownerState?: { size?: string } }) => boolean
+  style: Record<string, unknown>
+}[] =>
+  (Object.keys(controlSizes) as ControlSize[]).map((size) => ({
+    props: (props) => (props.size ?? props.ownerState?.size ?? 'medium') === size,
+    style: style(controlSizes[size])
+  }))
 
 const base = createTheme({
   motion: { reducedMotion: 'system' },
@@ -52,7 +109,85 @@ const base = createTheme({
   },
   components: {
     MuiButton: {
-      defaultProps: { variant: 'contained' }
+      defaultProps: { variant: 'contained' },
+      styleOverrides: {
+        root: {
+          minWidth: 0,
+          lineHeight: 1,
+          variants: bySize((size) => ({
+            height: size.height,
+            padding: `0 ${size.padding}px`,
+            fontSize: size.fontSize,
+            // A button holding nothing but an icon is a square.
+            [iconOnly]: { width: size.height, padding: 0 },
+            [`${iconOnly} > .MuiSvgIcon-root`]: { fontSize: size.icon }
+          }))
+        }
+      }
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          lineHeight: 1,
+          variants: bySize((size) => ({
+            height: size.height,
+            padding: `0 ${size.inset}px`,
+            fontSize: size.fontSize,
+            '& .MuiSvgIcon-root': { fontSize: size.icon }
+          }))
+        }
+      }
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          padding: 0,
+          borderRadius: 4,
+          variants: bySize((size) => ({
+            width: size.height,
+            height: size.height,
+            '& .MuiSvgIcon-root': { fontSize: size.icon }
+          }))
+        }
+      }
+    },
+    // A multiline field grows with its text, so only a single line takes a height.
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          variants: bySize((size) => ({
+            fontSize: size.fontSize,
+            '&:not(.MuiInputBase-multiline)': { height: size.height },
+            '& .MuiInputBase-input:not(.MuiInputBase-inputMultiline)': {
+              height: '100%',
+              boxSizing: 'border-box',
+              padding: `0 ${size.inset}px`
+            },
+            '& .MuiSelect-select': {
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: 0,
+              paddingRight: size.inset + 24
+            }
+          }))
+        }
+      }
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          lineHeight: `${labelLineHeight}px`,
+          variants: bySize((size) => ({
+            fontSize: size.fontSize,
+            '&.MuiInputLabel-outlined': {
+              transform: `translate(${size.inset + 1}px, ${(size.height - labelLineHeight) / 2}px) scale(1)`
+            },
+            '&.MuiInputLabel-outlined.MuiInputLabel-shrink': {
+              transform: `translate(${size.inset + 1}px, -8px) scale(0.75)`
+            }
+          }))
+        }
+      }
     },
     // Dialog gives its Paper elevation 24, which in dark mode Paper renders as a
     // 16.5% white overlay: a pale slab on a near-black app. The `background`
