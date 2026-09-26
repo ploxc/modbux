@@ -1,10 +1,11 @@
+import { sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import { GridColDef } from '@mui/x-data-grid/models'
 import {
   selectedClient,
-  selectedSession,
   selectedUnit,
-  shownType,
-  useClientZustand
+  useClientZustand,
+  readsConfiguration
 } from '@renderer/context/client.zustand'
 import { RegisterData, isNumberRegister } from '@shared'
 import { useMemo } from 'react'
@@ -27,15 +28,18 @@ import { bitmapValueColumn } from './bitmapValueColumn'
 //
 // COLUMNS
 const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
   const registerMap = useClientZustand((z) => selectedUnit(z).registerMapping[type])
 
   const addressBase = useClientZustand((z) => selectedUnit(z).addressBase)
   const advanced = useClientZustand((z) => selectedClient(z).registerConfig.advancedMode)
   const show64Bit = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 
-  const readConfiguration = useClientZustand((z) => selectedSession(z).readConfiguration)
+  const readConfiguration = useClientZustand((z) => readsConfiguration(z))
   const showRaw = useLayoutZustand((z) => z.showClientRawValues)
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const addressGroups = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).addressGroups)
 
   return useMemo(() => {
     const registers16Bit = isNumberRegister(type)
@@ -53,7 +57,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     if (registers16Bit) {
       columns.push(
         dataTypeColumn(registerMap),
-        bitmapValueColumn(registerMap, showRaw),
+        bitmapValueColumn(registerMap, showRaw, addressGroups),
         scalingFactorColumn(registerMap),
         interpolationColumn(type),
         groupEndColumn(registerMap),
@@ -87,7 +91,16 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     }
 
     return columns
-  }, [type, addressBase, advanced, show64Bit, registerMap, showRaw, readConfiguration])
+  }, [
+    type,
+    addressBase,
+    advanced,
+    show64Bit,
+    registerMap,
+    showRaw,
+    readConfiguration,
+    addressGroups
+  ])
 }
 
 export default useRegisterGridColumns

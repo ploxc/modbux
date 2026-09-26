@@ -1,6 +1,6 @@
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
-import { getShownSection } from '@renderer/context/live.zustand'
 import {
+  AddressGroup,
   DataType,
   RegisterData,
   RegisterLinearInterpolation,
@@ -52,7 +52,8 @@ export const renderConvertedValue = (
 
 export const convertedValueColumn = (
   registerMap: RegisterMapObject,
-  showRaw: boolean
+  showRaw: boolean,
+  addressGroups: AddressGroup[]
 ): GridColDef<RegisterData> => ({
   field: 'value',
   hideable: false,
@@ -61,19 +62,22 @@ export const convertedValueColumn = (
   width: 160,
   renderCell: renderConvertedValue,
   valueGetter: (_, row): number | string | undefined =>
-    getConvertedValue(row, registerMap, showRaw),
+    getConvertedValue(row, registerMap, showRaw, addressGroups),
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
 
 /**
  * The value a cell reads, scaled and interpolated. `bitmapValueColumn` hands
- * every row that is not a bitmap back to this, and it takes the map and the
- * raw flag rather than reaching into the column it builds on.
+ * every row that is not a bitmap back to this, and it takes the map, the raw
+ * flag and the groups the rows were read in rather than reaching into the
+ * column it builds on. The groups cut a UTF-8 string, and each section has
+ * its own.
  */
 export const getConvertedValue = (
   row: RegisterData,
   registerMap: RegisterMapObject,
-  showRaw: boolean
+  showRaw: boolean,
+  addressGroups: AddressGroup[]
 ): number | string | undefined => {
   if (row.error) return undefined
   const address = row.id
@@ -97,10 +101,8 @@ export const getConvertedValue = (
   // For strings we must calculate the length until the next defined datatype
   let count = 1
   if (dataType === 'utf8') {
-    const groups = getShownSection().addressGroups
-
     // Find the current group that contains the address
-    const currentGroup = groups.find(
+    const currentGroup = addressGroups.find(
       ([groupAddress, length]) => address >= groupAddress && address < groupAddress + length
     )
     if (!currentGroup) return undefined

@@ -476,12 +476,15 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await mainPage.getByRole('option', { name: 'INT16', exact: true }).click()
     await mainPage.keyboard.press('Enter')
 
-    const rowsBefore = await mainPage.locator('.MuiDataGrid-row').count()
+    const rows = mainPage.locator('.MuiDataGrid-row')
+    const rowsBefore = await rows.count()
     await enableReadConfiguration(mainPage)
 
-    const configuredRows = await mainPage.locator('.MuiDataGrid-row').count()
+    // The switch is drawn before the grid has swapped its rows for the mapping,
+    // so the count is waited on rather than sampled.
+    await expect.poll(() => rows.count()).toBeLessThan(rowsBefore)
+    const configuredRows = await rows.count()
     expect(configuredRows).toBeGreaterThan(0)
-    expect(configuredRows).toBeLessThan(rowsBefore)
 
     // No column offers a filter, the data type column least of all: its filter
     // is what hides the rows above, and editing it from the menu would bring

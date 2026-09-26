@@ -1,3 +1,4 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import List from '@mui/icons-material/List'
 import Box from '@mui/material/Box'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
@@ -16,8 +17,7 @@ import {
   readsConfiguration,
   selectedClientUuid,
   selectedUnit,
-  shownSection,
-  shownType
+  selectedSession
 } from '@renderer/context/client.zustand'
 import {
   clientOwner,
@@ -27,7 +27,7 @@ import {
   RegisterType
 } from '@shared'
 import { showShownMapping } from '@renderer/context/live.zustand'
-import { ElementType, useCallback, useEffect, useRef } from 'react'
+import { ElementType, useCallback, useEffect, useMemo, useRef } from 'react'
 
 // Register type
 const REGISTER_TYPES: { type: RegisterType; label: string; color: string }[] = [
@@ -37,27 +37,49 @@ const REGISTER_TYPES: { type: RegisterType; label: string; color: string }[] = [
   { type: 'discrete_inputs', label: 'Discrete', color: '#c49bd6' }
 ]
 
+/** The colour each register type is marked with, on its button and its section. */
+export const REGISTER_TYPE_COLORS = Object.fromEntries(
+  REGISTER_TYPES.map(({ type, color }) => [type, color])
+) as Record<RegisterType, string>
+
+/** What each register type is called on its button and its section. */
+export const REGISTER_TYPE_LABELS = Object.fromEntries(
+  REGISTER_TYPES.map(({ type, label }) => [type, label])
+) as Record<RegisterType, string>
+
+/**
+ * One button per register type; the ones on screen are pressed. A type not on
+ * screen opens, beside the one used last when two are shown. With two on
+ * screen, pressing one of them takes it off.
+ */
 export const RegisterTypeTabs = meme(() => {
-  const type = useClientZustand((z) => shownType(z))
+  const openList = useClientZustand((z) => selectedSession(z).openTypes.join(','))
+  const openTypes = useMemo(() => openList.split(',') as RegisterType[], [openList])
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
-  // A register scan reads this field once, for the chunk size one response
-  // carries, and `_scanRegister` reads it again for every chunk. Changing it
-  // between the two asks a device for 2000 holding registers.
+  // A register scan reads the type once, for the chunk size one response
+  // carries, and `_scanRegister` reads it again for every chunk.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
-  // Each type keeps its own rows, so showing another one clears nothing.
-  const handleChange = useCallback((_event: unknown, value: RegisterType | null) => {
-    if (value === null) return
-    useClientZustand.getState().setType(value)
-  }, [])
+  const handleChange = useCallback(
+    (_event: unknown, next: RegisterType[]) => {
+      const clientZustand = useClientZustand.getState()
+      const [opened] = next.filter((type) => !openTypes.includes(type))
+      if (opened) {
+        clientZustand.setType(opened)
+        return
+      }
+      const [closed] = openTypes.filter((type) => !next.includes(type))
+      if (closed && openTypes.length > 1) clientZustand.closeType(closed)
+    },
+    [openTypes]
+  )
 
   return (
     <ToggleButtonGroup
       disabled={scanning}
       size="medium"
-      exclusive
-      value={type}
+      value={openTypes}
       onChange={handleChange}
       aria-label="Register type"
     >
@@ -80,10 +102,15 @@ export const RegisterTypeTabs = meme(() => {
 //
 // Address
 const Address = meme(() => {
-  const address = useClientZustand((z) => shownSection(z).address)
+  const type = useSectionType()
+  const address = useClientZustand((z) => selectedUnit(z).sections[type].address)
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
-  const setAddress = useClientZustand.getState().setAddress
+  // The section's own type, because the field reports its value when it mounts.
+  const setAddress = useCallback(
+    (value: string, valid?: boolean) => useClientZustand.getState().setAddress(value, valid, type),
+    [type]
+  )
 
   return (
     <AddressBaseInput
@@ -101,12 +128,16 @@ const Address = meme(() => {
 //
 // Length
 const Length = meme(() => {
-  const length = useClientZustand((z) => shownSection(z).length)
-  const address = useClientZustand((z) => shownSection(z).address)
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
+  const length = useClientZustand((z) => selectedUnit(z).sections[type].length)
+  const address = useClientZustand((z) => selectedUnit(z).sections[type].address)
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
-  const setLength = useClientZustand.getState().setLength
+  // The section's own type, because the field reports its value when it mounts.
+  const setLength = useCallback(
+    (value: string, valid?: boolean) => useClientZustand.getState().setLength(value, valid, type),
+    [type]
+  )
 
   // Both ceilings a read has: what one response carries, by register type, and
   // how many registers are left from the address. `LengthInput` held the first

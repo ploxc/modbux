@@ -1,3 +1,4 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Publish from '@mui/icons-material/Publish'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -13,10 +14,10 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
 import {
   selectedClientUuid,
-  shownSection,
   useClientZustand,
   getShownType,
-  getSelectedUnit
+  getSelectedUnit,
+  selectedUnit
 } from '@renderer/context/client.zustand'
 import { getShownSection } from '@renderer/context/live.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
@@ -153,7 +154,8 @@ export const WriteRegistersButton = meme(() => {
 export const CoilFunctionSelect = meme(() => {
   const { enqueueSnackbar } = useSnackbar()
   const address = useValueInputZustand((z) => z.address)
-  const registerConfigAddress = useClientZustand((z) => shownSection(z).address)
+  const type = useSectionType()
+  const registerConfigAddress = useClientZustand((z) => selectedUnit(z).sections[type].address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
@@ -263,8 +265,9 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 })
 
 export const Coils = meme(() => {
-  const length = useClientZustand((z) => shownSection(z).length)
-  const registerConfigAddress = useClientZustand((z) => shownSection(z).address)
+  const type = useSectionType()
+  const length = useClientZustand((z) => selectedUnit(z).sections[type].length)
+  const registerConfigAddress = useClientZustand((z) => selectedUnit(z).sections[type].address)
   const address = useValueInputZustand((z) => z.address)
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)

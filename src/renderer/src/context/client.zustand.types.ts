@@ -55,7 +55,10 @@ export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema
 export interface ClientSession {
   ready: boolean
   selectedUnit: string
+  /** The register type the view acts on: the one open, or the one of two last used. */
   shownType: RegisterType
+  /** The register types on screen, one, or two side by side. */
+  openTypes: RegisterType[]
   readConfiguration: Record<string, boolean>
   valid: Valid
 }
@@ -106,8 +109,14 @@ export type ClientZustand = {
   setPort: AsyncMaskSetFn
   setHost: AsyncMaskSetFn
   setUnitId: AsyncMaskSetFn
-  setAddress: AsyncMaskSetFn
-  setLength: AsyncMaskSetFn
+  /**
+   * The read window of `type` on the unit on screen, or of the type the view
+   * acts on when none is named. A field in a section names its own: a masked
+   * field reports its value when it mounts, and with two types side by side the
+   * second section mounts while the view acts on the first.
+   */
+  setAddress: (address: string, valid?: boolean, type?: RegisterType) => Promise<boolean>
+  setLength: (length: string, valid?: boolean, type?: RegisterType) => Promise<boolean>
   /**
    * Adds a unit to the selected client, the unit id after its highest, hands
    * it to main and shows it. Answers whether main took it.
@@ -119,8 +128,18 @@ export type ClientZustand = {
   setUnitName: (name: string) => void
   /** Shows another unit of the selected client. Main is not asked. */
   selectUnit: (unit: string) => void
-  /** Shows another register type of the selected unit. Main is not asked. */
+  /**
+   * Shows a register type of the selected unit and acts on it. With one type
+   * open it replaces that one; with two, it opens beside the one used last.
+   * Main is not asked.
+   */
   setType: (type: RegisterType) => void
+  /** Acts on a type already open, as a click into its section does. */
+  focusType: (type: RegisterType) => void
+  /** Two types side by side, or back to the one acted on. */
+  setSideBySide: (sideBySide: boolean) => void
+  /** Takes one of two open types off the screen. */
+  closeType: (type: RegisterType) => void
   /** Whether a poll reads `type` of the selected unit. */
   setPolled: (type: RegisterType, polled: boolean) => Promise<boolean>
   setCom: AsyncMaskSetFn

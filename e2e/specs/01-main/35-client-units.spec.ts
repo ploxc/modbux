@@ -50,6 +50,36 @@ test.describe.serial('A client with two units', () => {
     await mainPage.getByTestId('poll-btn').click()
   })
 
+  // Holding register 0 of unit 0 holds -100, and its input register 0 holds 200.
+  test('two register types side by side, each read in its own section', async ({ mainPage }) => {
+    await mainPage.getByTestId('unit-tab-0').click()
+    await mainPage.getByTestId('side-by-side-btn').click()
+
+    const holding = mainPage.getByTestId('section-grid-holding_registers')
+    const input = mainPage.getByTestId('section-grid-input_registers')
+    await expect(holding).toBeVisible()
+    await expect(input).toBeVisible()
+    // The input section's fields report their values as they mount, and the
+    // holding section keeps the length of 1 the first test gave it.
+    await expect(holding.getByTestId('reg-length-input').locator('input')).toHaveValue('1')
+
+    await input.getByTestId('reg-address-input').locator('input').fill('0')
+    await input.getByTestId('reg-length-input').locator('input').fill('1')
+    await input.getByTestId('read-btn').click()
+
+    // The input section reads its own window, and the holding section keeps the
+    // row its poll left: each register type holds its own rows. Half the width
+    // leaves the holding grid's hex column outside what it renders, so the row
+    // is what is asked of it.
+    await expect(input.locator('.MuiDataGrid-row[data-id="0"] [data-field="hex"]')).toHaveText(
+      '00C8'
+    )
+    await expect(holding.locator('.MuiDataGrid-row[data-id="0"]')).toHaveCount(1)
+
+    await mainPage.getByTestId('section-close-input_registers').click()
+    await expect(input).toHaveCount(0)
+  })
+
   test('the second unit goes, and the first stays', async ({ mainPage }) => {
     await mainPage.getByTestId('unit-tab-1').click()
     await mainPage.getByTestId('remove-unit-btn').click()

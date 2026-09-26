@@ -1,14 +1,15 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
 import {
-  readsNothingOf,
   selectedClientUuid,
   useClientZustand,
   getShownType,
-  getSelectedUnit
+  getSelectedUnit,
+  readsNothingIn
 } from '@renderer/context/client.zustand'
 
 const ReadButton = meme((): JSX.Element => {
@@ -28,7 +29,8 @@ const ReadButton = meme((): JSX.Element => {
   const reading = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.reading)
 
   // What main refuses as a read of no registers.
-  const readsNoRegisters = useClientZustand((z) => readsNothingOf(z, z.selectedUuid))
+  const type = useSectionType()
+  const readsNoRegisters = useClientZustand((z) => readsNothingIn(z, z.selectedUuid, type))
 
   const handleRead = useCallback(() => {
     window.api.read({

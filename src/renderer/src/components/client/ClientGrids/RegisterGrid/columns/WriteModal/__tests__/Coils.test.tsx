@@ -14,8 +14,13 @@ vi.mock('@renderer/context/client.zustand', () => ({
       selector({ registerConfig }),
     { getState: () => ({ registerConfig }) }
   ),
-  // The mock holds the shown section flat, under one key.
-  shownSection: <Section,>(state: { registerConfig: Section }): Section => state.registerConfig
+  // The mock holds the coil section flat, under one key.
+  selectedUnit: <Section,>(state: {
+    registerConfig: Section
+  }): { sections: { coils: Section } } => ({ sections: { coils: state.registerConfig } })
+}))
+vi.mock('@renderer/components/client/ClientGrids/sectionType', () => ({
+  useSectionType: (): string => 'coils'
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
   getShownSection: (): { registerData: [] } => ({ registerData: [] })

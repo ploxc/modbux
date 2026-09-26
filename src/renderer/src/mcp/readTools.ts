@@ -202,7 +202,7 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
    */
   const valueOf = (row: RegisterData, words: string[] | undefined): unknown => {
     if (words?.includes('')) return undefined
-    if (mapping[row.id]?.dataType !== 'utf8') return getConvertedValue(row, mapping, false)
+    if (mapping[row.id]?.dataType !== 'utf8') return getConvertedValue(row, mapping, false, [])
     const text = wordOf(row.words, 'utf8')
     return text === undefined || words === undefined
       ? undefined

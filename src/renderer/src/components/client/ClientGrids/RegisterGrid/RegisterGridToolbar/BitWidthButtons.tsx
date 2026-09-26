@@ -1,7 +1,8 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { selectedClient, shownType, useClientZustand } from '@renderer/context/client.zustand'
+import { selectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useMemo } from 'react'
 import { isNumberRegister } from '@shared'
 
@@ -9,7 +10,7 @@ type BitWidth = '32' | '64'
 
 /** The 32 bit columns and the 64 bit columns, each on or off by itself. */
 const BitWidthButtons = meme((): JSX.Element | null => {
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
   const show32 = useClientZustand((z) => selectedClient(z).registerConfig.advancedMode)
   const show64 = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 

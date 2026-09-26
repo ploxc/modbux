@@ -1,11 +1,11 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Switch from '@mui/material/Switch'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import {
   readsConfiguration,
-  shownSection,
-  shownType,
-  useClientZustand
+  useClientZustand,
+  selectedUnit
 } from '@renderer/context/client.zustand'
 import { ChangeEvent, useCallback } from 'react'
 
@@ -16,8 +16,8 @@ import { ChangeEvent, useCallback } from 'react'
  * and not the sections, so the switch has nothing to say then.
  */
 const SectionPollSwitch = meme(() => {
-  const type = useClientZustand((z) => shownType(z))
-  const polled = useClientZustand((z) => shownSection(z).polled)
+  const type = useSectionType()
+  const polled = useClientZustand((z) => selectedUnit(z).sections[type].polled)
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   const handleChange = useCallback(

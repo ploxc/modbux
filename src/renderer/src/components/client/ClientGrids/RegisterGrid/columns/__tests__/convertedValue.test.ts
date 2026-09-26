@@ -1,15 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { RegisterData, RegisterMapObject } from '@shared'
 
-// ─── Store stub ──────────────────────────────────────────────────────
-// The column reads the address groups the last read was made of, and the real
-// store subscribes to main on import.
-
+// The column takes the address groups the section's last read was made of.
 const dataState = { addressGroups: [] as [number, number][] }
-
-vi.mock('@renderer/context/live.zustand', () => ({
-  getShownSection: (): typeof dataState => dataState
-}))
 
 import { convertedValueColumn } from '../convertedValue'
 
@@ -65,7 +58,7 @@ const shownValue = (
   row: RegisterData,
   showRaw = false
 ): unknown => {
-  const column = convertedValueColumn(registerMap, showRaw)
+  const column = convertedValueColumn(registerMap, showRaw, dataState.addressGroups)
   const { valueGetter } = column
   if (!valueGetter) throw new Error('the value column has no valueGetter')
 

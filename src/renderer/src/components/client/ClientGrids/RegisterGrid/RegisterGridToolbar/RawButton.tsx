@@ -1,13 +1,13 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Button from '@mui/material/Button'
 import { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { shownType, useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 
 const RawButton = meme((): JSX.Element | null => {
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
   const handleClick = useCallback((): void => {

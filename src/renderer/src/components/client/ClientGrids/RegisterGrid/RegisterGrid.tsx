@@ -1,21 +1,17 @@
-import Paper from '@mui/material/Paper'
-import { panelShadow } from '@renderer/theme'
+import {
+  SectionTypeContext,
+  useSectionType
+} from '@renderer/components/client/ClientGrids/sectionType'
+import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import {
   readsConfiguration,
   selectedUnit,
-  shownType,
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import {
-  useLiveZustand,
-  dataOf,
-  getShownSection,
-  sectionOf,
-  showMapping
-} from '@renderer/context/live.zustand'
+import { useLiveZustand, dataOf, sectionOf, showMapping } from '@renderer/context/live.zustand'
 import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
@@ -32,6 +28,7 @@ import {
   BITMAP_DATATYPE,
   DataTypeSchema,
   RegisterData,
+  RegisterType,
   RegisterTypeSchema,
   scalableDataTypes
 } from '@shared'
@@ -81,9 +78,9 @@ const EditedRowSchema = z.object({
 const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const unit = useClientZustand((z) => selectedUnit(z).uuid)
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
   const registerData = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).registerData)
-  const registerMapping = useClientZustand((z) => selectedUnit(z).registerMapping[shownType(z)])
+  const registerMapping = useClientZustand((z) => selectedUnit(z).registerMapping[type])
   const columns = useRegisterGridColumns()
 
   const apiRef = useGridApiRef()
@@ -134,7 +131,8 @@ const RegisterGridContent = meme((): JSX.Element => {
     }
     if (readConfiguration) {
       // Each type keeps its rows, so a type a poll already filled keeps them.
-      if (getShownSection().registerData.length === 0) showMapping(selectedUuid, unit, type)
+      const { registerData } = sectionOf(useLiveZustand.getState(), selectedUuid, unit, type)
+      if (registerData.length === 0) showMapping(selectedUuid, unit, type)
       apiRef.current?.setFilterModel(filterModel)
     } else {
       // Only clear data when transitioning from ON to OFF, not on initial mount
@@ -299,14 +297,34 @@ const RegisterGridContent = meme((): JSX.Element => {
 //
 //
 //
-// DataGrid paper
-const RegisterGrid = meme((): JSX.Element => {
+// One section: a register type of the unit on screen
+interface RegisterGridProps {
+  type: RegisterType
+}
+
+/**
+ * The grid of one register type. Everything drawn inside reads its type from
+ * the section, and a press or a focus inside makes it the type the view acts
+ * on, so Read, a write and the fields of this section reach this type with two
+ * on screen.
+ */
+const RegisterGrid = meme(({ type }: RegisterGridProps): JSX.Element => {
+  const handleUse = useCallback(() => {
+    const clientZustand = useClientZustand.getState()
+    clientZustand.focusType(type)
+  }, [type])
+
   return (
-    <Paper
-      sx={{ flexShrink: 1, flexGrow: 1, minHeight: 0, height: '100%', boxShadow: panelShadow }}
-    >
-      <RegisterGridContent />
-    </Paper>
+    <SectionTypeContext.Provider value={type}>
+      <Box
+        data-testid={`section-grid-${type}`}
+        onPointerDownCapture={handleUse}
+        onFocusCapture={handleUse}
+        sx={{ height: '100%', minHeight: 0 }}
+      >
+        <RegisterGridContent />
+      </Box>
+    </SectionTypeContext.Provider>
   )
 })
 

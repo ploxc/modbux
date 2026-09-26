@@ -1,7 +1,8 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import { GridRow, GridRowProps } from '@mui/x-data-grid/components'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
-import { selectedUnit, shownType, useClientZustand } from '@renderer/context/client.zustand'
+import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { BITMAP_DATATYPE } from '@shared'
 import { useEffect, useRef } from 'react'
 import BitMapDetailPanel from './BitMapDetailPanel/BitMapDetailPanel'
@@ -20,12 +21,13 @@ import BitMapDetailPanel from './BitMapDetailPanel/BitMapDetailPanel'
 
 const BitMapRow = meme((props: GridRowProps): JSX.Element => {
   const address = props.rowId as number
+  const type = useSectionType()
 
   const expandedAddress = useBitMapZustand((z) => z.expandedAddress)
   const isExpanded = expandedAddress === address
 
   const isBitmap =
-    useClientZustand((z) => selectedUnit(z).registerMapping[shownType(z)][address]?.dataType) ===
+    useClientZustand((z) => selectedUnit(z).registerMapping[type][address]?.dataType) ===
     BITMAP_DATATYPE
 
   const panelRef = useRef<HTMLDivElement>(null)

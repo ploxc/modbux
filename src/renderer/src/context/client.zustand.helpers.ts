@@ -49,6 +49,7 @@ export const readySession = (client: PersistedClient): ClientSession => ({
   ready: true,
   selectedUnit: client.units[0]?.uuid ?? '',
   shownType: 'holding_registers',
+  openTypes: ['holding_registers'],
   readConfiguration: {},
   valid: {
     host: isConnectionAddressGiven(client.connectionConfig.tcp.host),
@@ -70,6 +71,7 @@ const NO_SESSION: ClientSession = {
   ready: false,
   selectedUnit: '',
   shownType: 'holding_registers',
+  openTypes: ['holding_registers'],
   readConfiguration: {},
   valid: { host: true, com: true }
 }
@@ -117,11 +119,17 @@ export const readsConfiguration = (state: WithSessions): boolean =>
 export const readsNothingOf = (
   state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
   uuid: string
+): boolean => readsNothingIn(state, uuid, (state.sessions[uuid] ?? NO_SESSION).shownType)
+
+/** The same question of `type` on the unit `uuid` shows, which a section asks of itself. */
+export const readsNothingIn = (
+  state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
+  uuid: string,
+  type: RegisterType
 ): boolean => {
   const client = state.clients[uuid] ?? NO_CLIENT
   const session = state.sessions[uuid] ?? NO_SESSION
   const unit = unitOf(client, session)
-  const type = session.shownType
   return readsNothing(
     session.readConfiguration[unit.uuid] ?? false,
     type,

@@ -1,10 +1,10 @@
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Box from '@mui/material/Box'
 import { useLiveZustand, dataOf, getShownSection, sectionOf } from '@renderer/context/live.zustand'
 import {
   getSelectedUnit,
   selectedClientUuid,
   selectedUnit,
-  shownType,
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -25,18 +25,16 @@ const BIT_INDICES = Array.from({ length: 16 }, (_, i) => i)
 const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const unit = useClientZustand((z) => selectedUnit(z).uuid)
-  const type = useClientZustand((z) => shownType(z))
+  const type = useSectionType()
   const uint16 = useLiveZustand(
     (z) =>
       sectionOf(z, selectedUuid, unit, type).registerData.find((r) => r.id === address)?.words
         ?.uint16 ?? 0
   )
 
-  const bitConfig = useClientZustand(
-    (z) => selectedUnit(z).registerMapping[shownType(z)][address]?.bitMap
-  )
+  const bitConfig = useClientZustand((z) => selectedUnit(z).registerMapping[type][address]?.bitMap)
 
-  const registerType = useClientZustand((z) => shownType(z))
+  const registerType = type
   const writable = registerType === 'holding_registers'
   const connectState = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)

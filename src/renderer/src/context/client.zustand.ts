@@ -35,6 +35,7 @@ import {
   MAIN_UNIT_UUID,
   pollsNothingOf,
   readsConfiguration,
+  readsNothingIn,
   readsNothingOf,
   readySession,
   repairClients,
@@ -85,6 +86,7 @@ const viewOf = (state: ClientZustand): ClientStepView => ({
 })
 
 export {
+  readsNothingIn,
   MAIN_UNIT_UUID,
   pollsNothingOf,
   readsConfiguration,
@@ -113,6 +115,14 @@ const onClient = (
   const session = state.sessions[uuid]
   if (client && session) recipe({ client, session })
 }
+
+/** The order the type buttons show, which a second type opens in. */
+const SIDE_BY_SIDE_ORDER: RegisterType[] = [
+  'holding_registers',
+  'input_registers',
+  'coils',
+  'discrete_inputs'
+]
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -171,11 +181,12 @@ export const flushUnitsToMain = async (uuid: string, units: ClientUnit[]): Promi
 const changeUnit = async (
   set: ClientSet,
   get: () => ClientZustand,
-  change: (unit: ClientUnit) => void
+  change: (unit: ClientUnit) => void,
+  type: RegisterType = shownType(get())
 ): Promise<ClientStepView | undefined> => {
   const state = get()
   if (!selectedSession(state).ready) return undefined
-  const view = viewOf(state)
+  const view = { ...viewOf(state), type }
   const after = structuredClone(selectedUnit(state))
   change(after)
   const units = selectedClient(state).units.map((unit) => (unit.uuid === view.unit ? after : unit))
@@ -811,15 +822,19 @@ export const useClientZustand = create<
         clearRegisterDataWhenIdle(view, true)
         return true
       },
-      setAddress: async (address) => {
+      setAddress: async (address, _valid, type = shownType(get())) => {
         const newAddress = Number(address)
-        const type = shownType(get())
-        const before = shownSection(get()).address
+        const before = selectedUnit(get()).sections[type].address
         if (newAddress === before) return true
 
-        const view = await changeUnit(set, get, (unit) => {
-          unit.sections[type].address = newAddress
-        })
+        const view = await changeUnit(
+          set,
+          get,
+          (unit) => {
+            unit.sections[type].address = newAddress
+          },
+          type
+        )
         if (!view) return false
         recordField(view, 'address', before, newAddress)
         clearRegisterDataWhenIdle(view, false)
@@ -827,15 +842,19 @@ export const useClientZustand = create<
       },
       // A cleared field is a length of 0, which the schema takes and main
       // refuses to read, so it is sent like any other.
-      setLength: async (length) => {
+      setLength: async (length, _valid, type = shownType(get())) => {
         const newLength = Number(length)
-        const type = shownType(get())
-        const before = shownSection(get()).length
+        const before = selectedUnit(get()).sections[type].length
         if (newLength === before) return true
 
-        const view = await changeUnit(set, get, (unit) => {
-          unit.sections[type].length = newLength
-        })
+        const view = await changeUnit(
+          set,
+          get,
+          (unit) => {
+            unit.sections[type].length = newLength
+          },
+          type
+        )
         if (!view) return false
         recordField(view, 'length', before, newLength)
         clearRegisterDataWhenIdle(view, false)
@@ -844,11 +863,16 @@ export const useClientZustand = create<
       setPolled: async (type, polled) => {
         const before = selectedUnit(get()).sections[type].polled
         if (polled === before) return true
-        const view = await changeUnit(set, get, (unit) => {
-          unit.sections[type].polled = polled
-        })
+        const view = await changeUnit(
+          set,
+          get,
+          (unit) => {
+            unit.sections[type].polled = polled
+          },
+          type
+        )
         if (!view) return false
-        recordField({ ...view, type }, 'polled', before, polled)
+        recordField(view, 'polled', before, polled)
         return true
       },
       addUnit: async () => {
@@ -919,7 +943,44 @@ export const useClientZustand = create<
         const { selectedUuid } = get()
         set((state) =>
           onClient(state, selectedUuid, ({ session }) => {
+            const used = session.shownType
             session.shownType = type
+            if (session.openTypes.includes(type)) return
+            session.openTypes = session.openTypes.length < 2 ? [type] : [used, type]
+          })
+        )
+      },
+      focusType: (type) => {
+        const { selectedUuid } = get()
+        set((state) =>
+          onClient(state, selectedUuid, ({ session }) => {
+            if (session.openTypes.includes(type)) session.shownType = type
+          })
+        )
+      },
+      setSideBySide: (sideBySide) => {
+        const { selectedUuid } = get()
+        set((state) =>
+          onClient(state, selectedUuid, ({ session }) => {
+            if (!sideBySide) {
+              session.openTypes = [session.shownType]
+              return
+            }
+            if (session.openTypes.length > 1) return
+            // The first type in the order the buttons show that is not open yet.
+            const [next] = SIDE_BY_SIDE_ORDER.filter((type) => type !== session.shownType)
+            if (next) session.openTypes = [session.shownType, next]
+          })
+        )
+      },
+      closeType: (type) => {
+        const { selectedUuid } = get()
+        set((state) =>
+          onClient(state, selectedUuid, ({ session }) => {
+            if (session.openTypes.length < 2) return
+            session.openTypes = session.openTypes.filter((open) => open !== type)
+            const [left = session.shownType] = session.openTypes
+            if (session.shownType === type) session.shownType = left
           })
         )
       },

@@ -14,9 +14,14 @@ vi.mock('@renderer/context/client.zustand', () => ({
     { getState: () => ({}) }
   ),
   selectedClientUuid: (): string => 'the-client',
-  // The mock holds the shown section flat, under one key.
-  shownSection: <Section,>(state: { section: Section }): Section => state.section,
+  // The mock holds the coil section flat, under one key.
+  selectedUnit: <Section,>(state: { section: Section }): { sections: { coils: Section } } => ({
+    sections: { coils: state.section }
+  }),
   getSelectedUnit: (): { uuid: string } => ({ uuid: 'the-unit' })
+}))
+vi.mock('@renderer/components/client/ClientGrids/sectionType', () => ({
+  useSectionType: (): string => 'coils'
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
   useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
