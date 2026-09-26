@@ -85,7 +85,7 @@ beforeEach(async () => {
   }
   clientZustand.setSelectedUuid(client)
   await clientZustand.init()
-  clientZustand.setType('holding_registers')
+  clientZustand.setLayout('hr')
   await clientZustand.setLittleEndian(false)
   clientZustand.setName('')
   await clientZustand.clearRegisterMapping()

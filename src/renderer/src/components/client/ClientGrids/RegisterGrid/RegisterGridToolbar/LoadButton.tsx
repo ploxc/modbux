@@ -36,6 +36,7 @@ const LoadButton = meme((): JSX.Element => {
           if (config.name) clientZustand.setName(config.name)
           await clientZustand.setLittleEndian(config.littleEndian)
           await clientZustand.replaceRegisterMapping(config.registerMapping)
+          if (config.layout) clientZustand.setLayout(config.layout)
         })
 
         // Show success notification

@@ -26,7 +26,7 @@ const SaveButton = meme(() => {
     // The store reads the version once at startup; it cannot change after that
     const modbuxVersion = useLayoutZustand.getState().version
 
-    const { unitId, littleEndian } = unit
+    const { unitId, littleEndian, layout } = unit
 
     const deviceConfig: ClientDeviceConfig = {
       kind: 'client-device',
@@ -35,7 +35,8 @@ const SaveButton = meme(() => {
       name,
       unitId,
       littleEndian,
-      registerMapping
+      registerMapping,
+      layout
     }
 
     downloadJson(

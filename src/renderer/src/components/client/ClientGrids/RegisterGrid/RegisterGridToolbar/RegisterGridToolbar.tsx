@@ -1,6 +1,4 @@
-import Close from '@mui/icons-material/Close'
 import Box from '@mui/material/Box'
-import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import ReadButton from './ReadButton'
 import BitWidthButtons from './BitWidthButtons'
@@ -12,27 +10,34 @@ import RegisterConfig, {
 import RawButton from './RawButton'
 import ClearFiltersButton from './ClearFiltersButton'
 import { useSectionType } from '../../sectionType'
-import { useClientZustand, selectedSession } from '@renderer/context/client.zustand'
+import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
+import { SECTION_DRAG_TYPE, SectionDragContext } from '../../LayoutView'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
-import { useCallback } from 'react'
+import { DragEvent, useCallback, useContext } from 'react'
 
 /**
  * The head of one section: its read window, Read and Raw, the 32 and 64 bit
- * columns and its Poll switch. With two types side by side it names its type
- * and can be closed.
+ * columns and its Poll switch. With more than one type on screen it names its
+ * type, and that name is what a drag onto another section picks up.
  */
 const RegisterGridToolbar = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const type = useSectionType()
-  const sideBySide = useClientZustand((z) => selectedSession(z).openTypes.length > 1)
+  const several = useClientZustand((z) => openTypesOf(z).length > 1)
+  const { setDragging } = useContext(SectionDragContext)
   // Read, the register fields and Clear would each undo a scan that is still
   // running, so the strip goes quiet with the rows underneath it.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
 
-  const handleClose = useCallback(() => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.closeType(type)
-  }, [type])
+  const handleDragStart = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.dataTransfer.setData(SECTION_DRAG_TYPE, type)
+      event.dataTransfer.effectAllowed = 'move'
+      setDragging(type)
+    },
+    [setDragging, type]
+  )
+  const handleDragEnd = useCallback(() => setDragging(undefined), [setDragging])
 
   return (
     <Box
@@ -55,10 +60,21 @@ const RegisterGridToolbar = meme(() => {
         alignItems: 'center'
       })}
     >
-      {sideBySide && (
+      {several && (
         <Box
+          draggable
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          title="Drag onto another section to place it there"
           data-testid={`section-title-${type}`}
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 13, mr: 0.5 }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            fontSize: 13,
+            mr: 0.5,
+            cursor: 'grab'
+          }}
         >
           <Box
             sx={{
@@ -78,16 +94,6 @@ const RegisterGridToolbar = meme(() => {
       <Box sx={{ flex: 1 }} />
       <BitWidthButtons />
       <SectionPollSwitch />
-      {sideBySide && (
-        <IconButton
-          size="small"
-          aria-label="Close this register type"
-          data-testid={`section-close-${type}`}
-          onClick={handleClose}
-        >
-          <Close sx={{ fontSize: 16 }} />
-        </IconButton>
-      )}
     </Box>
   )
 })

@@ -1,5 +1,6 @@
 import { MAIN_CLIENT_UUID, defaultSections } from '../../default'
 import { RegisterTypeSchema } from '../../types/register'
+import { formatLayout } from '../../layout'
 import { dropUnmappableRegisters, isRecord, objectValues, repairPersistedParity } from '../shared'
 
 /**
@@ -114,6 +115,8 @@ export function foldClientIntoUnits(
   if (type.success) {
     sections[type.data] = { address: register.address, length: register.length, polled: true }
   }
+  // The unit shows the type the client showed.
+  const layout = formatLayout(type.success ? type.data : 'holding_registers')
 
   // A field the client did not carry is left out rather than set to
   // undefined, so the store's `merge` gives it its default, as it gave the
@@ -129,7 +132,8 @@ export function foldClientIntoUnits(
       uuid: newUuid(),
       name: '',
       ...Object.fromEntries(Object.entries(carried).filter(([, value]) => value !== undefined)),
-      sections
+      sections,
+      layout
     }
   ]
 

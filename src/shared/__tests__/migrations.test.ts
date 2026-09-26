@@ -598,6 +598,33 @@ describe('configMigration', () => {
       })
     })
 
+    describe('a device file with a layout', () => {
+      const withLayout = (layout: string): string =>
+        JSON.stringify({
+          kind: 'client-device',
+          version: 3,
+          modbuxVersion: '3.0.0',
+          littleEndian: false,
+          registerMapping: {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
+          },
+          layout
+        })
+
+      it('keeps the layout it carries', () => {
+        expect(migrateClientConfig(withLayout('r(hr:60,c(ir:50,co:50):40)')).config.layout).toBe(
+          'r(hr:60,c(ir:50,co:50):40)'
+        )
+      })
+
+      it('refuses a layout that names no layout', () => {
+        expect(() => migrateClientConfig(withLayout('r(hr:100)'))).toThrow('Not a layout')
+      })
+    })
+
     describe('v3 pass-through', () => {
       it('keeps the unit id a v3 device carries', () => {
         const v3Config = JSON.stringify({

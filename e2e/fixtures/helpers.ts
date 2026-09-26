@@ -33,14 +33,24 @@ const REGISTER_TYPE_NAMES = {
   'Discrete Inputs': 'discrete_inputs'
 } as const
 
-/** Press a register type in the client grid toolbar */
+/**
+ * Show one register type alone in the client grid: turn it on, then turn every
+ * other type off, so the fields and the grid on screen are that type's.
+ */
 export async function selectRegisterType(
   p: Page,
   name: keyof typeof REGISTER_TYPE_NAMES
 ): Promise<void> {
   const button = p.getByTestId(`reg-type-${REGISTER_TYPE_NAMES[name]}-btn`)
-  await button.click()
+  if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click()
   await expect(button).toHaveAttribute('aria-pressed', 'true')
+  for (const other of Object.values(REGISTER_TYPE_NAMES)) {
+    if (other === REGISTER_TYPE_NAMES[name]) continue
+    const otherButton = p.getByTestId(`reg-type-${other}-btn`)
+    if ((await otherButton.getAttribute('aria-pressed')) !== 'true') continue
+    await otherButton.click()
+    await expect(otherButton).toHaveAttribute('aria-pressed', 'false')
+  }
 }
 
 /** Turn the 32 or the 64 bit columns on or off in the client grid toolbar */

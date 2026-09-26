@@ -117,9 +117,9 @@ beforeEach(async () => {
   setState({})
   // The session is made ready by `init`, which the stub's answers let run.
   await useClientZustand.getState().init()
-  // A session outlives the test, and tests leave another type shown, the
+  // A session outlives the test, and tests leave other types shown, the
   // length at 0, read configuration on or a register mapped.
-  useClientZustand.getState().setType('holding_registers')
+  useClientZustand.getState().setLayout('hr')
   await useClientZustand.getState().setLength('10')
   useClientZustand.getState().setReadConfiguration(false)
   await useClientZustand.getState().clearRegisterMapping()

@@ -11,7 +11,10 @@ import {
   readsNothing,
   RegisterType,
   RegisterTypeSchema,
-  repairPersisted
+  repairPersisted,
+  LayoutNode,
+  parseLayout,
+  typesIn
 } from '@shared'
 import { v4 } from 'uuid'
 import {
@@ -49,7 +52,6 @@ export const readySession = (client: PersistedClient): ClientSession => ({
   ready: true,
   selectedUnit: client.units[0]?.uuid ?? '',
   shownType: 'holding_registers',
-  openTypes: ['holding_registers'],
   readConfiguration: {},
   valid: {
     host: isConnectionAddressGiven(client.connectionConfig.tcp.host),
@@ -71,7 +73,6 @@ const NO_SESSION: ClientSession = {
   ready: false,
   selectedUnit: '',
   shownType: 'holding_registers',
-  openTypes: ['holding_registers'],
   readConfiguration: {},
   valid: { host: true, com: true }
 }
@@ -99,6 +100,14 @@ export const unitOf = (client: PersistedClient, session: ClientSession): ClientU
 /** The unit the view shows. */
 export const selectedUnit = (state: WithSessions): ClientUnit =>
   unitOf(selectedClient(state), selectedSession(state))
+
+/** The layout of `unit`, its default where the string names none. */
+export const layoutOf = (unit: ClientUnit): LayoutNode =>
+  parseLayout(unit.layout) ?? 'holding_registers'
+
+/** The register types the unit on screen shows, in the order its layout draws them. */
+export const openTypesOf = (state: WithSessions): RegisterType[] =>
+  typesIn(layoutOf(selectedUnit(state)))
 
 /** The register type the view shows. */
 export const shownType = (state: WithSessions): RegisterType => selectedSession(state).shownType

@@ -49,7 +49,7 @@ const show = ({ uuid, unit, type }: ClientStepView): boolean => {
   if (!client?.units.some((candidate) => candidate.uuid === unit)) return false
   if (clientZustand.selectedUuid !== uuid) clientZustand.setSelectedUuid(uuid)
   clientZustand.selectUnit(unit)
-  clientZustand.setType(type)
+  clientZustand.showType(type)
   return true
 }
 

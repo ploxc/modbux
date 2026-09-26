@@ -51,9 +51,9 @@ test.describe.serial('A client with two units', () => {
   })
 
   // Holding register 0 of unit 0 holds -100, and its input register 0 holds 200.
-  test('two register types side by side, each read in its own section', async ({ mainPage }) => {
+  test('a second register type turned on gets a section of its own', async ({ mainPage }) => {
     await mainPage.getByTestId('unit-tab-0').click()
-    await mainPage.getByTestId('side-by-side-btn').click()
+    await mainPage.getByTestId('reg-type-input_registers-btn').click()
 
     const holding = mainPage.getByTestId('section-grid-holding_registers')
     const input = mainPage.getByTestId('section-grid-input_registers')
@@ -68,16 +68,41 @@ test.describe.serial('A client with two units', () => {
     await input.getByTestId('read-btn').click()
 
     // The input section reads its own window, and the holding section keeps the
-    // row its poll left: each register type holds its own rows. Half the width
-    // leaves the holding grid's hex column outside what it renders, so the row
-    // is what is asked of it.
+    // row its poll left: each register type holds its own rows.
     await expect(input.locator('.MuiDataGrid-row[data-id="0"] [data-field="hex"]')).toHaveText(
       '00C8'
     )
     await expect(holding.locator('.MuiDataGrid-row[data-id="0"]')).toHaveCount(1)
+  })
 
-    await mainPage.getByTestId('section-close-input_registers').click()
-    await expect(input).toHaveCount(0)
+  test('a second type starts below the first, and a drag puts it beside', async ({ mainPage }) => {
+    const holding = mainPage.getByTestId('section-grid-holding_registers')
+    const input = mainPage.getByTestId('section-grid-input_registers')
+    const place = async (): Promise<{ below: boolean; beside: boolean }> => {
+      const first = await holding.boundingBox()
+      const second = await input.boundingBox()
+      if (!first || !second) return { below: false, beside: false }
+      return { below: second.y > first.y + 10, beside: second.x > first.x + 10 }
+    }
+    expect(await place()).toEqual({ below: true, beside: false })
+
+    // The drop targets exist only while a drag runs, so the drag is made with
+    // the mouse rather than by naming a target up front.
+    const title = await mainPage.getByTestId('section-title-input_registers').boundingBox()
+    const box = await holding.boundingBox()
+    if (!title || !box) throw new Error('the sections are not on screen')
+    await mainPage.mouse.move(title.x + title.width / 2, title.y + title.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(box.x + box.width - 10, box.y + box.height / 2, { steps: 10 })
+    await mainPage.mouse.up()
+
+    await expect.poll(place).toEqual({ below: false, beside: true })
+  })
+
+  test('turning a type off takes its section away', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-type-input_registers-btn').click()
+    await expect(mainPage.getByTestId('section-grid-input_registers')).toHaveCount(0)
+    await expect(mainPage.getByTestId('section-grid-holding_registers')).toBeVisible()
   })
 
   test('the second unit goes, and the first stays', async ({ mainPage }) => {

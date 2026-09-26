@@ -4,13 +4,12 @@ import TransactionGrid from '@renderer/components/client/ClientGrids/Transaction
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
-import RegisterGrid from './RegisterGrid/RegisterGrid'
-import { selectedSession, useClientZustand } from '@renderer/context/client.zustand'
+import { useClientZustand } from '@renderer/context/client.zustand'
+import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
 import { panelShadow } from '@renderer/theme'
-import { RegisterType } from '@shared'
-import { Fragment, useMemo } from 'react'
 import ClientGridBar from './ClientGridBar'
+import LayoutView from './LayoutView'
 
 /**
  * The grid stays up while a scan runs, because the rows are written in
@@ -24,8 +23,6 @@ const ClientGrids = meme((): JSX.Element | null => {
   const showWhileScanning = useLayoutZustand((z) => z.showGridWhileScanning)
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
-  const openList = useClientZustand((z) => selectedSession(z).openTypes.join(','))
-  const openTypes = useMemo(() => openList.split(',') as RegisterType[], [openList])
 
   if (scanning && !showWhileScanning) return null
 
@@ -42,22 +39,9 @@ const ClientGrids = meme((): JSX.Element | null => {
           }}
         >
           <ClientGridBar />
-          <Group
-            orientation="horizontal"
-            id="client-sections"
-            style={{ flexGrow: 1, minHeight: 0 }}
-          >
-            {openTypes.map((type, index) => (
-              <Fragment key={type}>
-                {index > 0 && (
-                  <ResizeHandle orientation="vertical" testId="client-sections-handle" />
-                )}
-                <Panel id={`client-section-${index}`} minSize={240}>
-                  <RegisterGrid type={type} />
-                </Panel>
-              </Fragment>
-            ))}
-          </Group>
+          <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+            <LayoutView />
+          </Box>
         </Paper>
       </Panel>
       {/* The log takes a row per chunk, so during a scan it is a second grid

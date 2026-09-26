@@ -55,10 +55,8 @@ export type PersistedClientZustand = z.infer<typeof PersistedClientZustandSchema
 export interface ClientSession {
   ready: boolean
   selectedUnit: string
-  /** The register type the view acts on: the one open, or the one of two last used. */
+  /** The register type the view acts on, one of those the unit's layout shows. */
   shownType: RegisterType
-  /** The register types on screen, one, or two side by side. */
-  openTypes: RegisterType[]
   readConfiguration: Record<string, boolean>
   valid: Valid
 }
@@ -129,17 +127,16 @@ export type ClientZustand = {
   /** Shows another unit of the selected client. Main is not asked. */
   selectUnit: (unit: string) => void
   /**
-   * Shows a register type of the selected unit and acts on it. With one type
-   * open it replaces that one; with two, it opens beside the one used last.
-   * Main is not asked.
+   * Turns a register type of the selected unit on or off. A type turned on is
+   * added to the unit's layout and acted on; the last one on stays.
    */
   setType: (type: RegisterType) => void
-  /** Acts on a type already open, as a click into its section does. */
+  /** Turns a type on when it is off, and acts on it: what an undo and the assistant ask. */
+  showType: (type: RegisterType) => void
+  /** Acts on a type the layout shows, as a click into its section does. */
   focusType: (type: RegisterType) => void
-  /** Two types side by side, or back to the one acted on. */
-  setSideBySide: (sideBySide: boolean) => void
-  /** Takes one of two open types off the screen. */
-  closeType: (type: RegisterType) => void
+  /** The selected unit's layout, as `formatLayout` writes it: a drag or a resize. */
+  setLayout: (layout: string) => void
   /** Whether a poll reads `type` of the selected unit. */
   setPolled: (type: RegisterType, polled: boolean) => Promise<boolean>
   setCom: AsyncMaskSetFn

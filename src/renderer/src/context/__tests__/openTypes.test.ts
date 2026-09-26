@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 //
-// One or two register types are on screen, and one of them is the type the
-// view acts on. None of it goes to main.
+// A unit shows the register types its layout names, and the type buttons turn
+// them on and off. One of the types shown is the type the view acts on.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubRenderer } from './stubRenderer'
-import { selectedSession } from '../client.zustand.helpers'
+import { selectedSession, selectedUnit } from '../client.zustand.helpers'
+
+type Store = Awaited<ReturnType<typeof load>>
 
 const load = async (): Promise<typeof import('../client.zustand').useClientZustand> =>
   (await import('../client.zustand')).useClientZustand
@@ -15,62 +17,74 @@ beforeEach(() => {
   stubRenderer()
 })
 
-const session = (store: Awaited<ReturnType<typeof load>>): ReturnType<typeof selectedSession> =>
-  selectedSession(store.getState())
+const layout = (store: Store): string => selectedUnit(store.getState()).layout
+const shown = (store: Store): string => selectedSession(store.getState()).shownType
 
-describe('one type on screen', () => {
-  it('is replaced by the type pressed, which the view then acts on', async () => {
+describe('turning a type on', () => {
+  it('puts it below the type shown, and acts on it', async () => {
     const store = await load()
     store.getState().setType('coils')
 
-    expect(session(store).openTypes).toEqual(['coils'])
-    expect(session(store).shownType).toBe('coils')
+    expect(layout(store)).toBe('c(hr:50,co:50)')
+    expect(shown(store)).toBe('coils')
+  })
+
+  it('gives every type an equal share of the column', async () => {
+    const store = await load()
+    store.getState().setType('coils')
+    store.getState().setType('input_registers')
+
+    expect(layout(store)).toBe('c(hr:33.3,co:33.3,ir:33.3)')
   })
 })
 
-describe('two types side by side', () => {
-  it('open the type after the one on screen, in the order of the buttons', async () => {
+describe('turning a type off', () => {
+  it('takes it out, and acts on a type still shown', async () => {
     const store = await load()
-    store.getState().setSideBySide(true)
-
-    expect(session(store).openTypes).toEqual(['holding_registers', 'input_registers'])
-    expect(session(store).shownType).toBe('holding_registers')
-  })
-
-  it('take a third type beside the one used last', async () => {
-    const store = await load()
-    store.getState().setSideBySide(true)
-    store.getState().focusType('input_registers')
+    store.getState().setType('coils')
     store.getState().setType('coils')
 
-    expect(session(store).openTypes).toEqual(['input_registers', 'coils'])
-    expect(session(store).shownType).toBe('coils')
+    expect(layout(store)).toBe('hr')
+    expect(shown(store)).toBe('holding_registers')
   })
 
-  it('act on the one pressed into, and on no type that is not open', async () => {
+  it('keeps the last type on', async () => {
     const store = await load()
-    store.getState().setSideBySide(true)
-    store.getState().focusType('input_registers')
-    store.getState().focusType('coils')
+    store.getState().setType('holding_registers')
 
-    expect(session(store).shownType).toBe('input_registers')
+    expect(layout(store)).toBe('hr')
+  })
+})
+
+describe('the layout of each unit', () => {
+  it('is its own: another unit keeps the one it had', async () => {
+    const store = await load()
+    const first = selectedUnit(store.getState()).uuid
+    await store.getState().addUnit()
+    store.getState().setType('coils')
+
+    store.getState().selectUnit(first)
+
+    expect(layout(store)).toBe('hr')
+    expect(shown(store)).toBe('holding_registers')
   })
 
-  it('go back to one when one of them is closed', async () => {
+  it('takes a dragged or resized layout, and refuses a string that names none', async () => {
     const store = await load()
-    store.getState().setSideBySide(true)
-    store.getState().closeType('holding_registers')
+    store.getState().setLayout('c(hr:30,ir:70)')
+    store.getState().setLayout('not a layout')
 
-    expect(session(store).openTypes).toEqual(['input_registers'])
-    expect(session(store).shownType).toBe('input_registers')
+    expect(layout(store)).toBe('c(hr:30,ir:70)')
   })
+})
 
-  it('keep the one acted on when side by side is turned off', async () => {
+describe('acting on a type', () => {
+  it('follows a press into a section the layout shows, and no other', async () => {
     const store = await load()
-    store.getState().setSideBySide(true)
-    store.getState().focusType('input_registers')
-    store.getState().setSideBySide(false)
+    store.getState().setType('coils')
+    store.getState().focusType('holding_registers')
+    store.getState().focusType('discrete_inputs')
 
-    expect(session(store).openTypes).toEqual(['input_registers'])
+    expect(shown(store)).toBe('holding_registers')
   })
 })

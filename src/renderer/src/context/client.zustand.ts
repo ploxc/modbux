@@ -17,7 +17,12 @@ import {
   carryFormerClientState,
   CLIENT_ZUSTAND_STORAGE_KEY,
   ClientUnit,
+  addType,
+  formatLayout,
   maxUnitId,
+  parseLayout,
+  removeType,
+  typesIn,
   newClientUnit,
   emptyRegisterMapping,
   MAIN_CLIENT_UUID,
@@ -44,6 +49,8 @@ import {
 } from './client.zustand.actions'
 import {
   getDefaultClient,
+  layoutOf,
+  openTypesOf,
   MAIN_UNIT_UUID,
   pollsNothingOf,
   readsConfiguration,
@@ -62,14 +69,6 @@ import { sectionOf, useLiveZustand } from './live.zustand'
 import { loadSerialPorts } from './serialPorts'
 import { repairPersistedStore } from './repairPersistedStore'
 import { useUndoZustand } from './undo.zustand'
-
-/** The order the type buttons show, which a second type opens in. */
-const SIDE_BY_SIDE_ORDER: RegisterType[] = [
-  'holding_registers',
-  'input_registers',
-  'coils',
-  'discrete_inputs'
-]
 
 /**
  * The version the blob on disk carried, set by `migrate` and read once below.
@@ -515,54 +514,63 @@ export const useClientZustand = create<
         const { selectedUuid } = get()
         set((state) =>
           onClient(state, selectedUuid, ({ client, session }) => {
-            if (client.units.some(({ uuid }) => uuid === unit)) session.selectedUnit = unit
+            const found = client.units.find(({ uuid }) => uuid === unit)
+            if (!found) return
+            session.selectedUnit = unit
+            const shown = typesIn(layoutOf(found))
+            if (!shown.includes(session.shownType))
+              session.shownType = shown[0] ?? session.shownType
           })
         )
       },
       setType: (type) => {
         const { selectedUuid } = get()
+        const view = viewOf(get())
+        const unit = selectedUnit(get())
+        const layout = layoutOf(unit)
+        const on = typesIn(layout).includes(type)
+        // The last type on stays: the view always shows one.
+        const next = on ? removeType(layout, type) : addType(layout, type)
+        if (next === undefined) return
         set((state) =>
-          onClient(state, selectedUuid, ({ session }) => {
-            const used = session.shownType
-            session.shownType = type
-            if (session.openTypes.includes(type)) return
-            session.openTypes = session.openTypes.length < 2 ? [type] : [used, type]
+          onClient(state, selectedUuid, ({ client, session }) => {
+            const found = client.units.find(({ uuid }) => uuid === view.unit)
+            if (found) found.layout = formatLayout(next)
+            if (!on) session.shownType = type
+            else if (session.shownType === type) {
+              session.shownType = typesIn(next)[0] ?? session.shownType
+            }
           })
         )
+        syncUnitsToMain(selectedUuid)
+      },
+      showType: (type) => {
+        if (!openTypesOf(get()).includes(type)) get().setType(type)
+        get().focusType(type)
       },
       focusType: (type) => {
         const { selectedUuid } = get()
+        if (!openTypesOf(get()).includes(type)) return
         set((state) =>
           onClient(state, selectedUuid, ({ session }) => {
-            if (session.openTypes.includes(type)) session.shownType = type
+            session.shownType = type
           })
         )
       },
-      setSideBySide: (sideBySide) => {
-        const { selectedUuid } = get()
+      setLayout: (layout) => {
+        const parsed = parseLayout(layout)
+        if (parsed === undefined) return
+        const view = viewOf(get())
         set((state) =>
-          onClient(state, selectedUuid, ({ session }) => {
-            if (!sideBySide) {
-              session.openTypes = [session.shownType]
-              return
+          onClient(state, view.uuid, ({ client, session }) => {
+            const found = client.units.find(({ uuid }) => uuid === view.unit)
+            if (found) found.layout = formatLayout(parsed)
+            if (!typesIn(parsed).includes(session.shownType)) {
+              session.shownType = typesIn(parsed)[0] ?? session.shownType
             }
-            if (session.openTypes.length > 1) return
-            // The first type in the order the buttons show that is not open yet.
-            const [next] = SIDE_BY_SIDE_ORDER.filter((type) => type !== session.shownType)
-            if (next) session.openTypes = [session.shownType, next]
           })
         )
-      },
-      closeType: (type) => {
-        const { selectedUuid } = get()
-        set((state) =>
-          onClient(state, selectedUuid, ({ session }) => {
-            if (session.openTypes.length < 2) return
-            session.openTypes = session.openTypes.filter((open) => open !== type)
-            const [left = session.shownType] = session.openTypes
-            if (session.shownType === type) session.shownType = left
-          })
-        )
+        syncUnitsToMain(view.uuid)
       },
       setLittleEndian: async (littleEndian) => {
         const before = selectedUnit(get()).littleEndian
@@ -700,6 +708,8 @@ export const selectedUnitOf = (state: ClientZustand): ClientUnit | undefined => 
 }
 
 export {
+  layoutOf,
+  openTypesOf,
   readsNothingIn,
   MAIN_UNIT_UUID,
   pollsNothingOf,

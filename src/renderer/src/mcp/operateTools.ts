@@ -200,7 +200,7 @@ const selectedId = (): string => useClientZustand.getState().selectedUuid
 export const setType = (type: RegisterType): boolean => {
   if (getShownType() === type) return true
   if (stateOf(selectedId()).scanningRegisters) return false
-  useClientZustand.getState().setType(type)
+  useClientZustand.getState().showType(type)
   return true
 }
 

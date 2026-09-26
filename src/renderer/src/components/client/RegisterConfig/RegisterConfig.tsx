@@ -17,7 +17,7 @@ import {
   readsConfiguration,
   selectedClientUuid,
   selectedUnit,
-  selectedSession
+  openTypesOf
 } from '@renderer/context/client.zustand'
 import {
   clientOwner,
@@ -48,12 +48,11 @@ export const REGISTER_TYPE_LABELS = Object.fromEntries(
 ) as Record<RegisterType, string>
 
 /**
- * One button per register type; the ones on screen are pressed. A type not on
- * screen opens, beside the one used last when two are shown. With two on
- * screen, pressing one of them takes it off.
+ * One button per register type of the unit on screen, pressed while the type
+ * is shown. Pressing one turns it on or off; the last one on stays.
  */
 export const RegisterTypeTabs = meme(() => {
-  const openList = useClientZustand((z) => selectedSession(z).openTypes.join(','))
+  const openList = useClientZustand((z) => openTypesOf(z).join(','))
   const openTypes = useMemo(() => openList.split(',') as RegisterType[], [openList])
 
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
@@ -63,14 +62,11 @@ export const RegisterTypeTabs = meme(() => {
 
   const handleChange = useCallback(
     (_event: unknown, next: RegisterType[]) => {
-      const clientZustand = useClientZustand.getState()
-      const [opened] = next.filter((type) => !openTypes.includes(type))
-      if (opened) {
-        clientZustand.setType(opened)
-        return
-      }
-      const [closed] = openTypes.filter((type) => !next.includes(type))
-      if (closed && openTypes.length > 1) clientZustand.closeType(closed)
+      const [pressed] = [
+        ...next.filter((type) => !openTypes.includes(type)),
+        ...openTypes.filter((type) => !next.includes(type))
+      ]
+      if (pressed) useClientZustand.getState().setType(pressed)
     },
     [openTypes]
   )

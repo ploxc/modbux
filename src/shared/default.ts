@@ -10,6 +10,7 @@ import {
   RegisterMapping,
   SerialPortOptions
 } from './types'
+import { DEFAULT_LAYOUT } from './layout'
 
 /**
  * What a serial port opens with until someone says otherwise.
@@ -85,7 +86,8 @@ export const newClientUnit = (uuid: string, unitId: number): ClientUnit => ({
   sections: {
     ...defaultSections(),
     holding_registers: { ...defaultSection(), polled: true }
-  }
+  },
+  layout: DEFAULT_LAYOUT
 })
 
 export const defaultClientState: ClientState = {

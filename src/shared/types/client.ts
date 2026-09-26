@@ -13,6 +13,7 @@ import {
   registersFrom
 } from './ranges'
 import { RegisterType } from './register'
+import { parseLayout } from '../layout'
 import { SerialPortOptionsSchema } from './serial'
 
 //
@@ -71,7 +72,12 @@ export const ClientDeviceConfigSchema = z.object({
   name: z.string().optional(),
   unitId: UnitIdSchema.optional(),
   littleEndian: z.boolean(),
-  registerMapping: RegisterMappingSchema
+  registerMapping: RegisterMappingSchema,
+  /** Which register types the device shows and where; a file without one keeps the unit's. */
+  layout: z
+    .string()
+    .refine((text) => parseLayout(text) !== undefined, { message: 'Not a layout' })
+    .optional()
 })
 export type ClientDeviceConfig = z.infer<typeof ClientDeviceConfigSchema>
 
@@ -357,7 +363,11 @@ export const ClientUnitSchema = z.object({
   littleEndian: z.boolean(),
   addressBase: z.enum(['0', '1']),
   registerMapping: RegisterMappingSchema,
-  sections: ClientSectionsSchema
+  sections: ClientSectionsSchema,
+  /** Which register types the unit shows and where, as `formatLayout` writes it. */
+  layout: z.string().refine((text) => parseLayout(text) !== undefined, {
+    message: 'Not a layout'
+  })
 })
 export type ClientUnit = z.infer<typeof ClientUnitSchema>
 
