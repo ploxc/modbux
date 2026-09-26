@@ -10,6 +10,7 @@ import ShowLogButton from './ShowLogButton'
 import MenuButton from './MenuButton/MenuButton'
 import BitWidthButtons from './BitWidthButtons'
 import SectionPollSwitch from './SectionPollSwitch'
+import UnitTabs from '../../UnitTabs'
 import RegisterConfig, {
   RegisterTypeTabs
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
@@ -70,6 +71,7 @@ const RegisterGridToolbar = meme(() => {
         gap: 1.5
       })}
     >
+      <UnitTabs />
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
         <RegisterTypeTabs />
         <Box sx={{ flex: 1 }} />

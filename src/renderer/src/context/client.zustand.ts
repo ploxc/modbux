@@ -21,6 +21,7 @@ import {
   readLoopOwner,
   ClientUnit,
   configuredReadGroups,
+  maxUnitId,
   newClientUnit,
   emptyRegisterMapping,
   MAIN_CLIENT_UUID,
@@ -849,6 +850,62 @@ export const useClientZustand = create<
         if (!view) return false
         recordField({ ...view, type }, 'polled', before, polled)
         return true
+      },
+      addUnit: async () => {
+        const state = get()
+        if (!selectedSession(state).ready) return false
+        const { selectedUuid } = state
+        const { units, connectionConfig } = selectedClient(state)
+        // The id after the highest one held, within what the protocol takes.
+        const highest = Math.max(...units.map(({ unitId }) => unitId))
+        const unitId = Math.min(highest + 1, maxUnitId(connectionConfig.protocol))
+        const unit = newClientUnit(v4(), unitId)
+        if (!(await flushUnitsToMain(selectedUuid, [...units, unit]))) return false
+
+        set((draft) =>
+          onClient(draft, selectedUuid, ({ client, session }) => {
+            client.units.push(unit)
+            session.selectedUnit = unit.uuid
+          })
+        )
+        return true
+      },
+      removeUnit: async (unit) => {
+        const state = get()
+        if (!selectedSession(state).ready) return false
+        const { selectedUuid } = state
+        const { units } = selectedClient(state)
+        // The view always shows a unit, so the last one stays.
+        const kept = units.filter(({ uuid }) => uuid !== unit)
+        if (kept.length === units.length || kept.length === 0) return false
+        if (!(await flushUnitsToMain(selectedUuid, kept))) return false
+
+        set((draft) =>
+          onClient(draft, selectedUuid, ({ client, session }) => {
+            client.units = client.units.filter(({ uuid }) => uuid !== unit)
+            delete session.readConfiguration[unit]
+            if (session.selectedUnit === unit) session.selectedUnit = client.units[0]?.uuid ?? ''
+          })
+        )
+        // A step whose unit is gone has nothing to be put back into, and left
+        // on the stack it would refuse every undo after it.
+        const undo = useUndoZustand.getState()
+        const { past, future, openKey } = undo.client
+        const onOther = (step: { uuid: string; unit: string }): boolean =>
+          step.uuid !== selectedUuid || step.unit !== unit
+        undo.setClient({ past: past.filter(onOther), future: future.filter(onOther), openKey })
+        return true
+      },
+      setUnitName: (name) => {
+        const view = viewOf(get())
+        set((state) =>
+          onClient(state, view.uuid, ({ client }) => {
+            const unit = client.units.find(({ uuid }) => uuid === view.unit)
+            if (unit) unit.name = name
+          })
+        )
+        // A name changes nothing a read asks, so it goes with the next send.
+        syncUnitsToMain(view.uuid)
       },
       selectUnit: (unit) => {
         const { selectedUuid } = get()

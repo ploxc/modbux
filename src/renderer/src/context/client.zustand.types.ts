@@ -108,6 +108,15 @@ export type ClientZustand = {
   setUnitId: AsyncMaskSetFn
   setAddress: AsyncMaskSetFn
   setLength: AsyncMaskSetFn
+  /**
+   * Adds a unit to the selected client, the unit id after its highest, hands
+   * it to main and shows it. Answers whether main took it.
+   */
+  addUnit: () => Promise<boolean>
+  /** Takes a unit of the selected client away, in main and here. The last one stays. */
+  removeUnit: (unit: string) => Promise<boolean>
+  /** Names the unit on screen. */
+  setUnitName: (name: string) => void
   /** Shows another unit of the selected client. Main is not asked. */
   selectUnit: (unit: string) => void
   /** Shows another register type of the selected unit. Main is not asked. */
