@@ -4,7 +4,7 @@ import { downloadJson } from '@renderer/components/shared/downloadJson'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { getSelectedClient } from '@renderer/context/client.zustand'
-import { CURRENT_CLIENT_CONFIG_VERSION, RegisterMapConfig, RegisterType } from '@shared'
+import { CURRENT_CLIENT_CONFIG_VERSION, ClientDeviceConfig, RegisterType } from '@shared'
 import { snakeCase } from 'lodash'
 import { useCallback } from 'react'
 
@@ -26,21 +26,21 @@ const SaveButton = meme(() => {
     // The store reads the version once at startup; it cannot change after that
     const modbuxVersion = useLayoutZustand.getState().version
 
-    const registerMapConfig: RegisterMapConfig = {
+    const { unitId } = client.connectionConfig
+
+    const deviceConfig: ClientDeviceConfig = {
+      kind: 'client-device',
       version: CURRENT_CLIENT_CONFIG_VERSION,
       modbuxVersion,
       name,
+      unitId,
       littleEndian: client.registerConfig.littleEndian,
       registerMapping
     }
 
-    const {
-      connectionConfig: { unitId }
-    } = client
-
     downloadJson(
       `modbux_client_${snakeCase(name)}_id${unitId}.json`,
-      JSON.stringify(registerMapConfig, null, 2)
+      JSON.stringify(deviceConfig, null, 2)
     )
   }, [])
 

@@ -50,8 +50,9 @@ const clientOf = (uuid: string = client): PersistedClient | undefined =>
 
 /** A config file as a Save writes it. */
 const savedConfig = {
-  version: 2,
-  modbuxVersion: '2.0.0',
+  kind: 'client-device',
+  version: 3,
+  modbuxVersion: '3.0.0',
   name: 'Meter',
   littleEndian: true,
   registerMapping: {

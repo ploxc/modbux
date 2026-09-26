@@ -101,7 +101,7 @@ describe('the client', () => {
     expect(Object.keys(config.registerMapping.holding_registers ?? {})).toEqual(['30000'])
   })
 
-  it('opens a versioned client config', () => {
-    expect(migrateClientConfig(clientV2).migrated).toBe(false)
+  it('opens a versioned client config as a device', () => {
+    expect(migrateClientConfig(clientV2).config.kind).toBe('client-device')
   })
 })

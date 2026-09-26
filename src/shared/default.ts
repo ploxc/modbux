@@ -1,5 +1,8 @@
 import {
+  ClientSection,
+  ClientSections,
   ClientState,
+  ClientUnit,
   ConnectionConfig,
   RegisterConfig,
   RegisterData,
@@ -61,6 +64,34 @@ export const emptyRegisterMapping = (): RegisterMapping => ({
   discrete_inputs: {},
   holding_registers: {},
   input_registers: {}
+})
+
+/** A read window of ten from address 0, not polled. Built fresh at each call. */
+export const defaultSection = (): ClientSection => ({ address: 0, length: 10, polled: false })
+
+/** A default section for each register type, built fresh at each call. */
+export const defaultSections = (): ClientSections => ({
+  coils: defaultSection(),
+  discrete_inputs: defaultSection(),
+  input_registers: defaultSection(),
+  holding_registers: defaultSection()
+})
+
+/**
+ * A unit with nothing configured but its uuid and unit id: big endian, base 0,
+ * an empty mapping, and holding registers polled from address 0.
+ */
+export const newClientUnit = (uuid: string, unitId: number): ClientUnit => ({
+  uuid,
+  unitId,
+  name: '',
+  littleEndian: false,
+  addressBase: '0',
+  registerMapping: emptyRegisterMapping(),
+  sections: {
+    ...defaultSections(),
+    holding_registers: { ...defaultSection(), polled: true }
+  }
 })
 
 export const defaultClientState: ClientState = {

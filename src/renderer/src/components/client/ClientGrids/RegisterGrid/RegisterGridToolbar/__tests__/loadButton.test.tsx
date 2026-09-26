@@ -26,8 +26,9 @@ import LoadButton from '../LoadButton'
 import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
 
 const CONFIG = JSON.stringify({
-  version: 2,
-  modbuxVersion: '2.0.0',
+  kind: 'client-device',
+  version: 3,
+  modbuxVersion: '3.0.0',
   name: 'Test Client',
   littleEndian: false,
   registerMapping: {

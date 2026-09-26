@@ -560,7 +560,7 @@ describe('configMigration', () => {
 
         expect(result.migrated).toBe(true)
         expect(result.fromVersion).toBe(1)
-        expect(result.config.version).toBe(2)
+        expect(result.config.version).toBe(3)
         expect(result.config.name).toBe('Test Client Config')
         expect(result.config.littleEndian).toBe(false)
         expect(result.config.registerMapping).toBeDefined()
@@ -578,35 +578,61 @@ describe('configMigration', () => {
         const result = migrateClientConfig(legacyConfig)
 
         expect(result.migrated).toBe(true)
-        expect(result.config.version).toBe(2)
+        expect(result.config.version).toBe(3)
         expect(result.config.littleEndian).toBe(false)
         expect(result.config.registerMapping).toBeDefined()
       })
     })
 
-    describe('v2 pass-through', () => {
-      it('does not migrate v2 config (pass-through)', () => {
+    describe('v2 to v3', () => {
+      it('makes a v2 config a device with no unit id', () => {
         const v2Config = loadFixture('client-config-v2.json')
         const result = migrateClientConfig(v2Config)
 
-        expect(result.migrated).toBe(false)
+        expect(result.migrated).toBe(true)
         expect(result.fromVersion).toBe(2)
-        expect(result.config.version).toBe(2)
+        expect(result.config.kind).toBe('client-device')
+        expect(result.config.version).toBe(3)
+        expect(result.config.unitId).toBeUndefined()
         expect(result.config.littleEndian).toBe(false)
+      })
+    })
+
+    describe('v3 pass-through', () => {
+      it('keeps the unit id a v3 device carries', () => {
+        const v3Config = JSON.stringify({
+          kind: 'client-device',
+          version: 3,
+          modbuxVersion: '3.0.0',
+          name: 'Meter',
+          unitId: 7,
+          littleEndian: true,
+          registerMapping: {
+            coils: {},
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: {}
+          }
+        })
+        const result = migrateClientConfig(v3Config)
+
+        expect(result.migrated).toBe(false)
+        expect(result.config.unitId).toBe(7)
+        expect(result.config.littleEndian).toBe(true)
       })
     })
 
     describe('Future version handling', () => {
       it('handles future version with warning', () => {
-        const v3Config = JSON.stringify({
-          version: 3,
-          modbuxVersion: '2.0.0',
+        const futureConfig = JSON.stringify({
+          version: 9,
+          modbuxVersion: '9.0.0',
           name: 'Future',
           registerMapping: {}
         })
-        const result = migrateClientConfig(v3Config)
+        const result = migrateClientConfig(futureConfig)
 
-        expect(result.fromVersion).toBe(3)
+        expect(result.fromVersion).toBe(9)
         expect(result.futureVersion).toBeDefined()
       })
 

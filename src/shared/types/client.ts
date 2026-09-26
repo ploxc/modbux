@@ -57,15 +57,23 @@ export const RegisterMappingSchema = z.object({
 } satisfies Record<RegisterType, typeof RegisterMapObjectSchema>)
 export type RegisterMapping = z.infer<typeof RegisterMappingSchema>
 
-// Client config schema (v2 with metadata)
-export const RegisterMapConfigSchema = z.object({
+/**
+ * The file Save writes and Load reads: one device.
+ *
+ * `unitId` is optional because a version 2 file carries none; loading one
+ * keeps the unit id of the unit it is loaded into. Host, port and serial line
+ * stay out, so the same file fits a client on another address.
+ */
+export const ClientDeviceConfigSchema = z.object({
+  kind: z.literal('client-device'),
   version: z.number(),
   modbuxVersion: z.string(),
   name: z.string().optional(),
+  unitId: UnitIdSchema.optional(),
   littleEndian: z.boolean(),
   registerMapping: RegisterMappingSchema
 })
-export type RegisterMapConfig = z.infer<typeof RegisterMapConfigSchema>
+export type ClientDeviceConfig = z.infer<typeof ClientDeviceConfigSchema>
 
 //
 //
@@ -317,6 +325,50 @@ export const RegisterConfigSchema = z.object({
   addressBase: z.enum(['0', '1'])
 })
 export type RegisterConfig = z.infer<typeof RegisterConfigSchema>
+
+//
+//
+// Units
+
+/**
+ * One register type's read window on a unit, and whether a poll reads it.
+ *
+ * `length` admits 0 for the reason `RegisterConfigSchema` gives: a cleared
+ * field stays in the store, marked invalid, rather than going to main.
+ */
+export const ClientSectionSchema = z.object({
+  address: RegisterAddressSchema,
+  length: z.number().int().min(0).max(65535),
+  polled: z.boolean()
+})
+export type ClientSection = z.infer<typeof ClientSectionSchema>
+
+export const ClientSectionsSchema = z.object({
+  coils: ClientSectionSchema,
+  discrete_inputs: ClientSectionSchema,
+  input_registers: ClientSectionSchema,
+  holding_registers: ClientSectionSchema
+} satisfies Record<RegisterType, typeof ClientSectionSchema>)
+export type ClientSections = z.infer<typeof ClientSectionsSchema>
+
+/**
+ * One device a client talks to: its unit id, what it is called, how it orders
+ * the words of a wide value, how its documentation numbers addresses, what is
+ * known about its registers, and a read window per register type.
+ *
+ * The uuid names the unit in the running app and in the persisted store, so a
+ * unit id can change without the unit becoming another one.
+ */
+export const ClientUnitSchema = z.object({
+  uuid: z.string().min(1),
+  unitId: UnitIdSchema,
+  name: z.string(),
+  littleEndian: z.boolean(),
+  addressBase: z.enum(['0', '1']),
+  registerMapping: RegisterMappingSchema,
+  sections: ClientSectionsSchema
+})
+export type ClientUnit = z.infer<typeof ClientUnitSchema>
 
 //
 //

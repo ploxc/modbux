@@ -1,4 +1,5 @@
-import { MAIN_CLIENT_UUID } from '../../default'
+import { MAIN_CLIENT_UUID, defaultSections } from '../../default'
+import { RegisterTypeSchema } from '../../types/register'
 import { dropUnmappableRegisters, isRecord, objectValues, repairPersistedParity } from '../shared'
 
 /**
@@ -72,6 +73,55 @@ export function foldClientIntoRecord(state: Record<string, unknown>): void {
   }
   state.clients = { [MAIN_CLIENT_UUID]: client }
   state.selectedUuid = MAIN_CLIENT_UUID
+}
+
+/** The fields one client's single unit and read window were spread over. */
+const FORMER_UNIT_REGISTER_FIELDS = ['type', 'address', 'length', 'littleEndian', 'addressBase']
+
+/**
+ * Put a client from before units into one unit, which polls the register type
+ * the client read.
+ *
+ * The unit takes `connectionConfig.unitId`, `registerConfig.littleEndian` and
+ * `addressBase`, and `registerMapping`. The type the client read becomes the
+ * one polled section, with its address and length; the other three types get
+ * the default window, not polled. The values are moved as they are: the store's
+ * repair checks them afterwards, as it checks every other field.
+ *
+ * Keyed off the shape, like `foldClientIntoRecord`: a client that already holds
+ * `units` is left as it is. `newUuid` is a parameter so a test can name the
+ * unit.
+ */
+export function foldClientIntoUnits(
+  client: Record<string, unknown>,
+  newUuid: () => string = () => globalThis.crypto.randomUUID()
+): void {
+  if (Array.isArray(client.units)) return
+
+  const connection = isRecord(client.connectionConfig) ? client.connectionConfig : {}
+  const register = isRecord(client.registerConfig) ? client.registerConfig : {}
+
+  const sections: Record<string, unknown> = defaultSections()
+  const type = RegisterTypeSchema.safeParse(register.type)
+  if (type.success) {
+    sections[type.data] = { address: register.address, length: register.length, polled: true }
+  }
+
+  client.units = [
+    {
+      uuid: newUuid(),
+      unitId: connection.unitId,
+      name: '',
+      littleEndian: register.littleEndian,
+      addressBase: register.addressBase,
+      registerMapping: client.registerMapping,
+      sections
+    }
+  ]
+
+  delete connection.unitId
+  for (const field of FORMER_UNIT_REGISTER_FIELDS) delete register[field]
+  delete client.registerMapping
 }
 
 /** Only what this needs of Storage, so it takes localStorage without naming it. */
