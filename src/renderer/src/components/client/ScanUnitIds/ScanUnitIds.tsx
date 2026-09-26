@@ -1,12 +1,16 @@
+import Search from '@mui/icons-material/Search'
 import Box from '@mui/material/Box'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import Modal from '@mui/material/Modal'
 import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { alpha } from '@mui/material/styles'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
+import DialogHeading from '@renderer/components/shared/DialogHeading'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
@@ -354,51 +358,43 @@ const ScanUnitIds = meme(() => {
   }, [])
 
   return (
-    <Modal
+    <Dialog
       open={open}
       // Escape still closes. A click on the backdrop does not: the dialog fills
       // the window, and reaching for anything behind it closed the scan you
       // were setting up, results and all.
       onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
-      sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      maxWidth={false}
+      slotProps={{ paper: { sx: { width: '90dvw', height: '90dvh', m: 0, maxHeight: 'none' } } }}
     >
-      <Paper
-        elevation={5}
-        sx={(theme) => ({
-          background: theme.palette.background.default,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          p: 3,
-          height: '90dvh',
-          width: '90dvw',
-          minHeight: 0
-        })}
+      <DialogHeading
+        icon={<Search />}
+        tone="primary"
+        subtitle="Asks each unit ID for Length registers at Address, per register type, and lists what came back."
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <StartUnitIdField />
-            <CountField />
-            <AddressField />
-            <LengthField />
-            <TimeoutField />
-            <SelectRegisterTypes />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <ScanButton />
-            <ScanCloseButton
-              disabled={scanning}
-              close={handleClose}
-              testId="scan-unitid-close-btn"
-            />
-          </Box>
+        Scan unit IDs
+      </DialogHeading>
+      {/* The fields and the grid take the full width, not the text indent. */}
+      <DialogContent sx={{ pl: 3, pr: 3, pt: '20px !important', gap: 2.5, minHeight: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <StartUnitIdField />
+          <CountField />
+          <AddressField />
+          <LengthField />
+          <TimeoutField />
+          <Box sx={{ width: '1px', height: 24, background: '#333333', mx: 0.5 }} />
+          <SelectRegisterTypes />
         </Box>
-        <ScanProgress />
         <Paper sx={{ flex: 1, height: '100%', minHeight: 0 }}>
           <ScanResultGrid />
         </Paper>
-      </Paper>
-    </Modal>
+      </DialogContent>
+      <DialogActions>
+        <ScanProgress />
+        <ScanCloseButton disabled={scanning} close={handleClose} testId="scan-unitid-close-btn" />
+        <ScanButton />
+      </DialogActions>
+    </Dialog>
   )
 })
 export default ScanUnitIds

@@ -84,9 +84,8 @@ const UndoKeys = meme((): null => {
       // register or a type that is not there any more.
       if (document.querySelector('[role="dialog"]')) return
 
-      // The settings page holds nothing an undo steps through.
       const appType = useLayoutZustand.getState().appType
-      if (!appType || appType === 'settings') return
+      if (!appType) return
 
       event.preventDefault()
       void replays[appType][direction]().then((outcome) => {

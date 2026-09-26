@@ -14,60 +14,76 @@ import { useCallback, useState } from 'react'
  * screen rather than describing it. `copied` is local on purpose: two seconds
  * of a changed icon belongs to this element and nothing else reads it.
  */
-const CommandBlock = meme(
-  ({ command, testId }: { command: string; testId: string }): JSX.Element => {
-    const [copied, setCopied] = useState(false)
+interface CommandBlockProps {
+  command: string
+  testId: string
+  /** The line above the box, left out where an alert already says what the box is. */
+  label?: string
+}
 
-    const handleCopy = useCallback(async (): Promise<void> => {
-      try {
-        await navigator.clipboard.writeText(command)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch {
-        // Clipboard can be unavailable; the command stays selectable on screen.
-      }
-    }, [command])
+const CommandBlock = meme(({ command, testId, label }: CommandBlockProps): JSX.Element => {
+  const [copied, setCopied] = useState(false)
 
-    return (
-      <Box
-        sx={(theme) => ({
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          p: 1,
-          pl: 1.5,
-          borderRadius: 1,
-          border: `1px solid ${theme.palette.divider}`,
-          // A shade up from the dialog surface, as the scan modals nest theirs.
-          background: theme.palette.background.paper
-        })}
+  const handleCopy = useCallback(async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(command)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard can be unavailable; the command stays selectable on screen.
+    }
+  }, [command])
+
+  const box = (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        py: 0.75,
+        pr: 1,
+        pl: 1.5,
+        borderRadius: 1,
+        border: '1px solid #2a2a2a',
+        // A shade below the dialog surface.
+        background: '#141414'
+      }}
+    >
+      <Typography
+        component="code"
+        data-testid={testId}
+        sx={{
+          flex: 1,
+          fontFamily: 'monospace',
+          fontSize: 12,
+          lineHeight: '18px',
+          color: '#d4d4d4',
+          userSelect: 'all',
+          wordBreak: 'break-all'
+        }}
       >
-        <Typography
-          component="code"
-          data-testid={testId}
-          sx={{
-            flex: 1,
-            fontFamily: 'monospace',
-            fontSize: '0.8rem',
-            userSelect: 'all',
-            wordBreak: 'break-all'
-          }}
+        {command}
+      </Typography>
+      <Tooltip title={copied ? 'Copied' : 'Copy'}>
+        <IconButton
+          data-testid={`${testId}-copy-btn`}
+          size="small"
+          onClick={handleCopy}
+          aria-label="Copy command"
         >
-          {command}
-        </Typography>
-        <Tooltip title={copied ? 'Copied' : 'Copy'}>
-          <IconButton
-            data-testid={`${testId}-copy-btn`}
-            size="small"
-            onClick={handleCopy}
-            aria-label="Copy command"
-          >
-            {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
-          </IconButton>
-        </Tooltip>
-      </Box>
-    )
-  }
-)
+          {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+    </Box>
+  )
+
+  if (!label) return box
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Typography sx={{ fontSize: 12, color: '#a3a3a3' }}>{label}</Typography>
+      {box}
+    </Box>
+  )
+})
 
 export default CommandBlock

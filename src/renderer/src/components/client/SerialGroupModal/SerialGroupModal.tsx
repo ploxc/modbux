@@ -1,10 +1,12 @@
+import Cable from '@mui/icons-material/Cable'
+import Check from '@mui/icons-material/Check'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
-import Typography from '@mui/material/Typography'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogHeading from '@renderer/components/shared/DialogHeading'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
 import { blockedReason, reportFixResult } from '@renderer/components/shared/linuxFix'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -49,7 +51,7 @@ const decline = (): void => {
 //
 //
 // The command, built from whoever is logged in
-const Command = meme((): JSX.Element => {
+const Command = meme(({ label }: { label?: string }): JSX.Element => {
   const username = useSerialGroupZustand((z) => z.status?.username)
   // The group the refusing device actually belongs to, not an assumed dialout.
   const group = useSerialGroupZustand((z) => z.status?.group)
@@ -57,6 +59,7 @@ const Command = meme((): JSX.Element => {
     <CommandBlock
       command={serialGroupCommandDisplay(username ?? '$USER', group)}
       testId="serial-group-command"
+      label={label}
     />
   )
 })
@@ -67,20 +70,10 @@ const Command = meme((): JSX.Element => {
 const PendingLogin = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
   return (
-    <Alert
-      severity="success"
-      data-testid="serial-group-pending-login"
-      // MUI tints both text and background from success.light in dark mode,
-      // which reads as washed green on green. Keep the tick, drop the tint.
-      sx={(theme) => ({
-        color: theme.palette.text.primary,
-        border: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.background.paper
-      })}
-    >
+    <DialogContentText data-testid="serial-group-pending-login">
       You are in {group} now. A session keeps the groups it was given at login, so log out and back
       in before Modbux can open a port.
-    </Alert>
+    </DialogContentText>
   )
 })
 
@@ -95,22 +88,20 @@ const Explanation = meme((): JSX.Element => {
 
   return (
     <>
-      <Typography variant="body2" sx={{ mb: 2 }}>
+      <DialogContentText>
         On Linux a serial port belongs to the {group} group, and {username} is not in it. The port
         is still listed, but opening it is refused, so connecting fails until that changes.
-      </Typography>
+      </DialogContentText>
 
       {blocked ? (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          {blocked} Run this in a terminal instead:
-        </Alert>
+        <Alert severity="info">{blocked} Run this in a terminal instead:</Alert>
       ) : (
-        <Typography variant="body2" sx={{ mb: 1 }}>
-          Modbux can do it for you. You will be asked for your password, and this is what will run:
-        </Typography>
+        <DialogContentText>
+          Modbux can do it for you. You will be asked for your password.
+        </DialogContentText>
       )}
 
-      <Command />
+      <Command label={blocked ? undefined : 'This is what will run'} />
     </>
   )
 })
@@ -129,7 +120,7 @@ const Body = meme((): JSX.Element => {
 const NotNowButton = meme((): JSX.Element => {
   const busy = useSerialGroupZustand((z) => z.busy)
   return (
-    <Button onClick={decline} disabled={busy} data-testid="serial-group-close-btn">
+    <Button variant="text" onClick={decline} disabled={busy} data-testid="serial-group-close-btn">
       Not now
     </Button>
   )
@@ -169,7 +160,7 @@ const LaterButton = meme((): JSX.Element => {
   }, [])
 
   return (
-    <Button onClick={handleClick} data-testid="serial-group-later-btn">
+    <Button variant="text" onClick={handleClick} data-testid="serial-group-later-btn">
       Later
     </Button>
   )
@@ -200,7 +191,7 @@ const LogoutButton = meme((): JSX.Element => {
 const Actions = meme((): JSX.Element => {
   const done = useSerialGroupZustand((z) => z.done)
   return (
-    <DialogActions sx={{ px: 3, pb: 2 }}>
+    <DialogActions>
       {done ? (
         <>
           <LaterButton />
@@ -221,7 +212,16 @@ const Actions = meme((): JSX.Element => {
 // Title
 const Title = meme((): JSX.Element => {
   const group = useSerialGroupZustand((z) => z.status?.group)
-  return <DialogTitle>Serial ports need the {group} group</DialogTitle>
+  const done = useSerialGroupZustand((z) => z.done)
+  return done ? (
+    <DialogHeading icon={<Check />} tone="success">
+      Log out to finish
+    </DialogHeading>
+  ) : (
+    <DialogHeading icon={<Cable />} tone="warning">
+      Serial ports need the {group} group
+    </DialogHeading>
+  )
 })
 
 //

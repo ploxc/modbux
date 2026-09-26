@@ -1,11 +1,12 @@
 import Delete from '@mui/icons-material/Delete'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
-import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
+import DialogHeading from '@renderer/components/shared/DialogHeading'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
 import { useClientZustand, getSelectedClient } from '@renderer/context/client.zustand'
@@ -67,7 +68,9 @@ const ConfirmClear = meme(({ mapped, named, onCancel }: ConfirmProps): JSX.Eleme
 
   return (
     <Dialog open onClose={onCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>Clear the register configuration?</DialogTitle>
+      <DialogHeading icon={<DeleteOutlined />} tone="error">
+        Clear the register configuration?
+      </DialogHeading>
       <DialogContent>
         <DialogContentText>
           {mapped > 0 && (
@@ -80,8 +83,8 @@ const ConfirmClear = meme(({ mapped, named, onCancel }: ConfirmProps): JSX.Eleme
           Clearing drops all of it, and turns read configuration off.
         </DialogContentText>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button data-testid="clear-config-cancel-btn" onClick={onCancel}>
+      <DialogActions>
+        <Button data-testid="clear-config-cancel-btn" variant="text" onClick={onCancel}>
           Keep it
         </Button>
         <Button data-testid="clear-config-confirm-btn" color="error" onClick={handleConfirm}>

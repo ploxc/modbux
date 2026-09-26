@@ -1,14 +1,16 @@
+import LockOutlined from '@mui/icons-material/LockOutlined'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
+import DialogContentText from '@mui/material/DialogContentText'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
+import DialogHeading from '@renderer/components/shared/DialogHeading'
 import CommandBlock from '@renderer/components/shared/CommandBlock'
 import { blockedReason, reportFixResult } from '@renderer/components/shared/linuxFix'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -44,7 +46,11 @@ const WHAT_IT_CHANGES = 'system settings'
 // Title
 const Title = meme((): JSX.Element => {
   const port = usePrivilegedPortZustand((z) => z.status?.port)
-  return <DialogTitle>Port {port} needs a system setting</DialogTitle>
+  return (
+    <DialogHeading icon={<LockOutlined />} tone="warning">
+      Port {port} needs a system setting
+    </DialogHeading>
+  )
 })
 
 //
@@ -60,12 +66,12 @@ const Explanation = meme((): JSX.Element => {
   const actualPort = useServerZustand((z) => Number(z.servers[z.selectedUuid]?.port ?? 0))
 
   return (
-    <Typography variant="body2" sx={{ mb: 2 }}>
+    <DialogContentText>
       Linux reserves ports below {floor} for root, and Modbus uses {port} by default.{' '}
       {actualPort && actualPort !== port
-        ? `That is why this server is on ${actualPort} instead — a client looking for ${port} will not find it.`
+        ? `That is why this server is on ${actualPort} instead: a client looking for ${port} will not find it.`
         : `Until that floor is lowered, Modbux cannot use it and clients looking for ${port} will not find it.`}
-    </Typography>
+    </DialogContentText>
   )
 })
 
@@ -88,7 +94,12 @@ const ModeToggle = meme((): JSX.Element => {
       color="primary"
       value={mode}
       onChange={handleChange}
-      sx={{ mb: 1.5 }}
+      sx={{
+        alignSelf: 'flex-start',
+        // 8 px down to the command's label rather than the content's 14.
+        mb: -0.75,
+        '& .MuiToggleButton-root': { height: 30, px: 1.75, fontSize: 12, textTransform: 'none' }
+      }}
     >
       <ToggleButton value="persist" data-testid="privileged-port-mode-persist">
         Permanently
@@ -112,6 +123,7 @@ const Command = meme((): JSX.Element => {
     <CommandBlock
       command={privilegedPortCommandDisplay(blocked ? 'persist' : mode)}
       testId="privileged-port-command"
+      label={blocked ? undefined : 'This is what will run'}
     />
   )
 })
@@ -129,7 +141,7 @@ const DontAskCheckbox = meme((): JSX.Element => {
 
   return (
     <FormControlLabel
-      sx={{ mt: 2 }}
+      sx={{ flexGrow: 1, ml: 0 }}
       control={
         <Checkbox
           size="small"
@@ -138,7 +150,7 @@ const DontAskCheckbox = meme((): JSX.Element => {
           data-testid="privileged-port-dont-ask"
         />
       }
-      label={<Typography variant="body2">Don&apos;t ask again</Typography>}
+      label={<Typography sx={{ fontSize: 13 }}>Don&apos;t ask again</Typography>}
     />
   )
 })
@@ -154,24 +166,18 @@ const Body = meme((): JSX.Element => {
       <Explanation />
 
       {blocked ? (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          {blocked} Run this in a terminal instead:
-        </Alert>
+        <Alert severity="info">{blocked} Run this in a terminal instead:</Alert>
       ) : (
         <>
-          <Typography variant="body2" sx={{ mb: 1.5 }}>
+          <DialogContentText>
             Modbux can lower it for you. This makes every port from {UNPRIVILEGED_PORT_START_TARGET}{' '}
-            up bindable without root, system-wide — you will be asked for your password.
-          </Typography>
+            up bindable without root, system-wide. You will be asked for your password.
+          </DialogContentText>
           <ModeToggle />
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            This is what will run:
-          </Typography>
         </>
       )}
 
       <Command />
-      <DontAskCheckbox />
     </>
   )
 })
@@ -183,8 +189,8 @@ const CancelButton = meme((): JSX.Element => {
   const busy = usePrivilegedPortZustand((z) => z.busy)
   const close = usePrivilegedPortZustand.getState().close
   return (
-    <Button onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
-      Not now
+    <Button variant="text" onClick={close} disabled={busy} data-testid="privileged-port-cancel-btn">
+      Cancel
     </Button>
   )
 })
@@ -258,7 +264,8 @@ const PrivilegedPortModal = meme((): JSX.Element | null => {
       <DialogContent>
         <Body />
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions>
+        <DontAskCheckbox />
         <CancelButton />
         <RunCommandButton />
       </DialogActions>

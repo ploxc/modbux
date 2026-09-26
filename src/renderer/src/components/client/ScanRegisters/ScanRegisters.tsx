@@ -1,7 +1,9 @@
+import Search from '@mui/icons-material/Search'
 import Box from '@mui/material/Box'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import Modal from '@mui/material/Modal'
-import Paper from '@mui/material/Paper'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
@@ -14,6 +16,7 @@ import { ElementType, useCallback } from 'react'
 import { maskInputProps } from '@renderer/components/shared/inputs/types'
 import UIntInput from '@renderer/components/shared/inputs/UintInput'
 import UnitIdInput from '@renderer/components/shared/inputs/UnitIdInput'
+import DialogHeading from '@renderer/components/shared/DialogHeading'
 import AddressBaseInput from '@renderer/components/shared/inputs/AddressBaseInput'
 import { useLiveZustand, dataOf, getShownData } from '@renderer/context/live.zustand'
 import ScanCloseButton from '../scan/ScanCloseButton'
@@ -250,73 +253,49 @@ const ScanRegisters = meme(() => {
   }, [])
 
   return (
-    <Modal
+    <Dialog
       open={open}
       // Escape still closes. A click beside it does not: the dialog sits over
       // the grid it fills, and reaching for anything behind it closed the scan
       // you were setting up.
       onClose={(_, reason) => reason !== 'backdropClick' && handleClose()}
+      maxWidth={false}
       // No shade over the grid, and nothing swallowing what happens there: the
       // rows arriving underneath are the point. The grid itself takes away
       // everything but scrolling and paging while the scan runs.
       hideBackdrop
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        pt: 2,
-        px: 2,
-        pointerEvents: 'none',
-        '& > *': { pointerEvents: 'auto' }
-      }}
+      sx={{ pointerEvents: 'none', '& .MuiDialog-container': { alignItems: 'flex-start' } }}
+      slotProps={{ paper: { sx: { width: '90dvw', mt: 9, pointerEvents: 'auto' } } }}
     >
-      <Paper
-        // No shadow: it fell across the grid it is covering, and a strip that
-        // sits on the toolbar does not need to float above it.
-        elevation={0}
-        sx={(theme) => ({
-          background: theme.palette.background.default,
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          gap: 2,
-          p: 2,
-          // A fixed strip rather than a box that grows with its contents, so it
-          // reads as an overlay laid over the grid toolbar it covers.
-          height: 102,
-          justifyContent: 'flex-start'
-        })}
+      <DialogHeading
+        icon={<Search />}
+        tone="primary"
+        subtitle="Reads Length addresses from Address, Chunk size at a time, and puts every register that is not zero in the grid."
       >
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 2,
-            flexWrap: 'wrap',
-            width: '100%'
-          }}
-        >
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <UnitIdField />
-            <AddressField />
-            <ScanLengthField />
-            <ChunkSizeField />
-            <TimeoutField />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <FoundCount />
-            <GridToggle />
-            <ScanButton />
-            <ScanCloseButton
-              disabled={scanning}
-              close={handleClose}
-              testId="scan-registers-close-btn"
-            />
-          </Box>
+        Scan registers
+      </DialogHeading>
+      <DialogContent sx={{ pl: 3, pr: 3, pt: '20px !important' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <UnitIdField />
+          <AddressField />
+          <ScanLengthField />
+          <ChunkSizeField />
+          <TimeoutField />
+          <Box sx={{ flexGrow: 1 }} />
+          <FoundCount />
+          <GridToggle />
         </Box>
+      </DialogContent>
+      <DialogActions>
         <ScanProgress />
-      </Paper>
-    </Modal>
+        <ScanCloseButton
+          disabled={scanning}
+          close={handleClose}
+          testId="scan-registers-close-btn"
+        />
+        <ScanButton />
+      </DialogActions>
+    </Dialog>
   )
 })
 

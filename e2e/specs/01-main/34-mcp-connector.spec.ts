@@ -46,7 +46,7 @@ const call = async (
   return JSON.parse(first?.text ?? 'null')
 }
 
-// An assistant reaches Modbux over MCP: the settings page lets it in, and each
+// An assistant reaches Modbux over MCP: the settings let it in, and each
 // tool is answered by the window showing the store it reads.
 test.describe.serial('The MCP connector', () => {
   let port: number
@@ -87,14 +87,12 @@ test.describe.serial('The MCP connector', () => {
     await portInput.press('Enter')
     await mainPage.getByTestId('mcp-enabled-switch').click()
     await expect(mainPage.getByTestId('mcp-operate-checkbox').locator('input')).toBeEnabled()
-    await expect(mainPage.getByTestId('mcp-status')).toContainText('Off')
+    await expect(mainPage.getByTestId('mcp-status')).toHaveText('Needs a token')
   })
 
   test('a token turns it on and is shown once with the command', async ({ mainPage }) => {
     await mainPage.getByTestId('mcp-create-token-btn').click()
-    await expect(mainPage.getByTestId('mcp-status')).toHaveText(
-      `Listening on http://127.0.0.1:${port}/mcp`
-    )
+    await expect(mainPage.getByTestId('mcp-status')).toHaveText(`Listening on 127.0.0.1:${port}`)
     token = await shownToken(mainPage)
     await expect(mainPage.getByTestId('mcp-connect-command')).toContainText(`127.0.0.1:${port}/mcp`)
     await expect(mainPage.getByTestId('mcp-copy-token-btn')).toBeVisible()
@@ -298,8 +296,9 @@ test.describe.serial('The MCP connector', () => {
     expect(tools.map((tool) => tool.name)).toContain('read_values')
   })
 
-  test('leaving the page forgets the token it showed', async ({ mainPage }) => {
-    await navigateToHome(mainPage)
+  test('closing the settings forgets the token they showed', async ({ mainPage }) => {
+    await mainPage.getByTestId('settings-done-btn').click()
+    await expect(mainPage.getByTestId('settings-modal')).toHaveCount(0)
     await mainPage.getByTestId('home-settings-btn').click()
     await expect(mainPage.getByTestId('mcp-connect-command')).toHaveCount(0)
     await expect(mainPage.getByTestId('mcp-create-token-btn')).toHaveText('Replace token')
@@ -312,6 +311,8 @@ test.describe.serial('The MCP connector', () => {
   })
 
   test('back home', async ({ mainPage }) => {
+    await mainPage.getByTestId('settings-close-btn').click()
+    await expect(mainPage.getByTestId('settings-modal')).toHaveCount(0)
     await navigateToHome(mainPage)
   })
 })

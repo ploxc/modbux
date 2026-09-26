@@ -125,12 +125,6 @@ describe('a client tool', () => {
     expect(useLayoutZustand.getState().appType).toBe('client')
   })
 
-  it('opens the client view from the settings', async () => {
-    useLayoutZustand.getState().setAppType('settings')
-    await run('set_client_config', { client, length: 5 })
-    expect(useLayoutZustand.getState().appType).toBe('client')
-  })
-
   it('leaves the view alone for a client nobody has', async () => {
     useLayoutZustand.getState().setAppType(undefined)
     await expect(run('set_client_config', { client: 'nobody', length: 5 })).rejects.toThrow()

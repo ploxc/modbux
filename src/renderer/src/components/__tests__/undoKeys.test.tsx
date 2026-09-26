@@ -193,15 +193,3 @@ describe('on Home', () => {
     expect(ran()).toEqual([])
   })
 })
-
-describe('on the settings page', () => {
-  it('does nothing, and throws nothing', async () => {
-    await mount('settings')
-
-    press({ key: 'z', metaKey: true })
-    press({ key: 'y', ctrlKey: true })
-
-    expect(ran()).toEqual([])
-    expect(enqueueSnackbar).not.toHaveBeenCalled()
-  })
-})
