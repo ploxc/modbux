@@ -1,5 +1,6 @@
 // Brings the palette.DataGrid tokens into the type system.
 import '@mui/x-data-grid/themeAugmentation'
+import '@mui/x-date-pickers/themeAugmentation'
 import { createTheme } from '@mui/material/styles'
 
 // Scale A has a large field, for the top bar; MUI's fields stop at medium.
@@ -173,6 +174,8 @@ const base = createTheme({
         root: {
           [`&:hover:not(.Mui-focused):not(.Mui-error):not(.Mui-disabled) .MuiOutlinedInput-notchedOutline`]:
             { borderColor: lineHoverColor },
+          // MUI colours a disabled outline from its own, more specific rule.
+          '&.Mui-disabled .MuiOutlinedInput-notchedOutline': { borderColor: lineColor },
           variants: bySize((size) => ({
             fontSize: size.fontSize,
             '&:not(.MuiInputBase-multiline)': { height: size.height },
@@ -188,6 +191,18 @@ const base = createTheme({
               paddingRight: size.inset + 24
             }
           }))
+        }
+      }
+    },
+    // The date pickers draw their own outlined input, which the rule above
+    // does not reach.
+    MuiPickersOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: { borderColor: lineColor },
+        root: {
+          [`&:hover:not(.Mui-focused):not(.Mui-error):not(.Mui-disabled) .MuiPickersOutlinedInput-notchedOutline`]:
+            { borderColor: lineHoverColor },
+          '&.Mui-disabled .MuiPickersOutlinedInput-notchedOutline': { borderColor: lineColor }
         }
       }
     },
