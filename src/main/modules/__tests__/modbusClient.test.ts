@@ -1491,6 +1491,80 @@ describe('ModbusClient', () => {
     })
   })
 
+  // The poll rate is a grid counted from the first round's start, and a round
+  // that outlasts it waits for the next tick rather than starting at once.
+  describe('the poll rate', () => {
+    /** Answer every read after `answerAfter` ms, and note when each went out. */
+    const readsAnsweringAfter = (answerAfter: number): number[] => {
+      const sentAt: number[] = []
+      mockModbusRTU.readHoldingRegisters.mockImplementation(async () => {
+        sentAt.push(Date.now())
+        await new Promise((resolve) => setTimeout(resolve, answerAfter))
+        return { data: [100], buffer: Buffer.from([0x00, 0x64]) }
+      })
+      return sentAt
+    }
+
+    const pollFor = async (duration: number): Promise<number> => {
+      const start = Date.now()
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(duration)
+      client.stopPolling()
+      return start
+    }
+
+    it('starts a round every poll rate when the device answers at once', async () => {
+      await connectClient()
+      const sentAt = readsAnsweringAfter(0)
+
+      const start = await pollFor(2500)
+
+      expect(sentAt.map((at) => at - start)).toEqual([0, 1000, 2000])
+    })
+
+    it('counts the poll rate from the start of a round, not its end', async () => {
+      await connectClient()
+      const sentAt = readsAnsweringAfter(500)
+
+      const start = await pollFor(2500)
+
+      expect(sentAt.map((at) => at - start)).toEqual([0, 1000, 2000])
+    })
+
+    it('starts a round that outlasted the poll rate on the next tick', async () => {
+      await connectClient()
+      const sentAt = readsAnsweringAfter(1500)
+
+      const start = await pollFor(4500)
+
+      expect(sentAt.map((at) => at - start)).toEqual([0, 2000, 4000])
+    })
+
+    it('starts the next round at once when a round ends on a tick', async () => {
+      await connectClient()
+      const sentAt = readsAnsweringAfter(1000)
+
+      const start = await pollFor(2500)
+
+      // A timeout of 0 runs after 1 ms, in Node as in the fake timers.
+      expect(sentAt.map((at) => at - start)).toEqual([0, 1001, 2002])
+    })
+
+    it('counts a new poll rate from the start of the sleeping round', async () => {
+      await connectClient()
+      const sentAt = readsAnsweringAfter(500)
+      const start = Date.now()
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(700)
+      client.updateRegisterConfig({ pollRate: 2000 })
+      await vi.advanceTimersByTimeAsync(3800)
+      client.stopPolling()
+
+      expect(sentAt.map((at) => at - start)).toEqual([0, 2000, 4000])
+    })
+  })
+
   // A stopped poll lets go after the request it has on the wire, and what it
   // read goes nowhere.
   describe('a poll stopped during a read', () => {

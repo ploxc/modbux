@@ -780,8 +780,8 @@ export class ModbusClient implements TransportClient {
   }
 
   /**
-   * Run a round, then arm the next one a poll rate later, as long as this chain
-   * is still the current one.
+   * Run a round, then arm the next one on the poll rate's grid, as long as this
+   * chain is still the current one.
    *
    * `stopPolling` clears the handle a sleeping chain holds, and a chain that is
    * awaiting a round holds none, because `_pollTimeout` is assigned after the
@@ -792,29 +792,37 @@ export class ModbusClient implements TransportClient {
    */
   private _poll = async (generation: number): Promise<void> => {
     this._pollTimeout = undefined
+    this._roundStartedAt = Date.now()
     await this._pollRound(generation)
     if (generation !== this._pollGeneration) return
-    this._pollArmedAt = Date.now()
-    this._pollTimeout = setTimeout(
-      () => this._poll(generation),
-      this._appState.registerConfig.pollRate
-    )
+    this._armPoll(generation)
   }
 
-  /** When the sleeping poll went to sleep, which a re-arm leaves where it is. */
-  private _pollArmedAt = 0
+  /** When the last round started, which a re-arm leaves where it is. */
+  private _roundStartedAt = 0
 
   /**
-   * Arm a sleeping poll again for a new poll rate, counted from when it went to
-   * sleep. A poll whose round is running arms its own timer when it ends.
+   * Arm the next round on the first tick of the poll rate after the last round
+   * started. A round that outlasted the poll rate waits for the tick after it
+   * ends, so a slow device is asked at a whole multiple of the rate rather than
+   * back to back.
+   */
+  private _armPoll = (generation: number): void => {
+    const rate = this._appState.registerConfig.pollRate
+    const elapsed = Date.now() - this._roundStartedAt
+    const delay = Math.max(1, Math.ceil(elapsed / rate)) * rate - elapsed
+    this._pollTimeout = setTimeout(() => this._poll(generation), delay)
+  }
+
+  /**
+   * Arm a sleeping poll again for a new poll rate, counted from when its last
+   * round started. A poll whose round is running arms its own timer when it
+   * ends.
    */
   private _rearmPoll = (): void => {
     if (this._pollTimeout === undefined) return
     clearTimeout(this._pollTimeout)
-    const generation = this._pollGeneration
-    const waited = Date.now() - this._pollArmedAt
-    const delay = this._appState.registerConfig.pollRate
-    this._pollTimeout = setTimeout(() => this._poll(generation), Math.max(0, delay - waited))
+    this._armPoll(this._pollGeneration)
   }
 
   /** Take a connection config update main accepted. */

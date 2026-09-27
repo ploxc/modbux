@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A poll starts every poll rate.** The poll rate was counted from the end of
+  each round, so a device answering in 500 ms at a rate of 1 s was polled every
+  1.5 s. A round now starts every poll rate, and one that takes longer than the
+  rate waits for the next whole multiple of it.
 - **Clearing the Unit ID field no longer sets unit 0.** An empty field was
   taken as 0, so the next read or poll went to unit 0, which on RTU is the
   broadcast address. The client now keeps the unit ID it had until you type
