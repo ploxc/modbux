@@ -8,7 +8,7 @@ import { toggleConnection } from '@renderer/components/client/ConnectionConfig/t
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { ScanRegistersMenuItem, ScanUnitIdsMenuItem } from '../ScanMenuItems'
 
 interface ClientMenuProps {
@@ -49,9 +49,16 @@ const ClientMenu = meme(({ uuid, anchor, onClose, onRename, deletable }: ClientM
     onClose()
     void toggleConnection()
   }, [onClose])
+  // Rename opens a field that closes on blur. The menu takes focus back while
+  // it closes, so the field opens once the menu has gone.
+  const afterClose = useRef<(() => void) | undefined>(undefined)
+  const handleExited = useCallback(() => {
+    afterClose.current?.()
+    afterClose.current = undefined
+  }, [])
   const handleRename = useCallback(() => {
+    afterClose.current = onRename
     onClose()
-    onRename()
   }, [onClose, onRename])
   const handleDuplicate = useCallback(() => {
     onClose()
@@ -69,7 +76,13 @@ const ClientMenu = meme(({ uuid, anchor, onClose, onRename, deletable }: ClientM
     connectState === 'disconnecting' || (connectState === 'disconnected' && !addressValid)
 
   return (
-    <Menu anchorEl={anchor} open={anchor !== null} onClose={onClose}>
+    <Menu
+      anchorEl={anchor}
+      open={anchor !== null}
+      onClose={onClose}
+      disableRestoreFocus
+      slotProps={{ transition: { onExited: handleExited } }}
+    >
       <MenuItem
         data-testid={`client-connect-${uuid}`}
         disabled={connectDisabled}
