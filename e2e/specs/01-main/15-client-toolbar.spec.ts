@@ -481,6 +481,19 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     const binHeader = mainPage.locator('.MuiDataGrid-columnHeader[data-field="bin"]')
     await binHeader.hover()
     await expect(binHeader.locator('.MuiDataGrid-menuIconButton')).toHaveCount(0)
+
+    // Nor is it among the columns the filter panel offers, where hex is.
+    await openColumnMenu(mainPage, 'hex')
+    await mainPage
+      .locator('.MuiDataGrid-menuList')
+      .getByRole('menuitem', { name: 'Filter' })
+      .click()
+    const columns = mainPage.locator('.MuiDataGrid-filterFormColumnInput')
+    await columns.click()
+    await expect(mainPage.getByRole('option', { name: 'HEX', exact: true })).toBeVisible()
+    await expect(mainPage.getByRole('option', { name: 'BIN', exact: true })).toHaveCount(0)
+    await mainPage.keyboard.press('Escape')
+    await mainPage.keyboard.press('Escape')
   })
 
   test('read configuration takes filtering away entirely', async ({ mainPage }) => {

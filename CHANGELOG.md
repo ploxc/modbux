@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The filter panel no longer offers the BIN column.** It had no column menu,
+  but its filter panel listed it, and a filter on it matched nothing.
 - **A filter on a word column finds the rows that hold it.** A filter on
   INT16, UINT16 or any other word column matched no row, whatever it asked.
 - **A poll starts every poll rate.** The poll rate was counted from the end of
