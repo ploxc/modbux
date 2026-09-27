@@ -26,7 +26,7 @@ const Host = meme(() => {
       label="Host"
       variant="outlined"
       size="large"
-      sx={{ width: 180 }}
+      sx={{ flex: '1 1 0', minWidth: 130 }}
       error={!hostValid}
       value={host}
       data-testid="tcp-host-input"
@@ -73,7 +73,10 @@ const Port = meme(() => {
 
 const TcpConfig = meme((): JSX.Element => {
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'no-wrap' }}>
+    // The host takes the bar's room before the workspace's name does: `&&` over
+    // the bar's own rule that its children do not shrink, and twice the name's
+    // share of what is left, up to what an address needs.
+    <Box sx={{ display: 'flex', flexWrap: 'no-wrap', '&&': { flex: '2 1 0' }, maxWidth: 300 }}>
       <Host />
       <Box sx={{ display: 'flex', fontSize: 20, alignItems: 'center', pb: 0.5, px: 0.75 }}>:</Box>
       <Port />

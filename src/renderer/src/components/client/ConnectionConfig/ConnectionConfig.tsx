@@ -21,15 +21,20 @@ import { PROTOCOL_COLORS } from '@renderer/components/client/ClientSidebar/clien
 import Check from '@mui/icons-material/Check'
 import { alpha } from '@mui/material/styles'
 import PollButton from './PollButton'
-import { PollRateSelect, TimeoutSelect } from './ReadTiming'
+import { ReadTiming } from './ReadTiming'
 
 // Protocol
 const PROTOCOLS: Protocol[] = ['ModbusTcp', 'ModbusRtuOverTcp', 'ModbusRtu']
 
+/** The class of the protocol's name in the field, which the top bar hides when it narrows. */
+export const PROTOCOL_NAME = 'protocol-name'
+/** The class of the field, which the top bar narrows to its badge. */
+export const PROTOCOL_FIELD = 'protocol-field'
+
 const ProtocolOption = meme(({ protocol }: { protocol: Protocol }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
     <ProtocolIcon protocol={protocol} size={16} />
-    {PROTOCOL_LABELS[protocol]}
+    <span className={PROTOCOL_NAME}>{PROTOCOL_LABELS[protocol]}</span>
   </Box>
 ))
 
@@ -94,7 +99,7 @@ const ProtocolSelect = meme(() => {
   }, [])
 
   return (
-    <FormControl size="large" sx={{ width: 160 }}>
+    <FormControl size="large" className={PROTOCOL_FIELD} sx={{ width: 160 }}>
       <InputLabel id={labelId}>Protocol</InputLabel>
       <Select
         disabled={disabled}
@@ -197,8 +202,7 @@ const ConnectionConfig = meme(() => {
       {/* Serial RTU is the only mode that needs a group membership to work. */}
       <SerialGroupModal active={protocol === 'ModbusRtu'} />
       <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
-      <PollRateSelect />
-      <TimeoutSelect />
+      <ReadTiming />
       <PollButton />
       <ConnectButton />
     </>

@@ -4,6 +4,18 @@
  * number holds wherever the panel sits; only the sidebar asks about the window.
  */
 export const BREAKPOINTS = {
+  /*
+   * The top bar folds in four steps, each at the width the RTU bar needs
+   * without it, measured with the Workspace field at its 100 px minimum.
+   */
+  /** The top bar: Settings, Load, Save and Clear fold into a ⋮. */
+  topBarWorkspace: 1190,
+  /** The top bar: Poll rate and Timeout fold behind a timer button. */
+  topBarTiming: 1090,
+  /** The top bar: Protocol shows its badge and not its name. */
+  topBarProtocol: 980,
+  /** The top bar: the serial field folds to a button opening the same settings. */
+  topBarSerial: 880,
   /** The unit bar: Load, Save, Clear config, Clear and Dummy Data fold into a ⋮ menu. */
   unitBarMenu: 840,
   /** The unit bar: byte order and the 32 and 64 bit columns fold into a menu of their own. */

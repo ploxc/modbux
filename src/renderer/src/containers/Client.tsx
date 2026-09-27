@@ -5,11 +5,26 @@ import Fade from '@mui/material/Fade'
 import Paper from '@mui/material/Paper'
 import { panelShadow } from '@renderer/theme'
 import MessageReceiver from '@renderer/components/shared/MessageReceiver'
-import HomeButton from '@renderer/components/shared/HomeButton'
-import SettingsButton from '@renderer/components/settings/SettingsButton'
 import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
-import WorkspaceBar from '@renderer/components/client/WorkspaceBar'
+import WorkspaceBar, {
+  WORKSPACE_INLINE,
+  WORKSPACE_TOGGLE
+} from '@renderer/components/client/WorkspaceBar'
+import {
+  PROTOCOL_FIELD,
+  PROTOCOL_NAME
+} from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
+import { SERIAL_FIELD, SERIAL_TOGGLE } from '@renderer/components/client/ConnectionConfig/RtuConfig'
+import {
+  READ_TIMING_INLINE,
+  READ_TIMING_TOGGLE
+} from '@renderer/components/client/ConnectionConfig/ReadTiming'
+import {
+  atOrBelow,
+  BREAKPOINTS,
+  NARROW_WINDOW
+} from '@renderer/components/client/ClientGrids/breakpoints'
 import ClientSidebar from '@renderer/components/client/ClientSidebar/ClientSidebar'
 import ClientRail from '@renderer/components/client/ClientSidebar/ClientRail'
 import ScanRegisters from '@renderer/components/client/ScanRegisters/ScanRegisters'
@@ -18,7 +33,6 @@ import ResizeHandle from '@renderer/components/shared/ResizeHandle'
 import { useClientZustand, selectedSession } from '@renderer/context/client.zustand'
 import { useCallback, useEffect, useState } from 'react'
 import useMediaQuery from '@mui/material/useMediaQuery'
-import { NARROW_WINDOW } from '@renderer/components/client/ClientGrids/breakpoints'
 import { Group, Panel, PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
 /** The rail's width, which is the sidebar folded. */
@@ -78,13 +92,30 @@ const Client = meme(() => {
             p: 1,
             background: theme.palette.background.paper,
             borderRadius: '8px',
-            boxShadow: panelShadow
+            boxShadow: panelShadow,
+            // The bar asks about its own width, as the panels and the unit bar do.
+            containerType: 'inline-size',
+            [`& .${READ_TIMING_TOGGLE}, & .${WORKSPACE_TOGGLE}, & .${SERIAL_TOGGLE}`]: {
+              display: 'none'
+            },
+            [atOrBelow(BREAKPOINTS.topBarTiming)]: {
+              [`& .${READ_TIMING_INLINE}`]: { display: 'none' },
+              [`& .${READ_TIMING_TOGGLE}`]: { display: 'block' }
+            },
+            [atOrBelow(BREAKPOINTS.topBarWorkspace)]: {
+              [`& .${WORKSPACE_INLINE}`]: { display: 'none' },
+              [`& .${WORKSPACE_TOGGLE}`]: { display: 'block' }
+            },
+            [atOrBelow(BREAKPOINTS.topBarProtocol)]: {
+              [`& .${PROTOCOL_NAME}`]: { display: 'none' },
+              [`& .${PROTOCOL_FIELD}`]: { width: 64 }
+            },
+            [atOrBelow(BREAKPOINTS.topBarSerial)]: {
+              [`& .${SERIAL_FIELD}`]: { display: 'none' },
+              [`& .${SERIAL_TOGGLE}`]: { display: 'inline-flex' }
+            }
           })}
         >
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <HomeButton />
-            <SettingsButton testId="client-settings-btn" size="large" variant="outlined" />
-          </Box>
           <WorkspaceBar />
           <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
           <ConnectionConfig />

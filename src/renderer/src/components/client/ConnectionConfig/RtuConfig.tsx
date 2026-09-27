@@ -20,10 +20,12 @@ import { isConnectionAddressGiven } from '@shared'
 import { useSnackbar } from 'notistack'
 import { MouseEvent, useCallback, useEffect, useState } from 'react'
 import ArrowDropDown from '@mui/icons-material/ArrowDropDown'
+import SettingsInputComponent from '@mui/icons-material/SettingsInputComponent'
 import ClickAwayListener from '@mui/material/ClickAwayListener'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import OutlinedInput from '@mui/material/OutlinedInput'
+import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Popper from '@mui/material/Popper'
 
@@ -230,6 +232,11 @@ const PARITY_LETTERS = { none: 'N', even: 'E', odd: 'O' } as const
  * under it. A popper rather than a popover: no backdrop, so a click on the
  * next field lands there and closes this one.
  */
+/** The class of the serial field, which the top bar hides when it narrows. */
+export const SERIAL_FIELD = 'serial-field'
+/** The class of the button that opens the same settings instead. */
+export const SERIAL_TOGGLE = 'serial-toggle'
+
 const SerialSettings = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const disabled = useLiveZustand(
@@ -254,7 +261,18 @@ const SerialSettings = meme((): JSX.Element => {
     // follows ends on the menu's backdrop and reaches the document, not this tree.
     <ClickAwayListener mouseEvent="onMouseDown" onClickAway={handleClose}>
       <Box>
-        <FormControl size="large" sx={{ width: 120 }} disabled={disabled}>
+        <IconButton
+          className={SERIAL_TOGGLE}
+          size="large"
+          disabled={disabled}
+          aria-label="Serial line settings"
+          title={`Serial: ${baudRate} · ${dataBits}${PARITY_LETTERS[parity]}${stopBits}`}
+          data-testid="rtu-serial-btn"
+          onClick={handleOpen}
+        >
+          <SettingsInputComponent fontSize="small" />
+        </IconButton>
+        <FormControl size="large" className={SERIAL_FIELD} sx={{ width: 120 }} disabled={disabled}>
           <InputLabel shrink>Serial</InputLabel>
           <OutlinedInput
             readOnly

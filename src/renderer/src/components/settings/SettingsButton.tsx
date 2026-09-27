@@ -26,6 +26,8 @@ const SettingsButton = meme(({ testId, size, variant, sx }: SettingsButtonProps)
         aria-label="Settings"
         title="Settings"
         size={size}
+        // Outlined, it stands beside Home and takes Home's tint.
+        color={variant === 'outlined' ? 'info' : undefined}
         onClick={handleOpen}
         sx={[
           variant === 'outlined' && { border: `1px solid ${lineColor}` },
