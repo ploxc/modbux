@@ -6,6 +6,8 @@ export type StatusTone = 'ok' | 'busy' | 'error' | 'idle'
 export interface ClientStatus {
   label: string
   tone: StatusTone
+  /** Connected and polling, which the dot shows as a pulsing ring in the poll colour. */
+  polling: boolean
 }
 
 /**
@@ -19,12 +21,14 @@ export const clientStatus = ({
   polling,
   offline
 }: Pick<ClientState, 'connectState' | 'polling'> & { offline: boolean }): ClientStatus => {
-  if (connectState === 'connecting') return { label: 'Connecting', tone: 'busy' }
-  if (connectState === 'disconnecting') return { label: 'Disconnecting', tone: 'busy' }
-  if (connectState === 'disconnected') return { label: 'Disconnected', tone: 'idle' }
-  if (offline) return { label: 'Timeout', tone: 'error' }
-  if (polling) return { label: 'Polling', tone: 'ok' }
-  return { label: 'Connected', tone: 'ok' }
+  if (connectState === 'connecting') return { label: 'Connecting', tone: 'busy', polling: false }
+  if (connectState === 'disconnecting')
+    return { label: 'Disconnecting', tone: 'busy', polling: false }
+  if (connectState === 'disconnected')
+    return { label: 'Disconnected', tone: 'idle', polling: false }
+  if (offline) return { label: 'Timeout', tone: 'error', polling }
+  if (polling) return { label: 'Polling', tone: 'ok', polling: true }
+  return { label: 'Connected', tone: 'ok', polling: false }
 }
 
 /** Where a client connects: host and port, or the COM port and its line. */

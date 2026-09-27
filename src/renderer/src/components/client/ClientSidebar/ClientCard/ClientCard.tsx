@@ -136,7 +136,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
           }}
         >
           <ProtocolIcon protocol={protocol} />
-          <StatusDot tone={status.tone} rim={gridSurface} offset={4} />
+          <StatusDot tone={status.tone} polling={status.polling} rim={gridSurface} offset={4} />
         </Box>
       </Tooltip>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0, flexGrow: 1 }}>

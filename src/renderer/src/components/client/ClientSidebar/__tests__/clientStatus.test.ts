@@ -4,18 +4,19 @@ import { clientAddress, clientStatus } from '../clientStatus'
 
 describe('clientStatus', () => {
   it.each([
-    ['connecting', false, false, 'Connecting', 'busy'],
-    ['disconnecting', false, false, 'Disconnecting', 'busy'],
-    ['disconnected', false, false, 'Disconnected', 'idle'],
-    ['connected', false, false, 'Connected', 'ok'],
-    ['connected', true, false, 'Polling', 'ok'],
-    ['connected', true, true, 'Timeout', 'error']
+    ['connecting', false, false, 'Connecting', 'busy', false],
+    ['disconnecting', false, false, 'Disconnecting', 'busy', false],
+    ['disconnected', false, false, 'Disconnected', 'idle', false],
+    ['connected', false, false, 'Connected', 'ok', false],
+    ['connected', true, false, 'Polling', 'ok', true],
+    ['connected', true, true, 'Timeout', 'error', true]
   ] as const)(
     '%s, polling %s, offline %s reads %s',
-    (connectState, polling, offline, label, tone) => {
+    (connectState, polling, offline, label, tone, pulsing) => {
       expect(clientStatus({ ...defaultClientState, connectState, polling, offline })).toEqual({
         label,
-        tone
+        tone,
+        polling: pulsing
       })
     }
   )

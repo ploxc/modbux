@@ -22,7 +22,7 @@ import { NARROW_WINDOW } from '@renderer/components/client/ClientGrids/breakpoin
 import { Group, Panel, PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
 /** The rail's width, which is the sidebar folded. */
-const RAIL_WIDTH = 40
+const RAIL_WIDTH = 48
 
 /** The sidebar unfolded at its narrowest, which is all it may take in a narrow window. */
 const SIDEBAR_MIN_WIDTH = 240
@@ -115,7 +115,7 @@ const Client = meme(() => {
               sx={(theme) => ({
                 height: '100%',
                 boxSizing: 'border-box',
-                p: collapsed ? 0.5 : 1,
+                p: collapsed ? 0 : 1,
                 background: theme.palette.background.paper,
                 borderRadius: '8px',
                 boxShadow: panelShadow

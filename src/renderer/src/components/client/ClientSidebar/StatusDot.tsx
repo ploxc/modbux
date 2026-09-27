@@ -8,13 +8,15 @@ interface StatusDotProps {
   rim?: string
   /** How far the dot sits past the badge's corner. */
   offset: number
+  /** The dot's rim in the poll colour, fading in and out. */
+  polling?: boolean
 }
 
 /**
  * The status on a client's badge. A client that is not connected shows a
  * hollow ring, so it differs from a connected one in shape as well as colour.
  */
-const StatusDot = meme(({ tone, rim, offset }: StatusDotProps): JSX.Element => {
+const StatusDot = meme(({ tone, rim, offset, polling = false }: StatusDotProps): JSX.Element => {
   const idle = tone === 'idle'
   return (
     <Box
@@ -31,7 +33,23 @@ const StatusDot = meme(({ tone, rim, offset }: StatusDotProps): JSX.Element => {
           borderRadius: '50%',
           background: idle ? edge : STATUS_COLORS[tone],
           border: `2px solid ${edge}`,
-          boxShadow: idle ? `inset 0 0 0 2px ${STATUS_COLORS.idle}` : 'none'
+          boxShadow: idle ? `inset 0 0 0 2px ${STATUS_COLORS.idle}` : 'none',
+          ...(polling && {
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              // Over the rim rather than around it, so nothing reaches past the dot.
+              inset: -2,
+              borderRadius: '50%',
+              border: `2px solid ${theme.palette.warning.main}`,
+              animation: 'statusDotPoll 1.6s ease-in-out infinite',
+              '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+            },
+            '@keyframes statusDotPoll': {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: 0.15 }
+            }
+          })
         }
       }}
     />

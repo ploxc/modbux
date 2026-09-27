@@ -94,7 +94,7 @@ const ProtocolSelect = meme(() => {
   }, [])
 
   return (
-    <FormControl size="large" sx={{ width: 180 }}>
+    <FormControl size="large" sx={{ width: 160 }}>
       <InputLabel id={labelId}>Protocol</InputLabel>
       <Select
         disabled={disabled}

@@ -31,7 +31,7 @@ const ReadTimingField = meme(({ label, testId, value, onChange }: ReadTimingFiel
   )
 
   return (
-    <FormControl size="large" sx={{ width: 72, flexShrink: 0 }}>
+    <FormControl size="large" sx={{ width: 62, flexShrink: 0 }}>
       <InputLabel id={labelId}>{label}</InputLabel>
       <Select
         disabled={polling}

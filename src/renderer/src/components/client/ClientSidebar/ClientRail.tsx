@@ -49,7 +49,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
         }}
       >
         <ProtocolIcon protocol={protocol} />
-        <StatusDot tone={status.tone} offset={3} />
+        <StatusDot tone={status.tone} polling={status.polling} offset={3} />
       </ButtonBase>
     </Tooltip>
   )
@@ -68,6 +68,9 @@ const ClientRail = meme(({ onExpand }: { onExpand: () => void }): JSX.Element =>
       sx={{
         height: '100%',
         boxSizing: 'border-box',
+        // Inside the scroller rather than around it: a scroller clips at its
+        // padding's edge, and the status dot sits past its badge's corner.
+        p: 1,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
