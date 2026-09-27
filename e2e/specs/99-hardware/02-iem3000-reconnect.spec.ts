@@ -126,9 +126,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await selectProtocol(page, 'ModbusRtu')
 
     // Set unit ID
-    const unitIdInput = await unitIdField(page)
-    await unitIdInput.click({ clickCount: 3 })
-    await unitIdInput.fill('1')
+    await (await unitIdField(page)).fill('1')
 
     // Set baud rate
     await (await serialSelect(page, 'baudrate')).click()
