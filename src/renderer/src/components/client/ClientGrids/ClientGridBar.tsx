@@ -191,13 +191,13 @@ const ClientGridBar = meme(() => {
         }}
       >
         <RegisterTypeTabs />
+        <ReadConfiguration />
         <Box className={VALUES} sx={{ display: 'flex', gap: 1.25 }}>
           <ToggleEndianButton />
           <BitWidthButtons />
         </Box>
         <ValuesMenu />
         <RawButton />
-        <ReadConfiguration />
         <Box sx={{ flex: 1 }} />
         <Box className={OVERFLOWS} sx={{ display: 'flex' }}>
           <LoadButton />
