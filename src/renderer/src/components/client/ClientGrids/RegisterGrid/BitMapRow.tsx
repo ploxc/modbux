@@ -3,6 +3,7 @@ import { GridRow, GridRowProps } from '@mui/x-data-grid/components'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
+import { rowAt, useLiveZustand } from '@renderer/context/live.zustand'
 import { BITMAP_DATATYPE } from '@shared'
 import { useEffect, useRef } from 'react'
 import BitMapDetailPanel from './BitMapDetailPanel/BitMapDetailPanel'
@@ -48,9 +49,15 @@ const BitMapRow = meme((props: GridRowProps): JSX.Element => {
     return (): void => observer.disconnect()
   }, [isBitmap, isExpanded])
 
+  // The grid's rows carry no values, so whether this one failed is read here.
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const failed = useLiveZustand((z) => Boolean(rowAt(z, selectedUuid, unit, type, address)?.error))
+  const className = failed ? `${props.className ?? ''} register-error-row` : props.className
+
   if (!isBitmap) {
     // Fast path: render as a normal row, no overhead.
-    return <GridRow {...props} />
+    return <GridRow {...props} className={className} />
   }
 
   // No style on the wrapper: `renderRow` in @mui/x-virtualizer hands the row
@@ -61,7 +68,7 @@ const BitMapRow = meme((props: GridRowProps): JSX.Element => {
       {/* The row is held at its own height by the expanded-row rule in
           RegisterGrid's sx: MUI writes min-height, max-height and --height
           from what getRowHeight answered, over anything passed in style. */}
-      <GridRow {...props} />
+      <GridRow {...props} className={className} />
 
       {isExpanded && (
         <div ref={panelRef} style={{ overflow: 'hidden' }}>

@@ -1,6 +1,12 @@
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
+import { GridColDef } from '@mui/x-data-grid/models'
+import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
+import { meme } from '@renderer/components/shared/inputs/meme'
+import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
+import { sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
 import {
   AddressGroup,
+  BITMAP_DATATYPE,
   DataType,
   RegisterData,
   RegisterLinearInterpolation,
@@ -8,6 +14,9 @@ import {
   wordOf
 } from '@shared'
 import { round } from 'lodash'
+import { ReactNode } from 'react'
+import { useRowAt } from '../useRowAt'
+import { ExpandCell } from './ExpandCell'
 
 // Linear interpolation function
 const linearInterpolate = (x: number, { x1, x2, y1, y2 }: RegisterLinearInterpolation): number => {
@@ -29,26 +38,37 @@ const linearInterpolate = (x: number, { x1, x2, y1, y2 }: RegisterLinearInterpol
 }
 
 /**
- * What a value cell shows, error included. `bitmapValueColumn` renders the same
- * cell for every row it does not turn into an expand toggle, and calling this
- * is how it says so.
- *
- * A number is the ordinary answer here: `getConvertedValue` rounds one and
- * `valueFormatter` passes it through, and `formattedValue` is `any`, so the
- * return type is the only place that says so.
+ * What a value cell shows, error included, read from the store rather than from
+ * the grid's row, which carries no values while no value filter is set.
+ * `bitmapValueColumn` renders the same cell, and `bitmap` makes a bitmap row's
+ * cell its expand toggle, unless that row failed to read.
  */
-export const renderConvertedValue = (
-  params: GridRenderCellParams<RegisterData>
-): JSX.Element | string | number => {
-  if (params.row.error) {
-    return (
-      <span style={{ color: 'var(--mui-palette-error-main)' }} title={params.row.error}>
-        {params.row.error}
-      </span>
+export const ConvertedValueCell = meme(
+  ({ address, bitmap = false }: { address: number; bitmap?: boolean }): ReactNode => {
+    const type = useSectionType()
+    const row = useRowAt(address)
+    const registerMap = useClientZustand((z) => selectedUnit(z).registerMapping[type])
+    const showRaw = useLayoutZustand((z) => z.showClientRawValues)
+    const selectedUuid = useClientZustand((z) => z.selectedUuid)
+    const unit = useClientZustand((z) => selectedUnit(z).uuid)
+    const addressGroups = useLiveZustand(
+      (z) => sectionOf(z, selectedUuid, unit, type).addressGroups
     )
+
+    if (row?.error) {
+      return (
+        <span style={{ color: 'var(--mui-palette-error-main)' }} title={row.error}>
+          {row.error}
+        </span>
+      )
+    }
+    if (bitmap && registerMap[address]?.dataType === BITMAP_DATATYPE) {
+      return <ExpandCell address={address} />
+    }
+    if (row === undefined) return null
+    return getConvertedValue(row, registerMap, showRaw, addressGroups) ?? ''
   }
-  return params.formattedValue
-}
+)
 
 export const convertedValueColumn = (
   registerMap: RegisterMapObject,
@@ -60,7 +80,7 @@ export const convertedValueColumn = (
   type: 'string',
   headerName: 'Value',
   width: 160,
-  renderCell: renderConvertedValue,
+  renderCell: ({ row }) => <ConvertedValueCell address={row.id} />,
   valueGetter: (_, row): number | string | undefined =>
     getConvertedValue(row, registerMap, showRaw, addressGroups),
   valueFormatter: (v) => (v !== undefined ? v : '')

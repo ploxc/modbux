@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { create } from 'zustand'
 import { ClientData, LiveZustand, SectionData } from './live.zustand.types'
-import { dataOf, emptyClientData, sectionKey, sectionOf } from './live.zustand.helpers'
+import {
+  dataOf,
+  emptyClientData,
+  rowAt,
+  sectionKey,
+  sectionOf,
+  skeletonOf
+} from './live.zustand.helpers'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
 import { deepEqual } from 'fast-equals'
@@ -24,7 +31,7 @@ import {
   dummyWords
 } from '@shared'
 
-export { dataOf, sectionKey, sectionOf }
+export { dataOf, rowAt, sectionKey, sectionOf, skeletonOf }
 
 /** The data of the client the view shows, read now rather than subscribed to. */
 export const getShownData = (): ClientData =>

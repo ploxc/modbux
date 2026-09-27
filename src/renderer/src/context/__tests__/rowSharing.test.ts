@@ -126,3 +126,31 @@ describe('the address groups a poll sends', () => {
     expect(after.addressGroups).toEqual([[0, 12]])
   })
 })
+
+describe('the row at an address', () => {
+  it('answers from the list the last poll left, not the one before', async () => {
+    const { useLiveZustand, rowAt } = await load()
+    read(row(0), row(1))
+    expect(rowAt(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type, 1)?.hex).toBe(
+      '0000'
+    )
+
+    read(row(0), row(1, '00ff'))
+
+    expect(rowAt(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type, 1)?.hex).toBe(
+      '00ff'
+    )
+  })
+
+  it('answers by address, not by position', async () => {
+    const { useLiveZustand, rowAt } = await load()
+    read(row(10, '000a'), row(20, '0014'))
+
+    expect(rowAt(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type, 20)?.hex).toBe(
+      '0014'
+    )
+    expect(rowAt(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type, 1)).toBe(
+      undefined
+    )
+  })
+})

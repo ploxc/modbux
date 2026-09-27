@@ -1,10 +1,14 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
+import { stubRenderer } from '@renderer/context/__tests__/stubRenderer'
 import type { RegisterData, RegisterMapObject } from '@shared'
 
 // The column takes the address groups the section's last read was made of.
 const dataState = { addressGroups: [] as [number, number][] }
 
-import { convertedValueColumn } from '../convertedValue'
+// The column's cell reads the stores, which ask `window.api` as they load.
+stubRenderer()
+const { convertedValueColumn } = await import('../convertedValue')
 
 /** A row carrying the utf8 the read buffer holds from this address onward. */
 const rowAt = (address: number, utf8: string): RegisterData => ({

@@ -451,6 +451,25 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     expect(await mainPage.locator('.MuiDataGrid-row').count()).toBeGreaterThan(1)
   })
 
+  // The grid's rows carry no values until a value filter asks for them, so a
+  // filter on a value every row holds keeps every row rather than none.
+  test('a hex filter matching every row keeps them all', async ({ mainPage }) => {
+    const rowsBefore = await mainPage.locator('.MuiDataGrid-row').count()
+
+    await openColumnMenu(mainPage, 'hex')
+    await mainPage
+      .locator('.MuiDataGrid-menuList')
+      .getByRole('menuitem', { name: 'Filter' })
+      .click()
+    await mainPage.locator('.MuiDataGrid-filterFormValueInput input').fill('0000')
+    await expect(mainPage.getByTestId('clear-filters-btn')).toBeVisible()
+    await mainPage.keyboard.press('Escape')
+
+    await expect(mainPage.locator('.MuiDataGrid-row')).toHaveCount(rowsBefore)
+
+    await mainPage.getByTestId('clear-filters-btn').click()
+  })
+
   test('address and binary columns offer no filter', async ({ mainPage }) => {
     await openColumnMenu(mainPage, 'id')
     await expect(

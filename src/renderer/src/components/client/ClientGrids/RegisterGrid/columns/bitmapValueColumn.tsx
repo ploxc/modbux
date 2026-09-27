@@ -1,7 +1,6 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { AddressGroup, BITMAP_DATATYPE, RegisterData, RegisterMapObject } from '@shared'
-import { convertedValueColumn, getConvertedValue, renderConvertedValue } from './convertedValue'
-import { ExpandCell } from './ExpandCell'
+import { ConvertedValueCell, convertedValueColumn, getConvertedValue } from './convertedValue'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // bitmapValueColumn
@@ -22,11 +21,5 @@ export const bitmapValueColumn = (
     if (registerMap[row.id]?.dataType === BITMAP_DATATYPE) return undefined
     return getConvertedValue(row, registerMap, showRaw, addressGroups)
   },
-  renderCell: (params): JSX.Element | string | number => {
-    // An error is what the cell says whatever the data type is, so a bitmap row
-    // that failed to read gets the same red text as any other.
-    const isBitmap = registerMap[params.row.id]?.dataType === BITMAP_DATATYPE
-    if (isBitmap && !params.row.error) return <ExpandCell address={params.row.id} />
-    return renderConvertedValue(params)
-  }
+  renderCell: ({ row }) => <ConvertedValueCell address={row.id} bitmap />
 })

@@ -11,8 +11,14 @@ import {
 } from '@renderer/context/client.zustand'
 import { DateTime } from 'luxon'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useLiveZustand, dataOf, sectionOf, showMapping } from '@renderer/context/live.zustand'
-import { useCallback, useEffect, useRef } from 'react'
+import {
+  useLiveZustand,
+  dataOf,
+  sectionOf,
+  showMapping,
+  skeletonOf
+} from '@renderer/context/live.zustand'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { atOrBelow, BREAKPOINTS } from '../breakpoints'
@@ -38,6 +44,10 @@ import { alpha } from '@mui/material/styles'
 import BitMapRow from './BitMapRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
+import { filtersValues, skeletonRows } from './skeletonRows'
+
+/** What the read rows answer while no value filter asks for them. */
+const NO_ROWS: RegisterData[] = []
 //
 //
 //
@@ -109,7 +119,21 @@ const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const unit = useClientZustand((z) => selectedUnit(z).uuid)
   const type = useSectionType()
-  const registerData = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).registerData)
+  // The rows the grid is handed carry no values, so a poll that changes one
+  // value renders the cells showing it and not every row on screen. A filter on
+  // a value needs the values in the rows, and gets the rows as read.
+  const [valueFiltered, setValueFiltered] = useState(false)
+  const skeleton = useLiveZustand((z) =>
+    skeletonOf(sectionOf(z, selectedUuid, unit, type).registerData)
+  )
+  const skeletonRowList = useMemo(() => skeletonRows(skeleton), [skeleton])
+  const readRows = useLiveZustand((z) =>
+    valueFiltered ? sectionOf(z, selectedUuid, unit, type).registerData : NO_ROWS
+  )
+  const rows = valueFiltered ? readRows : skeletonRowList
+  const handleFilterModelChange = useCallback((model: GridFilterModel) => {
+    setValueFiltered(filtersValues(model))
+  }, [])
   const registerMapping = useClientZustand((z) => selectedUnit(z).registerMapping[type])
   const columns = useRegisterGridColumns()
 
@@ -215,7 +239,8 @@ const RegisterGridContent = meme((): JSX.Element => {
       // register grid's scroller needs to say which.
       className="register-grid"
       apiRef={apiRef}
-      rows={registerData}
+      rows={rows}
+      onFilterModelChange={handleFilterModelChange}
       columns={columns}
       // Read configuration owns the filter model while it is on. Leaving the
       // column menus open would let a filter of the user's fight it, and the
@@ -229,14 +254,7 @@ const RegisterGridContent = meme((): JSX.Element => {
       rowHeight={ROW_HEIGHT}
       getRowHeight={getRowHeight}
       hideFooterPagination
-      getRowClassName={(params) =>
-        [
-          (params.row as RegisterData).error ? 'register-error-row' : '',
-          params.id === expandedBitmap ? 'bitmap-expanded-row' : ''
-        ]
-          .filter(Boolean)
-          .join(' ')
-      }
+      getRowClassName={(params) => (params.id === expandedBitmap ? 'bitmap-expanded-row' : '')}
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (scanning) return false

@@ -1,6 +1,8 @@
 import Box from '@mui/material/Box'
 import { GridColDef } from '@mui/x-data-grid/models'
+import { meme } from '@renderer/components/shared/inputs/meme'
 import { RegisterData, RegisterDataWords } from '@shared'
+import { useRowAt } from '../useRowAt'
 
 const registerValueToString = (
   value: number | bigint
@@ -15,6 +17,32 @@ type NumberWord = {
   [K in keyof RegisterDataWords]: RegisterDataWords[K] extends number | bigint ? K : never
 }[keyof RegisterDataWords]
 
+interface ValueCellProps {
+  address: number
+  wordKey: NumberWord
+}
+
+const ValueCell = meme(({ address, wordKey }: ValueCellProps): JSX.Element | null => {
+  const value = useRowAt(address)?.words?.[wordKey]
+  if (value === undefined) return null
+
+  const { numberString, irrelevant } = registerValueToString(value)
+
+  return (
+    <Box
+      title={String(value)}
+      sx={{
+        opacity: irrelevant ? 0.25 : undefined,
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis'
+      }}
+    >
+      {numberString}
+    </Box>
+  )
+})
+
 export const valueColumn = (
   key: NumberWord,
   width: number
@@ -23,24 +51,5 @@ export const valueColumn = (
   field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,
-  renderCell: ({ row }): JSX.Element | null => {
-    const value = row.words?.[key]
-    if (value === undefined) return null
-
-    const { numberString, irrelevant } = registerValueToString(value)
-
-    return (
-      <Box
-        title={String(value)}
-        sx={{
-          opacity: irrelevant ? 0.25 : undefined,
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis'
-        }}
-      >
-        {numberString}
-      </Box>
-    )
-  }
+  renderCell: ({ row }) => <ValueCell address={row.id} wordKey={key} />
 })

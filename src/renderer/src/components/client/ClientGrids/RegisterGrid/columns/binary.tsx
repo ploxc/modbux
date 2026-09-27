@@ -2,6 +2,7 @@ import { GridColDef } from '@mui/x-data-grid/models'
 import Box from '@mui/material/Box'
 import { RegisterData } from '@shared'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useRowAt } from '../useRowAt'
 
 interface WordLedDisplayProps {
   value: number | undefined
@@ -53,11 +54,17 @@ const WordLedDisplay = meme(({ value = 0 }: WordLedDisplayProps): JSX.Element =>
   )
 })
 
+const BinaryCell = meme(
+  ({ address }: { address: number }): JSX.Element => (
+    <WordLedDisplay value={useRowAt(address)?.words?.['uint16']} />
+  )
+)
+
 export const binaryColumn: GridColDef<RegisterData, string> = {
   field: 'bin',
   // A filter over a bit string answers nothing anyone asks.
   disableColumnMenu: true,
   headerName: 'BIN',
   width: 80,
-  renderCell: ({ row }) => <WordLedDisplay value={row.words?.['uint16']} />
+  renderCell: ({ row }) => <BinaryCell address={row.id} />
 }
