@@ -10,7 +10,7 @@ import MenuItem from '@mui/material/MenuItem'
 import DialogHeading from '@renderer/components/shared/DialogHeading'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { showUnit } from './showUnit'
 
 /** Where a right click opened the menu, in the window's pixels. */
@@ -37,14 +37,21 @@ interface UnitMenuProps {
 const UnitMenu = meme(({ uuid, unit, position, onClose, onRename, onRenumber }: UnitMenuProps) => {
   const unitCount = useClientZustand((z) => z.clients[uuid]?.units.length ?? 0)
   const [confirming, setConfirming] = useState(false)
+  // Rename and Change unit ID open a field that closes on blur. The menu takes
+  // focus back while it closes, so the field opens once the menu has gone.
+  const afterClose = useRef<(() => void) | undefined>(undefined)
+  const handleExited = useCallback(() => {
+    afterClose.current?.()
+    afterClose.current = undefined
+  }, [])
 
   const handleRename = useCallback(() => {
+    if (showUnit(uuid, unit)) afterClose.current = onRename
     onClose()
-    if (showUnit(uuid, unit)) onRename()
   }, [onClose, onRename, uuid, unit])
   const handleRenumber = useCallback(() => {
+    if (showUnit(uuid, unit)) afterClose.current = onRenumber
     onClose()
-    if (showUnit(uuid, unit)) onRenumber()
   }, [onClose, onRenumber, uuid, unit])
   const handleDuplicate = useCallback(() => {
     onClose()
@@ -65,6 +72,8 @@ const UnitMenu = meme(({ uuid, unit, position, onClose, onRename, onRenumber }: 
         onClose={onClose}
         anchorReference="anchorPosition"
         anchorPosition={position ?? undefined}
+        disableRestoreFocus
+        slotProps={{ transition: { onExited: handleExited } }}
       >
         <MenuItem data-testid={`unit-rename-${unit}`} onClick={handleRename}>
           Rename

@@ -106,6 +106,26 @@ test.describe.serial('A client with two units', () => {
     await expect(mainPage.getByTestId('section-grid-holding_registers')).toBeVisible()
   })
 
+  // The menu takes focus back as it closes, and each field closes on blur.
+  test('Rename in the unit menu leaves the name field open to type in', async ({ mainPage }) => {
+    await mainPage.getByTestId('unit-tab-1').click({ button: 'right' })
+    await mainPage.locator('[data-testid^="unit-rename-"]:visible').click()
+    const field = mainPage.getByTestId('unit-name-input')
+    await expect(field).toBeFocused()
+    await field.fill('Meter')
+    await field.press('Enter')
+
+    await expect(mainPage.getByTestId('unit-tab-1')).toContainText('Meter')
+  })
+
+  test('Change unit ID in the unit menu leaves the id field open', async ({ mainPage }) => {
+    await mainPage.getByTestId('unit-tab-1').click({ button: 'right' })
+    await mainPage.locator('[data-testid^="unit-renumber-"]:visible').click()
+    const field = mainPage.getByTestId('client-unitid-input').locator('input')
+    await expect(field).toBeFocused()
+    await field.press('Escape')
+  })
+
   test('removing asks first, and keeping it keeps the unit', async ({ mainPage }) => {
     await mainPage.getByTestId('unit-tab-1').click({ button: 'right' })
     await mainPage.locator('[data-testid^="unit-remove-"]:visible').click()
