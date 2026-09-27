@@ -41,7 +41,9 @@ const RegisterGridToolbar = meme(() => {
         height: 40,
         flexShrink: 0,
         boxSizing: 'border-box',
-        px: 1.5,
+        // The fields are 28px in a 39px strip over its border, so 6px on
+        // every side.
+        px: 0.75,
         // The head sits on the section's own surface; the column headers
         // under it take the app background.
         background: gridSurface,
@@ -91,7 +93,7 @@ const RegisterGridToolbar = meme(() => {
             cursor: 'grab'
           }}
         >
-          <DragIndicator sx={{ fontSize: 16, ml: -0.5, color: REGISTER_TYPE_COLORS[type] }} />
+          <DragIndicator sx={{ fontSize: 16, color: REGISTER_TYPE_COLORS[type] }} />
           {REGISTER_TYPE_LABELS[type]}
         </Box>
       )}
