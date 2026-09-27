@@ -56,6 +56,9 @@ export const ClientUnitsSchema = z.object({
     .refine((units) => new Set(units.map((unit) => unit.uuid)).size === units.length, {
       message: 'A unit appears twice'
     })
+    .refine((units) => new Set(units.map((unit) => unit.unitId)).size === units.length, {
+      message: 'A unit ID appears twice'
+    })
 })
 export type ClientUnits = z.infer<typeof ClientUnitsSchema>
 
