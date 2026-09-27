@@ -1,3 +1,4 @@
+import Divider from '@mui/material/Divider'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import Box from '@mui/material/Box'
 import Fade from '@mui/material/Fade'
@@ -8,6 +9,7 @@ import HomeButton from '@renderer/components/shared/HomeButton'
 import SettingsButton from '@renderer/components/settings/SettingsButton'
 import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
+import WorkspaceBar from '@renderer/components/client/WorkspaceBar'
 import ClientSidebar from '@renderer/components/client/ClientSidebar/ClientSidebar'
 import ClientRail from '@renderer/components/client/ClientSidebar/ClientRail'
 import ScanRegisters from '@renderer/components/client/ScanRegisters/ScanRegisters'
@@ -83,7 +85,8 @@ const Client = meme(() => {
             <HomeButton />
             <SettingsButton testId="client-settings-btn" size="large" variant="outlined" />
           </Box>
-          <Box sx={{ flexGrow: 1 }} />
+          <WorkspaceBar />
+          <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
           <ConnectionConfig />
         </Box>
         <Group
