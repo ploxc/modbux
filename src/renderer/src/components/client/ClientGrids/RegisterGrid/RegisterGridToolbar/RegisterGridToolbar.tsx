@@ -13,9 +13,8 @@ import RegisterConfig, {
 import ClearFiltersButton from './ClearFiltersButton'
 import { useSectionType } from '../../sectionType'
 import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
-import { SECTION_DRAG_TYPE, SectionDragContext } from '../../LayoutView'
+import { useDraggable } from '@dnd-kit/core'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
-import { DragEvent, useCallback, useContext } from 'react'
 
 /**
  * The head of one section: its read window, Read and Raw, the 32 and 64 bit
@@ -26,20 +25,11 @@ const RegisterGridToolbar = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const type = useSectionType()
   const several = useClientZustand((z) => openTypesOf(z).length > 1)
-  const { setDragging } = useContext(SectionDragContext)
+  // The drag names the type; `LayoutView` draws what follows the pointer.
+  const { setNodeRef, listeners, attributes } = useDraggable({ id: type })
   // Read, the register fields and Clear would each undo a scan that is still
   // running, so the strip goes quiet with the rows underneath it.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
-
-  const handleDragStart = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.dataTransfer.setData(SECTION_DRAG_TYPE, type)
-      event.dataTransfer.effectAllowed = 'move'
-      setDragging(type)
-    },
-    [setDragging, type]
-  )
-  const handleDragEnd = useCallback(() => setDragging(undefined), [setDragging])
 
   return (
     <Box
@@ -87,9 +77,9 @@ const RegisterGridToolbar = meme(() => {
     >
       {several && (
         <Box
-          draggable
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+          ref={setNodeRef}
+          {...listeners}
+          {...attributes}
           title="Drag onto another section to place it there"
           data-testid={`section-title-${type}`}
           sx={{

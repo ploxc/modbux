@@ -11,39 +11,52 @@ import {
   LayoutSide,
   parseLayout,
   RegisterType,
+  RegisterTypeSchema,
   resizeSplit
 } from '@shared'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  createContext,
-  DragEvent,
-  Fragment,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+  DndContext,
+  DragEndEvent,
+  DragMoveEvent,
+  DragOverlay,
+  useDndContext,
+  useDndMonitor,
+  useDroppable
+} from '@dnd-kit/core'
 import { Group, Layout, LayoutChangedMeta, Panel } from 'react-resizable-panels'
 import RegisterGrid from './RegisterGrid/RegisterGrid'
+import { useDragSensors } from '@renderer/components/shared/sortable'
+import {
+  REGISTER_TYPE_COLORS,
+  REGISTER_TYPE_LABELS
+} from '@renderer/components/client/RegisterConfig/RegisterConfig'
 
-/** What a dragged section head carries, so a drop can tell it from anything else. */
-export const SECTION_DRAG_TYPE = 'application/x-modbux-register-type'
-
-interface SectionDrag {
-  /** The register type whose head is being dragged, or none. */
-  dragging: RegisterType | undefined
-  setDragging: (type: RegisterType | undefined) => void
+/** The register type whose section head is dragged, or none. */
+const draggedType = (id: unknown): RegisterType | undefined => {
+  const parsed = RegisterTypeSchema.safeParse(id)
+  return parsed.success ? parsed.data : undefined
 }
 
-/** The drag under way, which a section head starts and every section's overlay reads. */
-export const SectionDragContext = createContext<SectionDrag>({
-  dragging: undefined,
-  setDragging: () => undefined
-})
+/**
+ * Where the pointer is during a drag: where it went down, plus how far the
+ * drag has moved. `PointerSensor` is the only sensor, so the event that
+ * started the drag is a pointer event.
+ */
+const pointerOf = (event: DragMoveEvent | DragEndEvent): { x: number; y: number } => {
+  const start = event.activatorEvent as PointerEvent
+  return { x: start.clientX + event.delta.x, y: start.clientY + event.delta.y }
+}
+
+interface Edges {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
 
 /** The side of `rect` the point is nearest to, which is where a drop splits it. */
-const nearestSide = (rect: DOMRect, x: number, y: number): LayoutSide => {
+const nearestSide = (rect: Edges, x: number, y: number): LayoutSide => {
   const distances: [LayoutSide, number][] = [
     ['left', x - rect.left],
     ['right', rect.right - x],
@@ -65,7 +78,8 @@ const HIGHLIGHT: Record<LayoutSide, object> = {
  * an overlay that shows the half the drop would give it.
  */
 const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
-  const { dragging, setDragging } = useContext(SectionDragContext)
+  const { active } = useDndContext()
+  const dragging = draggedType(active?.id)
   const [side, setSide] = useState<LayoutSide | undefined>(undefined)
   // Measured rather than asked of a container query: size containment on the
   // panel left rows blank at the top of the grid after its data was replaced.
@@ -82,31 +96,38 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
   }, [])
   const target = dragging !== undefined && dragging !== type
 
-  const handleOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const rect = event.currentTarget.getBoundingClientRect()
-    setSide(nearestSide(rect, event.clientX, event.clientY))
-  }, [])
-  const handleLeave = useCallback(() => setSide(undefined), [])
+  const { setNodeRef } = useDroppable({ id: type, disabled: !target })
+  const setRefs = useCallback(
+    (element: HTMLDivElement | null) => {
+      leafRef.current = element
+      setNodeRef(element)
+    },
+    [setNodeRef]
+  )
 
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      event.preventDefault()
-      const rect = event.currentTarget.getBoundingClientRect()
-      const dropSide = nearestSide(rect, event.clientX, event.clientY)
+  useDndMonitor({
+    onDragMove: (event) => {
+      if (event.over?.id !== type) return setSide(undefined)
+      const { x, y } = pointerOf(event)
+      setSide(nearestSide(event.over.rect, x, y))
+    },
+    onDragEnd: (event) => {
       setSide(undefined)
-      setDragging(undefined)
-      if (dragging === undefined) return
+      const dragged = draggedType(event.active.id)
+      if (event.over?.id !== type || dragged === undefined) return
+      const { x, y } = pointerOf(event)
       const clientZustand = useClientZustand.getState()
       const layout = layoutOf(selectedUnit(clientZustand))
-      clientZustand.setLayout(formatLayout(insertType(layout, type, dropSide, dragging)))
+      clientZustand.setLayout(
+        formatLayout(insertType(layout, type, nearestSide(event.over.rect, x, y), dragged))
+      )
     },
-    [dragging, setDragging, type]
-  )
+    onDragCancel: () => setSide(undefined)
+  })
 
   return (
     <Box
-      ref={leafRef}
+      ref={setRefs}
       sx={{
         position: 'relative',
         height: '100%',
@@ -115,26 +136,18 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
       }}
     >
       <RegisterGrid type={type} />
-      {target && (
+      {target && side && (
         <Box
           data-testid={`section-drop-${type}`}
-          onDragOver={handleOver}
-          onDragLeave={handleLeave}
-          onDrop={handleDrop}
-          sx={{ position: 'absolute', inset: 0, zIndex: 10 }}
-        >
-          {side && (
-            <Box
-              sx={(theme) => ({
-                position: 'absolute',
-                ...HIGHLIGHT[side],
-                pointerEvents: 'none',
-                background: alpha(theme.palette.primary.main, 0.18),
-                border: `1px dashed ${theme.palette.primary.main}`
-              })}
-            />
-          )}
-        </Box>
+          sx={(theme) => ({
+            position: 'absolute',
+            zIndex: 10,
+            ...HIGHLIGHT[side],
+            pointerEvents: 'none',
+            background: alpha(theme.palette.primary.main, 0.18),
+            border: `1px dashed ${theme.palette.primary.main}`
+          })}
+        />
       )}
     </Box>
   )
@@ -212,6 +225,29 @@ const structureOf = (layout: string): string => layout.replace(/:\d+(\.\d+)?/g, 
 /** The id of the panel at `index` of the split at `path`. */
 const panelId = (path: number[], index: number): string => ['layout', ...path, index].join('-')
 
+/** The dragged section's name under the pointer. */
+const SectionDragPreview = meme(() => {
+  const { active } = useDndContext()
+  const dragging = draggedType(active?.id)
+  if (dragging === undefined) return null
+  return (
+    <Box
+      sx={(theme) => ({
+        display: 'inline-flex',
+        px: 1,
+        py: 0.5,
+        borderRadius: 1,
+        fontSize: 13,
+        background: theme.palette.background.paper,
+        boxShadow: theme.shadows[4],
+        borderLeft: `3px solid ${REGISTER_TYPE_COLORS[dragging]}`
+      })}
+    >
+      {REGISTER_TYPE_LABELS[dragging]}
+    </Box>
+  )
+})
+
 /**
  * The unit on screen's register types, laid out as its layout says. A section
  * head dragged onto another section splits that one on the side it was dropped.
@@ -219,11 +255,10 @@ const panelId = (path: number[], index: number): string => ['layout', ...path, i
 const LayoutView = meme(() => {
   const layoutText = useClientZustand((z) => selectedUnit(z).layout)
   const node = useMemo(() => parseLayout(layoutText) ?? 'holding_registers', [layoutText])
-  const [dragging, setDragging] = useState<RegisterType | undefined>(undefined)
-  const drag = useMemo(() => ({ dragging, setDragging }), [dragging])
+  const sensors = useDragSensors()
 
   return (
-    <SectionDragContext.Provider value={drag}>
+    <DndContext sensors={sensors}>
       {/* The ground between the panels is the card the panels sit on. */}
       <Box
         sx={(theme) => ({
@@ -235,7 +270,10 @@ const LayoutView = meme(() => {
       >
         <LayoutBranch key={structureOf(layoutText)} node={node} path={[]} />
       </Box>
-    </SectionDragContext.Provider>
+      <DragOverlay>
+        <SectionDragPreview />
+      </DragOverlay>
+    </DndContext>
   )
 })
 
