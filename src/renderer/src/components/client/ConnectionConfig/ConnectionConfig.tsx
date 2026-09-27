@@ -9,24 +9,12 @@ import MenuItem from '@mui/material/MenuItem'
 import Select, { SelectChangeEvent } from '@mui/material/Select'
 import RtuConfig from './RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
-import { useSerialGroupZustand } from '@renderer/components/client/SerialGroupModal/serialGroupModal.zustand'
 import TcpConfig from './TcpConfig'
-import {
-  getSelectedClient,
-  selectedClient,
-  selectedClientUuid,
-  selectedSession,
-  useClientZustand,
-  readsConfiguration
-} from '@renderer/context/client.zustand'
+import { toggleConnection } from './toggleConnection'
+import { selectedClient, selectedSession, useClientZustand } from '@renderer/context/client.zustand'
 import { Protocol, PROTOCOL_LABELS } from '@shared'
 import { useCallback } from 'react'
-import {
-  useLiveZustand,
-  dataOf,
-  getShownData,
-  setShownRegisterData
-} from '@renderer/context/live.zustand'
+import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import ProtocolIcon from '@renderer/components/client/ClientSidebar/ProtocolIcon'
 import { PROTOCOL_COLORS } from '@renderer/components/client/ClientSidebar/clientStatus'
@@ -161,25 +149,6 @@ const ConnectButton = meme(() => {
       : selectedSession(z).valid.host
   )
 
-  const action = useCallback(async (): Promise<void> => {
-    const currentConnectedState = getShownData().clientState.connectState
-    if (['connecting', 'connected'].includes(currentConnectedState)) {
-      window.api.disconnect(selectedClientUuid())
-      if (!readsConfiguration(useClientZustand.getState())) setShownRegisterData([])
-      return
-    }
-
-    if (currentConnectedState === 'disconnected') {
-      // On RTU the port can be there and still refuse to open. Ask first and
-      // say why, rather than let the connect fail on a permission error.
-      if (getSelectedClient().connectionConfig.protocol === 'ModbusRtu') {
-        const blocked = await useSerialGroupZustand.getState().check({ force: true })
-        if (blocked) return
-      }
-      window.api.connect(selectedClientUuid())
-    }
-  }, [])
-
   // Only the press that connects. Disconnect and the cancel a connecting state
   // draws go through this same button, and neither is refused for a field.
   const disabled =
@@ -209,7 +178,7 @@ const ConnectButton = meme(() => {
       size="large"
       sx={{ width: 100 }}
       disabled={disabled}
-      onClick={action}
+      onClick={toggleConnection}
       color={color}
       data-testid="connect-btn"
     >

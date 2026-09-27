@@ -96,9 +96,8 @@ export const useClientZustand = create<
           if (Object.hasOwn(state.clients, uuid)) state.selectedUuid = uuid
         })
       },
-      addClient: () => {
+      addClient: (client = getDefaultClient()) => {
         const uuid = v4()
-        const client = getDefaultClient()
         handToMain(uuid, client)
         const held = selectionHeld()
         set((state) => {
@@ -107,6 +106,14 @@ export const useClientZustand = create<
           if (!held) state.selectedUuid = uuid
         })
         return uuid
+      },
+      duplicateClient: (uuid) => {
+        const source = get().clients[uuid]
+        if (!source) return undefined
+        const copy = structuredClone(source)
+        copy.name = source.name === '' ? '' : `${source.name} copy`
+        copy.units = copy.units.map((unit) => ({ ...unit, uuid: v4() }))
+        return get().addClient(copy)
       },
       deleteClient: async (uuid) => {
         const { clients } = get()
@@ -454,15 +461,15 @@ export const useClientZustand = create<
         recordField(view, 'polled', before, polled)
         return true
       },
-      addUnit: async () => {
+      addUnit: async (givenUnitId, name = '') => {
         const state = get()
         if (!selectedSession(state).ready) return false
         const { selectedUuid } = state
         const { units, connectionConfig } = selectedClient(state)
         // The id after the highest one held, within what the protocol takes.
         const highest = Math.max(...units.map(({ unitId }) => unitId))
-        const unitId = Math.min(highest + 1, maxUnitId(connectionConfig.protocol))
-        const unit = newClientUnit(v4(), unitId)
+        const unitId = givenUnitId ?? Math.min(highest + 1, maxUnitId(connectionConfig.protocol))
+        const unit = { ...newClientUnit(v4(), unitId), name }
         if (!(await flushUnitsToMain(selectedUuid, [...units, unit]))) return false
 
         set((draft) =>

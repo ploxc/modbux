@@ -40,6 +40,19 @@ describe('adding a unit', () => {
     expect(selectedClient(state).units.map(({ unitId }) => unitId)).toEqual([1, 2])
     expect(selectedUnit(state).unitId).toBe(2)
   })
+
+  it('takes the unit id and name it is given', async () => {
+    const { useClientZustand } = await load()
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().addUnit(7, 'PT100 module')).toBe(true)
+
+    expect(sentUnits().map(({ unitId, name }) => [unitId, name])).toEqual([
+      [1, ''],
+      [7, 'PT100 module']
+    ])
+    expect(selectedUnit(useClientZustand.getState()).name).toBe('PT100 module')
+  })
 })
 
 describe('removing a unit', () => {

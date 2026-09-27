@@ -185,6 +185,39 @@ describe('the clients a store holds', () => {
     expect(useClientZustand.getState().sessions[uuid]?.ready).toBe(true)
   })
 
+  it('duplicates a client under new uuids, its units too, hands main the copy and shows it', async () => {
+    const { useClientZustand } = await load()
+    useClientZustand.getState().setName('Solar Edge')
+    await useClientZustand.getState().addUnit(7, 'Meter')
+
+    const uuid = useClientZustand.getState().duplicateClient(MAIN_CLIENT_UUID)
+
+    const state = useClientZustand.getState()
+    const source = state.clients[MAIN_CLIENT_UUID]
+    const copy = uuid === undefined ? undefined : state.clients[uuid]
+    expect(state.selectedUuid).toBe(uuid)
+    expect(copy?.name).toBe('Solar Edge copy')
+    expect(copy?.units.map(({ unitId, name }) => [unitId, name])).toEqual([
+      [1, ''],
+      [7, 'Meter']
+    ])
+    const sourceUnits = source?.units.map((unit) => unit.uuid) ?? []
+    expect(copy?.units.some((unit) => sourceUnits.includes(unit.uuid))).toBe(false)
+    expect(
+      calls.some(
+        ({ method, payload }) =>
+          method === 'createClient' && (payload as { uuid: string }).uuid === uuid
+      )
+    ).toBe(true)
+  })
+
+  it('duplicates no client it does not hold', async () => {
+    const { useClientZustand } = await load()
+
+    expect(useClientZustand.getState().duplicateClient('nobody')).toBeUndefined()
+    expect(Object.keys(useClientZustand.getState().clients)).toEqual([MAIN_CLIENT_UUID])
+  })
+
   it('keeps the last client', async () => {
     const { useClientZustand } = await load()
 

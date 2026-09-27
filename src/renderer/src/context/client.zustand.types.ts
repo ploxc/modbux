@@ -64,10 +64,15 @@ export interface ClientSession {
 export type ClientZustand = {
   sessions: Record<string, ClientSession>
   /**
-   * Adds a client with the default config, hands it to main, and shows it.
-   * Answers its uuid.
+   * Adds a client, the default config unless one is given, hands it to main,
+   * and shows it. Answers its uuid.
    */
-  addClient: () => string
+  addClient: (client?: PersistedClient) => string
+  /**
+   * Adds a copy of a client under a new uuid, its units under new uuids too,
+   * and shows it. Answers its uuid, or undefined when there is no such client.
+   */
+  duplicateClient: (uuid: string) => string | undefined
   /**
    * Takes a client away, in main and here, and shows the first one left. The
    * last client stays: the view always shows one.
@@ -116,10 +121,10 @@ export type ClientZustand = {
   setAddress: (address: string, valid?: boolean, type?: RegisterType) => Promise<boolean>
   setLength: (length: string, valid?: boolean, type?: RegisterType) => Promise<boolean>
   /**
-   * Adds a unit to the selected client, the unit id after its highest, hands
-   * it to main and shows it. Answers whether main took it.
+   * Adds a unit to the selected client, hands it to main and shows it. Without
+   * a unit id it takes the one after the highest. Answers whether main took it.
    */
-  addUnit: () => Promise<boolean>
+  addUnit: (unitId?: number, name?: string) => Promise<boolean>
   /** Takes a unit of the selected client away, in main and here. The last one stays. */
   removeUnit: (unit: string) => Promise<boolean>
   /** Names the unit on screen. */

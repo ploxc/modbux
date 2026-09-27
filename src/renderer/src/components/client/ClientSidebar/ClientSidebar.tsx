@@ -6,7 +6,7 @@ import KeyboardDoubleArrowRight from '@mui/icons-material/KeyboardDoubleArrowRig
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useMemo } from 'react'
-import ClientCard from './ClientCard'
+import ClientCard from './ClientCard/ClientCard'
 
 /** Adds a client with the default configuration and selects it. */
 export const addClient = (): void => {
