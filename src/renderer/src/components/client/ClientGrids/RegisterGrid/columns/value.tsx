@@ -46,10 +46,17 @@ const ValueCell = meme(({ address, wordKey }: ValueCellProps): JSX.Element | nul
 export const valueColumn = (
   key: NumberWord,
   width: number
-): GridColDef<RegisterData, RegisterDataWords, RegisterDataWords> => ({
+): GridColDef<RegisterData, number | undefined> => ({
   type: 'number',
   field: `word_${key}`,
   headerName: key.toUpperCase(),
   width,
+  // What the filter reads. The field names no key of the row, so without this
+  // a word filter compared against nothing and matched no row. A 64-bit word
+  // is compared as a number, which is exact up to 2^53.
+  valueGetter: (_, row): number | undefined => {
+    const word = row.words?.[key]
+    return word === undefined ? undefined : Number(word)
+  },
   renderCell: ({ row }) => <ValueCell address={row.id} wordKey={key} />
 })

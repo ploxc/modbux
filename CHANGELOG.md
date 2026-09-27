@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A filter on a word column finds the rows that hold it.** A filter on
+  INT16, UINT16 or any other word column matched no row, whatever it asked.
 - **A poll starts every poll rate.** The poll rate was counted from the end of
   each round, so a device answering in 500 ms at a rate of 1 s was polled every
   1.5 s. A round now starts every poll rate, and one that takes longer than the
