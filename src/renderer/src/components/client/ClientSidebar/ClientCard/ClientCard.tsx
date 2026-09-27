@@ -22,7 +22,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { sortableStyle } from '@renderer/components/shared/sortable'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useDragSensors } from '@renderer/components/shared/sortable'
+import { VERTICAL_IN_PARENT, useDragSensors } from '@renderer/components/shared/sortable'
 import { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface ClientCardProps {
@@ -229,6 +229,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
         ) : (
           <ButtonBase
             data-testid={`client-card-${uuid}`}
+            disableRipple
             aria-pressed={selected}
             onClick={handleSelect}
             onKeyDown={handleCardKey}
@@ -275,6 +276,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            modifiers={VERTICAL_IN_PARENT}
             onDragEnd={handleUnitDragEnd}
           >
             <SortableContext items={units} strategy={verticalListSortingStrategy}>

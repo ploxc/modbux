@@ -13,7 +13,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { sortableStyle } from '@renderer/components/shared/sortable'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
-import { useDragSensors } from '@renderer/components/shared/sortable'
+import { HORIZONTAL_IN_PARENT, useDragSensors } from '@renderer/components/shared/sortable'
 import UnitMenu, { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface UnitTabProps {
@@ -199,7 +199,12 @@ const UnitTabs = meme(() => {
         background: theme.palette.background.paper
       })}
     >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={HORIZONTAL_IN_PARENT}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={units} strategy={horizontalListSortingStrategy}>
           {units.map((unit, index) => (
             <UnitTab key={unit} unit={unit} index={index} />

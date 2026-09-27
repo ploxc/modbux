@@ -9,7 +9,7 @@ import { useCallback, useMemo } from 'react'
 import ClientCard from './ClientCard/ClientCard'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useDragSensors } from '@renderer/components/shared/sortable'
+import { VERTICAL_IN_PARENT, useDragSensors } from '@renderer/components/shared/sortable'
 
 /** Adds a client with the default configuration and selects it. */
 export const addClient = (): void => {
@@ -87,7 +87,12 @@ const ClientSidebar = meme(({ onCollapse }: { onCollapse: () => void }): JSX.Ele
           <KeyboardDoubleArrowRight />
         </IconButton>
       </Box>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={VERTICAL_IN_PARENT}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={uuids} strategy={verticalListSortingStrategy}>
           {uuids.map((uuid) => (
             <ClientCard key={uuid} uuid={uuid} deletable={uuids.length > 1} />
