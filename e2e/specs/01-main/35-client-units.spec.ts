@@ -223,4 +223,14 @@ test.describe.serial('A client with two units', () => {
 
     await expect(cards.first()).toHaveAttribute('data-testid', addedId ?? '')
   })
+
+  test('more tabs than fit scroll sideways, the newest in view', async ({ mainPage }) => {
+    const first = mainPage.getByTestId('unit-tab-0')
+    for (let i = 0; i < 16; i++) await mainPage.getByTestId('add-unit-btn').click()
+    const tabs = mainPage.locator('[data-testid^="unit-tab-"]')
+
+    await expect(tabs.last()).toBeInViewport()
+    await expect(mainPage.getByTestId('add-unit-btn')).toBeInViewport()
+    await expect(first).not.toBeInViewport()
+  })
 })

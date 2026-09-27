@@ -7,7 +7,17 @@ import InputBase from '@mui/material/InputBase'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useMemo, useState } from 'react'
+import {
+  ChangeEvent,
+  KeyboardEvent,
+  MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
+import SideScroll from '@renderer/components/shared/SideScroll'
 import UnitIdField from './UnitIdField'
 import { useSortable } from '@dnd-kit/sortable'
 import { sortableStyle } from '@renderer/components/shared/sortable'
@@ -42,6 +52,19 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
   const sortable = useSortable({ id: unit })
+  const { setNodeRef } = sortable
+  const tabRef = useRef<HTMLDivElement | null>(null)
+  const setRefs = useCallback(
+    (element: HTMLDivElement | null) => {
+      tabRef.current = element
+      setNodeRef(element)
+    },
+    [setNodeRef]
+  )
+  // The tab on screen stays in view when it is chosen, added or moved.
+  useEffect(() => {
+    if (selected) tabRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [selected, index])
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const handleSelect = useCallback(() => {
@@ -76,7 +99,7 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
 
   return (
     <Box
-      ref={sortable.setNodeRef}
+      ref={setRefs}
       style={sortableStyle(sortable)}
       {...(naming || numbering ? {} : sortable.listeners)}
       sx={(theme) => ({
@@ -95,7 +118,14 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
         onClick={handleSelect}
         onDoubleClick={startNaming}
         onContextMenu={openMenu}
-        sx={{ height: '100%', display: 'flex', alignItems: 'center', gap: 1, px: 1.5 }}
+        sx={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.5,
+          whiteSpace: 'nowrap'
+        }}
       >
         {numbering ? (
           <UnitIdField onDone={stopNumbering} />
@@ -199,18 +229,20 @@ const UnitTabs = meme(() => {
         background: theme.palette.background.paper
       })}
     >
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={HORIZONTAL_IN_PARENT}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={units} strategy={horizontalListSortingStrategy}>
-          {units.map((unit, index) => (
-            <UnitTab key={unit} unit={unit} index={index} />
-          ))}
-        </SortableContext>
-      </DndContext>
+      <SideScroll>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={HORIZONTAL_IN_PARENT}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={units} strategy={horizontalListSortingStrategy}>
+            {units.map((unit, index) => (
+              <UnitTab key={unit} unit={unit} index={index} />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </SideScroll>
       <IconButton
         size="small"
         aria-label="Add unit"
