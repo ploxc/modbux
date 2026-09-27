@@ -13,6 +13,7 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
+  serialSelect,
   unitIdField,
   enableAdvancedMode,
   enableReadConfiguration,
@@ -130,7 +131,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await unitIdInput.fill('1')
 
     // Set baud rate
-    await page.getByTestId('rtu-baudrate-select').click()
+    await (await serialSelect(page, 'baudrate')).click()
     await page.getByRole('option', { name: '9600' }).click()
   })
 

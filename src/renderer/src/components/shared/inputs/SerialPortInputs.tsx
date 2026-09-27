@@ -245,24 +245,27 @@ export const DataBitsSelect = meme(
     value,
     onChange,
     disabled,
-    testId = 'rtu-databits-select'
+    testId = 'rtu-databits-select',
+    label = 'Data'
   }: {
     value: DataBits
     onChange: (value: DataBits) => void
     disabled?: boolean
     testId?: string
+    /** Short by default, for a row too narrow for the whole name. */
+    label?: string
   }) => {
     const labelId = `${testId}-label`
 
     return (
       <FormControl size="large">
-        <InputLabel id={labelId}>Data</InputLabel>
+        <InputLabel id={labelId}>{label}</InputLabel>
         <Select
           disabled={disabled}
           size="large"
           labelId={labelId}
           value={value}
-          label="Data Bits"
+          label={label}
           onChange={(e) => onChange(e.target.value)}
           sx={{ width: 55 }}
           data-testid={testId}
@@ -285,24 +288,27 @@ export const StopBitsSelect = meme(
     value,
     onChange,
     disabled,
-    testId = 'rtu-stopbits-select'
+    testId = 'rtu-stopbits-select',
+    label = 'Stop'
   }: {
     value: StopBits
     onChange: (value: StopBits) => void
     disabled?: boolean
     testId?: string
+    /** Short by default, for a row too narrow for the whole name. */
+    label?: string
   }) => {
     const labelId = `${testId}-label`
 
     return (
       <FormControl size="large">
-        <InputLabel id={labelId}>Stop</InputLabel>
+        <InputLabel id={labelId}>{label}</InputLabel>
         <Select
           disabled={disabled}
           size="large"
           labelId={labelId}
           value={value}
-          label="Stop Bits"
+          label={label}
           onChange={(e) => onChange(e.target.value)}
           sx={{ width: 55 }}
           data-testid={testId}

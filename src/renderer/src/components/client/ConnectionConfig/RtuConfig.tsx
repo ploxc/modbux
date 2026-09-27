@@ -18,7 +18,14 @@ import { useClientZustand, selectedClient, selectedSession } from '@renderer/con
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { isConnectionAddressGiven } from '@shared'
 import { useSnackbar } from 'notistack'
-import { useCallback, useEffect } from 'react'
+import { MouseEvent, useCallback, useEffect, useState } from 'react'
+import ArrowDropDown from '@mui/icons-material/ArrowDropDown'
+import ClickAwayListener from '@mui/material/ClickAwayListener'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import OutlinedInput from '@mui/material/OutlinedInput'
+import Paper from '@mui/material/Paper'
+import Popper from '@mui/material/Popper'
 
 //
 //
@@ -196,7 +203,9 @@ const ClientDataBitsSelect = meme(() => {
 
   const setDataBits = useClientZustand.getState().setDataBits
 
-  return <DataBitsSelect value={dataBits} onChange={setDataBits} disabled={disabled} />
+  return (
+    <DataBitsSelect label="Data Bits" value={dataBits} onChange={setDataBits} disabled={disabled} />
+  )
 })
 
 const ClientStopBitsSelect = meme(() => {
@@ -208,21 +217,91 @@ const ClientStopBitsSelect = meme(() => {
 
   const setStopBits = useClientZustand.getState().setStopBits
 
-  return <StopBitsSelect value={stopBits} onChange={setStopBits} disabled={disabled} />
+  return (
+    <StopBitsSelect label="Stop Bits" value={stopBits} onChange={setStopBits} disabled={disabled} />
+  )
+})
+
+/** The letter a parity is written with in a framing like 8N1. */
+const PARITY_LETTERS = { none: 'N', even: 'E', odd: 'O' } as const
+
+/**
+ * The line settings as one field, `9600 · 8N1`, opening the four selects
+ * under it. A popper rather than a popover: no backdrop, so a click on the
+ * next field lands there and closes this one.
+ */
+const SerialSettings = meme((): JSX.Element => {
+  const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const disabled = useLiveZustand(
+    (z) => dataOf(z, selectedUuid).clientState.connectState !== 'disconnected'
+  )
+  const baudRate = useClientZustand((z) => selectedClient(z).connectionConfig.rtu.options.baudRate)
+  const parity = useClientZustand(
+    (z) => selectedClient(z).connectionConfig.rtu.options.parity ?? 'none'
+  )
+  const dataBits = useClientZustand((z) => selectedClient(z).connectionConfig.rtu.options.dataBits)
+  const stopBits = useClientZustand((z) => selectedClient(z).connectionConfig.rtu.options.stopBits)
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+
+  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    const target = event.currentTarget
+    setAnchor((open) => (open ? null : target))
+  }, [])
+  const handleClose = useCallback(() => setAnchor(null), [])
+
+  return (
+    // On mousedown: a select opens its menu on mousedown, so the click that
+    // follows ends on the menu's backdrop and reaches the document, not this tree.
+    <ClickAwayListener mouseEvent="onMouseDown" onClickAway={handleClose}>
+      <Box>
+        <FormControl size="large" sx={{ width: 120 }} disabled={disabled}>
+          <InputLabel shrink>Serial</InputLabel>
+          <OutlinedInput
+            readOnly
+            notched
+            label="Serial"
+            value={`${baudRate} · ${dataBits}${PARITY_LETTERS[parity]}${stopBits}`}
+            onClick={disabled ? undefined : handleOpen}
+            endAdornment={<ArrowDropDown sx={{ color: 'action.active', mr: -0.75 }} />}
+            inputProps={{ 'data-testid': 'rtu-serial-field', 'aria-label': 'Serial line settings' }}
+            // The arrow follows the text, so the input keeps no padding before it.
+            sx={{ cursor: 'pointer', '&& .MuiInputBase-input': { cursor: 'pointer', pr: 0 } }}
+          />
+        </FormControl>
+        <Popper
+          open={anchor !== null}
+          anchorEl={anchor}
+          placement="bottom-start"
+          sx={(theme) => ({ zIndex: theme.zIndex.modal })}
+        >
+          <Paper
+            sx={{
+              mt: 1,
+              p: 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1.5,
+              // One column: the four selects as wide as the narrowest baud rate needs.
+              '& > .MuiFormControl-root > .MuiInputBase-root': { width: 90 }
+            }}
+            data-testid="rtu-serial-settings"
+          >
+            <ClientBaudRateSelect />
+            <ClientParitySelect />
+            <ClientDataBitsSelect />
+            <ClientStopBitsSelect />
+          </Paper>
+        </Popper>
+      </Box>
+    </ClickAwayListener>
+  )
 })
 
 const RtuConfig = meme((): JSX.Element => {
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
-        <Com />
-        <ClientBaudRateSelect />
-      </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
-        <ClientParitySelect />
-        <ClientDataBitsSelect />
-        <ClientStopBitsSelect />
-      </Box>
+    <Box sx={{ display: 'flex', flexWrap: 'no-wrap', gap: 1 }}>
+      <Com />
+      <SerialSettings />
     </Box>
   )
 })

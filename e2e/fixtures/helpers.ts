@@ -495,23 +495,18 @@ export async function connectClientRTU(
   stopbits = '1'
 ): Promise<void> {
   await selectProtocol(p, 'ModbusRtu')
-  await expect(p.getByTestId('rtu-baudrate-select')).toBeVisible()
+  await expect(p.getByTestId('rtu-serial-field')).toBeVisible()
 
-  // Set baudrate
-  await p.getByTestId('rtu-baudrate-select').click()
+  // Set the line settings, which sit behind the one serial field
+  await (await serialSelect(p, 'baudrate')).click()
   await p.getByRole('option', { name: baudrate }).click()
-
-  // Set parity
-  await p.getByTestId('rtu-parity-select').click()
+  await (await serialSelect(p, 'parity')).click()
   await p.getByRole('option', { name: parity }).click()
-
-  // Set databits
-  await p.getByTestId('rtu-databits-select').click()
+  await (await serialSelect(p, 'databits')).click()
   await p.getByRole('option', { name: databits }).click()
-
-  // Set stopbits
-  await p.getByTestId('rtu-stopbits-select').click()
+  await (await serialSelect(p, 'stopbits')).click()
   await p.getByRole('option', { name: stopbits }).click()
+  await p.keyboard.press('Escape')
 
   // Set unit ID
   const unitIdInput = await unitIdField(p)
@@ -913,4 +908,17 @@ export async function splitOutServerWindow(app: ElectronApplication, p: Page): P
 export async function closeAddRegisterModal(p: Page): Promise<void> {
   await p.getByTestId('add-reg-address-input').locator('input').press('Escape')
   await expect(p.getByTestId('add-reg-address-input')).not.toBeVisible()
+}
+
+/**
+ * One of the client's serial line selects, which sit in the popper the serial
+ * field opens; it opens the popper when it is closed.
+ */
+export const serialSelect = async (
+  p: Page,
+  name: 'baudrate' | 'parity' | 'databits' | 'stopbits'
+): Promise<Locator> => {
+  const select = p.getByTestId(`rtu-${name}-select`)
+  if (!(await select.isVisible())) await p.getByTestId('rtu-serial-field').click()
+  return select
 }
