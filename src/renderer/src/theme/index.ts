@@ -89,10 +89,11 @@ const iconOnly = `&:not(.${CUSTOM_SIZE}):has(> .MuiSvgIcon-root):not(:has(> :not
 const labelLineHeight = 16
 
 /** A surface that floats over the app: a menu, a popover, a grid panel. */
-const floatingPaper = (theme: Theme): CSSObject => ({
+export const floatingPaper = (theme: Theme): CSSObject => ({
   background: theme.palette.background.paper,
   border: `1px solid ${dialogBorder}`,
-  borderRadius: 6,
+  // A string, because `sx` multiplies a number by the theme's shape radius.
+  borderRadius: '6px',
   boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
 })
 

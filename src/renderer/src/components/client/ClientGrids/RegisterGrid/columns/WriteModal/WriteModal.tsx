@@ -26,6 +26,7 @@ import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo } f
 import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
 import { IMaskInput } from 'react-imask'
 import { useSnackbar } from 'notistack'
+import { floatingPaper } from '@renderer/theme'
 import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
@@ -353,8 +354,16 @@ const WriteModal = meme(({ open, onClose, address, actionCellRef, type }: WriteM
       slotProps={{ backdrop: { sx: { background: 'transparent' } } }}
     >
       <Paper
-        elevation={5}
-        sx={{ position: 'absolute', right, top: rect?.top ?? 0, display: 'flex' }}
+        sx={(theme) => ({
+          ...floatingPaper(theme),
+          position: 'absolute',
+          right,
+          top: rect?.top ?? 0,
+          display: 'flex',
+          alignItems: 'center',
+          padding: 1,
+          gap: 1
+        })}
       >
         {type === 'holding_registers' ? (
           <>

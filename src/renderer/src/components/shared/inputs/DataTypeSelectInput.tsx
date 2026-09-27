@@ -15,7 +15,8 @@ const DataTypeSelectInput = meme(
   ({ disabled, dataType, setDataType }: DataTypeSelectInputProps) => {
     const labelId = 'data-type-select'
     return (
-      <FormControl disabled={disabled} size="small">
+      // Wide enough for DATETIME, the longest name, beside its arrow.
+      <FormControl disabled={disabled} size="small" sx={{ minWidth: 100 }}>
         <InputLabel id={labelId}>Type</InputLabel>
         <Select
           data-testid="add-reg-type-select"
