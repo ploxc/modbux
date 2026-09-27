@@ -1,7 +1,7 @@
 // Brings the palette.DataGrid tokens into the type system.
 import '@mui/x-data-grid/themeAugmentation'
 import '@mui/x-date-pickers/themeAugmentation'
-import { alpha, createTheme } from '@mui/material/styles'
+import { alpha, createTheme, CSSObject, Theme } from '@mui/material/styles'
 
 // Scale A has a large field, for the top bar; MUI's fields stop at medium.
 declare module '@mui/material/TextField' {
@@ -87,6 +87,14 @@ const iconOnly = `&:not(.${CUSTOM_SIZE}):has(> .MuiSvgIcon-root):not(:has(> :not
 
 /** The label's line box; a resting label is centred on the field with it. */
 const labelLineHeight = 16
+
+/** A surface that floats over the app: a menu, a popover, a grid panel. */
+const floatingPaper = (theme: Theme): CSSObject => ({
+  background: theme.palette.background.paper,
+  border: `1px solid ${dialogBorder}`,
+  borderRadius: 6,
+  boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+})
 
 /**
  * One style per size, as MUI's `variants` wants them. A field outside a
@@ -249,12 +257,7 @@ const base = createTheme({
     // lifted it to #383838.
     MuiPopover: {
       styleOverrides: {
-        paper: ({ theme }) => ({
-          background: theme.palette.background.paper,
-          border: `1px solid ${dialogBorder}`,
-          borderRadius: 6,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
-        })
+        paper: ({ theme }) => floatingPaper(theme)
       }
     },
     MuiMenuItem: {
@@ -372,6 +375,39 @@ const base = createTheme({
         // The grid writes its variables in a <style> tag of its own, after this
         // one, so the override takes a second class to win.
         root: { '&&': { '--DataGrid-t-color-border-base': lineColor } },
+        // The column menu and the filter panel are the grid's own poppers, which
+        // the popover rule above does not reach: the menu holds a Paper, and the
+        // panel draws its surface itself.
+        // Its list is a styled slot of the grid's own that the theme cannot
+        // name, so it is reached by its class, with the padding and gap of
+        // every other menu.
+        menu: ({ theme }) => ({
+          '& .MuiPaper-root': floatingPaper(theme),
+          '& .MuiDataGrid-menuList': {
+            padding: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1
+          }
+        }),
+        // The filter panel's surface and the content inside it share one slot.
+        panelContent: ({ theme }) => ({
+          '&.MuiDataGrid-paper': floatingPaper(theme),
+          '&.MuiDataGrid-panelContent': { padding: 8, gap: 8 }
+        }),
+        // The filter panel: 8px between its fields, the And or Or field left
+        // out while one filter is all it holds, and the value field as wide as
+        // the two before it.
+        filterForm: {
+          gap: 8,
+          alignItems: 'center',
+          '& .MuiFormControl-root:has(> .MuiDataGrid-filterFormLogicOperatorInput[style*="hidden"]), & .MuiFormControl-root:has(> .MuiDataGrid-filterFormLogicOperatorInput.Mui-disabled)':
+            { display: 'none' }
+        },
+        filterFormValueInput: {
+          width: 150,
+          '& .MuiFormControl-root, & .MuiInputBase-root': { width: '100%' }
+        },
         footerContainer: {
           minHeight: 30,
           height: 30,
