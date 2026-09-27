@@ -293,15 +293,17 @@ export class Transport {
       modbus.setID(unitId)
       modbus.setTimeout(timeout)
       const transactionIdKey = this._transactionLog.nextTransactionIdKey()
+      const sentAt = Date.now()
+      const roundTrip = (): number => Date.now() - sentAt
       try {
         const result = await new Promise<Result>((resolve, reject) => {
           this._abandonInFlight = reject
           send(modbus).then(resolve, reject)
         })
-        this._transactionLog.log(uuid, transactionIdKey, undefined)
+        this._transactionLog.log(uuid, transactionIdKey, undefined, roundTrip())
         return result
       } catch (error) {
-        this._transactionLog.log(uuid, transactionIdKey, errorText(error))
+        this._transactionLog.log(uuid, transactionIdKey, errorText(error), roundTrip())
         throw error
       } finally {
         this._abandonInFlight = undefined

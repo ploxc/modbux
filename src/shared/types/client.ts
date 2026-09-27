@@ -104,7 +104,9 @@ const TransactionSchema = z.object({
   timeout: z.boolean(),
   request: z.string(),
   responses: z.array(z.string()),
-  errorMessage: z.string().optional() // optional means it can be undefined
+  errorMessage: z.string().optional(), // optional means it can be undefined
+  /** From the moment the request goes out to its answer, or to the error that ended it. */
+  roundTripMillis: z.number()
 })
 
 export type Transaction = z.infer<typeof TransactionSchema>

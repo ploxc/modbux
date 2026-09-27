@@ -107,7 +107,12 @@ export class TransactionLog {
    * `Transport.request` files, awaits and logs a request inside one turn of
    * the queue every client on the connection waits in.
    */
-  public log = (uuid: string, transactionIdKey: string, errorMessage: string | undefined): void => {
+  public log = (
+    uuid: string,
+    transactionIdKey: string,
+    errorMessage: string | undefined,
+    roundTripMillis: number
+  ): void => {
     const rawTransactions = this._internals()._transactions
     const rawTransaction = rawTransactions[transactionIdKey]
     if (!rawTransaction) return
@@ -128,7 +133,8 @@ export class TransactionLog {
       timeout: rawTransaction._timeoutFired,
       request: toHexString(rawTransaction.request),
       responses: (rawTransaction.responses ?? []).map(toHexString),
-      errorMessage
+      errorMessage,
+      roundTripMillis
     }
 
     this._windows.send('transaction', { uuid, transaction }, 'main')

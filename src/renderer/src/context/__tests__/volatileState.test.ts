@@ -20,7 +20,8 @@ const transaction: Transaction = {
   responseLength: 2,
   timeout: false,
   request: '0103000000010000',
-  responses: []
+  responses: [],
+  roundTripMillis: 12
 }
 
 const scanResult: ScanUnitIDResult = {
