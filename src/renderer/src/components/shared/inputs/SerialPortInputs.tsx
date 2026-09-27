@@ -102,8 +102,10 @@ export const ComTextField = meme(
             textOverflow: 'ellipsis'
           },
           // Unfocused, the field shows the path through the overlay below.
+          // Disabled, MUI colours the text through the fill colour, which wins over `color`.
           '& .MuiOutlinedInput-root:not(.Mui-focused) .MuiOutlinedInput-input': {
-            color: 'transparent'
+            color: 'transparent',
+            WebkitTextFillColor: 'transparent'
           }
         }}
         slotProps={{
