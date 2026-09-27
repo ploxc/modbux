@@ -680,21 +680,20 @@ test.describe.serial('Act IV — Interaction', () => {
 
     // Open write modal for Night Mode (addr 3)
     await mainPage.getByTestId('write-action-3').click()
-    await expect(mainPage.getByTestId('write-coil-3-select-btn')).toBeVisible()
+    await mainPage.getByTestId('write-fc5-btn').click()
 
-    // Toggle coil ON
-    await mainPage.getByTestId('write-coil-3-select-btn').click()
+    // Set the coil ON
+    await mainPage.getByTestId('write-coil-3-true-btn').click()
     await beat(mainPage, 300)
 
     // Screenshot the OPEN write modal
-    const writeModal = paperOf(mainPage, 'write-coil-3-select-btn')
+    const writeModal = paperOf(mainPage, 'write-coil-3-true-btn')
     await writeModal.screenshot({ path: resolve(SHOTS, 'client-write-coil.png') })
 
     // Submit write and close
-    await mainPage.getByTestId('write-fc5-btn').click()
     await mainPage.getByTestId('write-submit-btn').click()
     await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('write-coil-3-select-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('write-submit-btn')).not.toBeVisible()
     await beat(mainPage, 300)
 
     // Re-read to confirm
@@ -704,8 +703,8 @@ test.describe.serial('Act IV — Interaction', () => {
 
     // ── FC15 multi-coil write ──
     await mainPage.getByTestId('write-action-3').click()
-    await expect(mainPage.getByTestId('write-coil-3-select-btn')).toBeVisible()
     await mainPage.getByTestId('write-fc15-btn').click()
+    await expect(mainPage.getByTestId('write-coil-3-select-btn')).toBeVisible()
     await beat(mainPage, 300)
 
     // Toggle some coils in the grid for visual effect

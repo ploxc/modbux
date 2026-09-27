@@ -3,7 +3,6 @@
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_WRITE_BITS } from '@shared'
 
 // WriteModal reaches both root stores, and each registers ipcRenderer listeners
 // on import. This one reads the address the toolbar last read from.
@@ -27,11 +26,6 @@ vi.mock('@renderer/context/live.zustand', () => ({
   useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })
 }))
 
-const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
-vi.mock('notistack', () => ({
-  useSnackbar: (): { enqueueSnackbar: typeof enqueueSnackbar } => ({ enqueueSnackbar })
-}))
-
 import { CoilFunctionSelect } from '../WriteModal'
 import { useValueInputZustand } from '../writeModal.zustand'
 
@@ -47,13 +41,11 @@ const written = (): boolean[] => {
   return payload?.parameters.value ?? []
 }
 
-// The Length field took the 2000 FC01 answers, and the dialog writes over the
-// window the toolbar read. FC15 carries the data as well as the address and the
-// quantity, so it stops 32 bits short of that.
+// FC15 writes the coils the picker draws: from the one the dialog opened on, at
+// most 64, and no further than the window the toolbar read.
 describe('the coil write', () => {
   beforeEach(() => {
     mockWrite.mockClear()
-    enqueueSnackbar.mockClear()
     useValueInputZustand.setState({
       address: 0,
       coilFunction: 15,
@@ -61,62 +53,76 @@ describe('the coil write', () => {
     })
   })
 
-  it('sends what one FC15 carries', async () => {
+  it('sends at most 64 coils', async () => {
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 
     await user.click(screen.getByTestId('write-submit-btn'))
 
-    expect(written().length).toBe(MAX_WRITE_BITS)
+    expect(written().length).toBe(64)
   })
 
-  // The grid goes on showing what the read left there, so a coil nothing was
-  // written to reads the same as one that was.
-  it('says what it left alone', async () => {
+  it('sends a window shorter than that whole', async () => {
+    useValueInputZustand.setState({ coils: new Array<boolean>(40).fill(true) })
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 
     await user.click(screen.getByTestId('write-submit-btn'))
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'One request writes 1968 coils, so the last 32 were left alone'
-      })
-    )
+    expect(written().length).toBe(40)
   })
 
-  // FC5 writes the first coil and leaves the other 1999, so the count the
-  // message carries is about the request FC15 would have sent.
-  it('says nothing about a tail when it writes one coil', async () => {
-    useValueInputZustand.setState({ coilFunction: 5 })
+  it('starts at the coil the dialog opened on', async () => {
+    useValueInputZustand.setState({ address: 1990 })
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 
     await user.click(screen.getByTestId('write-submit-btn'))
 
-    expect(enqueueSnackbar).not.toHaveBeenCalled()
+    expect(written().length).toBe(10)
+  })
+})
+
+// FC5 writes the coil the dialog opened on, and the dialog says which state it
+// sends: FALSE or TRUE, the one it opened with pressed.
+describe('the single coil write', () => {
+  beforeEach(() => {
+    mockWrite.mockClear()
+    useValueInputZustand.setState({
+      address: 3,
+      coilFunction: 5,
+      coils: [false, false, false, true, false]
+    })
   })
 
-  it('sends a window that fits whole', async () => {
-    useValueInputZustand.setState({ coils: new Array<boolean>(125).fill(true) })
-    const user = userEvent.setup()
+  it('opens on the state the coil has', () => {
     render(<CoilFunctionSelect />)
 
-    await user.click(screen.getByTestId('write-submit-btn'))
-
-    expect(written().length).toBe(125)
-    expect(enqueueSnackbar).not.toHaveBeenCalled()
+    expect(screen.getByTestId('write-coil-3-true-btn')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('write-coil-3-false-btn')).toHaveAttribute('aria-pressed', 'false')
   })
 
-  // The button you press is where the write starts, so the tail it can reach is
-  // shorter the further in it sits.
-  it('starts at the coil you pressed', async () => {
-    useValueInputZustand.setState({ address: 40 })
+  it('sends FALSE once FALSE is pressed', async () => {
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 
+    await user.click(screen.getByTestId('write-coil-3-false-btn'))
     await user.click(screen.getByTestId('write-submit-btn'))
 
-    expect(written().length).toBe(1960)
+    const payload = mockWrite.mock.calls[0]?.[0] as
+      | { parameters: { address: number; single: boolean; value: boolean[] } }
+      | undefined
+    expect(payload?.parameters.address).toBe(3)
+    expect(payload?.parameters.single).toBe(true)
+    expect(payload?.parameters.value[0]).toBe(false)
+  })
+
+  it('keeps TRUE when TRUE is pressed again', async () => {
+    const user = userEvent.setup()
+    render(<CoilFunctionSelect />)
+
+    await user.click(screen.getByTestId('write-coil-3-true-btn'))
+
+    expect(useValueInputZustand.getState().coils[3]).toBe(true)
   })
 })

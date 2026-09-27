@@ -2,7 +2,6 @@
 /// <reference types="@testing-library/jest-dom/vitest" />
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_WRITE_BITS } from '@shared'
 
 // The picker draws over the window the toolbar read, which is this config.
 const { registerConfig } = vi.hoisted(() => ({
@@ -41,32 +40,54 @@ beforeEach(() => {
   })
 })
 
-// The Length field took the 2000 bits FC01 answers, and every coil drawn is an
-// MUI Button with a store subscription of its own. One FC15 writes 1968 of
-// them, so the ones past that could be pressed and went nowhere.
+// The picker draws what one FC15 from the dialog writes: at most 64 coils, from
+// the one the dialog opened on to the end of the window the toolbar read.
 describe('the coil picker', () => {
-  it('draws no more coils than one request writes', () => {
+  it('draws at most 64 coils', () => {
     render(<Coils />)
 
-    expect(drawn()).toBe(MAX_WRITE_BITS)
+    expect(drawn()).toBe(64)
   })
 
-  it('draws a window that fits whole', () => {
-    registerConfig.length = 125
-    useValueInputZustand.setState({ coils: new Array<boolean>(125).fill(false) })
+  it('draws a window shorter than that whole', () => {
+    registerConfig.length = 40
+    useValueInputZustand.setState({ coils: new Array<boolean>(40).fill(false) })
 
     render(<Coils />)
 
-    expect(drawn()).toBe(125)
+    expect(drawn()).toBe(40)
   })
 
-  // The picker starts at the coil the action cell was on, so what is left of
-  // the window is what it draws.
-  it('draws from the coil the dialog opened on', () => {
-    useValueInputZustand.setState({ address: 1500 })
+  it('draws from the coil the dialog opened on to the end of the window', () => {
+    useValueInputZustand.setState({ address: 1990 })
 
     render(<Coils />)
 
-    expect(drawn()).toBe(500)
+    expect(drawn()).toBe(10)
+  })
+})
+
+// Rows start on a multiple of eight, so a coil sits under its offset in the
+// byte and the row labels read 0, 8, 16.
+describe('the rows of the coil picker', () => {
+  beforeEach(() => {
+    registerConfig.length = 16
+    useValueInputZustand.setState({ address: 6, coils: new Array<boolean>(16).fill(false) })
+  })
+
+  it('are labelled from the multiple of eight below the coil it opened on', () => {
+    render(<Coils />)
+
+    const rows = screen.getAllByTestId(/^write-coil-row-\d+$/).map((row) => row.textContent)
+    expect(rows).toEqual(['0', '8'])
+  })
+
+  it('draw the coil it opened on and the rest of the window, and none before it', () => {
+    render(<Coils />)
+
+    expect(drawn()).toBe(10)
+    expect(screen.getByTestId('write-coil-6-select-btn')).toBeInTheDocument()
+    expect(screen.getByTestId('write-coil-15-select-btn')).toBeInTheDocument()
+    expect(screen.queryByTestId('write-coil-5-select-btn')).not.toBeInTheDocument()
   })
 })

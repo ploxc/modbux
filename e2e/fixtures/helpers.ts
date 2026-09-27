@@ -732,16 +732,13 @@ export async function writeCoil(p: Page, address: number, state: boolean): Promi
   // virtualisation drops on a window narrow enough.
   await scrollToColumn(p, 'actions', address)
   await p.getByTestId(`write-action-${address}`).click()
-  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
-
-  await setCoilButton(p, address, state)
-
   await p.getByTestId('write-fc5-btn').click()
+  await p.getByTestId(`write-coil-${address}-${state}-btn`).click()
   await p.getByTestId('write-submit-btn').click()
 
   // Close the dialog
   await p.keyboard.press('Escape')
-  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).not.toBeVisible()
+  await expect(p.getByTestId('write-submit-btn')).not.toBeVisible()
 }
 
 /**
@@ -766,9 +763,8 @@ export async function writeCoilsFc15(
   // virtualisation drops on a window narrow enough.
   await scrollToColumn(p, 'actions', address)
   await p.getByTestId(`write-action-${address}`).click()
-  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
-
   await p.getByTestId('write-fc15-btn').click()
+  await expect(p.getByTestId(`write-coil-${address}-select-btn`)).toBeVisible()
 
   for (const [coilAddress, state] of Object.entries(states)) {
     await expect(p.getByTestId(`write-coil-${coilAddress}-select-btn`)).toBeVisible()
