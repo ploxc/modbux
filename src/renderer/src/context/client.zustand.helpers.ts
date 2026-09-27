@@ -148,31 +148,45 @@ export const readsNothingIn = (
 }
 
 /**
- * Whether a poll of `uuid` would read nothing at all, which main refuses:
- * the question `_polledTypes` asks of every unit. Under a unit's read
- * configuration, a type the mapping has a group for; otherwise a polled
- * section whose read asks for registers.
+ * Whether a poll of `uuid` reads `type` of `unit` while it is on screen: the
+ * question `_pollableTypes` asks. Under the unit's read configuration, a type
+ * the mapping has a group for; otherwise a polled section whose read asks for
+ * registers.
  */
+const pollsSection = (session: ClientSession, unit: ClientUnit, type: RegisterType): boolean => {
+  const readConfiguration = session.readConfiguration[unit.uuid] ?? false
+  return readConfiguration
+    ? !readsNothing(true, type, unit.registerMapping, false)
+    : unit.sections[type].polled &&
+        !readsNothing(
+          false,
+          type,
+          unit.registerMapping,
+          isReadLengthGiven(unit.sections[type].length)
+        )
+}
+
+/** Whether a poll of `uuid` reads `type` of the unit under `unitUuid` while it is on screen. */
+export const pollsSectionOf = (
+  state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
+  uuid: string,
+  unitUuid: string,
+  type: RegisterType
+): boolean => {
+  const unit = (state.clients[uuid] ?? NO_CLIENT).units.find((unit) => unit.uuid === unitUuid)
+  return unit !== undefined && pollsSection(state.sessions[uuid] ?? NO_SESSION, unit, type)
+}
+
+/** Whether a poll of `uuid` would read nothing at all, which main refuses. */
 export const pollsNothingOf = (
   state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
   uuid: string
 ): boolean => {
   const client = state.clients[uuid] ?? NO_CLIENT
   const session = state.sessions[uuid] ?? NO_SESSION
-  return client.units.every((unit) => {
-    const readConfiguration = session.readConfiguration[unit.uuid] ?? false
-    return RegisterTypeSchema.options.every((type) =>
-      readConfiguration
-        ? readsNothing(true, type, unit.registerMapping, false)
-        : !unit.sections[type].polled ||
-          readsNothing(
-            false,
-            type,
-            unit.registerMapping,
-            isReadLengthGiven(unit.sections[type].length)
-          )
-    )
-  })
+  return client.units.every((unit) =>
+    RegisterTypeSchema.options.every((type) => !pollsSection(session, unit, type))
+  )
 }
 
 /**

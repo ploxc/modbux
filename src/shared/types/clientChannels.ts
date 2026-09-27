@@ -72,6 +72,16 @@ export const ClientReadConfigurationSchema = z.object({
 })
 export type ClientReadConfiguration = z.infer<typeof ClientReadConfigurationSchema>
 
+/**
+ * The register types of a client's units that are on screen. A poll reads
+ * nothing else, so a grid nobody sees costs no request.
+ */
+export const ClientVisibleSectionsSchema = z.object({
+  uuid: ClientUuidSchema,
+  sections: z.array(z.object({ unit: UnitUuidSchema, type: RegisterTypeSchema }))
+})
+export type ClientVisibleSections = z.infer<typeof ClientVisibleSectionsSchema>
+
 /** One read of a unit's register type: its window, or its mapped groups. */
 export const ClientReadSchema = z.object({
   uuid: ClientUuidSchema,

@@ -10,15 +10,16 @@ interface StatusDotProps {
   offset: number
   /** The dot's rim in the poll colour, fading in and out. */
   polling?: boolean
+  /** A ring in the tone's colour rather than a dot. */
+  hollow?: boolean
 }
 
 /**
- * The status on a client's badge. A client that is not connected shows a
- * hollow ring, so it differs from a connected one in shape as well as colour.
+ * The status on a client's badge. A hollow ring differs from a dot in shape
+ * as well as colour, for a client not connected or not reading.
  */
-const StatusDot = meme(({ tone, rim, offset, polling = false }: StatusDotProps): JSX.Element => {
-  const idle = tone === 'idle'
-  return (
+const StatusDot = meme(
+  ({ tone, rim, offset, polling = false, hollow = false }: StatusDotProps): JSX.Element => (
     <Box
       component="span"
       sx={(theme) => {
@@ -31,9 +32,9 @@ const StatusDot = meme(({ tone, rim, offset, polling = false }: StatusDotProps):
           height: 12,
           boxSizing: 'border-box',
           borderRadius: '50%',
-          background: idle ? edge : STATUS_COLORS[tone],
+          background: hollow ? edge : STATUS_COLORS[tone],
           border: `2px solid ${edge}`,
-          boxShadow: idle ? `inset 0 0 0 2px ${STATUS_COLORS.idle}` : 'none',
+          boxShadow: hollow ? `inset 0 0 0 2px ${STATUS_COLORS[tone]}` : 'none',
           ...(polling && {
             '&::after': {
               content: '""',
@@ -54,6 +55,6 @@ const StatusDot = meme(({ tone, rim, offset, polling = false }: StatusDotProps):
       }}
     />
   )
-})
+)
 
 export default StatusDot

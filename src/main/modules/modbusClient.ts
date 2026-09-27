@@ -7,6 +7,7 @@ import {
   ClientUnit,
   DataType,
   ClientState,
+  ClientVisibleSections,
   ConnectionConfig,
   ConnectState,
   clientOwner,
@@ -182,6 +183,9 @@ export class ModbusClient implements TransportClient {
     this._windows.send('backend_message', message, 'main')
   }
   private _sendClientState = (): void => {
+    this._clientState.pollIdle =
+      this._clientState.polling &&
+      this._appState.units.every((unit) => this._polledTypes(unit).length === 0)
     this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
   private _sendData = (unit: string, type: RegisterType, registerData: RegisterData[]): void => {
@@ -699,17 +703,36 @@ export class ModbusClient implements TransportClient {
   //
   // Polling
   /**
-   * The register types a poll reads of `unit`: under read configuration every
-   * type the mapping has groups for, otherwise every polled section. A type
-   * that would read nothing is left out.
+   * The register types a poll would read of `unit` were all of it on screen:
+   * under read configuration every type the mapping has groups for, otherwise
+   * every polled section. A type that would read nothing is left out.
    */
-  private _polledTypes = (unit: ClientUnit): RegisterType[] => {
+  private _pollableTypes = (unit: ClientUnit): RegisterType[] => {
     const readConfiguration = this._appState.readConfiguration(unit.uuid)
     return RegisterTypeSchema.options.filter((type) =>
       readConfiguration
         ? configuredReadGroups(true, type, unit.registerMapping).length > 0
         : unit.sections[type].polled && !this._readsNothing(unit, type)
     )
+  }
+
+  /** What of the units is on screen, the only sections a poll round reads. */
+  private _visibleSections: ClientVisibleSections['sections'] = []
+
+  /** The register types a poll round reads of `unit`: its pollable types on screen. */
+  private _polledTypes = (unit: ClientUnit): RegisterType[] =>
+    this._pollableTypes(unit).filter((type) =>
+      this._visibleSections.some((section) => section.unit === unit.uuid && section.type === type)
+    )
+
+  /**
+   * Take what of the units is on screen. A poll keeps running with nothing on
+   * screen and reads again once something is, and `pollIdle` says which of
+   * the two it is doing.
+   */
+  public setVisibleSections = (sections: ClientVisibleSections['sections']): void => {
+    this._visibleSections = sections
+    if (this._clientState.polling) this._sendClientState()
   }
 
   /**
@@ -722,7 +745,7 @@ export class ModbusClient implements TransportClient {
   public startPolling = (): void => {
     if (this._clientState.polling) return
     if (!this._requireClient('poll')) return
-    const polled = this._appState.units.filter((unit) => this._polledTypes(unit).length > 0)
+    const polled = this._appState.units.filter((unit) => this._pollableTypes(unit).length > 0)
     if (polled.length === 0) {
       this._emitMessage({
         message: 'Cannot poll, no section is polled',
@@ -859,11 +882,13 @@ export class ModbusClient implements TransportClient {
       this._roundsToSkip.delete(uuid)
       this._setOffline(uuid, false)
     }
+    if (this._clientState.polling) this._sendClientState()
   }
 
   /** Turn read configuration on or off for one unit. */
   public setReadConfiguration = (unit: string, value: boolean): void => {
     this._appState.setReadConfiguration(unit, value)
+    if (this._clientState.polling) this._sendClientState()
   }
 
   //

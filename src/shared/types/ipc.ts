@@ -8,6 +8,7 @@ import type {
   ClientConnectionConfigUpdate,
   ClientCreate,
   ClientReadConfiguration,
+  ClientVisibleSections,
   ClientRegisterConfigUpdate,
   ClientUnits,
   ClientRead,
@@ -102,6 +103,7 @@ export const IPC_CHANNELS = [
   'list_serial_ports',
   'validate_serial_port',
   'set_read_configuration',
+  'set_visible_sections',
   'start_rtu_server',
   'stop_rtu_server',
   'get_rtu_server_status',
@@ -345,6 +347,12 @@ interface IpcHandlerSpec {
    */
   ['set_read_configuration']: {
     args: [ClientReadConfiguration]
+    return: true | undefined
+  }
+
+  /** Replace what of a client's units is on screen, and say whether it was taken. */
+  ['set_visible_sections']: {
+    args: [ClientVisibleSections]
     return: true | undefined
   }
 

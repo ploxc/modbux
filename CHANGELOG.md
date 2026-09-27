@@ -24,9 +24,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this machine only. Tick Read and create a token, and it can list your clients,
   servers and mappings and read the values the grid shows. The token is shown
   once, with the command that connects Claude Code.
+- **A sidebar of clients.** Every client is a card with its protocol badge,
+  name and address, and a dot for its status that pulses while it polls. A
+  card's menu, or a right click on it, connects, renames, duplicates, scans
+  and deletes; New client adds one. Cards drag into another order, and the
+  sidebar resizes or folds to a rail of badges.
+- **Units.** A client talks to several devices, each a unit with its own tab,
+  unit id, name, byte order, mapping and layout. The poll reads what is on
+  screen: the unit's tab you have open and the register types it shows. A grid
+  you leave keeps its last values, dimmed and marked paused, until the poll
+  reads it again, and the client's dot stops pulsing while nothing it polls is
+  on screen. A unit that stops answering goes offline on its own. Units are
+  added, renamed, given another id, duplicated and removed from their tab or
+  from the client card, and removing one asks first. Two units of one client cannot share an id. Save writes a
+  unit as a device file, with its unit id and layout.
+- **Register types side by side.** The type buttons put each register type in
+  a panel of its own, with its own address, length, Read and Poll switch. A
+  panel's head drags onto another to split it on that side, and two buttons
+  stack every open type in a row or a column.
+- **The round trip of each request** shows in the transaction log and in the
+  grid's footer.
 
 ### Changed
 
+- **The client view is laid out anew.** The top bar holds the protocol, the
+  connection, the poll rate and timeout, and a Serial field reading
+  `9600 · 8N1` that opens the four line settings. As the window narrows the
+  bar folds its controls into menus and buttons, down to the narrowest window
+  Modbux allows. The register type, address, length, Read and Raw sit in the
+  grid's toolbar, and 32 and 64 are two buttons there, replacing Advanced mode
+  and Show 64 bit values. The unit id changes by a double click on its tab,
+  and the scans moved to the client card's menu. The transaction log is a card
+  under the grid with a status line, and its bar opens and closes it.
+- **Writing coils.** FC5 shows the coil with FALSE and TRUE beside it. FC15 is
+  a grid of eight coils a row, each 0 or 1, and writes at most 64 coils, so
+  what it sends is what it shows.
 - **A poll backs off from a device that stops answering.** After three polls
   in a row that a device lets time out, Modbux waits twice as long before
   each next one, up to a minute, and polls at your rate again as soon as it

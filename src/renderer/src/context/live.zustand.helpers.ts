@@ -8,7 +8,9 @@ export const emptyClientData = (): ClientData => ({
   transactions: [],
   lastSuccessfulTransactionMillis: null,
   scanUnitIdResults: [],
-  scanProgress: 0
+  scanProgress: 0,
+  shownSections: [],
+  staleSections: []
 })
 
 /**

@@ -90,6 +90,8 @@ const liveOf = ({
   lastSuccessfulTransactionMillis: null,
   scanUnitIdResults: [],
   scanProgress: 0,
+  shownSections: [],
+  staleSections: [],
   ...overrides
 })
 
@@ -142,6 +144,7 @@ const source = (overrides: Partial<ReadSource> = {}): ReadSource => ({
   live: {
     a: liveOf({
       clientState: { ...defaultClientState, connectState: 'connected', polling: true },
+      shownSections: [{ unit: UNIT, type: 'holding_registers' }],
       registerData: [row(0, '0908', { uint16: 2312 }), row(1, 'ffff', { int16: -1 })],
       lastSuccessfulTransactionMillis: Date.parse('2026-09-25T12:00:00Z')
     })
@@ -173,8 +176,23 @@ describe('the read tools', () => {
         ],
         connectState: 'connected',
         polling: true,
+        pollIdle: false,
         offline: false
       }
+    ])
+  })
+
+  it('list_clients says a poll with nothing on screen reads nothing', () => {
+    const idle = liveOf({
+      clientState: {
+        ...defaultClientState,
+        connectState: 'connected',
+        polling: true,
+        pollIdle: true
+      }
+    })
+    expect(listClients(source({ live: { a: idle } }))).toMatchObject([
+      { polling: true, pollIdle: true }
     ])
   })
 
@@ -238,6 +256,7 @@ describe('the read tools', () => {
       type: 'holding_registers',
       littleEndian: false,
       lastAnswerAt: '2026-09-25T12:00:00.000Z',
+      polledNow: true,
       rows: [
         {
           address: 0,
@@ -330,6 +349,14 @@ describe('the read tools', () => {
     expect(answer.rows[0]).toMatchObject({ words: ['abcd', ''], value: undefined })
   })
 
+  it('read_values says the rows of a section off screen are not being polled', () => {
+    const offScreen = source()
+    const live = offScreen.live.a
+    if (!live) throw new Error('the source has no live data for a')
+    offScreen.live.a = { ...live, shownSections: [] }
+    expect(readValues(offScreen, { client: 'a' })).toMatchObject({ polledNow: false })
+  })
+
   it('read_values answers a coil as its bit', () => {
     const sessions = { a: { ...readySession(meter), shownType: 'coils' as const } }
     const data = liveOf({ type: 'coils', registerData: [{ ...row(3, '0001', {}), bit: true }] })
@@ -337,6 +364,7 @@ describe('the read tools', () => {
       type: 'coils',
       littleEndian: false,
       lastAnswerAt: null,
+      polledNow: false,
       rows: [
         {
           address: 3,

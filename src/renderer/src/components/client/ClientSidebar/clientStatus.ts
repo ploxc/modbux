@@ -8,6 +8,8 @@ export interface ClientStatus {
   tone: StatusTone
   /** Connected and polling, which the dot shows as a pulsing ring in the poll colour. */
   polling: boolean
+  /** A ring rather than a dot: not connected, or polling with nothing on screen to read. */
+  hollow: boolean
 }
 
 /**
@@ -19,16 +21,22 @@ export interface ClientStatus {
 export const clientStatus = ({
   connectState,
   polling,
+  pollIdle,
   offline
-}: Pick<ClientState, 'connectState' | 'polling'> & { offline: boolean }): ClientStatus => {
-  if (connectState === 'connecting') return { label: 'Connecting', tone: 'busy', polling: false }
-  if (connectState === 'disconnecting')
-    return { label: 'Disconnecting', tone: 'busy', polling: false }
+}: Pick<ClientState, 'connectState' | 'polling' | 'pollIdle'> & {
+  offline: boolean
+}): ClientStatus => {
+  const still = { polling: false, hollow: false }
+  if (connectState === 'connecting') return { label: 'Connecting', tone: 'busy', ...still }
+  if (connectState === 'disconnecting') return { label: 'Disconnecting', tone: 'busy', ...still }
   if (connectState === 'disconnected')
-    return { label: 'Disconnected', tone: 'idle', polling: false }
-  if (offline) return { label: 'Timeout', tone: 'error', polling }
-  if (polling) return { label: 'Polling', tone: 'ok', polling: true }
-  return { label: 'Connected', tone: 'ok', polling: false }
+    return { label: 'Disconnected', tone: 'idle', polling: false, hollow: true }
+  if (offline)
+    return { label: 'Timeout', tone: 'error', polling: polling && !pollIdle, hollow: false }
+  if (polling && pollIdle)
+    return { label: 'Polling, paused: not on screen', tone: 'ok', polling: false, hollow: true }
+  if (polling) return { label: 'Polling', tone: 'ok', polling: true, hollow: false }
+  return { label: 'Connected', tone: 'ok', ...still }
 }
 
 /** Where a client connects: host and port, or the COM port and its line. */

@@ -94,6 +94,7 @@ export const defaultClientState: ClientState = {
   connectState: 'disconnected',
   polling: false,
   offlineUnits: [],
+  pollIdle: false,
   scanningUnitIds: false,
   scanningRegisters: false,
   reading: false,

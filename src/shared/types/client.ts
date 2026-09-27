@@ -285,6 +285,8 @@ export const ClientStateSchema = z.object({
   polling: z.boolean(),
   /** The units that left enough polls in a row unanswered that they are polled less often. */
   offlineUnits: z.array(z.string()),
+  /** Polling, with nothing on screen for a round to read. */
+  pollIdle: z.boolean(),
   scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean(),
   reading: z.boolean(),

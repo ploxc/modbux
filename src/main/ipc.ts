@@ -2,6 +2,7 @@ import {
   BackendMessage,
   ClientConnectionConfigUpdateSchema,
   ClientReadConfigurationSchema,
+  ClientVisibleSectionsSchema,
   ClientRegisterConfigUpdateSchema,
   ClientUnitsSchema,
   ClientReadSchema,
@@ -113,7 +114,8 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'update_connection_config',
   'update_register_config',
   'set_units',
-  'set_read_configuration'
+  'set_read_configuration',
+  'set_visible_sections'
 ]
 
 /**
@@ -222,6 +224,11 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
     'set_read_configuration',
     (_, update) => clients.setReadConfiguration(update),
     ClientReadConfigurationSchema
+  )
+  ipcHandle(
+    'set_visible_sections',
+    (_, update) => clients.setVisibleSections(update),
+    ClientVisibleSectionsSchema
   )
 
   // Connection Actions

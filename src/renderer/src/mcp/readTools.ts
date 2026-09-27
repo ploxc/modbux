@@ -122,6 +122,8 @@ export const listClients = (source: ReadSource): unknown =>
       units: unitsOf(client),
       connectState: state.connectState,
       polling: state.polling,
+      // Polling, and reading nothing: none of what it polls is on screen.
+      pollIdle: state.pollIdle,
       offline: state.offlineUnits.length > 0
     }
   })
@@ -212,6 +214,12 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
     type,
     littleEndian: unit.littleEndian,
     lastAnswerAt: answeredAt === null ? null : new Date(answeredAt).toISOString(),
+    // A poll reads only what is on screen, so rows it is not reading are the
+    // last it read, however long ago.
+    polledNow:
+      (live?.clientState.polling ?? false) &&
+      (live?.shownSections.some((shown) => shown.unit === unit.uuid && shown.type === type) ??
+        false),
     rows: rows.map((row) => {
       const words = wordsAt(row.id)
       return {

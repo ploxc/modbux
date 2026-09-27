@@ -14,6 +14,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import {
   useLiveZustand,
   dataOf,
+  sectionKey,
   sectionOf,
   showMapping,
   skeletonOf
@@ -56,9 +57,15 @@ const NO_ROWS: RegisterData[] = []
 /**
  * When the last read answered, and how long it took. A poll changes both, so
  * they render on their own rather than taking the pages beside them along.
+ * While the poll runs and has stopped reading this section, it says paused.
  */
 const FooterTime = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  const type = useSectionType()
+  const stale = useLiveZustand((z) =>
+    dataOf(z, selectedUuid).staleSections.includes(sectionKey(unit, type))
+  )
   const time = useLiveZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
   // The newest transaction that answered; the log keeps the newest first.
   const roundTrip = useLiveZustand(
@@ -78,6 +85,7 @@ const FooterTime = meme(() => {
           'n/a'
         )}
         {roundTrip !== undefined && <span className="footer-round-trip"> · {roundTrip} ms</span>}
+        {stale && <span data-testid="register-footer-paused"> · paused</span>}
       </strong>
     </Typography>
   )
@@ -125,6 +133,9 @@ const RegisterGridContent = meme((): JSX.Element => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const unit = useClientZustand((z) => selectedUnit(z).uuid)
   const type = useSectionType()
+  const stale = useLiveZustand((z) =>
+    dataOf(z, selectedUuid).staleSections.includes(sectionKey(unit, type))
+  )
   // The rows the grid is handed carry no values, so a poll that changes one
   // value renders the cells showing it and not every row on screen. A filter on
   // a value needs the values in the rows, and gets the rows as read.
@@ -282,7 +293,9 @@ const RegisterGridContent = meme((): JSX.Element => {
         // catches the headers too. Target the data rows instead.
         '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
-          fontSize: '0.95em'
+          fontSize: '0.95em',
+          // Rows a poll read before it stopped reading them, until it reads them again.
+          ...(stale && { opacity: 0.5 })
         },
         // `getRowHeight` answers for the row and its panel together, and MUI
         // writes that height onto the row element itself, over anything passed

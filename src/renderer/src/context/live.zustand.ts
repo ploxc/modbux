@@ -20,7 +20,13 @@ import { deepEqual } from 'fast-equals'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { openTypesOf, selectedClientUuid, selectedUnitOf, useClientZustand } from './client.zustand'
+import {
+  openTypesOf,
+  pollsSectionOf,
+  selectedClientUuid,
+  selectedUnitOf,
+  useClientZustand
+} from './client.zustand'
 import { onEvent } from '@renderer/events'
 import {
   RegisterData,
@@ -76,6 +82,12 @@ const onSection = (
     recipe(section)
   })
 
+/** Hand main the sections of `uuid` on screen, the only ones its poll reads. */
+const sendShownSections = (uuid: string): void => {
+  const sections = dataOf(useLiveZustand.getState(), uuid).shownSections
+  window.api.setVisibleSections({ uuid, sections })
+}
+
 /**
  * What main pushes about each client, held for as long as the window lives,
  * under the uuid the client store holds it under.
@@ -106,6 +118,13 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
     // over ten polls of 120 unchanged registers, 31 rows on screen, the rows
     // drawn went from 310 to 0.
     setRegisterData: (uuid, unit, type, registerData) => {
+      const key = sectionKey(unit, type)
+      if (dataOf(get(), uuid).staleSections.includes(key))
+        set((state) =>
+          onData(state, uuid, (data) => {
+            data.staleSections = data.staleSections.filter((stale) => stale !== key)
+          })
+        )
       const previous = sectionOf(get(), uuid, unit, type).registerData
       const shared = registerData.map((row, i) => {
         const before = previous[i]
@@ -132,11 +151,44 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
         })
       ),
 
+    // What is on screen
+    //
+    // A section leaving the screen while the poll reads it keeps its rows,
+    // marked stale, because the poll reads it no more.
+    showSection: (uuid, unit, type) => {
+      if (!isHeld(uuid)) return
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.shownSections.push({ unit, type })
+        })
+      )
+      sendShownSections(uuid)
+    },
+    // A client deleted while on screen is gone before its sections unmount,
+    // and main no longer knows it.
+    hideSection: (uuid, unit, type) => {
+      if (!isHeld(uuid)) return
+      const key = sectionKey(unit, type)
+      const stale =
+        dataOf(get(), uuid).clientState.polling &&
+        pollsSectionOf(useClientZustand.getState(), uuid, unit, type)
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.shownSections = data.shownSections.filter(
+            (shown) => shown.unit !== unit || shown.type !== type
+          )
+          if (stale && !data.staleSections.includes(key)) data.staleSections.push(key)
+        })
+      )
+      sendShownSections(uuid)
+    },
+
     // State
     setClientState: (uuid, clientState) =>
       set((state) =>
         onData(state, uuid, (data) => {
           data.clientState = clientState
+          if (!clientState.polling) data.staleSections = []
         })
       ),
 

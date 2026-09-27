@@ -20,6 +20,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
   const protocol = useClientZustand((z) => z.clients[uuid]?.connectionConfig.protocol)
   const connectState = useLiveZustand((z) => dataOf(z, uuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
+  const pollIdle = useLiveZustand((z) => dataOf(z, uuid).clientState.pollIdle)
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
 
   const handleSelect = useCallback(() => {
@@ -28,7 +29,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
   }, [uuid])
 
   if (protocol === undefined) return null
-  const status = clientStatus({ connectState, polling, offline })
+  const status = clientStatus({ connectState, polling, pollIdle, offline })
 
   return (
     <Tooltip title={`${name || 'Unnamed client'} · ${status.label}`} placement="left">
@@ -49,7 +50,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
         }}
       >
         <ProtocolIcon protocol={protocol} />
-        <StatusDot tone={status.tone} polling={status.polling} offset={3} />
+        <StatusDot tone={status.tone} polling={status.polling} hollow={status.hollow} offset={3} />
       </ButtonBase>
     </Tooltip>
   )

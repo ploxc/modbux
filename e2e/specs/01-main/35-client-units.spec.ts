@@ -226,7 +226,7 @@ test.describe.serial('A client with two units', () => {
 
   test('more tabs than fit scroll sideways, the newest in view', async ({ mainPage }) => {
     const first = mainPage.getByTestId('unit-tab-0')
-    for (let i = 0; i < 16; i++) await mainPage.getByTestId('add-unit-btn').click()
+    for (let i = 0; i < 24; i++) await mainPage.getByTestId('add-unit-btn').click()
     const tabs = mainPage.locator('[data-testid^="unit-tab-"]')
 
     await expect(tabs.last()).toBeInViewport()

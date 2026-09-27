@@ -532,6 +532,10 @@ describe('each guarded channel got its own schema', () => {
     update_register_config: { uuid: 'client-1', registerConfig: { pollRate: 2000 } },
     set_units: { uuid: 'client-1', units: [newClientUnit('unit-1', 3)] },
     set_read_configuration: { uuid: 'client-1', unit: 'unit-1', readConfiguration: true },
+    set_visible_sections: {
+      uuid: 'client-1',
+      sections: [{ unit: 'unit-1', type: 'holding_registers' }]
+    },
     connect: 'client-1',
     disconnect: 'client-1',
     read: { uuid: 'client-1', unit: 'unit-1', type: 'holding_registers' },
@@ -651,7 +655,8 @@ describe('each guarded channel got its own schema', () => {
     ['update_connection_config', 'updateConnectionConfig'],
     ['update_register_config', 'updateRegisterConfig'],
     ['set_units', 'setUnits'],
-    ['set_read_configuration', 'setReadConfiguration']
+    ['set_read_configuration', 'setReadConfiguration'],
+    ['set_visible_sections', 'setVisibleSections']
   ])('%s answers what the clients answered', async (channel, method) => {
     handle.mockClear()
     const { windows } = createWindows()

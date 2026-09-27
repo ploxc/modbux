@@ -1,6 +1,7 @@
 import {
   AddressGroup,
   ClientState,
+  ClientVisibleSections,
   RegisterData,
   RegisterType,
   ScanUnitIDResult,
@@ -22,6 +23,14 @@ export interface ClientData {
   lastSuccessfulTransactionMillis: number | null
   scanUnitIdResults: ScanUnitIDResult[]
   scanProgress: number
+  /** The sections on screen: all a poll of this client reads. */
+  shownSections: ClientVisibleSections['sections']
+  /**
+   * The sections a running poll stopped reading when they left the screen, by
+   * `sectionKey`. Their rows are the last it read, until a read replaces them
+   * or the poll stops.
+   */
+  staleSections: string[]
 }
 
 /** Every client's data under the uuid the client store holds it under. */
@@ -32,6 +41,10 @@ export interface LiveZustand {
   setRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
   appendRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
   setAddressGroups: (uuid: string, unit: string, type: RegisterType, groups: AddressGroup[]) => void
+
+  // What is on screen
+  showSection: (uuid: string, unit: string, type: RegisterType) => void
+  hideSection: (uuid: string, unit: string, type: RegisterType) => void
 
   // State
   setClientState: (uuid: string, clientState: ClientState) => void

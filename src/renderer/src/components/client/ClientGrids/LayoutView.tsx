@@ -4,6 +4,7 @@ import ResizeHandle from '@renderer/components/shared/ResizeHandle'
 import { BREAKPOINTS, FOLDED_PANEL_HEIGHT } from './breakpoints'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { layoutOf, selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
+import { useLiveZustand } from '@renderer/context/live.zustand'
 import {
   formatLayout,
   insertType,
@@ -95,6 +96,17 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
     return (): void => observer.disconnect()
   }, [])
   const target = dragging !== undefined && dragging !== type
+
+  // A section is on screen while it is mounted and not folded, and only then
+  // does a poll read it.
+  const uuid = useClientZustand((z) => z.selectedUuid)
+  const unit = useClientZustand((z) => selectedUnit(z).uuid)
+  useEffect(() => {
+    if (folded) return
+    const liveZustand = useLiveZustand.getState()
+    liveZustand.showSection(uuid, unit, type)
+    return (): void => liveZustand.hideSection(uuid, unit, type)
+  }, [uuid, unit, type, folded])
 
   const { setNodeRef } = useDroppable({ id: type, disabled: !target })
   const setRefs = useCallback(

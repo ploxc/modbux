@@ -41,6 +41,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
   })
   const connectState = useLiveZustand((z) => dataOf(z, uuid).clientState.connectState)
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
+  const pollIdle = useLiveZustand((z) => dataOf(z, uuid).clientState.pollIdle)
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
 
   // Joined, so the answer compares equal while the units stay the same.
@@ -114,7 +115,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
   )
 
   if (protocol === undefined || address === undefined) return null
-  const status = clientStatus({ connectState, polling, offline })
+  const status = clientStatus({ connectState, polling, pollIdle, offline })
   const color = PROTOCOL_COLORS[protocol]
 
   const face = (
@@ -136,7 +137,13 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
           }}
         >
           <ProtocolIcon protocol={protocol} />
-          <StatusDot tone={status.tone} polling={status.polling} rim={gridSurface} offset={4} />
+          <StatusDot
+            tone={status.tone}
+            polling={status.polling}
+            hollow={status.hollow}
+            rim={gridSurface}
+            offset={4}
+          />
         </Box>
       </Tooltip>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0, flexGrow: 1 }}>

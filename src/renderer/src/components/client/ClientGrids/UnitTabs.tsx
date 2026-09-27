@@ -6,7 +6,6 @@ import IconButton from '@mui/material/IconButton'
 import InputBase from '@mui/material/InputBase'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
-import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import {
   ChangeEvent,
   KeyboardEvent,
@@ -45,10 +44,6 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
     (z) => z.clients[selectedUuid]?.units.find(({ uuid }) => uuid === unit)?.name ?? ''
   )
   const selected = useClientZustand((z) => selectedUnit(z).uuid === unit)
-  const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
-  const offline = useLiveZustand((z) =>
-    dataOf(z, selectedUuid).clientState.offlineUnits.includes(unit)
-  )
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
   const sortable = useSortable({ id: unit })
@@ -167,20 +162,6 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
             </Box>
           )
         )}
-        <Box
-          component="span"
-          aria-label={offline ? 'Offline' : polling ? 'Polling' : undefined}
-          sx={(theme) => ({
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: !polling
-              ? 'transparent'
-              : offline
-                ? theme.palette.error.main
-                : theme.palette.success.main
-          })}
-        />
       </ButtonBase>
       <UnitMenu
         uuid={selectedUuid}

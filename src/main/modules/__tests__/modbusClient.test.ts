@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { newClientUnit } from '@shared'
+import { newClientUnit, RegisterTypeSchema } from '@shared'
 import type {
   BackendMessage,
   ClientUnit,
@@ -227,7 +227,16 @@ describe('ModbusClient', () => {
     client = new ModbusClient({ uuid: 'client-1', appState, windows, transports })
     unitType = 'holding_registers'
     client.setUnits([newClientUnit(UNIT, 1)])
+    showEverything()
   })
+
+  /** Put every register type of every unit on screen, so a poll reads all it polls. */
+  const showEverything = (target: ModbusClient = client): void =>
+    target.setVisibleSections(
+      appState.units.flatMap((unit) =>
+        RegisterTypeSchema.options.map((type) => ({ unit: unit.uuid, type }))
+      )
+    )
 
   afterEach(() => {
     vi.useRealTimers()
@@ -272,6 +281,7 @@ describe('ModbusClient', () => {
     }
     unitType = type
     client.setUnits([{ ...unit, ...fields, sections }])
+    showEverything()
   }
 
   const setRegisterMapping = (registerMapping: RegisterMapping): void =>
@@ -1974,6 +1984,7 @@ describe('ModbusClient', () => {
           ...second
         }
       ])
+      showEverything()
     }
 
     const readAddresses = (): number[] =>
@@ -2025,6 +2036,76 @@ describe('ModbusClient', () => {
 
       expect(readAddresses()).toEqual([0, 0])
       client.stopPolling()
+    })
+
+    it('reads only the unit on screen', async () => {
+      await connectClient()
+      twoUnits()
+      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }])
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(readAddresses()).toEqual([0, 0])
+      client.stopPolling()
+    })
+
+    it('reads a unit again from the round after it is shown', async () => {
+      await connectClient()
+      twoUnits()
+      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }])
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.setVisibleSections([{ unit: 'u2', type: 'holding_registers' }])
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(readAddresses()).toEqual([0, 100])
+      client.stopPolling()
+    })
+
+    it('reads only the register types on screen', async () => {
+      await connectClient()
+      const unit = theUnit()
+      client.setUnits([
+        {
+          ...unit,
+          sections: { ...unit.sections, coils: { address: 0, length: 8, polled: true } }
+        }
+      ])
+      client.setVisibleSections([{ unit: UNIT, type: 'coils' }])
+      mockModbusRTU.readCoils.mockResolvedValue({
+        data: Array(8).fill(false),
+        buffer: Buffer.alloc(1)
+      })
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(mockModbusRTU.readCoils).toHaveBeenCalledTimes(1)
+      expect(readAddresses()).toEqual([])
+      client.stopPolling()
+    })
+
+    it('polls with nothing on screen, idle, and reads once something is', async () => {
+      await connectClient()
+      client.setVisibleSections([])
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(readAddresses()).toEqual([])
+      expect(getLastClientState()).toMatchObject({ polling: true, pollIdle: true })
+
+      showEverything()
+      expect(getLastClientState()).toMatchObject({ polling: true, pollIdle: false })
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(readAddresses()).toEqual([0])
+
+      client.stopPolling()
+      expect(getLastClientState()).toMatchObject({ polling: false, pollIdle: false })
     })
 
     it('reads the other unit every round while one is offline', async () => {

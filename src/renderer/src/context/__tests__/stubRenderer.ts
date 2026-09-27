@@ -3,6 +3,7 @@ import {
   ClientConnectionConfigUpdateSchema,
   ClientRegisterConfigUpdateSchema,
   ClientUnitsSchema,
+  ClientVisibleSectionsSchema,
   ClientState,
   defaultClientState,
   MAIN_CLIENT_UUID,
@@ -38,6 +39,7 @@ const answers: Record<string, (payload: unknown) => Promise<unknown>> = {
   updateConnectionConfig: answerConfig(ClientConnectionConfigUpdateSchema),
   updateRegisterConfig: answerConfig(ClientRegisterConfigUpdateSchema),
   setUnits: answerConfig(ClientUnitsSchema),
+  setVisibleSections: answerConfig(ClientVisibleSectionsSchema),
   // The words main answers with, which for a payload it refuses is nothing at
   // all rather than an empty list.
   addReplaceServerRegister: (payload: unknown): Promise<number[] | undefined> =>

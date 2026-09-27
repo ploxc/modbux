@@ -4,25 +4,30 @@ import { clientAddress, clientStatus } from '../clientStatus'
 
 describe('clientStatus', () => {
   it.each([
-    ['connecting', false, false, 'Connecting', 'busy', false],
-    ['disconnecting', false, false, 'Disconnecting', 'busy', false],
-    ['disconnected', false, false, 'Disconnected', 'idle', false],
-    ['connected', false, false, 'Connected', 'ok', false],
-    ['connected', true, false, 'Polling', 'ok', true],
-    ['connected', true, true, 'Timeout', 'error', true]
+    ['connecting', false, false, false, 'Connecting', 'busy', false, false],
+    ['disconnecting', false, false, false, 'Disconnecting', 'busy', false, false],
+    ['disconnected', false, false, false, 'Disconnected', 'idle', false, true],
+    ['connected', false, false, false, 'Connected', 'ok', false, false],
+    ['connected', true, false, false, 'Polling', 'ok', true, false],
+    ['connected', true, true, false, 'Polling, paused: not on screen', 'ok', false, true],
+    ['connected', true, false, true, 'Timeout', 'error', true, false],
+    ['connected', true, true, true, 'Timeout', 'error', false, false]
   ] as const)(
-    '%s, polling %s, offline %s reads %s',
-    (connectState, polling, offline, label, tone, pulsing) => {
-      expect(clientStatus({ ...defaultClientState, connectState, polling, offline })).toEqual({
-        label,
-        tone,
-        polling: pulsing
-      })
+    '%s, polling %s, idle %s, offline %s reads %s',
+    (connectState, polling, pollIdle, offline, label, tone, pulsing, hollow) => {
+      expect(
+        clientStatus({ ...defaultClientState, connectState, polling, pollIdle, offline })
+      ).toEqual({ label, tone, polling: pulsing, hollow })
     }
   )
 
   it('reads a disconnected client as disconnected though its offline flag stayed up', () => {
-    const status = clientStatus({ connectState: 'disconnected', polling: false, offline: true })
+    const status = clientStatus({
+      connectState: 'disconnected',
+      polling: false,
+      pollIdle: false,
+      offline: true
+    })
     expect(status.label).toBe('Disconnected')
   })
 })
