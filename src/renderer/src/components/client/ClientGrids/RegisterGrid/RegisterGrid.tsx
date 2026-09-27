@@ -53,7 +53,11 @@ const NO_ROWS: RegisterData[] = []
 //
 //
 // Footer
-const Footer = meme(() => {
+/**
+ * When the last read answered, and how long it took. A poll changes both, so
+ * they render on their own rather than taking the pages beside them along.
+ */
+const FooterTime = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const time = useLiveZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
   // The newest transaction that answered; the log keeps the newest first.
@@ -63,40 +67,42 @@ const Footer = meme(() => {
         ?.roundTripMillis
   )
   return (
-    <GridFooterContainer
-      sx={{
-        px: 1.5,
-        justifyContent: 'space-between',
-        // The date goes where the head folds the read window under Read; the
-        // pages go with the Poll label, and the time always stays.
-        containerType: 'inline-size',
-        [atOrBelow(BREAKPOINTS.readWindow)]: {
-          '& .footer-date': { display: 'none' }
-        },
-        [atOrBelow(BREAKPOINTS.pages)]: {
-          '& .MuiTablePagination-root': { display: 'none' }
-        }
-      }}
-    >
-      <Typography variant="caption" sx={{ opacity: 0.5, whiteSpace: 'nowrap' }}>
-        <strong>
-          {time ? (
-            <>
-              <span className="footer-date">
-                {DateTime.fromMillis(time).toFormat('yyyy-MM-dd')}{' '}
-              </span>
-              {DateTime.fromMillis(time).toFormat('HH:mm:ss')}
-            </>
-          ) : (
-            'n/a'
-          )}
-          {roundTrip !== undefined && <span className="footer-round-trip"> · {roundTrip} ms</span>}
-        </strong>
-      </Typography>
-      <GridPagination />
-    </GridFooterContainer>
+    <Typography variant="caption" sx={{ opacity: 0.5, whiteSpace: 'nowrap' }}>
+      <strong>
+        {time ? (
+          <>
+            <span className="footer-date">{DateTime.fromMillis(time).toFormat('yyyy-MM-dd')} </span>
+            {DateTime.fromMillis(time).toFormat('HH:mm:ss')}
+          </>
+        ) : (
+          'n/a'
+        )}
+        {roundTrip !== undefined && <span className="footer-round-trip"> · {roundTrip} ms</span>}
+      </strong>
+    </Typography>
   )
 })
+
+const Footer = meme(() => (
+  <GridFooterContainer
+    sx={{
+      px: 1.5,
+      justifyContent: 'space-between',
+      // The date goes where the head folds the read window under Read; the
+      // pages go with the Poll label, and the time always stays.
+      containerType: 'inline-size',
+      [atOrBelow(BREAKPOINTS.readWindow)]: {
+        '& .footer-date': { display: 'none' }
+      },
+      [atOrBelow(BREAKPOINTS.pages)]: {
+        '& .MuiTablePagination-root': { display: 'none' }
+      }
+    }}
+  >
+    <FooterTime />
+    <GridPagination />
+  </GridFooterContainer>
+))
 
 //
 //
