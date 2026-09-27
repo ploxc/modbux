@@ -62,9 +62,8 @@ const BinaryCell = meme(
 
 export const binaryColumn: GridColDef<RegisterData, string> = {
   field: 'bin',
-  // A filter over a bit string answers nothing anyone asks, and the filter
-  // panel lists every filterable column whether it has a menu or not.
-  disableColumnMenu: true,
+  // A filter over a bit string answers nothing anyone asks. The column menu
+  // stays, for hiding the column.
   filterable: false,
   headerName: 'BIN',
   width: 80,

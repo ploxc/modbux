@@ -477,10 +477,12 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     ).toHaveCount(0)
     await mainPage.keyboard.press('Escape')
 
-    // BIN has no column menu at all.
-    const binHeader = mainPage.locator('.MuiDataGrid-columnHeader[data-field="bin"]')
-    await binHeader.hover()
-    await expect(binHeader.locator('.MuiDataGrid-menuIconButton')).toHaveCount(0)
+    // BIN's menu hides the column and offers no filter.
+    await openColumnMenu(mainPage, 'bin')
+    const binMenu = mainPage.locator('.MuiDataGrid-menuList')
+    await expect(binMenu.getByRole('menuitem', { name: 'Hide column' })).toBeVisible()
+    await expect(binMenu.getByRole('menuitem', { name: 'Filter' })).toHaveCount(0)
+    await mainPage.keyboard.press('Escape')
 
     // Nor is it among the columns the filter panel offers, where hex is.
     await openColumnMenu(mainPage, 'hex')
