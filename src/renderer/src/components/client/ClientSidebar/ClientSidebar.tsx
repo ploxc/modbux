@@ -7,6 +7,9 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useMemo } from 'react'
 import ClientCard from './ClientCard/ClientCard'
+import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { useDragSensors } from '@renderer/components/shared/sortable'
 
 /** Adds a client with the default configuration and selects it. */
 export const addClient = (): void => {
@@ -19,6 +22,15 @@ const ClientSidebar = meme(({ onCollapse }: { onCollapse: () => void }): JSX.Ele
   const uuidKey = useClientZustand((z) => Object.keys(z.clients).join(' '))
   const uuids = useMemo(() => uuidKey.split(' '), [uuidKey])
   const handleAdd = useCallback(addClient, [])
+  const sensors = useDragSensors()
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return
+      const clientZustand = useClientZustand.getState()
+      clientZustand.moveClient(String(active.id), uuids.indexOf(String(over.id)))
+    },
+    [uuids]
+  )
 
   return (
     <Box
@@ -75,9 +87,13 @@ const ClientSidebar = meme(({ onCollapse }: { onCollapse: () => void }): JSX.Ele
           <KeyboardDoubleArrowRight />
         </IconButton>
       </Box>
-      {uuids.map((uuid) => (
-        <ClientCard key={uuid} uuid={uuid} deletable={uuids.length > 1} />
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={uuids} strategy={verticalListSortingStrategy}>
+          {uuids.map((uuid) => (
+            <ClientCard key={uuid} uuid={uuid} deletable={uuids.length > 1} />
+          ))}
+        </SortableContext>
+      </DndContext>
       <Box sx={{ flexGrow: 1 }} />
       <Button
         data-testid="client-sidebar-new-btn"

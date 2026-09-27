@@ -9,6 +9,11 @@ import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useMemo, useState } from 'react'
 import UnitIdField from './UnitIdField'
+import { useSortable } from '@dnd-kit/sortable'
+import { sortableStyle } from '@renderer/components/shared/sortable'
+import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
+import { useDragSensors } from '@renderer/components/shared/sortable'
 import UnitMenu, { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface UnitTabProps {
@@ -36,6 +41,7 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
   )
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
+  const sortable = useSortable({ id: unit })
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const handleSelect = useCallback(() => {
@@ -70,6 +76,9 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
 
   return (
     <Box
+      ref={sortable.setNodeRef}
+      style={sortableStyle(sortable)}
+      {...(naming || numbering ? {} : sortable.listeners)}
       sx={(theme) => ({
         display: 'flex',
         alignItems: 'center',
@@ -168,6 +177,15 @@ const UnitTabs = meme(() => {
     const clientZustand = useClientZustand.getState()
     clientZustand.addUnit()
   }, [])
+  const sensors = useDragSensors()
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return
+      const clientZustand = useClientZustand.getState()
+      void clientZustand.moveUnit(selectedUuid, String(active.id), units.indexOf(String(over.id)))
+    },
+    [selectedUuid, units]
+  )
 
   return (
     <Box
@@ -181,9 +199,13 @@ const UnitTabs = meme(() => {
         background: theme.palette.background.paper
       })}
     >
-      {units.map((unit, index) => (
-        <UnitTab key={unit} unit={unit} index={index} />
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={units} strategy={horizontalListSortingStrategy}>
+          {units.map((unit, index) => (
+            <UnitTab key={unit} unit={unit} index={index} />
+          ))}
+        </SortableContext>
+      </DndContext>
       <IconButton
         size="small"
         aria-label="Add unit"

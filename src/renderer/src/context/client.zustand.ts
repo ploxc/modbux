@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { persist } from 'zustand/middleware'
 import { v4 } from 'uuid'
+import { arrayMove } from '@dnd-kit/sortable'
 import {
   ClientSession,
   PersistedClient,
@@ -107,6 +108,16 @@ export const useClientZustand = create<
           if (!held) state.selectedUuid = uuid
         })
         return uuid
+      },
+      moveClient: (uuid, index) => {
+        set((state) => {
+          const entries = Object.entries(state.clients)
+          const from = entries.findIndex(([key]) => key === uuid)
+          if (from === -1) return
+          // A record keeps its keys in the order they were added, so the
+          // sidebar's order is the record rebuilt in the new one.
+          state.clients = Object.fromEntries(arrayMove(entries, from, index))
+        })
       },
       duplicateClient: (uuid) => {
         const source = get().clients[uuid]
@@ -477,6 +488,21 @@ export const useClientZustand = create<
           unitId: nextUnitId(units, connectionConfig.protocol),
           name: source.name === '' ? '' : `${source.name} copy`
         })
+      },
+      moveUnit: async (uuid, unit, index) => {
+        const client = get().clients[uuid]
+        if (!client || !get().sessions[uuid]?.ready) return false
+        const from = client.units.findIndex((found) => found.uuid === unit)
+        if (from === -1) return false
+        const units = arrayMove(client.units, from, index)
+        if (!(await flushUnitsToMain(uuid, units))) return false
+        const order = units.map((found) => found.uuid)
+        set((state) =>
+          onClient(state, uuid, ({ client: draft }) => {
+            draft.units.sort((a, b) => order.indexOf(a.uuid) - order.indexOf(b.uuid))
+          })
+        )
+        return true
       },
       removeUnit: async (unit) => {
         const state = get()

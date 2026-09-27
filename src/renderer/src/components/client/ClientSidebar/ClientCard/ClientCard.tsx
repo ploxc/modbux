@@ -18,6 +18,11 @@ import ProtocolIcon from '../ProtocolIcon'
 import AddUnitRow from './AddUnitRow'
 import ClientMenu from './ClientMenu'
 import UnitRow from './UnitRow'
+import { useSortable } from '@dnd-kit/sortable'
+import { sortableStyle } from '@renderer/components/shared/sortable'
+import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { useDragSensors } from '@renderer/components/shared/sortable'
 import { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface ClientCardProps {
@@ -45,6 +50,16 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
   const units = useMemo(() => (unitList === '' ? [] : unitList.split(',')), [unitList])
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const sortable = useSortable({ id: uuid })
+  const sensors = useDragSensors()
+  const handleUnitDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return
+      const clientZustand = useClientZustand.getState()
+      void clientZustand.moveUnit(uuid, String(active.id), units.indexOf(String(over.id)))
+    },
+    [uuid, units]
+  )
   const [expanded, setExpanded] = useState(selected)
   const [renaming, setRenaming] = useState(false)
 
@@ -191,6 +206,8 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
 
   return (
     <Box
+      ref={sortable.setNodeRef}
+      style={sortableStyle(sortable)}
       sx={{
         flexShrink: 0,
         border: '1px solid',
@@ -200,7 +217,12 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
         overflow: 'hidden'
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center' }} onContextMenu={handleContextMenu}>
+      {/* The head drags the card; the unit rows below drag themselves. */}
+      <Box
+        {...(renaming ? {} : sortable.listeners)}
+        sx={{ display: 'flex', alignItems: 'center' }}
+        onContextMenu={handleContextMenu}
+      >
         {/* A field inside a button would take its clicks and keys, so the name is edited in a plain box. */}
         {renaming ? (
           <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, gap: 1.25, p: 1.25 }}>{face}</Box>
@@ -250,9 +272,17 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
             gap: 0.25
           }}
         >
-          {units.map((unit) => (
-            <UnitRow key={unit} uuid={uuid} unit={unit} />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleUnitDragEnd}
+          >
+            <SortableContext items={units} strategy={verticalListSortingStrategy}>
+              {units.map((unit) => (
+                <UnitRow key={unit} uuid={uuid} unit={unit} />
+              ))}
+            </SortableContext>
+          </DndContext>
           <AddUnitRow uuid={uuid} />
         </Box>
       )}

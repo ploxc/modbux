@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test'
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   unitIdField,
@@ -17,6 +18,28 @@ const SERVER_CONFIG = resolve(__dirname, '../../fixtures/config-files/server-int
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
 })
+
+/**
+ * A drag the way dnd-kit hears one: pointer down, a move past its activation
+ * distance, steps onto the target's edge, then up.
+ */
+const drag = async (
+  page: Page,
+  source: Locator,
+  target: Locator,
+  edge: 'left' | 'top'
+): Promise<void> => {
+  const from = await source.boundingBox()
+  const to = await target.boundingBox()
+  if (!from || !to) throw new Error('drag: source or target is not on screen')
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2 + 8, from.y + from.height / 2 + 8, { steps: 4 })
+  const x = edge === 'left' ? to.x + 2 : to.x + to.width / 2
+  const y = edge === 'top' ? to.y + 2 : to.y + to.height / 2
+  await page.mouse.move(x, y, { steps: 12 })
+  await page.mouse.up()
+}
 
 test.describe.serial('A client with two units', () => {
   test('a server with units 0 and 1', async ({ mainPage }) => {
@@ -174,5 +197,30 @@ test.describe.serial('A client with two units', () => {
     await expect(
       mainPage.locator('[data-testid^="client-card-"][aria-pressed="true"]')
     ).toContainText('Test rig')
+  })
+
+  test('a unit tab dragged before another lands there', async ({ mainPage }) => {
+    await mainPage.getByTestId('add-unit-btn').click()
+    const addedId = (await mainPage.getByTestId('unit-tab-1').textContent()) ?? ''
+    await drag(
+      mainPage,
+      mainPage.getByTestId('unit-tab-1'),
+      mainPage.getByTestId('unit-tab-0'),
+      'left'
+    )
+
+    await expect(mainPage.getByTestId('unit-tab-0')).toHaveText(addedId)
+  })
+
+  test('a client card dragged above another lands there', async ({ mainPage }) => {
+    const cards = mainPage.locator('[data-testid^="client-card-"][aria-pressed]')
+    const count = await cards.count()
+    await mainPage.getByTestId('client-sidebar-add-btn').click()
+    await expect(cards).toHaveCount(count + 1)
+    const addedId = await cards.last().getAttribute('data-testid')
+
+    await drag(mainPage, cards.last(), cards.first(), 'top')
+
+    await expect(cards.first()).toHaveAttribute('data-testid', addedId ?? '')
   })
 })

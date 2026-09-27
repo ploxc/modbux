@@ -81,6 +81,42 @@ describe('duplicating a unit', () => {
   })
 })
 
+describe('moving a unit', () => {
+  it('hands main the new order and holds it', async () => {
+    const { useClientZustand } = await load()
+    await useClientZustand.getState().addUnit(2)
+    await useClientZustand.getState().addUnit(3)
+    const { selectedUuid } = useClientZustand.getState()
+    const third = selectedUnit(useClientZustand.getState()).uuid
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().moveUnit(selectedUuid, third, 0)).toBe(true)
+
+    expect(sentUnits().map(({ unitId }) => unitId)).toEqual([3, 1, 2])
+    expect(selectedClient(useClientZustand.getState()).units.map(({ unitId }) => unitId)).toEqual([
+      3, 1, 2
+    ])
+  })
+
+  it('refuses a unit the client does not hold', async () => {
+    const { useClientZustand } = await load()
+    await useClientZustand.getState().addUnit(2)
+    const { selectedUuid } = useClientZustand.getState()
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().moveUnit(selectedUuid, 'nobody', 0)).toBe(false)
+    expect(calls.filter(({ method }) => method === 'setUnits')).toEqual([])
+  })
+
+  it('refuses a client it does not hold', async () => {
+    const { useClientZustand } = await load()
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().moveUnit('nobody', 'unit', 0)).toBe(false)
+    expect(calls.filter(({ method }) => method === 'setUnits')).toEqual([])
+  })
+})
+
 describe('removing a unit', () => {
   it('hands main the rest, and shows the first one left', async () => {
     const { useClientZustand } = await load()

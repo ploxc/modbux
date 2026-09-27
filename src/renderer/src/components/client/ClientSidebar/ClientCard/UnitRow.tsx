@@ -10,6 +10,8 @@ import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useState } from 'r
 import UnitIdField from '@renderer/components/client/ClientGrids/UnitIdField'
 import UnitMenu, { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 import { showUnit } from '@renderer/components/client/UnitMenu/showUnit'
+import { useSortable } from '@dnd-kit/sortable'
+import { sortableStyle } from '@renderer/components/shared/sortable'
 
 interface UnitRowProps {
   /** The client the unit belongs to. */
@@ -35,6 +37,7 @@ const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.includes(unit))
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
+  const sortable = useSortable({ id: unit })
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const handleSelect = useCallback(() => {
@@ -99,6 +102,9 @@ const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
     <>
       <ButtonBase
         data-testid={`client-unit-${unit}`}
+        ref={sortable.setNodeRef}
+        style={sortableStyle(sortable)}
+        {...(naming || numbering ? {} : sortable.listeners)}
         aria-pressed={selected}
         onClick={handleSelect}
         onDoubleClick={startNaming}

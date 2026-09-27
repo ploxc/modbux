@@ -79,6 +79,8 @@ export type ClientZustand = {
    */
   deleteClient: (uuid: string) => Promise<boolean>
   setSelectedUuid: (uuid: string) => void
+  /** Moves a client to `index` in the sidebar's order. */
+  moveClient: (uuid: string, index: number) => void
   setName: (name: string) => void
   // Register mapping
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
@@ -130,6 +132,11 @@ export type ClientZustand = {
    * under the unit id after the highest, and shows it. Answers whether main took it.
    */
   duplicateUnit: (unit: string) => Promise<boolean>
+  /**
+   * Moves a unit of a client to `index` in its order, and hands main the new
+   * order. Answers whether main took it.
+   */
+  moveUnit: (uuid: string, unit: string, index: number) => Promise<boolean>
   /** Takes a unit of the selected client away, in main and here. The last one stays. */
   removeUnit: (unit: string) => Promise<boolean>
   /** Names the unit on screen. */

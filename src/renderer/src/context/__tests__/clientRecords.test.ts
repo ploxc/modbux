@@ -218,6 +218,33 @@ describe('the clients a store holds', () => {
     expect(Object.keys(useClientZustand.getState().clients)).toEqual([MAIN_CLIENT_UUID])
   })
 
+  it('moves a client to another place in the order, and keeps it past a reload', async () => {
+    const { useClientZustand } = await load()
+    const second = useClientZustand.getState().addClient()
+    const third = useClientZustand.getState().addClient()
+
+    useClientZustand.getState().moveClient(third, 0)
+
+    expect(Object.keys(useClientZustand.getState().clients)).toEqual([
+      third,
+      MAIN_CLIENT_UUID,
+      second
+    ])
+    const stored = JSON.parse(localStorage.getItem(CLIENT_ZUSTAND_STORAGE_KEY) ?? '{}') as {
+      state?: { clients?: Record<string, unknown> }
+    }
+    expect(Object.keys(stored.state?.clients ?? {})).toEqual([third, MAIN_CLIENT_UUID, second])
+  })
+
+  it('moves no client it does not hold', async () => {
+    const { useClientZustand } = await load()
+    const second = useClientZustand.getState().addClient()
+
+    useClientZustand.getState().moveClient('nobody', 0)
+
+    expect(Object.keys(useClientZustand.getState().clients)).toEqual([MAIN_CLIENT_UUID, second])
+  })
+
   it('keeps the last client', async () => {
     const { useClientZustand } = await load()
 
