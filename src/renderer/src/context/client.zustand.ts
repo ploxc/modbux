@@ -19,7 +19,6 @@ import {
   ClientUnit,
   addType,
   formatLayout,
-  maxUnitId,
   parseLayout,
   removeType,
   typesIn,
@@ -29,6 +28,7 @@ import {
   RegisterType
 } from '@shared'
 import {
+  appendUnit,
   changeUnit,
   clearRegisterDataWhenIdle,
   flushUnitsToMain,
@@ -36,6 +36,7 @@ import {
   holdSelection,
   isDisconnected,
   isPlainRecord,
+  nextUnitId,
   onClient,
   readWhenMainCan,
   recordField,
@@ -461,24 +462,21 @@ export const useClientZustand = create<
         recordField(view, 'polled', before, polled)
         return true
       },
-      addUnit: async (givenUnitId, name = '') => {
-        const state = get()
-        if (!selectedSession(state).ready) return false
-        const { selectedUuid } = state
-        const { units, connectionConfig } = selectedClient(state)
-        // The id after the highest one held, within what the protocol takes.
-        const highest = Math.max(...units.map(({ unitId }) => unitId))
-        const unitId = givenUnitId ?? Math.min(highest + 1, maxUnitId(connectionConfig.protocol))
-        const unit = { ...newClientUnit(v4(), unitId), name }
-        if (!(await flushUnitsToMain(selectedUuid, [...units, unit]))) return false
-
-        set((draft) =>
-          onClient(draft, selectedUuid, ({ client, session }) => {
-            client.units.push(unit)
-            session.selectedUnit = unit.uuid
-          })
-        )
-        return true
+      addUnit: (givenUnitId, name = '') => {
+        const { units, connectionConfig } = selectedClient(get())
+        const unitId = givenUnitId ?? nextUnitId(units, connectionConfig.protocol)
+        return appendUnit(set, get, { ...newClientUnit(v4(), unitId), name })
+      },
+      duplicateUnit: (unit) => {
+        const { units, connectionConfig } = selectedClient(get())
+        const source = units.find(({ uuid }) => uuid === unit)
+        if (!source) return Promise.resolve(false)
+        return appendUnit(set, get, {
+          ...structuredClone(source),
+          uuid: v4(),
+          unitId: nextUnitId(units, connectionConfig.protocol),
+          name: source.name === '' ? '' : `${source.name} copy`
+        })
       },
       removeUnit: async (unit) => {
         const state = get()

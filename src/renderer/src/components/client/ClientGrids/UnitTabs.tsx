@@ -1,6 +1,5 @@
 import { barSurface, textBright, textMuted } from '@renderer/theme'
 import Add from '@mui/icons-material/Add'
-import Close from '@mui/icons-material/Close'
 import Box from '@mui/material/Box'
 import ButtonBase from '@mui/material/ButtonBase'
 import IconButton from '@mui/material/IconButton'
@@ -10,6 +9,7 @@ import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useMemo, useState } from 'react'
 import UnitIdField from './UnitIdField'
+import UnitMenu, { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface UnitTabProps {
   unit: string
@@ -18,7 +18,8 @@ interface UnitTabProps {
 
 /**
  * One unit: its id, its name, and a dot for whether a running poll hears it.
- * A double click names it; a double click on the id changes the id.
+ * A double click names it; a double click on the id changes the id. A right
+ * click opens the unit menu, which removes it too.
  */
 const UnitTab = meme(({ unit, index }: UnitTabProps) => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
@@ -29,13 +30,13 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
     (z) => z.clients[selectedUuid]?.units.find(({ uuid }) => uuid === unit)?.name ?? ''
   )
   const selected = useClientZustand((z) => selectedUnit(z).uuid === unit)
-  const unitCount = useClientZustand((z) => z.clients[selectedUuid]?.units.length ?? 0)
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
   const offline = useLiveZustand((z) =>
     dataOf(z, selectedUuid).clientState.offlineUnits.includes(unit)
   )
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const handleSelect = useCallback(() => {
     const clientZustand = useClientZustand.getState()
@@ -59,10 +60,13 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
     if (event.key === 'Enter' || event.key === 'Escape') setNaming(false)
   }, [])
 
-  const handleRemove = useCallback(() => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.removeUnit(unit)
-  }, [unit])
+  const openMenu = useCallback((event: MouseEvent) => {
+    event.preventDefault()
+    setMenuPosition({ left: event.clientX, top: event.clientY })
+  }, [])
+  const closeMenu = useCallback(() => setMenuPosition(null), [])
+  const openNaming = useCallback(() => setNaming(true), [])
+  const openNumbering = useCallback(() => setNumbering(true), [])
 
   return (
     <Box
@@ -81,6 +85,7 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
         data-testid={`unit-tab-${index}`}
         onClick={handleSelect}
         onDoubleClick={startNaming}
+        onContextMenu={openMenu}
         sx={{ height: '100%', display: 'flex', alignItems: 'center', gap: 1, px: 1.5 }}
       >
         {numbering ? (
@@ -138,17 +143,14 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
           })}
         />
       </ButtonBase>
-      {selected && unitCount > 1 && (
-        <IconButton
-          size="small"
-          aria-label="Remove unit"
-          data-testid="remove-unit-btn"
-          onClick={handleRemove}
-          sx={{ mr: 0.5 }}
-        >
-          <Close sx={{ fontSize: 14 }} />
-        </IconButton>
-      )}
+      <UnitMenu
+        uuid={selectedUuid}
+        unit={unit}
+        position={menuPosition}
+        onClose={closeMenu}
+        onRename={openNaming}
+        onRenumber={openNumbering}
+      />
     </Box>
   )
 })

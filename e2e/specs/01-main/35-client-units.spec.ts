@@ -106,13 +106,21 @@ test.describe.serial('A client with two units', () => {
     await expect(mainPage.getByTestId('section-grid-holding_registers')).toBeVisible()
   })
 
-  test('the second unit goes, and the first stays', async ({ mainPage }) => {
-    await mainPage.getByTestId('unit-tab-1').click()
-    await mainPage.getByTestId('remove-unit-btn').click()
+  test('removing asks first, and keeping it keeps the unit', async ({ mainPage }) => {
+    await mainPage.getByTestId('unit-tab-1').click({ button: 'right' })
+    await mainPage.locator('[data-testid^="unit-remove-"]:visible').click()
+    await mainPage.getByTestId('unit-remove-cancel-btn').click()
+
+    await expect(mainPage.getByTestId('unit-tab-1')).toBeVisible()
+  })
+
+  test('the second unit goes after the confirm, and the first stays', async ({ mainPage }) => {
+    await mainPage.getByTestId('unit-tab-1').click({ button: 'right' })
+    await mainPage.locator('[data-testid^="unit-remove-"]:visible').click()
+    await mainPage.getByTestId('unit-remove-confirm-btn').click()
 
     await expect(mainPage.getByTestId('unit-tab-1')).toHaveCount(0)
     await expect(mainPage.getByTestId('unit-tab-0')).toHaveAttribute('aria-selected', 'true')
-    await expect(mainPage.getByTestId('remove-unit-btn')).toHaveCount(0)
     await disconnectClient(mainPage)
   })
 

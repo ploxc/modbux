@@ -125,6 +125,11 @@ export type ClientZustand = {
    * a unit id it takes the one after the highest. Answers whether main took it.
    */
   addUnit: (unitId?: number, name?: string) => Promise<boolean>
+  /**
+   * Adds a copy of a unit of the selected client, mapping and layout included,
+   * under the unit id after the highest, and shows it. Answers whether main took it.
+   */
+  duplicateUnit: (unit: string) => Promise<boolean>
   /** Takes a unit of the selected client away, in main and here. The last one stays. */
   removeUnit: (unit: string) => Promise<boolean>
   /** Names the unit on screen. */

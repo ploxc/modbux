@@ -55,6 +55,32 @@ describe('adding a unit', () => {
   })
 })
 
+describe('duplicating a unit', () => {
+  it('copies its mapping and layout under a new uuid and the next unit id, and shows it', async () => {
+    const { useClientZustand } = await load()
+    useClientZustand.getState().setUnitName('Meter')
+    useClientZustand.getState().setLayout('r(hr:50,co:50)')
+    const source = selectedUnit(useClientZustand.getState())
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().duplicateUnit(source.uuid)).toBe(true)
+
+    const copy = selectedUnit(useClientZustand.getState())
+    expect(copy.uuid).not.toBe(source.uuid)
+    expect([copy.unitId, copy.name, copy.layout]).toEqual([2, 'Meter copy', 'r(hr:50,co:50)'])
+    expect(copy.registerMapping).toEqual(source.registerMapping)
+    expect(sentUnits().map(({ unitId }) => unitId)).toEqual([1, 2])
+  })
+
+  it('refuses a unit the client does not hold', async () => {
+    const { useClientZustand } = await load()
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().duplicateUnit('nobody')).toBe(false)
+    expect(calls.filter(({ method }) => method === 'setUnits')).toEqual([])
+  })
+})
+
 describe('removing a unit', () => {
   it('hands main the rest, and shows the first one left', async () => {
     const { useClientZustand } = await load()

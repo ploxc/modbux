@@ -8,6 +8,8 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useState } from 'react'
 import UnitIdField from '@renderer/components/client/ClientGrids/UnitIdField'
+import UnitMenu, { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
+import { showUnit } from '@renderer/components/client/UnitMenu/showUnit'
 
 interface UnitRowProps {
   /** The client the unit belongs to. */
@@ -16,21 +18,9 @@ interface UnitRowProps {
 }
 
 /**
- * Shows this client and this unit. Answers whether both are on screen after,
- * which they are not while the selection is held.
- */
-const showUnit = (uuid: string, unit: string): boolean => {
-  const clientZustand = useClientZustand.getState()
-  clientZustand.setSelectedUuid(uuid)
-  if (useClientZustand.getState().selectedUuid !== uuid) return false
-  clientZustand.selectUnit(unit)
-  return true
-}
-
-/**
  * A unit in the client card: its id and its name, the id red while the unit
  * does not answer. A click shows it; a double click names it, and one on the
- * id changes the id.
+ * id changes the id. A right click opens the unit menu.
  */
 const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
   const unitId = useClientZustand(
@@ -45,6 +35,7 @@ const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.includes(unit))
   const [naming, setNaming] = useState(false)
   const [numbering, setNumbering] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
 
   const handleSelect = useCallback(() => {
     showUnit(uuid, unit)
@@ -64,6 +55,14 @@ const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
     [uuid, unit]
   )
   const stopNumbering = useCallback(() => setNumbering(false), [])
+  const openMenu = useCallback((event: MouseEvent) => {
+    event.preventDefault()
+    setMenuPosition({ left: event.clientX, top: event.clientY })
+  }, [])
+  const closeMenu = useCallback(() => setMenuPosition(null), [])
+  const openNaming = useCallback(() => setNaming(true), [])
+  const openNumbering = useCallback(() => setNumbering(true), [])
+
   const handleName = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const clientZustand = useClientZustand.getState()
     clientZustand.setUnitName(event.target.value)
@@ -97,56 +96,67 @@ const UnitRow = meme(({ uuid, unit }: UnitRowProps) => {
   )
 
   return (
-    <ButtonBase
-      data-testid={`client-unit-${unit}`}
-      aria-pressed={selected}
-      onClick={handleSelect}
-      onDoubleClick={startNaming}
-      sx={(theme) => ({
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        gap: 1.25,
-        px: 1,
-        py: 0.5,
-        borderRadius: 1.5,
-        textAlign: 'left',
-        background: selected ? alpha(theme.palette.primary.main, 0.16) : 'transparent'
-      })}
-    >
-      {badge}
-      {naming ? (
-        <InputBase
-          autoFocus
-          value={name}
-          onChange={handleName}
-          onBlur={stopNaming}
-          onKeyDown={handleKey}
-          placeholder="Name"
-          inputProps={{
-            'data-testid': `client-unit-name-input-${unit}`,
-            'aria-label': 'Unit name'
-          }}
-          sx={{ flexGrow: 1, fontSize: 13 }}
-        />
-      ) : (
-        <Box
-          component="span"
-          sx={{
-            flexGrow: 1,
-            minWidth: 0,
-            fontSize: 13,
-            color: name === '' ? textMuted : undefined,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {name === '' ? 'Unnamed' : name}
-        </Box>
-      )}
-    </ButtonBase>
+    <>
+      <ButtonBase
+        data-testid={`client-unit-${unit}`}
+        aria-pressed={selected}
+        onClick={handleSelect}
+        onDoubleClick={startNaming}
+        onContextMenu={openMenu}
+        sx={(theme) => ({
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: 1.25,
+          px: 1,
+          py: 0.5,
+          borderRadius: 1.5,
+          textAlign: 'left',
+          background: selected ? alpha(theme.palette.primary.main, 0.16) : 'transparent'
+        })}
+      >
+        {badge}
+        {naming ? (
+          <InputBase
+            autoFocus
+            value={name}
+            onChange={handleName}
+            onBlur={stopNaming}
+            onKeyDown={handleKey}
+            placeholder="Name"
+            inputProps={{
+              'data-testid': `client-unit-name-input-${unit}`,
+              'aria-label': 'Unit name'
+            }}
+            sx={{ flexGrow: 1, fontSize: 13 }}
+          />
+        ) : (
+          <Box
+            component="span"
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              fontSize: 13,
+              color: name === '' ? textMuted : undefined,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {name === '' ? 'Unnamed' : name}
+          </Box>
+        )}
+      </ButtonBase>
+      <UnitMenu
+        uuid={uuid}
+        unit={unit}
+        position={menuPosition}
+        onClose={closeMenu}
+        onRename={openNaming}
+        onRenumber={openNumbering}
+      />
+    </>
   )
 })
 

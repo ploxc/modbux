@@ -10,6 +10,8 @@
  */
 import {
   ClientUnit,
+  maxUnitId,
+  Protocol,
   clientOwner,
   configuredReadGroups,
   readLoopOwner,
@@ -95,6 +97,34 @@ export const flushUnitsToMain = async (uuid: string, units: ClientUnit[]): Promi
   clearTimeout(unitTimers.get(uuid))
   unitTimers.delete(uuid)
   return (await window.api.setUnits({ uuid, units })) ?? false
+}
+
+/** The unit id after the highest the client holds, within what the protocol takes. */
+export const nextUnitId = (units: ClientUnit[], protocol: Protocol): number =>
+  Math.min(Math.max(...units.map(({ unitId }) => unitId)) + 1, maxUnitId(protocol))
+
+/**
+ * A unit added to the selected client, handed to main with the others and
+ * shown. Answers whether main took it.
+ */
+export const appendUnit = async (
+  set: ClientSet,
+  get: () => ClientZustand,
+  unit: ClientUnit
+): Promise<boolean> => {
+  const state = get()
+  if (!selectedSession(state).ready) return false
+  const { selectedUuid } = state
+  const { units } = selectedClient(state)
+  if (!(await flushUnitsToMain(selectedUuid, [...units, unit]))) return false
+
+  set((draft) =>
+    onClient(draft, selectedUuid, ({ client, session }) => {
+      client.units.push(unit)
+      session.selectedUnit = unit.uuid
+    })
+  )
+  return true
 }
 
 /**
