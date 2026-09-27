@@ -42,6 +42,37 @@ export const useComInputWidth = (ports: { path: string }[]): number =>
     return Math.max(60, textWidth + 60)
   }, [ports])
 
+/**
+ * The path with its start cut off rather than its end, drawn over the field
+ * while it is not focused: `…usbserial-A10` says which port, `/dev/tty.` does
+ * not. Right to left puts the ellipsis at the start; the marks on either side
+ * of the path keep its slashes and dots where a left to right reader expects them.
+ */
+const StartEllipsis = meme(({ value }: { value: string }) => (
+  <Box
+    component="span"
+    aria-hidden
+    className="com-start-ellipsis"
+    sx={{
+      position: 'absolute',
+      // The large field's inset on the left; the popup button's room on the right.
+      left: 10,
+      right: 34,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      pointerEvents: 'none',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      direction: 'rtl',
+      textAlign: 'left',
+      '.Mui-focused > &': { display: 'none' }
+    }}
+  >
+    {`\u200E${value}\u200E`}
+  </Box>
+))
+
 export const ComTextField = meme(
   (
     params: AutocompleteRenderInputParams & {
@@ -51,6 +82,7 @@ export const ComTextField = meme(
     }
   ) => {
     const { comLabel, comError, comLoading, ...rest } = params
+    const value = String(rest.slotProps.htmlInput.value ?? '')
 
     return (
       <TextField
@@ -68,6 +100,10 @@ export const ComTextField = meme(
           '& .MuiOutlinedInput-input': {
             overflow: 'hidden',
             textOverflow: 'ellipsis'
+          },
+          // Unfocused, the field shows the path through the overlay below.
+          '& .MuiOutlinedInput-root:not(.Mui-focused) .MuiOutlinedInput-input': {
+            color: 'transparent'
           }
         }}
         slotProps={{
@@ -76,6 +112,7 @@ export const ComTextField = meme(
             ...rest.slotProps.input,
             endAdornment: (
               <>
+                <StartEllipsis value={value} />
                 {comLoading ? <CircularProgress size={16} /> : null}
                 {rest.slotProps.input.endAdornment}
               </>

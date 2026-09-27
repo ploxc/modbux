@@ -12,8 +12,7 @@ import {
   ComTextField,
   DataBitsSelect,
   ParitySelect,
-  StopBitsSelect,
-  useComInputWidth
+  StopBitsSelect
 } from '@renderer/components/shared/inputs/SerialPortInputs'
 import { useClientZustand, selectedClient, selectedSession } from '@renderer/context/client.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
@@ -33,7 +32,6 @@ const ComInput = meme(() => {
   const comValid = useClientZustand((z) => selectedSession(z).valid.com)
   const loading = useClientZustand((z) => z.serialPortsLoading)
   const ports = useClientZustand((z) => z.serialPorts)
-  const inputWidth = useComInputWidth(ports)
 
   // Typing is valid only once it is not blank; picking from the list always is.
   const handleInputChange = useCallback((_event: unknown, value: string): void => {
@@ -56,7 +54,8 @@ const ComInput = meme(() => {
       data-testid="rtu-com-input"
       onInputChange={handleInputChange}
       onChange={handleChange}
-      sx={{ width: inputWidth, maxWidth: 220 }}
+      // Fixed, so the top bar folds at the same width whatever ports are plugged in.
+      sx={{ width: 160 }}
       renderInput={(params) => (
         <ComTextField {...params} comLabel="COM Port" comError={!comValid} comLoading={loading} />
       )}
