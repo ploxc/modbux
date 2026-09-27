@@ -317,9 +317,13 @@ const base = createTheme({
               padding: `0 ${size.inset}px`
             },
             // The notch opens 2 px either side of the floated label, which
-            // sits at the inset plus one.
+            // sits at the inset plus one. A field without a label carries a
+            // legend too, its span the `notranslate` zero-width space, which
+            // padded would open a 4 px gap in the top border.
             '& .MuiOutlinedInput-notchedOutline': { paddingLeft: size.inset - 2 },
-            '& .MuiOutlinedInput-notchedOutline legend > span': { padding: '0 2px' },
+            '& .MuiOutlinedInput-notchedOutline legend > span:not(.notranslate)': {
+              padding: '0 2px'
+            },
             '& .MuiSelect-select': {
               display: 'flex',
               alignItems: 'center',
