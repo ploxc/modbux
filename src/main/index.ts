@@ -27,7 +27,7 @@ const server = new ModbusServer({ windows })
 // window that took a call gets 30 s to answer it: `read` waits for the client's
 // timeout, up to 10 s, and a second past it.
 const mcpRelay = new McpRelay({ windows, ackTimeout: 5000, answerTimeout: 30000 })
-const mcp = new McpConnector({ run: mcpRelay.run })
+const mcp = new McpConnector({ run: mcpRelay.run, debug: !app.isPackaged })
 onIpcEvent('mcp_ack', (_, id) => mcpRelay.acknowledge(id))
 onIpcEvent('mcp_result', (_, result) => mcpRelay.answer(result))
 

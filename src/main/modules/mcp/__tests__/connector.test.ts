@@ -214,6 +214,15 @@ describe('McpConnector', () => {
       ])
     })
 
+    it('offers the debug tools from a build that is not packaged, whatever is ticked', async () => {
+      await connector.stop()
+      connector = new McpConnector({ run, debug: true })
+      await connector.apply(settings())
+      const client = await connect()
+      const { tools } = await client.listTools()
+      expect(tools.map((tool) => tool.name)).toContain('inspect_layout')
+    })
+
     it('offers the operate tools beside the read tools with operate ticked', async () => {
       await connector.apply(settings({ access: access({ enabled: true, operate: true }) }))
       const client = await connect()

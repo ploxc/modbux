@@ -31,6 +31,7 @@ import {
   setMappingEntry
 } from './mappingTools'
 import { scanRegisters, scanUnitIds, stopScan } from './scanTools'
+import { inspectLayout } from './debugTools'
 
 /** What the stores hold now, as the read tools look at it. */
 const readSource = (): ReadSource => {
@@ -54,6 +55,7 @@ const TOOLS: { [T in McpToolName]: (args: McpToolArgs<T>) => unknown } = {
   get_scan: (args) => getScan(readSource(), args),
   list_servers: () => listServers(readSource()),
   get_unit: (args) => getUnit(readSource(), args),
+  inspect_layout: inspectLayout,
   set_client_config: setClientConfig,
   connect,
   disconnect,

@@ -28,6 +28,8 @@ export type RunTool = (side: McpSide, tool: McpToolName, args: unknown) => Promi
 
 interface McpConnectorParams {
   run: RunTool
+  /** Whether the debug tools are offered: a build that is not packaged. */
+  debug?: boolean
 }
 
 const failure = (text: string): CallToolResult => ({
@@ -47,14 +49,16 @@ const digest = (value: string): Buffer => createHash('sha256').update(value).dig
  */
 export class McpConnector {
   private _run: RunTool
+  private _debug: boolean
   private _settings: McpSettings | undefined
   private _server: Server | undefined
   private _port: number | undefined
   /** The apply in progress, which the next one waits for. */
   private _applying: Promise<unknown> = Promise.resolve()
 
-  constructor({ run }: McpConnectorParams) {
+  constructor({ run, debug = false }: McpConnectorParams) {
     this._run = run
+    this._debug = debug
   }
 
   /**
@@ -162,7 +166,7 @@ export class McpConnector {
     )
     const access = this._settings?.access
     const offered = Object.entries(MCP_TOOLS).filter(
-      ([, tool]) => access && offersLayer(access, tool.layer)
+      ([, tool]) => access && offersLayer(access, tool.layer, this._debug)
     )
 
     server.setRequestHandler(ListToolsRequestSchema, () => ({

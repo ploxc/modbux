@@ -55,11 +55,15 @@ export const DEFAULT_MCP_PORT = 7502
 //
 // Tools
 
-export type McpLayer = 'read' | 'operate' | 'write'
+export type McpLayer = 'read' | 'operate' | 'write' | 'debug'
 
-/** Whether the tools of `layer` are offered under `access`. */
-export const offersLayer = (access: McpAccess, layer: McpLayer): boolean =>
-  access.enabled && (layer === 'read' || access[layer])
+/**
+ * Whether the tools of `layer` are offered under `access`. The debug tools are
+ * for working on Modbux itself, offered by a build that is not packaged and by
+ * no box.
+ */
+export const offersLayer = (access: McpAccess, layer: McpLayer, debug = false): boolean =>
+  access.enabled && (layer === 'read' || (layer === 'debug' ? debug : access[layer]))
 
 /** Which window runs a tool: the one showing the client, or the one showing the server. */
 export type McpSide = 'client' | 'server'
@@ -119,6 +123,13 @@ export const MCP_TOOLS = {
     layer: 'read',
     side: 'server',
     description: 'Every server: its id, name, TCP or RTU, port or COM port, and its unit ids.',
+    input: {}
+  },
+  inspect_layout: {
+    layer: 'debug',
+    side: 'client',
+    description:
+      'The client window in CSS pixels, and every element carrying a data-testid: its box, whether it takes up space, and whether its content is wider than it.',
     input: {}
   },
   get_unit: {

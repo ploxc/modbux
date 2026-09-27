@@ -13,6 +13,19 @@ describe('answerCall', () => {
     expect(answer).toMatchObject({ id: 'call-1', ok: true, result: [{ id }] })
   })
 
+  it('answers the window and every element with a data-testid', async () => {
+    document.body.innerHTML = '<button data-testid="probe-btn">Probe</button>'
+    const answer = await answerCall({ id: 'call-4', tool: 'inspect_layout', args: {} })
+    expect(answer).toMatchObject({
+      id: 'call-4',
+      ok: true,
+      result: {
+        window: { width: window.innerWidth, height: window.innerHeight },
+        elements: [{ testId: 'probe-btn' }]
+      }
+    })
+  })
+
   it('answers a mistake in what was asked with its own message', async () => {
     expect(
       await answerCall({ id: 'call-2', tool: 'get_client', args: { client: 'nobody' } })
