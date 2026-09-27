@@ -102,7 +102,8 @@ anything a tool left behind.
 
 Conventional Commits, lowercase, no full stop. `feat` is new functionality,
 `fix` is something that was broken, `refactor` is the same behaviour in
-different code, `test` is test-only, `docs` is docs-only, `chore` is tooling.
+different code, `perf` is the same behaviour measurably cheaper, with the
+measurement in the message, `test` is test-only, `docs` is docs-only, `chore` is tooling.
 Mean what you say.
 
 Explain **why**, and if something was fixed, what the defect was and how it was

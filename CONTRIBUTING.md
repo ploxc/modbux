@@ -236,6 +236,7 @@ chore: bump version to 2.0.0
 - `feat` = entirely new functionality
 - `fix` = something was broken, now it's not
 - `refactor` = same behavior, different code
+- `perf` = same behavior, measurably less work, with the measurement in the message
 - `test` = test-only changes
 - `docs` = documentation-only changes
 - `chore` = tooling, deps, version bumps
