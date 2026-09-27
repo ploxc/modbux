@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box'
 import { alpha } from '@mui/material/styles'
 import ResizeHandle from '@renderer/components/shared/ResizeHandle'
+import { BREAKPOINTS, FOLDED_PANEL_HEIGHT } from './breakpoints'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { layoutOf, selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import {
@@ -18,7 +19,9 @@ import {
   Fragment,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 import { Group, Layout, LayoutChangedMeta, Panel } from 'react-resizable-panels'
@@ -64,6 +67,19 @@ const HIGHLIGHT: Record<LayoutSide, object> = {
 const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
   const { dragging, setDragging } = useContext(SectionDragContext)
   const [side, setSide] = useState<LayoutSide | undefined>(undefined)
+  // Measured rather than asked of a container query: size containment on the
+  // panel left rows blank at the top of the grid after its data was replaced.
+  const [folded, setFolded] = useState(false)
+  const leafRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const element = leafRef.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setFolded(entry.contentRect.height < BREAKPOINTS.gridHeight)
+    })
+    observer.observe(element)
+    return (): void => observer.disconnect()
+  }, [])
   const target = dragging !== undefined && dragging !== type
 
   const handleOver = useCallback((event: DragEvent<HTMLDivElement>) => {
@@ -89,7 +105,15 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
   )
 
   return (
-    <Box sx={{ position: 'relative', height: '100%' }}>
+    <Box
+      ref={leafRef}
+      sx={{
+        position: 'relative',
+        height: '100%',
+        // Folded, the grid's rows and column headers go and the head and footer stay.
+        ...(folded && { '& .MuiDataGrid-main': { display: 'none' } })
+      }}
+    >
       <RegisterGrid type={type} />
       {target && (
         <Box
@@ -106,7 +130,7 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
                 ...HIGHLIGHT[side],
                 pointerEvents: 'none',
                 background: alpha(theme.palette.primary.main, 0.18),
-                border: `2px dashed ${theme.palette.primary.main}`
+                border: `1px dashed ${theme.palette.primary.main}`
               })}
             />
           )}
@@ -121,6 +145,9 @@ interface LayoutBranchProps {
   /** The index of each part on the way down to this node, which names its panels. */
   path: number[]
 }
+
+/** How narrow a panel beside another may get, and how low one under another. */
+const PANEL_MIN_WIDTH = 130
 
 /** A split as a group of resizable panels, or a single section. */
 const LayoutBranch = meme(({ node, path }: LayoutBranchProps): JSX.Element => {
@@ -149,11 +176,24 @@ const LayoutBranch = meme(({ node, path }: LayoutBranchProps): JSX.Element => {
         <Fragment key={structureOf(formatLayout(part))}>
           {index > 0 && (
             <ResizeHandle
+              gutter={0.5}
               orientation={node.direction === 'r' ? 'vertical' : 'horizontal'}
               testId={`layout-handle-${path.join('-')}-${index}`}
             />
           )}
-          <Panel id={panelId(path, index)} defaultSize={String(size)} minSize={120}>
+          <Panel
+            id={panelId(path, index)}
+            defaultSize={String(size)}
+            // Under another, a panel lower than a grid is worth folds to its
+            // head and footer: the controls and the round trip stay.
+            {...(node.direction === 'r'
+              ? { minSize: PANEL_MIN_WIDTH }
+              : {
+                  minSize: BREAKPOINTS.gridHeight,
+                  collapsible: true,
+                  collapsedSize: FOLDED_PANEL_HEIGHT
+                })}
+          >
             <LayoutBranch node={part} path={[...path, index]} />
           </Panel>
         </Fragment>
@@ -184,7 +224,17 @@ const LayoutView = meme(() => {
 
   return (
     <SectionDragContext.Provider value={drag}>
-      <LayoutBranch key={structureOf(layoutText)} node={node} path={[]} />
+      {/* The ground between the panels is the card the panels sit on. */}
+      <Box
+        sx={(theme) => ({
+          height: '100%',
+          boxSizing: 'border-box',
+          p: 0.5,
+          background: theme.palette.background.paper
+        })}
+      >
+        <LayoutBranch key={structureOf(layoutText)} node={node} path={[]} />
+      </Box>
     </SectionDragContext.Provider>
   )
 })

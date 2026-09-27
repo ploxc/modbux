@@ -1,6 +1,8 @@
 import { meme } from '@renderer/components/shared/inputs/meme'
 import Box from '@mui/material/Box'
 import Fade from '@mui/material/Fade'
+import Paper from '@mui/material/Paper'
+import { panelShadow } from '@renderer/theme'
 import MessageReceiver from '@renderer/components/shared/MessageReceiver'
 import HomeButton from '@renderer/components/shared/HomeButton'
 import SettingsButton from '@renderer/components/settings/SettingsButton'
@@ -12,11 +14,16 @@ import ScanRegisters from '@renderer/components/client/ScanRegisters/ScanRegiste
 import ScanUnitIds from '@renderer/components/client/ScanUnitIds/ScanUnitIds'
 import ResizeHandle from '@renderer/components/shared/ResizeHandle'
 import { useClientZustand, selectedSession } from '@renderer/context/client.zustand'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { NARROW_WINDOW } from '@renderer/components/client/ClientGrids/breakpoints'
 import { Group, Panel, PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
 /** The rail's width, which is the sidebar folded. */
 const RAIL_WIDTH = 40
+
+/** The sidebar unfolded at its narrowest, which is all it may take in a narrow window. */
+const SIDEBAR_MIN_WIDTH = 240
 
 const Client = meme(() => {
   const ready = useClientZustand((z) => selectedSession(z).ready)
@@ -31,6 +38,15 @@ const Client = meme(() => {
     (size: PanelSize) => setCollapsed(size.inPixels <= RAIL_WIDTH),
     []
   )
+  const narrow = useMediaQuery(`(max-width: ${NARROW_WINDOW}px)`)
+  // Shrink an unfolded sidebar that is wider than a narrow window allows; the
+  // max size alone only stops it from being dragged wider.
+  useEffect(() => {
+    const sidebar = sidebarRef.current
+    if (!narrow || !sidebar || sidebar.isCollapsed()) return
+    if (sidebar.getSize().inPixels > SIDEBAR_MIN_WIDTH) sidebar.resize(SIDEBAR_MIN_WIDTH)
+  }, [narrow, sidebarRef])
+
   const collapse = useCallback(() => sidebarRef.current?.collapse(), [sidebarRef])
   const expand = useCallback(() => sidebarRef.current?.expand(), [sidebarRef])
 
@@ -50,13 +66,18 @@ const Client = meme(() => {
         <MessageReceiver />
         <Box
           data-testid="client-top-bar"
-          sx={{
+          // The same card as the sidebar.
+          sx={(theme) => ({
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
             flexWrap: 'nowrap',
-            '& > *': { flexShrink: 0 }
-          }}
+            '& > *': { flexShrink: 0 },
+            p: 1,
+            background: theme.palette.background.paper,
+            borderRadius: '8px',
+            boxShadow: panelShadow
+          })}
         >
           <Box sx={{ display: 'flex', gap: 1 }}>
             <HomeButton />
@@ -80,19 +101,29 @@ const Client = meme(() => {
             panelRef={sidebarRef}
             collapsible
             collapsedSize={RAIL_WIDTH}
-            minSize={240}
+            minSize={SIDEBAR_MIN_WIDTH}
             defaultSize={320}
-            maxSize={480}
+            maxSize={narrow ? SIDEBAR_MIN_WIDTH : 420}
             groupResizeBehavior="preserve-pixel-size"
             onResize={handleSidebarResize}
           >
-            <Box sx={{ height: '100%' }}>
+            {/* The same card as the tab container beside it. */}
+            <Paper
+              sx={(theme) => ({
+                height: '100%',
+                boxSizing: 'border-box',
+                p: collapsed ? 0.5 : 1,
+                background: theme.palette.background.paper,
+                borderRadius: '8px',
+                boxShadow: panelShadow
+              })}
+            >
               {collapsed ? (
                 <ClientRail onExpand={expand} />
               ) : (
                 <ClientSidebar onCollapse={collapse} />
               )}
-            </Box>
+            </Paper>
           </Panel>
         </Group>
         <ScanRegisters />

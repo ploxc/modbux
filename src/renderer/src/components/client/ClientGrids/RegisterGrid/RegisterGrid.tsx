@@ -15,6 +15,7 @@ import { useLiveZustand, dataOf, sectionOf, showMapping } from '@renderer/contex
 import { useCallback, useEffect, useRef } from 'react'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
+import { atOrBelow, BREAKPOINTS } from '../breakpoints'
 import { useGridApiRef } from '@mui/x-data-grid'
 import { DataGrid } from '@mui/x-data-grid/DataGrid'
 import { GridFooterContainer, GridPagination } from '@mui/x-data-grid/components'
@@ -45,12 +46,41 @@ import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 const Footer = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const time = useLiveZustand((z) => dataOf(z, selectedUuid).lastSuccessfulTransactionMillis)
+  // The newest transaction that answered; the log keeps the newest first.
+  const roundTrip = useLiveZustand(
+    (z) =>
+      dataOf(z, selectedUuid).transactions.find(({ errorMessage }) => errorMessage === undefined)
+        ?.roundTripMillis
+  )
   return (
-    <GridFooterContainer sx={{ px: 1.5, justifyContent: 'space-between' }}>
-      <Typography variant="caption" sx={{ opacity: 0.5 }}>
-        Last transaction time:{' '}
+    <GridFooterContainer
+      sx={{
+        px: 1.5,
+        justifyContent: 'space-between',
+        // The date goes where the head folds the read window under Read; the
+        // pages go with the Poll label, and the time always stays.
+        containerType: 'inline-size',
+        [atOrBelow(BREAKPOINTS.readWindow)]: {
+          '& .footer-date': { display: 'none' }
+        },
+        [atOrBelow(BREAKPOINTS.pages)]: {
+          '& .MuiTablePagination-root': { display: 'none' }
+        }
+      }}
+    >
+      <Typography variant="caption" sx={{ opacity: 0.5, whiteSpace: 'nowrap' }}>
         <strong>
-          {time ? `${DateTime.fromMillis(time).toFormat('yyyy-MM-dd HH:mm:ss')}` : 'n/a'}
+          {time ? (
+            <>
+              <span className="footer-date">
+                {DateTime.fromMillis(time).toFormat('yyyy-MM-dd')}{' '}
+              </span>
+              {DateTime.fromMillis(time).toFormat('HH:mm:ss')}
+            </>
+          ) : (
+            'n/a'
+          )}
+          {roundTrip !== undefined && <span className="footer-round-trip"> · {roundTrip} ms</span>}
         </strong>
       </Typography>
       <GridPagination />
@@ -195,9 +225,9 @@ const RegisterGridContent = meme((): JSX.Element => {
       disableColumnFilter={readConfiguration}
       autoHeight={false}
       density="compact"
+      columnHeaderHeight={48}
       rowHeight={ROW_HEIGHT}
       getRowHeight={getRowHeight}
-      columnHeaderHeight={48}
       hideFooterPagination
       getRowClassName={(params) =>
         [
@@ -229,11 +259,6 @@ const RegisterGridContent = meme((): JSX.Element => {
         '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
-        },
-        '& .MuiToolbar-root, .MuiDataGrid-footerContainer': {
-          minHeight: 36,
-          height: 36,
-          overflow: 'hidden'
         },
         // `getRowHeight` answers for the row and its panel together, and MUI
         // writes that height onto the row element itself, over anything passed

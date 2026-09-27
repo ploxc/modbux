@@ -6,18 +6,20 @@ interface ResizeHandleProps {
   /** Which way the line runs: vertical between columns, horizontal between rows. */
   orientation: 'vertical' | 'horizontal'
   testId: string
+  /** The gutter's width in theme spacing. */
+  gutter?: number
 }
 
 /** The grip between two panels, a short line in the middle of a gutter. */
-const ResizeHandle = meme(({ orientation, testId }: ResizeHandleProps): JSX.Element => {
+const ResizeHandle = meme(({ orientation, testId, gutter = 1 }: ResizeHandleProps): JSX.Element => {
   const vertical = orientation === 'vertical'
   return (
     <Separator data-testid={testId} style={{ outline: 'none' }}>
       <Box
         // theme.spacing, because a bare 1 in sx reads as 100%.
         sx={(theme) => ({
-          width: vertical ? theme.spacing(1.5) : '100%',
-          height: vertical ? '100%' : theme.spacing(1.5),
+          width: vertical ? theme.spacing(gutter) : '100%',
+          height: vertical ? '100%' : theme.spacing(gutter),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

@@ -15,21 +15,20 @@ vi.hoisted(async () => {
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { getSelectedClient, useClientZustand } from '@renderer/context/client.zustand'
-import { RegisterType } from '@shared'
 import BitWidthButtons from '../BitWidthButtons'
-import { patchSelectedClient } from '@renderer/context/__tests__/selectedClient'
+import { patchSelectedClient, patchSelectedUnit } from '@renderer/context/__tests__/selectedClient'
 
-const seed = (type: RegisterType, advancedMode = false, show64BitValues = false): void => {
-  patchSelectedClient(
-    useClientZustand,
-    { registerConfig: { ...getSelectedClient().registerConfig, advancedMode, show64BitValues } },
-    { shownType: type }
-  )
+/** The unit shows `layout`, one panel per register type it names. */
+const seed = (layout: string, advancedMode = false, show64BitValues = false): void => {
+  patchSelectedClient(useClientZustand, {
+    registerConfig: { ...getSelectedClient().registerConfig, advancedMode, show64BitValues }
+  })
+  patchSelectedUnit(useClientZustand, { layout })
 }
 
 describe('the 32 and 64 buttons', () => {
   it('turn 64 on with 32 off', async () => {
-    seed('holding_registers')
+    seed('hr')
     render(<BitWidthButtons />)
     fireEvent.click(screen.getByTestId('bits-64-btn'))
     await waitFor(() => expect(getSelectedClient().registerConfig.show64BitValues).toBe(true))
@@ -37,16 +36,22 @@ describe('the 32 and 64 buttons', () => {
   })
 
   it('turn 32 off and leave 64 on', async () => {
-    seed('holding_registers', true, true)
+    seed('hr', true, true)
     render(<BitWidthButtons />)
     fireEvent.click(screen.getByTestId('bits-32-btn'))
     await waitFor(() => expect(getSelectedClient().registerConfig.advancedMode).toBe(false))
     expect(getSelectedClient().registerConfig.show64BitValues).toBe(true)
   })
 
-  it('are not there for a bit type', () => {
-    seed('coils')
+  it('are not there while only bit types are open', () => {
+    seed('c(co:50,di:50)')
     render(<BitWidthButtons />)
     expect(screen.queryByTestId('bits-32-btn')).not.toBeInTheDocument()
+  })
+
+  it('are there while a register type is open beside a bit type', () => {
+    seed('c(co:50,hr:50)')
+    render(<BitWidthButtons />)
+    expect(screen.getByTestId('bits-32-btn')).toBeInTheDocument()
   })
 })

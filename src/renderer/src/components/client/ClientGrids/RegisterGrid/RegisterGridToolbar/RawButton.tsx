@@ -1,13 +1,14 @@
-import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Button from '@mui/material/Button'
 import { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
+import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 
 const RawButton = meme((): JSX.Element | null => {
-  const type = useSectionType()
+  // It sets every open register panel of the unit, so it shows while any is open.
+  const anyRegisters = useClientZustand((z) => openTypesOf(z).some(isNumberRegister))
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
   const handleClick = useCallback((): void => {
@@ -15,7 +16,7 @@ const RawButton = meme((): JSX.Element | null => {
     layoutZustand.toggleShowClientRawValues()
   }, [])
 
-  if (!isNumberRegister(type)) return null
+  if (!anyRegisters) return null
 
   const variant: ButtonProps['variant'] = showRawValues ? 'contained' : 'outlined'
   const color: ButtonProps['color'] = showRawValues ? 'warning' : 'primary'

@@ -1,3 +1,5 @@
+import { gridSurface } from '@renderer/theme'
+import StatusDot from './StatusDot'
 import Box from '@mui/material/Box'
 import ButtonBase from '@mui/material/ButtonBase'
 import IconButton from '@mui/material/IconButton'
@@ -11,8 +13,10 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { PROTOCOL_LABELS } from '@shared'
 import { MouseEvent, useCallback, useState } from 'react'
-import { PROTOCOL_COLORS, STATUS_COLORS, clientAddress, clientStatus } from './clientStatus'
+import { PROTOCOL_COLORS, clientAddress, clientStatus } from './clientStatus'
 import ProtocolIcon from './ProtocolIcon'
+import { ScanRegistersMenuItem, ScanUnitIdsMenuItem } from './ScanMenuItems'
+import Divider from '@mui/material/Divider'
 
 interface ClientCardProps {
   uuid: string
@@ -38,9 +42,15 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
     const clientZustand = useClientZustand.getState()
     clientZustand.setSelectedUuid(uuid)
   }, [uuid])
-  const handleMenuOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-    setMenuAnchor(event.currentTarget)
-  }, [])
+  // The scans in the menu act on the selected client, so opening it selects this one.
+  const handleMenuOpen = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      const clientZustand = useClientZustand.getState()
+      clientZustand.setSelectedUuid(uuid)
+      setMenuAnchor(event.currentTarget)
+    },
+    [uuid]
+  )
   const handleMenuClose = useCallback(() => setMenuAnchor(null), [])
   const handleDelete = useCallback(() => {
     setMenuAnchor(null)
@@ -61,7 +71,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
         border: '1px solid',
         borderColor: selected ? 'primary.main' : 'divider',
         borderRadius: 2,
-        background: '#232323',
+        background: gridSurface,
         overflow: 'hidden'
       }}
     >
@@ -88,19 +98,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
             }}
           >
             <ProtocolIcon protocol={protocol} />
-            <Box
-              component="span"
-              sx={{
-                position: 'absolute',
-                right: -3,
-                bottom: -3,
-                width: 9,
-                height: 9,
-                borderRadius: '50%',
-                background: STATUS_COLORS[status.tone],
-                border: '2px solid #232323'
-              }}
-            />
+            <StatusDot tone={status.tone} rim={gridSurface} offset={4} />
           </Box>
         </Tooltip>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0, flexGrow: 1 }}>
@@ -155,6 +153,9 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
         <MoreVert />
       </IconButton>
       <Menu anchorEl={menuAnchor} open={menuAnchor !== null} onClose={handleMenuClose}>
+        <ScanUnitIdsMenuItem uuid={uuid} onClose={handleMenuClose} />
+        <ScanRegistersMenuItem uuid={uuid} onClose={handleMenuClose} />
+        <Divider />
         <MenuItem
           data-testid={`client-delete-${uuid}`}
           disabled={!deletable}

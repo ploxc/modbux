@@ -1,13 +1,15 @@
+import DragIndicator from '@mui/icons-material/DragIndicator'
 import Box from '@mui/material/Box'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { gridSurface } from '@renderer/theme'
 import ReadButton from './ReadButton'
-import BitWidthButtons from './BitWidthButtons'
+import ReadWindowButton, { READ_WINDOW_TOGGLE } from './ReadWindowButton'
+import { atOrBelow, BREAKPOINTS } from '../../breakpoints'
 import SectionPollSwitch from './SectionPollSwitch'
 import RegisterConfig, {
   REGISTER_TYPE_COLORS,
   REGISTER_TYPE_LABELS
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
-import RawButton from './RawButton'
 import ClearFiltersButton from './ClearFiltersButton'
 import { useSectionType } from '../../sectionType'
 import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
@@ -46,18 +48,41 @@ const RegisterGridToolbar = meme(() => {
           pointerEvents: 'none',
           opacity: theme.palette.action.disabledOpacity
         }),
-        py: 1,
+        height: 40,
+        flexShrink: 0,
+        boxSizing: 'border-box',
         px: 1.5,
-        // The Data Grid renders the toolbar slot bare -- no wrapper, no
-        // background -- so it would otherwise show the grid's own base colour.
-        // The theme points DataGrid.headerBg at this same value, so the toolbar
-        // and the column headers stay one strip. (headerBg cannot be read back
-        // here: the augmentation extends PaletteOptions and CssVarsPalette, not
-        // Palette.)
-        background: theme.palette.background.default,
+        // The head sits on the section's own surface; the column headers
+        // under it take the app background.
+        background: gridSurface,
+        borderBottom: `1px solid ${theme.palette.divider}`,
         display: 'flex',
         gap: 1,
-        alignItems: 'center'
+        alignItems: 'center',
+        // At the readWindow breakpoint or narrower the read window leaves the head for the menu on
+        // Read; wider, the menu's half of the split button is not there.
+        containerType: 'inline-size',
+        [`& .${READ_WINDOW_TOGGLE}`]: { display: 'none' },
+        // A panel this narrow is set aside rather than read from.
+        [atOrBelow(BREAKPOINTS.read)]: {
+          [`& [data-testid="read-btn"], && .${READ_WINDOW_TOGGLE}`]: { display: 'none' }
+        },
+        // Where the footer drops its pages, the Poll switch drops its label.
+        [atOrBelow(BREAKPOINTS.pages)]: {
+          '& .MuiFormControlLabel-label': { display: 'none' }
+        },
+        [atOrBelow(BREAKPOINTS.readWindow)]: {
+          '& .read-window-inline': { display: 'none' },
+          // Read and its arrow read as one split button.
+          '& [data-testid="read-btn"]': { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
+          [`& .${READ_WINDOW_TOGGLE}`]: {
+            display: 'inline-flex',
+            marginLeft: `-${theme.spacing(1)}`,
+            borderLeft: 0,
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0
+          }
+        }
       })}
     >
       {several && (
@@ -70,29 +95,23 @@ const RegisterGridToolbar = meme(() => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 0.75,
+            gap: 0.25,
             fontSize: 13,
             mr: 0.5,
             cursor: 'grab'
           }}
         >
-          <Box
-            sx={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: REGISTER_TYPE_COLORS[type]
-            }}
-          />
+          <DragIndicator sx={{ fontSize: 16, ml: -0.5, color: REGISTER_TYPE_COLORS[type] }} />
           {REGISTER_TYPE_LABELS[type]}
         </Box>
       )}
-      <RegisterConfig />
+      <Box className="read-window-inline" sx={{ display: 'contents' }}>
+        <RegisterConfig />
+      </Box>
       <ReadButton />
-      <RawButton />
+      <ReadWindowButton />
       <ClearFiltersButton />
       <Box sx={{ flex: 1 }} />
-      <BitWidthButtons />
       <SectionPollSwitch />
     </Box>
   )

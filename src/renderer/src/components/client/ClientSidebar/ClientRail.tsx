@@ -9,7 +9,8 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { useCallback, useMemo } from 'react'
-import { PROTOCOL_COLORS, STATUS_COLORS, clientStatus } from './clientStatus'
+import { PROTOCOL_COLORS, clientStatus } from './clientStatus'
+import StatusDot from './StatusDot'
 import { addClient } from './ClientSidebar'
 import ProtocolIcon from './ProtocolIcon'
 
@@ -38,8 +39,8 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
         onClick={handleSelect}
         sx={{
           position: 'relative',
-          width: 38,
-          height: 38,
+          width: 32,
+          height: 32,
           flexShrink: 0,
           borderRadius: 2,
           border: '1px solid',
@@ -48,19 +49,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
         }}
       >
         <ProtocolIcon protocol={protocol} />
-        <Box
-          component="span"
-          sx={{
-            position: 'absolute',
-            right: -1,
-            bottom: -1,
-            width: 9,
-            height: 9,
-            borderRadius: '50%',
-            background: STATUS_COLORS[status.tone],
-            border: '2px solid #1b1b1b'
-          }}
-        />
+        <StatusDot tone={status.tone} offset={3} />
       </ButtonBase>
     </Tooltip>
   )

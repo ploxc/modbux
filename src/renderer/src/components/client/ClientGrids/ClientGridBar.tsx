@@ -1,5 +1,11 @@
+import Memory from '@mui/icons-material/Memory'
+import Popover from '@mui/material/Popover'
+import MoreVert from '@mui/icons-material/MoreVert'
+import Divider from '@mui/material/Divider'
+import Menu from '@mui/material/Menu'
+import { atOrBelow, BREAKPOINTS } from './breakpoints'
+import { barSurface } from '@renderer/theme'
 import Box from '@mui/material/Box'
-import TextField from '@mui/material/TextField'
 import IconButton from '@mui/material/IconButton'
 import ViewColumn from '@mui/icons-material/ViewColumn'
 import ViewStream from '@mui/icons-material/ViewStream'
@@ -10,39 +16,94 @@ import LoadButton from './RegisterGrid/RegisterGridToolbar/LoadButton'
 import SaveButton from './RegisterGrid/RegisterGridToolbar/SaveButton'
 import ClearConfigButton from './RegisterGrid/RegisterGridToolbar/ClearConfigButton'
 import ClearButton from './RegisterGrid/RegisterGridToolbar/ClearButton'
-import ShowLogButton from './RegisterGrid/RegisterGridToolbar/ShowLogButton'
-import MenuButton from './RegisterGrid/RegisterGridToolbar/MenuButton/MenuButton'
+import LoadDummyDataButton from './RegisterGrid/RegisterGridToolbar/LoadDummyDataButton'
 import UnitTabs from './UnitTabs'
-import { RegisterTypeTabs } from '@renderer/components/client/RegisterConfig/RegisterConfig'
+import {
+  ReadConfiguration,
+  RegisterTypeTabs
+} from '@renderer/components/client/RegisterConfig/RegisterConfig'
+import RawButton from './RegisterGrid/RegisterGridToolbar/RawButton'
+import BitWidthButtons from './RegisterGrid/RegisterGridToolbar/BitWidthButtons'
 import {
   layoutOf,
   openTypesOf,
-  selectedClient,
   selectedUnit,
   useClientZustand
 } from '@renderer/context/client.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
-import { ChangeEvent, useCallback } from 'react'
+import { MouseEvent, useCallback, useState } from 'react'
 
-const ClientConfigName = meme(() => {
-  const name = useClientZustand((z) => selectedClient(z).name ?? '')
+/** What leaves the bar for the ⋮ menu when it narrows, and the button that opens that menu. */
+const OVERFLOWS = 'unit-bar-overflows'
+const OVERFLOW_MENU = 'unit-bar-overflow-menu'
 
-  const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
-    const clientZustand = useClientZustand.getState()
-    clientZustand.setName(event.target.value)
+/** The bar's ⋮ menu, holding what the bar has no room for. */
+const OverflowMenu = meme(() => {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    setAnchor(event.currentTarget)
   }, [])
+  const handleClose = useCallback(() => setAnchor(null), [])
 
   return (
-    <TextField
-      data-testid="client-config-name-input"
-      fullWidth
-      sx={{ flex: 1, minWidth: 80 }}
-      size="small"
-      color="primary"
-      placeholder="Client Configuration Name"
-      value={name}
-      onChange={handleChange}
-    />
+    <>
+      <IconButton
+        className={OVERFLOW_MENU}
+        size="small"
+        aria-label="More actions"
+        data-testid="unit-bar-menu-btn"
+        onClick={handleOpen}
+      >
+        <MoreVert />
+      </IconButton>
+      <Menu anchorEl={anchor} open={anchor !== null} onClose={handleClose}>
+        <LoadButton inMenu={handleClose} />
+        <SaveButton inMenu={handleClose} />
+        <ClearConfigButton inMenu={handleClose} />
+        <Divider />
+        <ClearButton inMenu={handleClose} />
+        <LoadDummyDataButton inMenu={handleClose} />
+      </Menu>
+    </>
+  )
+})
+
+/** How values are read and shown, which folds into a menu of its own below the overflow. */
+const VALUES = 'unit-bar-values'
+const VALUES_MENU = 'unit-bar-values-menu'
+
+/** Byte order and the 32 and 64 bit columns, in a popover when the bar is narrow. */
+const ValuesMenu = meme(() => {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    setAnchor(event.currentTarget)
+  }, [])
+  const handleClose = useCallback(() => setAnchor(null), [])
+
+  return (
+    <>
+      <IconButton
+        className={VALUES_MENU}
+        size="small"
+        aria-label="Byte order and bit width"
+        data-testid="unit-bar-values-btn"
+        onClick={handleOpen}
+      >
+        <Memory />
+      </IconButton>
+      <Popover
+        open={anchor !== null}
+        anchorEl={anchor}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { mt: 0.5 } } }}
+      >
+        <Box sx={{ display: 'flex', gap: 1.25, p: 1 }}>
+          <ToggleEndianButton />
+          <BitWidthButtons />
+        </Box>
+      </Popover>
+    </>
   )
 })
 
@@ -102,27 +163,56 @@ const ClientGridBar = meme(() => {
           pointerEvents: 'none',
           opacity: theme.palette.action.disabledOpacity
         }),
-        background: theme.palette.background.default,
-        borderBottom: `1px solid ${theme.palette.divider}`,
+        background: barSurface,
         display: 'flex',
         flexDirection: 'column'
       })}
     >
       <UnitTabs />
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', px: 1.5, py: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1.25,
+          alignItems: 'center',
+          p: 0.5,
+          pr: 1,
+          // The file actions and Dummy Data fold into the ⋮ menu when narrow.
+          containerType: 'inline-size',
+          [`& .${OVERFLOW_MENU}`]: { display: 'none' },
+          [atOrBelow(BREAKPOINTS.unitBarMenu)]: {
+            [`& .${OVERFLOWS}`]: { display: 'none' },
+            [`& .${OVERFLOW_MENU}`]: { display: 'inline-flex' }
+          },
+          [`& .${VALUES_MENU}`]: { display: 'none' },
+          [atOrBelow(BREAKPOINTS.unitBarValues)]: {
+            [`& .${VALUES}`]: { display: 'none' },
+            [`& .${VALUES_MENU}`]: { display: 'inline-flex' }
+          }
+        }}
+      >
         <RegisterTypeTabs />
-        <StackButtons />
+        <Box className={VALUES} sx={{ display: 'flex', gap: 1.25 }}>
+          <ToggleEndianButton />
+          <BitWidthButtons />
+        </Box>
+        <ValuesMenu />
+        <RawButton />
+        <ReadConfiguration />
         <Box sx={{ flex: 1 }} />
-        <ToggleEndianButton />
-        <Box sx={{ display: 'flex' }}>
+        <Box className={OVERFLOWS} sx={{ display: 'flex' }}>
           <LoadButton />
           <SaveButton />
           <ClearConfigButton />
         </Box>
-        <ClientConfigName />
-        <ClearButton />
-        <ShowLogButton />
-        <MenuButton />
+        <Box className={OVERFLOWS} sx={{ display: 'flex', gap: 1.25 }}>
+          <ClearButton />
+          <LoadDummyDataButton />
+        </Box>
+        {/* The ⋮ sits in with the layout buttons, with no gap between. */}
+        <Box sx={{ display: 'flex' }}>
+          <StackButtons />
+          <OverflowMenu />
+        </Box>
       </Box>
     </Box>
   )

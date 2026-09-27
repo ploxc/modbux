@@ -319,11 +319,6 @@ const ScanResultGrid = meme(() => {
         '& .MuiDataGrid-row': {
           fontFamily: 'monospace',
           fontSize: '0.95em'
-        },
-        '& .MuiToolbar-root, .MuiDataGrid-footerContainer': {
-          minHeight: 36,
-          height: 36,
-          overflow: 'hidden'
         }
       })}
       localeText={{

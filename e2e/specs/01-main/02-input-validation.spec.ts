@@ -1,5 +1,6 @@
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  unitIdField,
   navigateToServer,
   navigateToClient,
   selectDataType,
@@ -288,7 +289,7 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
    * they did for the specs after this one.
    */
   test('unit ID input: a typed comma is not a decimal separator', async ({ mainPage }) => {
-    const unitIdInput = mainPage.getByTestId('client-unitid-input').locator('input')
+    const unitIdInput = await unitIdField(mainPage)
     await unitIdInput.fill('')
     await unitIdInput.pressSequentially('1,5')
     await mainPage.waitForTimeout(300)
@@ -312,7 +313,7 @@ test.describe.serial('Input validation — AddRegister modal and client inputs',
   })
 
   test('unit ID input: clamped to 255', async ({ mainPage }) => {
-    const unitIdInput = mainPage.getByTestId('client-unitid-input').locator('input')
+    const unitIdInput = await unitIdField(mainPage)
     await unitIdInput.fill('999')
     await mainPage.waitForTimeout(300)
     const val = await unitIdInput.inputValue()

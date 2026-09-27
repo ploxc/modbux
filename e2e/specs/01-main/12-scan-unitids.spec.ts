@@ -1,5 +1,6 @@
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  openClientMenu,
   navigateToClient,
   connectClient,
   disconnectClient,
@@ -34,7 +35,7 @@ test.describe.serial('Scan Unit IDs', () => {
   // ─── Button visibility ─────────────────────────────────────────────
 
   test('scan unit IDs button is visible and enabled in menu', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await expect(mainPage.getByTestId('scan-unitids-btn')).toBeVisible()
     await expect(mainPage.getByTestId('scan-unitids-btn')).toBeEnabled()
     await mainPage.keyboard.press('Escape')
@@ -43,7 +44,7 @@ test.describe.serial('Scan Unit IDs', () => {
   // ─── Open dialog and verify defaults ────────────────────────────────
 
   test('open scan unit IDs dialog', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-unitids-btn').click()
 
     // All form inputs should be visible
@@ -421,7 +422,7 @@ test.describe.serial('Scan Unit IDs', () => {
     })
 
     await connectClient(mainPage, '127.0.0.1', String(port), '0')
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-unitids-btn').click()
 
     const startUnit = mainPage.getByTestId('scan-start-unitid-input').locator('input')
@@ -459,7 +460,7 @@ test.describe.serial('Scan Unit IDs', () => {
   })
 
   test('scan unit IDs button is disabled when disconnected', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await expect(mainPage.getByTestId('scan-unitids-btn')).toBeDisabled()
     await mainPage.keyboard.press('Escape')
   })

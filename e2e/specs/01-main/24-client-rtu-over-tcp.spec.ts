@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  unitIdField,
   navigateToServer,
   navigateToClient,
   cleanServerState,
@@ -122,7 +123,7 @@ test.describe.serial('Client RTU over TCP — round-trip via socat gateway', () 
   test('connect to the gateway over TCP', async ({ mainPage }) => {
     await mainPage.getByTestId('tcp-host-input').locator('input').fill('127.0.0.1')
     await mainPage.getByTestId('tcp-port-input').locator('input').fill(TCP_PORT)
-    await mainPage.getByTestId('client-unitid-input').locator('input').fill('1')
+    await (await unitIdField(mainPage)).fill('1')
 
     await mainPage.getByTestId('connect-btn').click()
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Disconnect', {

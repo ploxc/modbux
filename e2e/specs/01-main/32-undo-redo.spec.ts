@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test'
 /**
  * Undo and redo
  *
@@ -7,8 +8,8 @@
  * Electron's Edit menu, so this covers the field's half and not the menu's.
  */
 import { test, expect, resetApp } from '../../fixtures/electron-app'
-import type { Locator, Page } from '@playwright/test'
 import {
+  unitIdField,
   addBool,
   cleanServerState,
   navigateToClient,
@@ -79,7 +80,7 @@ test.describe.serial('Undo and redo in a focused field', () => {
   test('the unit id field undoes and redoes what was typed, and the config follows', async ({
     mainPage
   }) => {
-    const input = mainPage.getByTestId('client-unitid-input').locator('input')
+    const input = await unitIdField(mainPage)
     await input.fill('1')
     await expect.poll(async () => (await savedConnection(mainPage)).unitId).toBe(1)
 

@@ -1,3 +1,4 @@
+import { barSurface, textBright, textMuted } from '@renderer/theme'
 import Add from '@mui/icons-material/Add'
 import Close from '@mui/icons-material/Close'
 import Box from '@mui/material/Box'
@@ -7,7 +8,8 @@ import InputBase from '@mui/material/InputBase'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { ChangeEvent, KeyboardEvent, useCallback, useMemo, useState } from 'react'
+import { ChangeEvent, KeyboardEvent, MouseEvent, useCallback, useMemo, useState } from 'react'
+import UnitIdField from './UnitIdField'
 
 interface UnitTabProps {
   unit: string
@@ -16,7 +18,7 @@ interface UnitTabProps {
 
 /**
  * One unit: its id, its name, and a dot for whether a running poll hears it.
- * A double click names it.
+ * A double click names it; a double click on the id changes the id.
  */
 const UnitTab = meme(({ unit, index }: UnitTabProps) => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
@@ -33,6 +35,7 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
     dataOf(z, selectedUuid).clientState.offlineUnits.includes(unit)
   )
   const [naming, setNaming] = useState(false)
+  const [numbering, setNumbering] = useState(false)
 
   const handleSelect = useCallback(() => {
     const clientZustand = useClientZustand.getState()
@@ -45,6 +48,12 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
   }, [])
 
   const startNaming = useCallback(() => setNaming(true), [])
+  // The badge's own double click, which the tab's would otherwise take as naming.
+  const startNumbering = useCallback((event: MouseEvent) => {
+    event.stopPropagation()
+    setNumbering(true)
+  }, [])
+  const stopNumbering = useCallback(() => setNumbering(false), [])
   const stopNaming = useCallback(() => setNaming(false), [])
   const handleKey = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === 'Escape') setNaming(false)
@@ -62,7 +71,8 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
         alignItems: 'center',
         borderTop: '2px solid',
         borderTopColor: selected ? theme.palette.primary.main : 'transparent',
-        background: selected ? theme.palette.background.paper : 'transparent'
+        background: selected ? barSurface : 'transparent',
+        color: selected ? textBright : textMuted
       })}
     >
       <ButtonBase
@@ -73,19 +83,26 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
         onDoubleClick={startNaming}
         sx={{ height: '100%', display: 'flex', alignItems: 'center', gap: 1, px: 1.5 }}
       >
-        <Box
-          component="span"
-          sx={{
-            fontFamily: 'monospace',
-            fontSize: 11.5,
-            px: 0.75,
-            py: 0.25,
-            borderRadius: 1,
-            background: (theme) => theme.palette.action.selected
-          }}
-        >
-          ID {unitId}
-        </Box>
+        {numbering ? (
+          <UnitIdField onDone={stopNumbering} />
+        ) : (
+          <Box
+            component="span"
+            onDoubleClick={startNumbering}
+            title="Double click to change the unit ID"
+            data-testid={`unit-id-badge-${index}`}
+            sx={{
+              fontFamily: 'monospace',
+              fontSize: 11.5,
+              px: 0.75,
+              py: 0.25,
+              borderRadius: 1,
+              background: (theme) => theme.palette.action.selected
+            }}
+          >
+            ID {unitId}
+          </Box>
+        )}
         {naming ? (
           <InputBase
             autoFocus
@@ -96,7 +113,8 @@ const UnitTab = meme(({ unit, index }: UnitTabProps) => {
             placeholder="Name"
             data-testid="unit-name-field"
             inputProps={{ 'data-testid': 'unit-name-input', 'aria-label': 'Unit name' }}
-            sx={{ fontSize: 13, width: 120 }}
+            // As wide as the name, so a long one does not scroll under the badge.
+            sx={{ fontSize: 13, '& input': { fieldSizing: 'content', minWidth: 48 } }}
           />
         ) : (
           name !== '' && (
@@ -158,7 +176,7 @@ const UnitTabs = meme(() => {
         flexShrink: 0,
         display: 'flex',
         alignItems: 'stretch',
-        borderBottom: `1px solid ${theme.palette.divider}`
+        background: theme.palette.background.paper
       })}
     >
       {units.map((unit, index) => (

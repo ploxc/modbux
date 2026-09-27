@@ -1,3 +1,4 @@
+import ListItemIcon from '@mui/material/ListItemIcon'
 import Delete from '@mui/icons-material/Delete'
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import Button from '@mui/material/Button'
@@ -6,14 +7,12 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import IconButton from '@mui/material/IconButton'
+import MenuItem from '@mui/material/MenuItem'
+import type { InMenuProps } from './LoadButton'
 import DialogHeading from '@renderer/components/shared/DialogHeading'
 import { meme } from '@renderer/components/shared/inputs/meme'
 
-import {
-  useClientZustand,
-  getSelectedClient,
-  getSelectedUnit
-} from '@renderer/context/client.zustand'
+import { useClientZustand, getSelectedUnit } from '@renderer/context/client.zustand'
 import { asOneClientStep } from '@renderer/context/clientUndo'
 import { RegisterMapping, RegisterMapValue, RegisterTypeSchema } from '@shared'
 import { useCallback, useState } from 'react'
@@ -45,7 +44,7 @@ const mappedRegisterCount = (registerMapping: RegisterMapping): number =>
 const clearConfiguration = (): void => {
   const clientZustand = useClientZustand.getState()
   void asOneClientStep(async () => {
-    clientZustand.setName('')
+    clientZustand.setUnitName('')
     await clientZustand.clearRegisterMapping()
   })
 }
@@ -99,7 +98,7 @@ const ConfirmClear = meme(({ mapped, named, onCancel }: ConfirmProps): JSX.Eleme
   )
 })
 
-const ClearConfigButton = meme((): JSX.Element => {
+const ClearConfigButton = meme(({ inMenu }: InMenuProps): JSX.Element => {
   const [warn, setWarn] = useState(false)
   const [asking, setAsking] = useState<{ mapped: number; named: boolean } | undefined>(undefined)
 
@@ -108,18 +107,41 @@ const ClearConfigButton = meme((): JSX.Element => {
   // flush of a store that takes a transaction per request.
   const handleClick = useCallback(() => {
     const mapped = mappedRegisterCount(getSelectedUnit().registerMapping)
-    const named = (getSelectedClient().name ?? '') !== ''
+    const named = getSelectedUnit().name !== ''
 
     // The name is typed by hand and goes with the mapping, so a configuration
     // holding only a name is one to ask about too.
     if (mapped === 0 && !named) {
       clearConfiguration()
+      inMenu?.()
       return
     }
     setAsking({ mapped, named })
-  }, [])
+  }, [inMenu])
 
-  const handleCancel = useCallback(() => setAsking(undefined), [])
+  // In the menu, the dialog lives in the item, so the menu closes after it.
+  const handleCancel = useCallback(() => {
+    setAsking(undefined)
+    inMenu?.()
+  }, [inMenu])
+
+  const dialog = asking && (
+    <ConfirmClear mapped={asking.mapped} named={asking.named} onCancel={handleCancel} />
+  )
+
+  if (inMenu) {
+    return (
+      <>
+        <MenuItem onClick={handleClick} data-testid="clear-config-menu-item">
+          <ListItemIcon>
+            <Delete fontSize="small" />
+          </ListItemIcon>
+          Clear configuration
+        </MenuItem>
+        {dialog}
+      </>
+    )
+  }
 
   return (
     <>
@@ -135,9 +157,7 @@ const ClearConfigButton = meme((): JSX.Element => {
       >
         <Delete fontSize="small" />
       </IconButton>
-      {asking && (
-        <ConfirmClear mapped={asking.mapped} named={asking.named} onCancel={handleCancel} />
-      )}
+      {dialog}
     </>
   )
 })

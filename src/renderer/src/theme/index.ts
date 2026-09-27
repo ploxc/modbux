@@ -1,7 +1,7 @@
 // Brings the palette.DataGrid tokens into the type system.
 import '@mui/x-data-grid/themeAugmentation'
 import '@mui/x-date-pickers/themeAugmentation'
-import { createTheme } from '@mui/material/styles'
+import { alpha, createTheme } from '@mui/material/styles'
 
 // Scale A has a large field, for the top bar; MUI's fields stop at medium.
 declare module '@mui/material/TextField' {
@@ -38,6 +38,29 @@ const dialogDanger = '#e0735f'
  * cards, dividers, and the data grids inside and out.
  */
 export const lineColor = '#333333'
+
+/** The outlined primary button on the client canvas: a dim green edge, pale green text. */
+const outlinedPrimaryBorder = '#3f5f50'
+const outlinedPrimaryText = '#9fd0b8'
+
+/**
+ * The client view's surfaces, darkest first: the app's ground is
+ * `background.default`, a card (the tab container, the sidebar, the ground
+ * between panels) is `background.paper`, a bar on a card is `barSurface`, and
+ * a section is `gridSurface`.
+ */
+export const barSurface = '#242424'
+
+/** The text of a chosen menu item, on its green tint. */
+const menuSelectedText = '#b5dcc9'
+
+/** Text that is chosen or selected, and text that sits back. */
+export const textBright = '#e6e6e6'
+export const textMuted = '#9a9a9a'
+
+/** The switch as the client canvas draws it: a 28 by 16 track, a 12 px knob. */
+const switchTrackOff = '#444444'
+const switchKnobOn = '#f2f2f2'
 
 /** What a field's border turns to under the pointer. */
 const lineHoverColor = '#4a4a4a'
@@ -133,7 +156,11 @@ const base = createTheme({
             // A button holding nothing but an icon is a square.
             [iconOnly]: { width: size.height, padding: 0 },
             [`${iconOnly} > .MuiSvgIcon-root`]: { fontSize: size.icon }
-          }))
+          })),
+          '&.MuiButton-outlinedPrimary:not(.Mui-disabled)': {
+            borderColor: outlinedPrimaryBorder,
+            color: outlinedPrimaryText
+          }
         }
       }
     },
@@ -167,6 +194,111 @@ const base = createTheme({
         }
       }
     },
+    // Shaped as the "AntSwitch" customization example in the MUI docs: every
+    // rule sits on the root, after the `small` variant's, so both sizes take it.
+    MuiSwitch: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          width: 28,
+          height: 16,
+          padding: 0,
+          display: 'flex',
+          '& .MuiSwitch-switchBase': {
+            padding: 2,
+            color: textMuted,
+            '&:hover': { background: 'transparent' },
+            '&.Mui-checked': {
+              transform: 'translateX(12px)',
+              color: switchKnobOn,
+              '& + .MuiSwitch-track': { opacity: 1, background: theme.palette.primary.main }
+            },
+            '&.Mui-disabled + .MuiSwitch-track': { opacity: 0.4 }
+          },
+          '& .MuiSwitch-thumb': { width: 12, height: 12, borderRadius: 6, boxShadow: 'none' },
+          '& .MuiSwitch-track': {
+            borderRadius: 8,
+            opacity: 1,
+            background: switchTrackOff,
+            boxSizing: 'border-box'
+          }
+        })
+      }
+    },
+    // A label beside a switch takes the medium control's text, and the space the
+    // switch no longer pads around itself.
+    MuiFormControlLabel: {
+      styleOverrides: {
+        root: {
+          '&:has(.MuiSwitch-root)': {
+            marginLeft: 0,
+            marginRight: 0,
+            gap: 8,
+            '& .MuiFormControlLabel-label': { fontSize: controlSizes.medium.fontSize }
+          }
+        }
+      }
+    },
+    // Menus and dropdowns, variant A on the client canvas's "Menus" artboard.
+    MuiMenu: {
+      styleOverrides: {
+        list: { padding: 4, display: 'flex', flexDirection: 'column', gap: 1 }
+      }
+    },
+    // Every popover, a menu's included, takes the dialogs' surface, edge and
+    // radius. The `background` shorthand drops the elevation overlay that
+    // lifted it to #383838.
+    MuiPopover: {
+      styleOverrides: {
+        paper: ({ theme }) => ({
+          background: theme.palette.background.paper,
+          border: `1px solid ${dialogBorder}`,
+          borderRadius: 6,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+        })
+      }
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          minHeight: 28,
+          height: 28,
+          padding: `0 ${controlSizes.medium.padding - 1}px`,
+          gap: 8,
+          borderRadius: 4,
+          fontSize: controlSizes.medium.fontSize,
+          color: textBright,
+          '&:hover': { background: gridSurface },
+          '&.Mui-selected, &.Mui-selected:hover, &.Mui-selected.Mui-focusVisible': {
+            background: alpha(theme.palette.primary.main, 0.16),
+            color: menuSelectedText
+          },
+          '&.MuiDivider-root + &, & + .MuiDivider-root': { marginTop: 0 }
+        })
+      }
+    },
+    // An icon in a menu item sits the item's own 8 px gap from its text.
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          '.MuiMenuItem-root > &': {
+            minWidth: 0,
+            color: 'inherit',
+            '& .MuiSvgIcon-root': { fontSize: 16 }
+          }
+        }
+      }
+    },
+    MuiDivider: {
+      styleOverrides: {
+        root: { '.MuiMenu-list > &': { margin: '3px 0' } }
+      }
+    },
+    // Page arrows 20 px wide, so their 16 px icons sit 4 px apart.
+    MuiTablePagination: {
+      styleOverrides: {
+        actions: { marginLeft: 10, '& .MuiIconButton-root': { width: 20 } }
+      }
+    },
     // A multiline field grows with its text, so only a single line takes a height.
     MuiOutlinedInput: {
       styleOverrides: {
@@ -184,6 +316,10 @@ const base = createTheme({
               boxSizing: 'border-box',
               padding: `0 ${size.inset}px`
             },
+            // The notch opens 2 px either side of the floated label, which
+            // sits at the inset plus one.
+            '& .MuiOutlinedInput-notchedOutline': { paddingLeft: size.inset - 2 },
+            '& .MuiOutlinedInput-notchedOutline legend > span': { padding: '0 2px' },
             '& .MuiSelect-select': {
               display: 'flex',
               alignItems: 'center',
@@ -216,7 +352,8 @@ const base = createTheme({
               transform: `translate(${size.inset + 1}px, ${(size.height - labelLineHeight) / 2}px) scale(1)`
             },
             '&.MuiInputLabel-outlined.MuiInputLabel-shrink': {
-              transform: `translate(${size.inset + 1}px, -${(labelLineHeight * 0.75) / 2}px) scale(0.75)`
+              // One pixel below centre on the outline, which reads as centred.
+              transform: `translate(${size.inset + 1}px, -${(labelLineHeight * 0.75) / 2 - 1}px) scale(0.75)`
             }
           }))
         }
@@ -224,10 +361,20 @@ const base = createTheme({
     },
     // The grid draws its outer edge and every row and column line in one variable.
     MuiDataGrid: {
+      // One page size for every grid, so the footer offers page switching alone:
+      // with a single option the pagination draws no rows-per-page select.
+      defaultProps: { pageSizeOptions: [100] },
       styleOverrides: {
         // The grid writes its variables in a <style> tag of its own, after this
         // one, so the override takes a second class to win.
-        root: { '&&': { '--DataGrid-t-color-border-base': lineColor } }
+        root: { '&&': { '--DataGrid-t-color-border-base': lineColor } },
+        footerContainer: {
+          minHeight: 30,
+          height: 30,
+          overflow: 'hidden',
+          // The pagination brings a toolbar of its own, taller than the footer.
+          '& .MuiTablePagination-toolbar': { minHeight: 30, height: 30 }
+        }
       }
     },
     // A tooltip is drawn like a small dialog: the same surface, border and shadow.

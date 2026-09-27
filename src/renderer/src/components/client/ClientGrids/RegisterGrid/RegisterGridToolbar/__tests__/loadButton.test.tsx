@@ -21,13 +21,9 @@ const { enqueueSnackbar } = vi.hoisted(() => ({ enqueueSnackbar: vi.fn() }))
 vi.mock('notistack', () => ({ useSnackbar: () => ({ enqueueSnackbar }) }))
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import {
-  getSelectedClient,
-  getSelectedUnit,
-  useClientZustand
-} from '@renderer/context/client.zustand'
+import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import LoadButton from '../LoadButton'
-import { patchSelectedClient } from '../../../../../../context/__tests__/selectedClient'
+import { patchSelectedUnit } from '../../../../../../context/__tests__/selectedClient'
 
 const CONFIG = JSON.stringify({
   kind: 'client-device',
@@ -59,7 +55,7 @@ const messages = (): unknown[] =>
 beforeEach(() => {
   enqueueSnackbar.mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  patchSelectedClient(useClientZustand, { name: '' })
+  patchSelectedUnit(useClientZustand, { name: '' })
 })
 
 describe('a file that cannot be read', () => {
@@ -87,7 +83,7 @@ describe('a file that reads', () => {
     expect(getSelectedUnit().registerMapping.holding_registers[0]).toEqual({
       dataType: 'int16'
     })
-    expect(getSelectedClient().name).toBe('Test Client')
+    expect(getSelectedUnit().name).toBe('Test Client')
     expect(screen.getByTestId('load-config-file-input')).toBeInTheDocument()
     expect(screen.getByTestId('load-config-btn')).not.toBeDisabled()
   })

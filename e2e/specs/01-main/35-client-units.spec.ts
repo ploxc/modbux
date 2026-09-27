@@ -1,5 +1,6 @@
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  unitIdField,
   cleanServerState,
   connectClient,
   disconnectClient,
@@ -34,7 +35,7 @@ test.describe.serial('A client with two units', () => {
     await mainPage.getByTestId('add-unit-btn').click()
     await expect(mainPage.getByTestId('unit-tab-1')).toHaveAttribute('aria-selected', 'true')
 
-    await mainPage.getByTestId('client-unitid-input').locator('input').fill('1')
+    await (await unitIdField(mainPage)).fill('1')
     await mainPage.getByTestId('reg-address-input').locator('input').fill('0')
     await mainPage.getByTestId('reg-length-input').locator('input').fill('1')
   })
@@ -44,7 +45,7 @@ test.describe.serial('A client with two units', () => {
 
     await expectCell(mainPage, 0, 'hex', '0309')
     await mainPage.getByTestId('unit-tab-0').click()
-    await expect(mainPage.getByTestId('client-unitid-input').locator('input')).toHaveValue('0')
+    await expect(await unitIdField(mainPage)).toHaveValue('0')
     await expectCell(mainPage, 0, 'hex', 'FF9C')
 
     await mainPage.getByTestId('poll-btn').click()
@@ -113,5 +114,20 @@ test.describe.serial('A client with two units', () => {
     await expect(mainPage.getByTestId('unit-tab-0')).toHaveAttribute('aria-selected', 'true')
     await expect(mainPage.getByTestId('remove-unit-btn')).toHaveCount(0)
     await disconnectClient(mainPage)
+  })
+
+  // Both act on every open panel of the unit, not only on the type last read.
+  test('dummy data and Clear reach every open panel', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-type-input_registers-btn').click()
+    const holding = mainPage.getByTestId('section-grid-holding_registers')
+    const input = mainPage.getByTestId('section-grid-input_registers')
+
+    await mainPage.getByTestId('load-dummy-data-btn').click()
+    await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(1)
+    await expect(input.locator('.MuiDataGrid-row')).toHaveCount(1)
+
+    await mainPage.getByTestId('clear-data-btn').click()
+    await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(0)
+    await expect(input.locator('.MuiDataGrid-row')).toHaveCount(0)
   })
 })

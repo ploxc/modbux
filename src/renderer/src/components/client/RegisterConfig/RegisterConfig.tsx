@@ -1,3 +1,4 @@
+import { lineColor, textBright, textMuted } from '@renderer/theme'
 import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import List from '@mui/icons-material/List'
 import Box from '@mui/material/Box'
@@ -78,6 +79,21 @@ export const RegisterTypeTabs = meme(() => {
       value={openTypes}
       onChange={handleChange}
       aria-label="Register type"
+      // A segmented control on its own dark track, as the canvas draws it.
+      sx={(theme) => ({
+        p: '2px',
+        gap: '2px',
+        borderRadius: '6px',
+        background: theme.palette.background.paper,
+        '& .MuiToggleButtonGroup-grouped': {
+          border: 0,
+          borderRadius: '4px',
+          margin: 0,
+          color: textMuted,
+          fontSize: 13,
+          '&.Mui-selected, &.Mui-selected:hover': { background: lineColor, color: textBright }
+        }
+      })}
     >
       {REGISTER_TYPES.map(({ type: option, label, color }) => (
         <ToggleButton
@@ -161,7 +177,8 @@ const Length = meme(() => {
   )
 })
 
-const ReadConfiguration = meme(() => {
+/** Shows the mapping for every register type of the unit, so it sits in the unit's bar. */
+export const ReadConfiguration = meme(() => {
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
 
   // The store is written once main has the mapping, so between the press and
@@ -231,7 +248,7 @@ const ReadConfiguration = meme(() => {
     <ToggleButtonGroup
       disabled={disabled}
       color="primary"
-      size="medium"
+      size="small"
       exclusive
       value={readConfiguration}
       onChange={handleChange}
@@ -253,7 +270,6 @@ const RegisterConfig = meme(() => {
     <>
       <Address />
       <Length />
-      <ReadConfiguration />
     </>
   )
 })

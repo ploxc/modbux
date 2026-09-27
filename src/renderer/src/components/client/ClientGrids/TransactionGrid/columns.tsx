@@ -41,6 +41,16 @@ const functionColumn: GridColDef<Transaction, number> = {
   maxWidth: 35
 }
 
+const roundTripColumn: GridColDef<Transaction, number, string> = {
+  field: 'roundTripMillis',
+  headerName: 'RTT',
+  sortable: false,
+  disableColumnMenu: true,
+  minWidth: 70,
+  maxWidth: 70,
+  valueFormatter: (v: number) => `${v} ms`
+}
+
 const requestColumn: GridColDef<Transaction, string, string> = {
   field: 'request',
   headerName: 'Request',
@@ -92,6 +102,7 @@ const useTransactionGridColumns = (): GridColDef<Transaction>[] => {
       unitIdColumn,
       addressColumn,
       functionColumn,
+      roundTripColumn,
       requestColumn,
       responseColumn,
       errorMessageColumn

@@ -13,6 +13,7 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
 import {
+  unitIdField,
   enableAdvancedMode,
   enableReadConfiguration,
   disableReadConfiguration,
@@ -124,7 +125,7 @@ test.describe.serial('Hardware — iEM3000 RTU reconnect after restart', () => {
     await selectProtocol(page, 'ModbusRtu')
 
     // Set unit ID
-    const unitIdInput = page.getByTestId('client-unitid-input').locator('input')
+    const unitIdInput = await unitIdField(page)
     await unitIdInput.click({ clickCount: 3 })
     await unitIdInput.fill('1')
 

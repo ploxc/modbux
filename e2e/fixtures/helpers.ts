@@ -11,6 +11,27 @@ function t(ms: number, fast: boolean): number {
 }
 
 /** Select a data type in the AddRegister modal's DataTypeSelectInput */
+/**
+ * The unit id field, which lives on the selected unit's tab behind a double
+ * click on its id badge and closes again when it loses focus.
+ */
+/** Opens the menu behind the three dots on the selected client's card. */
+export const openClientMenu = async (p: Page): Promise<void> => {
+  await p
+    .locator(
+      'div:has(> [data-testid^="client-card-"][aria-pressed="true"]) > [data-testid^="client-menu-"]'
+    )
+    .click()
+}
+
+export const unitIdField = async (p: Page): Promise<Locator> => {
+  const field = p.getByTestId('client-unitid-input')
+  if (!(await field.isVisible())) {
+    await p.locator('[role="tab"][aria-selected="true"] [data-testid^="unit-id-badge-"]').dblclick()
+  }
+  return field.locator('input')
+}
+
 export async function selectDataType(p: Page, dataType: string, fast = false): Promise<void> {
   await p.getByTestId('add-reg-type-select').click()
   await p.waitForTimeout(t(200, fast))
@@ -422,7 +443,7 @@ export async function connectClient(
   await hostInput.fill(host)
   const portInput = p.getByTestId('tcp-port-input').locator('input')
   await portInput.fill(port)
-  const unitIdInput = p.getByTestId('client-unitid-input').locator('input')
+  const unitIdInput = await unitIdField(p)
   await unitIdInput.fill(unitId)
   await p.getByTestId('connect-btn').click()
   await expect(p.getByTestId('connect-btn')).toContainText('Disconnect', { timeout: 5000 })
@@ -493,7 +514,7 @@ export async function connectClientRTU(
   await p.getByRole('option', { name: stopbits }).click()
 
   // Set unit ID
-  const unitIdInput = p.getByTestId('client-unitid-input').locator('input')
+  const unitIdInput = await unitIdField(p)
   await unitIdInput.fill(unitId)
 }
 
@@ -816,7 +837,6 @@ export async function loadDummyData(p: Page, address: string, length: string): P
     const lengthInput = p.getByTestId('reg-length-input').locator('input')
     await lengthInput.fill(length)
 
-    await p.getByTestId('menu-btn').click()
     const dummyBtn = p.getByTestId('load-dummy-data-btn')
     await expect(dummyBtn).toBeVisible()
     await dummyBtn.click()

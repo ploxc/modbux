@@ -1,6 +1,6 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { resolve } from 'path'
-import { loadServerConfig, selectUnitId } from '../../fixtures/helpers'
+import { unitIdField, loadServerConfig, selectUnitId } from '../../fixtures/helpers'
 import { launchElectron, evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
@@ -66,7 +66,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await hostInput.fill('192.168.1.100')
     const portInput = page.getByTestId('tcp-port-input').locator('input')
     await portInput.fill('5020')
-    const unitIdInput = page.getByTestId('client-unitid-input').locator('input')
+    const unitIdInput = await unitIdField(page)
     await unitIdInput.fill('5')
     await page.waitForTimeout(500) // Let zustand persist
   })
@@ -90,7 +90,7 @@ test.describe.serial('Persistence — State survives app restart', () => {
     await expect(hostInput).toHaveValue('192.168.1.100')
     const portInput = page.getByTestId('tcp-port-input').locator('input')
     await expect(portInput).toHaveValue('5020')
-    const unitIdInput = page.getByTestId('client-unitid-input').locator('input')
+    const unitIdInput = await unitIdField(page)
     await expect(unitIdInput).toHaveValue('5')
   })
 
@@ -139,7 +139,7 @@ test.describe.serial('Persistence — a config saved under the former key', () =
     await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 
     await page.getByTestId('tcp-host-input').locator('input').fill('10.9.8.7')
-    await page.getByTestId('client-unitid-input').locator('input').fill('9')
+    await (await unitIdField(page)).fill('9')
     await page.waitForTimeout(500) // let zustand persist
 
     // Moving what the app itself wrote keeps the payload valid, which a
@@ -166,7 +166,7 @@ test.describe.serial('Persistence — a config saved under the former key', () =
     await expect(page.getByTestId('protocol-select')).toBeVisible({ timeout: 5000 })
 
     await expect(page.getByTestId('tcp-host-input').locator('input')).toHaveValue('10.9.8.7')
-    await expect(page.getByTestId('client-unitid-input').locator('input')).toHaveValue('9')
+    await expect(await unitIdField(page)).toHaveValue('9')
   })
 
   test('the old key is still there for a build that goes back', async () => {

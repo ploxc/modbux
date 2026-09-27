@@ -1,8 +1,7 @@
-import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { selectedClient, useClientZustand } from '@renderer/context/client.zustand'
+import { openTypesOf, selectedClient, useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useMemo } from 'react'
 import { isNumberRegister } from '@shared'
 
@@ -10,7 +9,8 @@ type BitWidth = '32' | '64'
 
 /** The 32 bit columns and the 64 bit columns, each on or off by itself. */
 const BitWidthButtons = meme((): JSX.Element | null => {
-  const type = useSectionType()
+  // It sets every open register panel of the unit, so it shows while any is open.
+  const anyRegisters = useClientZustand((z) => openTypesOf(z).some(isNumberRegister))
   const show32 = useClientZustand((z) => selectedClient(z).registerConfig.advancedMode)
   const show64 = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 
@@ -28,7 +28,7 @@ const BitWidthButtons = meme((): JSX.Element | null => {
     [show32, show64]
   )
 
-  if (!isNumberRegister(type)) return null
+  if (!anyRegisters) return null
 
   return (
     <ToggleButtonGroup

@@ -2,6 +2,7 @@
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import type { Page } from '@playwright/test'
 import {
+  unitIdField,
   navigateToServer,
   navigateToClient,
   cleanServerState,
@@ -384,7 +385,7 @@ test.describe.serial('Server RTU — round-trip via socat', () => {
   async function readYearOn(mainPage: Page, unitId: string): Promise<void> {
     await mainPage.getByTestId('reg-address-input').locator('input').fill('40011')
     await mainPage.getByTestId('reg-length-input').locator('input').fill('1')
-    await mainPage.getByTestId('client-unitid-input').locator('input').fill(unitId)
+    await (await unitIdField(mainPage)).fill(unitId)
     await mainPage.getByTestId('read-btn').click()
   }
 

@@ -13,6 +13,7 @@
 
 import { test, expect } from '../../fixtures/presentation-app'
 import {
+  openClientMenu,
   navigateToServer,
   navigateToClient,
   navigateToHome,
@@ -794,18 +795,18 @@ test.describe.serial('Act IV — Interaction', () => {
     await readRegisters(mainPage, '0', '23')
     await beat(mainPage, 500)
 
-    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.getByTestId('transaction-log-toggle').click()
     await beat(mainPage)
     await snap(mainPage, 'client-transaction-log')
 
     // Hide log
-    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.getByTestId('transaction-log-toggle').click()
     await beat(mainPage, 300)
   })
 
   test('scene 29 — scanning', async ({ mainPage }) => {
     // Open cog menu → Scan Registers
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await beat(mainPage, 300)
 
     await mainPage.getByTestId('scan-registers-btn').click()
@@ -834,7 +835,7 @@ test.describe.serial('Act IV — Interaction', () => {
   })
 
   test('scene 29b — scanning for unit IDs', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await beat(mainPage, 300)
     await mainPage.getByTestId('scan-unitids-btn').click()
     await beat(mainPage, 500)

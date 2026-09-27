@@ -184,9 +184,8 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await fileInput.setInputFiles(CLIENT_CONFIG)
     await mainPage.waitForTimeout(1000)
 
-    // Config name should be set
-    const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
-    await expect(nameInput).toHaveValue('Huawei Smart Logger')
+    // The unit takes the file's name
+    await expect(mainPage.getByTestId('unit-tab-0')).toContainText('Huawei Smart Logger')
   })
 
   test('enable readConfiguration — shows all configured registers', async ({ mainPage }) => {
@@ -299,7 +298,6 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
   })
 
   test('load dummy data when disconnected', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.waitForTimeout(500)

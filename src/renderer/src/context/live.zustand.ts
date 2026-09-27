@@ -12,7 +12,7 @@ import { DateTime } from 'luxon'
 // the `create` call below threw "Cannot read properties of undefined (reading
 // 'getState')" before `client.zustand.test.ts` ran a single case, and at
 // startup there is no React render behind that to catch it.
-import { selectedClientUuid, selectedUnitOf, useClientZustand } from './client.zustand'
+import { openTypesOf, selectedClientUuid, selectedUnitOf, useClientZustand } from './client.zustand'
 import { onEvent } from '@renderer/events'
 import {
   RegisterData,
@@ -212,6 +212,16 @@ export const setShownRegisterData = (registerData: RegisterData[]): void => {
   const type = state.sessions[state.selectedUuid]?.shownType
   if (unit && type) {
     useLiveZustand.getState().setRegisterData(state.selectedUuid, unit.uuid, type, registerData)
+  }
+}
+
+/** Replace the rows of every register type the selected unit has open, one panel each. */
+export const setOpenRegisterData = (make: (type: RegisterType) => RegisterData[]): void => {
+  const state = useClientZustand.getState()
+  const unit = selectedUnitOf(state)
+  if (!unit) return
+  for (const type of openTypesOf(state)) {
+    useLiveZustand.getState().setRegisterData(state.selectedUuid, unit.uuid, type, make(type))
   }
 }
 

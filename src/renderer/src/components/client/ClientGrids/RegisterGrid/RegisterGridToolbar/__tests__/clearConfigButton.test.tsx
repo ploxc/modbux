@@ -16,13 +16,10 @@ vi.hoisted(async () => {
 })
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useClientZustand, getSelectedClient } from '@renderer/context/client.zustand'
+import { useClientZustand, getSelectedUnit } from '@renderer/context/client.zustand'
 import { emptyRegisterMapping } from '@shared'
 import ClearConfigButton from '../ClearConfigButton'
-import {
-  patchSelectedClient,
-  patchSelectedUnit
-} from '../../../../../../context/__tests__/selectedClient'
+import { patchSelectedUnit } from '../../../../../../context/__tests__/selectedClient'
 
 const clearRegisterMapping = vi.fn()
 
@@ -32,7 +29,7 @@ const mapped = (addresses: number[], name = 'the plant'): void => {
   for (const address of addresses)
     registerMapping.holding_registers[address] = { dataType: 'int16' }
   patchSelectedUnit(useClientZustand, { registerMapping })
-  patchSelectedClient(useClientZustand, { name })
+  patchSelectedUnit(useClientZustand, { name })
   useClientZustand.setState({ clearRegisterMapping } as never)
 }
 
@@ -43,7 +40,7 @@ const emptied = (addresses: number[]): void => {
     registerMapping.holding_registers[address] = { comment: '', groupEnd: false }
   }
   patchSelectedUnit(useClientZustand, { registerMapping })
-  patchSelectedClient(useClientZustand, { name: '' })
+  patchSelectedUnit(useClientZustand, { name: '' })
   useClientZustand.setState({ clearRegisterMapping } as never)
 }
 
@@ -64,7 +61,7 @@ describe('a configuration with mapped registers', () => {
 
     expect(screen.getByText(/2 registers carry/)).toBeInTheDocument()
     expect(clearRegisterMapping).not.toHaveBeenCalled()
-    expect(getSelectedClient().name).toBe('the plant')
+    expect(getSelectedUnit().name).toBe('the plant')
   })
 
   it('is kept when the dialog is dismissed', () => {
@@ -86,7 +83,7 @@ describe('a configuration with mapped registers', () => {
     fireEvent.click(screen.getByTestId('clear-config-confirm-btn'))
 
     expect(clearRegisterMapping).toHaveBeenCalled()
-    expect(getSelectedClient().name).toBe('')
+    expect(getSelectedUnit().name).toBe('')
     expect(screen.queryByTestId('clear-config-confirm-btn')).toBe(null)
   })
 

@@ -11,6 +11,7 @@
 
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  openClientMenu,
   loadServerConfig,
   navigateToClient,
   connectClient,
@@ -47,7 +48,7 @@ test.describe.serial('Scan grid cost', () => {
     // The whole point is a long scan, so the 60s the suite allows is not enough.
     test.setTimeout(600000)
 
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
 
     await mainPage.getByTestId('scan-address-input').locator('input').fill('0')

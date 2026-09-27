@@ -22,7 +22,7 @@ import {
 } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { defaultClientState, RegisterType } from '@shared'
-import RegisterConfig, { RegisterTypeTabs } from '../RegisterConfig'
+import RegisterConfig, { ReadConfiguration, RegisterTypeTabs } from '../RegisterConfig'
 import {
   patchSelectedClient,
   patchSelectedUnit
@@ -58,7 +58,7 @@ describe('RegisterConfig read configuration', () => {
   it('offers the button for a mapping that carries a data type', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
   })
@@ -66,7 +66,7 @@ describe('RegisterConfig read configuration', () => {
   it('refuses a mapping of comments on a bit type', () => {
     seed('coils', { 0: { comment: 'Inverter ON' }, 1: { comment: 'Grid Relay' } })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
@@ -74,7 +74,7 @@ describe('RegisterConfig read configuration', () => {
   it('refuses a mapping of comments on a register type', () => {
     seed('holding_registers', { 0: { comment: 'label only' } })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
@@ -82,7 +82,7 @@ describe('RegisterConfig read configuration', () => {
   it('refuses an address whose data type was set back to none', () => {
     seed('holding_registers', { 0: { dataType: 'none', comment: 'label only' } })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
@@ -90,7 +90,7 @@ describe('RegisterConfig read configuration', () => {
   it('refuses an empty mapping', () => {
     seed('holding_registers', {})
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
@@ -103,13 +103,13 @@ describe('RegisterConfig read configuration', () => {
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
-    const { rerender } = render(<RegisterConfig />)
+    const { rerender } = render(<ReadConfiguration />)
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
 
     patchShownData(useLiveZustand, {
       clientState: { ...defaultClientState, connectState: 'connected', reading: false }
     })
-    rerender(<RegisterConfig />)
+    rerender(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
   })
@@ -122,7 +122,7 @@ describe('RegisterConfig read configuration', () => {
       clientState: { ...defaultClientState, connectState: 'connected', writing: true }
     })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
   })
@@ -137,7 +137,7 @@ describe('RegisterConfig read configuration', () => {
         clientState: { ...defaultClientState, connectState: 'connected', [flag]: true }
       })
 
-      render(<RegisterConfig />)
+      render(<ReadConfiguration />)
 
       expect(screen.getByTestId('reg-read-config-btn')).toBeDisabled()
     }
@@ -152,7 +152,7 @@ describe('RegisterConfig read configuration', () => {
       clientState: { ...defaultClientState, connectState: 'connected', polling: true }
     })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
   })
@@ -171,7 +171,7 @@ describe('RegisterConfig read configuration', () => {
       clientState: { ...defaultClientState, connectState: 'connected', reading: true }
     })
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
 
     expect(readsConfiguration(useClientZustand.getState())).toBe(true)
   })
@@ -263,7 +263,7 @@ describe('RegisterConfig turning read configuration on', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
     answerWith(true)
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
     await waitFor(() => expect(readsConfiguration(useClientZustand.getState())).toBe(true))
@@ -291,7 +291,7 @@ describe('RegisterConfig turning read configuration on', () => {
       { get: (_target, method: string) => named[method] ?? stubbed[method] }
     ) as never
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
     take(true)
@@ -304,7 +304,7 @@ describe('RegisterConfig turning read configuration on', () => {
     seed('holding_registers', { 0: { dataType: 'int16' } })
     answerWith(undefined)
 
-    render(<RegisterConfig />)
+    render(<ReadConfiguration />)
     fireEvent.click(screen.getByTestId('reg-read-config-btn'))
 
     await waitFor(() => expect(window.api.setUnits).toHaveBeenCalled())

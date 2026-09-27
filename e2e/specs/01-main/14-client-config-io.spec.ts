@@ -38,9 +38,9 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(grid).toBeVisible()
   })
 
-  test('verify config name is "Test Client"', async ({ mainPage }) => {
-    const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
-    await expect(nameInput).toHaveValue('Test Client')
+  test('verify unit name is "Test Client"', async ({ mainPage }) => {
+    const unitTab = mainPage.getByTestId('unit-tab-0')
+    await expect(unitTab).toContainText('Test Client')
   })
 
   test('enable readConfiguration — populates grid with configured registers', async ({
@@ -126,9 +126,9 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     const readConfigBtn = mainPage.getByTestId('reg-read-config-btn')
     await expect(readConfigBtn).toBeDisabled()
 
-    // Config name should also be cleared
-    const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
-    await expect(nameInput).toHaveValue('')
+    // The unit name goes with it
+    const unitTab = mainPage.getByTestId('unit-tab-0')
+    await expect(unitTab).not.toContainText('Test Client')
   })
 
   test('reload saved config (round-trip) — verify name restored', async ({ mainPage }) => {
@@ -136,8 +136,8 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await fileInput.setInputFiles(CONFIG_FILES.clientBasic)
     await mainPage.waitForTimeout(1000)
 
-    const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
-    await expect(nameInput).toHaveValue('Test Client')
+    const unitTab = mainPage.getByTestId('unit-tab-0')
+    await expect(unitTab).toContainText('Test Client')
   })
 
   test('load comprehensive config (client-server1-unit0.json)', async ({ mainPage }) => {
@@ -145,8 +145,8 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await fileInput.setInputFiles(CONFIG_FILES.clientComprehensive)
     await mainPage.waitForTimeout(1000)
 
-    const nameInput = mainPage.getByTestId('client-config-name-input').locator('input')
-    await expect(nameInput).toHaveValue('Server 1 Unit 0')
+    const unitTab = mainPage.getByTestId('unit-tab-0')
+    await expect(unitTab).toContainText('Server 1 Unit 0')
   })
 
   test('verify comprehensive config — readConfiguration shows all data types in grid', async ({

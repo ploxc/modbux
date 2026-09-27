@@ -1,5 +1,7 @@
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  openClientMenu,
+  unitIdField,
   loadServerConfig,
   navigateToClient,
   connectClient,
@@ -38,43 +40,43 @@ test.describe.serial('Scan Registers', () => {
   // ─── Dialog open/close ──────────────────────────────────────────────
 
   test('scan registers button is visible in menu', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await expect(mainPage.getByTestId('scan-registers-btn')).toBeVisible()
     await expect(mainPage.getByTestId('scan-registers-btn')).toBeEnabled()
   })
 
-  test('button text says "Scan Registers" for holding registers', async ({ mainPage }) => {
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
+  test('button text says "Scan registers" for holding registers', async ({ mainPage }) => {
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan registers')
     await mainPage.keyboard.press('Escape')
   })
 
-  test('button text says "Scan TRUE Bits" for coils', async ({ mainPage }) => {
+  test('button text says "Scan TRUE bits" for coils', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Coils')
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE bits')
     await mainPage.keyboard.press('Escape')
     // Switch back to holding registers for remaining tests
     await selectRegisterType(mainPage, 'Holding Registers')
   })
 
-  test('button text says "Scan TRUE Bits" for discrete inputs', async ({ mainPage }) => {
+  test('button text says "Scan TRUE bits" for discrete inputs', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Discrete Inputs')
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE bits')
     await mainPage.keyboard.press('Escape')
     await selectRegisterType(mainPage, 'Holding Registers')
   })
 
-  test('button text says "Scan Registers" for input registers', async ({ mainPage }) => {
+  test('button text says "Scan registers" for input registers', async ({ mainPage }) => {
     await selectRegisterType(mainPage, 'Input Registers')
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan registers')
     await mainPage.keyboard.press('Escape')
     await selectRegisterType(mainPage, 'Holding Registers')
   })
 
   test('open scan registers dialog', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
     // The dialog opens with form inputs visible
     await expect(mainPage.getByTestId('scan-unitid-input')).toBeVisible()
@@ -125,7 +127,7 @@ test.describe.serial('Scan Registers', () => {
 
     // Close dialog and verify the main toolbar unit ID changed
     await mainPage.keyboard.press('Escape')
-    const mainUnitId = mainPage.getByTestId('client-unitid-input').locator('input')
+    const mainUnitId = await unitIdField(mainPage)
     await expect(mainUnitId).toHaveValue('5')
 
     // Reset back to 0 via main toolbar
@@ -135,7 +137,7 @@ test.describe.serial('Scan Registers', () => {
   // ─── Address base toggle ───────────────────────────────────────────
 
   test('address base toggle switches between 0 and 1', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
 
     const addressInput = mainPage.getByTestId('scan-address-input').locator('input')
@@ -162,7 +164,7 @@ test.describe.serial('Scan Registers', () => {
   // ─── Scan execution: narrow range ──────────────────────────────────
 
   test('open dialog and configure narrow scan range', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
     await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
@@ -208,7 +210,7 @@ test.describe.serial('Scan Registers', () => {
 
   test('clear data and open dialog for larger-chunk scan', async ({ mainPage }) => {
     await clearData(mainPage)
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
     await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
@@ -245,8 +247,8 @@ test.describe.serial('Scan Registers', () => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Coils')
 
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE bits')
     await mainPage.getByTestId('scan-registers-btn').click()
     await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
@@ -281,8 +283,8 @@ test.describe.serial('Scan Registers', () => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Input Registers')
 
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan registers')
     await mainPage.getByTestId('scan-registers-btn').click()
     await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
@@ -317,7 +319,7 @@ test.describe.serial('Scan Registers', () => {
     await clearData(mainPage)
     await selectRegisterType(mainPage, 'Holding Registers')
 
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await mainPage.getByTestId('scan-registers-btn').click()
     await expect(mainPage.getByTestId('scan-address-input')).toBeVisible()
 
@@ -382,7 +384,7 @@ test.describe.serial('Scan Registers', () => {
   // ─── Scan button disabled when disconnected ────────────────────────
 
   test('scan button is disabled when disconnected', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
+    await openClientMenu(mainPage)
     await expect(mainPage.getByTestId('scan-registers-btn')).toBeDisabled()
     await mainPage.keyboard.press('Escape')
   })

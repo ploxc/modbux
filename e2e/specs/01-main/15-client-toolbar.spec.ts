@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
+  openClientMenu,
   navigateToClient,
   connectClient,
   disconnectClient,
@@ -221,19 +222,18 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
 
   // ─── Transaction log ────────────────────────────────────────────────
 
-  test('show log button reveals log panel', async ({ mainPage }) => {
-    const logBtn = mainPage.getByTestId('show-log-btn')
+  test('the log bar opens and closes the log', async ({ mainPage }) => {
+    const logBtn = mainPage.getByTestId('transaction-log-toggle')
     const logPanel = mainPage.getByTestId('transaction-log-panel')
 
-    // Click show log
     await logBtn.click()
 
-    await expect(logBtn).toContainText('Hide Log')
+    await expect(logBtn).toHaveAttribute('aria-expanded', 'true')
     await expect(logPanel).toBeVisible()
 
     // Click again to hide
     await logBtn.click()
-    await expect(logBtn).toContainText('Show Log')
+    await expect(logBtn).toHaveAttribute('aria-expanded', 'false')
     await expect(logPanel).not.toBeVisible()
   })
 
@@ -245,7 +245,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     mainPage
   }) => {
     await selectRegisterType(mainPage, 'Coils')
-    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.getByTestId('transaction-log-toggle').click()
 
     await readRegisters(mainPage, '4', '2')
 
@@ -256,7 +256,7 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       .locator('[data-field="address"]')
     await expect(addressCell).toHaveText('4', { timeout: 5000 })
 
-    await mainPage.getByTestId('show-log-btn').click()
+    await mainPage.getByTestId('transaction-log-toggle').click()
     await selectRegisterType(mainPage, 'Holding Registers')
   })
 
@@ -336,10 +336,10 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
       await expect(mainPage.getByTestId('bits-64-btn')).not.toBeVisible()
     })
 
-    test(`[${regType}] scan button says "Scan TRUE Bits"`, async ({ mainPage }) => {
-      await mainPage.getByTestId('menu-btn').click()
+    test(`[${regType}] scan button says "Scan TRUE bits"`, async ({ mainPage }) => {
+      await openClientMenu(mainPage)
 
-      await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE Bits')
+      await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan TRUE bits')
 
       await mainPage.keyboard.press('Escape')
     })
@@ -374,15 +374,14 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await expect(mainPage.getByTestId('endian-be-btn')).toBeVisible()
     await expect(mainPage.getByTestId('bits-32-btn')).toBeVisible()
 
-    await mainPage.getByTestId('menu-btn').click()
-    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan Registers')
+    await openClientMenu(mainPage)
+    await expect(mainPage.getByTestId('scan-registers-btn')).toContainText('Scan registers')
     await mainPage.keyboard.press('Escape')
   })
 
   // ─── Load dummy data ────────────────────────────────────────────────
 
   test('load dummy data button is disabled when connected', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeDisabled()
     await mainPage.keyboard.press('Escape')
   })
@@ -397,7 +396,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   })
 
   test('load dummy data button is enabled when disconnected', async ({ mainPage }) => {
-    await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.keyboard.press('Escape')
   })
@@ -406,7 +404,6 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     // Wait for disconnected state before opening menu
     await expect(mainPage.getByTestId('connect-btn')).toContainText('Connect')
 
-    await mainPage.getByTestId('menu-btn').click()
     await expect(mainPage.getByTestId('load-dummy-data-btn')).toBeEnabled()
     await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.waitForTimeout(500)

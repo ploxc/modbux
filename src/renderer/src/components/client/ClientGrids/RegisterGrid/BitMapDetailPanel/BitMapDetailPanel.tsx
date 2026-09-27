@@ -1,4 +1,5 @@
 import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
+import { atOrBelow, BREAKPOINTS } from '../../breakpoints'
 import Box from '@mui/material/Box'
 import { useLiveZustand, dataOf, getShownSection, sectionOf } from '@renderer/context/live.zustand'
 import {
@@ -141,7 +142,7 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 0,
           // Narrow: 8 rows × 2 columns
-          '@container (max-width: 560px)': {
+          [atOrBelow(BREAKPOINTS.bitMapTwoColumns)]: {
             gridTemplateRows: 'repeat(8, auto)',
             gridTemplateColumns: 'repeat(2, 1fr)'
           }

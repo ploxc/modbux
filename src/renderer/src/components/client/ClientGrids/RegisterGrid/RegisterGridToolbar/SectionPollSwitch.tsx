@@ -33,7 +33,6 @@ const SectionPollSwitch = meme(() => {
       label="Poll"
       labelPlacement="start"
       disabled={readConfiguration}
-      sx={{ mx: 0, gap: 0.5 }}
       control={
         <Switch
           size="small"
