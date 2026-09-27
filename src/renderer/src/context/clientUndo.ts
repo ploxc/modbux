@@ -1,7 +1,6 @@
 import { isConnectionAddressGiven } from '@shared'
 import { deepEqual } from 'fast-equals'
 import {
-  getSelectedClient,
   getSelectedUnit,
   getShownType,
   holdSelection,
@@ -140,8 +139,8 @@ const replayMapping = (step: ClientMappingStep): Promise<ClientMappingStep | und
 }
 
 const currentConfiguration = (): ClientConfiguration => {
-  const { littleEndian, registerMapping } = getSelectedUnit()
-  return { name: getSelectedClient().name, littleEndian, registerMapping }
+  const { name, littleEndian, registerMapping } = getSelectedUnit()
+  return { name, littleEndian, registerMapping }
 }
 
 /**
@@ -162,7 +161,7 @@ const replayConfiguration = async (
     await client.setLittleEndian(replaced.value.littleEndian)
     return undefined
   }
-  client.setName(step.value.name)
+  client.setUnitName(step.value.name)
   showMapping(step.uuid, step.unit, step.type)
   return replaced
 }

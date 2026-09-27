@@ -84,7 +84,7 @@ export const replaceMapping = async ({
   let replaced = false
   await asOneClientStep(async () => {
     const clientZustand = useClientZustand.getState()
-    if (opened.name) clientZustand.setName(opened.name)
+    if (opened.name) clientZustand.setUnitName(opened.name)
     await clientZustand.setLittleEndian(opened.littleEndian)
     replaced = await clientZustand.replaceRegisterMapping(opened.registerMapping)
   })
@@ -97,7 +97,7 @@ export const clearMapping = async ({ client }: McpToolArgs<'clear_mapping'>): Pr
   selectClient(client)
   await asOneClientStep(async () => {
     const clientZustand = useClientZustand.getState()
-    clientZustand.setName('')
+    clientZustand.setUnitName('')
     await clientZustand.clearRegisterMapping()
   })
   return { cleared: client }

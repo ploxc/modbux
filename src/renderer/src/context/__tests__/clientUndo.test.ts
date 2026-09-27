@@ -275,20 +275,20 @@ describe('Load and Clear Config', () => {
   it('are one step that puts the name, the byte order and the mapping back', async () => {
     const { client, undo, clientUndo } = await load()
     client().showType('holding_registers')
-    client().setName('boiler')
+    client().setUnitName('boiler')
     client().setRegisterMapping(3, 'comment', 'pump')
     await client().setLittleEndian(true)
     const steps = undo().client.past.length
 
     await clientUndo.asOneClientStep(async () => {
-      client().setName('')
+      client().setUnitName('')
       await client().setLittleEndian(false)
       await client().clearRegisterMapping()
     })
     expect(undo().client.past).toHaveLength(steps + 1)
 
     expect(await clientUndo.undoClient()).toBe('done')
-    expect(selectedClient(client()).name).toBe('boiler')
+    expect(selectedUnit(client()).name).toBe('boiler')
     expect(selectedUnit(client()).littleEndian).toBe(true)
     expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       comment: 'pump'
@@ -329,11 +329,11 @@ describe('Load and Clear Config', () => {
 
   it('records its step while an undo that started first is still quiet', async () => {
     const { client, undo, clientUndo } = await load()
-    client().setName('boiler')
+    client().setUnitName('boiler')
     undo().beginQuiet()
 
     await clientUndo.asOneClientStep(async () => {
-      client().setName('')
+      client().setUnitName('')
     })
     undo().endQuiet()
 
@@ -348,11 +348,11 @@ describe('Load and Clear Config', () => {
 
   it('records the step of an action that threw after it changed something', async () => {
     const { client, undo, clientUndo } = await load()
-    client().setName('boiler')
+    client().setUnitName('boiler')
 
     await expect(
       clientUndo.asOneClientStep(async () => {
-        client().setName('')
+        client().setUnitName('')
         throw new Error('the file went away')
       })
     ).rejects.toThrow('the file went away')
@@ -370,7 +370,7 @@ describe('Load and Clear Config', () => {
     const { client, undo, clientUndo } = await load()
 
     await clientUndo.asOneClientStep(async () => {
-      client().setName('')
+      client().setUnitName('')
       await client().clearRegisterMapping()
     })
 

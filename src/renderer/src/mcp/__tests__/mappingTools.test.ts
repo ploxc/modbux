@@ -88,6 +88,7 @@ beforeEach(async () => {
   clientZustand.setLayout('hr')
   await clientZustand.setLittleEndian(false)
   clientZustand.setName('')
+  clientZustand.setUnitName('')
   await clientZustand.clearRegisterMapping()
   calls.length = 0
   mainRefusesMapping = false
@@ -230,7 +231,7 @@ describe('replace_mapping and clear_mapping', () => {
     const answer = await run('replace_mapping', { client, config: savedConfig })
 
     expect(answer).toEqual({ migrated: false, fieldsNotBroughtAcross: [] })
-    expect(clientOf()?.name).toBe('Meter')
+    expect(unitOf()?.name).toBe('Meter')
     expect(unitOf()).toMatchObject({
       littleEndian: true,
       registerMapping: { holding_registers: { 3: { dataType: 'int16', comment: 'power' } } }
@@ -261,7 +262,7 @@ describe('replace_mapping and clear_mapping', () => {
   it('is one step to undo', async () => {
     await run('replace_mapping', { client, config: savedConfig })
     await undoClient()
-    expect(clientOf()?.name).toBe('')
+    expect(unitOf()?.name).toBe('')
     expect(unitOf()).toMatchObject({
       littleEndian: false,
       registerMapping: emptyRegisterMapping()
@@ -298,11 +299,11 @@ describe('replace_mapping and clear_mapping', () => {
     await run('replace_mapping', { client, config: savedConfig })
 
     await run('clear_mapping', { client })
-    expect(clientOf()?.name).toBe('')
+    expect(unitOf()?.name).toBe('')
     expect(unitOf()?.registerMapping).toEqual(emptyRegisterMapping())
 
     await undoClient()
-    expect(clientOf()?.name).toBe('Meter')
+    expect(unitOf()?.name).toBe('Meter')
     expect(unitOf()?.registerMapping).toMatchObject({
       holding_registers: { 3: { dataType: 'int16' } }
     })
