@@ -6,16 +6,20 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { layoutOf, selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import {
+  dockType,
   formatLayout,
   insertType,
   LayoutNode,
   LayoutSide,
   parseLayout,
+  placeOf,
   RegisterType,
   RegisterTypeSchema,
-  resizeSplit
+  resizeSplit,
+  typesIn
 } from '@shared'
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { edgeSideOf, LayoutRootContext } from './edgeDrop'
 import {
   DndContext,
   DragEndEvent,
@@ -117,10 +121,17 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
     [setNodeRef]
   )
 
+  const root = useContext(LayoutRootContext)
+  /** Whether the pointer is in an edge strip, where the drop is the layout's rather than this panel's. */
+  const atEdge = (x: number, y: number): boolean => {
+    const rect = root.current?.getBoundingClientRect()
+    return rect !== undefined && edgeSideOf(rect, x, y) !== undefined
+  }
+
   useDndMonitor({
     onDragMove: (event) => {
-      if (event.over?.id !== type) return setSide(undefined)
       const { x, y } = pointerOf(event)
+      if (event.over?.id !== type || atEdge(x, y)) return setSide(undefined)
       setSide(nearestSide(event.over.rect, x, y))
     },
     onDragEnd: (event) => {
@@ -128,6 +139,7 @@ const LayoutLeaf = meme(({ type }: { type: RegisterType }) => {
       const dragged = draggedType(event.active.id)
       if (event.over?.id !== type || dragged === undefined) return
       const { x, y } = pointerOf(event)
+      if (atEdge(x, y)) return
       const clientZustand = useClientZustand.getState()
       const layout = layoutOf(selectedUnit(clientZustand))
       clientZustand.setLayout(
@@ -260,6 +272,65 @@ const SectionDragPreview = meme(() => {
   )
 })
 
+/** Where along an edge the docked panel would go: the share the dock gives it. */
+const edgeHighlight = (side: LayoutSide, share: number): object => {
+  const size = `${share}%`
+  if (side === 'left') return { left: 0, top: 0, bottom: 0, width: size }
+  if (side === 'right') return { right: 0, top: 0, bottom: 0, width: size }
+  if (side === 'top') return { left: 0, right: 0, top: 0, height: size }
+  return { left: 0, right: 0, bottom: 0, height: size }
+}
+
+/**
+ * While a section head is dragged into a strip along the layout's edge, the
+ * room it would take along that whole edge; dropped there, it takes it.
+ */
+const EdgeDrop = meme(() => {
+  const root = useContext(LayoutRootContext)
+  const [edge, setEdge] = useState<{ side: LayoutSide; share: number } | undefined>(undefined)
+
+  /** The edge the pointer docks along and the layout the drop would give, or none. */
+  const dockOf = (
+    event: DragMoveEvent | DragEndEvent
+  ): { side: LayoutSide; share: number; docked: LayoutNode } | undefined => {
+    const dragged = draggedType(event.active.id)
+    const rect = root.current?.getBoundingClientRect()
+    if (dragged === undefined || rect === undefined) return undefined
+    const { x, y } = pointerOf(event)
+    const side = edgeSideOf(rect, x, y)
+    const layout = layoutOf(selectedUnit(useClientZustand.getState()))
+    if (side === undefined || typesIn(layout).length < 2) return undefined
+    const docked = dockType(layout, dragged, side)
+    const place = placeOf(docked, dragged)
+    return place && { side, share: place.share, docked }
+  }
+
+  useDndMonitor({
+    onDragMove: (event) => setEdge(dockOf(event)),
+    onDragEnd: (event) => {
+      setEdge(undefined)
+      const dock = dockOf(event)
+      if (dock) useClientZustand.getState().setLayout(formatLayout(dock.docked))
+    },
+    onDragCancel: () => setEdge(undefined)
+  })
+
+  if (edge === undefined) return null
+  return (
+    <Box
+      data-testid={`layout-edge-drop-${edge.side}`}
+      sx={(theme) => ({
+        position: 'absolute',
+        zIndex: 11,
+        ...edgeHighlight(edge.side, edge.share),
+        pointerEvents: 'none',
+        background: alpha(theme.palette.primary.main, 0.18),
+        border: `1px dashed ${theme.palette.primary.main}`
+      })}
+    />
+  )
+})
+
 /**
  * The unit on screen's register types, laid out as its layout says. A section
  * head dragged onto another section splits that one on the side it was dropped.
@@ -268,20 +339,26 @@ const LayoutView = meme(() => {
   const layoutText = useClientZustand((z) => selectedUnit(z).layout)
   const node = useMemo(() => parseLayout(layoutText) ?? 'holding_registers', [layoutText])
   const sensors = useDragSensors()
+  const rootRef = useRef<HTMLDivElement | null>(null)
 
   return (
     <DndContext sensors={sensors}>
-      {/* The ground between the panels is the card the panels sit on. */}
-      <Box
-        sx={(theme) => ({
-          height: '100%',
-          boxSizing: 'border-box',
-          p: 0.5,
-          background: theme.palette.background.paper
-        })}
-      >
-        <LayoutBranch key={structureOf(layoutText)} node={node} path={[]} />
-      </Box>
+      <LayoutRootContext.Provider value={rootRef}>
+        {/* The ground between the panels is the card the panels sit on. */}
+        <Box
+          ref={rootRef}
+          sx={(theme) => ({
+            position: 'relative',
+            height: '100%',
+            boxSizing: 'border-box',
+            p: 0.5,
+            background: theme.palette.background.paper
+          })}
+        >
+          <LayoutBranch key={structureOf(layoutText)} node={node} path={[]} />
+          <EdgeDrop />
+        </Box>
+      </LayoutRootContext.Provider>
       <DragOverlay>
         <SectionDragPreview />
       </DragOverlay>

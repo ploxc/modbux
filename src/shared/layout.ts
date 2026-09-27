@@ -167,6 +167,115 @@ const insertBeside = (
 }
 
 /**
+ * Where a type sat: beside the part holding `neighbours`, on `side` of it, in
+ * a split taking `share` percent. What `removeType` loses, and `restoreType`
+ * puts back.
+ */
+export interface LayoutPlace {
+  neighbours: RegisterType[]
+  side: LayoutSide
+  share: number
+}
+
+/**
+ * Where `type` sits in the layout: beside the part before it in its split, or
+ * the part after it when it comes first. Undefined when it is not in a split.
+ */
+export const placeOf = (node: LayoutNode, type: RegisterType): LayoutPlace | undefined => {
+  if (typeof node === 'string') return undefined
+  for (const [index, part] of node.parts.entries()) {
+    if (part.node !== type) {
+      const place = placeOf(part.node, type)
+      if (place) return place
+      continue
+    }
+    // The part before it, or for the first part the one after.
+    const first = index === 0
+    const neighbour = first ? index + 1 : index - 1
+    const row = node.direction === 'r'
+    const side: LayoutSide = first ? (row ? 'left' : 'top') : row ? 'right' : 'bottom'
+    const neighbours = node.parts.flatMap((other, i) =>
+      i === neighbour ? typesIn(other.node) : []
+    )
+    return { neighbours, side, share: part.size }
+  }
+  return undefined
+}
+
+const sameTypes = (node: LayoutNode, types: RegisterType[]): boolean => {
+  const inNode = typesIn(node)
+  return inNode.length === types.length && types.every((type) => inNode.includes(type))
+}
+
+const directionOf = (side: LayoutSide): 'r' | 'c' =>
+  side === 'left' || side === 'right' ? 'r' : 'c'
+
+const comesFirst = (side: LayoutSide): boolean => side === 'left' || side === 'top'
+
+/** `node` and `type` in a split, `type` taking `share` percent on `side`. */
+const wrap = (
+  node: LayoutNode,
+  type: RegisterType,
+  side: LayoutSide,
+  share: number
+): LayoutSplit => {
+  const added = { node: type, size: share }
+  const kept = { node, size: 100 - share }
+  return { direction: directionOf(side), parts: comesFirst(side) ? [added, kept] : [kept, added] }
+}
+
+/**
+ * The layout with `type` back where `place` says it sat: beside the part that
+ * holds exactly its neighbours, as a part of that part's split when the split
+ * runs the same way, in a split of their own otherwise. Undefined when no part
+ * holds exactly those neighbours any more.
+ */
+export const restoreType = (
+  node: LayoutNode,
+  type: RegisterType,
+  place: LayoutPlace
+): LayoutNode | undefined => {
+  if (typesIn(node).includes(type)) return node
+  if (sameTypes(node, place.neighbours)) return wrap(node, type, place.side, place.share)
+  if (typeof node === 'string') return undefined
+  const index = node.parts.findIndex(({ node: part }) => sameTypes(part, place.neighbours))
+  const neighbour = node.parts[index]
+  if (neighbour && node.direction === directionOf(place.side)) {
+    const scale = (100 - place.share) / 100
+    const parts = node.parts.map((part) => ({ ...part, size: part.size * scale }))
+    parts.splice(comesFirst(place.side) ? index : index + 1, 0, { node: type, size: place.share })
+    return { direction: node.direction, parts }
+  }
+  for (const [at, part] of node.parts.entries()) {
+    const restored = restoreType(part.node, type, place)
+    if (restored === undefined) continue
+    const parts = node.parts.map((kept, i) => (i === at ? { ...kept, node: restored } : kept))
+    return { direction: node.direction, parts }
+  }
+  return undefined
+}
+
+/**
+ * The layout with `type` along one whole edge: the rest on the other side of
+ * it. Against a split running the same way it becomes that split's first or
+ * last part, taking an equal share; otherwise the rest and it share half each.
+ */
+export const dockType = (node: LayoutNode, type: RegisterType, side: LayoutSide): LayoutNode => {
+  const without = removeType(node, type)
+  if (without === undefined) return node
+  if (typeof without === 'string' || without.direction !== directionOf(side))
+    return wrap(without, type, side, 50)
+  const share = 100 / (without.parts.length + 1)
+  const scale = (100 - share) / 100
+  const parts = without.parts.map((part) => ({ ...part, size: part.size * scale }))
+  const added = { node: type, size: share }
+  return {
+    direction: without.direction,
+    parts: comesFirst(side) ? [added, ...parts] : [...parts, added]
+  }
+}
+
+/**
  * The layout with `type` added: at the end of the outermost split, taking an
  * equal share, or below a single type, in a column.
  */

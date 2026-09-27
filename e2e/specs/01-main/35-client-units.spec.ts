@@ -117,7 +117,11 @@ test.describe.serial('A client with two units', () => {
     if (!title || !box) throw new Error('the sections are not on screen')
     await mainPage.mouse.move(title.x + title.width / 2, title.y + title.height / 2)
     await mainPage.mouse.down()
-    await mainPage.mouse.move(box.x + box.width - 10, box.y + box.height / 2, { steps: 10 })
+    // Nearer the right side than the bottom, and short of the strip along the
+    // edge of the layout, a tenth of its width, where the drop would dock
+    // along that edge instead.
+    const fromRight = (box.width * 0.1 + box.height / 2) / 2
+    await mainPage.mouse.move(box.x + box.width - fromRight, box.y + box.height / 2, { steps: 10 })
     await mainPage.mouse.up()
 
     await expect.poll(place).toEqual({ below: false, beside: true })
@@ -127,6 +131,54 @@ test.describe.serial('A client with two units', () => {
     await mainPage.getByTestId('reg-type-input_registers-btn').click()
     await expect(mainPage.getByTestId('section-grid-input_registers')).toHaveCount(0)
     await expect(mainPage.getByTestId('section-grid-holding_registers')).toBeVisible()
+  })
+
+  test('a type turned back on returns beside the type it sat beside', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-type-input_registers-btn').click()
+
+    const holding = await mainPage.getByTestId('section-grid-holding_registers').boundingBox()
+    const input = await mainPage.getByTestId('section-grid-input_registers').boundingBox()
+    if (!holding || !input) throw new Error('the sections are not on screen')
+    // Beside, as the drag left it, where a type turned on for the first time goes below.
+    expect(input.x).toBeGreaterThan(holding.x + 10)
+    expect(Math.abs(input.y - holding.y)).toBeLessThan(10)
+  })
+
+  test('a head dropped at the edge of the layout takes that whole edge', async ({ mainPage }) => {
+    await mainPage.getByTestId('reg-type-coils-btn').click()
+    await mainPage.getByTestId('layout-column-btn').click()
+    const section = (type: string): Locator => mainPage.getByTestId(`section-grid-${type}`)
+
+    const title = await mainPage.getByTestId('section-title-coils').boundingBox()
+    const holding = await section('holding_registers').boundingBox()
+    if (!title || !holding) throw new Error('the sections are not on screen')
+    await mainPage.mouse.move(title.x + title.width / 2, title.y + title.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(holding.x + holding.width - 5, holding.y + holding.height, {
+      steps: 10
+    })
+    await expect(mainPage.getByTestId('layout-edge-drop-right')).toBeVisible()
+    await mainPage.mouse.up()
+
+    // Coils on the right from the top of holding registers to the bottom of the
+    // column, holding and input registers one above the other on its left.
+    await expect
+      .poll(async () => {
+        const coils = await section('coils').boundingBox()
+        const left = await section('holding_registers').boundingBox()
+        const under = await section('input_registers').boundingBox()
+        if (!coils || !left || !under) return undefined
+        return {
+          right: coils.x > left.x + left.width - 10,
+          fullHeight: coils.height > left.height + under.height - 20,
+          stacked: under.y > left.y + 10 && Math.abs(under.x - left.x) < 10
+        }
+      })
+      .toEqual({ right: true, fullHeight: true, stacked: true })
+
+    // The tests after this one start from holding registers alone.
+    await mainPage.getByTestId('reg-type-coils-btn').click()
+    await mainPage.getByTestId('reg-type-input_registers-btn').click()
   })
 
   // The menu takes focus back as it closes, and each field closes on blur.

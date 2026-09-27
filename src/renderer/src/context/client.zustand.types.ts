@@ -2,6 +2,7 @@ import {
   ClientUnitSchema,
   Protocol,
   RegisterType,
+  LayoutPlace,
   ModbusBaudRate,
   Parity,
   RegisterMapping,
@@ -58,6 +59,11 @@ export interface ClientSession {
   /** The register type the view acts on, one of those the unit's layout shows. */
   shownType: RegisterType
   readConfiguration: Record<string, boolean>
+  /**
+   * Where each register type turned off sat, by unit uuid, so turning it on
+   * puts it back there. Kept until Modbux closes.
+   */
+  removedPlaces: Record<string, Partial<Record<RegisterType, LayoutPlace>>>
   valid: Valid
 }
 

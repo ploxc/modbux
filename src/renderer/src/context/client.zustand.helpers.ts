@@ -53,6 +53,7 @@ export const readySession = (client: PersistedClient): ClientSession => ({
   selectedUnit: client.units[0]?.uuid ?? '',
   shownType: 'holding_registers',
   readConfiguration: {},
+  removedPlaces: {},
   valid: {
     host: isConnectionAddressGiven(client.connectionConfig.tcp.host),
     com: isConnectionAddressGiven(client.connectionConfig.rtu.com)
@@ -74,6 +75,7 @@ const NO_SESSION: ClientSession = {
   selectedUnit: '',
   shownType: 'holding_registers',
   readConfiguration: {},
+  removedPlaces: {},
   valid: { host: true, com: true }
 }
 const [NO_UNIT = newClientUnit(MAIN_UNIT_UUID, 1)] = NO_CLIENT.units

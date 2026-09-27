@@ -56,6 +56,25 @@ describe('turning a type off', () => {
   })
 })
 
+describe('turning a type back on', () => {
+  it('puts it where it sat when it was turned off', async () => {
+    const store = await load()
+    store.getState().setLayout('r(hr:60,c(ir:50,co:50):40)')
+    store.getState().setType('coils')
+    store.getState().setType('coils')
+
+    expect(layout(store)).toBe('r(hr:60,c(ir:50,co:50):40)')
+  })
+
+  it('puts a type never turned off at the end, as before', async () => {
+    const store = await load()
+    store.getState().setLayout('r(hr:60,ir:40)')
+    store.getState().setType('coils')
+
+    expect(layout(store)).toBe('r(hr:40,ir:26.7,co:33.3)')
+  })
+})
+
 describe('the layout of each unit', () => {
   it('is its own: another unit keeps the one it had', async () => {
     const store = await load()

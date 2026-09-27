@@ -22,6 +22,8 @@ import {
   formatLayout,
   parseLayout,
   removeType,
+  restoreType,
+  placeOf,
   typesIn,
   newClientUnit,
   emptyRegisterMapping,
@@ -561,13 +563,20 @@ export const useClientZustand = create<
         const unit = selectedUnit(get())
         const layout = layoutOf(unit)
         const on = typesIn(layout).includes(type)
+        // A type turned on goes back where it sat when it was turned off.
+        const place = selectedSession(get()).removedPlaces[unit.uuid]?.[type]
+        const restored = place && restoreType(layout, type, place)
         // The last type on stays: the view always shows one.
-        const next = on ? removeType(layout, type) : addType(layout, type)
+        const next = on ? removeType(layout, type) : (restored ?? addType(layout, type))
         if (next === undefined) return
+        const removedPlace = on ? placeOf(layout, type) : undefined
         set((state) =>
           onClient(state, selectedUuid, ({ client, session }) => {
             const found = client.units.find(({ uuid }) => uuid === view.unit)
             if (found) found.layout = formatLayout(next)
+            const places = session.removedPlaces[unit.uuid] ?? {}
+            session.removedPlaces[unit.uuid] = places
+            if (removedPlace) places[type] = removedPlace
             if (!on) session.shownType = type
             else if (session.shownType === type) {
               session.shownType = typesIn(next)[0] ?? session.shownType
