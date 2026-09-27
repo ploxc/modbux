@@ -158,4 +158,21 @@ test.describe.serial('A client with two units', () => {
     await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(0)
     await expect(input.locator('.MuiDataGrid-row')).toHaveCount(0)
   })
+
+  test('a right click on the client card opens its menu, and Rename leaves the field open', async ({
+    mainPage
+  }) => {
+    await mainPage.locator('[data-testid^="client-card-"][aria-pressed="true"]').click({
+      button: 'right'
+    })
+    await mainPage.locator('[data-testid^="client-rename-"]:visible').click()
+    const field = mainPage.locator('[data-testid^="client-name-input-"]')
+    await expect(field).toBeFocused()
+    await field.fill('Test rig')
+    await field.press('Enter')
+
+    await expect(
+      mainPage.locator('[data-testid^="client-card-"][aria-pressed="true"]')
+    ).toContainText('Test rig')
+  })
 })

@@ -18,6 +18,7 @@ import ProtocolIcon from '../ProtocolIcon'
 import AddUnitRow from './AddUnitRow'
 import ClientMenu from './ClientMenu'
 import UnitRow from './UnitRow'
+import { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 
 interface ClientCardProps {
   uuid: string
@@ -60,7 +61,21 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
     },
     [uuid]
   )
-  const handleMenuClose = useCallback(() => setMenuAnchor(null), [])
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
+  // A right click on the card opens the same menu where the pointer is.
+  const handleContextMenu = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      event.preventDefault()
+      const clientZustand = useClientZustand.getState()
+      clientZustand.setSelectedUuid(uuid)
+      setMenuPosition({ left: event.clientX, top: event.clientY })
+    },
+    [uuid]
+  )
+  const handleMenuClose = useCallback(() => {
+    setMenuAnchor(null)
+    setMenuPosition(null)
+  }, [])
   const toggleExpanded = useCallback(() => setExpanded((open) => !open), [])
   // `setName` names the client on screen, so renaming waits until this one is.
   const startRenaming = useCallback(() => {
@@ -185,7 +200,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
         overflow: 'hidden'
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center' }} onContextMenu={handleContextMenu}>
         {/* A field inside a button would take its clicks and keys, so the name is edited in a plain box. */}
         {renaming ? (
           <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, gap: 1.25, p: 1.25 }}>{face}</Box>
@@ -244,6 +259,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
       <ClientMenu
         uuid={uuid}
         anchor={menuAnchor}
+        position={menuPosition}
         onClose={handleMenuClose}
         onRename={startRenaming}
         deletable={deletable}
