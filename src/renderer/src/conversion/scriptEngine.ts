@@ -6,6 +6,7 @@ import {
   shouldInterruptAfterDeadline
 } from 'quickjs-emscripten-core'
 import { useScriptEngineZustand } from './scriptEngine.zustand'
+import { returnsEverywhere } from './returnsEverywhere'
 
 /**
  * A conversion script runs in QuickJS, an engine of its own: it sees `raw`
@@ -85,11 +86,17 @@ const compile = (vm: QuickJSContext, code: string): QuickJSHandle | ScriptError 
 
 const isError = (value: QuickJSHandle | ScriptError): value is ScriptError => 'message' in value
 
-/** Why the script does not compile, or undefined when it does. */
+/**
+ * Why the script cannot be saved: it does not compile, or a path through it
+ * ends without returning a value, which is named at its last line. Undefined
+ * when it can.
+ */
 export const scriptError = (code: string): ScriptError | undefined => {
   if (!context) return undefined
   const handle = compile(context, code)
-  return isError(handle) ? handle : undefined
+  if (isError(handle)) return handle
+  if (returnsEverywhere(code)) return undefined
+  return { message: 'Not every path returns a value', line: code.split('\n').length }
 }
 
 /**

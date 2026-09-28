@@ -35,6 +35,13 @@ describe('scriptError', () => {
     })
   })
 
+  it('names the last line of a script that can end without a value', () => {
+    expect(scriptError('if (raw > 0) {\n  return raw\n}')).toEqual({
+      message: 'Not every path returns a value',
+      line: 3
+    })
+  })
+
   it('answers nothing for a script that compiles', () => {
     expect(scriptError('return raw')).toBeUndefined()
   })

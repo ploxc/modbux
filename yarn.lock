@@ -1500,7 +1500,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lezer/common@npm:^1.0.0, @lezer/common@npm:^1.1.0, @lezer/common@npm:^1.2.0, @lezer/common@npm:^1.3.0, @lezer/common@npm:^1.5.0":
+"@lezer/common@npm:^1.0.0, @lezer/common@npm:^1.1.0, @lezer/common@npm:^1.2.0, @lezer/common@npm:^1.3.0, @lezer/common@npm:^1.5.0, @lezer/common@npm:^1.5.3":
   version: 1.5.3
   resolution: "@lezer/common@npm:1.5.3"
   checksum: 10c0/f06d64cd72ad95295f6bc65187188081e61fb655c48923c9c283b514e3183450003795a1c0b58dc0844da5075c748068d879f90d7eaedeea48c99d73f9b6e214
@@ -1516,7 +1516,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lezer/javascript@npm:^1.0.0":
+"@lezer/javascript@npm:^1.0.0, @lezer/javascript@npm:^1.5.5":
   version: 1.5.5
   resolution: "@lezer/javascript@npm:1.5.5"
   dependencies:
@@ -7336,6 +7336,8 @@ __metadata:
     "@emotion/styled": "npm:^11.14.1"
     "@fontsource/inter": "npm:^5.2.8"
     "@jitl/quickjs-singlefile-mjs-release-sync": "npm:0.32.0"
+    "@lezer/common": "npm:^1.5.3"
+    "@lezer/javascript": "npm:^1.5.5"
     "@modelcontextprotocol/sdk": "npm:1.30.1"
     "@mui/icons-material": "npm:^9.3.1"
     "@mui/material": "npm:^9.3.1"

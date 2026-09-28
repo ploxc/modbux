@@ -170,7 +170,21 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
       anchorEl={anchor}
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { p: 0, width: 640 } } }}
+      // Resizable from its corner, the script editor taking the room it gains.
+      slotProps={{
+        paper: {
+          sx: {
+            p: 0,
+            width: 640,
+            minWidth: 560,
+            minHeight: 420,
+            resize: 'both',
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column'
+          }
+        }
+      }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.5 }}>
         <Box sx={{ fontSize: 15, fontWeight: 500 }}>Conversion</Box>
@@ -185,6 +199,7 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
           display: 'grid',
           gridTemplateColumns: '170px minmax(0, 1fr)',
           minHeight: 200,
+          flexGrow: 1,
           borderTop: `1px solid ${theme.palette.divider}`,
           borderBottom: `1px solid ${theme.palette.divider}`
         })}

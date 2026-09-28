@@ -91,6 +91,13 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('—')
     await expect(mainPage.getByTestId('conversion-save-btn')).toBeDisabled()
 
+    // It compiles, and still leaves a path that returns nothing.
+    await script.fill('if (raw < 0) return Math.abs(raw) / 100')
+    await expect(mainPage.getByTestId('conversion-script-status')).toContainText(
+      'Not every path returns a value'
+    )
+    await expect(mainPage.getByTestId('conversion-save-btn')).toBeDisabled()
+
     await script.fill('return Math.abs(raw) / 100')
     await expect(mainPage.getByTestId('conversion-script-status')).toHaveCount(0)
     await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('2.5')

@@ -21,10 +21,10 @@ const compileErrors = linter(
   { delay: 200 }
 )
 
-/** The editor on the dialog's surface rather than One Dark's own background. */
+/** The editor on the app's code surface, `--script-surface`, rather than One Dark's own. */
 const surface = EditorView.theme({
-  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'transparent' },
-  '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
+  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'var(--script-surface)' },
+  '.cm-gutters': { backgroundColor: 'var(--script-surface)', borderRight: 'none' },
   '.cm-scroller': { fontFamily: "'Roboto Mono', monospace", lineHeight: '20px' },
   '&.cm-focused': { outline: 'none' }
 })
@@ -73,7 +73,13 @@ const ScriptEditor = meme(({ code, onChange }: ScriptEditorProps) => {
     <Box
       ref={host}
       data-testid="conversion-script-input"
-      sx={{ flexGrow: 1, minHeight: 180, maxHeight: 320, overflow: 'auto' }}
+      // Grows with the dialog, which the user resizes.
+      sx={(theme) => ({
+        '--script-surface': theme.palette.background.default,
+        flexGrow: 1,
+        minHeight: 180,
+        overflow: 'auto'
+      })}
     />
   )
 })
