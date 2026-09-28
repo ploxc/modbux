@@ -260,6 +260,27 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await selectRegisterType(mainPage, 'Holding Registers')
   })
 
+  // A response of 60 words is wider than its column: one line, cut, and a
+  // `more` that opens the row to show it all.
+  test('a long response shows one line and opens on more', async ({ mainPage }) => {
+    await mainPage.getByTestId('transaction-log-toggle').click()
+    await readRegisters(mainPage, '0', '60')
+
+    const logPanel = mainPage.getByTestId('transaction-log-panel')
+    const row = logPanel.locator('.MuiDataGrid-row').first()
+    const more = row.locator('[data-testid^="transaction-response-more-"]')
+    await expect(more).toBeVisible({ timeout: 5000 })
+    const closed = await row.boundingBox()
+
+    await more.click()
+    await expect(row.locator('[data-testid^="transaction-response-less-"]')).toBeVisible()
+    await expect
+      .poll(async () => (await row.boundingBox())?.height ?? 0)
+      .toBeGreaterThan((closed?.height ?? 0) + 10)
+
+    await mainPage.getByTestId('transaction-log-toggle').click()
+  })
+
   // ─── Register read config toggle ──────────────────────────────────
 
   for (const regType of ['Holding Registers', 'Input Registers'] as const) {

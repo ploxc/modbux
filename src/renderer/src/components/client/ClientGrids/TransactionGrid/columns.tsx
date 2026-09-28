@@ -3,6 +3,7 @@ import { GridColDef } from '@mui/x-data-grid/models'
 import { Transaction } from '@shared'
 import { DateTime } from 'luxon'
 import { useMemo } from 'react'
+import ClampedCell from './ClampedCell'
 
 const timestampColumn: GridColDef<Transaction, number, string> = {
   field: 'timestamp',
@@ -57,7 +58,9 @@ const requestColumn: GridColDef<Transaction, string, string> = {
   width: 200,
   sortable: false,
   disableColumnMenu: true,
-  renderCell: ({ value }) => <Box sx={{ fontFamily: 'monospace' }}>{value}</Box>
+  renderCell: ({ value, row }) => (
+    <ClampedCell id={row.id} field="request" line={value} full={value} more={false} />
+  )
 }
 
 const responseColumn: GridColDef<Transaction, string[], string[]> = {
@@ -66,23 +69,21 @@ const responseColumn: GridColDef<Transaction, string[], string[]> = {
   minWidth: 260,
   sortable: false,
   disableColumnMenu: true,
-  renderCell: ({ value, row }) => {
-    return (
-      // Responses can hold multiple responses, we display them in a formatted way
-      // Adding the response number to the response value
-      <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-        {value?.map((v, i) => (
-          <Box
-            key={`response_${row.id}_${i}`}
-            sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}
-          >
-            <span>{i + 1}:</span>
-            <span>{v}</span>
-          </Box>
-        ))}
-      </Box>
-    )
-  }
+  // Several responses show the first on one line, and all of them opened.
+  renderCell: ({ value = [], row }) => (
+    <ClampedCell
+      id={row.id}
+      field="response"
+      line={value[0] === undefined ? '' : `1: ${value[0]}`}
+      full={value.map((response, i) => (
+        <Box key={`response_${row.id}_${i}`} sx={{ display: 'flex', gap: 2 }}>
+          <span>{i + 1}:</span>
+          <span>{response}</span>
+        </Box>
+      ))}
+      more={value.length > 1}
+    />
+  )
 }
 
 const errorMessageColumn: GridColDef<Transaction, string> = {

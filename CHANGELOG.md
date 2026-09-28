@@ -58,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grid's toolbar, and 32 and 64 are two buttons there, replacing Advanced mode
   and Show 64 bit values. The unit id changes by a double click on its tab,
   and the scans moved to the client card's menu. The transaction log is a card
-  under the grid with a status line, and its bar opens and closes it.
+  under the grid with a status line, and its bar opens and closes it. A
+  request or a response too long for its column shows one line, and more
+  opens the row to show it all.
 - **Writing coils.** FC5 shows the coil with FALSE and TRUE beside it. FC15 is
   a grid of eight coils a row, each 0 or 1, and writes at most 64 coils, so
   what it sends is what it shows.
