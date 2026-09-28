@@ -45,13 +45,6 @@ export const SCRIPT_HELPERS: ScriptHelper[] = [
       'function bits(x, from, count) { return Math.floor(x / Math.pow(2, from)) % Math.pow(2, count) }'
   },
   {
-    name: 'signed',
-    signature: 'signed(x, width = 16)',
-    doc: "An unsigned x of that many bits read as two's complement.",
-    source:
-      'function signed(x, width = 16) { return x >= Math.pow(2, width - 1) ? x - Math.pow(2, width) : x }'
-  },
-  {
     name: 'bcd',
     signature: 'bcd(x)',
     doc: 'x read as binary-coded decimal, four bits a digit: 0x1234 is 1234.',
@@ -74,10 +67,6 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
   {
     label: '4-20 mA, held in range',
     code: '// 0..27648 is 4..20 mA, which is 0..10 bar.\nconst mA = lerp(raw, 0, 27648, 4, 20)\nreturn clamp(lerp(mA, 4, 20, 0, 10), 0, 10)\n'
-  },
-  {
-    label: 'Signed 16 bit, scaled',
-    code: 'return signed(raw, 16) / 10\n'
   },
   {
     label: 'One bit as 0 or 1',
