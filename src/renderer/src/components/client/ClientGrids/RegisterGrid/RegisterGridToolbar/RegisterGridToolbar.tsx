@@ -41,9 +41,10 @@ const RegisterGridToolbar = meme(() => {
         height: 40,
         flexShrink: 0,
         boxSizing: 'border-box',
-        // The fields are 28px in a 39px strip over its border, so 6px on
-        // every side.
-        px: 0.75,
+        // The fields are 28px in a 39px strip over its border, so 6px above,
+        // below and on the left; the Poll switch has 9px on the right.
+        pl: 0.75,
+        pr: '9px',
         // The head sits on the section's own surface; the column headers
         // under it take the app background.
         background: gridSurface,

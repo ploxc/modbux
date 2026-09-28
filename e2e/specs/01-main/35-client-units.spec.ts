@@ -117,10 +117,10 @@ test.describe.serial('A client with two units', () => {
     if (!title || !box) throw new Error('the sections are not on screen')
     await mainPage.mouse.move(title.x + title.width / 2, title.y + title.height / 2)
     await mainPage.mouse.down()
-    // Nearer the right side than the bottom, and short of the strip along the
-    // edge of the layout, a tenth of its width, where the drop would dock
-    // along that edge instead.
-    const fromRight = (box.width * 0.1 + box.height / 2) / 2
+    // Nearer the right side than the bottom, and short of the 40 px strip
+    // along the edge of the layout, where the drop would dock along that edge
+    // instead.
+    const fromRight = (40 + box.height / 2) / 2
     await mainPage.mouse.move(box.x + box.width - fromRight, box.y + box.height / 2, { steps: 10 })
     await mainPage.mouse.up()
 

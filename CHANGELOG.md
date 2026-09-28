@@ -40,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unit as a device file, with its unit id and layout.
 - **Register types side by side.** The type buttons put each register type in
   a panel of its own, with its own address, length, Read and Poll switch. A
-  panel's head drags onto another to split it on that side, or into the strip
-  along an edge of the layout to take that whole edge. Two buttons stack every
+  panel's head drags onto another to split it on that side, or close to an edge
+  of the layout to take that whole edge. Two buttons stack every
   open type in a row or a column. A type turned off and on again goes back
   beside the panel it sat beside.
 - **The round trip of each request** shows in the transaction log and in the

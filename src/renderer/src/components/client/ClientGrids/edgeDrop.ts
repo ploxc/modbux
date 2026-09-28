@@ -1,8 +1,8 @@
 import { LayoutSide } from '@shared'
 import { createContext } from 'react'
 
-/** How far into the layout, as a part of its width or height, a drop docks along the edge. */
-export const EDGE_SHARE = 0.1
+/** How far into the layout, in pixels, a drop docks along the edge. */
+export const EDGE_STRIP = 40
 
 /**
  * The edge of `rect` a drop at the point docks along, the nearest one when two
@@ -13,15 +13,13 @@ export const edgeSideOf = (
   x: number,
   y: number
 ): LayoutSide | undefined => {
-  const width = (rect.right - rect.left) * EDGE_SHARE
-  const height = (rect.bottom - rect.top) * EDGE_SHARE
   const reach: [LayoutSide, number][] = [
-    ['left', (x - rect.left) / width],
-    ['right', (rect.right - x) / width],
-    ['top', (y - rect.top) / height],
-    ['bottom', (rect.bottom - y) / height]
+    ['left', x - rect.left],
+    ['right', rect.right - x],
+    ['top', y - rect.top],
+    ['bottom', rect.bottom - y]
   ]
-  const inside = reach.filter(([, depth]) => depth >= 0 && depth <= 1)
+  const inside = reach.filter(([, depth]) => depth >= 0 && depth <= EDGE_STRIP)
   const nearest = inside.reduce<[LayoutSide, number] | undefined>(
     (best, next) => (best === undefined || next[1] < best[1] ? next : best),
     undefined

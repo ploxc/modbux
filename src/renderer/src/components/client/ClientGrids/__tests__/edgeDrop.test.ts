@@ -1,25 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { edgeSideOf } from '../edgeDrop'
+import { EDGE_STRIP, edgeSideOf } from '../edgeDrop'
 
-// A layout 1000 wide and 500 high: the strips are 100 wide at the sides and
-// 50 high at the top and bottom.
+// A layout 1000 wide and 500 high. The strips are measured from its edges,
+// so the cases name the strip's depth rather than a copy of it.
 const rect = { left: 0, right: 1000, top: 0, bottom: 500 }
 
 describe('edgeSideOf', () => {
   it.each([
-    [950, 250, 'right'],
-    [30, 250, 'left'],
-    [500, 20, 'top'],
-    [500, 480, 'bottom'],
-    // In the corner the nearer edge wins: 10 of 100 is nearer than 30 of 50.
+    [1000 - EDGE_STRIP, 250, 'right'],
+    [EDGE_STRIP, 250, 'left'],
+    [500, EDGE_STRIP, 'top'],
+    [500, 500 - EDGE_STRIP, 'bottom'],
+    // In the corner the nearer edge wins.
     [990, 470, 'right']
   ] as const)('docks a drop at %i, %i along the %s', (x, y, side) => {
     expect(edgeSideOf(rect, x, y)).toBe(side)
   })
 
   it.each([
-    [850, 250],
-    [500, 60]
+    [1000 - EDGE_STRIP - 1, 250],
+    [EDGE_STRIP + 1, 250],
+    [500, EDGE_STRIP + 1]
   ])('leaves a drop at %i, %i to the panel under it', (x, y) => {
     expect(edgeSideOf(rect, x, y)).toBeUndefined()
   })
