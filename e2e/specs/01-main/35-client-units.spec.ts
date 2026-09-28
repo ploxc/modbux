@@ -175,10 +175,18 @@ test.describe.serial('A client with two units', () => {
         }
       })
       .toEqual({ right: true, fullHeight: true, stacked: true })
+  })
 
-    // The tests after this one start from holding registers alone.
-    await mainPage.getByTestId('reg-type-coils-btn').click()
-    await mainPage.getByTestId('reg-type-input_registers-btn').click()
+  // The tests after this one start from holding registers alone.
+  test('Hide in the menu of a head, and its cross, hide that section', async ({ mainPage }) => {
+    await mainPage.getByTestId('section-title-coils').click({ button: 'right' })
+    await mainPage.getByTestId('section-menu-hide-coils').click()
+    await expect(mainPage.getByTestId('section-grid-coils')).toHaveCount(0)
+
+    await mainPage.getByTestId('section-hide-input_registers').click()
+    await expect(mainPage.getByTestId('section-grid-input_registers')).toHaveCount(0)
+    await expect(mainPage.getByTestId('section-grid-holding_registers')).toBeVisible()
+    await expect(mainPage.getByTestId('section-hide-holding_registers')).toHaveCount(0)
   })
 
   // The menu takes focus back as it closes, and each field closes on blur.
@@ -229,6 +237,13 @@ test.describe.serial('A client with two units', () => {
     await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(1)
     await expect(input.locator('.MuiDataGrid-row')).toHaveCount(1)
 
+    // Clear in the menu of a head empties that section alone.
+    await mainPage.getByTestId('section-title-input_registers').click({ button: 'right' })
+    await mainPage.getByTestId('section-menu-clear-input_registers').click()
+    await expect(input.locator('.MuiDataGrid-row')).toHaveCount(0)
+    await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(1)
+
+    await mainPage.getByTestId('load-dummy-data-btn').click()
     await mainPage.getByTestId('clear-data-btn').click()
     await expect(holding.locator('.MuiDataGrid-row')).toHaveCount(0)
     await expect(input.locator('.MuiDataGrid-row')).toHaveCount(0)
