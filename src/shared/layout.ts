@@ -175,6 +175,12 @@ export interface LayoutPlace {
   neighbours: RegisterType[]
   side: LayoutSide
   share: number
+  /**
+   * Whether it and the neighbour were the whole split, which its removal
+   * collapses: the neighbour then takes the room of both, and `share` is a
+   * share of that room rather than of the split around it.
+   */
+  pair: boolean
 }
 
 /**
@@ -197,7 +203,7 @@ export const placeOf = (node: LayoutNode, type: RegisterType): LayoutPlace | und
     const neighbours = node.parts.flatMap((other, i) =>
       i === neighbour ? typesIn(other.node) : []
     )
-    return { neighbours, side, share: part.size }
+    return { neighbours, side, share: part.size, pair: node.parts.length === 2 }
   }
   return undefined
 }
@@ -241,9 +247,18 @@ export const restoreType = (
   const index = node.parts.findIndex(({ node: part }) => sameTypes(part, place.neighbours))
   const neighbour = node.parts[index]
   if (neighbour && node.direction === directionOf(place.side)) {
-    const scale = (100 - place.share) / 100
-    const parts = node.parts.map((part) => ({ ...part, size: part.size * scale }))
-    parts.splice(comesFirst(place.side) ? index : index + 1, 0, { node: type, size: place.share })
+    // A pair splits the neighbour's room; otherwise every part gives up its
+    // share of the room the type takes back.
+    const room = place.pair ? neighbour.size : 100
+    const size = (room * place.share) / 100
+    const parts = node.parts.map((part, i) =>
+      place.pair
+        ? i === index
+          ? { ...part, size: part.size - size }
+          : part
+        : { ...part, size: (part.size * (100 - place.share)) / 100 }
+    )
+    parts.splice(comesFirst(place.side) ? index : index + 1, 0, { node: type, size })
     return { direction: node.direction, parts }
   }
   for (const [at, part] of node.parts.entries()) {

@@ -156,6 +156,16 @@ describe('restoreType', () => {
     )
   })
 
+  it('gives a type dropped beside a panel of a row back half that panel', () => {
+    // The drop nests coils with holding registers; turning coils off leaves a flat row.
+    const dropped = insertType(layout('r(hr:50,ir:50)'), 'holding_registers', 'right', 'coils')
+    const place = placeOf(dropped, 'coils')
+    const without = removeType(dropped, 'coils')
+    if (place === undefined || without === undefined) throw new Error('coils has no place')
+    const restored = restoreType(without, 'coils', place)
+    expect(restored && formatLayout(restored)).toBe('r(hr:25,co:25,ir:50)')
+  })
+
   it('answers nothing when no part holds exactly its neighbours', () => {
     const place = placeOf(layout('r(c(hr:50,ir:50):70,co:30)'), 'coils')
     if (place === undefined) throw new Error('coils has no place')
