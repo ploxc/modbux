@@ -648,8 +648,8 @@ test.describe.serial('Act III — Going Live', () => {
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    await expectCell(mainPage, 0, 'bit', 'TRUE')
-    await expectCell(mainPage, 3, 'bit', 'FALSE')
+    await expectCell(mainPage, 0, 'bit', '1')
+    await expectCell(mainPage, 3, 'bit', '0')
 
     await snap(mainPage, 'client-coils')
   })
@@ -660,8 +660,8 @@ test.describe.serial('Act III — Going Live', () => {
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
 
-    await expectCell(mainPage, 0, 'bit', 'TRUE')
-    await expectCell(mainPage, 2, 'bit', 'FALSE')
+    await expectCell(mainPage, 0, 'bit', '1')
+    await expectCell(mainPage, 2, 'bit', '0')
 
     await snap(mainPage, 'client-discrete-inputs')
   })
@@ -699,7 +699,7 @@ test.describe.serial('Act IV — Interaction', () => {
     // Re-read to confirm
     await readRegisters(mainPage, '0', '8')
     await beat(mainPage)
-    await expectCell(mainPage, 3, 'bit', 'TRUE')
+    await expectCell(mainPage, 3, 'bit', '1')
 
     // ── FC15 multi-coil write ──
     await mainPage.getByTestId('write-action-3').click()

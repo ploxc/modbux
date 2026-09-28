@@ -226,7 +226,7 @@ const addressLabel = {
   textAlign: 'right'
 } as const
 
-/** FC5: the coil the dialog opened on, and FALSE or TRUE for it. */
+/** FC5: the coil the dialog opened on, and 0 or 1 for it, as FC15 writes it. */
 const SingleCoil = meme(() => {
   const address = useValueInputZustand((z) => z.address)
   const type = useSectionType()
@@ -254,10 +254,10 @@ const SingleCoil = meme(() => {
         onChange={handleChange}
       >
         <ToggleButton value={false} data-testid={`write-coil-${address}-false-btn`}>
-          FALSE
+          0
         </ToggleButton>
         <ToggleButton value={true} data-testid={`write-coil-${address}-true-btn`}>
-          TRUE
+          1
         </ToggleButton>
       </ToggleButtonGroup>
     </>

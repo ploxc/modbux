@@ -200,24 +200,24 @@ test.describe.serial('Write Operations', () => {
       await readRegisters(mainPage, '0', '8')
     })
 
-    test('write coil TRUE via FC5', async ({ mainPage }) => {
+    test('write coil 1 via FC5', async ({ mainPage }) => {
       await writeCoil(mainPage, 0, true)
     })
 
-    test('verify coil written TRUE', async ({ mainPage }) => {
+    test('verify coil written 1', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 0, 'bit', 'TRUE')
+      await expectCell(mainPage, 0, 'bit', '1')
       await clearData(mainPage)
     })
 
-    test('write coil back to FALSE via FC5', async ({ mainPage }) => {
+    test('write coil back to 0 via FC5', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
       await writeCoil(mainPage, 0, false)
     })
 
-    test('verify coil written FALSE', async ({ mainPage }) => {
+    test('verify coil written 0', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 0, 'bit', 'FALSE')
+      await expectCell(mainPage, 0, 'bit', '0')
       await clearData(mainPage)
     })
 
@@ -226,9 +226,9 @@ test.describe.serial('Write Operations', () => {
       await writeCoil(mainPage, 6, true)
     })
 
-    test('verify the neighbour is TRUE before the FC15 write', async ({ mainPage }) => {
+    test('verify the neighbour is 1 before the FC15 write', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 6, 'bit', 'TRUE')
+      await expectCell(mainPage, 6, 'bit', '1')
     })
 
     /**
@@ -241,15 +241,15 @@ test.describe.serial('Write Operations', () => {
 
     test('verify FC15 wrote coil 5 and left coil 6 alone', async ({ mainPage }) => {
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 5, 'bit', 'TRUE')
-      await expectCell(mainPage, 6, 'bit', 'TRUE')
+      await expectCell(mainPage, 5, 'bit', '1')
+      await expectCell(mainPage, 6, 'bit', '1')
     })
 
-    test('put both coils back to FALSE', async ({ mainPage }) => {
+    test('put both coils back to 0', async ({ mainPage }) => {
       await writeCoilsFc15(mainPage, 5, { 5: false, 6: false })
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 5, 'bit', 'FALSE')
-      await expectCell(mainPage, 6, 'bit', 'FALSE')
+      await expectCell(mainPage, 5, 'bit', '0')
+      await expectCell(mainPage, 6, 'bit', '0')
       await clearData(mainPage)
     })
   })

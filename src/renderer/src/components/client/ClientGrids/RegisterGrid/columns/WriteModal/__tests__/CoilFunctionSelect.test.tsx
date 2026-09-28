@@ -84,7 +84,7 @@ describe('the coil write', () => {
 })
 
 // FC5 writes the coil the dialog opened on, and the dialog says which state it
-// sends: FALSE or TRUE, the one it opened with pressed.
+// sends: 0 or 1, the one it opened with pressed.
 describe('the single coil write', () => {
   beforeEach(() => {
     mockWrite.mockClear()
@@ -100,9 +100,11 @@ describe('the single coil write', () => {
 
     expect(screen.getByTestId('write-coil-3-true-btn')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('write-coil-3-false-btn')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('write-coil-3-true-btn')).toHaveTextContent(/^1$/)
+    expect(screen.getByTestId('write-coil-3-false-btn')).toHaveTextContent(/^0$/)
   })
 
-  it('sends FALSE once FALSE is pressed', async () => {
+  it('sends false once 0 is pressed', async () => {
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 
@@ -117,7 +119,7 @@ describe('the single coil write', () => {
     expect(payload?.parameters.value[0]).toBe(false)
   })
 
-  it('keeps TRUE when TRUE is pressed again', async () => {
+  it('keeps true when 1 is pressed again', async () => {
     const user = userEvent.setup()
     render(<CoilFunctionSelect />)
 

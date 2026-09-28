@@ -61,8 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under the grid with a status line, and its bar opens and closes it. A
   request or a response too long for its column shows one line, and more
   opens the row to show it all.
-- **Writing coils.** FC5 shows the coil with FALSE and TRUE beside it. FC15 is
-  a grid of eight coils a row, each 0 or 1, and writes at most 64 coils, so
+- **Coils and discrete inputs read 0 and 1.** The grid shows a bit as 0 or 1
+  where it read FALSE or TRUE, and so does the coil write: FC5 shows the coil
+  with 0 and 1 beside it, and FC15 is a grid of eight coils a row, each 0 or 1, and writes at most 64 coils, so
   what it sends is what it shows.
 - **A poll backs off from a device that stops answering.** After three polls
   in a row that a device lets time out, Modbux waits twice as long before

@@ -259,10 +259,10 @@ test.describe.serial('Client-Server Integration', () => {
       await readRegisters(mainPage, '0', '16')
     })
 
-    test('verify coil 5 is TRUE, rest FALSE', async ({ mainPage }) => {
-      await expectCell(mainPage, 5, 'bit', 'TRUE')
+    test('verify coil 5 is 1, the rest 0', async ({ mainPage }) => {
+      await expectCell(mainPage, 5, 'bit', '1')
       for (const addr of [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
-        await expectCell(mainPage, addr, 'bit', 'FALSE')
+        await expectCell(mainPage, addr, 'bit', '0')
       }
     })
 
@@ -277,10 +277,10 @@ test.describe.serial('Client-Server Integration', () => {
       await readRegisters(mainPage, '0', '8')
     })
 
-    test('verify DI 3 is TRUE, rest FALSE', async ({ mainPage }) => {
-      await expectCell(mainPage, 3, 'bit', 'TRUE')
+    test('verify DI 3 is 1, the rest 0', async ({ mainPage }) => {
+      await expectCell(mainPage, 3, 'bit', '1')
       for (const addr of [0, 1, 2, 4, 5, 6, 7]) {
-        await expectCell(mainPage, addr, 'bit', 'FALSE')
+        await expectCell(mainPage, addr, 'bit', '0')
       }
     })
 
@@ -316,12 +316,12 @@ test.describe.serial('Client-Server Integration', () => {
       await clearData(mainPage)
     })
 
-    test('read coils — coil 2 is TRUE, rest FALSE', async ({ mainPage }) => {
+    test('read coils — coil 2 is 1, the rest 0', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Coils')
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 2, 'bit', 'TRUE')
+      await expectCell(mainPage, 2, 'bit', '1')
       for (const addr of [0, 1, 3, 4, 5, 6, 7]) {
-        await expectCell(mainPage, addr, 'bit', 'FALSE')
+        await expectCell(mainPage, addr, 'bit', '0')
       }
       await clearData(mainPage)
     })
@@ -357,12 +357,12 @@ test.describe.serial('Client-Server Integration', () => {
       await clearData(mainPage)
     })
 
-    test('read coils — coil 0 is TRUE, rest FALSE', async ({ mainPage }) => {
+    test('read coils — coil 0 is 1, the rest 0', async ({ mainPage }) => {
       await selectRegisterType(mainPage, 'Coils')
       await readRegisters(mainPage, '0', '8')
-      await expectCell(mainPage, 0, 'bit', 'TRUE')
+      await expectCell(mainPage, 0, 'bit', '1')
       for (const addr of [1, 2, 3, 4, 5, 6, 7]) {
-        await expectCell(mainPage, addr, 'bit', 'FALSE')
+        await expectCell(mainPage, addr, 'bit', '0')
       }
       await clearData(mainPage)
     })

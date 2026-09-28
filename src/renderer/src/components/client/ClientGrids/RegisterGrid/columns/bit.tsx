@@ -20,7 +20,7 @@ const BitCell = meme(({ address }: { address: number }): JSX.Element => {
         alignItems: 'center'
       })}
     >
-      {value ? 'TRUE' : 'FALSE'}
+      {value ? '1' : '0'}
     </Box>
   )
 })
