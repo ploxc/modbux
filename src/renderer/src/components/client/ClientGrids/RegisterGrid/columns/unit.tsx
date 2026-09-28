@@ -50,7 +50,17 @@ const UnitEditCell = meme(
         inputValue={value ?? ''}
         onInputChange={handleInputChange}
         onChange={handleChange}
-        slotProps={{ popper: { sx: { minWidth: 160 } } }}
+        slotProps={{
+          popper: { sx: { minWidth: 160 } },
+          // A unit is a few characters: rows of 22px, the quantity heads as low.
+          listbox: {
+            sx: {
+              py: 0.5,
+              '& .MuiAutocomplete-option': { minHeight: 22, py: 0, fontSize: 12 },
+              '& .MuiAutocomplete-groupLabel': { lineHeight: '22px', fontSize: 11 }
+            }
+          }
+        }}
         sx={{ width: '100%' }}
         renderInput={({ slotProps }) => (
           <InputBase
