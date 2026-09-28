@@ -437,7 +437,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@codemirror/autocomplete@npm:^6.0.0":
+"@codemirror/autocomplete@npm:^6.0.0, @codemirror/autocomplete@npm:^6.20.3":
   version: 6.20.3
   resolution: "@codemirror/autocomplete@npm:6.20.3"
   dependencies:
@@ -7320,6 +7320,7 @@ __metadata:
   resolution: "modbux@workspace:."
   dependencies:
     "@ant-design/icons": "npm:^5.6.1"
+    "@codemirror/autocomplete": "npm:^6.20.3"
     "@codemirror/lang-javascript": "npm:^6.2.5"
     "@codemirror/lint": "npm:^6.9.7"
     "@codemirror/state": "npm:^6.7.6"

@@ -7,6 +7,7 @@ import {
 } from 'quickjs-emscripten-core'
 import { useScriptEngineZustand } from './scriptEngine.zustand'
 import { returnsEverywhere } from './returnsEverywhere'
+import { SCRIPT_HELPERS } from './helpers'
 
 /**
  * A conversion script runs in QuickJS, an engine of its own: it sees `raw`
@@ -33,7 +34,10 @@ export const initScriptEngine = async (): Promise<void> => {
     const quickJs = await newQuickJSWASMModuleFromVariant(variant)
     const runtime = quickJs.newRuntime()
     runtime.setMemoryLimit(MEMORY_BYTES)
-    context = runtime.newContext()
+    const vm = runtime.newContext()
+    // The helpers every script can call, defined once as globals.
+    vm.unwrapResult(vm.evalCode(SCRIPT_HELPERS.map(({ source }) => source).join('\n'))).dispose()
+    context = vm
     useScriptEngineZustand.setState({ ready: true })
   } catch (error) {
     console.error('Conversion scripts unavailable', error)

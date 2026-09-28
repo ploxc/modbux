@@ -10,9 +10,11 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { scriptError } from '@renderer/conversion/scriptEngine'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { Conversion, ConversionKind, DataType, DEFAULT_SCRIPT } from '@shared'
-import { ChangeEvent, useCallback, useMemo, useState } from 'react'
+import { ChangeEvent, useCallback, useMemo, useRef, useState } from 'react'
 import { useRowAt } from '../../useRowAt'
 import ScriptEditor from './ScriptEditor'
+import InsertMenu from './InsertMenu'
+import { EditorView } from '@codemirror/view'
 import { applyConversion } from '../convertedValue'
 import { wordOf } from '@shared'
 
@@ -135,6 +137,7 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
     entry?.conversion?.kind === 'scale' ? String(entry.conversion.factor) : '1'
   )
   const problem = useMemo(() => problemOf(draft, factorText), [draft, factorText])
+  const editorView = useRef<EditorView | null>(null)
 
   const pick = useCallback((kind: ConversionKind | 'none') => {
     setDraft((current) =>
@@ -275,7 +278,8 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
           )}
           {draft?.kind === 'script' && (
             <>
-              <ScriptEditor code={draft.code} onChange={handleCode} />
+              <InsertMenu viewRef={editorView} />
+              <ScriptEditor code={draft.code} onChange={handleCode} viewRef={editorView} />
               {problem && (
                 <Box
                   data-testid="conversion-script-status"

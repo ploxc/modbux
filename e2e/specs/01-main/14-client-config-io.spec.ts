@@ -105,6 +105,21 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expect(row0.locator('[data-field="conversion"] svg')).toBeVisible()
   })
 
+  // Insert puts a template at the cursor, and its helpers run: signed() reads
+  // 65535 as -1. Cancel leaves the saved script alone.
+  test('Insert puts a template in the script, and its helpers run', async ({ mainPage }) => {
+    const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
+    await row0.getByTestId('conversion-cell-0').click()
+    const script = mainPage.getByTestId('conversion-script-input').locator('.cm-content')
+    await script.fill('')
+    await mainPage.getByTestId('conversion-insert-btn').click()
+    await mainPage.getByTestId('conversion-template-2').click()
+    await expect(script).toContainText('signed(raw, 16)')
+    await mainPage.getByTestId('conversion-test-input').fill('65535')
+    await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('-0.1')
+    await mainPage.getByTestId('conversion-cancel-btn').click()
+  })
+
   test('verify comments visible in grid', async ({ mainPage }) => {
     await expectCell(mainPage, 0, 'comment', 'setpoint')
     await expectCell(mainPage, 1, 'comment', 'temperature scaled')

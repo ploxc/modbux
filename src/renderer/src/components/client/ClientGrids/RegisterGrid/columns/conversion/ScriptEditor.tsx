@@ -1,13 +1,15 @@
 import Box from '@mui/material/Box'
-import { javascript } from '@codemirror/lang-javascript'
+import { completeFromList } from '@codemirror/autocomplete'
+import { javascript, javascriptLanguage } from '@codemirror/lang-javascript'
 import { Diagnostic, linter, lintGutter } from '@codemirror/lint'
 import { EditorState } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { EditorView } from '@codemirror/view'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { SCRIPT_HELPERS } from '@renderer/conversion/helpers'
 import { scriptError } from '@renderer/conversion/scriptEngine'
 import { basicSetup } from 'codemirror'
-import { useEffect, useRef } from 'react'
+import { MutableRefObject, useEffect, useRef } from 'react'
 
 /** The line a script does not compile on, underlined, with the reason on hover. */
 const compileErrors = linter(
@@ -21,6 +23,19 @@ const compileErrors = linter(
   { delay: 200 }
 )
 
+/** `raw` and the helpers, offered while typing with what each takes and does. */
+const scriptCompletions = javascriptLanguage.data.of({
+  autocomplete: completeFromList([
+    { label: 'raw', type: 'variable', detail: 'the value its data type reads' },
+    ...SCRIPT_HELPERS.map(({ name, signature, doc }) => ({
+      label: name,
+      type: 'function',
+      detail: signature,
+      info: doc
+    }))
+  ])
+})
+
 /** The editor on the app's code surface, `--script-surface`, rather than One Dark's own. */
 const surface = EditorView.theme({
   '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'var(--script-surface)' },
@@ -32,13 +47,15 @@ const surface = EditorView.theme({
 interface ScriptEditorProps {
   code: string
   onChange: (code: string) => void
+  /** The editor, for the Insert menu to put a template at its cursor. */
+  viewRef: MutableRefObject<EditorView | null>
 }
 
 /**
  * The code of a Custom conversion, coloured as JavaScript, with the line it
  * does not compile on underlined.
  */
-const ScriptEditor = meme(({ code, onChange }: ScriptEditorProps) => {
+const ScriptEditor = meme(({ code, onChange, viewRef }: ScriptEditorProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   // The editor keeps its own text once mounted; `code` is where it starts.
   const start = useRef(code)
@@ -55,6 +72,7 @@ const ScriptEditor = meme(({ code, onChange }: ScriptEditorProps) => {
         extensions: [
           basicSetup,
           javascript(),
+          scriptCompletions,
           oneDark,
           surface,
           compileErrors,
@@ -65,9 +83,13 @@ const ScriptEditor = meme(({ code, onChange }: ScriptEditorProps) => {
         ]
       })
     })
+    viewRef.current = view
     view.focus()
-    return (): void => view.destroy()
-  }, [])
+    return (): void => {
+      viewRef.current = null
+      view.destroy()
+    }
+  }, [viewRef])
 
   return (
     <Box
