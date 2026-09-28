@@ -29,7 +29,7 @@ import { useCallback, useState } from 'react'
 const carriesSomething = (value: RegisterMapValue | undefined): boolean =>
   value !== undefined &&
   ((value.dataType !== undefined && value.dataType !== 'none') ||
-    value.scalingFactor !== undefined ||
+    value.conversion !== undefined ||
     !!value.comment ||
     value.groupEnd === true ||
     value.bitMap !== undefined)

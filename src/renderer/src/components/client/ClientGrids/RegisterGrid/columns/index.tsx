@@ -12,14 +12,13 @@ import { useMemo } from 'react'
 import { addressColumn } from './address'
 import { bitColumn } from './bit'
 import { dataTypeColumn } from './dataType'
-import { scalingFactorColumn } from './scalingFactor'
+import { conversionColumn } from './conversion/conversionColumn'
 import { unitColumn } from './unit'
 import { hexColumn } from './hex'
 import { binaryColumn } from './binary'
 import { valueColumn } from './value'
 import { commentColumn } from './comment'
 import { writeActionColumn } from './write'
-import { interpolationColumn } from './interpolation'
 import { groupEndColumn } from './groupEnd'
 import { groupIndexColumn } from './groupIndex'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
@@ -59,9 +58,8 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
       columns.push(
         dataTypeColumn(registerMap),
         bitmapValueColumn(registerMap, showRaw, addressGroups),
-        scalingFactorColumn(registerMap),
+        conversionColumn,
         unitColumn(registerMap),
-        interpolationColumn(type),
         groupEndColumn(registerMap),
         hexColumn,
         binaryColumn

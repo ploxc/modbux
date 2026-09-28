@@ -33,11 +33,10 @@ type EntryField = Exclude<keyof McpToolArgs<'set_mapping_entry'>, 'client' | 'ty
 /** The fields the grid edits, in the order they are set. */
 const ENTRY_FIELDS = [
   'dataType',
-  'scalingFactor',
+  'conversion',
   'unit',
   'comment',
   'groupEnd',
-  'interpolate',
   'bitMap'
 ] as const satisfies readonly EntryField[]
 

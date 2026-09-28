@@ -15,29 +15,50 @@ import {
 import { RegisterType } from './register'
 import { parseLayout } from '../layout'
 import { SerialPortOptionsSchema } from './serial'
+import { ConversionSchema } from './conversion'
 
 //
 //
 // Register Mapping
-export const RegisterLinearInterpolationSchema = z.object({
+const RegisterLinearInterpolationSchema = z.object({
   x1: z.string(),
   x2: z.string(),
   y1: z.string(),
   y2: z.string()
 })
-export type RegisterLinearInterpolation = z.infer<typeof RegisterLinearInterpolationSchema>
 
-export const RegisterMapValueSchema = z.object({
+const RegisterMapValueObjectSchema = z.object({
   dataType: DataTypeSchema.optional(),
-  scalingFactor: z.number().optional(),
-  /** The engineering unit the scaled value is in, shown after it. */
+  conversion: ConversionSchema.optional(),
+  /** The engineering unit the converted value is in, shown after it. */
   unit: z.string().optional(),
   comment: z.string().optional(),
-  interpolate: RegisterLinearInterpolationSchema.optional(),
   groupEnd: z.boolean().optional(),
   bitMap: BitMapConfigSchema.optional()
 })
-export type RegisterMapValue = z.infer<typeof RegisterMapValueSchema>
+
+/**
+ * A register's mapping. An entry from before conversions carries
+ * `scalingFactor` and `interpolate`, and reads as the conversion that gives
+ * the same value: a scale alone as Scale, an interpolation as Linear
+ * interpolation with its raw points divided by the scale, because it scaled
+ * first and interpolated after.
+ */
+export const RegisterMapValueSchema = z.preprocess((value) => {
+  if (typeof value !== 'object' || value === null) return value
+  const { scalingFactor, interpolate, ...rest } = value as Record<string, unknown>
+  if ('conversion' in rest || (scalingFactor === undefined && interpolate === undefined))
+    return rest
+  const factor = typeof scalingFactor === 'number' && scalingFactor !== 0 ? scalingFactor : 1
+  const lerp = RegisterLinearInterpolationSchema.safeParse(interpolate)
+  if (lerp.success) {
+    const { x1, x2, y1, y2 } = lerp.data
+    const raw = (x: string): string => String(Number(x) / factor)
+    return { ...rest, conversion: { kind: 'lerp', x1: raw(x1), x2: raw(x2), y1, y2 } }
+  }
+  return factor === 1 ? rest : { ...rest, conversion: { kind: 'scale', factor } }
+}, RegisterMapValueObjectSchema)
+export type RegisterMapValue = z.infer<typeof RegisterMapValueObjectSchema>
 
 /**
  * What the client knows about each address, keyed by that address.

@@ -228,11 +228,11 @@ test.describe.serial('Huawei Smart Logger — comprehensive integration test', (
     await scroller.evaluate((el) => (el.scrollTop = 0))
     await mainPage.waitForTimeout(300)
 
-    // Active Adjustment at 40420 has scalingFactor 0.1
-    await expectCell(mainPage, 40420, 'scalingFactor', '0.1')
+    // Active Adjustment at 40420 has scalingFactor 0.1, which reads as Scale
+    await expectCell(mainPage, 40420, 'conversion', '0.1')
 
     // Input Power at 40521 has scalingFactor 0.001
-    await expectCell(mainPage, 40521, 'scalingFactor', '0.001')
+    await expectCell(mainPage, 40521, 'conversion', '0.001')
   })
 
   test('verify comments in grid', async ({ mainPage }) => {

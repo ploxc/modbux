@@ -61,8 +61,8 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
   })
 
   test('verify scaling factor visible in grid', async ({ mainPage }) => {
-    // Address 1 has scalingFactor 0.1
-    await expectCellContains(mainPage, 1, 'scalingFactor', '0.1')
+    // Address 1 has scalingFactor 0.1, which reads as Scale
+    await expectCellContains(mainPage, 1, 'conversion', '0.1')
   })
 
   // Typed rather than picked, so the list is a suggestion and not a limit.
@@ -74,6 +74,25 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await input.fill('°C')
     await mainPage.keyboard.press('Enter')
     await expectCell(mainPage, 1, 'unit', '°C')
+  })
+
+  // Address 0 is an INT16. A script that does not parse keeps Save greyed and
+  // says where; one that parses shows its result for a raw value typed in.
+  test('a Custom script is previewed while it is written, and saved', async ({ mainPage }) => {
+    const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
+    await row0.getByTestId('conversion-cell-0').click()
+    await mainPage.getByTestId('conversion-kind-script-btn').click()
+
+    const script = mainPage.getByTestId('conversion-script-input')
+    await script.fill('return Math.abs(raw / 100')
+    await expect(mainPage.getByTestId('conversion-script-status')).toContainText('Line 1')
+    await expect(mainPage.getByTestId('conversion-save-btn')).toBeDisabled()
+
+    await script.fill('return Math.abs(raw) / 100')
+    await mainPage.getByTestId('conversion-test-input').fill('-250')
+    await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('2.5')
+    await mainPage.getByTestId('conversion-save-btn').click()
+    await expect(row0.locator('[data-field="conversion"] svg')).toBeVisible()
   })
 
   test('verify comments visible in grid', async ({ mainPage }) => {
@@ -125,7 +144,14 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     expect(Object.keys(config.registerMapping.input_registers)).toHaveLength(1)
 
     // Verify scaling factor round-tripped
-    expect(config.registerMapping.holding_registers['1'].scalingFactor).toBe(0.1)
+    expect(config.registerMapping.holding_registers['0'].conversion).toEqual({
+      kind: 'script',
+      code: 'return Math.abs(raw) / 100'
+    })
+    expect(config.registerMapping.holding_registers['1'].conversion).toEqual({
+      kind: 'scale',
+      factor: 0.1
+    })
     expect(config.registerMapping.holding_registers['1'].unit).toBe('°C')
 
     await fs.unlink(savePath).catch(() => {})

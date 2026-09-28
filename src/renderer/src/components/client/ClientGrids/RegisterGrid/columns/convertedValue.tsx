@@ -9,7 +9,7 @@ import {
   BITMAP_DATATYPE,
   DataType,
   RegisterData,
-  RegisterLinearInterpolation,
+  Conversion,
   RegisterMapObject,
   wordOf
 } from '@shared'
@@ -17,9 +17,14 @@ import { round } from 'lodash'
 import { ReactNode } from 'react'
 import { useRowAt } from '../useRowAt'
 import { ExpandCell } from './ExpandCell'
+import { runScript, ScriptError } from '@renderer/conversion/scriptEngine'
+import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 
 // Linear interpolation function
-const linearInterpolate = (x: number, { x1, x2, y1, y2 }: RegisterLinearInterpolation): number => {
+const linearInterpolate = (
+  x: number,
+  { x1, x2, y1, y2 }: { x1: string; x2: string; y1: string; y2: string }
+): number => {
   const nx1 = Number(x1)
   const nx2 = Number(x2)
   const ny1 = Number(y1)
@@ -54,6 +59,8 @@ export const ConvertedValueCell = meme(
     const addressGroups = useLiveZustand(
       (z) => sectionOf(z, selectedUuid, unit, type).addressGroups
     )
+    // A script's value waits for the engine, and draws again once it is there.
+    useScriptEngineZustand((z) => z.ready)
 
     if (row?.error) {
       return (
@@ -170,38 +177,30 @@ export const getConvertedValue = (
 
   if (showRaw) return Number(value)
 
-  const { scaledValue, precision } = convert(value, dataType, registerMap, address)
-  return round(scaledValue, precision)
+  const converted = applyConversion(value, dataType, registerMap[address]?.conversion)
+  return typeof converted === 'number' ? converted : undefined
 }
 
-type ConvertFn = (
+/**
+ * The value as its conversion makes it, or why the conversion failed. A
+ * scale rounds to the decimals the factor and a float carry, because a
+ * product like 2312 × 0.1 comes out as 231.20000000000002; an interpolation
+ * and a script round to six decimals for the same reason.
+ */
+export const applyConversion = (
   value: string,
   dataType: DataType | undefined,
-  registerMap: RegisterMapObject,
-  address: number
-) => {
-  scaledValue: number
-  precision: number
-}
-
-const convert: ConvertFn = (value, dataType, registerMap, address) => {
-  // Get the scaling factor from the register map
-  // And the decimal places for rounding the scaled value because js can add some unwanted
-  // decimal places by deviding by the scaling factor
-  const scalingFactor = registerMap[address]?.scalingFactor ?? 1
-  const decimalPlaces = String(scalingFactor).split('.')[1]?.length ?? 0
-
-  // When we have a floating point number, we add the decimal places of it
-  // to the decimal places of the scaling factor, else we would round the float completely
-  const float = dataType === 'float' || dataType === 'double'
-  const decimalPlacesFloat = float ? (value.split('.')[1]?.length ?? 0) : 0
-
-  // Scale
-  let scaledValue = Number(value) * scalingFactor
-
-  // Interpolate
-  const interpolate = registerMap[address]?.interpolate
-  if (interpolate) scaledValue = linearInterpolate(scaledValue, interpolate)
-
-  return { scaledValue, precision: decimalPlaces + decimalPlacesFloat }
+  conversion: Conversion | undefined
+): number | ScriptError | undefined => {
+  const raw = Number(value)
+  if (conversion === undefined) return raw
+  if (conversion.kind === 'scale') {
+    const float = dataType === 'float' || dataType === 'double'
+    const floatDecimals = float ? (value.split('.')[1]?.length ?? 0) : 0
+    const factorDecimals = String(conversion.factor).split('.')[1]?.length ?? 0
+    return round(raw * conversion.factor, factorDecimals + floatDecimals)
+  }
+  if (conversion.kind === 'lerp') return round(linearInterpolate(raw, conversion), 6)
+  const result = runScript(conversion.code, raw)
+  return typeof result === 'number' ? round(result, 6) : result
 }

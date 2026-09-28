@@ -151,19 +151,19 @@ describe('set_mapping_entry', () => {
       type: 'input_registers',
       address: 7,
       dataType: 'float',
-      scalingFactor: 0.1,
+      conversion: { kind: 'scale', factor: 0.1 },
       unit: 'Hz',
       comment: 'frequency'
     })
 
     expect(answer).toEqual({
-      changed: ['dataType', 'scalingFactor', 'unit', 'comment'],
+      changed: ['dataType', 'conversion', 'unit', 'comment'],
       refused: []
     })
     expect(shownType(useClientZustand.getState())).toBe('input_registers')
     expect(unitOf()?.registerMapping.input_registers[7]).toEqual({
       dataType: 'float',
-      scalingFactor: 0.1,
+      conversion: { kind: 'scale', factor: 0.1 },
       unit: 'Hz',
       comment: 'frequency'
     })

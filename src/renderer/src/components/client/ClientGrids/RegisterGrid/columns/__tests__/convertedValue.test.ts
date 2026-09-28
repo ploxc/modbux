@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { stubRenderer } from '@renderer/context/__tests__/stubRenderer'
+import { RegisterMapObjectSchema } from '@shared'
 import type { RegisterData, RegisterMapObject } from '@shared'
+import { initScriptEngine } from '@renderer/conversion/scriptEngine'
 
 // The column takes the address groups the section's last read was made of.
 const dataState = { addressGroups: [] as [number, number][] }
@@ -118,36 +120,46 @@ describe('the number the value column shows', () => {
   // The rounding takes its precision from the factor, so a factor with one
   // decimal that rounded to none would show 12 for a register holding 123.
   it('keeps the decimals the scaling factor introduces', () => {
-    expect(shownValue({ 0: { dataType: 'uint16', scalingFactor: 0.1 } }, numberRowAt(0, 123))).toBe(
-      12.3
-    )
+    expect(
+      shownValue(
+        { 0: { dataType: 'uint16', conversion: { kind: 'scale' as const, factor: 0.1 } } },
+        numberRowAt(0, 123)
+      )
+    ).toBe(12.3)
   })
 
   // A float carries decimals of its own, and the factor's count alone would
   // round them away.
   it('keeps the decimals of a float beside those of the factor', () => {
-    expect(shownValue({ 0: { dataType: 'float', scalingFactor: 0.1 } }, numberRowAt(0, 1.25))).toBe(
-      0.125
-    )
+    expect(
+      shownValue(
+        { 0: { dataType: 'float', conversion: { kind: 'scale' as const, factor: 0.1 } } },
+        numberRowAt(0, 1.25)
+      )
+    ).toBe(0.125)
   })
 
   it('shows the word itself when the toolbar asks for raw', () => {
     expect(
-      shownValue({ 0: { dataType: 'uint16', scalingFactor: 0.1 } }, numberRowAt(0, 123), true)
+      shownValue(
+        { 0: { dataType: 'uint16', conversion: { kind: 'scale' as const, factor: 0.1 } } },
+        numberRowAt(0, 123),
+        true
+      )
     ).toBe(123)
   })
 
-  // The endpoints are read against the scaled number. Both lines run through
-  // the same two points, so a `y1` away from zero is what separates the order
-  // they run in: interpolating the word itself answers 10.1 here.
-  it('interpolates what the scaling factor answered, not the raw word', () => {
-    const map = {
+  // A mapping from before conversions scaled, then interpolated. It reads as
+  // an interpolation over raw bounds divided by the scale, and shows what it
+  // showed: interpolating the word itself over the old bounds answers 10.1.
+  it('shows what a scale and an interpolation from before conversions showed', () => {
+    const map = RegisterMapObjectSchema.parse({
       0: {
-        dataType: 'uint16' as const,
+        dataType: 'uint16',
         scalingFactor: 0.1,
         interpolate: { x1: '0', x2: '100', y1: '1', y2: '11' }
       }
-    }
+    })
 
     expect(shownValue(map, numberRowAt(0, 1000))).toBe(11)
   })
@@ -156,9 +168,33 @@ describe('the number the value column shows', () => {
   // answer an Infinity the column would draw.
   it('answers y1 when both endpoints sit on the same x', () => {
     const map = {
-      0: { dataType: 'uint16' as const, interpolate: { x1: '1', x2: '1', y1: '7', y2: '99' } }
+      0: {
+        dataType: 'uint16' as const,
+        conversion: { kind: 'lerp' as const, x1: '1', x2: '1', y1: '7', y2: '99' }
+      }
     }
 
     expect(shownValue(map, numberRowAt(0, 50))).toBe(7)
+  })
+
+  it('shows what a script returns for the word', async () => {
+    await initScriptEngine()
+    const map = {
+      0: {
+        dataType: 'int16' as const,
+        conversion: { kind: 'script' as const, code: 'return Math.abs(raw) / 10000' }
+      }
+    }
+
+    expect(shownValue(map, numberRowAt(0, -9512))).toBe(0.9512)
+  })
+
+  it('shows nothing where the script fails', async () => {
+    await initScriptEngine()
+    const map = {
+      0: { dataType: 'int16' as const, conversion: { kind: 'script' as const, code: "return 'x'" } }
+    }
+
+    expect(shownValue(map, numberRowAt(0, 1))).toBe(undefined)
   })
 })

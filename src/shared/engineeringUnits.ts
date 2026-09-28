@@ -2,7 +2,7 @@
  * The engineering units a register's unit field suggests, by quantity. The
  * field takes any text; these are what it offers while typing.
  */
-export const ENGINEERING_UNITS: Record<string, string[]> = {
+const ENGINEERING_UNITS: Record<string, string[]> = {
   Voltage: ['V', 'mV', 'kV'],
   Current: ['A', 'mA', 'kA'],
   Power: ['W', 'kW', 'MW', 'VA', 'kVA', 'MVA', 'var', 'kvar', 'Mvar'],

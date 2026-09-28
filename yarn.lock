@@ -1332,6 +1332,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@jitl/quickjs-ffi-types@npm:0.32.0":
+  version: 0.32.0
+  resolution: "@jitl/quickjs-ffi-types@npm:0.32.0"
+  checksum: 10c0/80a35558d1d466115366999cebde2aa5aa3f78297d69db1d3c662f021e39ec3b2d89b6b8b85d4defa41a4ea24b94a6fd528ddc227cd2e67fb16edb3b43a9e84f
+  languageName: node
+  linkType: hard
+
+"@jitl/quickjs-singlefile-mjs-release-sync@npm:0.32.0":
+  version: 0.32.0
+  resolution: "@jitl/quickjs-singlefile-mjs-release-sync@npm:0.32.0"
+  dependencies:
+    "@jitl/quickjs-ffi-types": "npm:0.32.0"
+  checksum: 10c0/8322406d4ef928fecd9aa60abc622c48be346220d94eb7c7b96898d1865222d2facdc7f25ce411f2db4270e18f441f9d28f6ada12e84a1717bb13141e7f9583f
+  languageName: node
+  linkType: hard
+
 "@jridgewell/gen-mapping@npm:^0.3.12, @jridgewell/gen-mapping@npm:^0.3.5":
   version: 0.3.13
   resolution: "@jridgewell/gen-mapping@npm:0.3.13"
@@ -7141,6 +7157,7 @@ __metadata:
     "@emotion/react": "npm:^11.14.0"
     "@emotion/styled": "npm:^11.14.1"
     "@fontsource/inter": "npm:^5.2.8"
+    "@jitl/quickjs-singlefile-mjs-release-sync": "npm:0.32.0"
     "@modelcontextprotocol/sdk": "npm:1.30.1"
     "@mui/icons-material": "npm:^9.3.1"
     "@mui/material": "npm:^9.3.1"
@@ -7180,6 +7197,7 @@ __metadata:
     notistack: "npm:^3.0.2"
     pngjs: "npm:^7.0.0"
     prettier: "npm:^3.8.1"
+    quickjs-emscripten-core: "npm:0.32.0"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     react-imask: "npm:^7.6.1"
@@ -8029,6 +8047,15 @@ __metadata:
   version: 5.1.1
   resolution: "quick-lru@npm:5.1.1"
   checksum: 10c0/a24cba5da8cec30d70d2484be37622580f64765fb6390a928b17f60cd69e8dbd32a954b3ff9176fa1b86d86ff2ba05252fae55dc4d40d0291c60412b0ad096da
+  languageName: node
+  linkType: hard
+
+"quickjs-emscripten-core@npm:0.32.0":
+  version: 0.32.0
+  resolution: "quickjs-emscripten-core@npm:0.32.0"
+  dependencies:
+    "@jitl/quickjs-ffi-types": "npm:0.32.0"
+  checksum: 10c0/3d38df2cc6408b4bd343a955b5f435f0b26b5ed2692f0f878d5dbe1fa5bcc7e9ae0e914ea2cea04e4abd3a03691d3e4ee0e6244b9ce761374c73bf132b2c3958
   languageName: node
   linkType: hard
 

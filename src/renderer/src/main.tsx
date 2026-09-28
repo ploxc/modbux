@@ -15,6 +15,7 @@ import { theme } from './theme'
 import { closeSnackbar, SnackbarProvider, MaterialDesignContent } from 'notistack'
 import Close from '@mui/icons-material/Close'
 import App from './App'
+import { initScriptEngine } from './conversion/scriptEngine'
 import { installMcpRelay } from './mcp/relay'
 
 // Both windows answer the tool calls main sends them.
@@ -106,3 +107,8 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     </ThemeProvider>
   </React.StrictMode>
 )
+
+// Loaded after the first render, not awaited before it: the engine's wasm is a
+// chunk that imports from this one, so a top-level await here waits on itself.
+// The CSP's 'wasm-unsafe-eval' is what lets it compile.
+void initScriptEngine()

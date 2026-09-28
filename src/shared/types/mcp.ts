@@ -1,6 +1,7 @@
 import z from 'zod'
 import { BitMapConfigSchema } from './bitmap'
-import { ProtocolSchema, RegisterLinearInterpolationSchema } from './client'
+import { ProtocolSchema } from './client'
+import { ConversionSchema } from './conversion'
 import { DataTypeSchema } from './datatype'
 import { MAX_UNIT_ID, PortSchema, RegisterAddressSchema, UnitIdSchema } from './ranges'
 import { RegisterTypeSchema } from './register'
@@ -228,7 +229,9 @@ export const MCP_TOOLS = {
       type: RegisterTypeSchema,
       address: RegisterAddressSchema.describe('The protocol address, 0-based.'),
       dataType: DataTypeSchema.optional(),
-      scalingFactor: z.number().optional(),
+      conversion: ConversionSchema.optional().describe(
+        'How the value is converted: a scale factor, a linear interpolation from two raw points to two values, or a script taking raw and returning the value.'
+      ),
       unit: z
         .string()
         .optional()
@@ -238,9 +241,6 @@ export const MCP_TOOLS = {
         .boolean()
         .optional()
         .describe('Start a new read group after this register, under read configuration.'),
-      interpolate: RegisterLinearInterpolationSchema.optional().describe(
-        'Linear interpolation from x1..x2 to y1..y2, each a number written as a string.'
-      ),
       bitMap: BitMapConfigSchema.optional().describe(
         'Per bit, keyed "0" to "15": a comment, a color and whether it is inverted.'
       )

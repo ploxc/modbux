@@ -49,6 +49,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   freely or picked from suggestions such as °C, bar, kW or m³/h, and the value
   shows it after the scaled number. The column's filter offers the units in
   use. The unit is saved in the device file.
+- **Conversions, including a script of your own.** A register's Conversion
+  column opens a dialog with four choices: None, Scale, Linear interpolation
+  or Custom, a JavaScript script that takes `raw` and returns the value. The
+  dialog previews the result for a value you type and for the last read, and
+  says on which line a script does not parse. Scripts run in their own engine,
+  with no access to Modbux, your files or the network. A scale shows its
+  factor in the column, the other two a function icon. Mappings saved before
+  keep showing the same values.
 - **The round trip of each request** shows in the transaction log and in the
   grid's footer.
 

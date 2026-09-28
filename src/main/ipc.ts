@@ -38,7 +38,7 @@ import { applySerialGroupFix, getSerialGroupStatus, requestLogout } from './modu
 import { McpConnector } from './modules/mcp/connector'
 import { createMcpToken } from './modules/mcp/token'
 import { IpcMainEvent, IpcMainInvokeEvent, ipcMain } from 'electron'
-import type { ZodType } from 'zod'
+import type { ZodType, ZodTypeDef } from 'zod'
 
 type IpcListener<C extends keyof IpcHandlerMap> = (
   event: IpcMainInvokeEvent,
@@ -56,7 +56,9 @@ type IpcListener<C extends keyof IpcHandlerMap> = (
  */
 type PayloadSchema<C extends keyof IpcHandlerMap> =
   undefined extends Awaited<IpcHandlerMap[C]['return']>
-    ? ZodType<IpcHandlerMap[C]['args'][0]>
+    ? // The input is whatever arrives: a mapping entry from before conversions
+      // parses into the shape the handler takes.
+      ZodType<IpcHandlerMap[C]['args'][0], ZodTypeDef, unknown>
     : never
 
 /**

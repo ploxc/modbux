@@ -1,0 +1,41 @@
+// A conversion script runs in QuickJS: `raw` in, a number out, and nothing of
+// the app within its reach.
+import { beforeAll, describe, expect, it } from 'vitest'
+import { initScriptEngine, runScript, scriptError } from '../scriptEngine'
+
+beforeAll(async () => {
+  await initScriptEngine()
+})
+
+describe('runScript', () => {
+  it('returns what the script returns for raw', () => {
+    expect(runScript('const inductive = raw < 0\nreturn Math.abs(raw) / 10000', -9512)).toBe(0.9512)
+  })
+
+  it('answers an error for a return that is not a number', () => {
+    expect(runScript("return 'kW'", 1)).toEqual({ message: 'The script returned kW, not a number' })
+  })
+
+  it('cuts off a script that never ends', () => {
+    const answer = runScript('while (true) {}', 1)
+    expect(typeof answer).toBe('object')
+  })
+
+  it('sees nothing of the window it runs beside', () => {
+    expect(
+      runScript("return typeof window === 'undefined' && typeof fetch === 'undefined' ? 1 : 0", 1)
+    ).toBe(1)
+  })
+})
+
+describe('scriptError', () => {
+  it('names the line a script fails to compile on', () => {
+    expect(scriptError('const inductive = raw < 0\nreturn Math.abs(raw / 10000')).toMatchObject({
+      line: 2
+    })
+  })
+
+  it('answers nothing for a script that compiles', () => {
+    expect(scriptError('return raw')).toBeUndefined()
+  })
+})

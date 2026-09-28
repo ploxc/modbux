@@ -44,7 +44,7 @@ const meterUnit: ClientUnit = {
   registerMapping: {
     ...emptyMapping(),
     holding_registers: {
-      0: { dataType: 'uint16', scalingFactor: 0.1, comment: 'voltage L1' },
+      0: { dataType: 'uint16', conversion: { kind: 'scale', factor: 0.1 }, comment: 'voltage L1' },
       1: { dataType: 'int16', comment: 'temperature' },
       // A register whose entry was cleared keeps its key.
       2: undefined
@@ -229,7 +229,7 @@ describe('the read tools', () => {
         address: 3,
         name: 'breaker',
         dataType: undefined,
-        scalingFactor: undefined,
+        conversion: undefined,
         bitMap: undefined
       },
       {
@@ -237,7 +237,7 @@ describe('the read tools', () => {
         address: 0,
         name: 'voltage L1',
         dataType: 'uint16',
-        scalingFactor: 0.1,
+        conversion: { kind: 'scale', factor: 0.1 },
         bitMap: undefined
       },
       {
@@ -245,7 +245,7 @@ describe('the read tools', () => {
         address: 1,
         name: 'temperature',
         dataType: 'int16',
-        scalingFactor: undefined,
+        conversion: undefined,
         bitMap: undefined
       }
     ])
@@ -264,7 +264,7 @@ describe('the read tools', () => {
           dataType: 'uint16',
           hex: '0908',
           words: ['0908'],
-          scalingFactor: 0.1,
+          conversion: { kind: 'scale', factor: 0.1 },
           value: 231.2,
           error: undefined
         },
@@ -274,7 +274,7 @@ describe('the read tools', () => {
           dataType: 'int16',
           hex: 'ffff',
           words: ['ffff'],
-          scalingFactor: undefined,
+          conversion: undefined,
           value: -1,
           error: undefined
         }
@@ -290,7 +290,11 @@ describe('the read tools', () => {
       registerMapping: {
         ...emptyMapping(),
         holding_registers: {
-          10: { dataType: 'int32', scalingFactor: 0.001, comment: 'Active Power (kW)' },
+          10: {
+            dataType: 'int32',
+            conversion: { kind: 'scale', factor: 0.001 },
+            comment: 'Active Power (kW)'
+          },
           13: { dataType: 'utf8', comment: 'Model' },
           // An address held open inside the string, which the string reads through.
           14: { dataType: 'none' },
@@ -316,7 +320,7 @@ describe('the read tools', () => {
     expect(answer.littleEndian).toBe(true)
     expect(answer.rows[0]).toMatchObject({
       address: 10,
-      scalingFactor: 0.001,
+      conversion: { kind: 'scale', factor: 0.001 },
       words: ['0112', 'd6bc']
     })
     expect(answer.rows[1]).toMatchObject({ address: 11, hex: 'd6bc', words: undefined })
@@ -329,7 +333,7 @@ describe('the read tools', () => {
       value: 'SUN2'
     })
     expect(answer.rows[4]).toMatchObject({ address: 14, words: undefined })
-    expect(answer.rows[5]).toMatchObject({ address: 15, words: ['0001'], scalingFactor: undefined })
+    expect(answer.rows[5]).toMatchObject({ address: 15, words: ['0001'], conversion: undefined })
   })
 
   // A 0 in place of words that were not read is not a reading.
@@ -372,7 +376,7 @@ describe('the read tools', () => {
           dataType: undefined,
           hex: '0001',
           words: undefined,
-          scalingFactor: undefined,
+          conversion: undefined,
           value: true,
           error: undefined
         }
@@ -380,26 +384,26 @@ describe('the read tools', () => {
     })
   })
 
-  it('list_registers carries interpolation and the end of a read group', () => {
-    const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
+  it('list_registers carries the conversion and the end of a read group', () => {
+    const conversion = { kind: 'lerp' as const, x1: '0', x2: '100', y1: '4', y2: '20' }
     const interpolated = withUnit({
       registerMapping: {
         ...emptyMapping(),
-        holding_registers: { 0: { dataType: 'uint16', interpolate, groupEnd: true } }
+        holding_registers: { 0: { dataType: 'uint16', conversion, groupEnd: true } }
       }
     })
     expect(listRegisters(source({ clients: { a: interpolated } }), { client: 'a' })).toEqual([
-      expect.objectContaining({ address: 0, interpolate, groupEnd: true })
+      expect.objectContaining({ address: 0, conversion, groupEnd: true })
     ])
   })
 
-  it('read_values says a value is interpolated, and a bitmap its bits as the panel shows them', () => {
-    const interpolate = { x1: '0', x2: '100', y1: '4', y2: '20' }
+  it('read_values says how a value is converted, and a bitmap its bits as the panel shows them', () => {
+    const conversion = { kind: 'lerp' as const, x1: '0', x2: '100', y1: '4', y2: '20' }
     const mapped = withUnit({
       registerMapping: {
         ...emptyMapping(),
         holding_registers: {
-          0: { dataType: 'uint16', interpolate },
+          0: { dataType: 'uint16', conversion },
           1: {
             dataType: 'bitmap',
             bitMap: {
@@ -416,9 +420,9 @@ describe('the read tools', () => {
     const answer = readValues(source({ clients: { a: mapped }, live: { a: live } }), {
       client: 'a'
     }) as {
-      rows: { interpolate?: unknown; value?: unknown; bits?: unknown[] }[]
+      rows: { conversion?: unknown; value?: unknown; bits?: unknown[] }[]
     }
-    expect(answer.rows[0]).toMatchObject({ interpolate, value: 12 })
+    expect(answer.rows[0]).toMatchObject({ conversion, value: 12 })
     expect(answer.rows[0]?.bits).toBeUndefined()
     expect(answer.rows[1]?.bits?.slice(0, 3)).toEqual([
       { bit: 0, on: true, active: false, comment: 'fault', color: 'error', invert: true },

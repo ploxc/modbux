@@ -118,7 +118,27 @@ const GROUPS = buildGroups(holdingRegisters)
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-/** Configure a register row: dataType, scalingFactor, comment, interpolation */
+type ConversionInput =
+  | { kind: 'scale'; factor: number }
+  | { kind: 'lerp'; x1: string; x2: string; y1: string; y2: string }
+
+/** The conversion a register of the config reads as. */
+const conversionOf = (reg: ClientRegister): ConversionInput | undefined => {
+  const factor = reg.scalingFactor
+  if (reg.interpolate) {
+    const { x1, x2, y1, y2 } = reg.interpolate
+    return {
+      kind: 'lerp',
+      x1: String(Number(x1) / factor),
+      x2: String(Number(x2) / factor),
+      y1,
+      y2
+    }
+  }
+  return factor !== 1 ? { kind: 'scale', factor } : undefined
+}
+
+/** Configure a register row: dataType, comment and conversion */
 async function configureRegister(p: any, rowId: number, reg: ClientRegister): Promise<void> {
   const label = `${reg.dataType.toUpperCase()} @ ${rowId}${reg.comment ? ` (${reg.comment})` : ''}`
 
@@ -135,15 +155,6 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
     await p.getByRole('option', { name: displayType, exact: true }).click()
     await p.keyboard.press('Enter')
 
-    // Scaling factor (only if != 1)
-    if (reg.scalingFactor !== 1) {
-      await row.locator('[data-field="scalingFactor"]').dblclick()
-      const sfInput = row.locator('[data-field="scalingFactor"] input')
-      await expect(sfInput).toBeVisible()
-      await sfInput.fill(String(reg.scalingFactor))
-      await p.keyboard.press('Enter')
-    }
-
     // Comment
     if (reg.comment) {
       await row.locator('[data-field="comment"]').dblclick()
@@ -153,30 +164,22 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
       await p.keyboard.press('Enter')
     }
 
-    // Interpolation (modal with x1, x2, y1, y2 fields)
-    if (reg.interpolate) {
-      const interpolationButton = row.getByTestId(`interpolation-action-${rowId}`)
-      await interpolationButton.click()
-
-      const modal = p.locator('.MuiModal-root')
-      await expect(modal).toBeVisible()
-
-      for (const key of ['x1', 'x2', 'y1', 'y2'] as const) {
-        const field = modal.locator(`label:has-text("${key}")`).locator('..').locator('input')
-        await field.click({ clickCount: 3 })
-        await field.fill(reg.interpolate[key])
+    // The config's scale and interpolation, as the one conversion the dialog
+    // holds: an interpolation over the raw points divided by the scale, since
+    // the config scaled first, or else the scale alone.
+    const conversion = conversionOf(reg)
+    if (conversion) {
+      await row.getByTestId(`conversion-cell-${rowId}`).click()
+      await p.getByTestId(`conversion-kind-${conversion.kind}-btn`).click()
+      if (conversion.kind === 'scale') {
+        await p.getByTestId('conversion-factor-input').fill(String(conversion.factor))
+      } else {
+        for (const key of ['x1', 'x2', 'y1', 'y2'] as const) {
+          await p.getByTestId(`conversion-${key}-input`).fill(conversion[key])
+        }
       }
-
-      // The button is dim at 0.2 while the interpolation is the identity and
-      // opaque once it is not. Nothing asserted that before. Both moments,
-      // because neither went red against the unsubscribed read this replaced
-      // and the pair says which one was tried. The one register this config
-      // interpolates maps 0..32767 onto 0.8..1.
-      await expect(interpolationButton).toHaveCSS('opacity', '1')
-
-      await p.keyboard.press('Escape')
-      await expect(modal).not.toBeVisible()
-      await expect(interpolationButton).toHaveCSS('opacity', '1')
+      await p.getByTestId('conversion-save-btn').click()
+      await expect(p.getByTestId('conversion-save-btn')).toHaveCount(0)
     }
   })
 }
@@ -264,11 +267,12 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     expect(await scrollCell(mainPage, 50000, 'comment')).toBe('Alarm Info 1')
   })
 
+  // 40429 interpolates, so its cell shows the function icon and no number.
   test('readConfig validates scaling factors survived', async ({ mainPage }) => {
-    expect(await scrollCell(mainPage, 40428, 'scalingFactor')).toBe('0.1')
-    expect(await scrollCell(mainPage, 40429, 'scalingFactor')).toBe('0.001')
-    expect(await scrollCell(mainPage, 40685, 'scalingFactor')).toBe('0.01')
-    expect(await scrollCell(mainPage, 41934, 'scalingFactor')).toBe('0.001')
+    expect(await scrollCell(mainPage, 40428, 'conversion')).toBe('0.1')
+    expect(await scrollCell(mainPage, 40429, 'conversion')).toBe('')
+    expect(await scrollCell(mainPage, 40685, 'conversion')).toBe('0.01')
+    expect(await scrollCell(mainPage, 41934, 'conversion')).toBe('0.001')
   })
 
   test('readConfig validates hex values are present', async ({ mainPage }) => {
@@ -377,11 +381,9 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     // All registers should be in the saved config
     expect(Object.keys(hr).length).toBeGreaterThanOrEqual(TOTAL_REGISTERS - 2)
 
-    // Verify scaling factors round-tripped (spot-check from JSON source)
+    // Verify every conversion round-tripped
     for (const [addr, reg] of Object.entries(holdingRegisters) as [string, ClientRegister][]) {
-      if (reg.scalingFactor !== 1 && hr[addr]) {
-        expect(hr[addr].scalingFactor).toBe(reg.scalingFactor)
-      }
+      if (hr[addr]) expect(hr[addr].conversion).toEqual(conversionOf(reg))
     }
 
     // Verify comments round-tripped
@@ -397,12 +399,14 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     expect(hr['40550'].dataType.toLowerCase()).toContain('uint64')
     expect(hr['40713'].dataType.toLowerCase()).toContain('utf8')
 
-    // Verify interpolation round-tripped
-    expect(hr['40429'].interpolate).toBeDefined()
-    expect(hr['40429'].interpolate.x1).toBe('0')
-    expect(hr['40429'].interpolate.x2).toBe('32767')
-    expect(hr['40429'].interpolate.y1).toBe('0.8')
-    expect(hr['40429'].interpolate.y2).toBe('1')
+    // The interpolation after a scale of 0.001, over raw points 1000 times wider
+    expect(hr['40429'].conversion).toEqual({
+      kind: 'lerp',
+      x1: '0',
+      x2: '32767000',
+      y1: '0.8',
+      y2: '1'
+    })
 
     await fs.unlink(savePath).catch(() => {})
   })

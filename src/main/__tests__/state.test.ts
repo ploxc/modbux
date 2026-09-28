@@ -35,7 +35,7 @@ const mapped = (uuid: string): ClientUnit => ({
     coils: {},
     discrete_inputs: {},
     input_registers: {},
-    holding_registers: { 0: { dataType: 'int16', scalingFactor: 1 } }
+    holding_registers: { 0: { dataType: 'int16' } }
   }
 })
 
