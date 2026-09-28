@@ -66,7 +66,19 @@ export const ConvertedValueCell = meme(
       return <ExpandCell address={address} />
     }
     if (row === undefined) return null
-    return getConvertedValue(row, registerMap, showRaw, addressGroups) ?? ''
+    const value = getConvertedValue(row, registerMap, showRaw, addressGroups) ?? ''
+    // The unit belongs to the scaled number, not to a raw word or a text.
+    const engineeringUnit = registerMap[address]?.unit
+    if (showRaw || typeof value !== 'number' || !engineeringUnit) return value
+    return (
+      <>
+        {value}
+        <span className="value-unit" style={{ opacity: 0.5 }}>
+          {' '}
+          {engineeringUnit}
+        </span>
+      </>
+    )
   }
 )
 

@@ -34,6 +34,7 @@ type EntryField = Exclude<keyof McpToolArgs<'set_mapping_entry'>, 'client' | 'ty
 const ENTRY_FIELDS = [
   'dataType',
   'scalingFactor',
+  'unit',
   'comment',
   'groupEnd',
   'interpolate',

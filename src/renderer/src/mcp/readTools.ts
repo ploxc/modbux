@@ -155,6 +155,7 @@ export const listRegisters = (
               name: entry.comment ?? '',
               dataType: entry.dataType,
               scalingFactor: entry.scalingFactor,
+              unit: entry.unit,
               interpolate: entry.interpolate,
               groupEnd: entry.groupEnd,
               bitMap: entry.bitMap
@@ -229,6 +230,7 @@ export const readValues = (source: ReadSource, { client }: McpToolArgs<'read_val
         hex: row.hex,
         words,
         scalingFactor: mapping[row.id]?.scalingFactor,
+        unit: mapping[row.id]?.unit,
         interpolate: mapping[row.id]?.interpolate,
         value: type === 'coils' || type === 'discrete_inputs' ? row.bit : valueOf(row, words),
         bits:

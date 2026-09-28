@@ -65,6 +65,17 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await expectCellContains(mainPage, 1, 'scalingFactor', '0.1')
   })
 
+  // Typed rather than picked, so the list is a suggestion and not a limit.
+  test('a unit typed into the Unit cell stays on the register', async ({ mainPage }) => {
+    const row1 = mainPage.locator('.MuiDataGrid-row[data-id="1"]')
+    await row1.locator('[data-field="unit"]').dblclick()
+    const input = mainPage.getByTestId('unit-input-1')
+    await expect(input).toBeVisible()
+    await input.fill('°C')
+    await mainPage.keyboard.press('Enter')
+    await expectCell(mainPage, 1, 'unit', '°C')
+  })
+
   test('verify comments visible in grid', async ({ mainPage }) => {
     await expectCell(mainPage, 0, 'comment', 'setpoint')
     await expectCell(mainPage, 1, 'comment', 'temperature scaled')
@@ -115,6 +126,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
 
     // Verify scaling factor round-tripped
     expect(config.registerMapping.holding_registers['1'].scalingFactor).toBe(0.1)
+    expect(config.registerMapping.holding_registers['1'].unit).toBe('°C')
 
     await fs.unlink(savePath).catch(() => {})
   })

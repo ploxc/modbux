@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open type in a row or a column. A type turned off and on again goes back
   beside the panel it sat beside. The cross in a panel's head hides it,
   and a right click on the head reads, clears or hides that panel alone.
+- **Engineering units.** A register takes a unit in its Unit column, typed
+  freely or picked from suggestions such as °C, bar, kW or m³/h, and the value
+  shows it after the scaled number. The column's filter offers the units in
+  use. The unit is saved in the device file.
 - **The round trip of each request** shows in the transaction log and in the
   grid's footer.
 

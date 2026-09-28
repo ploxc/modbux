@@ -13,6 +13,7 @@ import { addressColumn } from './address'
 import { bitColumn } from './bit'
 import { dataTypeColumn } from './dataType'
 import { scalingFactorColumn } from './scalingFactor'
+import { unitColumn } from './unit'
 import { hexColumn } from './hex'
 import { binaryColumn } from './binary'
 import { valueColumn } from './value'
@@ -59,6 +60,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
         dataTypeColumn(registerMap),
         bitmapValueColumn(registerMap, showRaw, addressGroups),
         scalingFactorColumn(registerMap),
+        unitColumn(registerMap),
         interpolationColumn(type),
         groupEndColumn(registerMap),
         hexColumn,

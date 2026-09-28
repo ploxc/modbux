@@ -30,6 +30,8 @@ export type RegisterLinearInterpolation = z.infer<typeof RegisterLinearInterpola
 export const RegisterMapValueSchema = z.object({
   dataType: DataTypeSchema.optional(),
   scalingFactor: z.number().optional(),
+  /** The engineering unit the scaled value is in, shown after it. */
+  unit: z.string().optional(),
   comment: z.string().optional(),
   interpolate: RegisterLinearInterpolationSchema.optional(),
   groupEnd: z.boolean().optional(),

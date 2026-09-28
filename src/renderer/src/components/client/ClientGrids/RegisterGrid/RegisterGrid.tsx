@@ -125,6 +125,7 @@ const Footer = meme(() => (
 const EditedRowSchema = z.object({
   dataType: DataTypeSchema.optional().catch(undefined),
   scalingFactor: z.number().optional().catch(undefined),
+  unit: z.string().optional().catch(undefined),
   comment: z.string().optional().catch(undefined),
   groupEnd: z.boolean().optional().catch(undefined)
 })
@@ -234,6 +235,11 @@ const RegisterGridContent = meme((): JSX.Element => {
         clientZustand.setRegisterMapping(newRow.id, 'scalingFactor', edited.scalingFactor)
       }
 
+      // An emptied unit field takes the unit away.
+      if (typeof edited.unit === 'string' && edited.unit.trim() !== (before.unit ?? '')) {
+        clientZustand.setRegisterMapping(newRow.id, 'unit', edited.unit.trim() || undefined)
+      }
+
       // Update comment
       if (typeof edited.comment === 'string' && edited.comment !== before.comment) {
         clientZustand.setRegisterMapping(newRow.id, 'comment', edited.comment)
@@ -278,7 +284,10 @@ const RegisterGridContent = meme((): JSX.Element => {
         if (field === 'comment') return true
         const dataType = registerMapping[id]?.dataType ?? 'none'
 
-        if (field === 'scalingFactor' && !scalableDataTypes.includes(dataType)) {
+        if (
+          (field === 'scalingFactor' || field === 'unit') &&
+          !scalableDataTypes.includes(dataType)
+        ) {
           return false
         }
 

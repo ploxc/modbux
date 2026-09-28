@@ -229,6 +229,10 @@ export const MCP_TOOLS = {
       address: RegisterAddressSchema.describe('The protocol address, 0-based.'),
       dataType: DataTypeSchema.optional(),
       scalingFactor: z.number().optional(),
+      unit: z
+        .string()
+        .optional()
+        .describe('The engineering unit the scaled value is in, such as kW.'),
       comment: z.string().optional().describe('The name the register goes by.'),
       groupEnd: z
         .boolean()
