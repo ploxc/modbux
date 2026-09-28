@@ -12,6 +12,7 @@ import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand
 import { Conversion, ConversionKind, DataType, DEFAULT_SCRIPT } from '@shared'
 import { ChangeEvent, useCallback, useMemo, useState } from 'react'
 import { useRowAt } from '../../useRowAt'
+import ScriptEditor from './ScriptEditor'
 import { applyConversion } from '../convertedValue'
 import { wordOf } from '@shared'
 
@@ -59,10 +60,11 @@ const Preview = meme(({ draft, dataType, address }: PreviewProps) => {
   const read = row && wordOf(row.words, dataType)
   const readText = read === undefined || read === '' ? undefined : String(read)
 
+  // A draft that does not convert shows a dash here; why is said at the code.
   const resultOf = (value: string): string => {
     if (!isNumber(value)) return ''
     const result = applyConversion(value, dataType, draft)
-    return typeof result === 'number' ? String(result) : (result?.message ?? '')
+    return typeof result === 'number' ? String(result) : '—'
   }
   const handleTest = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setTest(event.target.value)
@@ -153,8 +155,8 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
         : current
     )
   }, [])
-  const handleCode = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setDraft({ kind: 'script', code: event.target.value })
+  const handleCode = useCallback((code: string) => {
+    setDraft({ kind: 'script', code })
   }, [])
   const handleSave = useCallback(() => {
     const clientZustand = useClientZustand.getState()
@@ -258,46 +260,28 @@ const ConversionDialog = meme(({ address, anchor, onClose }: ConversionDialogPro
           )}
           {draft?.kind === 'script' && (
             <>
-              <InputBase
-                multiline
-                minRows={8}
-                value={draft.code}
-                onChange={handleCode}
-                inputProps={{
-                  'data-testid': 'conversion-script-input',
-                  'aria-label': 'Script',
-                  spellCheck: false
-                }}
-                sx={(theme) => ({
-                  flexGrow: 1,
-                  alignItems: 'flex-start',
-                  px: 1.5,
-                  py: 1,
-                  fontFamily: 'monospace',
-                  fontSize: 12.5,
-                  lineHeight: '20px',
-                  background: alpha(theme.palette.common.black, 0.2)
-                })}
-              />
-              <Box
-                data-testid="conversion-script-status"
-                sx={(theme) => ({
-                  px: 1.5,
-                  py: 0.75,
-                  fontSize: 11.5,
-                  borderTop: `1px solid ${theme.palette.divider}`,
-                  color: problem ? 'error.main' : 'success.main'
-                })}
-              >
-                {problem ?? 'Parses. raw in, a number out.'}
-              </Box>
+              <ScriptEditor code={draft.code} onChange={handleCode} />
+              {problem && (
+                <Box
+                  data-testid="conversion-script-status"
+                  sx={(theme) => ({
+                    px: 1.5,
+                    py: 0.75,
+                    fontSize: 11.5,
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    color: 'error.main'
+                  })}
+                >
+                  {problem}
+                </Box>
+              )}
             </>
           )}
         </Box>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, px: 2, py: 1.5 }}>
         <Box sx={{ fontSize: 11, color: 'text.disabled' }}>Preview</Box>
-        <Preview draft={problem ? undefined : draft} dataType={entry?.dataType} address={address} />
+        <Preview draft={draft} dataType={entry?.dataType} address={address} />
       </Box>
       <Box
         sx={(theme) => ({

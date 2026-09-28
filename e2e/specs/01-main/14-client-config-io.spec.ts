@@ -83,13 +83,16 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await row0.getByTestId('conversion-cell-0').click()
     await mainPage.getByTestId('conversion-kind-script-btn').click()
 
-    const script = mainPage.getByTestId('conversion-script-input')
+    // CodeMirror's editable surface, which takes a fill like an input.
+    const script = mainPage.getByTestId('conversion-script-input').locator('.cm-content')
     await script.fill('return Math.abs(raw / 100')
+    await mainPage.getByTestId('conversion-test-input').fill('-250')
     await expect(mainPage.getByTestId('conversion-script-status')).toContainText('Line 1')
+    await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('—')
     await expect(mainPage.getByTestId('conversion-save-btn')).toBeDisabled()
 
     await script.fill('return Math.abs(raw) / 100')
-    await mainPage.getByTestId('conversion-test-input').fill('-250')
+    await expect(mainPage.getByTestId('conversion-script-status')).toHaveCount(0)
     await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('2.5')
     await mainPage.getByTestId('conversion-save-btn').click()
     await expect(row0.locator('[data-field="conversion"] svg')).toBeVisible()

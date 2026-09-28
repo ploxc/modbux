@@ -1,0 +1,81 @@
+import Box from '@mui/material/Box'
+import { javascript } from '@codemirror/lang-javascript'
+import { Diagnostic, linter, lintGutter } from '@codemirror/lint'
+import { EditorState } from '@codemirror/state'
+import { oneDark } from '@codemirror/theme-one-dark'
+import { EditorView } from '@codemirror/view'
+import { meme } from '@renderer/components/shared/inputs/meme'
+import { scriptError } from '@renderer/conversion/scriptEngine'
+import { basicSetup } from 'codemirror'
+import { useEffect, useRef } from 'react'
+
+/** The line a script does not compile on, underlined, with the reason on hover. */
+const compileErrors = linter(
+  (view): Diagnostic[] => {
+    const code = view.state.doc.toString()
+    const error = scriptError(code)
+    if (!error) return []
+    const line = view.state.doc.line(Math.min(Math.max(error.line ?? 1, 1), view.state.doc.lines))
+    return [{ from: line.from, to: line.to, severity: 'error', message: error.message }]
+  },
+  { delay: 200 }
+)
+
+/** The editor on the dialog's surface rather than One Dark's own background. */
+const surface = EditorView.theme({
+  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'transparent' },
+  '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
+  '.cm-scroller': { fontFamily: "'Roboto Mono', monospace", lineHeight: '20px' },
+  '&.cm-focused': { outline: 'none' }
+})
+
+interface ScriptEditorProps {
+  code: string
+  onChange: (code: string) => void
+}
+
+/**
+ * The code of a Custom conversion, coloured as JavaScript, with the line it
+ * does not compile on underlined.
+ */
+const ScriptEditor = meme(({ code, onChange }: ScriptEditorProps) => {
+  const host = useRef<HTMLDivElement | null>(null)
+  // The editor keeps its own text once mounted; `code` is where it starts.
+  const start = useRef(code)
+  const change = useRef(onChange)
+  change.current = onChange
+
+  useEffect(() => {
+    const parent = host.current
+    if (!parent) return
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: start.current,
+        extensions: [
+          basicSetup,
+          javascript(),
+          oneDark,
+          surface,
+          compileErrors,
+          lintGutter(),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) change.current(update.state.doc.toString())
+          })
+        ]
+      })
+    })
+    view.focus()
+    return (): void => view.destroy()
+  }, [])
+
+  return (
+    <Box
+      ref={host}
+      data-testid="conversion-script-input"
+      sx={{ flexGrow: 1, minHeight: 180, maxHeight: 320, overflow: 'auto' }}
+    />
+  )
+})
+
+export default ScriptEditor
