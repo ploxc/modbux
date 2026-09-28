@@ -30,6 +30,6 @@ export const bitColumn: GridColDef<RegisterData, boolean, boolean> = {
   filterable: false,
   type: 'boolean',
   headerName: 'Bit',
-  width: 80,
+  width: 48,
   renderCell: ({ row }) => <BitCell address={row.id} />
 }
