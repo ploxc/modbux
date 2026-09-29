@@ -110,7 +110,7 @@ test.describe.serial('Monitor — read configuration in one grid', () => {
     await mainPage.getByTestId('client-rail-expand-btn').click()
   })
 
-  test('Show unit takes Debug to the unit', async ({ mainPage }) => {
+  test('Show unit takes Debug to the unit, with the group as its window', async ({ mainPage }) => {
     await head(mainPage, 'holding_registers', 0, 'show-unit').click()
 
     await expect(mainPage.getByTestId('monitor')).toHaveCount(0)
@@ -118,6 +118,8 @@ test.describe.serial('Monitor — read configuration in one grid', () => {
       'aria-pressed',
       'true'
     )
+    await expect(mainPage.getByTestId('reg-address-input').locator('input')).toHaveValue('0')
+    await expect(mainPage.getByTestId('reg-length-input').locator('input')).toHaveValue('2')
   })
 
   test('cleanup', async ({ mainPage }) => {

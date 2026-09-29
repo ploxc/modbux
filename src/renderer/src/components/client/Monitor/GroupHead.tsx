@@ -62,11 +62,18 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
     monitorZustand.toggleFolded(groupKey(row.unit, row.type, row.group))
   }, [row])
 
-  const handleShowUnit = useCallback(() => {
+  // Debug opens on the unit's register type with the group as its window, so
+  // Read there reads what this head reads.
+  const handleShowUnit = useCallback(async () => {
     if (!showUnit(uuid, row.unit)) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.showType(row.type)
+    const [start, length] = row.group
+    await clientZustand.setAddress(String(start), true, row.type)
+    await clientZustand.setLength(String(length), true, row.type)
     const clientViewZustand = useClientViewZustand.getState()
     clientViewZustand.setView('debug')
-  }, [uuid, row.unit])
+  }, [uuid, row])
 
   const handleRead = useCallback(() => {
     void window.api.readGroup({ uuid, unit: row.unit, type: row.type, group: row.group })

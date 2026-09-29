@@ -25,6 +25,8 @@ import type { MonitorHeadRow } from '../monitorRows'
 
 let calls: ApiCall[] = []
 
+const shownUuid = (): string => useClientZustand.getState().selectedUuid
+
 /** A unit added beside the one the store starts with, which Debug keeps selected. */
 const secondUnit = async (): Promise<string> => {
   const first = selectedUnit(useClientZustand.getState()).uuid
@@ -108,13 +110,16 @@ describe("a group's head", () => {
     await waitFor(() => expect(polledOf()).toEqual(expected))
   })
 
-  it('takes Debug to its unit on Show unit', async () => {
+  it('takes Debug to its unit and type, with the group as its window, on Show unit', async () => {
     const unit = await secondUnit()
     renderHead(unit)
 
     await userEvent.setup().click(control(unit, 'show-unit'))
 
-    expect(useClientViewZustand.getState().view).toBe('debug')
-    expect(selectedUnit(useClientZustand.getState()).uuid).toBe(unit)
+    await waitFor(() => expect(useClientViewZustand.getState().view).toBe('debug'))
+    const shown = selectedUnit(useClientZustand.getState())
+    expect(shown.uuid).toBe(unit)
+    expect(shown.sections.holding_registers).toMatchObject({ address: 200, length: 4 })
+    expect(useClientZustand.getState().sessions[shownUuid()]?.shownType).toBe('holding_registers')
   })
 })
