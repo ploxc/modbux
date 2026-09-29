@@ -129,9 +129,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('log-export-tree')).toContainText('setpoint')
     await mainPage.getByTestId('log-export-btn').click()
 
+    // The file exists before the download has written into it.
     let csv = ''
     await expect(async () => {
       csv = await readFile(savePath, 'utf-8')
+      expect(csv).toMatch(/\n.*\n/)
     }).toPass()
     const lines = csv.split('\n')
     expect(lines[0]).toMatch(/^# Modbux log of /)
