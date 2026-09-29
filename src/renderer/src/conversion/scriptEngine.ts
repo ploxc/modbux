@@ -77,6 +77,16 @@ const errorOf = (vm: QuickJSContext, handle: QuickJSHandle): ScriptError => {
   return { message, line: lineOf(error) }
 }
 
+/** What `run` answers, cut off once it runs past `CALL_MILLIS`. */
+const withDeadline = <T>(vm: QuickJSContext, run: () => T): T => {
+  vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + CALL_MILLIS))
+  try {
+    return run()
+  } finally {
+    vm.runtime.removeInterruptHandler()
+  }
+}
+
 /** Compile the script, or answer why it does not. */
 const compile = (vm: QuickJSContext, code: string): QuickJSHandle | ScriptError => {
   const cached = compiled.get(code)
@@ -86,7 +96,9 @@ const compile = (vm: QuickJSContext, code: string): QuickJSHandle | ScriptError 
     compiled.set(code, cached)
     return cached
   }
-  const result = vm.evalCode(wrap(code))
+  // A script can close the wrapper and run code of its own while it compiles,
+  // so compiling gets the same deadline as a call.
+  const result = withDeadline(vm, () => vm.evalCode(wrap(code)))
   if (result.error) {
     // An unclosed bracket is found at the wrapper's closing line, after the
     // script: it belongs to the script's last line.
@@ -127,11 +139,9 @@ export const runScript = (code: string, raw: number): number | ScriptError | und
   if (!vm) return undefined
   const fn = compile(vm, code)
   if (isError(fn)) return fn
-  vm.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + CALL_MILLIS))
   const argument = vm.newNumber(raw)
-  const result = vm.callFunction(fn, vm.undefined, argument)
+  const result = withDeadline(vm, () => vm.callFunction(fn, vm.undefined, argument))
   argument.dispose()
-  vm.runtime.removeInterruptHandler()
   if (result.error) return errorOf(vm, result.error)
   const value: unknown = vm.dump(result.value)
   result.value.dispose()

@@ -21,6 +21,12 @@ describe('runScript', () => {
     expect(typeof answer).toBe('object')
   })
 
+  it('cuts off a script that closes its wrapper and loops while it compiles', () => {
+    const escape = '}); while (true) {} (function (raw) {'
+    expect(scriptError(escape)).toEqual(expect.objectContaining({ message: 'interrupted' }))
+    expect(runScript(escape, 1)).toEqual(expect.objectContaining({ message: 'interrupted' }))
+  })
+
   it('sees nothing of the window it runs beside', () => {
     expect(
       runScript("return typeof window === 'undefined' && typeof fetch === 'undefined' ? 1 : 0", 1)
