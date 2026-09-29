@@ -837,21 +837,20 @@ export class ModbusClient implements TransportClient {
   //
   // Polling
   /**
-   * The register types a poll would read of `unit` were all of it on screen.
-   * In Monitor, every polled type the mapping has groups for. In Debug under
-   * the unit's read configuration, every type the mapping has groups for,
-   * otherwise every polled section. A type that would read nothing is left
-   * out.
+   * The register types a poll would read of `unit` were all of it on screen:
+   * the polled ones. In Monitor and under the unit's read configuration, a
+   * polled type the mapping has groups for; otherwise a polled section whose
+   * window asks for registers.
    */
   private _pollableTypes = (unit: ClientUnit): RegisterType[] => {
-    const readConfiguration = this._appState.readConfiguration(unit.uuid)
-    return RegisterTypeSchema.options.filter((type) => {
-      const grouped = configuredReadGroups(true, type, unit.registerMapping).length > 0
-      if (this._monitor) return unit.sections[type].polled && grouped
-      return readConfiguration
-        ? grouped
-        : unit.sections[type].polled && !this._readsNothing(unit, type, false)
-    })
+    const grouped = this._monitor || this._appState.readConfiguration(unit.uuid)
+    return RegisterTypeSchema.options.filter(
+      (type) =>
+        unit.sections[type].polled &&
+        (grouped
+          ? configuredReadGroups(true, type, unit.registerMapping).length > 0
+          : !this._readsNothing(unit, type, false))
+    )
   }
 
   /** What of the units Debug has on screen, the only sections its poll round reads. */

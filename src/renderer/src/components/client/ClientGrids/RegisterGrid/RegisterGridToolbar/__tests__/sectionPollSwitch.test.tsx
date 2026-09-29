@@ -29,11 +29,13 @@ describe('the section poll switch', () => {
     expect(getSelectedUnit().sections.holding_registers.polled).toBe(true)
   })
 
-  it('has nothing to say under read configuration', () => {
+  // A poll under read configuration reads the groups of the polled types, as
+  // Monitor's does, so the switch counts there too.
+  it('takes a press under read configuration', () => {
     const unit = getSelectedUnit().uuid
     patchSelectedClient(useClientZustand, {}, { readConfiguration: { [unit]: true } })
     render(<SectionPollSwitch />)
 
-    expect(within(screen.getByTestId('section-poll-switch')).getByRole('switch')).toBeDisabled()
+    expect(within(screen.getByTestId('section-poll-switch')).getByRole('switch')).toBeEnabled()
   })
 })

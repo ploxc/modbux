@@ -116,6 +116,10 @@ describe('the Poll button', () => {
     expect(renderButton({}, { lengthGiven: false, mappedGroup: true })).toBeEnabled()
   })
 
+  it('takes none under read configuration when the grouped type has its Poll off', () => {
+    expect(renderButton({}, { mappedGroup: true, polled: false })).toBeDisabled()
+  })
+
   it('takes none at that length when read configuration has no group for the type', () => {
     expect(renderButton({}, { lengthGiven: false, mappedGroup: false })).toBeDisabled()
   })

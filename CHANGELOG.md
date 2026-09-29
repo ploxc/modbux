@@ -99,6 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Read configuration reads coils and discrete inputs.** A bit with a comment
   is part of the configuration, as a register with a data type is, and the
   bits are read in groups of up to 2000.
+- **Poll counts under read configuration.** A register type's Poll switch
+  stayed greyed while read configuration was on, and the poll read every type
+  with something configured. The switch now works there too, as in Monitor.
 - **Scans no longer pause between requests.** A register scan and a unit ID
   scan waited 10 ms after every request, so a device that answers quickly was
   asked at a fraction of its pace. A register scan of 10,000 addresses in

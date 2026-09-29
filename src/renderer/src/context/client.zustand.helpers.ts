@@ -151,9 +151,9 @@ export const readsNothingIn = (
 
 /**
  * Whether a poll of `uuid` reads `type` of `unit` while it is on screen: the
- * question `_pollableTypes` asks. In Monitor, a polled type the mapping has a
- * group for. In Debug under the unit's read configuration, a type the mapping
- * has a group for; otherwise a polled section whose read asks for registers.
+ * question `_pollableTypes` asks. In Monitor and under the unit's read
+ * configuration, a polled type the mapping has a group for; otherwise a polled
+ * section whose window asks for registers.
  */
 const pollsSection = (
   session: ClientSession,
@@ -161,18 +161,16 @@ const pollsSection = (
   type: RegisterType,
   monitor = false
 ): boolean => {
-  const grouped = !readsNothing(true, type, unit.registerMapping, false)
-  if (monitor) return unit.sections[type].polled && grouped
-  const readConfiguration = session.readConfiguration[unit.uuid] ?? false
-  return readConfiguration
-    ? grouped
-    : unit.sections[type].polled &&
-        !readsNothing(
-          false,
-          type,
-          unit.registerMapping,
-          isReadLengthGiven(unit.sections[type].length)
-        )
+  const grouped = monitor || (session.readConfiguration[unit.uuid] ?? false)
+  return (
+    unit.sections[type].polled &&
+    !readsNothing(
+      grouped,
+      type,
+      unit.registerMapping,
+      !grouped && isReadLengthGiven(unit.sections[type].length)
+    )
+  )
 }
 
 /** Whether a poll of `uuid` reads `type` of the unit under `unitUuid` while it is on screen. */

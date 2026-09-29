@@ -2115,6 +2115,39 @@ describe('ModbusClient', () => {
       expect(getLastClientState()).toMatchObject({ polling: false, pollIdle: false })
     })
 
+    // Poll counts under read configuration as it does in Monitor: a grouped
+    // type with its Poll off is not read.
+    it('leaves out a grouped type whose Poll is off under read configuration', async () => {
+      await connectClient()
+      const unit = theUnit()
+      client.setUnits([
+        {
+          ...unit,
+          registerMapping: {
+            coils: { 0: { comment: 'Pump' } },
+            discrete_inputs: {},
+            input_registers: {},
+            holding_registers: { 40: { dataType: 'uint16' } }
+          },
+          sections: {
+            ...unit.sections,
+            holding_registers: { ...unit.sections.holding_registers, polled: true },
+            coils: { ...unit.sections.coils, polled: false }
+          }
+        }
+      ])
+      showEverything()
+      appState.setReadConfiguration(UNIT, true)
+      setupHoldingRegisterReadMock([100])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readAddresses()).toEqual([40])
+      expect(mockModbusRTU.readCoils).not.toHaveBeenCalled()
+      client.stopPolling()
+    })
+
     describe('in Monitor', () => {
       const mapped = (address: number): RegisterMapping => ({
         coils: {},
