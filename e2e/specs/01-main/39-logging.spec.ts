@@ -3,7 +3,6 @@ import {
   navigateToClient,
   navigateToServer,
   connectClient,
-  disconnectClient,
   cleanServerState,
   loadServerConfig,
   loadClientConfig,
@@ -202,8 +201,29 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('poll-btn')).toHaveText('Poll')
   })
 
+  test('Disconnect asks first while logging, from the top bar and the card', async ({
+    mainPage
+  }) => {
+    // The log holds the last run's samples, so the log button asks first.
+    await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-start-append-btn').click()
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Log')
+    await mainPage.getByTestId('poll-btn').click()
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
+
+    await mainPage.getByTestId('connect-btn').click()
+    await mainPage.getByTestId('disconnect-log-keep-btn').click()
+    await expect(mainPage.getByTestId('connect-btn')).toHaveText('Disconnect')
+
+    await mainPage.locator('[data-testid^="client-menu-"]').click()
+    await mainPage.locator('[data-testid^="client-connect-"]').click()
+    await mainPage.getByTestId('disconnect-log-confirm-btn').click()
+    await expect(mainPage.getByTestId('connect-btn')).toHaveText('Connect')
+  })
+
   test('cleanup', async ({ mainPage }) => {
+    await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-turn-off-btn').click()
     await mainPage.getByTestId('client-view-debug-btn').click()
-    await disconnectClient(mainPage)
   })
 })

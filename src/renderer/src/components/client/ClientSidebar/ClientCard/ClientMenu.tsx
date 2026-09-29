@@ -8,7 +8,10 @@ import { toggleConnection } from '@renderer/components/client/ConnectionConfig/t
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import StopPollDialog, {
+  asksBeforeDisconnecting
+} from '@renderer/components/client/Logging/StopPollDialog'
 import { MenuPosition } from '@renderer/components/client/UnitMenu/UnitMenu'
 import { ScanRegistersMenuItem, ScanUnitIdsMenuItem } from '../ScanMenuItems'
 
@@ -49,10 +52,23 @@ const ClientMenu = meme(
     )
     const connectState = useLiveZustand((z) => dataOf(z, uuid).clientState.connectState)
 
+    // Disconnecting a client that logs stops the log, which is asked about first.
+    const logging = useLiveZustand(
+      (z) => dataOf(z, uuid).clientState.log.enabled && dataOf(z, uuid).clientState.polling
+    )
+    const [asking, setAsking] = useState(false)
     const handleConnect = useCallback(() => {
       onClose()
+      if (logging && connectState !== 'disconnected' && asksBeforeDisconnecting()) {
+        setAsking(true)
+        return
+      }
       void toggleConnection()
-    }, [onClose])
+    }, [onClose, logging, connectState])
+    const handleCloseAsking = useCallback(() => setAsking(false), [])
+    const disconnect = useCallback(() => {
+      void toggleConnection()
+    }, [])
     // Rename opens a field that closes on blur. The menu takes focus back while
     // it closes, so the field opens once the menu has gone.
     const afterClose = useRef<(() => void) | undefined>(undefined)
@@ -80,49 +96,54 @@ const ClientMenu = meme(
       connectState === 'disconnecting' || (connectState === 'disconnected' && !addressValid)
 
     return (
-      <Menu
-        anchorEl={anchor}
-        anchorReference={position === null ? 'anchorEl' : 'anchorPosition'}
-        anchorPosition={position ?? undefined}
-        open={anchor !== null || position !== null}
-        onClose={onClose}
-        disableRestoreFocus
-        slotProps={{ transition: { onExited: handleExited } }}
-      >
-        <MenuItem
-          data-testid={`client-connect-${uuid}`}
-          disabled={connectDisabled}
-          onClick={handleConnect}
+      <>
+        <Menu
+          anchorEl={anchor}
+          anchorReference={position === null ? 'anchorEl' : 'anchorPosition'}
+          anchorPosition={position ?? undefined}
+          open={anchor !== null || position !== null}
+          onClose={onClose}
+          disableRestoreFocus
+          slotProps={{ transition: { onExited: handleExited } }}
         >
-          {connected ? 'Disconnect' : 'Connect'}
-        </MenuItem>
-        <MenuItem data-testid={`client-rename-${uuid}`} onClick={handleRename}>
-          <Hint label="Rename" hint="F2" />
-        </MenuItem>
-        <MenuItem data-testid={`client-duplicate-${uuid}`} onClick={handleDuplicate}>
-          Duplicate
-        </MenuItem>
-        <Divider />
-        <ScanUnitIdsMenuItem uuid={uuid} onClose={onClose} />
-        <ScanRegistersMenuItem uuid={uuid} onClose={onClose} />
-        <Tooltip title="Client and workspace files are not there yet" placement="left">
-          {/* A disabled item fires no pointer events, so the tooltip listens on the span. */}
-          <span>
-            <MenuItem data-testid={`client-export-${uuid}`} disabled>
-              Export client
-            </MenuItem>
-          </span>
-        </Tooltip>
-        <Divider />
-        <MenuItem
-          data-testid={`client-delete-${uuid}`}
-          disabled={!deletable}
-          onClick={handleDelete}
-          sx={{ color: 'error.light' }}
-        >
-          Delete
-        </MenuItem>
-      </Menu>
+          <MenuItem
+            data-testid={`client-connect-${uuid}`}
+            disabled={connectDisabled}
+            onClick={handleConnect}
+          >
+            {connected ? 'Disconnect' : 'Connect'}
+          </MenuItem>
+          <MenuItem data-testid={`client-rename-${uuid}`} onClick={handleRename}>
+            <Hint label="Rename" hint="F2" />
+          </MenuItem>
+          <MenuItem data-testid={`client-duplicate-${uuid}`} onClick={handleDuplicate}>
+            Duplicate
+          </MenuItem>
+          <Divider />
+          <ScanUnitIdsMenuItem uuid={uuid} onClose={onClose} />
+          <ScanRegistersMenuItem uuid={uuid} onClose={onClose} />
+          <Tooltip title="Client and workspace files are not there yet" placement="left">
+            {/* A disabled item fires no pointer events, so the tooltip listens on the span. */}
+            <span>
+              <MenuItem data-testid={`client-export-${uuid}`} disabled>
+                Export client
+              </MenuItem>
+            </span>
+          </Tooltip>
+          <Divider />
+          <MenuItem
+            data-testid={`client-delete-${uuid}`}
+            disabled={!deletable}
+            onClick={handleDelete}
+            sx={{ color: 'error.light' }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+        {asking && (
+          <StopPollDialog stopping="disconnect" onStop={disconnect} onClose={handleCloseAsking} />
+        )}
+      </>
     )
   }
 )

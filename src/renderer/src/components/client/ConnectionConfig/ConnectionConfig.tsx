@@ -11,9 +11,12 @@ import RtuConfig from './RtuConfig'
 import SerialGroupModal from '@renderer/components/client/SerialGroupModal/SerialGroupModal'
 import TcpConfig from './TcpConfig'
 import { toggleConnection } from './toggleConnection'
+import StopPollDialog, {
+  asksBeforeDisconnecting
+} from '@renderer/components/client/Logging/StopPollDialog'
 import { selectedClient, selectedSession, useClientZustand } from '@renderer/context/client.zustand'
 import { Protocol, PROTOCOL_LABELS } from '@shared'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import ProtocolIcon from '@renderer/components/client/ClientSidebar/ProtocolIcon'
@@ -132,6 +135,23 @@ const ProtocolSelect = meme(() => {
 const ConnectButton = meme(() => {
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const connectState = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.connectState)
+  // Disconnecting a client that logs stops the log, which is asked about first.
+  const logging = useLiveZustand(
+    (z) =>
+      dataOf(z, selectedUuid).clientState.log.enabled && dataOf(z, selectedUuid).clientState.polling
+  )
+  const [asking, setAsking] = useState(false)
+  const handleClick = useCallback(() => {
+    if (logging && connectState !== 'disconnected' && asksBeforeDisconnecting()) {
+      setAsking(true)
+      return
+    }
+    void toggleConnection()
+  }, [logging, connectState])
+  const handleCloseAsking = useCallback(() => setAsking(false), [])
+  const disconnect = useCallback(() => {
+    void toggleConnection()
+  }, [])
 
   /**
    * Whether the field this protocol connects through names somewhere.
@@ -180,16 +200,21 @@ const ConnectButton = meme(() => {
     )
 
   return (
-    <Button
-      size="large"
-      sx={{ width: 100 }}
-      disabled={disabled}
-      onClick={toggleConnection}
-      color={color}
-      data-testid="connect-btn"
-    >
-      {text}
-    </Button>
+    <>
+      <Button
+        size="large"
+        sx={{ width: 100 }}
+        disabled={disabled}
+        onClick={handleClick}
+        color={color}
+        data-testid="connect-btn"
+      >
+        {text}
+      </Button>
+      {asking && (
+        <StopPollDialog stopping="disconnect" onStop={disconnect} onClose={handleCloseAsking} />
+      )}
+    </>
   )
 })
 

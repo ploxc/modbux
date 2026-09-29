@@ -80,15 +80,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dot on the rail. While it logs, Monitor polls it on every screen: Debug
   shows Monitor's reads with read configuration on, and its Read, Poll and
   read configuration switch wait until logging is off, so no register is read
-  twice. Stopping the poll asks first, because it stops the log too, and
-  turning logging off while polling asks too, because the poll goes on. The
-  log keeps up to a million samples a client for as long as Modbux runs,
-  overwrites the oldest once full, and says so; the log button, while logging
-  is on, opens how long it has run, the samples, the size, Export CSV, Clear
-  log and Turn logging off, and the question it asks over old samples offers
-  Export CSV too. The export takes a range between two dates and the registers
-  ticked in a tree of units, and writes each sample's raw value and its value
-  as the register's conversion makes it.
+  twice. Stopping the poll or disconnecting, from the top bar or the client's
+  card, asks first, because either stops the log, and turning logging off
+  while polling asks too, because the poll goes on. The log keeps up to a
+  million samples a client for as long as Modbux runs, overwrites the oldest
+  once full, and says so; the log button, while logging is on, opens how long
+  it has run, the samples, the size, Export CSV, Clear log and Turn logging
+  off, and the question it asks over old samples offers Export CSV too. The
+  export takes a range between two dates and the registers ticked in a tree of
+  units, and writes each sample's raw value and its value as the register's
+  conversion makes it.
 
 ### Changed
 
