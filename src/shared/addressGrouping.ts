@@ -187,6 +187,48 @@ export const configuredReadGroups = (
       ? groupAddressInfos(registerMapping?.[type])
       : groupBitInfos(registerMapping?.[type])
 
+/** The configured addresses of `type` inside `group`, with their mapping. */
+export const groupEntries = (
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  [start, length]: AddressGroup
+): Array<[number, RegisterMapValue]> =>
+  Object.entries(registerMapping?.[type] ?? {})
+    .map(([address, mapValue]): [number, RegisterMapValue | undefined] => [
+      Number(address),
+      mapValue
+    ])
+    .filter(
+      (entry): entry is [number, RegisterMapValue] =>
+        entry[0] >= start && entry[0] < start + length && isConfiguredAddress(type, entry[1])
+    )
+
+/**
+ * How Monitor's Poll stands for one group: on while every register in it
+ * polls, off once none does, and mixed between, which a group that split or
+ * merged since its Poll was set can be.
+ */
+export const groupPoll = (
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  group: AddressGroup
+): 'on' | 'off' | 'mixed' => {
+  const off = groupEntries(type, registerMapping, group).map(
+    ([, mapValue]) => mapValue.monitorPollOff === true
+  )
+  if (off.every((isOff) => isOff)) return 'off'
+  return off.some((isOff) => isOff) ? 'mixed' : 'on'
+}
+
+/** The groups Monitor's poll reads of `type`: the ones with a register that polls. */
+export const monitorPolledGroups = (
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined
+): Array<AddressGroup> =>
+  configuredReadGroups(true, type, registerMapping).filter(
+    (group) => groupPoll(type, registerMapping, group) !== 'off'
+  )
+
 /**
  * Whether a read would ask for no registers: the toolbar's block, at a length
  * the field refused and kept.

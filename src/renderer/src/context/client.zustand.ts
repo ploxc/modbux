@@ -27,6 +27,7 @@ import {
   typesIn,
   newClientUnit,
   emptyRegisterMapping,
+  groupEntries,
   MAIN_CLIENT_UUID,
   RegisterType
 } from '@shared'
@@ -230,6 +231,21 @@ export const useClientZustand = create<
           })
         )
         syncUnitsToMain(view.uuid)
+      },
+      setGroupPolled: async (unitUuid, type, group, polled) => {
+        const view = await changeUnit(
+          set,
+          get,
+          (unit) => {
+            for (const [, entry] of groupEntries(type, unit.registerMapping, group)) {
+              if (polled) delete entry.monitorPollOff
+              else entry.monitorPollOff = true
+            }
+          },
+          type,
+          unitUuid
+        )
+        return view !== undefined
       },
       replaceRegisterMapping: async (registerMapping) => {
         // Read configuration is the one thing that makes main read the mapping,

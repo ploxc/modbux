@@ -1,4 +1,5 @@
 import {
+  AddressGroup,
   ClientUnitSchema,
   Protocol,
   RegisterType,
@@ -108,6 +109,17 @@ export type ClientZustand = {
     register: number,
     entry: RegisterMapValue | undefined
   ) => void
+  /**
+   * Turns Monitor's Poll on or off for every register in one group of the
+   * selected client's unit under `unit`, once main has it. Kept per register,
+   * so it outlives the group splitting or moving.
+   */
+  setGroupPolled: (
+    unit: string,
+    type: RegisterType,
+    group: AddressGroup,
+    polled: boolean
+  ) => Promise<boolean>
   /** Answers once main has the mapping, because the store writes it after that. */
   replaceRegisterMapping: (registerMapping: RegisterMapping) => Promise<boolean>
   clearRegisterMapping: () => Promise<boolean>

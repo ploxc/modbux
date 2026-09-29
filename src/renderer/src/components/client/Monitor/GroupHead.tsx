@@ -15,7 +15,7 @@ import {
   REGISTER_TYPE_LABELS
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
 import { dataOf, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { AddressGroupResult, clientOwner } from '@shared'
+import { AddressGroupResult, clientOwner, groupPoll } from '@shared'
 import { ChangeEvent, useCallback } from 'react'
 import { MonitorHeadRow, groupKey } from './monitorRows'
 import { unitIn } from './MonitorCells'
@@ -35,14 +35,17 @@ const resultOf = (
 }
 
 /**
- * One group's head: its unit, its type, how its last read went, and the unit's
- * Poll for the type, which every group of that type shares.
+ * One group's head: its unit, its type, how its last read went, and its Poll.
+ * The Poll is on while a register in the group polls, and says so on hover
+ * when some do not; a press turns all of them off, or all on.
  */
 const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
   const unitId = useClientZustand((z) => unitIn(z, uuid, row.unit)?.unitId)
   const name = useClientZustand((z) => unitIn(z, uuid, row.unit)?.name)
-  const polled = useClientZustand((z) => unitIn(z, uuid, row.unit)?.sections[row.type].polled)
+  const poll = useClientZustand((z) =>
+    groupPoll(row.type, unitIn(z, uuid, row.unit)?.registerMapping, row.group)
+  )
   const folded = useMonitorZustand((z) => z.folded[groupKey(row.unit, row.type, row.group)])
   const roundTrip = useLiveZustand((z) => resultOf(z, uuid, row)?.roundTripMillis)
   const error = useLiveZustand((z) => resultOf(z, uuid, row)?.error)
@@ -80,7 +83,7 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
   const handlePoll = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       const clientZustand = useClientZustand.getState()
-      void clientZustand.setPolled(row.type, checked, row.unit)
+      void clientZustand.setGroupPolled(row.unit, row.type, row.group, checked)
     },
     [row]
   )
@@ -163,14 +166,15 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
         READ
       </Button>
       <FormControlLabel
+        title={poll === 'mixed' ? 'Some registers are off' : undefined}
         label="Poll"
         labelPlacement="start"
         control={
           <Switch
             size="small"
-            checked={polled ?? false}
+            checked={poll !== 'off'}
             onChange={handlePoll}
-            slotProps={{ input: { 'aria-label': 'Poll this register type of the unit' } }}
+            slotProps={{ input: { 'aria-label': 'Poll this group' } }}
             data-testid={`${testId}-poll`}
           />
         }

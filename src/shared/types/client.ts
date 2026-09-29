@@ -37,7 +37,9 @@ const RegisterMapValueObjectSchema = z.object({
   groupEnd: z.boolean().optional(),
   bitMap: BitMapConfigSchema.optional(),
   /** How the register logs, when it does. */
-  log: LogSettingSchema.optional()
+  log: LogSettingSchema.optional(),
+  /** Monitor's poll leaves the register out. Debug reads it all the same. */
+  monitorPollOff: z.boolean().optional()
 })
 
 /**

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /// <reference types="@testing-library/jest-dom/vitest" />
 //
-// A group's head reads that group alone, switches Poll for its own unit, and
+// A group's head reads that group alone, switches Poll for its own group, and
 // takes Debug to its unit.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The client store registers IPC listeners and calls main at import time.
@@ -92,22 +92,71 @@ describe("a group's head", () => {
     expect(control(unit, 'read')).toBeDisabled()
   })
 
-  it('switches Poll for its own unit, not the one Debug shows', async () => {
-    const unit = await secondUnit()
-    const polledOf = (): Array<[string, boolean]> =>
-      selectedClient(useClientZustand.getState()).units.map(({ uuid, sections }) => [
-        uuid,
-        sections.holding_registers.polled
-      ])
-    const expected = polledOf().map(([uuid, polled]): [string, boolean] => [
-      uuid,
-      uuid === unit ? !polled : polled
-    ])
-    renderHead(unit)
+  describe('Poll', () => {
+    /**
+     * The holding registers of the unit under `unit`: 200 and 202 in the group
+     * of [200, 4], and 204 just past it.
+     */
+    const mapTwo = (unit: string, off: { 200?: boolean; 202?: boolean } = {}): void => {
+      useClientZustand.setState((state) => {
+        const found = state.clients[state.selectedUuid]?.units.find(({ uuid }) => uuid === unit)
+        if (!found) throw new Error(`no unit ${unit}`)
+        found.registerMapping.holding_registers = {
+          200: { dataType: 'uint16', monitorPollOff: off[200] },
+          202: { dataType: 'float', monitorPollOff: off[202] },
+          204: { dataType: 'uint16' }
+        }
+      })
+    }
 
-    await userEvent.setup().click(control(unit, 'poll'))
+    /** Which of 200, 202 and 204 have Poll off in the unit under `unit`. */
+    const offOf = (unit: string): unknown[] => {
+      const mapping = selectedClient(useClientZustand.getState()).units.find(
+        ({ uuid }) => uuid === unit
+      )?.registerMapping.holding_registers
+      return [200, 202, 204].map((address) => mapping?.[address]?.monitorPollOff)
+    }
 
-    await waitFor(() => expect(polledOf()).toEqual(expected))
+    const pollSwitch = (unit: string): HTMLInputElement =>
+      control(unit, 'poll').querySelector('input') ?? screen.getByRole('switch')
+
+    it('turns every register of its group off, in its own unit only', async () => {
+      const first = selectedUnit(useClientZustand.getState()).uuid
+      const unit = await secondUnit()
+      mapTwo(first)
+      mapTwo(unit)
+      renderHead(unit)
+
+      expect(pollSwitch(unit)).toBeChecked()
+      await userEvent.setup().click(pollSwitch(unit))
+
+      await waitFor(() => expect(offOf(unit)).toEqual([true, true, undefined]))
+      expect(offOf(first)).toEqual([undefined, undefined, undefined])
+      expect(pollSwitch(unit)).not.toBeChecked()
+    })
+
+    it('turns them all on again', async () => {
+      const unit = await secondUnit()
+      mapTwo(unit, { 200: true, 202: true })
+      renderHead(unit)
+
+      expect(pollSwitch(unit)).not.toBeChecked()
+      await userEvent.setup().click(pollSwitch(unit))
+
+      await waitFor(() => expect(offOf(unit)).toEqual([undefined, undefined, undefined]))
+    })
+
+    it('stands on with some registers off, says so, and turns all off on a press', async () => {
+      const unit = await secondUnit()
+      mapTwo(unit, { 202: true })
+      renderHead(unit)
+
+      expect(pollSwitch(unit)).toBeChecked()
+      expect(screen.getByTitle('Some registers are off')).toBeInTheDocument()
+      await userEvent.setup().click(pollSwitch(unit))
+
+      await waitFor(() => expect(offOf(unit)).toEqual([true, true, undefined]))
+    })
   })
 
   it('takes Debug to its unit and type, with the group as its window, on Show unit', async () => {

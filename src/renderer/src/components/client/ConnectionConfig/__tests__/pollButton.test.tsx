@@ -32,17 +32,20 @@ interface Toolbar {
   mappedGroup?: boolean
   /** A group for the register type with read configuration off. */
   mappedOnly?: boolean
+  /** The group's register has Monitor's Poll off. */
+  monitorPollOff?: boolean
 }
 
 const renderButton = (
   clientState: Partial<ClientState>,
-  { lengthGiven = true, mappedGroup, mappedOnly, polled = true }: Toolbar = {}
+  { lengthGiven = true, mappedGroup, mappedOnly, polled = true, monitorPollOff }: Toolbar = {}
 ): HTMLElement => {
   patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   const registerMapping = emptyRegisterMapping()
-  if (mappedGroup || mappedOnly) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
+  if (mappedGroup || mappedOnly)
+    registerMapping.holding_registers = { 0: { dataType: 'uint16', monitorPollOff } }
   patchSelectedUnit(useClientZustand, { registerMapping }, { length: lengthGiven ? 10 : 0, polled })
   patchSelectedClient(
     useClientZustand,
@@ -125,14 +128,18 @@ describe('the Poll button', () => {
   })
 })
 
-// Monitor's poll reads the groups of every type whose Poll is on, whatever the
-// unit's read configuration and length say.
+// Monitor's poll reads every group whose Poll is on, whatever the type's Poll,
+// the unit's read configuration and the length say.
 describe('the Poll button in Monitor', () => {
   beforeEach(() => useClientViewZustand.getState().setView('monitor'))
   afterEach(() => useClientViewZustand.getState().setView('debug'))
 
-  it('takes none when the only grouped type has its Poll off, read configuration on', () => {
-    expect(renderButton({}, { mappedGroup: true, polled: false })).toBeDisabled()
+  it('takes none when the only group has its Poll off', () => {
+    expect(renderButton({}, { mappedGroup: true, monitorPollOff: true })).toBeDisabled()
+  })
+
+  it("takes a press for a group whose Poll is on, with the type's Poll off", () => {
+    expect(renderButton({}, { mappedGroup: true, polled: false })).toBeEnabled()
   })
 
   it('takes a press for a grouped type with its Poll on, read configuration off and no length', () => {

@@ -1,4 +1,13 @@
-import { RegisterData, RegisterType, defaultClientState } from '@shared'
+import {
+  AddressGroup,
+  AddressGroupResult,
+  RegisterData,
+  RegisterMapping,
+  RegisterType,
+  configuredReadGroups,
+  defaultClientState,
+  groupPoll
+} from '@shared'
 import { ClientData, LiveZustand, SectionData } from './live.zustand.types'
 
 /** A client the live store has heard nothing about yet. */
@@ -86,4 +95,55 @@ export const skeletonOf = (registerData: RegisterData[]): string => {
     skeletons.set(registerData, skeleton)
   }
   return skeleton
+}
+
+/** The groups of `type` whose Monitor Poll is off. */
+const offGroups = (
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined
+): AddressGroup[] =>
+  configuredReadGroups(true, type, registerMapping).filter(
+    (group) => groupPoll(type, registerMapping, group) === 'off'
+  )
+
+const inGroups = (address: number, groups: AddressGroup[]): boolean =>
+  groups.some(([start, length]) => address >= start && address < start + length)
+
+/**
+ * The groups and results of a Monitor read, with the groups whose Poll is off
+ * that the read left out kept as they were. A Monitor poll round reads only
+ * the groups whose Poll is on, so what READ last showed of a group turned off
+ * stays until the group is read again.
+ */
+export const withOffGroups = (
+  previous: SectionData,
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  addressGroups: AddressGroup[],
+  groupResults: AddressGroupResult[]
+): { addressGroups: AddressGroup[]; groupResults: AddressGroupResult[] } => {
+  const off = offGroups(type, registerMapping)
+  const kept = previous.addressGroups.map(
+    ([start, length]) =>
+      inGroups(start, off) &&
+      !addressGroups.some(([address, size]) => address === start && size === length)
+  )
+  return {
+    addressGroups: [...addressGroups, ...previous.addressGroups.filter((_, i) => kept[i])],
+    groupResults: [...groupResults, ...previous.groupResults.filter((_, i) => kept[i])]
+  }
+}
+
+/** The rows of a Monitor read, with the rows of the groups whose Poll is off kept, as `withOffGroups`. */
+export const withOffRows = (
+  previous: RegisterData[],
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  registerData: RegisterData[]
+): RegisterData[] => {
+  const off = offGroups(type, registerMapping)
+  const read = new Set(registerData.map(({ id }) => id))
+  const kept = previous.filter(({ id }) => !read.has(id) && inGroups(id, off))
+  if (kept.length === 0) return registerData
+  return [...registerData, ...kept].sort((a, b) => a.id - b.id)
 }

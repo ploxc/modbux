@@ -14,6 +14,8 @@ import {
   clientOwner,
   convertBitData,
   configuredReadGroups,
+  groupEntries,
+  groupPoll,
   convertRegisterData,
   DeepPartial,
   createRegisters,
@@ -22,6 +24,7 @@ import {
   isConfiguredAddress,
   isLoggable,
   isLogged,
+  monitorPolledGroups,
   LogPage,
   LogPageQuery,
   LogSample,
@@ -106,6 +109,8 @@ interface PendingSample {
 interface RoundRead {
   type: RegisterType
   monitor: boolean
+  /** The groups to read, where the read takes fewer than the mapping configures. */
+  groups?: AddressGroup[]
 }
 
 /** What a request came back with: its result, or the error it failed with. */
@@ -630,6 +635,9 @@ export class ModbusClient implements TransportClient {
    * and the groups it had left would go out between that chain's own on the
    * queue.
    *
+   * `onlyGroups` narrows the mapping's groups to the ones a Monitor poll round
+   * reads.
+   *
    * Answers true when the device answered, false for only silence, and nothing
    * for a read that says neither, which is what `_hear` counts.
    */
@@ -637,7 +645,8 @@ export class ModbusClient implements TransportClient {
     unit: ClientUnit,
     type: RegisterType,
     monitor: boolean,
-    pollGeneration?: number
+    pollGeneration?: number,
+    onlyGroups?: AddressGroup[]
   ): Promise<boolean | undefined> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
     if (!transport) return undefined
@@ -657,7 +666,8 @@ export class ModbusClient implements TransportClient {
     // `configuredReadGroups` is in `@shared` because the renderer asks it too:
     // it draws the mapping and asks for a read, and an empty answer here is the
     // window coming back instead of what it drew.
-    const configGroups = configuredReadGroups(readConfiguration, type, unit.registerMapping)
+    const configGroups =
+      onlyGroups ?? configuredReadGroups(readConfiguration, type, unit.registerMapping)
     // The window is bounded by neither ceiling. `ClientSectionSchema` takes a
     // length of 65535 at any address, so a persisted store carries a read past
     // the last register there is, and 2000 coils is no read of registers.
@@ -928,20 +938,22 @@ export class ModbusClient implements TransportClient {
   //
   // Polling
   /**
-   * The register types a poll would read of `unit` were all of it on screen:
-   * the polled ones. In Monitor and under the unit's read configuration, a
-   * polled type the mapping has groups for; otherwise a polled section whose
-   * window asks for registers.
+   * The register types a poll would read of `unit` were all of it on screen.
+   * In Monitor, a type with a group whose Poll is on. In Debug, a polled type:
+   * under the unit's read configuration one the mapping has groups for, and
+   * otherwise one whose window asks for registers.
    */
   private _pollableTypes = (unit: ClientUnit): RegisterType[] => {
-    const grouped = this._monitor || this._appState.readConfiguration(unit.uuid)
-    return RegisterTypeSchema.options.filter(
-      (type) =>
+    const readConfiguration = this._appState.readConfiguration(unit.uuid)
+    return RegisterTypeSchema.options.filter((type) => {
+      if (this._monitor) return monitorPolledGroups(type, unit.registerMapping).length > 0
+      return (
         unit.sections[type].polled &&
-        (grouped
+        (readConfiguration
           ? configuredReadGroups(true, type, unit.registerMapping).length > 0
           : !this._readsNothing(unit, type, false))
-    )
+      )
+    })
   }
 
   /** What of the units Debug has on screen, the only sections its poll round reads. */
@@ -981,18 +993,40 @@ export class ModbusClient implements TransportClient {
    * screen shows and whatever the type's Poll says. A grouped read of the
    * screen's gives the log its samples too, and a read of Debug's window does
    * not, so a logged type Debug shows as a window is read twice.
+   *
+   * In Monitor, a type is one read of the groups `_monitorRoundGroups` names,
+   * which covers the log too.
    */
   private _roundReads = (unit: ClientUnit): RoundRead[] => {
     const onScreen = this._polledTypes(unit)
     const logged = this._log.running ? this._loggedTypes(unit) : []
-    return RegisterTypeSchema.options.flatMap((type) => {
+    return RegisterTypeSchema.options.flatMap((type): RoundRead[] => {
+      if (this._monitor) {
+        const groups = this._monitorRoundGroups(unit, type)
+        return groups.length > 0 ? [{ type, monitor: true, groups }] : []
+      }
       const shown = onScreen.includes(type)
-      const reads: RoundRead[] = shown ? [{ type, monitor: this._monitor }] : []
-      if (logged.includes(type) && !(shown && this._readsConfiguration(unit, this._monitor)))
+      const reads: RoundRead[] = shown ? [{ type, monitor: false }] : []
+      if (logged.includes(type) && !(shown && this._readsConfiguration(unit, false)))
         reads.push({ type, monitor: true })
       return reads
     })
   }
+
+  /**
+   * The groups of `type` Monitor's poll round reads of `unit`: the ones whose
+   * Poll is on, and while the log runs, a group whose Poll is off as well when
+   * a register in it logs.
+   */
+  private _monitorRoundGroups = (unit: ClientUnit, type: RegisterType): AddressGroup[] =>
+    configuredReadGroups(true, type, unit.registerMapping).filter(
+      (group) =>
+        groupPoll(type, unit.registerMapping, group) !== 'off' ||
+        (this._log.running &&
+          groupEntries(type, unit.registerMapping, group).some(([, mapValue]) =>
+            isLogged(type, mapValue)
+          ))
+    )
 
   /**
    * Take what of the client is on screen. A poll keeps running with nothing on
@@ -1073,8 +1107,8 @@ export class ModbusClient implements TransportClient {
         return
       }
       let answered: boolean | undefined
-      for (const { type, monitor } of reads) {
-        const heard = await this._readSection(unit, type, monitor, generation)
+      for (const { type, monitor, groups } of reads) {
+        const heard = await this._readSection(unit, type, monitor, generation, groups)
         if (heard === true || (heard === false && answered === undefined)) answered = heard
       }
       this._hear(unit.uuid, answered)

@@ -63,12 +63,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rail, changes the client view between Debug and Monitor, and Modbux opens in
   the one you left. Monitor shows the read configuration of every unit of the
   client in one grid, one head per request with the unit, the register type,
-  the round trip and whether it failed. The poll reads every group whose Poll
-  is on, whether or not it is scrolled into view or folded. READ reads one
-  group, Show unit opens that unit in Debug, and the pencil writes as it does
-  in Debug. Writing waits until the poll stops. Expand all and Collapse all
-  open and fold every group. RAW sits in its toolbar as it does in Debug, and
-  a raw value shows in RAW's colour in both views.
+  the round trip and whether it failed. Each group has a Poll of its own, kept
+  per register, so it holds when a change to the mapping splits or moves the
+  group. The poll reads every group whose Poll is on, whether or not it is
+  scrolled into view or folded, and a group turned off keeps what it last
+  showed. READ reads one group, Show unit opens that unit in Debug, and the
+  pencil writes as it does in Debug. Writing waits until the poll stops.
+  Expand all and Collapse all open and fold every group. RAW sits in its
+  toolbar as it does in Debug, and a raw value shows in RAW's colour in both
+  views.
 - **Logging.** The Log column in Debug sets a register to log on every poll,
   or on a change past a deadband. A register in the read configuration can
   log, as a bit or a number. Enable logging in Monitor's toolbar starts the

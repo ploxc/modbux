@@ -2174,23 +2174,122 @@ describe('ModbusClient', () => {
         client.stopPolling()
       })
 
-      it('leaves out a type whose Poll is off', async () => {
-        await connectClient()
-        configureUnit({ registerMapping: mapped(40) })
-        twoUnits({
-          registerMapping: mapped(300),
-          sections: {
-            ...newClientUnit('u2', 2).sections,
-            holding_registers: { address: 100, length: 10, polled: false }
+      /** `UNIT` alone, holding 40 and 300 two groups, its holding Poll as given. */
+      const offAt = (off: Record<number, boolean>, polled = true): void => {
+        const unit = theUnit()
+        client.setUnits([
+          {
+            ...unit,
+            registerMapping: {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: Object.fromEntries(
+                Object.entries(off).map(([address, isOff]) => [
+                  address,
+                  { dataType: 'uint16' as const, ...(isOff && { monitorPollOff: true }) }
+                ])
+              )
+            },
+            sections: {
+              ...unit.sections,
+              holding_registers: { ...unit.sections.holding_registers, polled }
+            }
           }
-        })
+        ])
+      }
+
+      it('leaves out a group whose registers are all off, and reads the one beside it', async () => {
+        await connectClient()
+        offAt({ 40: true, 300: false })
         client.setVisibleSections([], true)
         setupHoldingRegisterReadMock([100])
 
         client.startPolling()
         await vi.advanceTimersByTimeAsync(0)
 
-        expect(readAddresses()).toEqual([40])
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual([[300, 1]])
+        client.stopPolling()
+      })
+
+      it("reads a group whose Poll is on with the type's Poll off", async () => {
+        await connectClient()
+        offAt({ 40: false }, false)
+        client.setVisibleSections([], true)
+        setupHoldingRegisterReadMock([100])
+
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual([[40, 1]])
+        client.stopPolling()
+      })
+
+      it('reads a group whole while one register in it is on', async () => {
+        await connectClient()
+        offAt({ 40: true, 41: false })
+        client.setVisibleSections([], true)
+        setupHoldingRegisterReadMock([100, 200])
+
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual([[40, 2]])
+        client.stopPolling()
+      })
+
+      it('refuses a poll with every group off', async () => {
+        await connectClient()
+        offAt({ 40: true, 300: true })
+        client.setVisibleSections([], true)
+
+        client.startPolling()
+
+        expect(getLastClientState().polling).toBe(false)
+        expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+      })
+
+      it('reads the groups Monitor has off in Debug, under read configuration', async () => {
+        await connectClient()
+        offAt({ 40: true, 300: true })
+        showEverything()
+        appState.setReadConfiguration(UNIT, true)
+        setupHoldingRegisterReadMock([100])
+
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(readAddresses()).toEqual([40, 300])
+        client.stopPolling()
+      })
+
+      it('reads a group that is off while the log runs and a register in it logs', async () => {
+        await connectClient()
+        const unit = theUnit()
+        client.setUnits([
+          {
+            ...unit,
+            registerMapping: {
+              coils: {},
+              discrete_inputs: {},
+              input_registers: {},
+              holding_registers: {
+                40: { dataType: 'uint16', monitorPollOff: true, log: { mode: 'poll' } },
+                300: { dataType: 'uint16', monitorPollOff: true },
+                500: { dataType: 'uint16' }
+              }
+            }
+          }
+        ])
+        client.setVisibleSections([], true)
+        setupHoldingRegisterReadMock([100])
+
+        client.startLog(false)
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(readAddresses()).toEqual([40, 500])
+        expect([...client.logSamples()].map(({ value }) => value)).toEqual([100])
         client.stopPolling()
       })
 

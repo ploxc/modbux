@@ -76,14 +76,20 @@ test.describe.serial('Monitor — read configuration in one grid', () => {
     await expect(value).not.toHaveCSS('color', warning)
   })
 
-  test('a poll reads every group whose Poll is on', async ({ mainPage }) => {
-    await head(mainPage, 'input_registers', 0, 'poll').click()
-    await head(mainPage, 'coils', 0, 'poll').click()
+  test('a poll reads every group whose Poll is on, and none that is off', async ({ mainPage }) => {
+    const inputPoll = head(mainPage, 'input_registers', 0, 'poll').locator('input')
+    await inputPoll.click()
+    await expect(inputPoll).not.toBeChecked()
     await mainPage.getByTestId('poll-btn').click()
 
-    await expect(monitorCell(mainPage, 'input_registers', 0, 'value')).toHaveText('200')
+    // A round reads the coils after the input registers, so a round that read
+    // the coils would have read the input group too.
     await expect(monitorCell(mainPage, 'coils', 0, 'value')).toHaveText('1')
     await expect(monitorCell(mainPage, 'coils', 1, 'value')).toHaveText('0')
+    await expect(monitorCell(mainPage, 'input_registers', 0, 'value')).toHaveText('')
+
+    await inputPoll.click()
+    await expect(monitorCell(mainPage, 'input_registers', 0, 'value')).toHaveText('200')
   })
 
   test('writing and READ are off while it polls', async ({ mainPage }) => {

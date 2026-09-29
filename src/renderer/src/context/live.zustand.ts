@@ -7,7 +7,9 @@ import {
   rowAt,
   sectionKey,
   sectionOf,
-  skeletonOf
+  skeletonOf,
+  withOffGroups,
+  withOffRows
 } from './live.zustand.helpers'
 import { mutative } from 'zustand-mutative'
 import { DateTime } from 'luxon'
@@ -30,6 +32,7 @@ import {
 import { onEvent } from '@renderer/events'
 import {
   RegisterData,
+  RegisterMapping,
   RegisterType,
   RegisterTypeSchema,
   ScanUnitIDResult,
@@ -502,6 +505,11 @@ if (!window.api.isServerWindow) {
  */
 const isHeld = (uuid: string): boolean => Object.hasOwn(useClientZustand.getState().clients, uuid)
 
+/** The register mapping of the unit under `unit` of the client under `uuid`. */
+const mappingOf = (uuid: string, unit: string): RegisterMapping | undefined =>
+  useClientZustand.getState().clients[uuid]?.units.find((found) => found.uuid === unit)
+    ?.registerMapping
+
 // Data read from the registers
 onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
   if (!isHeld(uuid)) return
@@ -510,7 +518,9 @@ onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
 
   // A scan's rows are Debug's, so Monitor's reads never wait with them.
   if (monitor) {
-    liveZustand.setRegisterData(uuid, unit, type, registerData, true)
+    const previous = sectionOf(liveZustand, uuid, unit, type, true).registerData
+    const rows = withOffRows(previous, type, mappingOf(uuid, unit), registerData)
+    liveZustand.setRegisterData(uuid, unit, type, rows, true)
   } else if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
     pendingScanRows.push(key, registerData)
   } else {
@@ -524,7 +534,14 @@ onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
 
 onEvent('address_groups', ({ uuid, unit, type, addressGroups, results, monitor }) => {
   if (!isHeld(uuid)) return
-  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups, results, monitor)
+  const liveZustand = useLiveZustand.getState()
+  if (!monitor) {
+    liveZustand.setAddressGroups(uuid, unit, type, addressGroups, results)
+    return
+  }
+  const previous = sectionOf(liveZustand, uuid, unit, type, true)
+  const kept = withOffGroups(previous, type, mappingOf(uuid, unit), addressGroups, results)
+  liveZustand.setAddressGroups(uuid, unit, type, kept.addressGroups, kept.groupResults, true)
 })
 
 // One group Monitor read on its own
