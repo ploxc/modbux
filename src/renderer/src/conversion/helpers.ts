@@ -82,5 +82,9 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
   {
     label: 'Lookup in a table',
     code: '// Pairs of raw and value, raw rising; between two, a straight line.\nconst table = [\n  [0, 0],\n  [1000, 12.5],\n  [4000, 100]\n]\nfor (let i = 1; i < table.length; i++) {\n  const [x2, y2] = table[i]\n  const [x1, y1] = table[i - 1]\n  if (raw <= x2 || i === table.length - 1) return lerp(raw, x1, x2, y1, y2)\n}\nreturn table[0][1]\n'
+  },
+  {
+    label: 'Power factor, one line per sign',
+    code: '// 0..32767 is 0.8..1, and -32768..-1 is -1..-0.8.\nif (raw >= 0) return lerp(raw, 0, 32767, 0.8, 1)\nreturn lerp(raw, -32768, -1, -1, -0.8)\n'
   }
 ]

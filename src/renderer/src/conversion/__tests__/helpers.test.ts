@@ -36,6 +36,16 @@ describe('the Insert templates', () => {
     const table = SCRIPT_TEMPLATES.find(({ label }) => label === 'Lookup in a table')
     expect(table && runScript(table.code, 2500)).toBe(56.25)
   })
+
+  it.each([
+    [32767, 1],
+    [0, 0.8],
+    [-1, -0.8],
+    [-32768, -1]
+  ])('reads a power factor of %i as %d, one line per sign', (raw, value) => {
+    const powerFactor = SCRIPT_TEMPLATES.find(({ label }) => label.startsWith('Power factor'))
+    expect(powerFactor && runScript(powerFactor.code, raw)).toBe(value)
+  })
 })
 
 describe('callSnippet', () => {
