@@ -72,36 +72,47 @@ describe('the log button', () => {
   })
 
   // The samples stay reachable after the last register stops logging.
-  it('offers only the export over samples while no register logs', async () => {
+  it('opens the log over samples while no register logs, with nothing to turn on', async () => {
     const button = renderLogButton({ logs: false, log: { samples: 12 } })
     expect(button).toBeEnabled()
 
     await userEvent.setup().click(button)
 
-    expect(screen.getByTestId('log-start-export-btn')).toBeInTheDocument()
+    expect(screen.getByTestId('log-export-open-btn')).toBeEnabled()
+    expect(screen.queryByTestId('log-turn-on-btn')).toBeNull()
     expect(screen.queryByTestId('log-start-append-btn')).toBeNull()
-    expect(screen.queryByTestId('log-start-new-btn')).toBeNull()
   })
 
-  it('enables logging on a press over an empty log', async () => {
-    await userEvent.setup().click(renderLogButton())
+  it('opens the log on a press, whose Turn logging on starts an empty log', async () => {
+    const user = userEvent.setup()
+    await user.click(renderLogButton())
+    expect(payloadsOf('startLog')).toEqual([])
+
+    await user.click(screen.getByTestId('log-turn-on-btn'))
 
     expect(payloadsOf('startLog')).toEqual([
       { uuid: useClientZustand.getState().selectedUuid, append: false }
     ])
   })
 
-  it('asks first over a log that holds samples', async () => {
-    await userEvent.setup().click(renderLogButton({ log: { samples: 12 } }))
+  it('offers Append and Start new over a log that holds samples', async () => {
+    const user = userEvent.setup()
+    await user.click(renderLogButton({ log: { samples: 12 } }))
+    expect(screen.queryByTestId('log-turn-on-btn')).toBeNull()
 
-    expect(screen.getByTestId('log-start-append-btn')).toBeInTheDocument()
-    expect(payloadsOf('startLog')).toEqual([])
+    await user.click(screen.getByTestId('log-start-append-btn'))
+
+    expect(payloadsOf('startLog')).toEqual([
+      { uuid: useClientZustand.getState().selectedUuid, append: true }
+    ])
   })
 
-  it('opens the log while logging is on', async () => {
+  it('says what starts a log that is on while the client does not poll', async () => {
     await userEvent.setup().click(renderLogButton({ log: { enabled: true } }))
 
-    expect(screen.getByTestId('log-status-popover')).toBeInTheDocument()
+    expect(screen.getByTestId('log-status-heading')).toHaveTextContent(
+      'Logging is on; press Log to start'
+    )
   })
 
   it('turns logging off at once while the client does not poll', async () => {

@@ -12,6 +12,7 @@ import { ClientLogCapacitySchema, ClientUnit, LogRun, loggedRegisterCount } from
 import { ChangeEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react'
 import { formatCount, formatDuration, formatTime, logFill } from './format'
 import LogOffDialog from './LogOffDialog'
+import { enableLog } from './enableLog'
 import ExportLogDialog from './ExportLog/ExportLogDialog'
 
 const NO_UNITS: ClientUnit[] = []
@@ -39,10 +40,12 @@ const RunsLine = meme(({ uuid }: { uuid: string }): JSX.Element => {
 })
 
 /**
- * Whether the log runs, and for how long, redrawn every second while it runs.
- * A log that is on while the client does not poll waits for the poll.
+ * Whether logging is on, and while it runs, for how long, redrawn every
+ * second. On while the client does not poll, it says what starts it: the
+ * button beside, which reads Log then.
  */
 const LogHeading = meme(({ uuid }: { uuid: string }): JSX.Element => {
+  const enabled = useLiveZustand((z) => dataOf(z, uuid).clientState.log.enabled)
   const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
   const runStart = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs.at(-1)?.start)
   const logged = useClientZustand((z) => loggedRegisterCount(z.clients[uuid]?.units ?? NO_UNITS))
@@ -67,8 +70,10 @@ const LogHeading = meme(({ uuid }: { uuid: string }): JSX.Element => {
             {formatDuration(now - runStart)}
           </Box>
         </>
+      ) : enabled ? (
+        'Logging is on; press Log to start'
       ) : (
-        'Logging on, waiting for Poll'
+        'Logging is off'
       )}
       <Box component="span" sx={{ color: textMuted }}>
         · {logged} {logged === 1 ? 'register' : 'registers'}
@@ -115,8 +120,19 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
   const handleExportOpen = useCallback(() => setExporting(true), [])
   const handleExportClose = useCallback(() => setExporting(false), [])
 
-  // Turning the log off while the client polls asks first, because the poll
-  // goes on without it.
+  // Turning logging on over samples chooses between appending to them and a
+  // new log. Turning it off while the client polls asks first, because the
+  // poll goes on without it.
+  const enabled = useLiveZustand((z) => dataOf(z, uuid).clientState.log.enabled)
+  const logged = useClientZustand((z) => loggedRegisterCount(z.clients[uuid]?.units ?? NO_UNITS))
+  const handleOn = useCallback(() => {
+    enableLog(uuid, false)
+    onClose()
+  }, [uuid, onClose])
+  const handleAppend = useCallback(() => {
+    enableLog(uuid, true)
+    onClose()
+  }, [uuid, onClose])
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
   const [askingOff, setAskingOff] = useState(false)
   const turnOff = useCallback(() => {
@@ -134,8 +150,8 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
       open
       anchorEl={anchor}
       onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'center' }}
       slotProps={{ paper: { sx: { p: 1.75, width: 400 } } }}
     >
       <Box
@@ -236,15 +252,54 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
             Clear log
           </Button>
           <Box sx={{ flexGrow: 1 }} />
-          <Button
-            data-testid="log-turn-off-btn"
-            size="medium"
-            variant="outlined"
-            color="success"
-            onClick={handleTurnOff}
-          >
-            Turn logging off
-          </Button>
+          {enabled ? (
+            <Button
+              data-testid="log-turn-off-btn"
+              size="medium"
+              variant="outlined"
+              color="success"
+              onClick={handleTurnOff}
+            >
+              Turn logging off
+            </Button>
+          ) : logged === 0 ? (
+            <Box component="span" sx={{ color: textMuted }}>
+              No register logs; set Log in Debug
+            </Box>
+          ) : samples > 0 ? (
+            <>
+              <Button
+                data-testid="log-start-new-btn"
+                size="medium"
+                variant="text"
+                color="success"
+                title="Clear the log and start a new one"
+                onClick={handleOn}
+              >
+                Start new
+              </Button>
+              <Button
+                data-testid="log-start-append-btn"
+                size="medium"
+                variant="contained"
+                color="success"
+                title="Log on after the samples it holds, with a gap between the runs"
+                onClick={handleAppend}
+              >
+                Append
+              </Button>
+            </>
+          ) : (
+            <Button
+              data-testid="log-turn-on-btn"
+              size="medium"
+              variant="contained"
+              color="success"
+              onClick={handleOn}
+            >
+              Turn logging on
+            </Button>
+          )}
         </Box>
       </Box>
       {exporting && <ExportLogDialog onClose={handleExportClose} />}

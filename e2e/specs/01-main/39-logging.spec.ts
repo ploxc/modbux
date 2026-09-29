@@ -60,6 +60,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
   test('the log button turns Poll into Log, and a poll fills the log', async ({ mainPage }) => {
     await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-turn-on-btn').click()
     await expect(mainPage.getByTestId('log-btn')).toHaveAttribute('aria-pressed', 'true')
     await expect(mainPage.getByTestId('poll-btn')).toHaveText('Log')
 
@@ -110,7 +111,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   }) => {
     await mainPage.getByTestId('log-btn').click()
     await expect(mainPage.getByTestId('log-status-samples')).not.toHaveText(/^0 of/)
-    await expect(mainPage.getByTestId('log-status-heading')).toContainText('waiting for Poll')
+    await expect(mainPage.getByTestId('log-status-heading')).toContainText('press Log to start')
     await mainPage.keyboard.press('Escape')
   })
 
