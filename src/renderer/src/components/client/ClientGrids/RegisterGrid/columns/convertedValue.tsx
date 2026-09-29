@@ -182,12 +182,6 @@ export const getConvertedValue = (
 }
 
 /**
- * The value as its conversion makes it, or why the conversion failed. A
- * scale rounds to the decimals the factor and a float carry, because a
- * product like 2312 × 0.1 comes out as 231.20000000000002; an interpolation
- * and a script round to six decimals for the same reason.
- */
-/**
  * The decimals a number written as `text` carries, counting those an exponent
  * adds: `String(0.0000001)` is `1e-7`, which carries seven.
  */
@@ -197,6 +191,12 @@ const decimalsOf = (text: string): number => {
   return Math.max(0, fraction - Number(exponent))
 }
 
+/**
+ * The value as its conversion makes it, or why the conversion failed. A
+ * scale rounds to the decimals the factor and a float carry, because a
+ * product like 2312 × 0.1 comes out as 231.20000000000002; an interpolation
+ * and a script round to six decimals for the same reason.
+ */
 export const applyConversion = (
   value: string,
   dataType: DataType | undefined,
