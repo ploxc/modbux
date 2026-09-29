@@ -19,9 +19,9 @@ const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-monitor.json')
 const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-monitor.json')
 
-/** The number of samples the chip counts, read off its text. */
-const chipSamples = (text: string | null): number =>
-  Number((/([\d,]+) samples/.exec(text ?? '')?.[1] ?? '0').replace(/,/g, ''))
+/** The number of samples the log holds, read off "3,412 of 1,000,000". */
+const samplesOf = (text: string | null): number =>
+  Number((/^([\d,]+) of/.exec(text ?? '')?.[1] ?? '0').replace(/,/g, ''))
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -49,23 +49,29 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(cell).toHaveAttribute('aria-pressed', 'true')
   })
 
-  test('Monitor marks the row and counts it beside Enable logging', async ({ mainPage }) => {
+  test('Monitor marks the row and counts it; the log button beside Poll takes a press', async ({
+    mainPage
+  }) => {
     await mainPage.getByTestId('client-view-monitor-btn').click()
 
     await expect(mainPage.getByTestId('monitor-row-logs')).toHaveCount(1)
     await expect(mainPage.getByTestId('log-count')).toHaveText('1 register logs')
-    await expect(mainPage.getByTestId('log-enable-btn')).toBeEnabled()
+    await expect(mainPage.getByTestId('log-btn')).toBeEnabled()
   })
 
-  test('a poll fills the log, and the card says REC', async ({ mainPage }) => {
-    await mainPage.getByTestId('log-enable-btn').click()
-    await expect(mainPage.getByTestId('log-status-chip')).toContainText('waiting for Poll')
+  test('the log button turns Poll into Log, and a poll fills the log', async ({ mainPage }) => {
+    await mainPage.getByTestId('log-btn').click()
+    await expect(mainPage.getByTestId('log-btn')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Log')
 
     await mainPage.getByTestId('poll-btn').click()
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
+    await mainPage.getByTestId('log-btn').click()
     await expect(async () => {
-      const text = await mainPage.getByTestId('log-status-chip').textContent()
-      expect(chipSamples(text)).toBeGreaterThan(0)
+      const text = await mainPage.getByTestId('log-status-samples').textContent()
+      expect(samplesOf(text)).toBeGreaterThan(0)
     }).toPass()
+    await mainPage.keyboard.press('Escape')
     await expect(mainPage.locator('[data-testid^="client-rec-"]')).toBeVisible()
   })
 
@@ -92,44 +98,52 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   test('stopping the poll asks first, and Keep polling keeps it', async ({ mainPage }) => {
     await mainPage.getByTestId('poll-btn').click()
     await mainPage.getByTestId('stop-poll-keep-btn').click()
-    await expect(mainPage.getByTestId('log-status-chip')).not.toContainText('waiting for Poll')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
 
     await mainPage.getByTestId('poll-btn').click()
     await mainPage.getByTestId('stop-poll-confirm-btn').click()
-    await expect(mainPage.getByTestId('log-status-chip')).toContainText('waiting for Poll')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Log')
     await expect(mainPage.locator('[data-testid^="client-rec-"]')).toHaveCount(0)
   })
 
-  test('the log keeps its samples after the poll stops', async ({ mainPage }) => {
-    await mainPage.getByTestId('log-status-chip').click()
+  test('the log keeps its samples after the poll stops, and waits for the poll', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('log-btn').click()
     await expect(mainPage.getByTestId('log-status-samples')).not.toHaveText(/^0 of/)
+    await expect(mainPage.getByTestId('log-status-heading')).toContainText('waiting for Poll')
     await mainPage.keyboard.press('Escape')
   })
 
-  test('Stop logging brings Enable logging back', async ({ mainPage }) => {
-    await mainPage.getByTestId('log-stop-btn').click()
-    await expect(mainPage.getByTestId('log-enable-btn')).toBeVisible()
+  test('Turn logging off brings Poll back', async ({ mainPage }) => {
+    await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-turn-off-btn').click()
+
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Poll')
+    await expect(mainPage.getByTestId('log-btn')).toHaveAttribute('aria-pressed', 'false')
   })
 
-  test('Enable logging over samples asks, and Start new empties the log', async ({ mainPage }) => {
-    await mainPage.getByTestId('log-enable-btn').click()
+  test('enabling over samples asks, and Start new empties the log', async ({ mainPage }) => {
+    await mainPage.getByTestId('log-btn').click()
     await mainPage.getByTestId('log-start-new-btn').click()
 
-    await expect(mainPage.getByTestId('log-status-chip')).toContainText('0 samples')
+    await mainPage.getByTestId('log-btn').click()
+    await expect(mainPage.getByTestId('log-status-samples')).toHaveText('0 of 1,000,000')
+    await mainPage.keyboard.press('Escape')
   })
 
   test("Don't ask again stops the next poll without asking", async ({ mainPage }) => {
     await mainPage.getByTestId('poll-btn').click()
-    await expect(mainPage.getByTestId('log-status-chip')).not.toContainText(' 0 samples')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
     await mainPage.getByTestId('poll-btn').click()
     await mainPage.getByTestId('stop-poll-dont-ask').click()
     await mainPage.getByTestId('stop-poll-confirm-btn').click()
 
     await mainPage.getByTestId('poll-btn').click()
-    await expect(mainPage.getByTestId('log-status-chip')).not.toContainText('waiting for Poll')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
     await mainPage.getByTestId('poll-btn').click()
     await expect(mainPage.getByTestId('stop-poll-confirm-btn')).toHaveCount(0)
-    await expect(mainPage.getByTestId('log-status-chip')).toContainText('waiting for Poll')
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Log')
   })
 
   test('Export CSV writes every sample of the ticked registers', async ({
@@ -145,7 +159,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       }, savePath)
     )
 
-    await mainPage.getByTestId('log-status-chip').click()
+    await mainPage.getByTestId('log-btn').click()
     await mainPage.getByTestId('log-export-open-btn').click()
     await expect(mainPage.getByTestId('log-export-tree')).toContainText('setpoint')
     await mainPage.getByTestId('log-export-btn').click()
@@ -169,11 +183,23 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   })
 
   test('Clear log empties the log', async ({ mainPage }) => {
-    await mainPage.getByTestId('log-status-chip').click()
+    await mainPage.getByTestId('log-btn').click()
     await mainPage.getByTestId('log-clear-btn').click()
     await expect(mainPage.getByTestId('log-status-samples')).toHaveText('0 of 1,000,000')
     await mainPage.keyboard.press('Escape')
-    await mainPage.getByTestId('log-stop-btn').click()
+  })
+
+  test('Turn logging off while polling asks, and the poll goes on', async ({ mainPage }) => {
+    await mainPage.getByTestId('poll-btn').click()
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
+
+    await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-turn-off-btn').click()
+    await mainPage.getByTestId('log-off-confirm-btn').click()
+
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Polling')
+    await mainPage.getByTestId('poll-btn').click()
+    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Poll')
   })
 
   test('cleanup', async ({ mainPage }) => {

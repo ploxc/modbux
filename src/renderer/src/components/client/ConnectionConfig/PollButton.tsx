@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box'
 import Button, { ButtonProps } from '@mui/material/Button'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
@@ -62,8 +63,11 @@ const PollButton = meme((): JSX.Element => {
   }, [polling, logRunning, stopPolling])
   const handleCloseAsking = useCallback(() => setAsking(false), [])
 
+  // While the log is on the button says so, in the log's colour: pressing it
+  // starts or stops the log with the poll.
   const variant: ButtonProps['variant'] = polling ? 'contained' : 'outlined'
-  const color: ButtonProps['color'] = polling ? 'warning' : 'primary'
+  const color: ButtonProps['color'] = logEnabled ? 'success' : 'primary'
+  const label = logEnabled ? (polling ? 'Logging' : 'Log') : polling ? 'Polling' : 'Poll'
 
   return (
     <>
@@ -74,8 +78,29 @@ const PollButton = meme((): JSX.Element => {
         color={color}
         variant={variant}
         onClick={togglePolling}
+        // As wide as Logging with its dot, 90 px measured, so the top bar does not
+        // shift between Poll, Polling, Log and Logging, which measured 51 to 90.
+        sx={{ gap: 1, minWidth: 90 }}
       >
-        Poll
+        {logEnabled && polling && (
+          <Box
+            component="span"
+            data-testid="poll-btn-pulse"
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              bgcolor: 'currentColor',
+              animation: 'pollButtonPulse 1.6s ease-in-out infinite',
+              '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+              '@keyframes pollButtonPulse': {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: 0.25 }
+              }
+            }}
+          />
+        )}
+        {label}
       </Button>
       {asking && <StopPollDialog onStop={stopPolling} onClose={handleCloseAsking} />}
     </>

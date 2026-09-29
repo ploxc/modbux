@@ -21,6 +21,7 @@ import { PROTOCOL_COLORS } from '@renderer/components/client/ClientSidebar/clien
 import Check from '@mui/icons-material/Check'
 import { alpha } from '@mui/material/styles'
 import PollButton from './PollButton'
+import LogButton from '@renderer/components/client/Logging/LogButton'
 import { ReadTiming } from './ReadTiming'
 
 // Protocol
@@ -203,6 +204,7 @@ const ConnectionConfig = meme(() => {
       <SerialGroupModal active={protocol === 'ModbusRtu'} />
       <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
       <ReadTiming />
+      <LogButton />
       <PollButton />
       <ConnectButton />
     </>

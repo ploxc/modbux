@@ -8,13 +8,15 @@ import DialogHeading from '@renderer/components/shared/DialogHeading'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import ExportLogDialog from './ExportLog/ExportLogDialog'
 import { enableLog } from './enableLog'
 import { formatCount, formatTime } from './format'
 
 /**
  * Enable logging over a log that holds samples: append to them, with a gap
- * between the two runs, or start a new log, which clears them.
+ * between the two runs, or start a new log, which clears them. The samples
+ * can be exported first.
  */
 const StartLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
@@ -27,6 +29,9 @@ const StartLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element 
     enableLog(uuid, false)
     onClose()
   }, [uuid, onClose])
+  const [exporting, setExporting] = useState(false)
+  const handleExportOpen = useCallback(() => setExporting(true), [])
+  const handleExportClose = useCallback(() => setExporting(false), [])
   const handleAppend = useCallback(() => {
     enableLog(uuid, true)
     onClose()
@@ -45,6 +50,15 @@ const StartLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element 
         </DialogContentText>
       </DialogContent>
       <DialogActions>
+        {/* The one place a log that is off still exports from. */}
+        <Button
+          data-testid="log-start-export-btn"
+          variant="outlined"
+          onClick={handleExportOpen}
+          sx={{ mr: 'auto' }}
+        >
+          Export CSV…
+        </Button>
         <Button data-testid="log-start-cancel-btn" variant="text" onClick={onClose}>
           Cancel
         </Button>
@@ -55,6 +69,7 @@ const StartLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element 
           Append
         </Button>
       </DialogActions>
+      {exporting && <ExportLogDialog onClose={handleExportClose} />}
     </Dialog>
   )
 })

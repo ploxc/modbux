@@ -14,7 +14,7 @@ vi.hoisted(async () => {
   stubRenderer()
 })
 
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
@@ -125,6 +125,33 @@ describe('the Poll button', () => {
 
   it('takes none at that length when read configuration has no group for the type', () => {
     expect(renderButton({}, { lengthGiven: false, mappedGroup: false })).toBeDisabled()
+  })
+})
+
+// The label says what a press does: poll, or poll and log.
+describe("the Poll button's label", () => {
+  const log = (enabled: boolean) => ({ ...defaultClientState.log, enabled })
+
+  it.each([
+    [false, false, 'Poll'],
+    [true, false, 'Polling'],
+    [false, true, 'Log'],
+    [true, true, 'Logging']
+  ])('polling %s, logging %s: %s', (polling, enabled, label) => {
+    expect(renderButton({ polling, log: log(enabled) }, { mappedOnly: true })).toHaveTextContent(
+      new RegExp(`^${label}$`)
+    )
+  })
+
+  it('pulses while it logs, and not while it only polls or waits for the poll', () => {
+    renderButton({ polling: true, log: log(true) }, { mappedOnly: true })
+    expect(screen.getByTestId('poll-btn-pulse')).toBeInTheDocument()
+    cleanup()
+    renderButton({ polling: true, log: log(false) }, { mappedOnly: true })
+    expect(screen.queryByTestId('poll-btn-pulse')).toBeNull()
+    cleanup()
+    renderButton({ polling: false, log: log(true) }, { mappedOnly: true })
+    expect(screen.queryByTestId('poll-btn-pulse')).toBeNull()
   })
 })
 

@@ -74,18 +74,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   views.
 - **Logging.** The Log column in Debug sets a register to log on every poll,
   or on a change past a deadband. A register in the read configuration can
-  log, as a bit or a number. Enable logging in Monitor's toolbar starts the
-  log, and a client that logs is read whatever the screen shows, with a REC
-  badge on its card and a dot on the rail. While it logs, Monitor polls it on
-  every screen: Debug shows Monitor's reads with read configuration on, and
-  its Read, Poll and read configuration switch wait until logging is off, so
-  no register is read twice. Stopping the poll asks first, because it stops
-  the log too. The log keeps up to a million samples a client for as long as
-  Modbux runs, overwrites the oldest once full, and says so; its chip shows
-  the run time and the samples, and opens the size, Export CSV and Clear log.
-  The export takes a range between two dates and the registers ticked in a
-  tree of units, and writes each sample's raw value and its value as the
-  register's conversion makes it.
+  log, as a bit or a number. The log button beside Poll turns logging on; Poll
+  then reads Log, and Logging with a pulsing dot while it polls. A client that
+  logs is read whatever the screen shows, with a REC badge on its card and a
+  dot on the rail. While it logs, Monitor polls it on every screen: Debug
+  shows Monitor's reads with read configuration on, and its Read, Poll and
+  read configuration switch wait until logging is off, so no register is read
+  twice. Stopping the poll asks first, because it stops the log too, and
+  turning logging off while polling asks too, because the poll goes on. The
+  log keeps up to a million samples a client for as long as Modbux runs,
+  overwrites the oldest once full, and says so; the log button, while logging
+  is on, opens how long it has run, the samples, the size, Export CSV, Clear
+  log and Turn logging off, and the question it asks over old samples offers
+  Export CSV too. The export takes a range between two dates and the registers
+  ticked in a tree of units, and writes each sample's raw value and its value
+  as the register's conversion makes it.
 
 ### Changed
 

@@ -1,3 +1,4 @@
+import ShowChart from '@mui/icons-material/ShowChart'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Popover from '@mui/material/Popover'
@@ -7,10 +8,13 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { textMuted } from '@renderer/theme'
-import { ClientLogCapacitySchema, LogRun } from '@shared'
-import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react'
-import { formatCount, formatTime, logFill } from './format'
+import { ClientLogCapacitySchema, ClientUnit, LogRun, loggedRegisterCount } from '@shared'
+import { ChangeEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react'
+import { formatCount, formatDuration, formatTime, logFill } from './format'
+import LogOffDialog from './LogOffDialog'
 import ExportLogDialog from './ExportLog/ExportLogDialog'
+
+const NO_UNITS: ClientUnit[] = []
 
 interface LogStatusPopoverProps {
   anchor: HTMLElement
@@ -31,6 +35,45 @@ const RunsLine = meme(({ uuid }: { uuid: string }): JSX.Element => {
       {runCount}
       {gapAt !== undefined && `, the last ended at ${formatTime(gapAt)}: ${gapReason ?? ''}`}
     </>
+  )
+})
+
+/**
+ * Whether the log runs, and for how long, redrawn every second while it runs.
+ * A log that is on while the client does not poll waits for the poll.
+ */
+const LogHeading = meme(({ uuid }: { uuid: string }): JSX.Element => {
+  const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
+  const runStart = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs.at(-1)?.start)
+  const logged = useClientZustand((z) => loggedRegisterCount(z.clients[uuid]?.units ?? NO_UNITS))
+  const [now, setNow] = useState(Date.now)
+
+  useEffect(() => {
+    if (!running) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return (): void => clearInterval(timer)
+  }, [running])
+
+  return (
+    <Box
+      data-testid="log-status-heading"
+      sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.light' }}
+    >
+      <ShowChart sx={{ fontSize: 16, color: 'success.main' }} />
+      {running && runStart !== undefined ? (
+        <>
+          Logging for
+          <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
+            {formatDuration(now - runStart)}
+          </Box>
+        </>
+      ) : (
+        'Logging on, waiting for Poll'
+      )}
+      <Box component="span" sx={{ color: textMuted }}>
+        · {logged} {logged === 1 ? 'register' : 'registers'}
+      </Box>
+    </Box>
   )
 })
 
@@ -72,6 +115,20 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
   const handleExportOpen = useCallback(() => setExporting(true), [])
   const handleExportClose = useCallback(() => setExporting(false), [])
 
+  // Turning the log off while the client polls asks first, because the poll
+  // goes on without it.
+  const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
+  const [askingOff, setAskingOff] = useState(false)
+  const turnOff = useCallback(() => {
+    void window.api.stopLog(uuid)
+    onClose()
+  }, [uuid, onClose])
+  const handleTurnOff = useCallback(() => {
+    if (polling) setAskingOff(true)
+    else turnOff()
+  }, [polling, turnOff])
+  const handleCloseAskingOff = useCallback(() => setAskingOff(false), [])
+
   return (
     <Popover
       open
@@ -86,6 +143,7 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
         sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, fontSize: 12.5 }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <LogHeading uuid={uuid} />
           <Box
             role="progressbar"
             aria-label="Log fill"
@@ -153,7 +211,7 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            gap: 1,
             borderTop: '1px solid',
             borderColor: 'divider',
             pt: 1.5
@@ -177,9 +235,20 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
           >
             Clear log
           </Button>
+          <Box sx={{ flexGrow: 1 }} />
+          <Button
+            data-testid="log-turn-off-btn"
+            size="medium"
+            variant="outlined"
+            color="success"
+            onClick={handleTurnOff}
+          >
+            Turn logging off
+          </Button>
         </Box>
       </Box>
       {exporting && <ExportLogDialog onClose={handleExportClose} />}
+      {askingOff && <LogOffDialog onOff={turnOff} onClose={handleCloseAskingOff} />}
     </Popover>
   )
 })

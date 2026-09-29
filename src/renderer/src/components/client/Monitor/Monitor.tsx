@@ -17,7 +17,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { isNumberRegister } from '@shared'
 import { useCallback, useEffect, useMemo } from 'react'
-import LogControls from '@renderer/components/client/Logging/LogControls'
+import LogCount from '@renderer/components/client/Logging/LogCount'
 import GroupHead from './GroupHead'
 import {
   AddressCell,
@@ -150,7 +150,7 @@ const Monitor = meme((): JSX.Element => {
         </Button>
         {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
         <Box sx={{ flexGrow: 1 }} />
-        <LogControls />
+        <LogCount />
       </Box>
       <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         {rows.length === 0 ? (
