@@ -21,6 +21,9 @@ const ViewSwitch = meme(({ rail = false }: { rail?: boolean }): JSX.Element => {
   }, [])
 
   const prefix = rail ? 'client-rail-view' : 'client-view'
+  // On the rail each is a square as large as a client's badge below it, so
+  // the two read as two buttons rather than one bar.
+  const buttonSx = rail ? { width: 32, height: 32, p: 0 } : { flex: 1, gap: 0.75 }
 
   return (
     <ToggleButtonGroup
@@ -38,7 +41,7 @@ const ViewSwitch = meme(({ rail = false }: { rail?: boolean }): JSX.Element => {
         data-testid={`${prefix}-debug-btn`}
         aria-label="Debug"
         title="Debug: configure and write one unit at a time"
-        sx={{ flex: 1, gap: 0.75 }}
+        sx={buttonSx}
       >
         <WebAsset fontSize="small" />
         {!rail && 'Debug'}
@@ -48,7 +51,7 @@ const ViewSwitch = meme(({ rail = false }: { rail?: boolean }): JSX.Element => {
         data-testid={`${prefix}-monitor-btn`}
         aria-label="Monitor"
         title="Monitor: the read configuration of every unit in one grid"
-        sx={{ flex: 1, gap: 0.75 }}
+        sx={buttonSx}
       >
         <TableRows fontSize="small" />
         {!rail && 'Monitor'}
