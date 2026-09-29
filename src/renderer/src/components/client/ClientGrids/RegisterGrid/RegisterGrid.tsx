@@ -20,6 +20,7 @@ import {
   skeletonOf
 } from '@renderer/context/live.zustand'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { atOrBelow, BREAKPOINTS } from '../breakpoints'
@@ -156,6 +157,19 @@ const RegisterGridContent = meme((): JSX.Element => {
 
   const apiRef = useGridApiRef()
 
+  // While logging, a row of a group Monitor has off keeps its last value in grey.
+  const logEnabled = useLogEnabled()
+  const monitorOffKey = useClientZustand((z) =>
+    Object.entries(selectedUnit(z).registerMapping[type])
+      .filter(([, mapValue]) => mapValue?.monitorPollOff === true)
+      .map(([address]) => address)
+      .join(',')
+  )
+  const monitorOff = useMemo(
+    () => new Set(monitorOffKey === '' ? [] : monitorOffKey.split(',').map(Number)),
+    [monitorOffKey]
+  )
+
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
@@ -270,7 +284,13 @@ const RegisterGridContent = meme((): JSX.Element => {
       rowHeight={ROW_HEIGHT}
       getRowHeight={getRowHeight}
       hideFooterPagination
-      getRowClassName={(params) => (params.id === expandedBitmap ? 'bitmap-expanded-row' : '')}
+      getRowClassName={(params) =>
+        params.id === expandedBitmap
+          ? 'bitmap-expanded-row'
+          : logEnabled && monitorOff.has(Number(params.id))
+            ? 'monitor-off-row'
+            : ''
+      }
       editMode="cell"
       isCellEditable={({ colDef: { field }, row: { id } }) => {
         if (scanning) return false
@@ -296,6 +316,7 @@ const RegisterGridContent = meme((): JSX.Element => {
           // Rows a poll read before it stopped reading them, until it reads them again.
           ...(stale && { opacity: 0.5 })
         },
+        '& .monitor-off-row': { color: theme.palette.text.disabled },
         // `getRowHeight` answers for the row and its panel together, and MUI
         // writes that height onto the row element itself, over anything passed
         // in its style. The panel is a sibling of the row inside the slot, so

@@ -30,6 +30,7 @@ import {
 } from '@shared'
 import { showShownMapping } from '@renderer/context/live.zustand'
 import { ElementType, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 
 // Register type
 const REGISTER_TYPES: { type: RegisterType; label: string; color: string }[] = [
@@ -231,7 +232,9 @@ export const ReadConfiguration = meme(() => {
   const owner = useLiveZustand((z) =>
     clientOwner(dataOf(z, selectedUuid).clientState, { exceptPolling: true })
   )
-  const disabled = nothingConfigured || owner !== undefined
+  // While logging it stays on: Debug shows Monitor's reads, which are groups.
+  const logEnabled = useLogEnabled()
+  const disabled = nothingConfigured || owner !== undefined || logEnabled
 
   // A mapping with nothing to read turns it off. A read in flight does not:
   // that greys the button for a moment, and turning it off would empty the grid
@@ -251,7 +254,11 @@ export const ReadConfiguration = meme(() => {
       exclusive
       value={readConfiguration}
       onChange={handleChange}
-      title="Read all registers configured with a data type, and all bits with a comment"
+      title={
+        logEnabled
+          ? 'On while the client logs: Debug shows what Monitor reads'
+          : 'Read all registers configured with a data type, and all bits with a comment'
+      }
     >
       <ToggleButton
         value={true}

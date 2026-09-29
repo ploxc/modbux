@@ -20,6 +20,8 @@ import { useSectionType } from '../../sectionType'
 import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
 import { useDraggable } from '@dnd-kit/core'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
+import MonitorPollsChip from '@renderer/components/client/Logging/MonitorPollsChip'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 
 /**
  * The head of one section: its read window, Read and Raw, the 32 and 64 bit
@@ -35,6 +37,7 @@ const RegisterGridToolbar = meme(() => {
   // Read, the register fields and Clear would each undo a scan that is still
   // running, so the strip goes quiet with the rows underneath it.
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const logEnabled = useLogEnabled()
 
   // A right click on a field keeps the field's own menu, for copy and paste.
   // The menu is a portal, and a right click inside it reaches here too.
@@ -125,6 +128,7 @@ const RegisterGridToolbar = meme(() => {
       <ReadWindowButton />
       <ClearFiltersButton />
       <Box sx={{ flex: 1 }} />
+      {logEnabled && <MonitorPollsChip />}
       <SectionPollSwitch />
       {several && (
         <IconButton

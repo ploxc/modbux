@@ -128,6 +128,21 @@ describe('the Poll button', () => {
   })
 })
 
+// While logging is on, Monitor polls whatever the screen shows.
+describe('the Poll button in Debug while logging is on', () => {
+  const logging = { log: { ...defaultClientState.log, enabled: true } }
+
+  it("takes a press for a group whose Poll is on, with the type's Poll off", () => {
+    expect(renderButton(logging, { mappedOnly: true, polled: false })).toBeEnabled()
+  })
+
+  it('takes none when the only group has its Poll off and nothing logs', () => {
+    expect(
+      renderButton(logging, { mappedOnly: true, monitorPollOff: true, lengthGiven: true })
+    ).toBeDisabled()
+  })
+})
+
 // Monitor's poll reads every group whose Poll is on, whatever the type's Poll,
 // the unit's read configuration and the length say.
 describe('the Poll button in Monitor', () => {

@@ -521,6 +521,9 @@ onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
     const previous = sectionOf(liveZustand, uuid, unit, type, true).registerData
     const rows = withOffRows(previous, type, mappingOf(uuid, unit), registerData)
     liveZustand.setRegisterData(uuid, unit, type, rows, true)
+    // While logging Monitor polls on every screen, and Debug shows its reads.
+    if (dataOf(liveZustand, uuid).clientState.log.enabled)
+      liveZustand.setRegisterData(uuid, unit, type, rows)
   } else if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
     pendingScanRows.push(key, registerData)
   } else {
@@ -542,6 +545,8 @@ onEvent('address_groups', ({ uuid, unit, type, addressGroups, results, monitor }
   const previous = sectionOf(liveZustand, uuid, unit, type, true)
   const kept = withOffGroups(previous, type, mappingOf(uuid, unit), addressGroups, results)
   liveZustand.setAddressGroups(uuid, unit, type, kept.addressGroups, kept.groupResults, true)
+  if (dataOf(liveZustand, uuid).clientState.log.enabled)
+    liveZustand.setAddressGroups(uuid, unit, type, kept.addressGroups, kept.groupResults)
 })
 
 // One group Monitor read on its own

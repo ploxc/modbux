@@ -11,6 +11,7 @@ import { ClientUnit, loggedRegisterCount } from '@shared'
 import { MouseEvent, useCallback, useEffect, useState } from 'react'
 import LogStatusPopover from './LogStatusPopover'
 import StartLogDialog from './StartLogDialog'
+import { enableLog } from './enableLog'
 import { formatCount, formatDuration } from './format'
 
 const NO_UNITS: ClientUnit[] = []
@@ -91,7 +92,7 @@ const LogControls = meme((): JSX.Element => {
       setAsking(true)
       return
     }
-    void window.api.startLog({ uuid, append: false })
+    enableLog(uuid, false)
   }, [uuid, samples])
   const handleStop = useCallback(() => {
     void window.api.stopLog(uuid)

@@ -17,6 +17,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import SectionPollSwitch from '../SectionPollSwitch'
 import { patchSelectedClient } from '@renderer/context/__tests__/selectedClient'
+import { patchShownData } from '@renderer/context/__tests__/shownData'
+import { useLiveZustand } from '@renderer/context/live.zustand'
+import { defaultClientState } from '@shared'
 
 describe('the section poll switch', () => {
   it('puts the coils of the unit on screen in the poll', async () => {
@@ -37,5 +40,16 @@ describe('the section poll switch', () => {
     render(<SectionPollSwitch />)
 
     expect(within(screen.getByTestId('section-poll-switch')).getByRole('switch')).toBeEnabled()
+  })
+
+  // Monitor polls while logging is on, whatever this switch says.
+  it('takes no press while logging is on', () => {
+    patchShownData(useLiveZustand, {
+      clientState: { ...defaultClientState, log: { ...defaultClientState.log, enabled: true } }
+    })
+    render(<SectionPollSwitch />)
+
+    expect(within(screen.getByTestId('section-poll-switch')).getByRole('switch')).toBeDisabled()
+    patchShownData(useLiveZustand, { clientState: defaultClientState })
   })
 })

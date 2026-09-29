@@ -4,7 +4,7 @@
 // showed of a group turned off stays in Monitor's section until the group is
 // read again. A group whose Poll is on and that the round did not read goes.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
+import { defaultClientState, getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import type { AddressGroup, AddressGroupResult, RegisterData, RegisterMapObject } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 import { MAIN_UNIT_UUID } from '../client.zustand.helpers'
@@ -140,6 +140,29 @@ describe('a Monitor poll round that leaves a group out because its Poll is off',
       [200, '0033']
     ])
     expect(section.groupResults.map(({ roundTripMillis }) => roundTripMillis)).toEqual([5, 8])
+  })
+
+  it("fills Debug's section with Monitor's read while logging is on, and not otherwise", async () => {
+    const { client, live } = await load()
+    mapTwoGroups(client)
+    const debugIds = (): number[] =>
+      live
+        .sectionOf(live.useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type)
+        .registerData.map(({ id }) => id)
+
+    monitorRead([[0, 1]], [result(5)], [row(0, '0002')])
+    expect(debugIds()).toEqual([])
+
+    fireEvent('client_state', {
+      uuid: MAIN_CLIENT_UUID,
+      clientState: { ...defaultClientState, log: { ...defaultClientState.log, enabled: true } }
+    })
+    monitorRead([[0, 1]], [result(5)], [row(0, '0003')])
+    expect(debugIds()).toEqual([0])
+    expect(
+      live.sectionOf(live.useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type)
+        .addressGroups
+    ).toEqual([[0, 1]])
   })
 
   it("leaves Debug's section to the read alone", async () => {

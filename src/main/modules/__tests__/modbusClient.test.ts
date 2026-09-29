@@ -6090,7 +6090,7 @@ describe('ModbusClient', () => {
       client.stopPolling()
     })
 
-    it("keeps no sample of Debug's window, and reads the logged group beside it", async () => {
+    it("reads Monitor's groups with Debug's window on screen, and Debug's window not at all", async () => {
       await connectClient()
       logHolding0(true)
       showEverything()
@@ -6100,11 +6100,53 @@ describe('ModbusClient', () => {
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(readCalls()).toEqual([
-        [0, 10],
-        [0, 1]
-      ])
+      expect(readCalls()).toEqual([[0, 1]])
       expect(samples()).toHaveLength(1)
+      client.stopPolling()
+    })
+
+    it('reads a group with no register that logs while logging, with Debug on screen', async () => {
+      await connectClient()
+      const unit = theUnit()
+      client.setUnits([
+        {
+          ...unit,
+          registerMapping: {
+            ...unit.registerMapping,
+            holding_registers: {
+              0: { dataType: 'uint16', log: { mode: 'poll' } },
+              300: { dataType: 'uint16' },
+              500: { dataType: 'uint16', monitorPollOff: true }
+            }
+          }
+        }
+      ])
+      showEverything()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readCalls()).toEqual([
+        [0, 1],
+        [300, 1]
+      ])
+      client.stopPolling()
+    })
+
+    it("hands the poll back to Debug's window once logging is off", async () => {
+      await connectClient()
+      logHolding0(true)
+      showEverything()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.stopLog()
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readCalls()).toEqual([[0, 10]])
       client.stopPolling()
     })
 

@@ -9,6 +9,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useCallback } from 'react'
+import { enableLog } from './enableLog'
 import { formatCount, formatTime } from './format'
 
 /**
@@ -23,11 +24,11 @@ const StartLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element 
   const lastEnd = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs.at(-1)?.end)
 
   const handleNew = useCallback(() => {
-    void window.api.startLog({ uuid, append: false })
+    enableLog(uuid, false)
     onClose()
   }, [uuid, onClose])
   const handleAppend = useCallback(() => {
-    void window.api.startLog({ uuid, append: true })
+    enableLog(uuid, true)
     onClose()
   }, [uuid, onClose])
 

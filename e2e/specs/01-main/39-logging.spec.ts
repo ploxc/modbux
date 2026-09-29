@@ -7,7 +7,8 @@ import {
   cleanServerState,
   loadServerConfig,
   loadClientConfig,
-  readRegisters
+  readRegisters,
+  expectCell
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -66,6 +67,26 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       expect(chipSamples(text)).toBeGreaterThan(0)
     }).toPass()
     await expect(mainPage.locator('[data-testid^="client-rec-"]')).toBeVisible()
+  })
+
+  test("Debug shows Monitor's reads while logging, and reads nothing itself", async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('client-view-debug-btn').click()
+
+    await expect(mainPage.getByTestId('debug-monitor-polls').first()).toBeVisible()
+    await expect(mainPage.getByTestId('read-btn').first()).toBeDisabled()
+    await expect(mainPage.getByTestId('reg-read-config-btn')).toBeDisabled()
+    await expect(mainPage.getByTestId('reg-read-config-btn')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    await expect(
+      mainPage.getByTestId('section-poll-switch').first().getByRole('switch')
+    ).toBeDisabled()
+    await expectCell(mainPage, 0, 'value', '100')
+
+    await mainPage.getByTestId('client-view-monitor-btn').click()
   })
 
   test('stopping the poll asks first, and Keep polling keeps it', async ({ mainPage }) => {

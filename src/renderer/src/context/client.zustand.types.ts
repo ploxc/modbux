@@ -198,6 +198,12 @@ export type ClientZustand = {
 
   // Read configuration, of the selected unit
   setReadConfiguration: (readConfiguration: boolean) => void
+  /**
+   * Turns read configuration on for every unit of the client under `uuid`.
+   * Logging asks it: Monitor polls while the log is on, and Debug shows
+   * Monitor's reads over the mapping.
+   */
+  readConfigurationForLog: (uuid: string) => void
   // Version
 
   // Serial port discovery

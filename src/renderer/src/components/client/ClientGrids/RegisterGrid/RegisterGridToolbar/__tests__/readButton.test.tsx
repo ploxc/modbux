@@ -56,6 +56,11 @@ describe('the Read button', () => {
     expect(renderButton({})).toBeEnabled()
   })
 
+  // Monitor polls while logging is on, and Debug reads nothing of its own.
+  it('takes none while logging is on, polling or not', () => {
+    expect(renderButton({ log: { ...defaultClientState.log, enabled: true } })).toBeDisabled()
+  })
+
   it('takes none while a read is in flight', () => {
     expect(renderButton({ reading: true })).toBeDisabled()
   })

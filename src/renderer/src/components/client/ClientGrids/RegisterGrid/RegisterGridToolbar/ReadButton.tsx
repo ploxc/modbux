@@ -4,6 +4,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 import {
   selectedClientUuid,
   useClientZustand,
@@ -41,7 +42,9 @@ const ReadButton = meme((): JSX.Element => {
   }, [])
 
   const color: ButtonProps['color'] = reading ? 'warning' : 'primary'
-  const disabled = !connected || owner !== undefined || readsNoRegisters
+  // While logging Monitor polls, and Debug reads nothing of its own.
+  const logEnabled = useLogEnabled()
+  const disabled = !connected || owner !== undefined || readsNoRegisters || logEnabled
 
   return (
     <Button

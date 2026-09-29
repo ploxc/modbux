@@ -4,6 +4,7 @@ import Switch from '@mui/material/Switch'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand, selectedUnit } from '@renderer/context/client.zustand'
 import { ChangeEvent, useCallback } from 'react'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 
 /**
  * Whether a poll reads the register type on screen, of the unit on screen:
@@ -12,6 +13,8 @@ import { ChangeEvent, useCallback } from 'react'
 const SectionPollSwitch = meme(() => {
   const type = useSectionType()
   const polled = useClientZustand((z) => selectedUnit(z).sections[type].polled)
+  // While logging Monitor polls, whatever this says.
+  const logEnabled = useLogEnabled()
 
   const handleChange = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean): void => {
@@ -29,6 +32,7 @@ const SectionPollSwitch = meme(() => {
         <Switch
           size="small"
           checked={polled}
+          disabled={logEnabled}
           onChange={handleChange}
           slotProps={{ input: { 'aria-label': 'Poll this register type' } }}
           data-testid="section-poll-switch"

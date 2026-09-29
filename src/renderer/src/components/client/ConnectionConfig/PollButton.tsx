@@ -28,11 +28,13 @@ const PollButton = meme((): JSX.Element => {
     clientOwner(dataOf(z, selectedUuid).clientState, { exceptPolling: true })
   )
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
-  // What main refuses as a poll of no registers: no unit has a section to read.
-  const monitor = useClientViewZustand((z) => z.view === 'monitor')
-  const pollsNothing = useClientZustand((z) => pollsNothingOf(z, z.selectedUuid, monitor))
   // A client that logs is read for its log, whatever the screen polls.
   const logEnabled = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.log.enabled)
+  // What main refuses as a poll of no registers: no unit has a section to
+  // read. Monitor polls while it is on screen, and while logging is on.
+  const monitorShown = useClientViewZustand((z) => z.view === 'monitor')
+  const monitor = monitorShown || logEnabled
+  const pollsNothing = useClientZustand((z) => pollsNothingOf(z, z.selectedUuid, monitor))
   const logRunning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.log.running)
   const logsSomething = useClientZustand(
     (z) => loggedRegisterCount(z.clients[z.selectedUuid]?.units ?? NO_UNITS) > 0

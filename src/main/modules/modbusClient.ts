@@ -946,7 +946,7 @@ export class ModbusClient implements TransportClient {
   private _pollableTypes = (unit: ClientUnit): RegisterType[] => {
     const readConfiguration = this._appState.readConfiguration(unit.uuid)
     return RegisterTypeSchema.options.filter((type) => {
-      if (this._monitor) return monitorPolledGroups(type, unit.registerMapping).length > 0
+      if (this._monitorPolls()) return monitorPolledGroups(type, unit.registerMapping).length > 0
       return (
         unit.sections[type].polled &&
         (readConfiguration
@@ -966,6 +966,13 @@ export class ModbusClient implements TransportClient {
    */
   private _monitor = false
 
+  /**
+   * Whether the poll reads what Monitor shows: while Monitor is on screen, and
+   * while logging is on, whatever the screen shows. Debug then reads nothing
+   * of its own.
+   */
+  private _monitorPolls = (): boolean => this._monitor || this._logEnabled
+
   /** Whether a read of `unit` takes the mapping's groups: Monitor's, or under its read configuration. */
   private _readsConfiguration = (unit: ClientUnit, monitor: boolean): boolean =>
     monitor || this._appState.readConfiguration(unit.uuid)
@@ -977,7 +984,7 @@ export class ModbusClient implements TransportClient {
   private _polledTypes = (unit: ClientUnit): RegisterType[] =>
     this._pollableTypes(unit).filter(
       (type) =>
-        this._monitor ||
+        this._monitorPolls() ||
         this._visibleSections.some((section) => section.unit === unit.uuid && section.type === type)
     )
 
@@ -988,30 +995,18 @@ export class ModbusClient implements TransportClient {
     )
 
   /**
-   * The reads a poll round makes of `unit`: what is on screen, and while the
-   * log runs, the groups of every type with a register that logs, whatever the
-   * screen shows and whatever the type's Poll says. A grouped read of the
-   * screen's gives the log its samples too, and a read of Debug's window does
-   * not, so a logged type Debug shows as a window is read twice.
-   *
-   * In Monitor, a type is one read of the groups `_monitorRoundGroups` names,
-   * which covers the log too.
+   * The reads a poll round makes of `unit`. While Monitor polls, one read per
+   * type of the groups `_monitorRoundGroups` names, which covers the log too.
+   * Otherwise the sections Debug shows.
    */
-  private _roundReads = (unit: ClientUnit): RoundRead[] => {
-    const onScreen = this._polledTypes(unit)
-    const logged = this._log.running ? this._loggedTypes(unit) : []
-    return RegisterTypeSchema.options.flatMap((type): RoundRead[] => {
-      if (this._monitor) {
+  private _roundReads = (unit: ClientUnit): RoundRead[] =>
+    RegisterTypeSchema.options.flatMap((type): RoundRead[] => {
+      if (this._monitorPolls()) {
         const groups = this._monitorRoundGroups(unit, type)
         return groups.length > 0 ? [{ type, monitor: true, groups }] : []
       }
-      const shown = onScreen.includes(type)
-      const reads: RoundRead[] = shown ? [{ type, monitor: false }] : []
-      if (logged.includes(type) && !(shown && this._readsConfiguration(unit, false)))
-        reads.push({ type, monitor: true })
-      return reads
+      return this._polledTypes(unit).includes(type) ? [{ type, monitor: false }] : []
     })
-  }
 
   /**
    * The groups of `type` Monitor's poll round reads of `unit`: the ones whose
