@@ -53,6 +53,17 @@ export const SCRIPT_HELPERS: ScriptHelper[] = [
   }
 ]
 
+/**
+ * A helper's call as a CodeMirror snippet, a field per argument named as the
+ * signature names it: `lerp` goes in as `lerp(x, x1, x2, y1, y2)` with the
+ * first argument selected and Tab moving to the next. A default is left out.
+ */
+export const callSnippet = (name: string, signature: string): string => {
+  const inside = signature.slice(signature.indexOf('(') + 1, signature.lastIndexOf(')'))
+  const params = inside.split(',').map((param) => param.replace(/=.*$/, '').trim())
+  return `${name}(${params.map((param) => `\${${param}}`).join(', ')})`
+}
+
 /** Code that goes into the editor at the cursor, from the Insert menu. */
 export interface ScriptTemplate {
   label: string
@@ -60,10 +71,6 @@ export interface ScriptTemplate {
 }
 
 export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
-  {
-    label: 'Power factor with its sign',
-    code: '// -1..1 written as -10000..10000; the sign says inductive or capacitive.\nconst inductive = raw < 0\nreturn Math.abs(raw) / 10000\n'
-  },
   {
     label: '4-20 mA, held in range',
     code: '// 0..27648 is 4..20 mA, which is 0..10 bar.\nconst mA = lerp(raw, 0, 27648, 4, 20)\nreturn clamp(lerp(mA, 4, 20, 0, 10), 0, 10)\n'

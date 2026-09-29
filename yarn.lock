@@ -332,7 +332,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.29.2, @babel/runtime@npm:^7.29.7":
+"@babel/runtime@npm:^7.18.6, @babel/runtime@npm:^7.29.2, @babel/runtime@npm:^7.29.7":
   version: 7.29.7
   resolution: "@babel/runtime@npm:7.29.7"
   checksum: 10c0/ca11572f7146b21e0bde6a9ed4bb6a89eafbee5f0944c7eb54d0d8a2dac962c33638a1d611e14faa71dfbb92b4b5f9236232208568a6b7d5c6f3f39ddb91771e
@@ -518,18 +518,6 @@ __metadata:
   dependencies:
     "@marijn/find-cluster-break": "npm:^1.0.0"
   checksum: 10c0/1ea16c30571210d40f6161a3a43b221fa1522fdcfef4836f6063dcd3d04fd2d5f4aefbc5cfdcd30f7d9df96985967cfb12cd876e4abb1cd41bff41ec8f3d328e
-  languageName: node
-  linkType: hard
-
-"@codemirror/theme-one-dark@npm:^6.1.3":
-  version: 6.1.3
-  resolution: "@codemirror/theme-one-dark@npm:6.1.3"
-  dependencies:
-    "@codemirror/language": "npm:^6.0.0"
-    "@codemirror/state": "npm:^6.0.0"
-    "@codemirror/view": "npm:^6.0.0"
-    "@lezer/highlight": "npm:^1.0.0"
-  checksum: 10c0/de8483c69911bcd61a19679384de663ced9c8bed3c776f08581a8b724e9f456a17053b1cf6e9d1f2a475fa6bc42e905ec8ba1ee0a8b55213d18087d9d9150317
   languageName: node
   linkType: hard
 
@@ -3198,6 +3186,32 @@ __metadata:
     "@typescript-eslint/types": "npm:7.18.0"
     eslint-visitor-keys: "npm:^3.4.3"
   checksum: 10c0/538b645f8ff1d9debf264865c69a317074eaff0255e63d7407046176b0f6a6beba34a6c51d511f12444bae12a98c69891eb6f403c9f54c6c2e2849d1c1cb73c0
+  languageName: node
+  linkType: hard
+
+"@uiw/codemirror-theme-vscode@npm:^4.25.12":
+  version: 4.25.12
+  resolution: "@uiw/codemirror-theme-vscode@npm:4.25.12"
+  dependencies:
+    "@babel/runtime": "npm:^7.18.6"
+    "@lezer/highlight": "npm:^1.0.0"
+    "@uiw/codemirror-themes": "npm:4.25.12"
+  checksum: 10c0/1a002bb4399353aaaea6f17f05806b0269081e1346adbb42a224846220eec6c773e364bc209410bb86f5166f4160ff45360282e926aad99fb5051364809519af
+  languageName: node
+  linkType: hard
+
+"@uiw/codemirror-themes@npm:4.25.12":
+  version: 4.25.12
+  resolution: "@uiw/codemirror-themes@npm:4.25.12"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.0.0"
+  peerDependencies:
+    "@codemirror/language": ">=6.0.0"
+    "@codemirror/state": ">=6.0.0"
+    "@codemirror/view": ">=6.0.0"
+  checksum: 10c0/7148e45b1836bb41133fdb6d129af13a29999ef86a345728a5dee72b7255b6a0ba1d44216c428df25bd3362a1eb3797ac94a57707d2b8a347b764fd2cecadb8f
   languageName: node
   linkType: hard
 
@@ -7324,7 +7338,6 @@ __metadata:
     "@codemirror/lang-javascript": "npm:^6.2.5"
     "@codemirror/lint": "npm:^6.9.7"
     "@codemirror/state": "npm:^6.7.6"
-    "@codemirror/theme-one-dark": "npm:^6.1.3"
     "@codemirror/view": "npm:^6.43.13"
     "@dnd-kit/core": "npm:6.3.1"
     "@dnd-kit/sortable": "npm:10.0.0"
@@ -7357,6 +7370,7 @@ __metadata:
     "@types/react": "npm:^18.3.28"
     "@types/react-dom": "npm:^18.3.7"
     "@types/uuid": "npm:^10.0.0"
+    "@uiw/codemirror-theme-vscode": "npm:^4.25.12"
     "@vitejs/plugin-react": "npm:^5"
     "@vitest/coverage-v8": "npm:^4.1"
     codemirror: "npm:^6.0.2"
@@ -7382,6 +7396,7 @@ __metadata:
     quickjs-emscripten-core: "npm:0.32.0"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
+    react-draggable: "npm:^4.7.2"
     react-imask: "npm:^7.6.1"
     react-resizable-panels: "npm:4.13.3"
     serialport: "npm:13.0.0"
@@ -8282,6 +8297,19 @@ __metadata:
   peerDependencies:
     react: ^18.3.1
   checksum: 10c0/a752496c1941f958f2e8ac56239172296fcddce1365ce45222d04a1947e0cc5547df3e8447f855a81d6d39f008d7c32eab43db3712077f09e3f67c4874973e85
+  languageName: node
+  linkType: hard
+
+"react-draggable@npm:^4.7.2":
+  version: 4.7.2
+  resolution: "react-draggable@npm:4.7.2"
+  dependencies:
+    clsx: "npm:^2.1.1"
+    prop-types: "npm:^15.8.1"
+  peerDependencies:
+    react: ">= 16.3.0"
+    react-dom: ">= 16.3.0"
+  checksum: 10c0/37d4c520582b0777778b3edb1d2871b32ae4881e585bb26e6136b1cc4a3dfc2055334bdbd527b5cab8e33f0c44c428a11db6879ad80f2fe9f34d171db9a1a371
   languageName: node
   linkType: hard
 

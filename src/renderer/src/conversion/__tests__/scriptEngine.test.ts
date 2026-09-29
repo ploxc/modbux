@@ -28,6 +28,15 @@ describe('runScript', () => {
   })
 })
 
+describe('the compiled scripts it keeps', () => {
+  // A script typed out compiles every text it passes through.
+  it('still runs a script after a hundred others were compiled', () => {
+    for (let i = 0; i < 100; i++) runScript(`return raw + ${i}`, 1)
+    expect(runScript('return raw + 0', 1)).toBe(1)
+    expect(runScript('return raw + 99', 1)).toBe(100)
+  })
+})
+
 describe('scriptError', () => {
   it('names the line a script fails to compile on', () => {
     expect(scriptError('const inductive = raw < 0\nreturn Math.abs(raw / 10000')).toMatchObject({

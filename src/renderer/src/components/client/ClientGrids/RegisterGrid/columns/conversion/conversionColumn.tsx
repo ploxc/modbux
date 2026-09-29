@@ -6,7 +6,8 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { RegisterData, scalableDataTypes } from '@shared'
 import { MouseEvent, useCallback, useState } from 'react'
-import ConversionDialog from './ConversionDialog'
+import ConversionDialog from './ConversionDialog/ConversionDialog'
+import MoreHoriz from '@mui/icons-material/MoreHoriz'
 
 /**
  * A register's conversion at a glance: a scale shows its factor, an
@@ -42,9 +43,12 @@ const ConversionCell = meme(({ address }: { address: number }) => {
           color: conversion ? 'text.primary' : 'text.disabled'
         }}
       >
-        {conversion?.kind === 'scale' && conversion.factor}
-        {(conversion?.kind === 'lerp' || conversion?.kind === 'script') && (
-          <Functions fontSize="small" sx={{ color: 'primary.light' }} />
+        {conversion?.kind === 'scale' ? (
+          conversion.factor
+        ) : conversion?.kind === 'lerp' || conversion?.kind === 'script' ? (
+          <Functions fontSize="small" sx={{ color: 'primary.main' }} />
+        ) : (
+          <MoreHoriz fontSize="small" sx={{ opacity: 0.2 }} />
         )}
       </ButtonBase>
       {/* Mounted only while open: the cell is drawn once per visible row. */}
@@ -55,8 +59,8 @@ const ConversionCell = meme(({ address }: { address: number }) => {
 
 export const conversionColumn: GridColDef<RegisterData> = {
   field: 'conversion',
-  headerName: 'Conversion',
-  width: 88,
+  headerName: 'Conv.',
+  width: 60,
   sortable: false,
   filterable: false,
   renderCell: ({ row }) => (row.isScanned ? null : <ConversionCell address={row.id} />)

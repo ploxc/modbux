@@ -1,7 +1,7 @@
 // The helpers a conversion script can call, run where scripts run.
 import { beforeAll, describe, expect, it } from 'vitest'
 import { initScriptEngine, runScript, scriptError } from '../scriptEngine'
-import { SCRIPT_TEMPLATES } from '../helpers'
+import { callSnippet, SCRIPT_TEMPLATES } from '../helpers'
 
 beforeAll(async () => {
   await initScriptEngine()
@@ -35,5 +35,17 @@ describe('the Insert templates', () => {
   it('looks a value up between the rows of its table', () => {
     const table = SCRIPT_TEMPLATES.find(({ label }) => label === 'Lookup in a table')
     expect(table && runScript(table.code, 2500)).toBe(56.25)
+  })
+})
+
+describe('callSnippet', () => {
+  it('gives each argument a field, named as the signature names it', () => {
+    expect(callSnippet('lerp', 'lerp(x, x1, x2, y1, y2)')).toBe(
+      'lerp(${x}, ${x1}, ${x2}, ${y1}, ${y2})'
+    )
+  })
+
+  it('leaves a default out of the field', () => {
+    expect(callSnippet('round', 'round(x, decimals = 0)')).toBe('round(${x}, ${decimals})')
   })
 })

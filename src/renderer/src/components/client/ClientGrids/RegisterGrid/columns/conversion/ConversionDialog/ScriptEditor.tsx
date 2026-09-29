@@ -1,12 +1,12 @@
 import Box from '@mui/material/Box'
-import { completeFromList } from '@codemirror/autocomplete'
+import { completeFromList, snippetCompletion } from '@codemirror/autocomplete'
 import { javascript, javascriptLanguage } from '@codemirror/lang-javascript'
 import { Diagnostic, linter, lintGutter } from '@codemirror/lint'
 import { EditorState } from '@codemirror/state'
-import { oneDark } from '@codemirror/theme-one-dark'
+import { vscodeDark } from '@uiw/codemirror-theme-vscode'
 import { EditorView } from '@codemirror/view'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { SCRIPT_HELPERS } from '@renderer/conversion/helpers'
+import { callSnippet, SCRIPT_HELPERS } from '@renderer/conversion/helpers'
 import { scriptError } from '@renderer/conversion/scriptEngine'
 import { basicSetup } from 'codemirror'
 import { MutableRefObject, useEffect, useRef } from 'react'
@@ -27,19 +27,21 @@ const compileErrors = linter(
 const scriptCompletions = javascriptLanguage.data.of({
   autocomplete: completeFromList([
     { label: 'raw', type: 'variable', detail: 'the value its data type reads' },
-    ...SCRIPT_HELPERS.map(({ name, signature, doc }) => ({
-      label: name,
-      type: 'function',
-      detail: signature,
-      info: doc
-    }))
+    ...SCRIPT_HELPERS.map(({ name, signature, doc }) =>
+      snippetCompletion(callSnippet(name, signature), {
+        label: name,
+        type: 'function',
+        detail: signature,
+        info: doc
+      })
+    )
   ])
 })
 
-/** The editor on the app's code surface, `--script-surface`, rather than One Dark's own. */
+/** The editor on the dialog's own surface rather than the theme's background. */
 const surface = EditorView.theme({
-  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'var(--script-surface)' },
-  '.cm-gutters': { backgroundColor: 'var(--script-surface)', borderRight: 'none' },
+  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'transparent' },
+  '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
   '.cm-scroller': { fontFamily: "'Roboto Mono', monospace", lineHeight: '20px' },
   '&.cm-focused': { outline: 'none' }
 })
@@ -73,7 +75,7 @@ const ScriptEditor = meme(({ code, onChange, viewRef }: ScriptEditorProps) => {
           basicSetup,
           javascript(),
           scriptCompletions,
-          oneDark,
+          vscodeDark,
           surface,
           compileErrors,
           lintGutter(),
@@ -96,12 +98,7 @@ const ScriptEditor = meme(({ code, onChange, viewRef }: ScriptEditorProps) => {
       ref={host}
       data-testid="conversion-script-input"
       // Grows with the dialog, which the user resizes.
-      sx={(theme) => ({
-        '--script-surface': theme.palette.background.default,
-        flexGrow: 1,
-        minHeight: 180,
-        overflow: 'auto'
-      })}
+      sx={{ flexGrow: 1, minHeight: 180, overflow: 'visible' }}
     />
   )
 })

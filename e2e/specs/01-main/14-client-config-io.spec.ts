@@ -113,7 +113,7 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     const script = mainPage.getByTestId('conversion-script-input').locator('.cm-content')
     await script.fill('')
     await mainPage.getByTestId('conversion-insert-btn').click()
-    await mainPage.getByTestId('conversion-template-2').click()
+    await mainPage.getByTestId('conversion-template-1').click()
     await expect(script).toContainText('bit(raw, 0)')
     await mainPage.getByTestId('conversion-test-input').fill('5')
     await expect(mainPage.getByTestId('conversion-test-result')).toHaveText('1')

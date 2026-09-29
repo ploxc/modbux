@@ -21,8 +21,13 @@ const MEMORY_BYTES = 8 * 1024 * 1024
 
 let context: QuickJSContext | undefined
 
-/** The compiled function of each script, by its code. */
+/**
+ * The compiled function of each script, by its code, the most recent last.
+ * Typing a script compiles every text it passes through, so the oldest go
+ * once there are more than the grid and an open dialog use.
+ */
 const compiled = new Map<string, QuickJSHandle>()
+const COMPILED_KEPT = 64
 
 /**
  * Load the engine; every other call here answers nothing until it has. One
@@ -75,7 +80,12 @@ const errorOf = (vm: QuickJSContext, handle: QuickJSHandle): ScriptError => {
 /** Compile the script, or answer why it does not. */
 const compile = (vm: QuickJSContext, code: string): QuickJSHandle | ScriptError => {
   const cached = compiled.get(code)
-  if (cached) return cached
+  if (cached) {
+    // Used again, so it moves to the recent end.
+    compiled.delete(code)
+    compiled.set(code, cached)
+    return cached
+  }
   const result = vm.evalCode(wrap(code))
   if (result.error) {
     // An unclosed bracket is found at the wrapper's closing line, after the
@@ -85,6 +95,11 @@ const compile = (vm: QuickJSContext, code: string): QuickJSHandle | ScriptError 
     return error.line === undefined ? error : { ...error, line: Math.min(error.line, last) }
   }
   compiled.set(code, result.value)
+  for (const [old, handle] of compiled) {
+    if (compiled.size <= COMPILED_KEPT) break
+    compiled.delete(old)
+    handle.dispose()
+  }
   return result.value
 }
 
