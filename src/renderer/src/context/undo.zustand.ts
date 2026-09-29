@@ -62,11 +62,13 @@ export const replayTop = async <Step extends object>(
   const current = stack.read()
   const step = (direction === 'undo' ? current.past : current.future).at(-1)
   if (step === undefined) return 'empty'
-  if (!prepare(step)) return 'refused'
 
+  // Quiet from `prepare` on: showing a register type that is not open opens
+  // it, which is a layout change and would record a step of its own.
   undo.beginQuiet()
   let replaced: Step | UndoRefusal | undefined
   try {
+    if (!prepare(step)) return 'refused'
     replaced = await replay(step)
   } finally {
     undo.endQuiet()

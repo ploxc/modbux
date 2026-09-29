@@ -534,12 +534,14 @@ export const useClientZustand = create<
       },
       setUnitName: (name) => {
         const view = viewOf(get())
+        const before = selectedUnit(get()).name
         set((state) =>
           onClient(state, view.uuid, ({ client }) => {
             const unit = client.units.find(({ uuid }) => uuid === view.unit)
             if (unit) unit.name = name
           })
         )
+        recordField(view, 'unitName', before, name)
         // A name changes nothing a read asks, so it goes with the next send.
         syncUnitsToMain(view.uuid)
       },
@@ -582,6 +584,7 @@ export const useClientZustand = create<
             }
           })
         )
+        recordField(view, 'layout', unit.layout, formatLayout(next))
         syncUnitsToMain(selectedUuid)
       },
       showType: (type) => {
@@ -601,15 +604,18 @@ export const useClientZustand = create<
         const parsed = parseLayout(layout)
         if (parsed === undefined) return
         const view = viewOf(get())
+        const before = selectedUnit(get()).layout
+        const after = formatLayout(parsed)
         set((state) =>
           onClient(state, view.uuid, ({ client, session }) => {
             const found = client.units.find(({ uuid }) => uuid === view.unit)
-            if (found) found.layout = formatLayout(parsed)
+            if (found) found.layout = after
             if (!typesIn(parsed).includes(session.shownType)) {
               session.shownType = typesIn(parsed)[0] ?? session.shownType
             }
           })
         )
+        recordField(view, 'layout', before, after)
         syncUnitsToMain(view.uuid)
       },
       setLittleEndian: async (littleEndian) => {

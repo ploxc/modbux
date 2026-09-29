@@ -37,6 +37,8 @@ export const clientFieldReaders: {
   advancedMode: ({ client }) => client.registerConfig.advancedMode,
   show64BitValues: ({ client }) => client.registerConfig.show64BitValues,
   unitId: ({ unit }) => unit.unitId,
+  unitName: ({ unit }) => unit.name,
+  layout: ({ unit }) => unit.layout,
   littleEndian: ({ unit }) => unit.littleEndian,
   addressBase: ({ unit }) => unit.addressBase,
   address: ({ section }) => section.address,
@@ -72,6 +74,8 @@ export const clientFieldSteps: {
   advancedMode: (value, view) => ({ ...view, kind: 'field', field: 'advancedMode', value }),
   show64BitValues: (value, view) => ({ ...view, kind: 'field', field: 'show64BitValues', value }),
   unitId: (value, view) => ({ ...view, kind: 'field', field: 'unitId', value }),
+  unitName: (value, view) => ({ ...view, kind: 'field', field: 'unitName', value }),
+  layout: (value, view) => ({ ...view, kind: 'field', field: 'layout', value }),
   littleEndian: (value, view) => ({ ...view, kind: 'field', field: 'littleEndian', value }),
   addressBase: (value, view) => ({ ...view, kind: 'field', field: 'addressBase', value }),
   address: (value, view) => ({ ...view, kind: 'field', field: 'address', value }),
@@ -100,6 +104,8 @@ export const emptyStack = <Step>(): UndoStack<Step> => ({
 export const clientStepKey = (step: ClientUndoStep): string | undefined => {
   switch (step.kind) {
     case 'field':
+      // A drag, a dock or a splitter moved is one gesture each, never a run.
+      if (step.field === 'layout') return undefined
       return `field.${step.field}.${step.uuid}.${step.unit}.${step.type}`
     case 'mapping':
       return `mapping.${step.type}.${step.register}.${step.column}.${step.uuid}.${step.unit}`

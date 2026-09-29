@@ -27,6 +27,9 @@ export type ClientFieldValues = RegisterConfig &
   ClientSection & {
     parity: Parity
     name: string
+    /** The unit's name, where `name` is the client's. */
+    unitName: string
+    layout: string
     protocol: ConnectionConfig['protocol']
     host: string
     port: number
@@ -86,6 +89,7 @@ export interface ClientConfiguration {
   name: string
   littleEndian: boolean
   registerMapping: RegisterMapping
+  layout: string
 }
 
 export interface ClientConfigurationStep extends ClientStepView {

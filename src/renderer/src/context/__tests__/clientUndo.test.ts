@@ -271,8 +271,60 @@ describe('a mapping entry', () => {
   })
 })
 
+describe("a unit's name and layout", () => {
+  it('takes a name typed a key at a time back as one step', async () => {
+    const { client, clientUndo } = await load()
+    client().setUnitName('b')
+    client().setUnitName('bo')
+    client().setUnitName('boiler')
+
+    expect(await clientUndo.undoClient()).toBe('done')
+    expect(selectedUnit(client()).name).toBe('')
+    expect(await clientUndo.redoClient()).toBe('done')
+    expect(selectedUnit(client()).name).toBe('boiler')
+  })
+
+  // A drag, a dock and a splitter each call setLayout once, when they end.
+  it('takes each layout change back as a step of its own', async () => {
+    const { client, clientUndo } = await load()
+    client().setLayout('r(hr:50,co:50)')
+    client().setLayout('r(hr:70,co:30)')
+
+    expect(await clientUndo.undoClient()).toBe('done')
+    expect(selectedUnit(client()).layout).toBe('r(hr:50,co:50)')
+    expect(await clientUndo.undoClient()).toBe('done')
+    expect(selectedUnit(client()).layout).toBe('hr')
+  })
+})
+
+describe('a register type turned on or off', () => {
+  it('is a layout step, taken back to the layout before', async () => {
+    const { client, clientUndo } = await load()
+    client().setType('coils')
+    expect(selectedUnit(client()).layout).not.toBe('hr')
+
+    expect(await clientUndo.undoClient()).toBe('done')
+    expect(selectedUnit(client()).layout).toBe('hr')
+  })
+
+  // The undo opens the type the step is about, and that opening is no step.
+  it('opens a closed type for an undo without a step of its own', async () => {
+    const { client, undo, clientUndo } = await load()
+    client().setType('coils')
+    client().setRegisterMapping('coils', 3, 'comment', 'pump')
+    undo().beginQuiet()
+    client().setType('coils')
+    undo().endQuiet()
+    const steps = undo().client.past.length
+
+    expect(await clientUndo.undoClient()).toBe('done')
+    expect(undo().client.past).toHaveLength(steps - 1)
+    expect(undo().client.future).toHaveLength(1)
+  })
+})
+
 describe('Load and Clear Config', () => {
-  it('are one step that puts the name, the byte order and the mapping back', async () => {
+  it('are one step that puts the name, the byte order, the mapping and the layout back', async () => {
     const { client, undo, clientUndo } = await load()
     client().showType('holding_registers')
     client().setUnitName('boiler')
@@ -284,12 +336,15 @@ describe('Load and Clear Config', () => {
       client().setUnitName('')
       await client().setLittleEndian(false)
       await client().clearRegisterMapping()
+      // Load hands over a file's layout too.
+      client().setLayout('r(hr:50,co:50)')
     })
     expect(undo().client.past).toHaveLength(steps + 1)
 
     expect(await clientUndo.undoClient()).toBe('done')
     expect(selectedUnit(client()).name).toBe('boiler')
     expect(selectedUnit(client()).littleEndian).toBe(true)
+    expect(selectedUnit(client()).layout).toBe('hr')
     expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       comment: 'pump'
     })

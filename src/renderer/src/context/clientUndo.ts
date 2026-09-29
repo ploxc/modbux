@@ -72,6 +72,14 @@ const clientFieldWriters: {
   },
   protocol: (value) => useClientZustand.getState().setProtocol(value),
   unitId: (value) => useClientZustand.getState().setUnitId(String(value)),
+  unitName: (value) => {
+    useClientZustand.getState().setUnitName(value)
+    return Promise.resolve(true)
+  },
+  layout: (value) => {
+    useClientZustand.getState().setLayout(value)
+    return Promise.resolve(true)
+  },
   host: (value) => useClientZustand.getState().setHost(value, isConnectionAddressGiven(value)),
   port: (value) => useClientZustand.getState().setPort(String(value)),
   com: (value) => useClientZustand.getState().setCom(value, isConnectionAddressGiven(value)),
@@ -139,8 +147,8 @@ const replayMapping = (step: ClientMappingStep): Promise<ClientMappingStep | und
 }
 
 const currentConfiguration = (): ClientConfiguration => {
-  const { name, littleEndian, registerMapping } = getSelectedUnit()
-  return { name, littleEndian, registerMapping }
+  const { name, littleEndian, registerMapping, layout } = getSelectedUnit()
+  return { name, littleEndian, registerMapping, layout }
 }
 
 /**
@@ -162,6 +170,7 @@ const replayConfiguration = async (
     return undefined
   }
   client.setUnitName(step.value.name)
+  client.setLayout(step.value.layout)
   showMapping(step.uuid, step.unit, step.type)
   return replaced
 }
@@ -196,10 +205,10 @@ export const redoClient = (): Promise<UndoOutcome> => move('redo')
 /**
  * Runs an action that replaces the configuration, and records it as one step.
  *
- * Load writes the name, the byte order and the mapping, and Clear Config the
- * name and the mapping. Each setter would record its own step; quiet while the
- * action runs, they record none, and the step recorded after carries all three
- * as they were. That step goes on the stack directly rather than through
+ * Load writes the name, the byte order, the mapping and a file's layout, and
+ * Clear Config the name and the mapping. Each setter would record its own
+ * step; quiet while the action runs, they record none, and the step recorded
+ * after carries all of them as they were. That step goes on the stack directly rather than through
  * `recordClient`, which would drop it while an undo that started first is
  * still quiet.
  */
