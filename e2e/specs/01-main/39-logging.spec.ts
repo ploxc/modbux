@@ -10,6 +10,9 @@ import {
   readRegisters
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import { tmpdir } from 'os'
+import { readFile } from 'fs/promises'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-monitor.json')
@@ -106,6 +109,40 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('poll-btn').click()
     await expect(mainPage.getByTestId('stop-poll-confirm-btn')).toHaveCount(0)
     await expect(mainPage.getByTestId('log-status-chip')).toContainText('waiting for Poll')
+  })
+
+  test('Export CSV writes every sample of the ticked registers', async ({
+    electronApp,
+    mainPage
+  }) => {
+    const savePath = resolve(tmpdir(), `modbux-log-export-${Date.now()}.csv`)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.once('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
+
+    await mainPage.getByTestId('log-status-chip').click()
+    await mainPage.getByTestId('log-export-open-btn').click()
+    await expect(mainPage.getByTestId('log-export-tree')).toContainText('setpoint')
+    await mainPage.getByTestId('log-export-btn').click()
+
+    let csv = ''
+    await expect(async () => {
+      csv = await readFile(savePath, 'utf-8')
+    }).toPass()
+    const lines = csv.split('\n')
+    expect(lines[0]).toMatch(/^# Modbux log of /)
+    expect(lines[2]).toBe(
+      'time,unit_id,unit,register_type,address,name,raw,value,engineering_unit,status'
+    )
+    expect(lines.length).toBeGreaterThan(3)
+    expect(lines.slice(3).every((line) => line.includes(',holding_registers,0,setpoint,'))).toBe(
+      true
+    )
+    await mainPage.keyboard.press('Escape')
   })
 
   test('Clear log empties the log', async ({ mainPage }) => {

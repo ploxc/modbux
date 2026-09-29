@@ -15,6 +15,8 @@ import type {
   ClientReadGroup,
   ClientStartLog,
   ClientLogCapacity,
+  ClientLogPage,
+  LogPage,
   ClientScanRegisters,
   ClientScanUnitIds,
   ClientStateEvent,
@@ -91,6 +93,7 @@ export const IPC_CHANNELS = [
   'stop_log',
   'clear_log',
   'set_log_capacity',
+  'get_log_page',
   'write',
   'scan_unit_ids',
   'stop_scanning_unit_ids',
@@ -247,6 +250,11 @@ interface IpcHandlerSpec {
   ['set_log_capacity']: {
     args: [ClientLogCapacity]
     return: void
+  }
+  /** A page of a client's log for an export; nothing for a refused query or no such client. */
+  ['get_log_page']: {
+    args: [ClientLogPage]
+    return: LogPage | undefined
   }
 
   /** Write to registers through a client */

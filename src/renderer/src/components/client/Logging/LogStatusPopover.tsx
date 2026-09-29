@@ -10,6 +10,7 @@ import { textMuted } from '@renderer/theme'
 import { ClientLogCapacitySchema, LogRun } from '@shared'
 import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react'
 import { formatCount, formatTime } from './format'
+import ExportLogDialog from './ExportLog/ExportLogDialog'
 
 interface LogStatusPopoverProps {
   anchor: HTMLElement
@@ -67,6 +68,9 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
   const handleClear = useCallback(() => {
     void window.api.clearLog(uuid)
   }, [uuid])
+  const [exporting, setExporting] = useState(false)
+  const handleExportOpen = useCallback(() => setExporting(true), [])
+  const handleExportClose = useCallback(() => setExporting(false), [])
 
   return (
     <Popover
@@ -139,12 +143,21 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             borderTop: '1px solid',
             borderColor: 'divider',
             pt: 1.5
           }}
         >
+          <Button
+            data-testid="log-export-open-btn"
+            size="medium"
+            variant="outlined"
+            disabled={samples === 0}
+            onClick={handleExportOpen}
+          >
+            Export CSV…
+          </Button>
           <Button
             data-testid="log-clear-btn"
             size="medium"
@@ -156,6 +169,7 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
           </Button>
         </Box>
       </Box>
+      {exporting && <ExportLogDialog onClose={handleExportClose} />}
     </Popover>
   )
 })

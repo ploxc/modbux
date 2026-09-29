@@ -1,25 +1,13 @@
 import {
   DEFAULT_LOG_CAPACITY,
+  LogPage,
   LogRun,
+  LogSample,
+  LogSeries,
   LogSetting,
   LogStatus,
-  LogStopReason,
-  RegisterType
+  LogStopReason
 } from '@shared'
-
-/** Where a sample came from: one register of one unit. */
-export interface LogSeries {
-  unit: string
-  type: RegisterType
-  address: number
-}
-
-/** One sample as the log hands it back. `error` is set on a read that failed. */
-export interface LogSample extends LogSeries {
-  time: number
-  value: number
-  error: string | undefined
-}
 
 /** What a sample shares with every other sample of its series and status. */
 interface SampleMeta {
@@ -58,6 +46,12 @@ export class SessionLog {
   /** The slot the next sample goes in. */
   private _head = 0
   private _count = 0
+  /**
+   * How many samples went in since the log was last cleared. A sample's
+   * sequence is its place in that count, so it names the same sample while
+   * older ones are overwritten.
+   */
+  private _pushed = 0
   private _overwritten = 0
 
   private _metaByKey = new Map<string, SampleMeta>()
@@ -76,21 +70,24 @@ export class SessionLog {
   }
 
   /**
-   * Every sample the log holds, oldest first. A method rather than an arrow,
-   * because a generator has no arrow form.
+   * The samples the log holds, oldest first, after the first `skip` of them.
+   * A method rather than an arrow, because a generator has no arrow form.
    */
-  *samples(): Generator<LogSample> {
+  *samples(skip = 0): Generator<LogSample> {
     const tail = this._tail()
-    const wrapped = tail > 0
-    const segments: [number, number][] = wrapped
-      ? [
-          [tail, this._slots()],
-          [0, this._head]
-        ]
-      : [[0, this._count]]
+    const segments: [number, number][] =
+      tail > 0
+        ? [
+            [tail, this._slots()],
+            [0, this._head]
+          ]
+        : [[0, this._count]]
+    let toSkip = skip
     for (const [from, to] of segments) {
-      for (const [offset, { series, error }] of this._meta.slice(from, to).entries()) {
-        const byte = (from + offset) * SAMPLE_BYTES
+      const start = Math.min(to, from + toSkip)
+      toSkip -= start - from
+      for (const [offset, { series, error }] of this._meta.slice(start, to).entries()) {
+        const byte = (start + offset) * SAMPLE_BYTES
         yield {
           ...series,
           error,
@@ -99,6 +96,23 @@ export class SessionLog {
         }
       }
     }
+  }
+
+  /**
+   * Up to `limit` of the samples `accept` takes, from the sample with sequence
+   * `after` on, and the sequence to ask from next; none once the log is read
+   * to its end. A sequence overwritten since starts at the oldest.
+   */
+  page = (after: number, accept: (sample: LogSample) => boolean, limit: number): LogPage => {
+    const oldest = this._pushed - this._count
+    let sequence = Math.max(after, oldest)
+    const samples: LogSample[] = []
+    for (const sample of this.samples(sequence - oldest)) {
+      sequence++
+      if (accept(sample)) samples.push(sample)
+      if (samples.length === limit) return { samples, next: sequence }
+    }
+    return { samples, next: undefined }
   }
 
   get running(): boolean {
@@ -120,6 +134,7 @@ export class SessionLog {
   setCapacity = (capacity: number): void => {
     if (capacity === this._capacity) return
     const held = [...this.samples()]
+    const pushed = this._pushed
     const kept = held.slice(Math.max(0, held.length - capacity))
     this._capacity = capacity
     this._buffer = new ArrayBuffer(0, { maxByteLength: capacity * SAMPLE_BYTES })
@@ -131,12 +146,14 @@ export class SessionLog {
       this._push(time, value, this._metaOf(series, error))
     }
     this._overwritten += held.length - kept.length
+    this._pushed = pushed
   }
 
   /** Empty the log, and stop it if it runs. */
   clear = (): void => {
     this._head = 0
     this._count = 0
+    this._pushed = 0
     this._overwritten = 0
     this._meta = []
     this._runs = []
@@ -221,6 +238,7 @@ export class SessionLog {
     this._view.setFloat64(slot * SAMPLE_BYTES, time)
     this._view.setFloat64(slot * SAMPLE_BYTES + 8, value)
     this._meta[slot] = meta
+    this._pushed++
     this._head = (slot + 1) % this._slots()
     if (this._count < this._slots()) {
       this._count++

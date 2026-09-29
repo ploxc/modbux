@@ -547,6 +547,7 @@ describe('each guarded channel got its own schema', () => {
     stop_log: 'client-1',
     clear_log: 'client-1',
     set_log_capacity: { uuid: 'client-1', capacity: 5000 },
+    get_log_page: { uuid: 'client-1', after: 0, limit: 100, series: [] },
     stop_scanning_unit_ids: 'client-1',
     stop_scanning_registers: 'client-1',
     write: {

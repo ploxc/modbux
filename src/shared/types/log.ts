@@ -1,4 +1,5 @@
 import z from 'zod'
+import { RegisterTypeSchema } from './register'
 
 /**
  * How a register logs: a sample on every poll, or one only when the value
@@ -50,3 +51,27 @@ export const emptyLogStatus = (): LogStatus => ({
   overwritten: 0,
   runs: []
 })
+
+/** Where a sample came from: one register of one unit. */
+export const LogSeriesSchema = z.object({
+  unit: z.string(),
+  type: RegisterTypeSchema,
+  address: z.number().int().min(0)
+})
+export type LogSeries = z.infer<typeof LogSeriesSchema>
+
+/**
+ * One sample as the log hands it back: the value the data type decodes, and
+ * the error of a read that failed, whose value is NaN.
+ */
+export interface LogSample extends LogSeries {
+  time: number
+  value: number
+  error: string | undefined
+}
+
+/** A page of the log, and the sequence to ask from next, none once it is read to its end. */
+export interface LogPage {
+  samples: LogSample[]
+  next: number | undefined
+}

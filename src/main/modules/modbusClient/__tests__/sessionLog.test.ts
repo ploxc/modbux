@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { LogSetting } from '@shared'
-import { LogSeries, SessionLog } from '../sessionLog'
+import { LogSeries, LogSetting } from '@shared'
+import { SessionLog } from '../sessionLog'
 
 const holding0: LogSeries = { unit: 'unit-a', type: 'holding_registers', address: 0 }
 const coil3: LogSeries = { unit: 'unit-a', type: 'coils', address: 3 }
@@ -162,5 +162,50 @@ describe('SessionLog', () => {
     for (const value of [6, 7]) log.record(holding0, poll, value, value, undefined)
     expect(values(log)).toEqual([3, 4, 5, 6, 7])
     expect(log.status()).toMatchObject({ capacity: 1500, overwritten: 2 })
+  })
+
+  describe('a page', () => {
+    const all = (): boolean => true
+
+    it('hands back what it takes, and where to go on from', () => {
+      const log = running()
+      for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+
+      const first = log.page(0, all, 2)
+      expect(first.samples.map(({ value }) => value)).toEqual([1, 2])
+      const second = log.page(first.next ?? -1, all, 2)
+      expect(second.samples.map(({ value }) => value)).toEqual([3, 4])
+      const last = log.page(second.next ?? -1, all, 2)
+      expect(last.samples.map(({ value }) => value)).toEqual([5])
+      expect(last.next).toBeUndefined()
+    })
+
+    it('reads past what it does not take', () => {
+      const log = running()
+      for (const value of [1, 2, 3, 4, 5]) {
+        log.record(value % 2 === 0 ? coil3 : holding0, poll, value, value, undefined)
+      }
+      const page = log.page(0, ({ type }) => type === 'coils', 10)
+      expect(page.samples.map(({ value }) => value)).toEqual([2, 4])
+    })
+
+    it('starts at the oldest when the sequence asked for was overwritten, and keeps its place as the log wraps', () => {
+      const log = running(3)
+      for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+      const page = log.page(0, all, 1)
+      expect(page.samples.map(({ value }) => value)).toEqual([3])
+
+      log.record(holding0, poll, 6, 6, undefined)
+      const next = log.page(page.next ?? -1, all, 10)
+      expect(next.samples.map(({ value }) => value)).toEqual([4, 5, 6])
+    })
+
+    it('keeps its sequences when the size changes', () => {
+      const log = running(10)
+      for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+      const page = log.page(0, all, 3)
+      log.setCapacity(4)
+      expect(log.page(page.next ?? -1, all, 10).samples.map(({ value }) => value)).toEqual([4, 5])
+    })
   })
 })

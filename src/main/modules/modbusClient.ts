@@ -22,6 +22,10 @@ import {
   isConfiguredAddress,
   isLoggable,
   isLogged,
+  LogPage,
+  LogPageQuery,
+  LogSample,
+  LogSeries,
   LogSetting,
   LogStatus,
   loggedValue,
@@ -46,7 +50,7 @@ import { Windows } from '../windows'
 import { errorText, isGatewaySilence, isModbusException, isTimeout } from './modbusClient/errors'
 import { RequestTarget, Transport, TransportClient } from './modbusClient/transport'
 import { Transports } from './modbusClient/transports'
-import { LogSample, LogSeries, SessionLog } from './modbusClient/sessionLog'
+import { SessionLog } from './modbusClient/sessionLog'
 import {
   NodeStyleCallback,
   ReadCoilResult,
@@ -1164,6 +1168,22 @@ export class ModbusClient implements TransportClient {
 
   /** Every sample the log holds, oldest first. */
   public logSamples = (): Generator<LogSample> => this._log.samples()
+
+  /**
+   * A page of the samples an export asks for: of the registers it names,
+   * between `from` and `to` when it gives them.
+   */
+  public logPage = ({ after, limit, from, to, series }: LogPageQuery): LogPage => {
+    const wanted = new Set(series.map(({ unit, type, address }) => `${unit}|${type}|${address}`))
+    return this._log.page(
+      after,
+      ({ unit, type, address, time }) =>
+        wanted.has(`${unit}|${type}|${address}`) &&
+        (from === undefined || time >= from) &&
+        (to === undefined || time <= to),
+      limit
+    )
+  }
 
   /** Take a connection config update main accepted. */
   public updateConnectionConfig = (update: DeepPartial<ConnectionConfig>): void => {

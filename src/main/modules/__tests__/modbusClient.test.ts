@@ -6156,6 +6156,33 @@ describe('ModbusClient', () => {
       client.stopPolling()
     })
 
+    it('hands an export the registers it names, within its range', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(2000)
+      client.stopPolling()
+      const times = [...client.logSamples()].map(({ time }) => time)
+      expect(times).toHaveLength(3)
+
+      const holding = { unit: UNIT, type: 'holding_registers' as const, address: 0 }
+      const all = client.logPage({ after: 0, limit: 10, series: [holding] })
+      expect(all.samples).toHaveLength(3)
+      const other = client.logPage({ after: 0, limit: 10, series: [{ ...holding, address: 1 }] })
+      expect(other.samples).toHaveLength(0)
+      const ranged = client.logPage({
+        after: 0,
+        limit: 10,
+        from: times[1],
+        to: times[1],
+        series: [holding]
+      })
+      expect(ranged.samples.map(({ time }) => time)).toEqual([times[1]])
+    })
+
     it('holds the size it is given, and says so', async () => {
       client.setLogCapacity(5000)
       expect(getLastClientState().log.capacity).toBe(5000)

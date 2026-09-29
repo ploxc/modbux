@@ -76,8 +76,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   badge on its card and a dot on the rail. Stopping the poll asks first,
   because it stops the log too. The log keeps up to a million samples a
   client for as long as Modbux runs, overwrites the oldest once full, and says
-  so; its chip shows the run time and the samples, and opens the size and
-  Clear log.
+  so; its chip shows the run time and the samples, and opens the size,
+  Export CSV and Clear log. The export takes a range between two dates and
+  the registers ticked in a tree of units, and writes each sample's raw value
+  and its value as the register's conversion makes it.
 
 ### Changed
 

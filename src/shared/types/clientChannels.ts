@@ -13,6 +13,7 @@ import {
 import { RegisterType, RegisterTypeSchema } from './register'
 import { MAX_READ_BITS, RegisterAddressSchema } from './ranges'
 import { ScanRegistersParametersSchema, ScanUnitIDParametersSchema, ScanUnitIDResult } from './scan'
+import { LogSeriesSchema } from './log'
 
 /**
  * The uuid a client is addressed by.
@@ -119,6 +120,22 @@ export const ClientLogCapacitySchema = z.object({
   capacity: z.number().int().min(1000).max(10_000_000)
 })
 export type ClientLogCapacity = z.infer<typeof ClientLogCapacitySchema>
+
+/**
+ * A page of a client's log for an export: the registers it names, from the
+ * sample with sequence `after` on, between `from` and `to` when given.
+ */
+const LogPageQuerySchema = z.object({
+  after: z.number().int().min(0),
+  limit: z.number().int().min(1).max(100_000),
+  from: z.number().optional(),
+  to: z.number().optional(),
+  series: z.array(LogSeriesSchema)
+})
+export type LogPageQuery = z.infer<typeof LogPageQuerySchema>
+
+export const ClientLogPageSchema = LogPageQuerySchema.extend({ uuid: ClientUuidSchema })
+export type ClientLogPage = z.infer<typeof ClientLogPageSchema>
 
 export const ClientWriteSchema = z.object({
   uuid: ClientUuidSchema,

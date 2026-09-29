@@ -17,10 +17,12 @@ const NO_UNITS: ClientUnit[] = []
 
 /**
  * What the current run has lasted and taken, redrawn every second while it
- * runs. A log that is on while the client does not poll waits for the poll.
+ * runs. A log that is on while the client does not poll waits for the poll,
+ * and one that is off shows what it still holds.
  */
 const LogChip = meme(({ onOpen }: { onOpen: (event: MouseEvent<HTMLElement>) => void }) => {
   const uuid = useClientZustand((z) => z.selectedUuid)
+  const enabled = useLiveZustand((z) => dataOf(z, uuid).clientState.log.enabled)
   const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
   const samples = useLiveZustand((z) => dataOf(z, uuid).clientState.log.samples)
   const runStart = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs.at(-1)?.start)
@@ -47,13 +49,19 @@ const LogChip = meme(({ onOpen }: { onOpen: (event: MouseEvent<HTMLElement>) => 
       })}
     >
       <LogDot />
-      Logging
-      <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
-        {running && runStart !== undefined ? formatDuration(now - runStart) : 'waiting for Poll'}
-      </Box>
-      <Box component="span" sx={{ color: textMuted }}>
-        ·
-      </Box>
+      {enabled ? 'Logging' : 'Log'}
+      {enabled && (
+        <>
+          <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
+            {running && runStart !== undefined
+              ? formatDuration(now - runStart)
+              : 'waiting for Poll'}
+          </Box>
+          <Box component="span" sx={{ color: textMuted }}>
+            ·
+          </Box>
+        </>
+      )}
       <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
         {formatCount(samples)} samples
       </Box>
@@ -64,7 +72,8 @@ const LogChip = meme(({ onOpen }: { onOpen: (event: MouseEvent<HTMLElement>) => 
 /**
  * Logging in Monitor's toolbar. Off, it counts the registers that log and
  * offers Enable logging, which stays disabled until one does. On, it shows
- * the log's chip, which opens the log, and Stop logging.
+ * Stop logging. The log's chip opens the log whenever it holds samples or
+ * logging is on.
  */
 const LogControls = meme((): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
@@ -96,6 +105,7 @@ const LogControls = meme((): JSX.Element => {
   if (!enabled) {
     return (
       <>
+        {samples > 0 && <LogChip onOpen={handleOpen} />}
         <Box
           component="span"
           data-testid="log-count"
@@ -117,6 +127,7 @@ const LogControls = meme((): JSX.Element => {
           Enable logging
         </Button>
         {asking && <StartLogDialog onClose={handleCloseAsking} />}
+        {anchor && <LogStatusPopover anchor={anchor} onClose={handleClose} />}
       </>
     )
   }
