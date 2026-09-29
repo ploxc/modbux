@@ -78,11 +78,11 @@ const PollButton = meme((): JSX.Element => {
         color={color}
         variant={variant}
         onClick={togglePolling}
-        // As wide as Logging with its dot, 90 px measured, so the top bar does not
-        // shift between Poll, Polling, Log and Logging, which measured 51 to 90.
+        // As wide as Logging or Polling with its dot, 90 px measured, so the top
+        // bar does not shift between Poll, Polling, Log and Logging.
         sx={{ gap: 1, minWidth: 90 }}
       >
-        {logEnabled && polling && (
+        {polling && (
           <Box
             component="span"
             data-testid="poll-btn-pulse"

@@ -143,12 +143,12 @@ describe("the Poll button's label", () => {
     )
   })
 
-  it('pulses while it logs, and not while it only polls or waits for the poll', () => {
+  it('pulses while it polls, logging or not, and not while it waits for the poll', () => {
     renderButton({ polling: true, log: log(true) }, { mappedOnly: true })
     expect(screen.getByTestId('poll-btn-pulse')).toBeInTheDocument()
     cleanup()
     renderButton({ polling: true, log: log(false) }, { mappedOnly: true })
-    expect(screen.queryByTestId('poll-btn-pulse')).toBeNull()
+    expect(screen.getByTestId('poll-btn-pulse')).toBeInTheDocument()
     cleanup()
     renderButton({ polling: false, log: log(true) }, { mappedOnly: true })
     expect(screen.queryByTestId('poll-btn-pulse')).toBeNull()
