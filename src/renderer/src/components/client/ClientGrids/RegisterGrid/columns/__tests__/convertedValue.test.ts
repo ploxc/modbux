@@ -217,3 +217,36 @@ describe('the number the value column shows', () => {
     expect(shownValue(map, numberRowAt(0, 1))).toBe(undefined)
   })
 })
+
+// RAW left a timestamp parsed, so a unix or datetime register read the same
+// with the switch on and off.
+describe('a timestamp under RAW', () => {
+  const timestampRow = (): RegisterData => ({
+    ...rowAt(0, ''),
+    words: {
+      int16: 0,
+      uint16: 0,
+      int32: 0,
+      uint32: 1_790_000_000,
+      float: 0,
+      unix: '2026-09-21 14:13:20',
+      int64: BigInt(0),
+      uint64: BigInt('0x07EA091D0E2D1F40'),
+      double: 0,
+      datetime: '2026-09-29 14:45:08',
+      utf8: ''
+    }
+  })
+
+  it('shows the seconds a unix register counts', () => {
+    expect(shownValue({ 0: { dataType: 'unix' } }, timestampRow(), true)).toBe(1_790_000_000)
+    expect(shownValue({ 0: { dataType: 'unix' } }, timestampRow())).toBe('2026-09-21 14:13:20')
+  })
+
+  it('shows the four words an IEC 870 datetime packs, in hex', () => {
+    expect(shownValue({ 0: { dataType: 'datetime' } }, timestampRow(), true)).toBe(
+      '07EA 091D 0E2D 1F40'
+    )
+    expect(shownValue({ 0: { dataType: 'datetime' } }, timestampRow())).toBe('2026-09-29 14:45:08')
+  })
+})

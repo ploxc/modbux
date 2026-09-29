@@ -141,7 +141,9 @@ export const getConvertedValue = (
   // input, and those rows outlive a switch of the register type while a read
   // loop owns the grid. A UTF-8 register drew the same word cut to the group it
   // sits in, which is `"undefine"` over four registers.
-  const word = wordOf(row.words, dataType)
+  const { words } = row
+  if (words === undefined) return undefined
+  const word = wordOf(words, dataType)
   if (word === undefined || word === '') return undefined
   const value = String(word)
 
@@ -177,8 +179,15 @@ export const getConvertedValue = (
     return value.slice(0, count * 2)
   }
 
-  // Return a string when it's a string :D
-  if (dataType === 'datetime' || dataType === 'unix') return value
+  // A timestamp shows parsed, and under RAW as what its registers hold: the
+  // seconds a unix register counts, and the four words an IEC 870 datetime
+  // packs, which read as no one number.
+  if (dataType === 'unix') return showRaw ? words.uint32 : value
+  if (dataType === 'datetime') {
+    if (!showRaw) return value
+    const hex = words.uint64.toString(16).toUpperCase().padStart(16, '0')
+    return [0, 4, 8, 12].map((start) => hex.slice(start, start + 4)).join(' ')
+  }
 
   const isNotANumberValue = isNaN(Number(value))
   if (isNotANumberValue) return undefined
