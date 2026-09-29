@@ -33,9 +33,9 @@ const ConversionForm = meme(({ address, onClose }: ConversionFormProps) => {
 
   const handleSave = useCallback(() => {
     const clientZustand = useClientZustand.getState()
-    clientZustand.setRegisterMapping(address, 'conversion', current())
+    clientZustand.setRegisterMapping(type, address, 'conversion', current())
     onClose()
-  }, [address, current, onClose])
+  }, [type, address, current, onClose])
 
   const subject = [String(address), dataType?.toUpperCase(), comment].filter(Boolean).join(' · ')
 

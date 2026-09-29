@@ -93,12 +93,13 @@ const BitMapDetailPanel = meme(({ address }: BitMapDetailPanelProps): JSX.Elemen
         if (Object.keys(updatedEntry).length === 0) delete updated[String(bitIndex)]
       }
       clientZustand.setRegisterMapping(
+        type,
         address,
         'bitMap',
         Object.keys(updated).length > 0 ? updated : undefined
       )
     },
-    [address, bitConfig]
+    [type, address, bitConfig]
   )
 
   const handleCommentChange = useCallback(

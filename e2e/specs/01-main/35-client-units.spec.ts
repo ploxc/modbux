@@ -249,6 +249,36 @@ test.describe.serial('A client with two units', () => {
     await expect(input.locator('.MuiDataGrid-row')).toHaveCount(0)
   })
 
+  // The click that ends the edit lands in the holding section first, and makes
+  // it the section the view acts on before the grid commits the comment.
+  test('a comment ended by a click into the other panel stays where it was typed', async ({
+    mainPage
+  }) => {
+    const holding = mainPage.getByTestId('section-grid-holding_registers')
+    const input = mainPage.getByTestId('section-grid-input_registers')
+    await mainPage.getByTestId('load-dummy-data-btn').click()
+    const comment = (section: Locator): Locator =>
+      section.locator('.MuiDataGrid-row[data-id="0"] [data-field="comment"]')
+
+    await comment(input).dblclick()
+    await mainPage.keyboard.type('typed in input')
+    await holding.locator('.MuiDataGrid-row[data-id="0"] [data-field="hex"]').click()
+
+    // What the store persisted, which is what the next launch reads.
+    const savedComments = (): Promise<unknown> =>
+      mainPage.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('client.zustand') ?? '{}')
+        const mapping =
+          saved.state?.clients?.[saved.state?.selectedUuid]?.units?.[0]?.registerMapping
+        return {
+          input: mapping?.input_registers?.[0]?.comment,
+          holding: mapping?.holding_registers?.[0]?.comment
+        }
+      })
+    await expect.poll(savedComments).toEqual({ input: 'typed in input', holding: undefined })
+    await mainPage.getByTestId('clear-data-btn').click()
+  })
+
   test('a right click on the client card opens its menu, and Rename leaves the field open', async ({
     mainPage
   }) => {

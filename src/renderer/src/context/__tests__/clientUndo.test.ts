@@ -237,7 +237,7 @@ describe('a mapping entry', () => {
   it('goes back under the type it was edited in, and shows that type', async () => {
     const { client, undo, clientUndo } = await load()
     client().showType('holding_registers')
-    client().setRegisterMapping(3, 'comment', 'pump')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
     // Another type on screen, with no step of its own in between.
     undo().beginQuiet()
     client().showType('coils')
@@ -257,10 +257,10 @@ describe('a mapping entry', () => {
   it('comes back whole after a data type of none removed it', async () => {
     const { client, clientUndo } = await load()
     client().showType('holding_registers')
-    client().setRegisterMapping(3, 'dataType', 'int16')
-    client().setRegisterMapping(3, 'comment', 'pump')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'int16')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
 
-    client().setRegisterMapping(3, 'dataType', 'none')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'none')
     expect(selectedUnit(client()).registerMapping.holding_registers[3]).toBeUndefined()
 
     await clientUndo.undoClient()
@@ -276,7 +276,7 @@ describe('Load and Clear Config', () => {
     const { client, undo, clientUndo } = await load()
     client().showType('holding_registers')
     client().setUnitName('boiler')
-    client().setRegisterMapping(3, 'comment', 'pump')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
     await client().setLittleEndian(true)
     const steps = undo().client.past.length
 
@@ -298,7 +298,7 @@ describe('Load and Clear Config', () => {
   it('leaves the byte order where it was when main refuses the mapping', async () => {
     const { client, clientUndo } = await load()
     client().showType('holding_registers')
-    client().setRegisterMapping(3, 'comment', 'pump')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
     await client().setLittleEndian(true)
     await clientUndo.asOneClientStep(async () => {
       await client().setLittleEndian(false)
@@ -315,7 +315,7 @@ describe('Load and Clear Config', () => {
   it('leaves the mapping where it was when main refuses the byte order', async () => {
     const { client, clientUndo } = await load()
     client().showType('holding_registers')
-    client().setRegisterMapping(3, 'comment', 'pump')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
     await client().setLittleEndian(true)
     await clientUndo.asOneClientStep(async () => {
       await client().setLittleEndian(false)

@@ -187,9 +187,8 @@ export const useClientZustand = create<
         set((state) => {
           state.configReset = undefined
         }),
-      setRegisterMapping: (register, key, value) => {
-        const view = viewOf(get())
-        const { type } = view
+      setRegisterMapping: (type, register, key, value) => {
+        const view = { ...viewOf(get()), type }
         const before = selectedUnit(get()).registerMapping[type][register]
 
         set((state) =>

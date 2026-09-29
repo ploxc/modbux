@@ -62,7 +62,7 @@ export const setMappingEntry = async ({
     if (taken) {
       useClientZustand
         .getState()
-        .setRegisterMapping(address, field, value as RegisterMapValue[typeof field])
+        .setRegisterMapping(type, address, field, value as RegisterMapValue[typeof field])
     }
     ;(taken ? changed : refused).push(field)
   }

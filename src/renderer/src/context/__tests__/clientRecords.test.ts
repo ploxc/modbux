@@ -391,7 +391,7 @@ describe('a client taken away while something of it is on its way', () => {
     try {
       const { useClientZustand } = await load()
       const other = useClientZustand.getState().addClient()
-      useClientZustand.getState().setRegisterMapping(3, 'comment', 'pump')
+      useClientZustand.getState().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
       // Main answers the delete only after the edit's timer has run out.
       const api = window.api
       window.api = new Proxy(api, {

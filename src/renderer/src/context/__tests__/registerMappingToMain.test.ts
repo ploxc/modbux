@@ -146,7 +146,7 @@ describe('a single cell edit', () => {
     vi.useFakeTimers()
     const { useClientZustand } = await loadStore()
 
-    useClientZustand.getState().setRegisterMapping(42, 'dataType', 'int16')
+    useClientZustand.getState().setRegisterMapping('holding_registers', 42, 'dataType', 'int16')
 
     expect(methods()).not.toContain('setUnits')
 
@@ -163,10 +163,10 @@ describe('a single cell edit', () => {
   it('leaves read configuration where the user put it', async () => {
     vi.useFakeTimers()
     const { useClientZustand } = await loadStore()
-    useClientZustand.getState().setRegisterMapping(42, 'dataType', 'int16')
+    useClientZustand.getState().setRegisterMapping('holding_registers', 42, 'dataType', 'int16')
     useClientZustand.getState().setReadConfiguration(true)
 
-    useClientZustand.getState().setRegisterMapping(43, 'dataType', 'int16')
+    useClientZustand.getState().setRegisterMapping('holding_registers', 43, 'dataType', 'int16')
     vi.advanceTimersByTime(150)
 
     expect(readsConfiguration(useClientZustand.getState())).toBe(true)

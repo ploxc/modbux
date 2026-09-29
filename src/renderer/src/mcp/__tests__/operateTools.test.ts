@@ -134,7 +134,7 @@ afterEach(() => {
 
 /** A holding register mapped with a data type, which main hears of after a debounce. */
 const mapOneRegister = (): void =>
-  useClientZustand.getState().setRegisterMapping(0, 'dataType', 'int16')
+  useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'int16')
 
 describe('a client tool', () => {
   it('opens the client view from home', async () => {
@@ -204,7 +204,7 @@ describe('set_client_config', () => {
   })
 
   it('refuses read configuration over a mapping with nothing to read', async () => {
-    useClientZustand.getState().setRegisterMapping(0, 'comment', 'a note')
+    useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'comment', 'a note')
     const answer = await run('set_client_config', { client, readConfiguration: true })
     expect(answer).toEqual({ changed: [], refused: ['readConfiguration'] })
     expect(readsConfiguration(useClientZustand.getState())).toBe(false)

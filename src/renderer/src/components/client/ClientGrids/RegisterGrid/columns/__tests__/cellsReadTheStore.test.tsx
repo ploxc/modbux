@@ -87,7 +87,7 @@ describe('a value cell', () => {
   })
 
   it('shows the converted value, and the error a failed read left', () => {
-    useClientZustand.getState().setRegisterMapping(0, 'dataType', 'uint16')
+    useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'uint16')
     poll(rowWith(0, 5))
     drawCell(convertedValueColumn({}, false, []), 0)
     expect(cellText()).toBe('5')

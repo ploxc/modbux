@@ -89,7 +89,12 @@ export type ClientZustand = {
   moveClient: (uuid: string, index: number) => void
   setName: (name: string) => void
   // Register mapping
+  /**
+   * Sets one field of a register's entry under the type named, which is the
+   * section the edit was made in and not always the one the view acts on.
+   */
   setRegisterMapping: <K extends keyof RegisterMapValue, V extends RegisterMapValue[K]>(
+    type: RegisterType,
     register: number,
     key: K,
     value: V

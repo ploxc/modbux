@@ -225,27 +225,27 @@ const RegisterGridContent = meme((): JSX.Element => {
 
       // Update datatype
       if (edited.dataType && edited.dataType !== before.dataType) {
-        clientZustand.setRegisterMapping(newRow.id, 'dataType', edited.dataType)
+        clientZustand.setRegisterMapping(type, newRow.id, 'dataType', edited.dataType)
       }
 
       // An emptied unit field takes the unit away.
       if (typeof edited.unit === 'string' && edited.unit.trim() !== (before.unit ?? '')) {
-        clientZustand.setRegisterMapping(newRow.id, 'unit', edited.unit.trim() || undefined)
+        clientZustand.setRegisterMapping(type, newRow.id, 'unit', edited.unit.trim() || undefined)
       }
 
       // Update comment
       if (typeof edited.comment === 'string' && edited.comment !== before.comment) {
-        clientZustand.setRegisterMapping(newRow.id, 'comment', edited.comment)
+        clientZustand.setRegisterMapping(type, newRow.id, 'comment', edited.comment)
       }
 
       // Update group end
       if (typeof edited.groupEnd === 'boolean' && edited.groupEnd !== before.groupEnd) {
-        clientZustand.setRegisterMapping(newRow.id, 'groupEnd', edited.groupEnd)
+        clientZustand.setRegisterMapping(type, newRow.id, 'groupEnd', edited.groupEnd)
       }
 
       return newRow
     },
-    []
+    [type]
   )
 
   return (
