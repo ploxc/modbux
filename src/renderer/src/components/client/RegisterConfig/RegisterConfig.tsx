@@ -234,7 +234,7 @@ export const ReadConfiguration = meme(() => {
   )
   // While logging it stays on: Debug shows Monitor's reads, which are groups.
   const logEnabled = useLogEnabled()
-  const disabled = nothingConfigured || owner !== undefined || logEnabled
+  const disabled = nothingConfigured || owner !== undefined || (logEnabled && readConfiguration)
 
   // A mapping with nothing to read turns it off. A read in flight does not:
   // that greys the button for a moment, and turning it off would empty the grid

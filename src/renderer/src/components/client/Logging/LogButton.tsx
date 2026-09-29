@@ -15,7 +15,7 @@ const NO_UNITS: ClientUnit[] = []
 /**
  * The log, beside Poll in the top bar. Off, a press enables logging, asking
  * first whether to append when the log holds samples. On, it is lit and a
- * press opens the log. Greyed until a register logs.
+ * press opens the log. Greyed while no register logs and the log is empty.
  */
 const LogButton = meme((): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
@@ -47,7 +47,9 @@ const LogButton = meme((): JSX.Element => {
   const title = enabled
     ? 'The log'
     : logged === 0
-      ? 'No register logs; set Log in Debug'
+      ? samples === 0
+        ? 'No register logs; set Log in Debug'
+        : 'The log; no register logs now'
       : 'Enable logging'
 
   return (
@@ -57,7 +59,7 @@ const LogButton = meme((): JSX.Element => {
         aria-label={title}
         aria-pressed={enabled}
         title={title}
-        disabled={!enabled && logged === 0}
+        disabled={!enabled && logged === 0 && samples === 0}
         size="large"
         variant="outlined"
         color="success"

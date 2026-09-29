@@ -11,7 +11,9 @@ vi.hoisted(async () => {
   stubRenderer()
 })
 
-import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
+import { ApiCall, fireEvent, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
+import { defaultClientState } from '@shared'
+import '@renderer/context/live.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { enableLog } from '../enableLog'
 
@@ -37,5 +39,40 @@ describe('enableLog', () => {
       ...units.map((unit) => ['setReadConfiguration', { uuid, unit, readConfiguration: true }]),
       ['startLog', { uuid, append: true }]
     ])
+  })
+
+  // A unit added while logging is on gets read configuration from the next
+  // state main sends, which comes every poll round.
+  it('turns read configuration on for a unit added while logging is on', async () => {
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+    const uuid = useClientZustand.getState().selectedUuid
+    enableLog(uuid, false)
+    await useClientZustand.getState().addUnit()
+    const added = useClientZustand.getState().clients[uuid]?.units.at(-1)?.uuid ?? ''
+    expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBeFalsy()
+
+    fireEvent('client_state', {
+      uuid,
+      clientState: { ...defaultClientState, log: { ...defaultClientState.log, enabled: true } }
+    })
+
+    expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBe(true)
+    expect(
+      calls
+        .filter(({ method }) => method === 'setReadConfiguration')
+        .map(({ payload }) => payload)
+        .at(-1)
+    ).toEqual({ uuid, unit: added, readConfiguration: true })
+  })
+
+  it('leaves read configuration alone while logging is off', async () => {
+    const uuid = useClientZustand.getState().selectedUuid
+    await useClientZustand.getState().addUnit()
+    const added = useClientZustand.getState().clients[uuid]?.units.at(-1)?.uuid ?? ''
+
+    fireEvent('client_state', { uuid, clientState: defaultClientState })
+
+    expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBeFalsy()
   })
 })

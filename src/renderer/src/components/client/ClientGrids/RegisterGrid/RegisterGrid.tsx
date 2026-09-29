@@ -35,7 +35,10 @@ import {
 } from '@mui/x-data-grid/models'
 import {
   BITMAP_DATATYPE,
+  configuredReadGroups,
   DataTypeSchema,
+  groupEntries,
+  monitorReadsGroup,
   RegisterData,
   RegisterType,
   RegisterTypeSchema,
@@ -157,14 +160,16 @@ const RegisterGridContent = meme((): JSX.Element => {
 
   const apiRef = useGridApiRef()
 
-  // While logging, a row of a group Monitor has off keeps its last value in grey.
+  // While logging, a row of a group Monitor does not read keeps its last value
+  // in grey: its Poll off, and no register in it logging.
   const logEnabled = useLogEnabled()
-  const monitorOffKey = useClientZustand((z) =>
-    Object.entries(selectedUnit(z).registerMapping[type])
-      .filter(([, mapValue]) => mapValue?.monitorPollOff === true)
-      .map(([address]) => address)
+  const monitorOffKey = useClientZustand((z) => {
+    const { registerMapping } = selectedUnit(z)
+    return configuredReadGroups(true, type, registerMapping)
+      .filter((group) => !monitorReadsGroup(type, registerMapping, group, true))
+      .flatMap((group) => groupEntries(type, registerMapping, group).map(([address]) => address))
       .join(',')
-  )
+  })
   const monitorOff = useMemo(
     () => new Set(monitorOffKey === '' ? [] : monitorOffKey.split(',').map(Number)),
     [monitorOffKey]

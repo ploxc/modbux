@@ -696,8 +696,12 @@ export const useClientZustand = create<
         window.api.setReadConfiguration({ uuid, unit, readConfiguration })
       },
       readConfigurationForLog: (uuid) => {
-        if (!get().sessions[uuid]?.ready) return
-        const units = get().clients[uuid]?.units ?? []
+        const session = get().sessions[uuid]
+        if (!session?.ready) return
+        const units = (get().clients[uuid]?.units ?? []).filter(
+          (unit) => !(session.readConfiguration[unit.uuid] ?? false)
+        )
+        if (units.length === 0) return
         set((state) =>
           onClient(state, uuid, ({ session }) => {
             for (const unit of units) session.readConfiguration[unit.uuid] = true

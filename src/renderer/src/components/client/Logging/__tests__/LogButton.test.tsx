@@ -71,6 +71,18 @@ describe('the log button', () => {
     expect(renderLogButton({ logs: false, log: { enabled: true } })).toBeEnabled()
   })
 
+  // The samples stay reachable after the last register stops logging.
+  it('offers only the export over samples while no register logs', async () => {
+    const button = renderLogButton({ logs: false, log: { samples: 12 } })
+    expect(button).toBeEnabled()
+
+    await userEvent.setup().click(button)
+
+    expect(screen.getByTestId('log-start-export-btn')).toBeInTheDocument()
+    expect(screen.queryByTestId('log-start-append-btn')).toBeNull()
+    expect(screen.queryByTestId('log-start-new-btn')).toBeNull()
+  })
+
   it('enables logging on a press over an empty log', async () => {
     await userEvent.setup().click(renderLogButton())
 

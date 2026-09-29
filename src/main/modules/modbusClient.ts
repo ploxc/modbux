@@ -14,8 +14,6 @@ import {
   clientOwner,
   convertBitData,
   configuredReadGroups,
-  groupEntries,
-  groupPoll,
   convertRegisterData,
   DeepPartial,
   createRegisters,
@@ -25,6 +23,7 @@ import {
   isLoggable,
   isLogged,
   monitorPolledGroups,
+  monitorReadsGroup,
   LogPage,
   LogPageQuery,
   LogSample,
@@ -1014,13 +1013,8 @@ export class ModbusClient implements TransportClient {
    * a register in it logs.
    */
   private _monitorRoundGroups = (unit: ClientUnit, type: RegisterType): AddressGroup[] =>
-    configuredReadGroups(true, type, unit.registerMapping).filter(
-      (group) =>
-        groupPoll(type, unit.registerMapping, group) !== 'off' ||
-        (this._log.running &&
-          groupEntries(type, unit.registerMapping, group).some(([, mapValue]) =>
-            isLogged(type, mapValue)
-          ))
+    configuredReadGroups(true, type, unit.registerMapping).filter((group) =>
+      monitorReadsGroup(type, unit.registerMapping, group, this._log.running)
     )
 
   /**

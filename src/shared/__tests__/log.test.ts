@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  monitorReadsGroup,
   getDummyRegisterData,
   isLoggable,
   isLogged,
   loggedRegisterCount,
   loggedValue,
   newClientUnit,
-  RegisterMapObjectSchema
+  RegisterMapObjectSchema,
+  emptyRegisterMapping
 } from '..'
+import type { RegisterMapping } from '..'
 
 describe('isLoggable', () => {
   it('takes a register with a number data type, a bitmap, and a bit with a comment', () => {
@@ -105,5 +108,35 @@ describe('loggedRegisterCount', () => {
 
     expect(loggedRegisterCount([first, second])).toBe(3)
     expect(loggedRegisterCount([])).toBe(0)
+  })
+})
+
+describe('monitorReadsGroup', () => {
+  const mapping = (entries: RegisterMapping['holding_registers']): RegisterMapping => ({
+    ...emptyRegisterMapping(),
+    holding_registers: entries
+  })
+  const reads = (entries: RegisterMapping['holding_registers'], logging: boolean): boolean =>
+    monitorReadsGroup('holding_registers', mapping(entries), [0, 2], logging)
+
+  it('reads a group whose Poll is on, or mixed', () => {
+    expect(reads({ 0: { dataType: 'uint16' }, 1: { dataType: 'uint16' } }, false)).toBe(true)
+    expect(
+      reads({ 0: { dataType: 'uint16', monitorPollOff: true }, 1: { dataType: 'uint16' } }, false)
+    ).toBe(true)
+  })
+
+  it('leaves out a group whose Poll is off, logging or not, while nothing in it logs', () => {
+    const off = { 0: { dataType: 'uint16' as const, monitorPollOff: true } }
+    expect(reads(off, false)).toBe(false)
+    expect(reads(off, true)).toBe(false)
+  })
+
+  it('reads a group whose Poll is off while a register in it logs, only while logging', () => {
+    const logged = {
+      0: { dataType: 'uint16' as const, monitorPollOff: true, log: { mode: 'poll' as const } }
+    }
+    expect(reads(logged, true)).toBe(true)
+    expect(reads(logged, false)).toBe(false)
   })
 })

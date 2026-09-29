@@ -1,9 +1,11 @@
-import { isConfiguredAddress } from './addressGrouping'
+import { groupEntries, groupPoll, isConfiguredAddress } from './addressGrouping'
 import {
+  AddressGroup,
   ClientUnit,
   DataType,
   RegisterData,
   RegisterDataWords,
+  RegisterMapping,
   RegisterMapValue,
   RegisterType,
   isBooleanRegister,
@@ -73,3 +75,17 @@ export const loggedValue = (
   const word = dataType === undefined ? undefined : LOGGED_WORDS[dataType]
   return word && row.words ? word(row.words) : undefined
 }
+
+/**
+ * Whether Monitor's poll round reads `group` of `type`: while its Poll is on or
+ * mixed, and while `logging`, also off when a register in it logs.
+ */
+export const monitorReadsGroup = (
+  type: RegisterType,
+  registerMapping: RegisterMapping | undefined,
+  group: AddressGroup,
+  logging: boolean
+): boolean =>
+  groupPoll(type, registerMapping, group) !== 'off' ||
+  (logging &&
+    groupEntries(type, registerMapping, group).some(([, mapValue]) => isLogged(type, mapValue)))
