@@ -13,6 +13,7 @@ import { PROTOCOL_COLORS, clientStatus } from './clientStatus'
 import StatusDot from './StatusDot'
 import { addClient } from './ClientSidebar'
 import ProtocolIcon from './ProtocolIcon'
+import ViewSwitch from './ViewSwitch'
 
 const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
   const selected = useClientZustand((z) => z.selectedUuid === uuid)
@@ -88,6 +89,7 @@ const ClientRail = meme(({ onExpand }: { onExpand: () => void }): JSX.Element =>
       >
         <KeyboardDoubleArrowLeft />
       </IconButton>
+      <ViewSwitch rail />
       <Box sx={{ width: 24, height: '1px', background: '#333333', flexShrink: 0 }} />
       {uuids.map((uuid) => (
         <RailClient key={uuid} uuid={uuid} />

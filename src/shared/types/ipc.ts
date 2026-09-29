@@ -12,10 +12,12 @@ import type {
   ClientRegisterConfigUpdate,
   ClientUnits,
   ClientRead,
+  ClientReadGroup,
   ClientScanRegisters,
   ClientScanUnitIds,
   ClientStateEvent,
   ClientWrite,
+  GroupDataEvent,
   RegisterDataEvent,
   RemoveRegisterParams,
   ScanProgressEvent,
@@ -80,6 +82,7 @@ export const IPC_CHANNELS = [
   'connect',
   'disconnect',
   'read',
+  'read_group',
   'start_polling',
   'stop_polling',
   'write',
@@ -203,6 +206,10 @@ interface IpcHandlerSpec {
   /** Read one register type of one unit. The rows come back as a `register_data` event. */
   ['read']: {
     args: [ClientRead]
+    return: void
+  }
+  ['read_group']: {
+    args: [ClientReadGroup]
     return: void
   }
 
@@ -465,6 +472,7 @@ const EVENTS_TO_RENDERER = [
   'register_value',
   'window_update',
   'address_groups',
+  'group_data',
   'rtu_server_status',
   'mcp_call'
 ] as const
@@ -486,6 +494,7 @@ export interface IpcEventPayloadMap {
   ['window_update']: [WindowsOpen]
   ['open_server_window']: []
   ['address_groups']: [AddressGroupsEvent]
+  ['group_data']: [GroupDataEvent]
   ['rtu_server_status']: [boolean]
   ['mcp_call']: [McpCall]
   /** The id of a call the window has taken, sent before it runs the tool. */

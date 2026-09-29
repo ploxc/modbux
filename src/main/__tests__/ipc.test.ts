@@ -540,6 +540,7 @@ describe('each guarded channel got its own schema', () => {
     connect: 'client-1',
     disconnect: 'client-1',
     read: { uuid: 'client-1', unit: 'unit-1', type: 'holding_registers' },
+    read_group: { uuid: 'client-1', unit: 'unit-1', type: 'coils', group: [0, 16] },
     start_polling: 'client-1',
     stop_polling: 'client-1',
     stop_scanning_unit_ids: 'client-1',

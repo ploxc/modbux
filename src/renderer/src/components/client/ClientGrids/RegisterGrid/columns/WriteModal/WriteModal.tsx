@@ -1,4 +1,3 @@
-import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import Publish from '@mui/icons-material/Publish'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -11,14 +10,8 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import DataTypeSelectInput from '@renderer/components/shared/inputs/DataTypeSelectInput'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { maskInputProps, MaskInputProps } from '@renderer/components/shared/inputs/types'
-import {
-  selectedClientUuid,
-  useClientZustand,
-  getShownType,
-  getSelectedUnit,
-  selectedUnit
-} from '@renderer/context/client.zustand'
-import { getShownSection } from '@renderer/context/live.zustand'
+import { useClientZustand, getShownType, getSelectedUnit } from '@renderer/context/client.zustand'
+import { getShownSection, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useMinMaxInteger } from '@renderer/hooks'
 import { notEmpty, RegisterType } from '@shared'
 import { ElementType, forwardRef, RefObject, useCallback, useEffect, useMemo, useRef } from 'react'
@@ -26,6 +19,7 @@ import { decimalMask } from '@renderer/components/shared/inputs/decimalMask'
 import { IMaskInput } from 'react-imask'
 import { lineColor } from '@renderer/theme'
 import { seedCoils, useValueInputZustand, writeDataTypeFor } from './writeModal.zustand'
+import { useWriteTarget } from './writeTarget'
 
 const ValueInputForward = forwardRef<HTMLInputElement, MaskInputProps>((props, ref) => {
   const { set, ...other } = props
@@ -77,6 +71,7 @@ const ValueInputComponent = meme(({ address }: { address: number }) => {
 
 export const DataTypeSelect = meme(({ address }: { address: number }) => {
   const dataType = useValueInputZustand((z) => z.dataType)
+  const { uuid, unit, type, monitor } = useWriteTarget()
 
   const setDataType = useValueInputZustand.getState().setDataType
 
@@ -84,12 +79,13 @@ export const DataTypeSelect = meme(({ address }: { address: number }) => {
   // nothing about gets the default rather than the last address's type.
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const { registerMapping } = getSelectedUnit()
+    const registerMapping = monitor
+      ? useClientZustand.getState().clients[uuid]?.units.find((each) => each.uuid === unit)
+          ?.registerMapping[type]
+      : getSelectedUnit().registerMapping[getShownType()]
 
-    valueInputZustand.setDataType(
-      writeDataTypeFor(registerMapping[getShownType()][address]?.dataType)
-    )
-  }, [address])
+    valueInputZustand.setDataType(writeDataTypeFor(registerMapping?.[address]?.dataType))
+  }, [address, uuid, unit, type, monitor])
 
   return <DataTypeSelectInput dataType={dataType} setDataType={setDataType} />
 })
@@ -99,12 +95,13 @@ export const WriteRegistersButton = meme(() => {
   const dataType = useValueInputZustand((z) => z.dataType)
   const value = useValueInputZustand((z) => z.value)
   const valid = useValueInputZustand((z) => z.valid)
+  const { uuid, unit } = useWriteTarget()
 
   const handleWrite = useCallback(
     (single: boolean) => {
       window.api.write({
-        uuid: selectedClientUuid(),
-        unit: getSelectedUnit().uuid,
+        uuid,
+        unit,
         parameters: {
           address,
           dataType,
@@ -114,7 +111,7 @@ export const WriteRegistersButton = meme(() => {
         }
       })
     },
-    [address, dataType, value]
+    [uuid, unit, address, dataType, value]
   )
 
   // An empty field is `Number('')`, which is 0, and 0 is a value the device
@@ -152,8 +149,11 @@ export const WriteRegistersButton = meme(() => {
 
 export const CoilFunctionSelect = meme(() => {
   const address = useValueInputZustand((z) => z.address)
-  const type = useSectionType()
-  const registerConfigAddress = useClientZustand((z) => selectedUnit(z).sections[type].address)
+  const {
+    uuid,
+    unit,
+    window: [registerConfigAddress]
+  } = useWriteTarget()
   const coils = useValueInputZustand((z) => z.coils)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
@@ -169,8 +169,8 @@ export const CoilFunctionSelect = meme(() => {
   const handleWrite = useCallback(() => {
     const from = address - registerConfigAddress
     window.api.write({
-      uuid: selectedClientUuid(),
-      unit: getSelectedUnit().uuid,
+      uuid,
+      unit,
       parameters: {
         address,
         type: 'coils',
@@ -178,7 +178,7 @@ export const CoilFunctionSelect = meme(() => {
         single: coilFunction === 5
       }
     })
-  }, [address, coilFunction, coils, registerConfigAddress])
+  }, [uuid, unit, address, coilFunction, coils, registerConfigAddress])
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -229,8 +229,9 @@ const addressLabel = {
 /** FC5: the coil the dialog opened on, and 0 or 1 for it, as FC15 writes it. */
 const SingleCoil = meme(() => {
   const address = useValueInputZustand((z) => z.address)
-  const type = useSectionType()
-  const registerConfigAddress = useClientZustand((z) => selectedUnit(z).sections[type].address)
+  const {
+    window: [registerConfigAddress]
+  } = useWriteTarget()
   const index = address - registerConfigAddress
   const state = useValueInputZustand((z) => z.coils[index])
 
@@ -302,17 +303,23 @@ const CoilButton = meme(({ address, index }: CoilButtonProps) => {
 const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7]
 
 export const Coils = meme(() => {
-  const type = useSectionType()
-  const length = useClientZustand((z) => selectedUnit(z).sections[type].length)
-  const registerConfigAddress = useClientZustand((z) => selectedUnit(z).sections[type].address)
+  const {
+    uuid,
+    unit,
+    type,
+    monitor,
+    window: [registerConfigAddress, length]
+  } = useWriteTarget()
   const address = useValueInputZustand((z) => z.address)
   const coilFunction = useValueInputZustand((z) => z.coilFunction)
 
   useEffect(() => {
     const valueInputZustand = useValueInputZustand.getState()
-    const { registerData } = getShownSection()
+    const { registerData } = monitor
+      ? sectionOf(useLiveZustand.getState(), uuid, unit, type, true)
+      : getShownSection()
     valueInputZustand.initCoils(seedCoils(registerData, registerConfigAddress, length))
-  }, [length, registerConfigAddress])
+  }, [length, registerConfigAddress, monitor, uuid, unit, type])
 
   // What the picker draws is what one FC15 writes: from the coil pressed to the
   // end of the read window, and at most `COILS_PER_WRITE` of them.

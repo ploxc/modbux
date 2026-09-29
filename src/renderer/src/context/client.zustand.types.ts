@@ -166,7 +166,8 @@ export type ClientZustand = {
   /** The selected unit's layout, as `formatLayout` writes it: a drag or a resize. */
   setLayout: (layout: string) => void
   /** Whether a poll reads `type` of the selected unit. */
-  setPolled: (type: RegisterType, polled: boolean) => Promise<boolean>
+  /** Whether a poll reads `type` of the selected unit, or of the unit under `unit`. */
+  setPolled: (type: RegisterType, polled: boolean, unit?: string) => Promise<boolean>
   setCom: AsyncMaskSetFn
   setBaudRate: (baudRate: ModbusBaudRate) => Promise<boolean>
   setParity: (parity: Parity) => Promise<boolean>

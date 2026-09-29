@@ -460,8 +460,10 @@ export const useClientZustand = create<
         clearRegisterDataWhenIdle(view, false)
         return true
       },
-      setPolled: async (type, polled) => {
-        const before = selectedUnit(get()).sections[type].polled
+      setPolled: async (type, polled, unitUuid = selectedUnit(get()).uuid) => {
+        const found = selectedClient(get()).units.find(({ uuid }) => uuid === unitUuid)
+        if (!found) return false
+        const before = found.sections[type].polled
         if (polled === before) return true
         const view = await changeUnit(
           set,
@@ -469,7 +471,8 @@ export const useClientZustand = create<
           (unit) => {
             unit.sections[type].polled = polled
           },
-          type
+          type,
+          unitUuid
         )
         if (!view) return false
         recordField(view, 'polled', before, polled)

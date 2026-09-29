@@ -86,6 +86,54 @@ describe('what is on screen', () => {
 })
 
 describe('what Monitor reads', () => {
+  it('takes one group read on its own in place of that group, and its result beside it', async () => {
+    const { useLiveZustand } = await load()
+    const { sectionOf } = await import('../live.zustand.helpers')
+    const target = {
+      uuid: MAIN_CLIENT_UUID,
+      unit: MAIN_UNIT_UUID,
+      type: 'holding_registers'
+    } as const
+    const row = (id: number, hex: string): RegisterData => ({ ...getDummyRegisterData(id), hex })
+    fireEvent('register_data', {
+      ...target,
+      registerData: [row(0, '0001'), row(200, '0002')],
+      monitor: true
+    })
+    fireEvent('address_groups', {
+      ...target,
+      addressGroups: [
+        [0, 1],
+        [200, 1]
+      ],
+      results: [
+        { roundTripMillis: 4, error: undefined },
+        { roundTripMillis: 4, error: undefined }
+      ],
+      monitor: true
+    })
+
+    fireEvent('group_data', {
+      ...target,
+      group: [200, 1],
+      result: { roundTripMillis: 9, error: undefined },
+      registerData: [row(200, '00FF')]
+    })
+
+    const section = sectionOf(
+      useLiveZustand.getState(),
+      MAIN_CLIENT_UUID,
+      MAIN_UNIT_UUID,
+      'holding_registers',
+      true
+    )
+    expect(section.registerData.map(({ id, hex }) => [id, hex])).toEqual([
+      [0, '0001'],
+      [200, '00FF']
+    ])
+    expect(section.groupResults.map(({ roundTripMillis }) => roundTripMillis)).toEqual([4, 9])
+  })
+
   it('is kept apart from the rows Debug shows', async () => {
     const { useLiveZustand } = await load()
     const { sectionOf } = await import('../live.zustand.helpers')

@@ -153,3 +153,38 @@ describe('naming a unit', () => {
     await vi.waitFor(() => expect(sentUnits()[0]?.name).toBe('Inverter'))
   })
 })
+
+// Monitor's group head switches Poll for its own unit, which need not be the
+// one Debug has selected.
+describe('polling a register type of a unit', () => {
+  it('changes the unit it names and leaves the selected one alone', async () => {
+    const { useClientZustand } = await load()
+    const first = selectedUnit(useClientZustand.getState())
+    await useClientZustand.getState().addUnit()
+    const second = selectedUnit(useClientZustand.getState())
+    useClientZustand.getState().selectUnit(first.uuid)
+    const before = second.sections.coils.polled
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().setPolled('coils', !before, second.uuid)).toBe(true)
+
+    const units = selectedClient(useClientZustand.getState()).units
+    expect(units.map((unit) => unit.sections.coils.polled)).toEqual([
+      first.sections.coils.polled,
+      !before
+    ])
+    expect(sentUnits().map((unit) => unit.sections.coils.polled)).toEqual([
+      first.sections.coils.polled,
+      !before
+    ])
+    expect(selectedUnit(useClientZustand.getState()).uuid).toBe(first.uuid)
+  })
+
+  it('refuses a unit the client does not hold', async () => {
+    const { useClientZustand } = await load()
+    recordApiCalls(calls)
+
+    expect(await useClientZustand.getState().setPolled('coils', true, 'no-such-unit')).toBe(false)
+    expect(sentUnits()).toEqual([])
+  })
+})

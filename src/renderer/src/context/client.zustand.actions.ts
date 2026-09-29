@@ -128,9 +128,10 @@ export const appendUnit = async (
 }
 
 /**
- * The selected unit changed by `change`, sent to main with the client's other
- * units, and written where main took it. Answers the view it changed, or
- * undefined for a store with no session yet and for a refusal.
+ * The selected unit, or the unit of the selected client under `unitUuid`,
+ * changed by `change`, sent to main with the client's other units, and written
+ * where main took it. Answers the view it changed, or undefined for a store
+ * with no session yet, for a unit the client does not hold and for a refusal.
  *
  * The write applies `change` to the unit the store holds then, rather than
  * writing the copy that was sent, so a mapping edit that landed while main
@@ -140,12 +141,15 @@ export const changeUnit = async (
   set: ClientSet,
   get: () => ClientZustand,
   change: (unit: ClientUnit) => void,
-  type: RegisterType = shownType(get())
+  type: RegisterType = shownType(get()),
+  unitUuid: string = selectedUnit(get()).uuid
 ): Promise<ClientStepView | undefined> => {
   const state = get()
   if (!selectedSession(state).ready) return undefined
-  const view = { ...viewOf(state), type }
-  const after = structuredClone(selectedUnit(state))
+  const target = selectedClient(state).units.find(({ uuid }) => uuid === unitUuid)
+  if (!target) return undefined
+  const view = { ...viewOf(state), unit: unitUuid, type }
+  const after = structuredClone(target)
   change(after)
   const units = selectedClient(state).units.map((unit) => (unit.uuid === view.unit ? after : unit))
   if (!(await flushUnitsToMain(view.uuid, units))) return undefined

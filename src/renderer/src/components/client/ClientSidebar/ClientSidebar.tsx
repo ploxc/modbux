@@ -7,6 +7,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback, useMemo } from 'react'
 import ClientCard from './ClientCard/ClientCard'
+import ViewSwitch from './ViewSwitch'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { VERTICAL_IN_PARENT, useDragSensors } from '@renderer/components/shared/sortable'
@@ -45,6 +46,7 @@ const ClientSidebar = meme(({ onCollapse }: { onCollapse: () => void }): JSX.Ele
         overflowY: 'auto'
       }}
     >
+      <ViewSwitch />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, pl: 0.5 }}>
         <Box
           component="span"

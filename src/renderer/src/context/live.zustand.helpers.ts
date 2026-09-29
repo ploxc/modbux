@@ -58,9 +58,10 @@ export const rowAt = (
   uuid: string,
   unit: string,
   type: RegisterType,
-  address: number
+  address: number,
+  monitor = false
 ): RegisterData | undefined => {
-  const { registerData } = sectionOf(state, uuid, unit, type)
+  const { registerData } = sectionOf(state, uuid, unit, type, monitor)
   let index = rowIndexes.get(registerData)
   if (index === undefined) {
     index = new Map(registerData.map((row) => [row.id, row]))

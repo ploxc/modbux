@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Monitor Client",
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {
+      "0": {
+        "comment": "Pump"
+      },
+      "1": {
+        "comment": "Fan"
+      }
+    },
+    "discrete_inputs": {},
+    "holding_registers": {
+      "0": {
+        "dataType": "int16",
+        "comment": "setpoint"
+      },
+      "1": {
+        "dataType": "uint16",
+        "scalingFactor": 0.1,
+        "comment": "temperature scaled"
+      }
+    },
+    "input_registers": {
+      "0": {
+        "dataType": "int16",
+        "comment": "sensor value"
+      }
+    }
+  }
+}

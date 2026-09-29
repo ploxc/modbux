@@ -6,6 +6,7 @@ import {
   ClientRegisterConfigUpdateSchema,
   ClientUnitsSchema,
   ClientReadSchema,
+  ClientReadGroupSchema,
   ClientScanRegistersSchema,
   ClientScanUnitIdsSchema,
   ClientCreateSchema,
@@ -106,6 +107,7 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'connect',
   'disconnect',
   'read',
+  'read_group',
   'start_polling',
   'stop_polling',
   'write',
@@ -242,6 +244,11 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
     'read',
     (_, { uuid, unit, type }) => clients.get(uuid)?.read(unit, type),
     ClientReadSchema
+  )
+  ipcHandle(
+    'read_group',
+    (_, { uuid, unit, type, group }) => clients.get(uuid)?.readGroup(unit, type, group),
+    ClientReadGroupSchema
   )
   ipcHandle('start_polling', (_, uuid) => clients.get(uuid)?.startPolling(), ClientUuidSchema)
   ipcHandle('stop_polling', (_, uuid) => clients.get(uuid)?.stopPolling(), ClientUuidSchema)

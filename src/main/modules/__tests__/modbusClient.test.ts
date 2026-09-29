@@ -3415,6 +3415,79 @@ describe('ModbusClient', () => {
       ])
     })
 
+    describe('one group on its own', () => {
+      const mapping = (): RegisterMapping => ({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' }, 200: { dataType: 'uint16' } }
+      })
+
+      it('reads only that group and sends it as group_data', async () => {
+        await connectClient()
+        setRegisterMapping(mapping())
+        setupHoldingRegisterReadMock([7])
+
+        await client.readGroup(UNIT, 'holding_registers', [200, 1])
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual([[200, 1]])
+        const sent = sentWhole.filter(([event]) => event === 'group_data')
+        expect(sent).toHaveLength(1)
+        expect(sent[0]?.[1]).toMatchObject({
+          unit: UNIT,
+          type: 'holding_registers',
+          group: [200, 1],
+          result: { error: undefined },
+          registerData: [{ id: 200, groupIndex: 1 }]
+        })
+        expect(getWindowCalls('register_data')).toEqual([])
+      })
+
+      it('puts an error row on each configured address of a group that failed', async () => {
+        await connectClient()
+        setRegisterMapping(mapping())
+        mockModbusRTU.readHoldingRegisters.mockRejectedValue(new Error('read timeout'))
+
+        await client.readGroup(UNIT, 'holding_registers', [0, 1])
+
+        const sent = sentWhole.find(([event]) => event === 'group_data')?.[1]
+        expect(sent).toMatchObject({
+          result: { error: 'read timeout' },
+          registerData: [{ id: 0, error: 'read timeout' }]
+        })
+      })
+
+      it('refuses a group the mapping does not configure', async () => {
+        await connectClient()
+        setRegisterMapping(mapping())
+        setupHoldingRegisterReadMock([7])
+
+        await client.readGroup(UNIT, 'holding_registers', [0, 125])
+
+        expect(mockModbusRTU.readHoldingRegisters).not.toHaveBeenCalled()
+        expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+          message: 'Cannot read, the mapping has no such group'
+        })
+      })
+
+      it('is refused during a poll', async () => {
+        await connectClient()
+        setRegisterMapping(mapping())
+        setupHoldingRegisterReadMock([7])
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+        mockModbusRTU.readHoldingRegisters.mockClear()
+
+        await client.readGroup(UNIT, 'holding_registers', [200, 1])
+
+        expect(sentWhole.filter(([event]) => event === 'group_data')).toEqual([])
+        expect(getWindowCalls('backend_message').at(-1)?.[1]).toMatchObject({
+          message: 'Cannot read during a poll'
+        })
+        client.stopPolling()
+      })
+    })
+
     it('handles read error and continues to next group', async () => {
       await connectClient()
       appState.setReadConfiguration(UNIT, true)

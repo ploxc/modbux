@@ -174,6 +174,32 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
       )
     },
 
+    mergeGroupData: (uuid, unit, type, [start, length], result, registerData) =>
+      set((state) =>
+        onSection(
+          state,
+          uuid,
+          unit,
+          type,
+          (section) => {
+            const outside = section.registerData.filter(
+              ({ id }) => id < start || id >= start + length
+            )
+            section.registerData = [...outside, ...registerData].sort((a, b) => a.id - b.id)
+            const index = section.addressGroups.findIndex(
+              ([address, groupLength]) => address === start && groupLength === length
+            )
+            if (index === -1) {
+              section.addressGroups.push([start, length])
+              section.groupResults.push(result)
+            } else {
+              section.groupResults[index] = result
+            }
+          },
+          true
+        )
+      ),
+
     // What is on screen
     //
     // A section leaving the screen while the poll reads it keeps its rows,
@@ -499,6 +525,12 @@ onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
 onEvent('address_groups', ({ uuid, unit, type, addressGroups, results, monitor }) => {
   if (!isHeld(uuid)) return
   useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups, results, monitor)
+})
+
+// One group Monitor read on its own
+onEvent('group_data', ({ uuid, unit, type, group, result, registerData }) => {
+  if (!isHeld(uuid)) return
+  useLiveZustand.getState().mergeGroupData(uuid, unit, type, group, result, registerData)
 })
 
 // Client state, like polling, scanning, etc.

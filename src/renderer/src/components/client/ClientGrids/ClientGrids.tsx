@@ -11,6 +11,8 @@ import Paper from '@mui/material/Paper'
 import { panelShadow } from '@renderer/theme'
 import ClientGridBar from './ClientGridBar'
 import LayoutView from './LayoutView'
+import Monitor from '@renderer/components/client/Monitor/Monitor'
+import { useClientViewZustand } from '@renderer/context/clientView.zustand'
 
 /** How low the open log may get; any lower and it closes to its bar. */
 const LOG_MIN_HEIGHT = 160
@@ -28,6 +30,7 @@ const ClientGrids = meme((): JSX.Element | null => {
   const showWhileScanning = useLayoutZustand((z) => z.showGridWhileScanning)
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const scanning = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.scanningRegisters)
+  const monitor = useClientViewZustand((z) => z.view === 'monitor')
 
   if (scanning && !showWhileScanning) return null
 
@@ -65,10 +68,16 @@ const ClientGrids = meme((): JSX.Element | null => {
               boxShadow: panelShadow
             }}
           >
-            <ClientGridBar />
-            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-              <LayoutView />
-            </Box>
+            {monitor ? (
+              <Monitor />
+            ) : (
+              <>
+                <ClientGridBar />
+                <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                  <LayoutView />
+                </Box>
+              </>
+            )}
           </Paper>
         </Panel>
         {logOpen && (

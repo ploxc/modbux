@@ -60,6 +60,19 @@ export interface LiveZustand {
     monitor?: boolean
   ) => void
 
+  /**
+   * Put the rows of one group Monitor read on its own in place of that group's
+   * rows, and how the read went beside the group.
+   */
+  mergeGroupData: (
+    uuid: string,
+    unit: string,
+    type: RegisterType,
+    group: AddressGroup,
+    result: AddressGroupResult,
+    data: RegisterData[]
+  ) => void
+
   // What is on screen
   showSection: (uuid: string, unit: string, type: RegisterType) => void
   hideSection: (uuid: string, unit: string, type: RegisterType) => void

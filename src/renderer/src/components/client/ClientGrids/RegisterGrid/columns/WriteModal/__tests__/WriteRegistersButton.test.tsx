@@ -3,6 +3,7 @@
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { WriteTarget } from '../writeTarget'
 
 // WriteModal reaches both root stores, and each registers ipcRenderer listeners
 // on import. The buttons read neither.
@@ -10,6 +11,16 @@ vi.mock('@renderer/context/client.zustand', () => ({
   useClientZustand: Object.assign(() => undefined, { getState: () => ({}) }),
   selectedClientUuid: (): string => 'the-client',
   getSelectedUnit: (): { uuid: string } => ({ uuid: 'the-unit' })
+}))
+// The dialog writes where it was opened, which Debug takes from the selection.
+vi.mock('../writeTarget', () => ({
+  useWriteTarget: (): WriteTarget => ({
+    uuid: 'the-client',
+    unit: 'the-unit',
+    type: 'holding_registers',
+    window: [0, 10],
+    monitor: false
+  })
 }))
 vi.mock('@renderer/context/live.zustand', () => ({
   useLiveZustand: Object.assign(() => undefined, { getState: () => ({ registerData: [] }) })

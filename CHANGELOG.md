@@ -59,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keep showing the same values.
 - **The round trip of each request** shows in the transaction log and in the
   grid's footer.
+- **Monitor.** A switch at the top of the sidebar, or two icons on the folded
+  rail, changes the client view between Debug and Monitor, and Modbux opens in
+  the one you left. Monitor shows the read configuration of every unit of the
+  client in one grid, one head per request with the unit, the register type,
+  the round trip and whether it failed. The poll reads every group whose Poll
+  is on, whether or not it is scrolled into view or folded. READ reads one
+  group, Show unit opens that unit in Debug, and the pencil writes as it does
+  in Debug. Writing waits until the poll stops. Expand all and Collapse all
+  open and fold every group.
 
 ### Changed
 

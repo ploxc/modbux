@@ -11,6 +11,7 @@ import {
   WriteParametersSchema
 } from './client'
 import { RegisterType, RegisterTypeSchema } from './register'
+import { MAX_READ_BITS, RegisterAddressSchema } from './ranges'
 import { ScanRegistersParametersSchema, ScanUnitIDParametersSchema, ScanUnitIDResult } from './scan'
 
 /**
@@ -79,8 +80,7 @@ export type ClientReadConfiguration = z.infer<typeof ClientReadConfigurationSche
  */
 /**
  * What of a client is on screen: the sections Debug shows, or the whole client
- * in Monitor, which reads every unit's configured groups whatever is scrolled
- * or folded.
+ * in Monitor, whose poll reads the configured groups of every unit.
  */
 export const ClientVisibleSectionsSchema = z.object({
   uuid: ClientUuidSchema,
@@ -96,6 +96,15 @@ export const ClientReadSchema = z.object({
   type: RegisterTypeSchema
 })
 export type ClientRead = z.infer<typeof ClientReadSchema>
+
+/** One read of a group Monitor shows: its start and its length. */
+export const ClientReadGroupSchema = z.object({
+  uuid: ClientUuidSchema,
+  unit: UnitUuidSchema,
+  type: RegisterTypeSchema,
+  group: z.tuple([RegisterAddressSchema, z.number().int().min(1).max(MAX_READ_BITS)])
+})
+export type ClientReadGroup = z.infer<typeof ClientReadGroupSchema>
 
 export const ClientWriteSchema = z.object({
   uuid: ClientUuidSchema,
@@ -144,6 +153,16 @@ export interface AddressGroupsEvent {
   results: AddressGroupResult[]
   /** Whether the read was Monitor's. */
   monitor: boolean
+}
+
+/** The rows of one group Monitor read on its own, and how the read went. */
+export interface GroupDataEvent {
+  uuid: string
+  unit: string
+  type: RegisterType
+  group: AddressGroup
+  result: AddressGroupResult
+  registerData: RegisterData[]
 }
 
 export interface TransactionEvent {

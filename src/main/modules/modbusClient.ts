@@ -600,73 +600,29 @@ export class ModbusClient implements TransportClient {
       Math.min(length, maxReadQuantity([type]), registersFrom(address))
     ]
     const groups = configGroups.length > 0 ? configGroups : [window]
-    // An exception is an answer as much as a value is: the device is there.
-    // A gateway's 10 or 11 is the gateway answering for a device that is not.
     let answered = false
     let silent = false
 
     const results: AddressGroupResult[] = []
 
-    for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
+    for (const [groupIndex, group] of groups.entries()) {
       if (stopped()) return undefined
-      const result: AddressGroupResult = { roundTripMillis: undefined, error: undefined }
-      results.push(result)
-      const groupTarget: RequestTarget = {
-        ...target,
-        onRoundTrip: (roundTripMillis) => {
-          result.roundTripMillis = roundTripMillis
-        }
-      }
-      const settled = await this._settle(
-        ride,
-        this._readers[type](transport, groupTarget, groupAddress, groupLength, unit.littleEndian)
-      )
+      const read = await this._readGroup(transport, ride, target, unit, type, group, groupIndex)
       // The connection went while this group waited, so nothing of this read
       // goes anywhere.
-      if (!settled) return undefined
-      if (settled.ok || (isModbusException(settled.error) && !isGatewaySilence(settled.error))) {
-        answered = true
-      } else if (isTimeout(settled.error) || isGatewaySilence(settled.error)) {
-        silent = true
-      }
-      if (settled.ok) {
-        settled.result.forEach((row) => {
-          row.groupIndex = groupIndex
+      if (!read) return undefined
+      if (read.heard === 'answered') answered = true
+      if (read.heard === 'silent') silent = true
+      results.push(read.result)
+      if (read.result.error === undefined || readConfiguration) {
+        data.push(...read.rows)
+      } else if (!stopped()) {
+        const [groupAddress, groupLength] = group
+        this._emitMessage({
+          message: `${read.result.error} [addr:${groupAddress}, len:${groupLength}, id:${unit.unitId}]`,
+          variant: 'error',
+          error: read.error
         })
-        data.push(...settled.result)
-      } else {
-        const { error } = settled
-        const errorMessage = errorText(error)
-        result.error = errorMessage
-
-        if (readConfiguration) {
-          // Generate error placeholder rows for configured addresses in this failed group
-          for (const [addressKey, mapValue] of Object.entries(unit.registerMapping[type])) {
-            const mappedAddress = Number(addressKey)
-            if (
-              mappedAddress >= groupAddress &&
-              mappedAddress < groupAddress + groupLength &&
-              isConfiguredAddress(type, mapValue)
-            ) {
-              data.push({
-                id: mappedAddress,
-                buffer: new Uint8Array(2),
-                hex: '0000',
-                words: undefined,
-                bit: false,
-                isScanned: false,
-                error: errorMessage,
-                groupIndex
-              })
-            }
-          }
-        } else if (!stopped()) {
-          this._emitMessage({
-            message: `${errorMessage} [addr:${groupAddress}, len:${groupLength}, id:${unit.unitId}]`,
-            variant: 'error',
-            error
-          })
-        }
       }
     }
 
@@ -686,6 +642,136 @@ export class ModbusClient implements TransportClient {
     }
     if (answered) return true
     return silent ? false : undefined
+  }
+
+  /**
+   * One request for one group, and the rows it leaves: the rows read, or an
+   * error row on each configured address of a group that failed. Undefined
+   * when the ride ended while the request waited.
+   *
+   * `heard` is what the request says about the device. An exception is an
+   * answer as much as a value is: the device is there. A gateway's 10 or 11 is
+   * the gateway answering for a device that is not.
+   */
+  private _readGroup = async (
+    transport: Transport,
+    ride: Ride,
+    target: RequestTarget,
+    unit: ClientUnit,
+    type: RegisterType,
+    [groupAddress, groupLength]: AddressGroup,
+    groupIndex: number
+  ): Promise<
+    | {
+        rows: RegisterData[]
+        result: AddressGroupResult
+        heard: 'answered' | 'silent' | undefined
+        error: unknown
+      }
+    | undefined
+  > => {
+    const result: AddressGroupResult = { roundTripMillis: undefined, error: undefined }
+    const groupTarget: RequestTarget = {
+      ...target,
+      onRoundTrip: (roundTripMillis) => {
+        result.roundTripMillis = roundTripMillis
+      }
+    }
+    const settled = await this._settle(
+      ride,
+      this._readers[type](transport, groupTarget, groupAddress, groupLength, unit.littleEndian)
+    )
+    if (!settled) return undefined
+    const heard =
+      settled.ok || (isModbusException(settled.error) && !isGatewaySilence(settled.error))
+        ? 'answered'
+        : isTimeout(settled.error) || isGatewaySilence(settled.error)
+          ? 'silent'
+          : undefined
+    if (settled.ok) {
+      settled.result.forEach((row) => {
+        row.groupIndex = groupIndex
+      })
+      return { rows: settled.result, result, heard, error: undefined }
+    }
+    result.error = errorText(settled.error)
+    const rows: RegisterData[] = []
+    for (const [addressKey, mapValue] of Object.entries(unit.registerMapping[type])) {
+      const mappedAddress = Number(addressKey)
+      if (
+        mappedAddress >= groupAddress &&
+        mappedAddress < groupAddress + groupLength &&
+        isConfiguredAddress(type, mapValue)
+      ) {
+        rows.push({
+          id: mappedAddress,
+          buffer: new Uint8Array(2),
+          hex: '0000',
+          words: undefined,
+          bit: false,
+          isScanned: false,
+          error: result.error,
+          groupIndex
+        })
+      }
+    }
+    return { rows, result, heard, error: settled.error }
+  }
+
+  /**
+   * Read one of the groups Monitor shows, and nothing else of this client's
+   * until it has answered, as `read` does. The group has to be one the unit's
+   * mapping configures, because a group is what Monitor draws a head for.
+   */
+  public readGroup = async (
+    unit: string,
+    type: RegisterType,
+    group: AddressGroup
+  ): Promise<void> => {
+    if (!this._requireClient('read')) return
+    const found = this._unitOrSay('read', unit)
+    if (!found) return
+    const groups = configuredReadGroups(true, type, found.registerMapping)
+    const groupIndex = groups.findIndex(
+      ([address, length]) => address === group[0] && length === group[1]
+    )
+    if (groupIndex === -1) {
+      this._emitMessage({
+        message: 'Cannot read, the mapping has no such group',
+        variant: 'warning',
+        error: null
+      })
+      return
+    }
+    if (this._refusesUnitId('read', found.unitId)) return
+    const transport = this._connectedTransport('read')
+    if (!transport) return
+
+    this._clientState.reading = true
+    this._sendClientState()
+    try {
+      const ride = this._rideOn(transport)
+      const readGeneration = this._appState.readGeneration(found.uuid)
+      const target = this._target(ride, found.unitId, this._appState.registerConfig.timeout)
+      const read = await this._readGroup(transport, ride, target, found, type, group, groupIndex)
+      if (!read || this._appState.readGeneration(found.uuid) !== readGeneration) return
+      this._windows.send(
+        'group_data',
+        {
+          uuid: this.uuid,
+          unit: found.uuid,
+          type,
+          group,
+          result: read.result,
+          registerData: read.rows
+        },
+        'main'
+      )
+      this._hear(found.uuid, read.heard === undefined ? undefined : read.heard === 'answered')
+    } finally {
+      this._clientState.reading = false
+      this._sendClientState()
+    }
   }
 
   /**
