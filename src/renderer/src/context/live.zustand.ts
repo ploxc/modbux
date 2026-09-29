@@ -565,7 +565,6 @@ onEvent('client_state', ({ uuid, clientState }) => {
     for (const key of scanRowKeysOf(uuid)) pendingScanRows.flush(key)
   if (!clientState.scanningUnitIds) pendingUnitIdResults.flush(uuid)
   useLiveZustand.getState().setClientState(uuid, clientState)
-  if (clientState.log.enabled) useClientZustand.getState().readConfigurationForLog(uuid)
 })
 
 // Transactions from the transation log

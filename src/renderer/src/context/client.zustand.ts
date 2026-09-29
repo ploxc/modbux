@@ -695,11 +695,13 @@ export const useClientZustand = create<
         // mapping. The next Read or poll brings the values.
         window.api.setReadConfiguration({ uuid, unit, readConfiguration })
       },
-      readConfigurationForLog: (uuid) => {
+      readConfigurationForLog: (uuid, only) => {
         const session = get().sessions[uuid]
         if (!session?.ready) return
         const units = (get().clients[uuid]?.units ?? []).filter(
-          (unit) => !(session.readConfiguration[unit.uuid] ?? false)
+          (unit) =>
+            !(session.readConfiguration[unit.uuid] ?? false) &&
+            (only === undefined || only.includes(unit.uuid))
         )
         if (units.length === 0) return
         set((state) =>

@@ -124,6 +124,9 @@ export const appendUnit = async (
       session.selectedUnit = unit.uuid
     })
   )
+  // While logging Debug shows Monitor's reads, over the mapping.
+  if (dataOf(useLiveZustand.getState(), selectedUuid).clientState.log.enabled)
+    get().readConfigurationForLog(selectedUuid, [unit.uuid])
   return true
 }
 

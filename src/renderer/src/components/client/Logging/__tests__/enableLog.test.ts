@@ -41,38 +41,41 @@ describe('enableLog', () => {
     ])
   })
 
-  // A unit added while logging is on gets read configuration from the next
-  // state main sends, which comes every poll round.
+  const loggingState = {
+    ...defaultClientState,
+    log: { ...defaultClientState.log, enabled: true }
+  }
+
   it('turns read configuration on for a unit added while logging is on', async () => {
-    const calls: ApiCall[] = []
-    recordApiCalls(calls)
     const uuid = useClientZustand.getState().selectedUuid
-    enableLog(uuid, false)
+    fireEvent('client_state', { uuid, clientState: loggingState })
+
     await useClientZustand.getState().addUnit()
+
     const added = useClientZustand.getState().clients[uuid]?.units.at(-1)?.uuid ?? ''
-    expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBeFalsy()
-
-    fireEvent('client_state', {
-      uuid,
-      clientState: { ...defaultClientState, log: { ...defaultClientState.log, enabled: true } }
-    })
-
     expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBe(true)
-    expect(
-      calls
-        .filter(({ method }) => method === 'setReadConfiguration')
-        .map(({ payload }) => payload)
-        .at(-1)
-    ).toEqual({ uuid, unit: added, readConfiguration: true })
   })
 
-  it('leaves read configuration alone while logging is off', async () => {
+  it('leaves a unit added while logging is off without it', async () => {
     const uuid = useClientZustand.getState().selectedUuid
-    await useClientZustand.getState().addUnit()
-    const added = useClientZustand.getState().clients[uuid]?.units.at(-1)?.uuid ?? ''
-
     fireEvent('client_state', { uuid, clientState: defaultClientState })
 
+    await useClientZustand.getState().addUnit()
+
+    const added = useClientZustand.getState().clients[uuid]?.units.at(-1)?.uuid ?? ''
     expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[added]).toBeFalsy()
+  })
+
+  // A register scan turns it off on purpose, and main's state keeps coming
+  // while logging is on.
+  it('leaves read configuration off where it was turned off while logging', () => {
+    const uuid = useClientZustand.getState().selectedUuid
+    fireEvent('client_state', { uuid, clientState: loggingState })
+    useClientZustand.getState().setReadConfiguration(false)
+    const unit = useClientZustand.getState().sessions[uuid]?.selectedUnit ?? ''
+
+    fireEvent('client_state', { uuid, clientState: loggingState })
+
+    expect(useClientZustand.getState().sessions[uuid]?.readConfiguration[unit]).toBe(false)
   })
 })
