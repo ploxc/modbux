@@ -18,6 +18,7 @@ import ProtocolIcon from '../ProtocolIcon'
 import AddUnitRow from './AddUnitRow'
 import ClientMenu from './ClientMenu'
 import UnitRow from './UnitRow'
+import RecBadge from '@renderer/components/client/Logging/RecBadge'
 import { useSortable } from '@dnd-kit/sortable'
 import { sortableStyle } from '@renderer/components/shared/sortable'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
@@ -43,6 +44,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
   const pollIdle = useLiveZustand((z) => dataOf(z, uuid).clientState.pollIdle)
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
+  const logging = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
 
   // Joined, so the answer compares equal while the units stay the same.
   const unitList = useClientZustand(
@@ -208,6 +210,7 @@ const ClientCard = meme(({ uuid, deletable }: ClientCardProps): JSX.Element | nu
           {address}
         </Box>
       </Box>
+      {logging && <RecBadge uuid={uuid} />}
     </>
   )
 

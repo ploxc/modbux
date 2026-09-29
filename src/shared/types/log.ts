@@ -16,23 +16,37 @@ export type LogSetting = z.infer<typeof LogSettingSchema>
 export const DEFAULT_LOG_CAPACITY = 1_000_000
 
 /** Why a run of the log ended, which the chart shows at the gap after it. */
-export type LogStopReason = 'log stopped' | 'poll stopped' | 'disconnected'
+const LogStopReasonSchema = z.enum(['log stopped', 'poll stopped', 'disconnected'])
+export type LogStopReason = z.infer<typeof LogStopReasonSchema>
 
 /** One stretch of the log between a start and a stop. */
-export interface LogRun {
-  start: number
-  end?: number
-  reason?: LogStopReason
-}
+const LogRunSchema = z.object({
+  start: z.number(),
+  end: z.number().optional(),
+  reason: LogStopReasonSchema.optional()
+})
+export type LogRun = z.infer<typeof LogRunSchema>
 
-/** What a client's log holds and whether it is taking samples. */
-export interface LogStatus {
-  running: boolean
-  samples: number
-  capacity: number
-  /** How many samples were overwritten, since the log was last started new. */
-  overwritten: number
+/** What a client's log holds, whether logging is on, and whether it takes samples. */
+export const LogStatusSchema = z.object({
+  /** Logging is switched on; it takes samples while the client also polls. */
+  enabled: z.boolean(),
+  running: z.boolean(),
+  samples: z.number(),
+  capacity: z.number(),
+  /** How many samples were overwritten, since the log was last cleared. */
+  overwritten: z.number(),
   /** The time of the oldest sample still held. */
-  oldest: number | undefined
-  runs: LogRun[]
-}
+  oldest: z.number().optional(),
+  runs: z.array(LogRunSchema)
+})
+export type LogStatus = z.infer<typeof LogStatusSchema>
+
+export const emptyLogStatus = (): LogStatus => ({
+  enabled: false,
+  running: false,
+  samples: 0,
+  capacity: DEFAULT_LOG_CAPACITY,
+  overwritten: 0,
+  runs: []
+})

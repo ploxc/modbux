@@ -13,6 +13,8 @@ import type {
   ClientUnits,
   ClientRead,
   ClientReadGroup,
+  ClientStartLog,
+  ClientLogCapacity,
   ClientScanRegisters,
   ClientScanUnitIds,
   ClientStateEvent,
@@ -85,6 +87,10 @@ export const IPC_CHANNELS = [
   'read_group',
   'start_polling',
   'stop_polling',
+  'start_log',
+  'stop_log',
+  'clear_log',
+  'set_log_capacity',
   'write',
   'scan_unit_ids',
   'stop_scanning_unit_ids',
@@ -222,6 +228,24 @@ interface IpcHandlerSpec {
   /** Stop polling on a client */
   ['stop_polling']: {
     args: [string]
+    return: void
+  }
+
+  /** Switch a client's logging on. Its status comes back with the client state. */
+  ['start_log']: {
+    args: [ClientStartLog]
+    return: void
+  }
+  ['stop_log']: {
+    args: [string]
+    return: void
+  }
+  ['clear_log']: {
+    args: [string]
+    return: void
+  }
+  ['set_log_capacity']: {
+    args: [ClientLogCapacity]
     return: void
   }
 

@@ -67,7 +67,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is on, whether or not it is scrolled into view or folded. READ reads one
   group, Show unit opens that unit in Debug, and the pencil writes as it does
   in Debug. Writing waits until the poll stops. Expand all and Collapse all
-  open and fold every group.
+  open and fold every group. RAW sits in its toolbar as it does in Debug, and
+  a raw value shows in RAW's colour in both views.
+- **Logging.** The Log column in Debug sets a register to log on every poll,
+  or on a change past a deadband. A register in the read configuration can
+  log, as a bit or a number. Enable logging in Monitor's toolbar starts the
+  log, and a client that logs is read whatever the screen shows, with a REC
+  badge on its card and a dot on the rail. Stopping the poll asks first,
+  because it stops the log too. The log keeps up to a million samples a
+  client for as long as Modbux runs, overwrites the oldest once full, and says
+  so; its chip shows the run time and the samples, and opens the size and
+  Clear log.
 
 ### Changed
 

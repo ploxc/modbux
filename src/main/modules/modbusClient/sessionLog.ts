@@ -113,6 +113,26 @@ export class SessionLog {
     this._runs.push({ start: time })
   }
 
+  /**
+   * Hold `capacity` samples from here on. A smaller log keeps the newest of
+   * what it holds and counts the rest as overwritten.
+   */
+  setCapacity = (capacity: number): void => {
+    if (capacity === this._capacity) return
+    const held = [...this.samples()]
+    const kept = held.slice(Math.max(0, held.length - capacity))
+    this._capacity = capacity
+    this._buffer = new ArrayBuffer(0, { maxByteLength: capacity * SAMPLE_BYTES })
+    this._view = new DataView(this._buffer)
+    this._head = 0
+    this._count = 0
+    this._meta = []
+    for (const { time, value, error, ...series } of kept) {
+      this._push(time, value, this._metaOf(series, error))
+    }
+    this._overwritten += held.length - kept.length
+  }
+
   /** Empty the log, and stop it if it runs. */
   clear = (): void => {
     this._head = 0
@@ -156,7 +176,7 @@ export class SessionLog {
     this._push(time, value, meta)
   }
 
-  status = (): LogStatus => ({
+  status = (): Omit<LogStatus, 'enabled'> => ({
     running: this.running,
     samples: this._count,
     capacity: this._capacity,

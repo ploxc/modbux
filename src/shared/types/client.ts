@@ -16,7 +16,7 @@ import { RegisterType } from './register'
 import { parseLayout } from '../layout'
 import { SerialPortOptionsSchema } from './serial'
 import { ConversionSchema } from './conversion'
-import { LogSettingSchema } from './log'
+import { LogSettingSchema, LogStatusSchema } from './log'
 
 //
 //
@@ -322,7 +322,8 @@ export const ClientStateSchema = z.object({
   scanningUnitIds: z.boolean(),
   scanningRegisters: z.boolean(),
   reading: z.boolean(),
-  writing: z.boolean()
+  writing: z.boolean(),
+  log: LogStatusSchema
 })
 export type ClientState = z.infer<typeof ClientStateSchema>
 

@@ -141,4 +141,26 @@ describe('SessionLog', () => {
     expect(kept[0]).toBe(100)
     expect(kept.at(-1)).toBe(1599)
   })
+
+  it('keeps the newest samples when it shrinks, and counts the rest as overwritten', () => {
+    const log = running(10)
+    for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+
+    log.setCapacity(3)
+    expect(values(log)).toEqual([3, 4, 5])
+    expect(log.status()).toMatchObject({ capacity: 3, samples: 3, overwritten: 2 })
+
+    log.record(holding0, poll, 6, 6, undefined)
+    expect(values(log)).toEqual([4, 5, 6])
+  })
+
+  it('keeps every sample when it grows, in order, after it had wrapped', () => {
+    const log = running(3)
+    for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+
+    log.setCapacity(1500)
+    for (const value of [6, 7]) log.record(holding0, poll, value, value, undefined)
+    expect(values(log)).toEqual([3, 4, 5, 6, 7])
+    expect(log.status()).toMatchObject({ capacity: 1500, overwritten: 2 })
+  })
 })

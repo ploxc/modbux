@@ -12,7 +12,7 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { dataOf, rowAt, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
-import { ClientUnit, isNumberRegister } from '@shared'
+import { ClientUnit, isLogged, isNumberRegister } from '@shared'
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MonitorRegisterRow } from './monitorRows'
 
@@ -26,9 +26,26 @@ export const unitIn = (state: ClientUnits, uuid: string, unit: string): ClientUn
 export const AddressCell = meme(({ row }: { row: MonitorRegisterRow }): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
   const addressBase = useClientZustand((z) => unitIn(z, uuid, row.unit)?.addressBase ?? '0')
+  const logged = useClientZustand((z) =>
+    isLogged(row.type, unitIn(z, uuid, row.unit)?.registerMapping[row.type][row.address])
+  )
   return (
-    <Box sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
-      {row.address + Number(addressBase)}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box
+        component="span"
+        data-testid={logged ? 'monitor-row-logs' : undefined}
+        title={logged ? 'Logs' : undefined}
+        sx={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          flexShrink: 0,
+          bgcolor: logged ? 'success.main' : 'transparent'
+        }}
+      />
+      <Box component="span" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+        {row.address + Number(addressBase)}
+      </Box>
     </Box>
   )
 })

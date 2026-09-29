@@ -4,6 +4,7 @@ import {
   ClientState,
   ClientUnit,
   ConnectionConfig,
+  emptyLogStatus,
   RegisterConfig,
   RegisterData,
   RegisterDataWords,
@@ -98,7 +99,8 @@ export const defaultClientState: ClientState = {
   scanningUnitIds: false,
   scanningRegisters: false,
   reading: false,
-  writing: false
+  writing: false,
+  log: emptyLogStatus()
 }
 
 export const dummyWords: RegisterDataWords = {

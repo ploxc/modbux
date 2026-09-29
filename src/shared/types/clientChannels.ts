@@ -106,6 +106,20 @@ export const ClientReadGroupSchema = z.object({
 })
 export type ClientReadGroup = z.infer<typeof ClientReadGroupSchema>
 
+/** Switch a client's logging on, after the samples its log holds or in an empty log. */
+export const ClientStartLogSchema = z.object({
+  uuid: ClientUuidSchema,
+  append: z.boolean()
+})
+export type ClientStartLog = z.infer<typeof ClientStartLogSchema>
+
+/** How many samples a client's log holds, each 16 bytes and a reference in main. */
+export const ClientLogCapacitySchema = z.object({
+  uuid: ClientUuidSchema,
+  capacity: z.number().int().min(1000).max(10_000_000)
+})
+export type ClientLogCapacity = z.infer<typeof ClientLogCapacitySchema>
+
 export const ClientWriteSchema = z.object({
   uuid: ClientUuidSchema,
   unit: UnitUuidSchema,

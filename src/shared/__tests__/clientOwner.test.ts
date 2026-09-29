@@ -34,15 +34,20 @@ describe('who owns the client', () => {
 
   // Every boolean of `ClientState`, so one added later fails here rather than
   // being let through in silence.
-  it('names every state the client reports but the connect state, the offline units and pollIdle', () => {
+  it('names every state the client reports but the connect state, the offline units, pollIdle and the log', () => {
     const flags = Object.entries(ClientStateSchema.shape)
-      .filter(([key]) => !['connectState', 'offlineUnits', 'pollIdle'].includes(key))
+      .filter(([key]) => !['connectState', 'offlineUnits', 'pollIdle', 'log'].includes(key))
       .map(([key]) => key)
 
     expect(flags.length).toBeGreaterThan(0)
     for (const flag of flags) {
       expect(clientOwner({ ...idle, [flag]: true })).toBeDefined()
     }
+  })
+
+  // The log takes samples from the poll's reads, and the poll is what owns the client.
+  it('names nothing for a log that is on', () => {
+    expect(clientOwner({ ...idle, log: { ...idle.log, enabled: true } })).toBeUndefined()
   })
 
   // Offline says how a unit answers, and a poll of it goes on.

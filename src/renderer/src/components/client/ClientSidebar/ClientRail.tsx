@@ -23,6 +23,7 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
   const polling = useLiveZustand((z) => dataOf(z, uuid).clientState.polling)
   const pollIdle = useLiveZustand((z) => dataOf(z, uuid).clientState.pollIdle)
   const offline = useLiveZustand((z) => dataOf(z, uuid).clientState.offlineUnits.length > 0)
+  const logging = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
 
   const handleSelect = useCallback(() => {
     const clientZustand = useClientZustand.getState()
@@ -52,6 +53,22 @@ const RailClient = meme(({ uuid }: { uuid: string }): JSX.Element | null => {
       >
         <ProtocolIcon protocol={protocol} />
         <StatusDot tone={status.tone} polling={status.polling} hollow={status.hollow} offset={3} />
+        {logging && (
+          <Box
+            component="span"
+            data-testid={`client-rail-logging-${uuid}`}
+            sx={(theme) => ({
+              position: 'absolute',
+              right: -3,
+              top: -3,
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              bgcolor: 'success.main',
+              border: `2px solid ${theme.palette.background.paper}`
+            })}
+          />
+        )}
       </ButtonBase>
     </Tooltip>
   )

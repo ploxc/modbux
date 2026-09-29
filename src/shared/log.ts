@@ -1,11 +1,13 @@
 import { isConfiguredAddress } from './addressGrouping'
 import {
+  ClientUnit,
   DataType,
   RegisterData,
   RegisterDataWords,
   RegisterMapValue,
   RegisterType,
-  isBooleanRegister
+  isBooleanRegister,
+  RegisterTypeSchema
 } from './types'
 
 /**
@@ -41,6 +43,21 @@ export const isLoggable = (
 /** Whether a register logs: it can, and its mapping says so. */
 export const isLogged = (type: RegisterType, mapValue: RegisterMapValue | undefined): boolean =>
   mapValue?.log !== undefined && isLoggable(type, mapValue)
+
+/** How many registers of `units` log. */
+export const loggedRegisterCount = (units: readonly ClientUnit[]): number =>
+  units.reduce(
+    (count, unit) =>
+      count +
+      RegisterTypeSchema.options.reduce(
+        (inType, type) =>
+          inType +
+          Object.values(unit.registerMapping[type]).filter((mapValue) => isLogged(type, mapValue))
+            .length,
+        0
+      ),
+    0
+  )
 
 /**
  * The number a log keeps for a row, before the conversion: 1 or 0 for a bit.

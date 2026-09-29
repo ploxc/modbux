@@ -14,6 +14,7 @@ import { bitColumn } from './bit'
 import { dataTypeColumn } from './dataType'
 import { conversionColumn } from './conversion/conversionColumn'
 import { unitColumn } from './unit'
+import { logColumn } from './log/logColumn'
 import { hexColumn } from './hex'
 import { binaryColumn } from './binary'
 import { valueColumn } from './value'
@@ -51,7 +52,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     }
 
     if (!registers16Bit) {
-      columns.push(bitColumn)
+      columns.push(bitColumn, logColumn)
     }
 
     if (registers16Bit) {
@@ -60,6 +61,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
         bitmapValueColumn(registerMap, showRaw, addressGroups),
         conversionColumn,
         unitColumn(registerMap),
+        logColumn,
         groupEndColumn(registerMap),
         hexColumn,
         binaryColumn

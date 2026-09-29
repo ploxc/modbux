@@ -543,6 +543,10 @@ describe('each guarded channel got its own schema', () => {
     read_group: { uuid: 'client-1', unit: 'unit-1', type: 'coils', group: [0, 16] },
     start_polling: 'client-1',
     stop_polling: 'client-1',
+    start_log: { uuid: 'client-1', append: true },
+    stop_log: 'client-1',
+    clear_log: 'client-1',
+    set_log_capacity: { uuid: 'client-1', capacity: 5000 },
     stop_scanning_unit_ids: 'client-1',
     stop_scanning_registers: 'client-1',
     write: {

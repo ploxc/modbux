@@ -221,6 +221,7 @@ export class ModbusClient implements TransportClient {
     this._windows.send('backend_message', message, 'main')
   }
   private _sendClientState = (): void => {
+    this._clientState.log = { ...this._log.status(), enabled: this._logEnabled }
     this._clientState.pollIdle =
       this._clientState.polling &&
       this._appState.units.every((unit) => this._roundReads(unit).length === 0)
@@ -1092,6 +1093,8 @@ export class ModbusClient implements TransportClient {
     this._roundStartedAt = Date.now()
     await this._pollRound(generation)
     if (generation !== this._pollGeneration) return
+    // The round's samples reach the log's status once a round, not once a read.
+    if (this._log.running) this._sendClientState()
     this._armPoll(generation)
   }
 
@@ -1134,15 +1137,30 @@ export class ModbusClient implements TransportClient {
     if (!append) this._log.clear()
     this._logEnabled = true
     if (this._clientState.polling) this._log.start(Date.now())
+    this._sendClientState()
   }
 
   /** Switch logging off, keeping the samples it took. */
   public stopLog = (): void => {
     this._logEnabled = false
     this._log.stop(Date.now(), 'log stopped')
+    this._sendClientState()
   }
 
-  public logStatus = (): LogStatus => this._log.status()
+  /** Empty the log. Logging stays on if it was, and a poll running goes on filling it. */
+  public clearLog = (): void => {
+    this._log.clear()
+    if (this._logEnabled && this._clientState.polling) this._log.start(Date.now())
+    this._sendClientState()
+  }
+
+  /** How many samples the log holds before it overwrites the oldest, for this session. */
+  public setLogCapacity = (capacity: number): void => {
+    this._log.setCapacity(capacity)
+    this._sendClientState()
+  }
+
+  public logStatus = (): LogStatus => ({ ...this._log.status(), enabled: this._logEnabled })
 
   /** Every sample the log holds, oldest first. */
   public logSamples = (): Generator<LogSample> => this._log.samples()

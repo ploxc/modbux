@@ -3,7 +3,9 @@ import {
   getDummyRegisterData,
   isLoggable,
   isLogged,
+  loggedRegisterCount,
   loggedValue,
+  newClientUnit,
   RegisterMapObjectSchema
 } from '..'
 
@@ -86,5 +88,22 @@ describe('the log setting in a mapping', () => {
         '0': { dataType: 'int16', log: { mode: 'change', deadband: -1 } }
       }).success
     ).toBe(false)
+  })
+})
+
+describe('loggedRegisterCount', () => {
+  it('counts every register that logs, of every type of every unit', () => {
+    const first = newClientUnit('a', 1)
+    first.registerMapping.holding_registers = {
+      0: { dataType: 'int16', log: { mode: 'poll' } },
+      1: { dataType: 'int16' },
+      2: { dataType: 'utf8', log: { mode: 'poll' } }
+    }
+    first.registerMapping.coils = { 4: { comment: 'Pump', log: { mode: 'change', deadband: 0 } } }
+    const second = newClientUnit('b', 2)
+    second.registerMapping.input_registers = { 9: { dataType: 'float', log: { mode: 'poll' } } }
+
+    expect(loggedRegisterCount([first, second])).toBe(3)
+    expect(loggedRegisterCount([])).toBe(0)
   })
 })

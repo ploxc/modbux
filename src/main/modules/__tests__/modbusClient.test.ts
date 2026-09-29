@@ -6124,6 +6124,43 @@ describe('ModbusClient', () => {
       expect(samples()).toHaveLength(0)
     })
 
+    it('reports its status with the client state, samples counted once a round', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      expect(getLastClientState().log).toMatchObject({ enabled: true, running: false })
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(getLastClientState().log).toMatchObject({ running: true, samples: 1 })
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(getLastClientState().log.samples).toBe(2)
+      client.stopPolling()
+    })
+
+    it('empties on a clear, and goes on taking samples while it polls', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.clearLog()
+      expect(getLastClientState().log).toMatchObject({ samples: 0, running: true })
+
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(samples()).toHaveLength(1)
+      client.stopPolling()
+    })
+
+    it('holds the size it is given, and says so', async () => {
+      client.setLogCapacity(5000)
+      expect(getLastClientState().log.capacity).toBe(5000)
+    })
+
     it('keeps nothing of a read that went out under a unit id changed since', async () => {
       await connectClient()
       logHolding0()

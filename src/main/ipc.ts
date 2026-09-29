@@ -7,6 +7,8 @@ import {
   ClientUnitsSchema,
   ClientReadSchema,
   ClientReadGroupSchema,
+  ClientStartLogSchema,
+  ClientLogCapacitySchema,
   ClientScanRegistersSchema,
   ClientScanUnitIdsSchema,
   ClientCreateSchema,
@@ -110,6 +112,10 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'read_group',
   'start_polling',
   'stop_polling',
+  'start_log',
+  'stop_log',
+  'clear_log',
+  'set_log_capacity',
   'write',
   'scan_unit_ids',
   'stop_scanning_unit_ids',
@@ -252,6 +258,20 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
   )
   ipcHandle('start_polling', (_, uuid) => clients.get(uuid)?.startPolling(), ClientUuidSchema)
   ipcHandle('stop_polling', (_, uuid) => clients.get(uuid)?.stopPolling(), ClientUuidSchema)
+
+  // Logging
+  ipcHandle(
+    'start_log',
+    (_, { uuid, append }) => clients.get(uuid)?.startLog(append),
+    ClientStartLogSchema
+  )
+  ipcHandle('stop_log', (_, uuid) => clients.get(uuid)?.stopLog(), ClientUuidSchema)
+  ipcHandle('clear_log', (_, uuid) => clients.get(uuid)?.clearLog(), ClientUuidSchema)
+  ipcHandle(
+    'set_log_capacity',
+    (_, { uuid, capacity }) => clients.get(uuid)?.setLogCapacity(capacity),
+    ClientLogCapacitySchema
+  )
 
   // Write Actions
   ipcHandle(
