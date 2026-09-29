@@ -38,10 +38,10 @@ const scriptCompletions = javascriptLanguage.data.of({
   ])
 })
 
-/** The editor on the dialog's own surface rather than the theme's background. */
+/** Size and type; the background is VS Code Dark's, whose greys Modbux's are drawn from. */
 const surface = EditorView.theme({
-  '&': { fontSize: '12.5px', height: '100%', backgroundColor: 'transparent' },
-  '.cm-gutters': { backgroundColor: 'transparent', borderRight: 'none' },
+  '&': { fontSize: '12.5px', height: '100%' },
+  '.cm-gutters': { borderRight: 'none' },
   '.cm-scroller': { fontFamily: "'Roboto Mono', monospace", lineHeight: '20px' },
   '&.cm-focused': { outline: 'none' }
 })
