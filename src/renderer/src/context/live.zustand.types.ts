@@ -1,5 +1,6 @@
 import {
   AddressGroup,
+  AddressGroupResult,
   ClientState,
   ClientVisibleSections,
   RegisterData,
@@ -12,6 +13,8 @@ import {
 export interface SectionData {
   registerData: RegisterData[]
   addressGroups: AddressGroup[]
+  /** How each group went on its last read, at the index of its group. */
+  groupResults: AddressGroupResult[]
 }
 
 /** What main pushed about one client, and the rows the view drew from it. */
@@ -40,7 +43,13 @@ export interface LiveZustand {
   // Register data
   setRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
   appendRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
-  setAddressGroups: (uuid: string, unit: string, type: RegisterType, groups: AddressGroup[]) => void
+  setAddressGroups: (
+    uuid: string,
+    unit: string,
+    type: RegisterType,
+    groups: AddressGroup[],
+    results: AddressGroupResult[]
+  ) => void
 
   // What is on screen
   showSection: (uuid: string, unit: string, type: RegisterType) => void

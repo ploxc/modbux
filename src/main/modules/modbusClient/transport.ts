@@ -41,6 +41,8 @@ export interface RequestTarget {
    * a disconnect or a drop ends.
    */
   current: () => boolean
+  /** Hears the request's round trip once it settles, answered or failed. */
+  onRoundTrip?: (roundTripMillis: number) => void
 }
 
 /**
@@ -285,7 +287,7 @@ export class Transport {
    * the device once that user was told they were disconnected.
    */
   public request = <Result>(
-    { uuid, unitId, timeout, current }: RequestTarget,
+    { uuid, unitId, timeout, current, onRoundTrip }: RequestTarget,
     send: (modbus: ModbusRTU) => Promise<Result>
   ): Promise<Result> =>
     this._run(async (modbus) => {
@@ -301,9 +303,11 @@ export class Transport {
           send(modbus).then(resolve, reject)
         })
         this._transactionLog.log(uuid, transactionIdKey, undefined, roundTrip())
+        onRoundTrip?.(roundTrip())
         return result
       } catch (error) {
         this._transactionLog.log(uuid, transactionIdKey, errorText(error), roundTrip())
+        onRoundTrip?.(roundTrip())
         throw error
       } finally {
         this._abandonInFlight = undefined

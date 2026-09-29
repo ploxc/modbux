@@ -78,7 +78,7 @@ const onSection = (
 ): void =>
   onData(state, uuid, (data) => {
     const key = sectionKey(unit, type)
-    const section = data.sections[key] ?? { registerData: [], addressGroups: [] }
+    const section = data.sections[key] ?? { registerData: [], addressGroups: [], groupResults: [] }
     data.sections[key] = section
     recipe(section)
   })
@@ -144,13 +144,20 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
           section.registerData.push(...registerData)
         })
       ),
-    setAddressGroups: (uuid, unit, type, addressGroups) =>
-      deepEqual(sectionOf(get(), uuid, unit, type).addressGroups, addressGroups) ||
+    setAddressGroups: (uuid, unit, type, addressGroups, groupResults) => {
+      const before = sectionOf(get(), uuid, unit, type)
+      if (
+        deepEqual(before.addressGroups, addressGroups) &&
+        deepEqual(before.groupResults, groupResults)
+      )
+        return
       set((state) =>
         onSection(state, uuid, unit, type, (section) => {
           section.addressGroups = addressGroups
+          section.groupResults = groupResults
         })
-      ),
+      )
+    },
 
     // What is on screen
     //
@@ -451,9 +458,9 @@ onEvent('register_data', ({ uuid, unit, type, registerData }) => {
   liveZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
 })
 
-onEvent('address_groups', ({ uuid, unit, type, addressGroups }) => {
+onEvent('address_groups', ({ uuid, unit, type, addressGroups, results }) => {
   if (!isHeld(uuid)) return
-  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups)
+  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups, results)
 })
 
 // Client state, like polling, scanning, etc.

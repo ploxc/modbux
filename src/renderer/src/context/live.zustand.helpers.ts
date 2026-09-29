@@ -21,7 +21,7 @@ export const emptyClientData = (): ClientData => ({
 const NO_DATA: ClientData = emptyClientData()
 
 /** The same, for a section nothing was read into yet. */
-const NO_SECTION: SectionData = { registerData: [], addressGroups: [] }
+const NO_SECTION: SectionData = { registerData: [], addressGroups: [], groupResults: [] }
 
 /** The data of the client under `uuid`. */
 export const dataOf = (state: Pick<LiveZustand, 'clients'>, uuid: string): ClientData =>

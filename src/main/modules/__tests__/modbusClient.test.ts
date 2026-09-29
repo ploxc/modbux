@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { newClientUnit, RegisterTypeSchema } from '@shared'
 import type {
+  AddressGroupsEvent,
   BackendMessage,
   ClientUnit,
   Protocol,
@@ -177,6 +178,8 @@ let sentToWindows: any[][] = []
 let addressedTo: any[][] = []
 /** The uuid each client event named, beside the event. */
 let namedClient: Array<[string, unknown]> = []
+/** Each event's whole payload, for the fields `CLIENT_EVENT_FIELDS` leaves out. */
+let sentWhole: Array<[string, unknown]> = []
 
 /** The field each client event carries its payload in, beside the uuid. */
 const CLIENT_EVENT_FIELDS: Record<string, string> = {
@@ -198,6 +201,7 @@ const createMockWindows = (): Windows =>
       const addressed = payload as Record<string, unknown>
       if (field) namedClient.push([event, addressed['uuid']])
       sentToWindows.push([event, structuredClone(field ? addressed[field] : payload)])
+      sentWhole.push([event, structuredClone(payload)])
       addressedTo.push([to, event])
     })
   }) as unknown as Windows
@@ -221,6 +225,7 @@ describe('ModbusClient', () => {
     sentToWindows = []
     addressedTo = []
     namedClient = []
+    sentWhole = []
     portIncrementsKey = true
     windows = createMockWindows()
     appState = new AppState()
@@ -3079,6 +3084,33 @@ describe('ModbusClient', () => {
 
       const groupCalls = getWindowCalls('address_groups')
       expect(groupCalls.length).toBe(1)
+    })
+
+    it("sends each group's round trip, and the error of a group that failed", async () => {
+      await connectClient()
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { 0: { dataType: 'uint16' }, 200: { dataType: 'uint16' } }
+      })
+      mockModbusRTU.readHoldingRegisters
+        .mockImplementationOnce(async () => {
+          await vi.advanceTimersByTimeAsync(23)
+          return { data: [1], buffer: Buffer.from([0x00, 0x01]) }
+        })
+        .mockRejectedValueOnce(new Error('read timeout'))
+
+      await client.read(UNIT, unitType)
+
+      const groups = sentWhole.filter(([event]) => event === 'address_groups')
+      expect(groups.map(([, payload]) => (payload as AddressGroupsEvent).results)).toEqual([
+        [
+          { roundTripMillis: 23, error: undefined },
+          { roundTripMillis: 0, error: 'read timeout' }
+        ]
+      ])
     })
 
     it('reads coils and sends data', async () => {

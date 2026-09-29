@@ -1,6 +1,7 @@
 import z from 'zod'
 import {
   AddressGroup,
+  AddressGroupResult,
   ClientState,
   ClientUnitSchema,
   ConnectionConfigSchema,
@@ -131,6 +132,8 @@ export interface AddressGroupsEvent {
   unit: string
   type: RegisterType
   addressGroups: AddressGroup[]
+  /** How each group went, at the index of its group. */
+  results: AddressGroupResult[]
 }
 
 export interface TransactionEvent {

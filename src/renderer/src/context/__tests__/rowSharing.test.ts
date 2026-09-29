@@ -5,7 +5,7 @@
 // grid renders a row again when its object changes.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
-import type { AddressGroup, RegisterData } from '@shared'
+import type { AddressGroup, AddressGroupResult, RegisterData } from '@shared'
 import { fireEvent, stubRenderer } from './stubRenderer'
 import { MAIN_UNIT_UUID } from '../client.zustand.helpers'
 
@@ -23,8 +23,14 @@ const read = (...rows: RegisterData[]): void => {
   fireEvent('register_data', { ...target, registerData: rows })
 }
 
-const groups = (addressGroups: AddressGroup[]): void => {
-  fireEvent('address_groups', { ...target, addressGroups })
+const groups = (
+  addressGroups: AddressGroup[],
+  results: AddressGroupResult[] = addressGroups.map(() => ({
+    roundTripMillis: 5,
+    error: undefined
+  }))
+): void => {
+  fireEvent('address_groups', { ...target, addressGroups, results })
 }
 
 /** A fresh row object, as IPC delivers one, with its own hex. */
@@ -124,6 +130,16 @@ describe('the address groups a poll sends', () => {
 
     const after = sectionOf(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type)
     expect(after.addressGroups).toEqual([[0, 12]])
+  })
+
+  it('takes how the groups went when only that changed', async () => {
+    const { useLiveZustand, sectionOf } = await load()
+    groups([[0, 10]], [{ roundTripMillis: 5, error: undefined }])
+
+    groups([[0, 10]], [{ roundTripMillis: 9, error: 'Timed out' }])
+
+    const after = sectionOf(useLiveZustand.getState(), MAIN_CLIENT_UUID, MAIN_UNIT_UUID, type)
+    expect(after.groupResults).toEqual([{ roundTripMillis: 9, error: 'Timed out' }])
   })
 })
 

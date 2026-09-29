@@ -474,6 +474,15 @@ export interface RawTransaction {
 
 export type AddressGroup = [number, number]
 
+/**
+ * How one read group went: the round trip of its request, and the error it
+ * failed with. A group whose request never went out has neither.
+ */
+export interface AddressGroupResult {
+  roundTripMillis: number | undefined
+  error: string | undefined
+}
+
 //
 //
 // Serial port discovery

@@ -241,6 +241,29 @@ describe('Transport', () => {
       expect(roundTrips).toEqual([37])
     })
 
+    it('tells the caller the round trip of a request that answered and of one that failed', async () => {
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      const rider = createClient()
+      await transport.attach(rider, tcp('10.0.0.1'))
+      const gate = gateTheReads()
+      const heard: number[] = []
+      const target = {
+        current: () => transport.rides(rider),
+        uuid: 'client-1',
+        unitId: 1,
+        timeout: 1000,
+        onRoundTrip: (roundTripMillis: number) => heard.push(roundTripMillis)
+      }
+
+      void transport.request(target, (modbus) => modbus.readHoldingRegisters(10, 1))
+      await vi.advanceTimersByTimeAsync(12)
+      await gate.answerNext()
+      const failed = transport.request(target, () => Promise.reject(new Error('Timed out')))
+      await expect(failed).rejects.toThrow('Timed out')
+
+      expect(heard).toEqual([12, 0])
+    })
+
     it('sends the next request after one that failed', async () => {
       const transport = transports.acquire(tcp('10.0.0.1'))
       const rider = createClient()

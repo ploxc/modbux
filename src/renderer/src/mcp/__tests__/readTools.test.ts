@@ -84,7 +84,7 @@ const liveOf = ({
   type = 'holding_registers',
   ...overrides
 }: Partial<ClientData> & { registerData?: RegisterData[]; type?: RegisterType }): ClientData => ({
-  sections: { [sectionKey(UNIT, type)]: { registerData, addressGroups: [] } },
+  sections: { [sectionKey(UNIT, type)]: { registerData, addressGroups: [], groupResults: [] } },
   clientState: defaultClientState,
   transactions: [],
   lastSuccessfulTransactionMillis: null,

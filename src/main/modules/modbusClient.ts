@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'util'
 import { AppState } from '../state'
 import {
   AddressGroup,
+  AddressGroupResult,
   BackendMessage,
   ClientUnit,
   DataType,
@@ -196,8 +197,17 @@ export class ModbusClient implements TransportClient {
     this._windows.send('scan_unit_id_result', { uuid: this.uuid, result }, 'main')
   }
 
-  private _sendGroups = (unit: string, type: RegisterType, addressGroups: AddressGroup[]): void => {
-    this._windows.send('address_groups', { uuid: this.uuid, unit, type, addressGroups }, 'main')
+  private _sendGroups = (
+    unit: string,
+    type: RegisterType,
+    addressGroups: AddressGroup[],
+    results: AddressGroupResult[]
+  ): void => {
+    this._windows.send(
+      'address_groups',
+      { uuid: this.uuid, unit, type, addressGroups, results },
+      'main'
+    )
   }
 
   /**
@@ -584,11 +594,21 @@ export class ModbusClient implements TransportClient {
     let answered = false
     let silent = false
 
+    const results: AddressGroupResult[] = []
+
     for (const [groupIndex, [groupAddress, groupLength]] of groups.entries()) {
       if (stopped()) return undefined
+      const result: AddressGroupResult = { roundTripMillis: undefined, error: undefined }
+      results.push(result)
+      const groupTarget: RequestTarget = {
+        ...target,
+        onRoundTrip: (roundTripMillis) => {
+          result.roundTripMillis = roundTripMillis
+        }
+      }
       const settled = await this._settle(
         ride,
-        this._readers[type](transport, target, groupAddress, groupLength, unit.littleEndian)
+        this._readers[type](transport, groupTarget, groupAddress, groupLength, unit.littleEndian)
       )
       // The connection went while this group waited, so nothing of this read
       // goes anywhere.
@@ -606,6 +626,7 @@ export class ModbusClient implements TransportClient {
       } else {
         const { error } = settled
         const errorMessage = errorText(error)
+        result.error = errorMessage
 
         if (readConfiguration) {
           // Generate error placeholder rows for configured addresses in this failed group
@@ -649,7 +670,7 @@ export class ModbusClient implements TransportClient {
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
-      this._sendGroups(unit.uuid, type, groups)
+      this._sendGroups(unit.uuid, type, groups, results)
       this._sendData(unit.uuid, type, data)
     }
     if (answered) return true
