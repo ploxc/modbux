@@ -20,6 +20,11 @@ import {
   defaultClientState,
   isBooleanRegister,
   isConfiguredAddress,
+  isLoggable,
+  isLogged,
+  LogSetting,
+  LogStatus,
+  loggedValue,
   isReadLengthGiven,
   maxReadQuantity,
   pollDelay,
@@ -41,6 +46,7 @@ import { Windows } from '../windows'
 import { errorText, isGatewaySilence, isModbusException, isTimeout } from './modbusClient/errors'
 import { RequestTarget, Transport, TransportClient } from './modbusClient/transport'
 import { Transports } from './modbusClient/transports'
+import { LogSample, LogSeries, SessionLog } from './modbusClient/sessionLog'
 import {
   NodeStyleCallback,
   ReadCoilResult,
@@ -82,6 +88,21 @@ type ScanUnitIdFn = ({
  * device took, or refused, is read back.
  */
 type WriteAttempt = { sent: boolean }
+
+/** One read of a logged register, kept until the read it belongs to is known to count. */
+interface PendingSample {
+  series: LogSeries
+  setting: LogSetting
+  time: number
+  value: number
+  error: string | undefined
+}
+
+/** One read a poll round makes: a register type of a unit, as Monitor groups it or not. */
+interface RoundRead {
+  type: RegisterType
+  monitor: boolean
+}
 
 /** What a request came back with: its result, or the error it failed with. */
 type Settled<Result> = { ok: true; result: Result } | { ok: false; error: unknown }
@@ -163,6 +184,21 @@ export class ModbusClient implements TransportClient {
   private _totalScans = 1
   private _scansDone = 1
 
+  /** The samples this client took while it logged. */
+  private _log = new SessionLog(() =>
+    this._emitMessage({
+      message: 'The log is full, and overwrites its oldest samples from here on',
+      variant: 'warning',
+      error: null
+    })
+  )
+
+  /**
+   * Whether the user switched logging on. The log takes samples while this is
+   * on and the client polls, so a poll started later starts it too.
+   */
+  private _logEnabled = false
+
   constructor({ uuid, appState, windows, transports }: ClientParams) {
     this.uuid = uuid
     this._appState = appState
@@ -187,7 +223,7 @@ export class ModbusClient implements TransportClient {
   private _sendClientState = (): void => {
     this._clientState.pollIdle =
       this._clientState.polling &&
-      this._appState.units.every((unit) => this._polledTypes(unit).length === 0)
+      this._appState.units.every((unit) => this._roundReads(unit).length === 0)
     this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
   private _sendData = (
@@ -243,11 +279,25 @@ export class ModbusClient implements TransportClient {
   //
   //
   // Utils
-  /** The one place the connect state changes, which is where a ride ends. */
+  /**
+   * The one place the connect state changes, which is where a ride ends. A
+   * poll goes on through a reconnect and reads nothing until the connection
+   * is back, so the log's run ends with the ride, and a new one starts with
+   * the next.
+   */
   private _enter = (connectState: ConnectState): void => {
-    if (this._clientState.connectState === 'connected' && connectState !== 'connected') {
+    const wasConnected = this._clientState.connectState === 'connected'
+    if (wasConnected && connectState !== 'connected') {
       this._ride++
+      this._log.stop(Date.now(), 'disconnected')
     }
+    if (
+      !wasConnected &&
+      connectState === 'connected' &&
+      this._logEnabled &&
+      this._clientState.polling
+    )
+      this._log.start(Date.now())
     this._clientState.connectState = connectState
   }
 
@@ -621,6 +671,10 @@ export class ModbusClient implements TransportClient {
     let silent = false
 
     const results: AddressGroupResult[] = []
+    // A poll's grouped read is what a logging client reads, and a read of the
+    // grid's window is not.
+    const logging = pollGeneration !== undefined && readConfiguration && this._log.running
+    const samples: PendingSample[] = []
 
     for (const [groupIndex, group] of groups.entries()) {
       if (stopped()) return undefined
@@ -628,6 +682,7 @@ export class ModbusClient implements TransportClient {
       // The connection went while this group waited, so nothing of this read
       // goes anywhere.
       if (!read) return undefined
+      if (logging) samples.push(...this._samplesOf(unit, type, read.rows))
       if (read.heard === 'answered') answered = true
       if (read.heard === 'silent') silent = true
       results.push(read.result)
@@ -652,6 +707,9 @@ export class ModbusClient implements TransportClient {
     if (this._appState.readGeneration(unit.uuid) !== readGeneration) return undefined
     if (stopped()) return undefined
 
+    for (const { series, setting, time, value, error } of samples) {
+      this._log.record(series, setting, time, value, error)
+    }
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
       this._sendGroups(unit.uuid, type, groups, results, monitor)
@@ -733,6 +791,34 @@ export class ModbusClient implements TransportClient {
       }
     }
     return { rows, result, heard, error: settled.error }
+  }
+
+  /**
+   * The samples one group's rows give the log: one per register that logs,
+   * stamped with when the group was answered. A failed group's error row gives
+   * a sample with its error, and a value of NaN rather than the 0 the row
+   * carries, so "the value was 0" stays apart from "the device said nothing".
+   */
+  private _samplesOf = (
+    unit: ClientUnit,
+    type: RegisterType,
+    rows: RegisterData[]
+  ): PendingSample[] => {
+    const time = Date.now()
+    const samples: PendingSample[] = []
+    for (const row of rows) {
+      const mapValue = unit.registerMapping[type][row.id]
+      const setting = mapValue?.log
+      if (setting === undefined || !isLoggable(type, mapValue)) continue
+      samples.push({
+        series: { unit: unit.uuid, type, address: row.id },
+        setting,
+        time,
+        value: loggedValue(type, mapValue.dataType, row) ?? NaN,
+        error: row.error
+      })
+    }
+    return samples
   }
 
   /**
@@ -878,6 +964,31 @@ export class ModbusClient implements TransportClient {
         this._visibleSections.some((section) => section.unit === unit.uuid && section.type === type)
     )
 
+  /** The register types of `unit` with a register that logs. */
+  private _loggedTypes = (unit: ClientUnit): RegisterType[] =>
+    RegisterTypeSchema.options.filter((type) =>
+      Object.values(unit.registerMapping[type]).some((mapValue) => isLogged(type, mapValue))
+    )
+
+  /**
+   * The reads a poll round makes of `unit`: what is on screen, and while the
+   * log runs, the groups of every type with a register that logs, whatever the
+   * screen shows and whatever the type's Poll says. A grouped read of the
+   * screen's gives the log its samples too, and a read of Debug's window does
+   * not, so a logged type Debug shows as a window is read twice.
+   */
+  private _roundReads = (unit: ClientUnit): RoundRead[] => {
+    const onScreen = this._polledTypes(unit)
+    const logged = this._log.running ? this._loggedTypes(unit) : []
+    return RegisterTypeSchema.options.flatMap((type) => {
+      const shown = onScreen.includes(type)
+      const reads: RoundRead[] = shown ? [{ type, monitor: this._monitor }] : []
+      if (logged.includes(type) && !(shown && this._readsConfiguration(unit, this._monitor)))
+        reads.push({ type, monitor: true })
+      return reads
+    })
+  }
+
   /**
    * Take what of the client is on screen. A poll keeps running with nothing on
    * screen and reads again once something is, and `pollIdle` says which of
@@ -902,7 +1013,11 @@ export class ModbusClient implements TransportClient {
   public startPolling = (): void => {
     if (this._clientState.polling) return
     if (!this._requireClient('poll')) return
-    const polled = this._appState.units.filter((unit) => this._pollableTypes(unit).length > 0)
+    const polled = this._appState.units.filter(
+      (unit) =>
+        this._pollableTypes(unit).length > 0 ||
+        (this._logEnabled && this._loggedTypes(unit).length > 0)
+    )
     if (polled.length === 0) {
       this._emitMessage({
         message: 'Cannot poll, no section is polled',
@@ -914,11 +1029,13 @@ export class ModbusClient implements TransportClient {
     if (polled.some((unit) => this._refusesUnitId('poll', unit.unitId))) return
 
     this._clientState.polling = true
+    if (this._logEnabled) this._log.start(Date.now())
     this._sendClientState()
     this._poll(++this._pollGeneration)
   }
 
   public stopPolling = (): void => {
+    this._log.stop(Date.now(), 'poll stopped')
     clearTimeout(this._pollTimeout)
     this._pollTimeout = undefined
     this._pollGeneration++
@@ -944,15 +1061,15 @@ export class ModbusClient implements TransportClient {
         this._roundsToSkip.set(unit.uuid, skip - 1)
         continue
       }
-      const types = this._polledTypes(unit)
-      if (types.length === 0) continue
+      const reads = this._roundReads(unit)
+      if (reads.length === 0) continue
       if (this._refusesUnitId('poll', unit.unitId)) {
         this.stopPolling()
         return
       }
       let answered: boolean | undefined
-      for (const type of types) {
-        const heard = await this._readSection(unit, type, this._monitor, generation)
+      for (const { type, monitor } of reads) {
+        const heard = await this._readSection(unit, type, monitor, generation)
         if (heard === true || (heard === false && answered === undefined)) answered = heard
       }
       this._hear(unit.uuid, answered)
@@ -1004,6 +1121,31 @@ export class ModbusClient implements TransportClient {
     clearTimeout(this._pollTimeout)
     this._armPoll(this._pollGeneration)
   }
+
+  //
+  //
+  // Logging
+  /**
+   * Switch logging on: after the samples the log holds, or in an empty log.
+   * It takes samples from now if the client polls, and from when it starts
+   * polling otherwise.
+   */
+  public startLog = (append: boolean): void => {
+    if (!append) this._log.clear()
+    this._logEnabled = true
+    if (this._clientState.polling) this._log.start(Date.now())
+  }
+
+  /** Switch logging off, keeping the samples it took. */
+  public stopLog = (): void => {
+    this._logEnabled = false
+    this._log.stop(Date.now(), 'log stopped')
+  }
+
+  public logStatus = (): LogStatus => this._log.status()
+
+  /** Every sample the log holds, oldest first. */
+  public logSamples = (): Generator<LogSample> => this._log.samples()
 
   /** Take a connection config update main accepted. */
   public updateConnectionConfig = (update: DeepPartial<ConnectionConfig>): void => {

@@ -5926,4 +5926,218 @@ describe('ModbusClient', () => {
       expect(messages.some((m) => m[1].variant === 'error')).toBe(true)
     })
   })
+
+  describe('logging', () => {
+    const timedOut = (): Error =>
+      Object.assign(new Error('Timed out'), {
+        name: 'TransactionTimedOutError',
+        errno: 'ETIMEDOUT'
+      })
+
+    /**
+     * `UNIT` with holding register 0 logging as a uint16 on every poll, its
+     * holding section polled or not, and nothing of it on screen.
+     */
+    const logHolding0 = (polled = false): void => {
+      const unit = theUnit()
+      client.setUnits([
+        {
+          ...unit,
+          registerMapping: {
+            ...unit.registerMapping,
+            holding_registers: { 0: { dataType: 'uint16', log: { mode: 'poll' } } }
+          },
+          sections: {
+            ...unit.sections,
+            holding_registers: { address: 0, length: 10, polled }
+          }
+        }
+      ])
+      client.setVisibleSections([], false)
+    }
+
+    const readCalls = (): number[][] => mockModbusRTU.readHoldingRegisters.mock.calls
+
+    const samples = (): Array<{ time: number; value: number; error: string | undefined }> =>
+      [...client.logSamples()].map(({ time, value, error }) => ({ time, value, error }))
+
+    it('reads a logged group with nothing on screen and its Poll off, and keeps its value', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readCalls()).toEqual([[0, 1]])
+      expect(samples().map(({ value, error }) => [value, error])).toEqual([[321, undefined]])
+      client.stopPolling()
+    })
+
+    it('reads nothing in the background once logging is off', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopLog()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(readCalls()).toHaveLength(1)
+      expect(client.logStatus().runs.at(-1)?.reason).toBe('log stopped')
+      client.stopPolling()
+    })
+
+    it("keeps no sample of Debug's window, and reads the logged group beside it", async () => {
+      await connectClient()
+      logHolding0(true)
+      showEverything()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readCalls()).toEqual([
+        [0, 10],
+        [0, 1]
+      ])
+      expect(samples()).toHaveLength(1)
+      client.stopPolling()
+    })
+
+    it('reads a logged group once when the screen reads it grouped already', async () => {
+      await connectClient()
+      logHolding0(true)
+      client.setVisibleSections([], true)
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(readCalls()).toEqual([[0, 1]])
+      expect(samples()).toHaveLength(1)
+      client.stopPolling()
+    })
+
+    it('keeps a timeout as a sample with its error and no value', async () => {
+      await connectClient()
+      logHolding0()
+      mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const [sample] = samples()
+      expect(sample?.value).toBeNaN()
+      expect(sample?.error).toMatch(/timed out/i)
+      client.stopPolling()
+    })
+
+    it('takes samples from when a poll starts, and ends the run when it stops', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(client.logStatus()).toMatchObject({ running: false, runs: [] })
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.logStatus().running).toBe(true)
+      client.stopPolling()
+
+      expect(client.logStatus()).toMatchObject({ running: false, samples: 1 })
+      expect(client.logStatus().runs.at(-1)?.reason).toBe('poll stopped')
+    })
+
+    it('polls for the log alone, with no section polled', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startPolling()
+      expect(client.state.polling).toBe(false)
+
+      client.startLog(false)
+      client.startPolling()
+      expect(client.state.polling).toBe(true)
+      client.stopPolling()
+    })
+
+    it('says the gap after a disconnect is the disconnect', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      await client.disconnect()
+
+      expect(client.logStatus().runs.at(-1)?.reason).toBe('disconnected')
+    })
+
+    it('ends its run when the connection drops, and starts one once it is back', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      mockModbusRTU.isOpen = false
+      fireClientEvent('close')
+      expect(client.logStatus()).toMatchObject({ running: false })
+      expect(client.logStatus().runs.at(-1)?.reason).toBe('disconnected')
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(client.state.connectState).toBe('connected')
+      expect(client.logStatus().running).toBe(true)
+      expect(client.logStatus().runs).toHaveLength(2)
+      client.stopPolling()
+    })
+
+    it('starts anew, or after what it holds', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+
+      client.startLog(true)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      expect(samples()).toHaveLength(2)
+
+      client.startLog(false)
+      expect(samples()).toHaveLength(0)
+    })
+
+    it('keeps nothing of a read that went out under a unit id changed since', async () => {
+      await connectClient()
+      logHolding0()
+      const gates = gateTheReads()
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.setUnits([{ ...theUnit(), unitId: 9 }])
+      await gates.resolveAll()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(samples()).toHaveLength(0)
+      client.stopPolling()
+    })
+  })
 })

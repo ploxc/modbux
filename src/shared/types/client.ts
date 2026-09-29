@@ -16,6 +16,7 @@ import { RegisterType } from './register'
 import { parseLayout } from '../layout'
 import { SerialPortOptionsSchema } from './serial'
 import { ConversionSchema } from './conversion'
+import { LogSettingSchema } from './log'
 
 //
 //
@@ -34,7 +35,9 @@ const RegisterMapValueObjectSchema = z.object({
   unit: z.string().optional(),
   comment: z.string().optional(),
   groupEnd: z.boolean().optional(),
-  bitMap: BitMapConfigSchema.optional()
+  bitMap: BitMapConfigSchema.optional(),
+  /** How the register logs, when it does. */
+  log: LogSettingSchema.optional()
 })
 
 /**
