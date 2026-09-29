@@ -9,6 +9,16 @@ import { maskInputProps } from './types'
 import UIntInput from './UintInput'
 import { meme } from './meme'
 
+/**
+ * How far the 24 px toggle sits from the field's top and bottom at each field
+ * height, 24, 28 and 32 px, which it keeps from the right edge too.
+ */
+const TOGGLE_INSET: Record<NonNullable<TextFieldProps['size']>, number> = {
+  small: 0,
+  medium: 2,
+  large: 4
+}
+
 interface AddressBaseInputProps {
   disabled?: boolean
   address: number
@@ -49,7 +59,7 @@ const AddressBaseInput = meme(
         label="Address"
         variant="outlined"
         size={size}
-        sx={{ width: 110, '& .MuiInputBase-root': { pr: 0 } }}
+        sx={{ width: 110, '& .MuiInputBase-root': { pr: `${TOGGLE_INSET[size]}px` } }}
         value={displayValue}
         data-testid={testId}
         slotProps={{
