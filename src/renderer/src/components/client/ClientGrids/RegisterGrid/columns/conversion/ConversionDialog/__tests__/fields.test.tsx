@@ -18,6 +18,25 @@ describe('the factor field', () => {
 
     expect(set).toHaveBeenLastCalledWith('1.5')
   })
+
+  it('takes a comma as the decimal point', async () => {
+    const set = vi.fn()
+    render(<ScaleField factorText="" set={set} />)
+
+    await userEvent.setup().type(screen.getByTestId('conversion-factor-input'), '0,5')
+
+    expect(set).toHaveBeenLastCalledWith('0.5')
+  })
+
+  // The mask hands its setter the value it mounts with, so a stored factor it
+  // would rewrite is saved rewritten: String(0.0000001) is 1e-7.
+  it('keeps a stored factor written with an exponent as it is', () => {
+    const set = vi.fn()
+    render(<ScaleField factorText="1e-7" set={set} />)
+
+    expect(screen.getByTestId('conversion-factor-input')).toHaveValue('1e-7')
+    expect(set.mock.calls.every(([text]) => text === '1e-7')).toBe(true)
+  })
 })
 
 describe('the interpolation fields', () => {
@@ -28,6 +47,16 @@ describe('the interpolation fields', () => {
 
     expect(screen.getByTestId('conversion-x1-input')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('-32768 to 32767')).toBeInTheDocument()
+  })
+
+  // A migrated raw point is the old one over the scale, with every digit that
+  // division leaves.
+  it('keep every decimal of a stored point', () => {
+    const set = vi.fn()
+    render(<LerpFields {...lerp} x1="3.3333333333333335" dataType="int16" set={set} />)
+
+    expect(screen.getByTestId('conversion-x1-input')).toHaveValue('3.3333333333333335')
+    expect(set).not.toHaveBeenCalledWith('x1', '3.3333333')
   })
 
   it('leave a value point and a raw point inside the range alone', () => {

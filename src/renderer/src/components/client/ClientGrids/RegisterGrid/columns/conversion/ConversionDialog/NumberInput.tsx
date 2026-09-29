@@ -10,9 +10,21 @@ export interface NumberInputProps extends MaskInputProps {
 }
 
 /**
+ * Any number as JavaScript writes one, a half-typed one included: a sign,
+ * digits, one point and an exponent. A pattern rather than
+ * `IMask.MaskedNumber`, which keeps seven decimals and no exponent, and would
+ * rewrite `1e-7` to `17` on mount.
+ */
+const NUMBER_TEXT = /^-?\d*\.?\d*(e[-+]?\d*)?$/i
+
+/** A comma typed as the decimal point, as `decimalMask` maps one. */
+const commaAsPoint = (char: string): string => (char === ',' ? '.' : char)
+
+/**
  * A field of the dialog that takes a number and nothing else. Given `min` and
- * `max` it clamps to them; a raw point gets neither, because a point outside
- * the data type's range is marked red rather than rewritten.
+ * `max` it is `decimalMask` clamped to them. Without, it keeps a stored value
+ * whole, because the mask hands its setter the value it mounts with and
+ * anything it rewrote would be saved rewritten.
  */
 const NumberInputForward = forwardRef<HTMLInputElement, NumberInputProps>((props, ref) => {
   const { set, integer = false, min, max, ...other } = props
@@ -21,8 +33,9 @@ const NumberInputForward = forwardRef<HTMLInputElement, NumberInputProps>((props
   return (
     <IMaskInput
       {...other}
-      {...decimalMask(integer)}
-      {...(bounded ? { min, max, autofix: true } : {})}
+      {...(bounded
+        ? { ...decimalMask(integer), min, max, autofix: true }
+        : { mask: NUMBER_TEXT, prepareChar: commaAsPoint })}
       inputRef={ref}
       onAccept={(value) => set(value)}
     />
