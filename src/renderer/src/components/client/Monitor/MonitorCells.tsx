@@ -67,7 +67,14 @@ export const ValueCell = meme(({ row }: { row: MonitorRegisterRow }): ReactNode 
   if (!isNumberRegister(row.type)) return read.bit ? '1' : '0'
   const value = getConvertedValue(read, registerMap, showRaw, addressGroups) ?? ''
   const engineeringUnit = registerMap[row.address]?.unit
-  if (showRaw || typeof value !== 'number' || !engineeringUnit) return value
+  // In RAW's colour, so a raw value is not read as a converted one.
+  if (showRaw)
+    return (
+      <Box component="span" sx={{ color: 'warning.main' }}>
+        {value}
+      </Box>
+    )
+  if (typeof value !== 'number' || !engineeringUnit) return value
   return (
     <>
       {value}

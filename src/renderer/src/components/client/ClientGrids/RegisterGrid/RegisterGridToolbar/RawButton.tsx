@@ -6,9 +6,11 @@ import { openTypesOf, useClientZustand } from '@renderer/context/client.zustand'
 import { useCallback } from 'react'
 import { isNumberRegister } from '@shared'
 
-const RawButton = meme((): JSX.Element | null => {
-  // It sets every open register panel of the unit, so it shows while any is open.
-  const anyRegisters = useClientZustand((z) => openTypesOf(z).some(isNumberRegister))
+/**
+ * The switch between a register's raw value and its converted one, which Debug
+ * and Monitor share.
+ */
+export const RawToggle = meme(({ testId }: { testId: string }): JSX.Element => {
   const showRawValues = useLayoutZustand((z) => z.showClientRawValues)
 
   const handleClick = useCallback((): void => {
@@ -16,22 +18,20 @@ const RawButton = meme((): JSX.Element | null => {
     layoutZustand.toggleShowClientRawValues()
   }, [])
 
-  if (!anyRegisters) return null
-
   const variant: ButtonProps['variant'] = showRawValues ? 'contained' : 'outlined'
   const color: ButtonProps['color'] = showRawValues ? 'warning' : 'primary'
 
   return (
-    <Button
-      data-testid="raw-btn"
-      size="small"
-      color={color}
-      variant={variant}
-      onClick={handleClick}
-    >
+    <Button data-testid={testId} size="small" color={color} variant={variant} onClick={handleClick}>
       RAW
     </Button>
   )
+})
+
+const RawButton = meme((): JSX.Element | null => {
+  // It sets every open register panel of the unit, so it shows while any is open.
+  const anyRegisters = useClientZustand((z) => openTypesOf(z).some(isNumberRegister))
+  return anyRegisters ? <RawToggle testId="raw-btn" /> : null
 })
 
 export default RawButton

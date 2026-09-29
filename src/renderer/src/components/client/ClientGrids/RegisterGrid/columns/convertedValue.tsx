@@ -1,3 +1,4 @@
+import Box from '@mui/material/Box'
 import { GridColDef } from '@mui/x-data-grid/models'
 import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -76,7 +77,14 @@ export const ConvertedValueCell = meme(
     const value = getConvertedValue(row, registerMap, showRaw, addressGroups) ?? ''
     // The unit belongs to the scaled number, not to a raw word or a text.
     const engineeringUnit = registerMap[address]?.unit
-    if (showRaw || typeof value !== 'number' || !engineeringUnit) return value
+    // In RAW's colour, so a raw value is not read as a converted one.
+    if (showRaw)
+      return (
+        <Box component="span" sx={{ color: 'warning.main' }}>
+          {value}
+        </Box>
+      )
+    if (typeof value !== 'number' || !engineeringUnit) return value
     return (
       <>
         {value}

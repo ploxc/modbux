@@ -10,10 +10,12 @@ import {
   GridRowHeightParams,
   GridRowHeightReturnValue
 } from '@mui/x-data-grid/models'
+import { RawToggle } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/RawButton'
 import { ROW_HEIGHT } from '@renderer/components/client/ClientGrids/RegisterGrid/rowHeight'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
+import { isNumberRegister } from '@shared'
 import { useCallback, useEffect, useMemo } from 'react'
 import GroupHead from './GroupHead'
 import {
@@ -101,6 +103,8 @@ const Monitor = meme((): JSX.Element => {
   const units = useClientZustand((z) => z.clients[z.selectedUuid]?.units)
   const folded = useMonitorZustand((z) => z.folded)
   const rows = useMemo(() => (units ? monitorRows(units, folded) : []), [units, folded])
+  // A bit has no raw value apart from the one it shows.
+  const anyRegisters = rows.some((row) => isNumberRegister(row.type))
 
   useEffect(() => {
     useLiveZustand.getState().showMonitor(uuid)
@@ -143,6 +147,7 @@ const Monitor = meme((): JSX.Element => {
         >
           Collapse all
         </Button>
+        {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
       </Box>
       <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         {rows.length === 0 ? (

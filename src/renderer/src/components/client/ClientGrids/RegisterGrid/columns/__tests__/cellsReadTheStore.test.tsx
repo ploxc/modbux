@@ -14,9 +14,12 @@ vi.hoisted(async () => {
 import { act, render, screen } from '@testing-library/react'
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
 import { ReactNode } from 'react'
+import { ThemeProvider } from '@mui/material/styles'
+import { theme } from '@renderer/theme'
 import { getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import type { RegisterData } from '@shared'
 import { useLiveZustand } from '@renderer/context/live.zustand'
+import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { MAIN_UNIT_UUID } from '@renderer/context/client.zustand.helpers'
 import { SectionTypeContext } from '../../../sectionType'
@@ -53,11 +56,15 @@ const drawCell = (column: GridColDef<RegisterData>, address: number): void => {
   if (!row) throw new Error('no skeleton row')
   const params = { row, id: address, field: column.field } as GridRenderCellParams<RegisterData>
   render(
-    <SectionTypeContext.Provider value={type}>
-      <div data-testid="cell">{renderCell(params) as ReactNode}</div>
-    </SectionTypeContext.Provider>
+    <ThemeProvider theme={theme}>
+      <SectionTypeContext.Provider value={type}>
+        <div data-testid="cell">{renderCell(params) as ReactNode}</div>
+      </SectionTypeContext.Provider>
+    </ThemeProvider>
   )
 }
+
+const warningColour = theme.palette.warning.main
 
 const cellText = (): string => screen.getByTestId('cell').textContent ?? ''
 
@@ -94,5 +101,19 @@ describe('a value cell', () => {
 
     poll(rowWith(0, 5, { error: 'Timed out' }))
     expect(cellText()).toBe('Timed out')
+  })
+
+  it("shows a raw value in RAW's warning colour, and a converted one in the text's", () => {
+    useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'uint16')
+    poll(rowWith(0, 5))
+    const colourOf5 = (): string => getComputedStyle(screen.getByText('5')).color
+    const layoutZustand = useLayoutZustand.getState()
+    if (!layoutZustand.showClientRawValues) layoutZustand.toggleShowClientRawValues()
+
+    drawCell(convertedValueColumn({}, true, []), 0)
+    expect(colourOf5()).toBe(warningColour)
+
+    act(() => useLayoutZustand.getState().toggleShowClientRawValues())
+    expect(colourOf5()).not.toBe(warningColour)
   })
 })

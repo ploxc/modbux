@@ -62,6 +62,20 @@ test.describe.serial('Monitor — read configuration in one grid', () => {
     await expect(monitorCell(mainPage, 'input_registers', 0, 'value')).toHaveText('')
   })
 
+  test('RAW shows a register before its conversion, and again after', async ({ mainPage }) => {
+    const value = monitorCell(mainPage, 'holding_registers', 1, 'value')
+    // The theme's warning.main, the colour RAW takes while it is on.
+    const warning = 'rgb(249, 166, 32)'
+
+    await mainPage.getByTestId('monitor-raw-btn').click()
+    await expect(value).toHaveText('500')
+    await expect(value.locator('span')).toHaveCSS('color', warning)
+
+    await mainPage.getByTestId('monitor-raw-btn').click()
+    await expect(value).toHaveText('50')
+    await expect(value).not.toHaveCSS('color', warning)
+  })
+
   test('a poll reads every group whose Poll is on', async ({ mainPage }) => {
     await head(mainPage, 'input_registers', 0, 'poll').click()
     await head(mainPage, 'coils', 0, 'poll').click()
