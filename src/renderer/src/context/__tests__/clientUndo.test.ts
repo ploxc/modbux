@@ -254,6 +254,65 @@ describe('a mapping entry', () => {
     })
   })
 
+  // Monitor's Poll records no step, so a step put back whole would carry the
+  // Poll it had when it was recorded.
+  it("leaves a group's Monitor Poll where it is, both ways", async () => {
+    const { client, clientUndo } = await load()
+    client().showType('holding_registers')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'int16')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
+    const unit = selectedUnit(client()).uuid
+    expect(await client().setGroupPolled(unit, 'holding_registers', [3, 1], false)).toBe(true)
+
+    await clientUndo.undoClient()
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
+      dataType: 'int16',
+      monitorPollOff: true
+    })
+
+    await clientUndo.redoClient()
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
+      dataType: 'int16',
+      comment: 'pump',
+      monitorPollOff: true
+    })
+  })
+
+  it('leaves a Poll turned on since the step on', async () => {
+    const { client, clientUndo } = await load()
+    client().showType('holding_registers')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'int16')
+    const unit = selectedUnit(client()).uuid
+    await client().setGroupPolled(unit, 'holding_registers', [3, 1], false)
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
+    await client().setGroupPolled(unit, 'holding_registers', [3, 1], true)
+
+    await clientUndo.undoClient()
+
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]?.monitorPollOff).toBe(
+      undefined
+    )
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]?.dataType).toBe('int16')
+  })
+
+  it('brings back the Poll a removed entry had', async () => {
+    const { client, clientUndo } = await load()
+    client().showType('holding_registers')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'int16')
+    client().setRegisterMapping('holding_registers', 3, 'comment', 'pump')
+    const unit = selectedUnit(client()).uuid
+    await client().setGroupPolled(unit, 'holding_registers', [3, 1], false)
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'none')
+
+    await clientUndo.undoClient()
+
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
+      dataType: 'int16',
+      comment: 'pump',
+      monitorPollOff: true
+    })
+  })
+
   it('comes back whole after a data type of none removed it', async () => {
     const { client, clientUndo } = await load()
     client().showType('holding_registers')
@@ -348,6 +407,31 @@ describe('Load and Clear Config', () => {
     expect(selectedUnit(client()).registerMapping.holding_registers[3]).toEqual({
       comment: 'pump'
     })
+  })
+
+  it('leave the Monitor Poll of a register mapped before and after where it is', async () => {
+    const { client, clientUndo } = await load()
+    client().showType('holding_registers')
+    client().setRegisterMapping('holding_registers', 3, 'dataType', 'int16')
+    client().setRegisterMapping('holding_registers', 7, 'dataType', 'int16')
+    const unit = selectedUnit(client()).uuid
+    await client().setGroupPolled(unit, 'holding_registers', [7, 1], false)
+    await clientUndo.asOneClientStep(async () => {
+      await client().replaceRegisterMapping({
+        ...selectedUnit(client()).registerMapping,
+        holding_registers: { 3: { dataType: 'uint16' }, 9: { dataType: 'uint16' } }
+      })
+    })
+    await client().setGroupPolled(unit, 'holding_registers', [3, 1], false)
+
+    expect(await clientUndo.undoClient()).toBe('done')
+
+    expect(selectedUnit(client()).registerMapping.holding_registers[3]).toMatchObject({
+      dataType: 'int16',
+      monitorPollOff: true
+    })
+    expect(selectedUnit(client()).registerMapping.holding_registers[7]?.monitorPollOff).toBe(true)
+    expect(selectedUnit(client()).registerMapping.holding_registers[9]).toBeUndefined()
   })
 
   it('leaves the byte order where it was when main refuses the mapping', async () => {

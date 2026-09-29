@@ -220,14 +220,28 @@ export const useClientZustand = create<
         }
         syncUnitsToMain(view.uuid)
       },
+      // Monitor's Poll records no step of its own, so an entry put back keeps
+      // the Poll the register has now, and takes its own only where the
+      // register has no entry.
       setMappingEntry: (type, register, entry) => {
         const view = viewOf(get())
         set((state) =>
           onClient(state, view.uuid, ({ client }) => {
             const unit = client.units.find(({ uuid }) => uuid === view.unit)
             if (!unit) return
-            if (entry === undefined) delete unit.registerMapping[type][register]
-            else unit.registerMapping[type][register] = entry
+            const current = unit.registerMapping[type][register]
+            if (entry === undefined) {
+              delete unit.registerMapping[type][register]
+              return
+            }
+            if (!current) {
+              unit.registerMapping[type][register] = entry
+              return
+            }
+            unit.registerMapping[type][register] = {
+              ...entry,
+              monitorPollOff: current.monitorPollOff
+            }
           })
         )
         syncUnitsToMain(view.uuid)

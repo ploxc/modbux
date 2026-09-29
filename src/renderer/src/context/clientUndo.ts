@@ -1,4 +1,4 @@
-import { isConnectionAddressGiven } from '@shared'
+import { isConnectionAddressGiven, RegisterMapping, RegisterTypeSchema } from '@shared'
 import { deepEqual } from 'fast-equals'
 import {
   getSelectedUnit,
@@ -152,6 +152,22 @@ const currentConfiguration = (): ClientConfiguration => {
 }
 
 /**
+ * `mapping` with the Monitor Poll each register has now, because Monitor's
+ * Poll records no step of its own: a register mapped now keeps its Poll, and
+ * one that is not takes the Poll it had.
+ */
+const withPollNow = (mapping: RegisterMapping, now: RegisterMapping): RegisterMapping => {
+  const merged = structuredClone(mapping)
+  for (const type of RegisterTypeSchema.options) {
+    for (const [address, current] of Object.entries(now[type])) {
+      const entry = merged[type][Number(address)]
+      if (entry && current) entry.monitorPollOff = current.monitorPollOff
+    }
+  }
+  return merged
+}
+
+/**
  * Puts back what Load or Clear Config replaced, as a whole or not at all.
  *
  * The byte order goes first and is put back if main then refuses the mapping,
@@ -165,7 +181,8 @@ const replayConfiguration = async (
   const client = useClientZustand.getState()
 
   if (!(await client.setLittleEndian(step.value.littleEndian))) return undefined
-  if (!(await client.replaceRegisterMapping(step.value.registerMapping))) {
+  const registerMapping = withPollNow(step.value.registerMapping, replaced.value.registerMapping)
+  if (!(await client.replaceRegisterMapping(registerMapping))) {
     await client.setLittleEndian(replaced.value.littleEndian)
     return undefined
   }
