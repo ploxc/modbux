@@ -534,7 +534,8 @@ describe('each guarded channel got its own schema', () => {
     set_read_configuration: { uuid: 'client-1', unit: 'unit-1', readConfiguration: true },
     set_visible_sections: {
       uuid: 'client-1',
-      sections: [{ unit: 'unit-1', type: 'holding_registers' }]
+      sections: [{ unit: 'unit-1', type: 'holding_registers' }],
+      monitor: false
     },
     connect: 'client-1',
     disconnect: 'client-1',

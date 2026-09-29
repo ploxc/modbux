@@ -77,9 +77,15 @@ export type ClientReadConfiguration = z.infer<typeof ClientReadConfigurationSche
  * The register types of a client's units that are on screen. A poll reads
  * nothing else, so a grid nobody sees costs no request.
  */
+/**
+ * What of a client is on screen: the sections Debug shows, or the whole client
+ * in Monitor, which reads every unit's configured groups whatever is scrolled
+ * or folded.
+ */
 export const ClientVisibleSectionsSchema = z.object({
   uuid: ClientUuidSchema,
-  sections: z.array(z.object({ unit: UnitUuidSchema, type: RegisterTypeSchema }))
+  sections: z.array(z.object({ unit: UnitUuidSchema, type: RegisterTypeSchema })),
+  monitor: z.boolean()
 })
 export type ClientVisibleSections = z.infer<typeof ClientVisibleSectionsSchema>
 
@@ -125,6 +131,8 @@ export interface RegisterDataEvent {
   unit: string
   type: RegisterType
   registerData: RegisterData[]
+  /** Whether the read was Monitor's, whose rows are kept apart from Debug's. */
+  monitor: boolean
 }
 
 export interface AddressGroupsEvent {
@@ -134,6 +142,8 @@ export interface AddressGroupsEvent {
   addressGroups: AddressGroup[]
   /** How each group went, at the index of its group. */
   results: AddressGroupResult[]
+  /** Whether the read was Monitor's. */
+  monitor: boolean
 }
 
 export interface TransactionEvent {

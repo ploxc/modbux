@@ -28,6 +28,8 @@ export interface ClientData {
   scanProgress: number
   /** The sections on screen: all a poll of this client reads. */
   shownSections: ClientVisibleSections['sections']
+  /** Whether Monitor shows this client, which reads every unit whatever is on screen. */
+  monitorShown: boolean
   /**
    * The sections a running poll stopped reading when they left the screen, by
    * `sectionKey`. Their rows are the last it read, until a read replaces them
@@ -41,19 +43,28 @@ export interface LiveZustand {
   clients: Record<string, ClientData>
 
   // Register data
-  setRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
+  setRegisterData: (
+    uuid: string,
+    unit: string,
+    type: RegisterType,
+    data: RegisterData[],
+    monitor?: boolean
+  ) => void
   appendRegisterData: (uuid: string, unit: string, type: RegisterType, data: RegisterData[]) => void
   setAddressGroups: (
     uuid: string,
     unit: string,
     type: RegisterType,
     groups: AddressGroup[],
-    results: AddressGroupResult[]
+    results: AddressGroupResult[],
+    monitor?: boolean
   ) => void
 
   // What is on screen
   showSection: (uuid: string, unit: string, type: RegisterType) => void
   hideSection: (uuid: string, unit: string, type: RegisterType) => void
+  showMonitor: (uuid: string) => void
+  hideMonitor: (uuid: string) => void
 
   // State
   setClientState: (uuid: string, clientState: ClientState) => void

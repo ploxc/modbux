@@ -241,7 +241,8 @@ describe('ModbusClient', () => {
     target.setVisibleSections(
       appState.units.flatMap((unit) =>
         RegisterTypeSchema.options.map((type) => ({ unit: unit.uuid, type }))
-      )
+      ),
+      false
     )
 
   afterEach(() => {
@@ -2047,7 +2048,7 @@ describe('ModbusClient', () => {
     it('reads only the unit on screen', async () => {
       await connectClient()
       twoUnits()
-      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }])
+      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }], false)
       setupHoldingRegisterReadMock([100])
 
       client.startPolling()
@@ -2060,12 +2061,12 @@ describe('ModbusClient', () => {
     it('reads a unit again from the round after it is shown', async () => {
       await connectClient()
       twoUnits()
-      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }])
+      client.setVisibleSections([{ unit: UNIT, type: 'holding_registers' }], false)
       setupHoldingRegisterReadMock([100])
 
       client.startPolling()
       await vi.advanceTimersByTimeAsync(0)
-      client.setVisibleSections([{ unit: 'u2', type: 'holding_registers' }])
+      client.setVisibleSections([{ unit: 'u2', type: 'holding_registers' }], false)
       await vi.advanceTimersByTimeAsync(1000)
 
       expect(readAddresses()).toEqual([0, 100])
@@ -2081,7 +2082,7 @@ describe('ModbusClient', () => {
           sections: { ...unit.sections, coils: { address: 0, length: 8, polled: true } }
         }
       ])
-      client.setVisibleSections([{ unit: UNIT, type: 'coils' }])
+      client.setVisibleSections([{ unit: UNIT, type: 'coils' }], false)
       mockModbusRTU.readCoils.mockResolvedValue({
         data: Array(8).fill(false),
         buffer: Buffer.alloc(1)
@@ -2097,7 +2098,7 @@ describe('ModbusClient', () => {
 
     it('polls with nothing on screen, idle, and reads once something is', async () => {
       await connectClient()
-      client.setVisibleSections([])
+      client.setVisibleSections([], false)
       setupHoldingRegisterReadMock([100])
 
       client.startPolling()
@@ -2112,6 +2113,76 @@ describe('ModbusClient', () => {
 
       client.stopPolling()
       expect(getLastClientState()).toMatchObject({ polling: false, pollIdle: false })
+    })
+
+    describe('in Monitor', () => {
+      const mapped = (address: number): RegisterMapping => ({
+        coils: {},
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: { [address]: { dataType: 'uint16' } }
+      })
+
+      it("reads every unit's configured groups with nothing on screen and read configuration off", async () => {
+        await connectClient()
+        configureUnit({ registerMapping: mapped(40) })
+        twoUnits({ registerMapping: mapped(300) })
+        client.setVisibleSections([], true)
+        setupHoldingRegisterReadMock([100])
+
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(mockModbusRTU.readHoldingRegisters.mock.calls).toEqual([
+          [40, 1],
+          [300, 1]
+        ])
+        expect(getLastClientState()).toMatchObject({ polling: true, pollIdle: false })
+        client.stopPolling()
+      })
+
+      it('leaves out a type whose Poll is off', async () => {
+        await connectClient()
+        configureUnit({ registerMapping: mapped(40) })
+        twoUnits({
+          registerMapping: mapped(300),
+          sections: {
+            ...newClientUnit('u2', 2).sections,
+            holding_registers: { address: 100, length: 10, polled: false }
+          }
+        })
+        client.setVisibleSections([], true)
+        setupHoldingRegisterReadMock([100])
+
+        client.startPolling()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(readAddresses()).toEqual([40])
+        client.stopPolling()
+      })
+
+      it("marks its rows and groups as Monitor's, and Debug's once back", async () => {
+        await connectClient()
+        configureUnit({ registerMapping: mapped(40) })
+        setupHoldingRegisterReadMock([100])
+
+        client.setVisibleSections([], true)
+        await client.read(UNIT, unitType)
+        showEverything()
+        await client.read(UNIT, unitType)
+
+        const marks = sentWhole
+          .filter(([event]) => event === 'register_data' || event === 'address_groups')
+          .map(([event, payload]) => [event, (payload as { monitor: boolean }).monitor])
+        expect(marks).toEqual([
+          ['address_groups', true],
+          ['register_data', true],
+          ['address_groups', false],
+          ['register_data', false]
+        ])
+        // Back in Debug with read configuration off, the read is the window.
+        expect(readAddresses()).toEqual([40, 0])
+      })
     })
 
     it('reads the other unit every round while one is offline', async () => {

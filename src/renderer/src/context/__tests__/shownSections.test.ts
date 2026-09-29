@@ -5,6 +5,7 @@
 // replaces them or the poll stops.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultClientState, getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
+import type { RegisterData } from '@shared'
 import { ApiCall, fireEvent, recordApiCalls, stubRenderer } from './stubRenderer'
 import { MAIN_UNIT_UUID } from '../client.zustand.helpers'
 
@@ -48,17 +49,66 @@ describe('what is on screen', () => {
     expect(sent.map(({ payload }) => payload)).toEqual([
       {
         uuid: MAIN_CLIENT_UUID,
-        sections: [{ unit: MAIN_UNIT_UUID, type: 'holding_registers' }]
+        sections: [{ unit: MAIN_UNIT_UUID, type: 'holding_registers' }],
+        monitor: false
       },
       {
         uuid: MAIN_CLIENT_UUID,
         sections: [
           { unit: MAIN_UNIT_UUID, type: 'holding_registers' },
           { unit: MAIN_UNIT_UUID, type: 'coils' }
-        ]
+        ],
+        monitor: false
       },
-      { uuid: MAIN_CLIENT_UUID, sections: [{ unit: MAIN_UNIT_UUID, type: 'coils' }] }
+      {
+        uuid: MAIN_CLIENT_UUID,
+        sections: [{ unit: MAIN_UNIT_UUID, type: 'coils' }],
+        monitor: false
+      }
     ])
+  })
+
+  it('tells main when Monitor shows the client, and when it leaves', async () => {
+    const calls: ApiCall[] = []
+    recordApiCalls(calls)
+    const { useLiveZustand } = await load()
+    const live = useLiveZustand.getState()
+
+    live.showMonitor(MAIN_CLIENT_UUID)
+    live.hideMonitor(MAIN_CLIENT_UUID)
+
+    const sent = calls.filter(({ method }) => method === 'setVisibleSections')
+    expect(sent.map(({ payload }) => payload)).toEqual([
+      { uuid: MAIN_CLIENT_UUID, sections: [], monitor: true },
+      { uuid: MAIN_CLIENT_UUID, sections: [], monitor: false }
+    ])
+  })
+})
+
+describe('what Monitor reads', () => {
+  it('is kept apart from the rows Debug shows', async () => {
+    const { useLiveZustand } = await load()
+    const { sectionOf } = await import('../live.zustand.helpers')
+    const target = {
+      uuid: MAIN_CLIENT_UUID,
+      unit: MAIN_UNIT_UUID,
+      type: 'holding_registers'
+    } as const
+    const row = (id: number): RegisterData => ({ ...getDummyRegisterData(id) })
+
+    fireEvent('register_data', { ...target, registerData: [row(0)], monitor: false })
+    fireEvent('register_data', { ...target, registerData: [row(40)], monitor: true })
+
+    const state = useLiveZustand.getState()
+    const ids = (monitor: boolean): number[] =>
+      sectionOf(
+        state,
+        MAIN_CLIENT_UUID,
+        MAIN_UNIT_UUID,
+        'holding_registers',
+        monitor
+      ).registerData.map(({ id }) => id)
+    expect([ids(false), ids(true)]).toEqual([[0], [40]])
   })
 })
 

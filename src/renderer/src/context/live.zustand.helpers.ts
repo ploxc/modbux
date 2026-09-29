@@ -10,6 +10,7 @@ export const emptyClientData = (): ClientData => ({
   scanUnitIdResults: [],
   scanProgress: 0,
   shownSections: [],
+  monitorShown: false,
   staleSections: []
 })
 
@@ -27,16 +28,22 @@ const NO_SECTION: SectionData = { registerData: [], addressGroups: [], groupResu
 export const dataOf = (state: Pick<LiveZustand, 'clients'>, uuid: string): ClientData =>
   state.clients[uuid] ?? NO_DATA
 
-/** The key a unit's register type is held under in `ClientData.sections`. */
-export const sectionKey = (unit: string, type: RegisterType): string => `${unit}:${type}`
+/**
+ * The key a unit's register type is held under in `ClientData.sections`.
+ * Monitor's reads are held under a key of their own, so switching back to
+ * Debug shows Debug's rows rather than the groups Monitor read.
+ */
+export const sectionKey = (unit: string, type: RegisterType, monitor = false): string =>
+  monitor ? `monitor:${unit}:${type}` : `${unit}:${type}`
 
 /** The rows and groups of one unit's register type on the client under `uuid`. */
 export const sectionOf = (
   state: Pick<LiveZustand, 'clients'>,
   uuid: string,
   unit: string,
-  type: RegisterType
-): SectionData => dataOf(state, uuid).sections[sectionKey(unit, type)] ?? NO_SECTION
+  type: RegisterType,
+  monitor = false
+): SectionData => dataOf(state, uuid).sections[sectionKey(unit, type, monitor)] ?? NO_SECTION
 
 /**
  * Each row list by address, built the first time a list is asked and kept

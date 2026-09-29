@@ -190,8 +190,17 @@ export class ModbusClient implements TransportClient {
       this._appState.units.every((unit) => this._polledTypes(unit).length === 0)
     this._windows.send('client_state', { uuid: this.uuid, clientState: this._clientState }, 'main')
   }
-  private _sendData = (unit: string, type: RegisterType, registerData: RegisterData[]): void => {
-    this._windows.send('register_data', { uuid: this.uuid, unit, type, registerData }, 'main')
+  private _sendData = (
+    unit: string,
+    type: RegisterType,
+    registerData: RegisterData[],
+    monitor: boolean
+  ): void => {
+    this._windows.send(
+      'register_data',
+      { uuid: this.uuid, unit, type, registerData, monitor },
+      'main'
+    )
   }
   private _sendUnitIdResult = (result: ScanUnitIDResult): void => {
     this._windows.send('scan_unit_id_result', { uuid: this.uuid, result }, 'main')
@@ -201,11 +210,12 @@ export class ModbusClient implements TransportClient {
     unit: string,
     type: RegisterType,
     addressGroups: AddressGroup[],
-    results: AddressGroupResult[]
+    results: AddressGroupResult[],
+    monitor: boolean
   ): void => {
     this._windows.send(
       'address_groups',
-      { uuid: this.uuid, unit, type, addressGroups, results },
+      { uuid: this.uuid, unit, type, addressGroups, results, monitor },
       'main'
     )
   }
@@ -351,7 +361,7 @@ export class ModbusClient implements TransportClient {
    */
   private _readsNothing = (unit: ClientUnit, type: RegisterType): boolean =>
     readsNothing(
-      this._appState.readConfiguration(unit.uuid),
+      this._readsConfiguration(unit),
       type,
       unit.registerMapping,
       isReadLengthGiven(unit.sections[type].length)
@@ -565,7 +575,8 @@ export class ModbusClient implements TransportClient {
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration(unit.uuid)
     const target = this._target(ride, unit.unitId, this._appState.registerConfig.timeout)
-    const readConfiguration = this._appState.readConfiguration(unit.uuid)
+    const readConfiguration = this._readsConfiguration(unit)
+    const monitor = this._monitor
 
     const data: RegisterData[] = []
 
@@ -670,8 +681,8 @@ export class ModbusClient implements TransportClient {
 
     if (data.length > 0) {
       // Send the groups so we can slice the utf8 string correctly.
-      this._sendGroups(unit.uuid, type, groups, results)
-      this._sendData(unit.uuid, type, data)
+      this._sendGroups(unit.uuid, type, groups, results, monitor)
+      this._sendData(unit.uuid, type, data, monitor)
     }
     if (answered) return true
     return silent ? false : undefined
@@ -723,35 +734,58 @@ export class ModbusClient implements TransportClient {
   //
   // Polling
   /**
-   * The register types a poll would read of `unit` were all of it on screen:
-   * under read configuration every type the mapping has groups for, otherwise
-   * every polled section. A type that would read nothing is left out.
+   * The register types a poll would read of `unit` were all of it on screen.
+   * In Monitor, every polled type the mapping has groups for. In Debug under
+   * the unit's read configuration, every type the mapping has groups for,
+   * otherwise every polled section. A type that would read nothing is left
+   * out.
    */
   private _pollableTypes = (unit: ClientUnit): RegisterType[] => {
     const readConfiguration = this._appState.readConfiguration(unit.uuid)
-    return RegisterTypeSchema.options.filter((type) =>
-      readConfiguration
-        ? configuredReadGroups(true, type, unit.registerMapping).length > 0
+    return RegisterTypeSchema.options.filter((type) => {
+      const grouped = configuredReadGroups(true, type, unit.registerMapping).length > 0
+      if (this._monitor) return unit.sections[type].polled && grouped
+      return readConfiguration
+        ? grouped
         : unit.sections[type].polled && !this._readsNothing(unit, type)
-    )
+    })
   }
 
-  /** What of the units is on screen, the only sections a poll round reads. */
+  /** What of the units Debug has on screen, the only sections its poll round reads. */
   private _visibleSections: ClientVisibleSections['sections'] = []
 
-  /** The register types a poll round reads of `unit`: its pollable types on screen. */
+  /**
+   * Whether the client is on screen in Monitor. A read then takes the mapping's
+   * groups of every unit, whatever the unit's read configuration says.
+   */
+  private _monitor = false
+
+  /** Whether a read of `unit` takes the mapping's groups: in Monitor, or under its read configuration. */
+  private _readsConfiguration = (unit: ClientUnit): boolean =>
+    this._monitor || this._appState.readConfiguration(unit.uuid)
+
+  /**
+   * The register types a poll round reads of `unit`: its pollable types on
+   * screen in Debug, and all of them in Monitor, which shows every unit.
+   */
   private _polledTypes = (unit: ClientUnit): RegisterType[] =>
-    this._pollableTypes(unit).filter((type) =>
-      this._visibleSections.some((section) => section.unit === unit.uuid && section.type === type)
+    this._pollableTypes(unit).filter(
+      (type) =>
+        this._monitor ||
+        this._visibleSections.some((section) => section.unit === unit.uuid && section.type === type)
     )
 
   /**
-   * Take what of the units is on screen. A poll keeps running with nothing on
+   * Take what of the client is on screen. A poll keeps running with nothing on
    * screen and reads again once something is, and `pollIdle` says which of
    * the two it is doing.
    */
-  public setVisibleSections = (sections: ClientVisibleSections['sections']): void => {
+  public setVisibleSections = (
+    sections: ClientVisibleSections['sections'],
+    monitor: boolean
+  ): void => {
     this._visibleSections = sections
+    this._monitor = monitor
     if (this._clientState.polling) this._sendClientState()
   }
 
@@ -1345,7 +1379,8 @@ export class ModbusClient implements TransportClient {
     const data = settled.result.filter((row) =>
       isBooleanRegister(type) ? row.bit : row.hex !== '0000'
     )
-    this._sendData(unit.uuid, type, data)
+    // A scan's rows are the Debug grid's, which shows the scan.
+    this._sendData(unit.uuid, type, data, false)
     return true
   }
 

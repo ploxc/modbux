@@ -74,19 +74,20 @@ const onSection = (
   uuid: string,
   unit: string,
   type: RegisterType,
-  recipe: (section: SectionData) => void
+  recipe: (section: SectionData) => void,
+  monitor = false
 ): void =>
   onData(state, uuid, (data) => {
-    const key = sectionKey(unit, type)
+    const key = sectionKey(unit, type, monitor)
     const section = data.sections[key] ?? { registerData: [], addressGroups: [], groupResults: [] }
     data.sections[key] = section
     recipe(section)
   })
 
-/** Hand main the sections of `uuid` on screen, the only ones its poll reads. */
+/** Hand main what of `uuid` is on screen, the only part its poll reads. */
 const sendShownSections = (uuid: string): void => {
-  const sections = dataOf(useLiveZustand.getState(), uuid).shownSections
-  window.api.setVisibleSections({ uuid, sections })
+  const { shownSections, monitorShown } = dataOf(useLiveZustand.getState(), uuid)
+  window.api.setVisibleSections({ uuid, sections: shownSections, monitor: monitorShown })
 }
 
 /**
@@ -118,24 +119,31 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
     // keeps the old object, and a poll that changed nothing writes nothing:
     // over ten polls of 120 unchanged registers, 31 rows on screen, the rows
     // drawn went from 310 to 0.
-    setRegisterData: (uuid, unit, type, registerData) => {
-      const key = sectionKey(unit, type)
+    setRegisterData: (uuid, unit, type, registerData, monitor = false) => {
+      const key = sectionKey(unit, type, monitor)
       if (dataOf(get(), uuid).staleSections.includes(key))
         set((state) =>
           onData(state, uuid, (data) => {
             data.staleSections = data.staleSections.filter((stale) => stale !== key)
           })
         )
-      const previous = sectionOf(get(), uuid, unit, type).registerData
+      const previous = sectionOf(get(), uuid, unit, type, monitor).registerData
       const shared = registerData.map((row, i) => {
         const before = previous[i]
         return before !== undefined && deepEqual(before, row) ? before : row
       })
       if (shared.length === previous.length && shared.every((row, i) => row === previous[i])) return
       set((state) =>
-        onSection(state, uuid, unit, type, (section) => {
-          section.registerData = shared
-        })
+        onSection(
+          state,
+          uuid,
+          unit,
+          type,
+          (section) => {
+            section.registerData = shared
+          },
+          monitor
+        )
       )
     },
     appendRegisterData: (uuid, unit, type, registerData) =>
@@ -144,18 +152,25 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
           section.registerData.push(...registerData)
         })
       ),
-    setAddressGroups: (uuid, unit, type, addressGroups, groupResults) => {
-      const before = sectionOf(get(), uuid, unit, type)
+    setAddressGroups: (uuid, unit, type, addressGroups, groupResults, monitor = false) => {
+      const before = sectionOf(get(), uuid, unit, type, monitor)
       if (
         deepEqual(before.addressGroups, addressGroups) &&
         deepEqual(before.groupResults, groupResults)
       )
         return
       set((state) =>
-        onSection(state, uuid, unit, type, (section) => {
-          section.addressGroups = addressGroups
-          section.groupResults = groupResults
-        })
+        onSection(
+          state,
+          uuid,
+          unit,
+          type,
+          (section) => {
+            section.addressGroups = addressGroups
+            section.groupResults = groupResults
+          },
+          monitor
+        )
       )
     },
 
@@ -186,6 +201,26 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
             (shown) => shown.unit !== unit || shown.type !== type
           )
           if (stale && !data.staleSections.includes(key)) data.staleSections.push(key)
+        })
+      )
+      sendShownSections(uuid)
+    },
+
+    // Monitor shows the whole client, so main reads every unit of it.
+    showMonitor: (uuid) => {
+      if (!isHeld(uuid)) return
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.monitorShown = true
+        })
+      )
+      sendShownSections(uuid)
+    },
+    hideMonitor: (uuid) => {
+      if (!isHeld(uuid)) return
+      set((state) =>
+        onData(state, uuid, (data) => {
+          data.monitorShown = false
         })
       )
       sendShownSections(uuid)
@@ -442,12 +477,15 @@ if (!window.api.isServerWindow) {
 const isHeld = (uuid: string): boolean => Object.hasOwn(useClientZustand.getState().clients, uuid)
 
 // Data read from the registers
-onEvent('register_data', ({ uuid, unit, type, registerData }) => {
+onEvent('register_data', ({ uuid, unit, type, registerData, monitor }) => {
   if (!isHeld(uuid)) return
   const liveZustand = useLiveZustand.getState()
   const key = scanRowsKey(uuid, unit, type)
 
-  if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
+  // A scan's rows are Debug's, so Monitor's reads never wait with them.
+  if (monitor) {
+    liveZustand.setRegisterData(uuid, unit, type, registerData, true)
+  } else if (dataOf(liveZustand, uuid).clientState.scanningRegisters) {
     pendingScanRows.push(key, registerData)
   } else {
     // A poll replaces the grid, so anything a scan left waiting is stale.
@@ -458,9 +496,9 @@ onEvent('register_data', ({ uuid, unit, type, registerData }) => {
   liveZustand.setLastSuccessfulTransactionMillis(uuid, DateTime.now().toMillis())
 })
 
-onEvent('address_groups', ({ uuid, unit, type, addressGroups, results }) => {
+onEvent('address_groups', ({ uuid, unit, type, addressGroups, results, monitor }) => {
   if (!isHeld(uuid)) return
-  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups, results)
+  useLiveZustand.getState().setAddressGroups(uuid, unit, type, addressGroups, results, monitor)
 })
 
 // Client state, like polling, scanning, etc.

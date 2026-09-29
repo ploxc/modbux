@@ -131,6 +131,10 @@ export class Clients {
   }: ClientReadConfiguration): true | undefined =>
     this._configure(uuid, (_, client) => client.setReadConfiguration(unit, readConfiguration))
 
-  public setVisibleSections = ({ uuid, sections }: ClientVisibleSections): true | undefined =>
-    this._configure(uuid, (_, client) => client.setVisibleSections(sections))
+  public setVisibleSections = ({
+    uuid,
+    sections,
+    monitor
+  }: ClientVisibleSections): true | undefined =>
+    this._configure(uuid, (_, client) => client.setVisibleSections(sections, monitor))
 }

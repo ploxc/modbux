@@ -91,6 +91,7 @@ const liveOf = ({
   scanUnitIdResults: [],
   scanProgress: 0,
   shownSections: [],
+  monitorShown: false,
   staleSections: [],
   ...overrides
 })
