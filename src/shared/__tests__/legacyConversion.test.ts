@@ -31,6 +31,16 @@ describe('a mapping entry from before conversions', () => {
     })
   })
 
+  // The old modal's reset saved this line, which changes nothing.
+  it('reads an interpolation that changes nothing as the scale alone', () => {
+    const identity = { x1: '0', x2: '1', y1: '0', y2: '1' }
+    expect(read({ dataType: 'float', interpolate: identity })).toEqual({ dataType: 'float' })
+    expect(read({ dataType: 'uint16', scalingFactor: 0.1, interpolate: identity })).toEqual({
+      dataType: 'uint16',
+      conversion: { kind: 'scale', factor: 0.1 }
+    })
+  })
+
   it('keeps a conversion it already carries', () => {
     const conversion = { kind: 'script', code: 'return raw' }
     expect(read({ dataType: 'int16', conversion, scalingFactor: 5 })).toEqual({

@@ -42,7 +42,8 @@ const RegisterMapValueObjectSchema = z.object({
  * `scalingFactor` and `interpolate`, and reads as the conversion that gives
  * the same value: a scale alone as Scale, an interpolation as Linear
  * interpolation with its raw points divided by the scale, because it scaled
- * first and interpolated after.
+ * first and interpolated after, and an interpolation that changes nothing as
+ * the scale alone.
  */
 export const RegisterMapValueSchema = z.preprocess((value) => {
   if (typeof value !== 'object' || value === null) return value
@@ -51,7 +52,12 @@ export const RegisterMapValueSchema = z.preprocess((value) => {
     return rest
   const factor = typeof scalingFactor === 'number' && scalingFactor !== 0 ? scalingFactor : 1
   const lerp = RegisterLinearInterpolationSchema.safeParse(interpolate)
-  if (lerp.success) {
+  // The old modal's reset saved (0, 0) to (1, 1).
+  const identity =
+    lerp.success &&
+    Number(lerp.data.x1) === Number(lerp.data.y1) &&
+    Number(lerp.data.x2) === Number(lerp.data.y2)
+  if (lerp.success && !identity) {
     const { x1, x2, y1, y2 } = lerp.data
     const raw = (x: string): string => String(Number(x) / factor)
     return { ...rest, conversion: { kind: 'lerp', x1: raw(x1), x2: raw(x2), y1, y2 } }
