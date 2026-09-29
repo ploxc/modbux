@@ -13,3 +13,11 @@ export const formatDuration = (millis: number): string => {
   const parts = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
   return parts.map((part) => String(part).padStart(2, '0')).join(':')
 }
+
+/**
+ * How far the log's bar is filled, as a CSS width. A log holding a sample
+ * shows at least 3 px: 3,412 of 1,000,000 is 1.3 px of the popover's
+ * 370 px bar.
+ */
+export const logFill = (samples: number, capacity: number): string =>
+  samples === 0 ? '0%' : `max(3px, ${Math.min(100, (samples / capacity) * 100)}%)`

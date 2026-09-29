@@ -1,4 +1,5 @@
 import Edit from '@mui/icons-material/Edit'
+import ShowChart from '@mui/icons-material/ShowChart'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { getConvertedValue } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
@@ -30,18 +31,11 @@ export const AddressCell = meme(({ row }: { row: MonitorRegisterRow }): JSX.Elem
     isLogged(row.type, unitIn(z, uuid, row.unit)?.registerMapping[row.type][row.address])
   )
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Box
-        component="span"
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+      <ShowChart
         data-testid={logged ? 'monitor-row-logs' : undefined}
-        title={logged ? 'Logs' : undefined}
-        sx={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          flexShrink: 0,
-          bgcolor: logged ? 'success.main' : 'transparent'
-        }}
+        titleAccess={logged ? 'Logs' : undefined}
+        sx={{ fontSize: 16, color: 'success.main', visibility: logged ? 'visible' : 'hidden' }}
       />
       <Box component="span" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
         {row.address + Number(addressBase)}

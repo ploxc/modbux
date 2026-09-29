@@ -1,3 +1,4 @@
+import ShowChart from '@mui/icons-material/ShowChart'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import ButtonBase from '@mui/material/ButtonBase'
@@ -10,7 +11,6 @@ import { ClientUnit, loggedRegisterCount } from '@shared'
 import { MouseEvent, useCallback, useEffect, useState } from 'react'
 import LogStatusPopover from './LogStatusPopover'
 import StartLogDialog from './StartLogDialog'
-import LogDot from './LogDot'
 import { formatCount, formatDuration } from './format'
 
 const NO_UNITS: ClientUnit[] = []
@@ -48,7 +48,7 @@ const LogChip = meme(({ onOpen }: { onOpen: (event: MouseEvent<HTMLElement>) => 
         background: alpha(theme.palette.success.main, 0.14)
       })}
     >
-      <LogDot />
+      <ShowChart sx={{ fontSize: 16 }} />
       {enabled ? 'Logging' : 'Log'}
       {enabled && (
         <>
@@ -121,7 +121,7 @@ const LogControls = meme((): JSX.Element => {
           variant="outlined"
           color="success"
           disabled={logged === 0}
-          startIcon={<LogDot />}
+          startIcon={<ShowChart />}
           onClick={handleEnable}
         >
           Enable logging

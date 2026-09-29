@@ -43,7 +43,7 @@ const COLUMNS: GridColDef<MonitorRow>[] = [
   {
     field: 'address',
     headerName: 'Addr.',
-    width: 70,
+    width: 84,
     sortable: false,
     colSpan: (_value, row) => (row.kind === 'head' ? COLUMN_COUNT : 1),
     renderCell: ({ row }) =>

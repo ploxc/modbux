@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import LinearProgress from '@mui/material/LinearProgress'
 import Popover from '@mui/material/Popover'
+import { alpha } from '@mui/material/styles'
 import TextField from '@mui/material/TextField'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
@@ -9,7 +9,7 @@ import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { textMuted } from '@renderer/theme'
 import { ClientLogCapacitySchema, LogRun } from '@shared'
 import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react'
-import { formatCount, formatTime } from './format'
+import { formatCount, formatTime, logFill } from './format'
 import ExportLogDialog from './ExportLog/ExportLogDialog'
 
 interface LogStatusPopoverProps {
@@ -86,12 +86,22 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
         sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, fontSize: 12.5 }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <LinearProgress
-            variant="determinate"
-            color="success"
-            value={Math.min(100, (samples / capacity) * 100)}
-            sx={{ height: 6, borderRadius: 3 }}
-          />
+          <Box
+            role="progressbar"
+            aria-label="Log fill"
+            aria-valuenow={Math.round(Math.min(100, (samples / capacity) * 100))}
+            sx={(theme) => ({
+              height: 6,
+              borderRadius: '3px',
+              overflow: 'hidden',
+              background: alpha(theme.palette.success.main, 0.2)
+            })}
+          >
+            <Box
+              data-testid="log-status-fill"
+              sx={{ width: logFill(samples, capacity), height: '100%', bgcolor: 'success.main' }}
+            />
+          </Box>
           <Box
             sx={{
               display: 'grid',
