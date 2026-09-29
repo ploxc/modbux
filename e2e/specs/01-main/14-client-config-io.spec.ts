@@ -120,6 +120,20 @@ test.describe.serial('Client config I/O — view, save, clear, load', () => {
     await mainPage.getByTestId('conversion-cancel-btn').click()
   })
 
+  // The raw value to try is one the INT16 at address 0 can hold: letters and a
+  // separator are dropped, and a number past the type stops at its end.
+  test('the raw value to try takes what the data type reads', async ({ mainPage }) => {
+    const row0 = mainPage.locator('.MuiDataGrid-row[data-id="0"]')
+    await row0.getByTestId('conversion-cell-0').click()
+    const test = mainPage.getByTestId('conversion-test-input')
+    await test.pressSequentially('a1.5')
+    await expect(test).toHaveValue('15')
+    await test.fill('')
+    await test.pressSequentially('-40000')
+    await expect(test).toHaveValue('-32768')
+    await mainPage.getByTestId('conversion-cancel-btn').click()
+  })
+
   test('verify comments visible in grid', async ({ mainPage }) => {
     await expectCell(mainPage, 0, 'comment', 'setpoint')
     await expectCell(mainPage, 1, 'comment', 'temperature scaled')

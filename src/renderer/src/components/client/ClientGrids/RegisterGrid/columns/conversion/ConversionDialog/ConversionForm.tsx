@@ -29,7 +29,7 @@ const ConversionForm = meme(({ address, onClose }: ConversionFormProps) => {
     () => selectedUnit(useClientZustand.getState()).registerMapping[type][address]?.conversion
   )
   const { draft, factorText, problem, pick, handleFactor, handleLerp, handleCode, current } =
-    useConversionDraft(initial)
+    useConversionDraft(initial, dataType)
 
   const handleSave = useCallback(() => {
     const clientZustand = useClientZustand.getState()
@@ -55,16 +55,15 @@ const ConversionForm = meme(({ address, onClose }: ConversionFormProps) => {
         <KindList active={draft?.kind ?? 'none'} onPick={pick} />
         <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {draft === undefined && <NoneNote />}
-          {draft?.kind === 'scale' && (
-            <ScaleField factorText={factorText} onChange={handleFactor} />
-          )}
+          {draft?.kind === 'scale' && <ScaleField factorText={factorText} set={handleFactor} />}
           {draft?.kind === 'lerp' && (
             <LerpFields
+              dataType={dataType}
               x1={draft.x1}
               x2={draft.x2}
               y1={draft.y1}
               y2={draft.y2}
-              onChange={handleLerp}
+              set={handleLerp}
             />
           )}
           {draft?.kind === 'script' && (

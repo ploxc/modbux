@@ -1,11 +1,13 @@
 import Box from '@mui/material/Box'
-import InputBase from '@mui/material/InputBase'
+import InputBase, { InputBaseComponentProps } from '@mui/material/InputBase'
 import { meme } from '@renderer/components/shared/inputs/meme'
+import { useMinMaxInteger } from '@renderer/hooks'
 import { DataType, wordOf } from '@shared'
-import { ChangeEvent, useCallback, useState } from 'react'
+import { ElementType, useState } from 'react'
 import { applyConversion } from '../../convertedValue'
 import { useRowAt } from '../../../useRowAt'
 import { Draft, isNumber } from './draft'
+import { NumberInput } from './NumberInput'
 
 interface PreviewProps {
   draft: Draft
@@ -16,6 +18,9 @@ interface PreviewProps {
 /** What the draft makes of a value typed in, and of the register's current value. */
 const Preview = meme(({ draft, dataType, address }: PreviewProps) => {
   const [test, setTest] = useState('')
+  // A raw value is what the data type can read: whole where it is an integer,
+  // and clamped to its range.
+  const { integer, min, max } = useMinMaxInteger(dataType ?? 'none')
   const row = useRowAt(address)
   const read = row && wordOf(row.words, dataType)
   const readText = read === undefined || read === '' ? undefined : String(read)
@@ -26,9 +31,6 @@ const Preview = meme(({ draft, dataType, address }: PreviewProps) => {
     const result = applyConversion(value, dataType, draft)
     return typeof result === 'number' ? String(result) : '—'
   }
-  const handleTest = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setTest(event.target.value)
-  }, [])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, px: 2, py: 1.5 }}>
@@ -46,11 +48,15 @@ const Preview = meme(({ draft, dataType, address }: PreviewProps) => {
       >
         <InputBase
           value={test}
-          onChange={handleTest}
           placeholder="raw"
+          inputComponent={NumberInput as unknown as ElementType<InputBaseComponentProps, 'input'>}
           inputProps={{
             'data-testid': 'conversion-test-input',
-            'aria-label': 'A raw value to try'
+            'aria-label': 'A raw value to try',
+            set: setTest,
+            integer,
+            min,
+            max
           }}
           sx={(theme) => ({
             height: 28,

@@ -1,5 +1,5 @@
 import { scriptError } from '@renderer/conversion/scriptEngine'
-import { Conversion, ConversionKind, DEFAULT_SCRIPT } from '@shared'
+import { Conversion, ConversionKind, DataType, DEFAULT_SCRIPT, getMinMaxValues } from '@shared'
 
 /** A conversion being edited, or none. */
 export type Draft = Conversion | undefined
@@ -31,20 +31,32 @@ export const LERP_FIELDS = [
 
 export type LerpKey = (typeof LERP_FIELDS)[number][0]
 
-export const isLerpKey = (key: string): key is LerpKey =>
-  LERP_FIELDS.some(([field]) => field === key)
-
 /** Whether a field of the scale or the interpolation holds a number. */
 export const isNumber = (text: string): boolean =>
   text.trim() !== '' && Number.isFinite(Number(text))
 
+/** Whether a raw value lies outside what `dataType` can read. */
+export const outsideRaw = (text: string, dataType: DataType | undefined): boolean => {
+  if (dataType === undefined || !isNumber(text)) return false
+  const { min, max } = getMinMaxValues(dataType)
+  const value = Number(text)
+  return value < min || value > max
+}
+
 /** Why the draft cannot be saved, or undefined when it can. */
-export const problemOf = (draft: Draft, factorText: string): string | undefined => {
+export const problemOf = (
+  draft: Draft,
+  factorText: string,
+  dataType: DataType | undefined
+): string | undefined => {
   if (draft === undefined) return undefined
   if (draft.kind === 'scale') return isNumber(factorText) ? undefined : 'The factor is no number'
   if (draft.kind === 'lerp') {
     const fields = [draft.x1, draft.x2, draft.y1, draft.y2]
-    return fields.every(isNumber) ? undefined : 'Every field takes a number'
+    if (!fields.every(isNumber)) return 'Every field takes a number'
+    return [draft.x1, draft.x2].some((raw) => outsideRaw(raw, dataType))
+      ? 'A raw point lies outside the data type'
+      : undefined
   }
   const error = scriptError(draft.code)
   return error && `${error.line === undefined ? '' : `Line ${error.line}: `}${error.message}`

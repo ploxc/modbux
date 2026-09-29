@@ -31,9 +31,9 @@ const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-huawei-smartlogger.json')
 
 interface ClientRegister {
   dataType: string
-  scalingFactor: number
+  scalingFactor?: number
   comment: string
-  interpolate?: { x1: string; x2: string; y1: string; y2: string }
+  conversion?: { kind: 'script'; code: string }
 }
 
 const clientConfig = JSON.parse(readFileSync(CLIENT_CONFIG, 'utf-8'))
@@ -118,23 +118,12 @@ const GROUPS = buildGroups(holdingRegisters)
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-type ConversionInput =
-  | { kind: 'scale'; factor: number }
-  | { kind: 'lerp'; x1: string; x2: string; y1: string; y2: string }
+type ConversionInput = { kind: 'scale'; factor: number } | { kind: 'script'; code: string }
 
 /** The conversion a register of the config reads as. */
 const conversionOf = (reg: ClientRegister): ConversionInput | undefined => {
-  const factor = reg.scalingFactor
-  if (reg.interpolate) {
-    const { x1, x2, y1, y2 } = reg.interpolate
-    return {
-      kind: 'lerp',
-      x1: String(Number(x1) / factor),
-      x2: String(Number(x2) / factor),
-      y1,
-      y2
-    }
-  }
+  if (reg.conversion) return reg.conversion
+  const factor = reg.scalingFactor ?? 1
   return factor !== 1 ? { kind: 'scale', factor } : undefined
 }
 
@@ -164,9 +153,7 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
       await p.keyboard.press('Enter')
     }
 
-    // The config's scale and interpolation, as the one conversion the dialog
-    // holds: an interpolation over the raw points divided by the scale, since
-    // the config scaled first, or else the scale alone.
+    // The config's scale, or the script of the one register that has one.
     const conversion = conversionOf(reg)
     if (conversion) {
       await row.getByTestId(`conversion-cell-${rowId}`).click()
@@ -174,9 +161,8 @@ async function configureRegister(p: any, rowId: number, reg: ClientRegister): Pr
       if (conversion.kind === 'scale') {
         await p.getByTestId('conversion-factor-input').fill(String(conversion.factor))
       } else {
-        for (const key of ['x1', 'x2', 'y1', 'y2'] as const) {
-          await p.getByTestId(`conversion-${key}-input`).fill(conversion[key])
-        }
+        // CodeMirror's editable surface, which takes a fill like an input.
+        await p.getByTestId('conversion-script-input').locator('.cm-content').fill(conversion.code)
       }
       await p.getByTestId('conversion-save-btn').click()
       await expect(p.getByTestId('conversion-save-btn')).toHaveCount(0)
@@ -267,7 +253,7 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     expect(await scrollCell(mainPage, 50000, 'comment')).toBe('Alarm Info 1')
   })
 
-  // 40429 interpolates, so its cell shows the function icon and no number.
+  // 40429 runs a script, so its cell shows the function icon and no number.
   test('readConfig validates scaling factors survived', async ({ mainPage }) => {
     expect(await scrollCell(mainPage, 40428, 'conversion')).toBe('0.1')
     expect(await scrollCell(mainPage, 40429, 'conversion')).toBe('')
@@ -303,6 +289,8 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
 
     await expectCell(mainPage, 40428, 'word_uint16', '990')
     await expectCell(mainPage, 40429, 'word_int16', '30000')
+    // The script's positive line: 0.8 + 30000 × 0.2 / 32767, to six decimals.
+    await expectCell(mainPage, 40429, 'value', '0.983111')
   })
 
   test('read generator and verify value', async ({ mainPage }) => {
@@ -398,15 +386,6 @@ test.describe.serial('Huawei Smart Logger — JSON server + manual client config
     expect(hr['40429'].dataType.toLowerCase()).toContain('int16')
     expect(hr['40550'].dataType.toLowerCase()).toContain('uint64')
     expect(hr['40713'].dataType.toLowerCase()).toContain('utf8')
-
-    // The interpolation after a scale of 0.001, over raw points 1000 times wider
-    expect(hr['40429'].conversion).toEqual({
-      kind: 'lerp',
-      x1: '0',
-      x2: '32767000',
-      y1: '0.8',
-      y2: '1'
-    })
 
     await fs.unlink(savePath).catch(() => {})
   })

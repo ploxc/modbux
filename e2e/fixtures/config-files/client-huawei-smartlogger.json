@@ -44,9 +44,11 @@
       "40428": { "dataType": "uint16", "scalingFactor": 0.1, "comment": "Active adjustment %" },
       "40429": {
         "dataType": "int16",
-        "scalingFactor": 0.001,
         "comment": "Power Factor (-1,-0.8]U[0.8,1]",
-        "interpolate": { "x1": "0", "x2": "32767", "y1": "0.8", "y2": "1" }
+        "conversion": {
+          "kind": "script",
+          "code": "if (raw >= 0) return lerp(raw, 0, 32767, 0.8, 1)\nreturn lerp(raw, -32768, -1, -1, -0.8)"
+        }
       },
       "40500": { "dataType": "int16", "scalingFactor": 0.1, "comment": "DC Current (A)" },
       "40521": { "dataType": "uint32", "scalingFactor": 0.001, "comment": "Input Power (kW)" },
