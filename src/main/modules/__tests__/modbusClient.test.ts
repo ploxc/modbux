@@ -7,6 +7,7 @@ import type {
   ClientUnit,
   Protocol,
   RawTransaction,
+  RegisterData,
   RegisterMapping,
   RegisterType,
   WriteParameters
@@ -3236,10 +3237,10 @@ describe('ModbusClient', () => {
       expect(mockModbusRTU.readHoldingRegisters).toHaveBeenCalledWith(65534, 4)
     })
 
-    // The pair for the group above: a data type on a coil address parses,
-    // because the mapping schema is one object schema for all four types, and
-    // it is the only way a bit mapping gets one.
-    it('reads the toolbar window for a bit type, whatever the mapping carries', async () => {
+    // A data type on a coil address parses, because the mapping schema is one
+    // object schema for all four types, and it configures nothing: a bit is
+    // configured by its comment.
+    it('reads the toolbar window for a bit type whose mapping has no comment', async () => {
       await connectClient()
       configureUnit({ type: 'coils', address: 0, length: 10 })
       appState.setReadConfiguration(UNIT, true)
@@ -3261,6 +3262,54 @@ describe('ModbusClient', () => {
 
       expect(mockModbusRTU.readCoils).toHaveBeenCalledTimes(1)
       expect(mockModbusRTU.readCoils).toHaveBeenCalledWith(0, 10)
+    })
+
+    it('reads the commented bits of a bit type as groups', async () => {
+      await connectClient()
+      configureUnit({ type: 'coils', address: 0, length: 10 })
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
+        coils: {
+          3: { comment: 'Pump' },
+          4: { comment: 'Fan' },
+          2500: { comment: 'Alarm' }
+        },
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {}
+      })
+      mockModbusRTU.readCoils.mockResolvedValue({
+        data: [true, false],
+        buffer: Buffer.from([0x01])
+      })
+
+      await client.read(UNIT, unitType)
+
+      expect(mockModbusRTU.readCoils.mock.calls).toEqual([
+        [3, 2],
+        [2500, 1]
+      ])
+    })
+
+    it('puts an error row on each commented bit of a failed group', async () => {
+      await connectClient()
+      configureUnit({ type: 'coils', address: 0, length: 10 })
+      appState.setReadConfiguration(UNIT, true)
+      setRegisterMapping({
+        coils: { 3: { comment: 'Pump' }, 4: { comment: 'Fan' } },
+        discrete_inputs: {},
+        input_registers: {},
+        holding_registers: {}
+      })
+      mockModbusRTU.readCoils.mockRejectedValue(new Error('read timeout'))
+
+      await client.read(UNIT, unitType)
+
+      const sentData = getWindowCalls('register_data').at(-1)?.[1]
+      expect(sentData.map((row: RegisterData) => [row.id, row.error])).toEqual([
+        [3, 'read timeout'],
+        [4, 'read timeout']
+      ])
     })
 
     it('handles read error and continues to next group', async () => {

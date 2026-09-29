@@ -6,7 +6,7 @@ import type {
   RegisterMapValue,
   RegisterType
 } from './types'
-import { isNumberRegister } from './types'
+import { isNumberRegister, MAX_READ_BITS } from './types'
 import { registerWidth } from './encoding'
 
 /** How far a string is read when nothing in the mapping says where it ends. */
@@ -60,30 +60,30 @@ export const buildAddrInfos = (
 }
 
 /**
+ * Whether a mapped address is one read configuration reads.
+ *
+ * A register is, once it has a data type. A bit has no data type column, so
+ * the comment is all its mapping holds, and a bit with one is configured.
+ */
+export const isConfiguredAddress = (
+  type: RegisterType,
+  mapValue: RegisterMapValue | undefined
+): mapValue is RegisterMapValue => {
+  if (!mapValue) return false
+  if (isNumberRegister(type)) return mapValue.dataType !== undefined && mapValue.dataType !== 'none'
+  return (mapValue.comment ?? '').trim() !== ''
+}
+
+type AddrInfo = { address: number; registerCount: number; groupEnd: boolean }
+
+/**
  * Group a list of AddrInfo items into minimal continuous Modbus read blocks.
  *
- * @param registers  - register map object for the current type
- * @param maxLength  - maximum registers per read (default 100)
+ * @param infos      - the addresses to read, each with its width
+ * @param maxLength  - maximum addresses per read
  * @returns          - array of [startAddress, count]
  */
-export const groupAddressInfos = (
-  registers: RegisterMapObject | undefined,
-  maxLength: number = 100
-): Array<AddressGroup> => {
-  if (!registers) return []
-
-  const isRegisterEntry = (
-    tup: [string, RegisterMapValue | undefined]
-  ): tup is [string, RegisterMapValue] => {
-    return tup[1] !== undefined
-  }
-
-  const registerEntries = Object.entries(registers)
-    .filter(isRegisterEntry)
-    .filter((entry) => entry[1].dataType !== undefined && entry[1].dataType !== 'none')
-
-  const infos = buildAddrInfos(registerEntries)
-
+const groupInfos = (infos: AddrInfo[], maxLength: number): Array<AddressGroup> => {
   // 1) Make a shallow copy and sort by address ascending
   const sorted = infos.slice().sort((a, b) => a.address - b.address)
 
@@ -121,21 +121,57 @@ export const groupAddressInfos = (
 }
 
 /**
+ * Group a register type's mapped registers into read blocks.
+ *
+ * @param registers  - register map object for the current type
+ * @param maxLength  - maximum registers per read (default 100)
+ * @returns          - array of [startAddress, count]
+ */
+export const groupAddressInfos = (
+  registers: RegisterMapObject | undefined,
+  maxLength: number = 100
+): Array<AddressGroup> => {
+  if (!registers) return []
+  const registerEntries = Object.entries(registers).filter(
+    (entry): entry is [string, RegisterMapValue] =>
+      isConfiguredAddress('holding_registers', entry[1])
+  )
+  return groupInfos(buildAddrInfos(registerEntries), maxLength)
+}
+
+/**
+ * Group a bit type's commented bits into read blocks, each bit one wide, up to
+ * the 2000 a single bit read carries.
+ */
+export const groupBitInfos = (
+  bits: RegisterMapObject | undefined,
+  maxLength: number = MAX_READ_BITS
+): Array<AddressGroup> => {
+  if (!bits) return []
+  const infos = Object.entries(bits)
+    .filter((entry): entry is [string, RegisterMapValue] => isConfiguredAddress('coils', entry[1]))
+    .map(([address, mapValue]) => ({
+      address: Number(address),
+      registerCount: 1,
+      groupEnd: mapValue.groupEnd === true
+    }))
+  return groupInfos(infos, maxLength)
+}
+
+/**
  * The groups a read takes out of the mapping, and nothing at all where a read
  * takes the toolbar's own group instead.
  *
- * `_read` asks three things before it reads a mapping: read configuration is
- * on, the type is one the mapping configures, and the mapping has a group
- * under it. Falling through on any of the three is a raw read of the toolbar's
- * address and length, which is the right answer for a read and the wrong one
- * for a caller asking whether the mapping is what comes back.
+ * `_readSection` asks two things before it reads a mapping: read configuration is
+ * on, and the mapping has a group under the type. Falling through on either is
+ * a raw read of the toolbar's address and length, which is the right answer
+ * for a read and the wrong one for a caller asking whether the mapping is what
+ * comes back.
  *
- * A bit type is not one the mapping configures: the grid mounts the data type
- * column for input and holding registers alone, so a comment is all it writes
- * into a coil, and a data type a config file puts on a coil address is ignored
- * here the way the toolbar button refuses it.
+ * A register groups by its data type and a bit by its comment, which
+ * `isConfiguredAddress` says.
  *
- * Here rather than in `_read`, because the renderer asks the same question.
+ * Here rather than in `_readSection`, because the renderer asks the same question.
  * `clearRegisterDataWhenIdle` redraws the mapping and asks main to fill it,
  * and where main would answer out of the toolbar group instead, what comes
  * back is not what was drawn.
@@ -145,7 +181,11 @@ export const configuredReadGroups = (
   type: RegisterType,
   registerMapping: RegisterMapping | undefined
 ): Array<AddressGroup> =>
-  readConfiguration && isNumberRegister(type) ? groupAddressInfos(registerMapping?.[type]) : []
+  !readConfiguration
+    ? []
+    : isNumberRegister(type)
+      ? groupAddressInfos(registerMapping?.[type])
+      : groupBitInfos(registerMapping?.[type])
 
 /**
  * Whether a read would ask for no registers: the toolbar's block, at a length

@@ -18,6 +18,7 @@ import {
   createRegisters,
   defaultClientState,
   isBooleanRegister,
+  isConfiguredAddress,
   isReadLengthGiven,
   maxReadQuantity,
   pollDelay,
@@ -560,10 +561,9 @@ export class ModbusClient implements TransportClient {
 
     const { address, length } = unit.sections[type]
 
-    // Read configuration groups by data type, and a bit type carries none.
-    // `configuredReadGroups` is that question, in `@shared` because the
-    // renderer asks it too: it draws the mapping and asks for a read, and an
-    // empty answer here is the window coming back instead of what it drew.
+    // `configuredReadGroups` is in `@shared` because the renderer asks it too:
+    // it draws the mapping and asks for a read, and an empty answer here is the
+    // window coming back instead of what it drew.
     const configGroups = configuredReadGroups(readConfiguration, type, unit.registerMapping)
     // The window is bounded by neither ceiling. `ClientSectionSchema` takes a
     // length of 65535 at any address, so a persisted store carries a read past
@@ -614,8 +614,7 @@ export class ModbusClient implements TransportClient {
             if (
               mappedAddress >= groupAddress &&
               mappedAddress < groupAddress + groupLength &&
-              mapValue?.dataType &&
-              mapValue.dataType !== 'none'
+              isConfiguredAddress(type, mapValue)
             ) {
               data.push({
                 id: mappedAddress,

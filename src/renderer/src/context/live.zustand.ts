@@ -34,7 +34,8 @@ import {
   RegisterTypeSchema,
   ScanUnitIDResult,
   Transaction,
-  dummyWords
+  dummyWords,
+  isConfiguredAddress
 } from '@shared'
 
 export { dataOf, rowAt, sectionKey, sectionOf, skeletonOf }
@@ -262,7 +263,7 @@ export const showMapping = (uuid: string, unit: string, type: RegisterType): voi
   const registerData: RegisterData[] = []
 
   Object.entries(found.registerMapping[type]).forEach(([addressString, mapValue]) => {
-    if (!mapValue || mapValue.dataType === 'none' || !mapValue.dataType) return
+    if (!isConfiguredAddress(type, mapValue)) return
     const address = parseInt(addressString, 10)
 
     const row: RegisterData = {

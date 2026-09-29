@@ -25,7 +25,8 @@ import {
   configuredReadGroups,
   maxReadQuantity,
   registersFrom,
-  RegisterType
+  RegisterType,
+  RegisterTypeSchema
 } from '@shared'
 import { showShownMapping } from '@renderer/context/live.zustand'
 import { ElementType, useCallback, useEffect, useMemo, useRef } from 'react'
@@ -208,12 +209,10 @@ export const ReadConfiguration = meme(() => {
   // The question `_polledTypes` asks of a unit under read configuration: a
   // type the mapping has a group for. Counting keys instead put the button on
   // a mapping that carries only comments, and pressing it emptied the grid and
-  // disabled the address and length fields. A bit type configures no group,
-  // because the grid mounts the data type column for input and holding
-  // registers alone and a comment is all it writes into a coil.
+  // disabled the address and length fields. A bit with a comment is a group.
   const nothingConfigured = useClientZustand((z) => {
     const { registerMapping } = selectedUnit(z)
-    return (['input_registers', 'holding_registers'] as const).every(
+    return RegisterTypeSchema.options.every(
       (type) => configuredReadGroups(true, type, registerMapping).length === 0
     )
   })
@@ -252,7 +251,7 @@ export const ReadConfiguration = meme(() => {
       exclusive
       value={readConfiguration}
       onChange={handleChange}
-      title="Read all registers that have been configured with a data type"
+      title="Read all registers configured with a data type, and all bits with a comment"
     >
       <ToggleButton
         value={true}

@@ -87,6 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shows the mapping, and Read or the poll fills in the values. A read the
   switch started could land after you switched back, and filled the grid
   with the other view's rows.
+- **Read configuration reads coils and discrete inputs.** A bit with a comment
+  is part of the configuration, as a register with a data type is, and the
+  bits are read in groups of up to 2000.
 - **Scans no longer pause between requests.** A register scan and a unit ID
   scan waited 10 ms after every request, so a device that answers quickly was
   asked at a fraction of its pace. A register scan of 10,000 addresses in

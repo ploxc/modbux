@@ -63,8 +63,16 @@ describe('RegisterConfig read configuration', () => {
     expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
   })
 
-  it('refuses a mapping of comments on a bit type', () => {
+  it('offers the button for a mapping of comments on a bit type', () => {
     seed('coils', { 0: { comment: 'Inverter ON' }, 1: { comment: 'Grid Relay' } })
+
+    render(<ReadConfiguration />)
+
+    expect(screen.getByTestId('reg-read-config-btn')).toBeEnabled()
+  })
+
+  it('refuses a bit whose comment is blank', () => {
+    seed('coils', { 0: { comment: '  ' } })
 
     render(<ReadConfiguration />)
 

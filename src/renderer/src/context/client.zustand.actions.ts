@@ -176,11 +176,10 @@ export const changeUnit = async (
  * are disabled while read configuration is on, so this is the rule rather than
  * a state to reach.
  *
- * `configuredReadGroups` is that same fallback asked before the ask. A bit
- * type configures nothing main will read, and neither does a type with no
- * group under it, so a read there comes back as the window over the mapping
- * just drawn. The redraw still happens, because the mapping is what the grid
- * is about; the ask does not.
+ * `configuredReadGroups` is that same fallback asked before the ask. A type
+ * with no group under it configures nothing main will read, so a read there
+ * comes back as the window over the mapping just drawn. The redraw still
+ * happens, because the mapping is what the grid is about; the ask does not.
  */
 export const clearRegisterDataWhenIdle = (
   { uuid, unit, type }: ClientStepView,

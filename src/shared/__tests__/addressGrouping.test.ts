@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { getReadSpan, buildAddrInfos, groupAddressInfos, readsNothing } from '../addressGrouping'
+import {
+  getReadSpan,
+  buildAddrInfos,
+  configuredReadGroups,
+  groupAddressInfos,
+  groupBitInfos,
+  readsNothing
+} from '../addressGrouping'
 import { emptyRegisterMapping } from '../default'
 import type { RegisterMapObject, RegisterMapping } from '../types'
 
@@ -279,8 +286,61 @@ describe('readsNothing', () => {
     expect(readsNothing(true, 'input_registers', mapped(), false)).toBe(true)
   })
 
-  // A bit type reads the toolbar's block whatever a config file maps on it.
-  it('is true for a bit type under read configuration, whatever it maps', () => {
+  // A bit is configured by its comment, so a data type a config file puts on
+  // a coil configures nothing.
+  it('is true for a bit type under read configuration with a data type and no comment', () => {
     expect(readsNothing(true, 'coils', mapped(), false)).toBe(true)
+  })
+
+  it('is false for a bit type under read configuration with a commented bit', () => {
+    const mapping = mapped()
+    mapping.discrete_inputs = { 4: { comment: 'Door open' } }
+    expect(readsNothing(true, 'discrete_inputs', mapping, false)).toBe(false)
+  })
+})
+
+describe('groupBitInfos', () => {
+  it('groups the commented bits, each one wide', () => {
+    expect(
+      groupBitInfos({ 0: { comment: 'K1' }, 1: { comment: 'K2' }, 5: { comment: 'Alarm' } })
+    ).toEqual([[0, 6]])
+  })
+
+  it('skips a bit with no comment or a blank one', () => {
+    expect(groupBitInfos({ 0: { comment: 'K1' }, 1: {}, 9: { comment: ' ' } })).toEqual([[0, 1]])
+  })
+
+  it('splits at 2000 bits, what one bit read carries', () => {
+    expect(
+      groupBitInfos({
+        0: { comment: 'first' },
+        1999: { comment: 'last in' },
+        2000: { comment: 'next' }
+      })
+    ).toEqual([
+      [0, 2000],
+      [2000, 1]
+    ])
+  })
+
+  it('respects groupEnd', () => {
+    expect(groupBitInfos({ 0: { comment: 'a', groupEnd: true }, 1: { comment: 'b' } })).toEqual([
+      [0, 1],
+      [1, 1]
+    ])
+  })
+})
+
+describe('configuredReadGroups', () => {
+  it('groups coils by comment under read configuration', () => {
+    const mapping = emptyRegisterMapping()
+    mapping.coils = { 3: { comment: 'Pump' }, 4: { comment: 'Fan' } }
+    expect(configuredReadGroups(true, 'coils', mapping)).toEqual([[3, 2]])
+  })
+
+  it('groups nothing with read configuration off', () => {
+    const mapping = emptyRegisterMapping()
+    mapping.coils = { 3: { comment: 'Pump' } }
+    expect(configuredReadGroups(false, 'coils', mapping)).toEqual([])
   })
 })
