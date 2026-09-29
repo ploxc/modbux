@@ -35,7 +35,8 @@ const DraggablePopover = meme(({ anchor, onClose, paperSx, children }: Draggable
   const slotProps = useMemo(
     () => ({
       root: { sx: { p: 1 } },
-      paper: { sx: paperSx },
+      // A dialog to the undo keys, which wait while one is open.
+      paper: { sx: paperSx, role: 'dialog' },
       transition: { onEntered: handleEntered, onExited: handleExited }
     }),
     [paperSx, handleEntered, handleExited]
