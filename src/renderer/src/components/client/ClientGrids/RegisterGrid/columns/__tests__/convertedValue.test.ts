@@ -139,6 +139,25 @@ describe('the number the value column shows', () => {
     ).toBe(0.125)
   })
 
+  // JavaScript writes 0.0000001 as 1e-7, which holds no decimal point.
+  it('keeps the decimals of a factor written with an exponent', () => {
+    expect(
+      shownValue(
+        { 0: { dataType: 'uint16', conversion: { kind: 'scale' as const, factor: 0.0000001 } } },
+        numberRowAt(0, 12345)
+      )
+    ).toBe(0.0012345)
+  })
+
+  it('keeps the decimals of a float written with an exponent', () => {
+    expect(
+      shownValue(
+        { 0: { dataType: 'float', conversion: { kind: 'scale' as const, factor: 10 } } },
+        numberRowAt(0, 0.00000015)
+      )
+    ).toBe(0.0000015)
+  })
+
   it('shows the word itself when the toolbar asks for raw', () => {
     expect(
       shownValue(

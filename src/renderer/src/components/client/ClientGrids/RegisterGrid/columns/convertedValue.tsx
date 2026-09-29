@@ -187,6 +187,16 @@ export const getConvertedValue = (
  * product like 2312 × 0.1 comes out as 231.20000000000002; an interpolation
  * and a script round to six decimals for the same reason.
  */
+/**
+ * The decimals a number written as `text` carries, counting those an exponent
+ * adds: `String(0.0000001)` is `1e-7`, which carries seven.
+ */
+const decimalsOf = (text: string): number => {
+  const [mantissa = '', exponent = '0'] = text.split('e')
+  const fraction = mantissa.split('.')[1]?.length ?? 0
+  return Math.max(0, fraction - Number(exponent))
+}
+
 export const applyConversion = (
   value: string,
   dataType: DataType | undefined,
@@ -196,8 +206,8 @@ export const applyConversion = (
   if (conversion === undefined) return raw
   if (conversion.kind === 'scale') {
     const float = dataType === 'float' || dataType === 'double'
-    const floatDecimals = float ? (value.split('.')[1]?.length ?? 0) : 0
-    const factorDecimals = String(conversion.factor).split('.')[1]?.length ?? 0
+    const floatDecimals = float ? decimalsOf(value) : 0
+    const factorDecimals = decimalsOf(String(conversion.factor))
     return round(raw * conversion.factor, factorDecimals + floatDecimals)
   }
   if (conversion.kind === 'lerp') return round(linearInterpolate(raw, conversion), 6)
