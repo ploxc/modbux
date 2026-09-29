@@ -146,6 +146,45 @@ describe("a group's head", () => {
       await waitFor(() => expect(offOf(unit)).toEqual([undefined, undefined, undefined]))
     })
 
+    /** 200 logging on every poll, in the unit under `unit`. */
+    const log200 = (unit: string): void => {
+      useClientZustand.setState((state) => {
+        const found = state.clients[state.selectedUuid]?.units.find(({ uuid }) => uuid === unit)
+        const entry = found?.registerMapping.holding_registers[200]
+        if (!entry) throw new Error('no register 200')
+        entry.log = { mode: 'poll' }
+      })
+    }
+    const logging = { log: { ...defaultClientState.log, enabled: true } }
+
+    it('is held on and greyed while logging, off or not, with the Log icon', async () => {
+      const unit = await secondUnit()
+      mapTwo(unit, { 200: true, 202: true })
+      log200(unit)
+      renderHead(unit, logging)
+
+      expect(pollSwitch(unit)).toBeChecked()
+      expect(pollSwitch(unit)).toBeDisabled()
+      expect(control(unit, 'logs')).toBeInTheDocument()
+    })
+
+    it('takes a press while logging when no register of the group logs', async () => {
+      const unit = await secondUnit()
+      mapTwo(unit)
+      renderHead(unit, logging)
+
+      expect(pollSwitch(unit)).toBeEnabled()
+    })
+
+    it('takes a press with a register that logs while logging is off', async () => {
+      const unit = await secondUnit()
+      mapTwo(unit)
+      log200(unit)
+      renderHead(unit)
+
+      expect(pollSwitch(unit)).toBeEnabled()
+    })
+
     it('stands on with some registers off, says so, and turns all off on a press', async () => {
       const unit = await secondUnit()
       mapTwo(unit, { 202: true })

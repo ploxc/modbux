@@ -15,7 +15,9 @@ import {
   REGISTER_TYPE_LABELS
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
 import { dataOf, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { AddressGroupResult, clientOwner, groupPoll } from '@shared'
+import { AddressGroupResult, clientOwner, groupEntries, groupPoll, isLogged } from '@shared'
+import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
+import ShowChart from '@mui/icons-material/ShowChart'
 import { ChangeEvent, useCallback } from 'react'
 import { MonitorHeadRow, groupKey } from './monitorRows'
 import { unitIn } from './MonitorCells'
@@ -37,7 +39,9 @@ const resultOf = (
 /**
  * One group's head: its unit, its type, how its last read went, and its Poll.
  * The Poll is on while a register in the group polls, and says so on hover
- * when some do not; a press turns all of them off, or all on.
+ * when some do not; a press turns all of them off, or all on. While logging, a
+ * group with a register that logs is read every round, so its Poll is held on
+ * and greyed, with the Log icon beside it.
  */
 const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
@@ -46,6 +50,14 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
   const poll = useClientZustand((z) =>
     groupPoll(row.type, unitIn(z, uuid, row.unit)?.registerMapping, row.group)
   )
+  // While logging, a group with a register that logs is read every round.
+  const logEnabled = useLogEnabled()
+  const logs = useClientZustand((z) =>
+    groupEntries(row.type, unitIn(z, uuid, row.unit)?.registerMapping, row.group).some(
+      ([, mapValue]) => isLogged(row.type, mapValue)
+    )
+  )
+  const heldOn = logEnabled && logs
   const folded = useMonitorZustand((z) => z.folded[groupKey(row.unit, row.type, row.group)])
   const roundTrip = useLiveZustand((z) => resultOf(z, uuid, row)?.roundTripMillis)
   const error = useLiveZustand((z) => resultOf(z, uuid, row)?.error)
@@ -165,14 +177,28 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
       >
         READ
       </Button>
+      {heldOn && (
+        <ShowChart
+          data-testid={`${testId}-logs`}
+          titleAccess="A register in this group logs, so it is read every round"
+          sx={{ fontSize: 16, color: 'success.main' }}
+        />
+      )}
       <FormControlLabel
-        title={poll === 'mixed' ? 'Some registers are off' : undefined}
+        title={
+          heldOn
+            ? 'A register in this group logs, so it is read every round'
+            : poll === 'mixed'
+              ? 'Some registers are off'
+              : undefined
+        }
         label="Poll"
         labelPlacement="start"
         control={
           <Switch
             size="small"
-            checked={poll !== 'off'}
+            checked={heldOn || poll !== 'off'}
+            disabled={heldOn}
             onChange={handlePoll}
             slotProps={{ input: { 'aria-label': 'Poll this group' } }}
             data-testid={`${testId}-poll`}
