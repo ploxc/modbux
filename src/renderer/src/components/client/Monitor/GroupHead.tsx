@@ -5,23 +5,21 @@ import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import Switch from '@mui/material/Switch'
+import { alpha } from '@mui/material/styles'
 import { showUnit } from '@renderer/components/client/UnitMenu/showUnit'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useClientViewZustand } from '@renderer/context/clientView.zustand'
+import {
+  REGISTER_TYPE_COLORS,
+  REGISTER_TYPE_LABELS
+} from '@renderer/components/client/RegisterConfig/RegisterConfig'
 import { dataOf, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
-import { AddressGroupResult, RegisterType, clientOwner } from '@shared'
+import { AddressGroupResult, clientOwner } from '@shared'
 import { ChangeEvent, useCallback } from 'react'
 import { MonitorHeadRow, groupKey } from './monitorRows'
 import { unitIn } from './MonitorCells'
 import { useMonitorZustand } from './monitor.zustand'
-
-const TYPE_LABELS: Record<RegisterType, string> = {
-  holding_registers: 'Holding',
-  input_registers: 'Input',
-  coils: 'Coils',
-  discrete_inputs: 'Discrete'
-}
 
 /** How the last read of the group went, out of the groups Monitor last read for its type. */
 const resultOf = (
@@ -126,10 +124,11 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
           lineHeight: '18px',
           px: 0.75,
           borderRadius: 1,
-          bgcolor: 'action.selected'
+          color: REGISTER_TYPE_COLORS[row.type],
+          bgcolor: alpha(REGISTER_TYPE_COLORS[row.type], 0.16)
         }}
       >
-        {TYPE_LABELS[row.type]}
+        {REGISTER_TYPE_LABELS[row.type]}
       </Box>
       <Box sx={{ flexGrow: 1 }} />
       <Box
@@ -145,7 +144,13 @@ const GroupHead = meme(({ row }: { row: MonitorHeadRow }): JSX.Element => {
         title={error ?? (read ? 'Read' : 'Not read yet')}
         sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: status, flexShrink: 0 }}
       />
-      <Button size="small" data-testid={`${testId}-show-unit`} onClick={handleShowUnit}>
+      <Button
+        size="small"
+        variant="text"
+        endIcon={<ChevronRight />}
+        data-testid={`${testId}-show-unit`}
+        onClick={handleShowUnit}
+      >
         Show unit
       </Button>
       <Button

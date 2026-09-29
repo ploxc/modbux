@@ -125,6 +125,7 @@ const Monitor = meme((): JSX.Element => {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, flexShrink: 0 }}>
         <Button
           size="small"
+          variant="text"
           color="inherit"
           startIcon={<UnfoldMore />}
           data-testid="monitor-expand-all-btn"
@@ -134,6 +135,7 @@ const Monitor = meme((): JSX.Element => {
         </Button>
         <Button
           size="small"
+          variant="text"
           color="inherit"
           startIcon={<UnfoldLess />}
           data-testid="monitor-collapse-all-btn"
