@@ -2183,6 +2183,36 @@ describe('ModbusClient', () => {
         expect(readAddresses()).toEqual([0])
       })
 
+      it('reads a write back for the view it was pressed in, not the one it answers in', async () => {
+        await connectClient()
+        configureUnit({ registerMapping: mapped(40) })
+        setupHoldingRegisterReadMock([100])
+        let answer = (): void => {}
+        mockModbusRTU.writeFC6.mockImplementation(
+          (_uid: number, _addr: number, _val: number, cb: (err: null) => void) => {
+            answer = () => cb(null)
+          }
+        )
+
+        const writing = client.write(UNIT, {
+          address: 40,
+          type: 'holding_registers',
+          value: 5,
+          dataType: 'uint16',
+          single: true
+        })
+        await vi.advanceTimersByTimeAsync(0)
+        client.setVisibleSections([], true)
+        answer()
+        await writing
+
+        expect(marks()).toEqual([
+          ['address_groups', false],
+          ['register_data', false]
+        ])
+        expect(readAddresses()).toEqual([0])
+      })
+
       it("reads a write back as Monitor's", async () => {
         await connectClient()
         configureUnit({ registerMapping: mapped(40) })

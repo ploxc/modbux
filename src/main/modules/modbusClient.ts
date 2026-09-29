@@ -1121,6 +1121,9 @@ export class ModbusClient implements TransportClient {
     const found = this._unitOrSay('write', unit)
     if (!found) return
     if (this._refusesUnitId('write', found.unitId)) return
+    // The view the write was pressed in, which its read back fills. The view
+    // can change while the device answers.
+    const monitor = this._monitor
 
     const { address, type, value, dataType, single } = writeParameters
 
@@ -1160,8 +1163,7 @@ export class ModbusClient implements TransportClient {
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this
       // write owns the client, so nothing else can have set it.
-      if (!readLoopOwner(this._clientState))
-        await this._readOwningTheClient(found, type, this._monitor)
+      if (!readLoopOwner(this._clientState)) await this._readOwningTheClient(found, type, monitor)
     } finally {
       this._clientState.writing = false
       this._sendClientState()
