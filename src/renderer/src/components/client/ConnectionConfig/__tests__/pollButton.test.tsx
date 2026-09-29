@@ -6,7 +6,7 @@
 // while anything else owns the client, and this button disabled on the connect
 // state alone, so every refusal reached the user as a warning for a press the
 // button had taken.
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 // The client store registers IPC listeners and calls main at import time.
 vi.hoisted(async () => {
   ;(globalThis as { window?: unknown }).window ??= globalThis
@@ -19,6 +19,7 @@ import { useLiveZustand } from '@renderer/context/live.zustand'
 import { getSelectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { ClientState, defaultClientState, emptyRegisterMapping } from '@shared'
 import PollButton from '../PollButton'
+import { useClientViewZustand } from '@renderer/context/clientView.zustand'
 import { patchShownData } from '@renderer/context/__tests__/shownData'
 import { patchSelectedClient, patchSelectedUnit } from '@renderer/context/__tests__/selectedClient'
 
@@ -29,17 +30,19 @@ interface Toolbar {
   polled?: boolean
   /** Read configuration on, with a group for the register type or without. */
   mappedGroup?: boolean
+  /** A group for the register type with read configuration off. */
+  mappedOnly?: boolean
 }
 
 const renderButton = (
   clientState: Partial<ClientState>,
-  { lengthGiven = true, mappedGroup, polled = true }: Toolbar = {}
+  { lengthGiven = true, mappedGroup, mappedOnly, polled = true }: Toolbar = {}
 ): HTMLElement => {
   patchShownData(useLiveZustand, {
     clientState: { ...defaultClientState, connectState: 'connected', ...clientState }
   })
   const registerMapping = emptyRegisterMapping()
-  if (mappedGroup) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
+  if (mappedGroup || mappedOnly) registerMapping.holding_registers = { 0: { dataType: 'uint16' } }
   patchSelectedUnit(useClientZustand, { registerMapping }, { length: lengthGiven ? 10 : 0, polled })
   patchSelectedClient(
     useClientZustand,
@@ -115,5 +118,20 @@ describe('the Poll button', () => {
 
   it('takes none at that length when read configuration has no group for the type', () => {
     expect(renderButton({}, { lengthGiven: false, mappedGroup: false })).toBeDisabled()
+  })
+})
+
+// Monitor's poll reads the groups of every type whose Poll is on, whatever the
+// unit's read configuration and length say.
+describe('the Poll button in Monitor', () => {
+  beforeEach(() => useClientViewZustand.getState().setView('monitor'))
+  afterEach(() => useClientViewZustand.getState().setView('debug'))
+
+  it('takes none when the only grouped type has its Poll off, read configuration on', () => {
+    expect(renderButton({}, { mappedGroup: true, polled: false })).toBeDisabled()
+  })
+
+  it('takes a press for a grouped type with its Poll on, read configuration off and no length', () => {
+    expect(renderButton({}, { lengthGiven: false, mappedOnly: true })).toBeEnabled()
   })
 })

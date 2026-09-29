@@ -3,6 +3,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { clientOwner } from '@shared'
 import { useCallback } from 'react'
+import { useClientViewZustand } from '@renderer/context/clientView.zustand'
 import {
   pollsNothingOf,
   selectedClientUuid,
@@ -23,7 +24,8 @@ const PollButton = meme((): JSX.Element => {
   )
   const polling = useLiveZustand((z) => dataOf(z, selectedUuid).clientState.polling)
   // What main refuses as a poll of no registers: no unit has a section to read.
-  const pollsNothing = useClientZustand((z) => pollsNothingOf(z, z.selectedUuid))
+  const monitor = useClientViewZustand((z) => z.view === 'monitor')
+  const pollsNothing = useClientZustand((z) => pollsNothingOf(z, z.selectedUuid, monitor))
   // A poll goes on through a reconnect, so the press that stops it does too.
   const disabled = (!polling && (notConnected || pollsNothing)) || owner !== undefined
 

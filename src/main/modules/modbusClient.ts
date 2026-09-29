@@ -357,11 +357,11 @@ export class ModbusClient implements TransportClient {
   /**
    * Whether a read of `type` on `unit` asks for no registers: a window of
    * length 0, where read configuration has no groups for the type to read
-   * instead.
+   * instead. `monitor` says whether the read is Monitor's.
    */
-  private _readsNothing = (unit: ClientUnit, type: RegisterType): boolean =>
+  private _readsNothing = (unit: ClientUnit, type: RegisterType, monitor: boolean): boolean =>
     readsNothing(
-      this._readsConfiguration(unit),
+      this._readsConfiguration(unit, monitor),
       type,
       unit.registerMapping,
       isReadLengthGiven(unit.sections[type].length)
@@ -374,8 +374,13 @@ export class ModbusClient implements TransportClient {
    * with the rest of the unit. A read and the read back of a write ask this
    * before they own the client.
    */
-  private _refusesLength = (verb: string, unit: ClientUnit, type: RegisterType): boolean => {
-    if (!this._readsNothing(unit, type)) return false
+  private _refusesLength = (
+    verb: string,
+    unit: ClientUnit,
+    type: RegisterType,
+    monitor: boolean
+  ): boolean => {
+    if (!this._readsNothing(unit, type, monitor)) return false
     this._emitMessage({ message: `Cannot ${verb} a length of 0`, variant: 'warning', error: null })
     return true
   }
@@ -524,23 +529,35 @@ export class ModbusClient implements TransportClient {
     const found = this._unitOrSay('read', unit)
     if (!found) return
 
-    await this._readOwningTheClient(found, type)
+    await this._readOwningTheClient(found, type, false)
   }
 
   /**
    * `_readSection`, with `reading` around it.
+   *
+   * `read` is Debug's, in either view: the MCP tools and the undo replay ask
+   * it for the section Debug shows. A write's read back is Monitor's while
+   * Monitor is on screen, because that is where the write was pressed.
    *
    * `read` asks whether it may and this does the owning, because a write reads
    * back what it wrote and that read is the write's rather than a caller's: it
    * passed the question once already, and asking again during its own write
    * would refuse it.
    */
-  private _readOwningTheClient = async (unit: ClientUnit, type: RegisterType): Promise<void> => {
-    if (this._refusesLength('read', unit, type) || this._refusesUnitId('read', unit.unitId)) return
+  private _readOwningTheClient = async (
+    unit: ClientUnit,
+    type: RegisterType,
+    monitor: boolean
+  ): Promise<void> => {
+    if (
+      this._refusesLength('read', unit, type, monitor) ||
+      this._refusesUnitId('read', unit.unitId)
+    )
+      return
     this._clientState.reading = true
     this._sendClientState()
     try {
-      this._hear(unit.uuid, await this._readSection(unit, type))
+      this._hear(unit.uuid, await this._readSection(unit, type, monitor))
     } finally {
       this._clientState.reading = false
       this._sendClientState()
@@ -564,6 +581,7 @@ export class ModbusClient implements TransportClient {
   private _readSection = async (
     unit: ClientUnit,
     type: RegisterType,
+    monitor: boolean,
     pollGeneration?: number
   ): Promise<boolean | undefined> => {
     const transport = this._connectedTransport('read', this._clientState.polling)
@@ -575,8 +593,7 @@ export class ModbusClient implements TransportClient {
     // What this read is addressed to, taken before the first request goes out.
     const readGeneration = this._appState.readGeneration(unit.uuid)
     const target = this._target(ride, unit.unitId, this._appState.registerConfig.timeout)
-    const readConfiguration = this._readsConfiguration(unit)
-    const monitor = this._monitor
+    const readConfiguration = this._readsConfiguration(unit, monitor)
 
     const data: RegisterData[] = []
 
@@ -833,7 +850,7 @@ export class ModbusClient implements TransportClient {
       if (this._monitor) return unit.sections[type].polled && grouped
       return readConfiguration
         ? grouped
-        : unit.sections[type].polled && !this._readsNothing(unit, type)
+        : unit.sections[type].polled && !this._readsNothing(unit, type, false)
     })
   }
 
@@ -841,14 +858,15 @@ export class ModbusClient implements TransportClient {
   private _visibleSections: ClientVisibleSections['sections'] = []
 
   /**
-   * Whether the client is on screen in Monitor. A read then takes the mapping's
-   * groups of every unit, whatever the unit's read configuration says.
+   * Whether the client is on screen in Monitor. A poll then reads the mapping's
+   * groups of every unit, whatever the unit's read configuration says, and so
+   * does a write's read back.
    */
   private _monitor = false
 
-  /** Whether a read of `unit` takes the mapping's groups: in Monitor, or under its read configuration. */
-  private _readsConfiguration = (unit: ClientUnit): boolean =>
-    this._monitor || this._appState.readConfiguration(unit.uuid)
+  /** Whether a read of `unit` takes the mapping's groups: Monitor's, or under its read configuration. */
+  private _readsConfiguration = (unit: ClientUnit, monitor: boolean): boolean =>
+    monitor || this._appState.readConfiguration(unit.uuid)
 
   /**
    * The register types a poll round reads of `unit`: its pollable types on
@@ -935,7 +953,7 @@ export class ModbusClient implements TransportClient {
       }
       let answered: boolean | undefined
       for (const type of types) {
-        const heard = await this._readSection(unit, type, generation)
+        const heard = await this._readSection(unit, type, this._monitor, generation)
         if (heard === true || (heard === false && answered === undefined)) answered = heard
       }
       this._hear(unit.uuid, answered)
@@ -1142,7 +1160,8 @@ export class ModbusClient implements TransportClient {
       // Read back what the device now holds, unless a loop started during the
       // write and is reading anyway. `reading` is not in that question: this
       // write owns the client, so nothing else can have set it.
-      if (!readLoopOwner(this._clientState)) await this._readOwningTheClient(found, type)
+      if (!readLoopOwner(this._clientState))
+        await this._readOwningTheClient(found, type, this._monitor)
     } finally {
       this._clientState.writing = false
       this._sendClientState()

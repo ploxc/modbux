@@ -2161,27 +2161,50 @@ describe('ModbusClient', () => {
         client.stopPolling()
       })
 
-      it("marks its rows and groups as Monitor's, and Debug's once back", async () => {
+      const marks = (): Array<[string, boolean]> =>
+        sentWhole
+          .filter(([event]) => event === 'register_data' || event === 'address_groups')
+          .map(([event, payload]) => [event, (payload as { monitor: boolean }).monitor])
+
+      // The MCP read tool and the undo replay ask `read` for the section Debug
+      // shows, and answer from Debug's rows.
+      it("leaves a read Debug's, window and all", async () => {
         await connectClient()
         configureUnit({ registerMapping: mapped(40) })
         setupHoldingRegisterReadMock([100])
-
         client.setVisibleSections([], true)
-        await client.read(UNIT, unitType)
-        showEverything()
+
         await client.read(UNIT, unitType)
 
-        const marks = sentWhole
-          .filter(([event]) => event === 'register_data' || event === 'address_groups')
-          .map(([event, payload]) => [event, (payload as { monitor: boolean }).monitor])
-        expect(marks).toEqual([
-          ['address_groups', true],
-          ['register_data', true],
+        expect(marks()).toEqual([
           ['address_groups', false],
           ['register_data', false]
         ])
-        // Back in Debug with read configuration off, the read is the window.
-        expect(readAddresses()).toEqual([40, 0])
+        expect(readAddresses()).toEqual([0])
+      })
+
+      it("reads a write back as Monitor's", async () => {
+        await connectClient()
+        configureUnit({ registerMapping: mapped(40) })
+        setupHoldingRegisterReadMock([100])
+        mockModbusRTU.writeFC6.mockImplementation(
+          (_uid: number, _addr: number, _val: number, cb: (err: null) => void) => cb(null)
+        )
+        client.setVisibleSections([], true)
+
+        await client.write(UNIT, {
+          address: 40,
+          type: 'holding_registers',
+          value: 5,
+          dataType: 'uint16',
+          single: true
+        })
+
+        expect(marks()).toEqual([
+          ['address_groups', true],
+          ['register_data', true]
+        ])
+        expect(readAddresses()).toEqual([40])
       })
     })
 

@@ -151,14 +151,21 @@ export const readsNothingIn = (
 
 /**
  * Whether a poll of `uuid` reads `type` of `unit` while it is on screen: the
- * question `_pollableTypes` asks. Under the unit's read configuration, a type
- * the mapping has a group for; otherwise a polled section whose read asks for
- * registers.
+ * question `_pollableTypes` asks. In Monitor, a polled type the mapping has a
+ * group for. In Debug under the unit's read configuration, a type the mapping
+ * has a group for; otherwise a polled section whose read asks for registers.
  */
-const pollsSection = (session: ClientSession, unit: ClientUnit, type: RegisterType): boolean => {
+const pollsSection = (
+  session: ClientSession,
+  unit: ClientUnit,
+  type: RegisterType,
+  monitor = false
+): boolean => {
+  const grouped = !readsNothing(true, type, unit.registerMapping, false)
+  if (monitor) return unit.sections[type].polled && grouped
   const readConfiguration = session.readConfiguration[unit.uuid] ?? false
   return readConfiguration
-    ? !readsNothing(true, type, unit.registerMapping, false)
+    ? grouped
     : unit.sections[type].polled &&
         !readsNothing(
           false,
@@ -179,15 +186,19 @@ export const pollsSectionOf = (
   return unit !== undefined && pollsSection(state.sessions[uuid] ?? NO_SESSION, unit, type)
 }
 
-/** Whether a poll of `uuid` would read nothing at all, which main refuses. */
+/**
+ * Whether a poll of `uuid` would read nothing at all, which main refuses.
+ * `monitor` asks it of the client Monitor shows.
+ */
 export const pollsNothingOf = (
   state: Pick<PersistedClientZustand, 'clients'> & { sessions: Record<string, ClientSession> },
-  uuid: string
+  uuid: string,
+  monitor = false
 ): boolean => {
   const client = state.clients[uuid] ?? NO_CLIENT
   const session = state.sessions[uuid] ?? NO_SESSION
   return client.units.every((unit) =>
-    RegisterTypeSchema.options.every((type) => !pollsSection(session, unit, type))
+    RegisterTypeSchema.options.every((type) => !pollsSection(session, unit, type, monitor))
   )
 }
 
