@@ -18,6 +18,9 @@ describe('the script helpers', () => {
     ['bit set', 'return bit(raw, 3)', 0b1000, 1],
     ['bit clear', 'return bit(raw, 2)', 0b1000, 0],
     ['bits', 'return bits(raw, 4, 4)', 0xabcd, 0xc],
+    ['bit of a negative int16, high', 'return bit(raw, 15)', -1, 1],
+    ['bit of a negative int16, low clear', 'return bit(raw, 0)', -2, 0],
+    ['bits of a negative int16', 'return bits(raw, 4, 4)', -1, 0xf],
     ['bcd', 'return bcd(raw)', 0x1234, 1234]
   ])('%s', (_, code, raw, value) => {
     expect(runScript(code, raw)).toBe(value)

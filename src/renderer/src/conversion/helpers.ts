@@ -34,15 +34,15 @@ export const SCRIPT_HELPERS: ScriptHelper[] = [
   {
     name: 'bit',
     signature: 'bit(x, n)',
-    doc: 'Bit n of x, 0 or 1, counted from 0 at the least significant bit.',
-    source: 'function bit(x, n) { return Math.floor(x / Math.pow(2, n)) % 2 }'
+    doc: "Bit n of x, 0 or 1, counted from 0 at the least significant bit; a negative x as two's complement.",
+    source: 'function bit(x, n) { return ((Math.floor(x / Math.pow(2, n)) % 2) + 2) % 2 }'
   },
   {
     name: 'bits',
     signature: 'bits(x, from, count)',
-    doc: 'The count bits of x from bit from upward, as a number.',
+    doc: "The count bits of x from bit from upward, as a number; a negative x as two's complement.",
     source:
-      'function bits(x, from, count) { return Math.floor(x / Math.pow(2, from)) % Math.pow(2, count) }'
+      'function bits(x, from, count) { const m = Math.pow(2, count); return ((Math.floor(x / Math.pow(2, from)) % m) + m) % m }'
   },
   {
     name: 'bcd',
