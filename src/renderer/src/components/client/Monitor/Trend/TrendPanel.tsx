@@ -344,9 +344,7 @@ const TrendContent = meme(
     const theme = useTheme()
 
     // Converted again on every render, which comes with each answer, a store
-    // change or the script engine turning ready. A script conversion measured
-    // about 1.9 µs a call, so the 6,000 samples of 10 minutes at 100 ms polls
-    // take about 11 ms a register.
+    // change or the script engine turning ready.
     const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
     const drawn = lineEntries.map((entry) => {
       const mapValue = mapValueOf(units, entry)

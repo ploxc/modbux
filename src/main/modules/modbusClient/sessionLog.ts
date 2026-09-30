@@ -136,11 +136,10 @@ export class SessionLog {
    *
    * With a `step`, the window comes back `inSteps`: each stretch of `step`
    * milliseconds as its lowest and highest value, its first failed read and
-   * its newest sample. The whole of a full log of a million, 2.3 hours of 12
-   * registers at 100 ms, took 33 to 45 ms a register in 1,500 steps and
-   * answered 3,255 points rather than 83,333; an hour took 15 to 16 ms. A
-   * stepped window continued from its `end` answers the stretch it ended in
-   * again, with only the samples since.
+   * its newest sample. The whole of a full log of a million samples of 12
+   * registers took 33 to 45 ms a register in 1,500 steps and answered 3,255
+   * points rather than 83,333. A stepped window continued from its `end`
+   * answers the stretch it ended in again, with only the samples since.
    */
   window = (
     series: LogSeries,
