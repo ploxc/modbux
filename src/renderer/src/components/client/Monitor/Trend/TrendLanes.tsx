@@ -46,6 +46,12 @@ interface Row {
   indent: boolean
 }
 
+const ROW_HEIGHT = 22
+/** A name's line, which the bar sits under. */
+const LABEL_HEIGHT = 12
+const BAR_TOP = 12
+const BAR_HEIGHT = 8
+
 /** The press that opens a bitmap's lane into its bits, and closes it. */
 const LaneToggle = meme(
   ({
@@ -67,17 +73,13 @@ const LaneToggle = meme(
         aria-expanded={expanded}
         data-testid={testId}
         onClick={handleClick}
-        sx={{ p: 0 }}
+        sx={{ p: 0, height: LABEL_HEIGHT }}
       >
         {expanded ? <ExpandMore sx={{ fontSize: 14 }} /> : <ChevronRight sx={{ fontSize: 14 }} />}
       </IconButton>
     )
   }
 )
-
-const ROW_HEIGHT = 22
-const BAR_TOP = 12
-const BAR_HEIGHT = 8
 
 /** The bar's path over `from` to `to` in a box `width` wide: a rectangle a stretch. */
 const barPath = (spans: LaneSpan[], from: number, to: number, width: number): string => {
@@ -157,24 +159,22 @@ const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProp
               sx={{
                 position: 'absolute',
                 top: -1,
-                // A bitmap's toggle sits left of the plot, its name at the plot's
-                // edge, and inside the panel when the plot has no axis left of it.
-                left: row.indent
-                  ? plot.left + 16
-                  : lane.bitmap
-                    ? Math.max(0, plot.left - 16)
-                    : plot.left,
+                // Every name starts at the plot's edge, a bit's under its
+                // bitmap's indented, and a bitmap's toggle follows its name.
+                left: row.indent ? plot.left + 16 : plot.left,
                 right: 0,
+                height: LABEL_HEIGHT,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.5,
                 fontSize: 10.5,
-                lineHeight: '12px',
+                lineHeight: `${LABEL_HEIGHT}px`,
                 color: row.indent ? textMuted : 'text.primary',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden'
               }}
             >
+              {row.label}
               {lane.bitmap && !row.indent && (
                 <LaneToggle
                   laneKey={lane.key}
@@ -183,7 +183,6 @@ const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProp
                   onToggle={toggle}
                 />
               )}
-              {row.label}
             </Box>
             <Box
               component="svg"
