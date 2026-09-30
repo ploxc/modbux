@@ -14,7 +14,8 @@ interface ResizeHandleProps {
 const ResizeHandle = meme(({ orientation, testId, gutter = 1 }: ResizeHandleProps): JSX.Element => {
   const vertical = orientation === 'vertical'
   return (
-    <Separator data-testid={testId} style={{ outline: 'none' }}>
+    // A Separator writes its id as its test id, over a data-testid it is given.
+    <Separator id={testId} data-testid={testId} style={{ outline: 'none' }}>
       <Box
         // theme.spacing, because a bare 1 in sx reads as 100%.
         sx={(theme) => ({
