@@ -24,7 +24,7 @@ import { formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
-import VerticalSplit from '@mui/icons-material/VerticalSplit'
+import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Button from '@mui/material/Button'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendConfigMenu from './TrendConfigMenu'
@@ -56,6 +56,9 @@ const PAPER_SX = {
   height: 340,
   minWidth: 420,
   minHeight: 240,
+  // The docked trend's surface, rather than the lighter one of Paper's elevation.
+  bgcolor: 'background.paper',
+  backgroundImage: 'none',
   resize: 'both',
   overflow: 'hidden',
   display: 'flex',
@@ -106,7 +109,7 @@ const ModeButtons = meme(
         <ModeButton
           mode="dock"
           label="Dock under Monitor"
-          icon={<VerticalSplit fontSize="small" />}
+          icon={<HorizontalSplit fontSize="small" />}
         />
       )}
       {mode !== 'fill' && (
