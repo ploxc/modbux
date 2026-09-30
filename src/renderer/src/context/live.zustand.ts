@@ -156,12 +156,13 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
         })
       ),
     setAddressGroups: (uuid, unit, type, addressGroups, groupResults, monitor = false) => {
+      // The grid's columns and every value cell read the groups, so they keep
+      // their reference while they are the same; the results carry a round
+      // trip that differs on most polls.
       const before = sectionOf(get(), uuid, unit, type, monitor)
-      if (
-        deepEqual(before.addressGroups, addressGroups) &&
-        deepEqual(before.groupResults, groupResults)
-      )
-        return
+      const sameGroups = deepEqual(before.addressGroups, addressGroups)
+      const sameResults = deepEqual(before.groupResults, groupResults)
+      if (sameGroups && sameResults) return
       set((state) =>
         onSection(
           state,
@@ -169,8 +170,8 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
           unit,
           type,
           (section) => {
-            section.addressGroups = addressGroups
-            section.groupResults = groupResults
+            if (!sameGroups) section.addressGroups = addressGroups
+            if (!sameResults) section.groupResults = groupResults
           },
           monitor
         )
