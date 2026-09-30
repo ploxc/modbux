@@ -3,7 +3,7 @@ import { formatDuration, formatTime } from '@renderer/components/client/Logging/
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { LogPoint } from '@shared'
-import { KeyboardEvent, PointerEvent, useCallback, useEffect, useRef } from 'react'
+import { KeyboardEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { EDGE, Grip, gripAt } from './trendData'
 
 interface TrendNavigatorProps {
@@ -51,13 +51,32 @@ const TrendNavigator = meme(
     const left = ((from - start) / length) * 100
     const width = ((to - from) / length) * 100
 
+    // The line is drawn when an answer brings new points, or the strip
+    // changes size, and placed on the log as it stood then: the window moves
+    // on every render of a live trend, and each draw sizes the canvas.
+    const logEnd = useRef(end)
+    useEffect(() => {
+      logEnd.current = end
+    })
+    const [size, setSize] = useState({ width: 0, height: 0 })
+    useEffect(() => {
+      const drawn = canvas.current
+      if (!drawn) return
+      const observer = new ResizeObserver(() =>
+        setSize({ width: drawn.clientWidth, height: drawn.clientHeight })
+      )
+      observer.observe(drawn)
+      return (): void => observer.disconnect()
+    }, [])
+
     useEffect(() => {
       const drawn = canvas.current
       const context = drawn?.getContext('2d')
       if (!drawn || !context) return
       const ratio = devicePixelRatio
-      drawn.width = drawn.clientWidth * ratio
-      drawn.height = drawn.clientHeight * ratio
+      drawn.width = size.width * ratio
+      drawn.height = size.height * ratio
+      const logLength = Math.max(logEnd.current - start, 1)
       const read = points.filter(({ error }) => error === undefined)
       const low = Math.min(...read.map(({ value }) => value))
       const high = Math.max(...read.map(({ value }) => value))
@@ -73,14 +92,14 @@ const TrendNavigator = meme(
           pen = false
           continue
         }
-        const x = ((time - start) / length) * drawn.width
+        const x = ((time - start) / logLength) * drawn.width
         const y = drawn.height - ((value - low) / spread) * (drawn.height - 8 * ratio) - 4 * ratio
         if (pen) context.lineTo(x, y)
         else context.moveTo(x, y)
         pen = true
       }
       context.stroke()
-    }, [points, color, start, length])
+    }, [points, color, start, size])
 
     const handlePointerDown = useCallback(
       (event: PointerEvent<HTMLDivElement>) => {
