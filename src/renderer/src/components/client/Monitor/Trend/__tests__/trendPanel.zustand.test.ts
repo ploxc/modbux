@@ -140,6 +140,34 @@ describe('the trend store', () => {
     expect(store().entries).toHaveLength(TREND_COLORS.length)
   })
 
+  it('swaps colours with the register that holds the one picked', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().add(entry(1), anchor)
+    store().setColor(trendKey(entry(0)), TREND_COLORS[1])
+
+    expect(colors()).toEqual([TREND_COLORS[1], TREND_COLORS[0]])
+  })
+
+  it('gives a free colour without taking one from another register', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().add(entry(1), anchor)
+    store().setColor(trendKey(entry(0)), TREND_COLORS[5])
+
+    expect(colors()).toEqual([TREND_COLORS[5], TREND_COLORS[1]])
+  })
+
+  it('draws a register on the side it is set to, and on its own again with none', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().setSide(trendKey(entry(0)), 'right')
+    expect(store().entries[0]?.side).toBe('right')
+
+    store().setSide(trendKey(entry(0)), undefined)
+    expect(store().entries[0]?.side).toBeUndefined()
+  })
+
   it('takes out, when pruned, a register that no longer logs', () => {
     const unit = newClientUnit('unit-1', 1)
     unit.registerMapping.holding_registers = {

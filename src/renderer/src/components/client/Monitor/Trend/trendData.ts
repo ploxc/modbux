@@ -325,3 +325,55 @@ export const loggedRegisters = (unit: ClientUnit): LoggedRegister[] =>
       .map(([address]) => ({ type, address: Number(address) }))
       .sort((a, b) => a.address - b.address)
   )
+
+/** A side of the chart a line's scale is drawn on. */
+export type TrendSide = 'left' | 'right'
+
+/** A range an axis is held at, rather than fitting what it draws. */
+export interface AxisRange {
+  min: number
+  max: number
+}
+
+/** How the trend draws: its axes' ranges, its time axis, and its lines. */
+export interface TrendSettings {
+  /** A fixed range per axis; none fits what the axis draws. */
+  left: AxisRange | undefined
+  right: AxisRange | undefined
+  /** The time axis as the clock reads it, or as the time since the trend's start. */
+  time: 'clock' | 'since'
+  drawAs: 'lines' | 'steps' | 'points'
+}
+
+export const DEFAULT_TREND_SETTINGS: TrendSettings = {
+  left: undefined,
+  right: undefined,
+  time: 'clock',
+  drawAs: 'lines'
+}
+
+/**
+ * A stretch of time as the time axis writes it since the log's start: 1:05:09,
+ * or 5:09, and with a minus sign before it, over the hatch.
+ */
+export const sinceText = (millis: number): string => {
+  const whole = Math.round(millis / 1000)
+  const seconds = Math.abs(whole)
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor(seconds / 60) % 60
+  const rest = String(seconds % 60).padStart(2, '0')
+  const text =
+    hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`
+  return whole < 0 ? `-${text}` : text
+}
+
+/**
+ * The range two typed fields hold: both finite numbers, the minimum below the
+ * maximum. The field takes an exponent, and `1e999` is Infinity.
+ */
+export const rangeOf = (minText: string, maxText: string): AxisRange | undefined => {
+  if (minText.trim() === '' || maxText.trim() === '') return undefined
+  const min = Number(minText)
+  const max = Number(maxText)
+  return Number.isFinite(min) && Number.isFinite(max) && min < max ? { min, max } : undefined
+}

@@ -27,6 +27,7 @@ import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import TrendPicker from './TrendPicker'
+import TrendSettingsPopover, { SettingsLine } from './TrendSettingsPopover'
 import {
   TREND_RANGES,
   TREND_SPANS,
@@ -116,34 +117,47 @@ const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | 
   units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
 
 /**
- * Each line's colour and scale. Lines of one engineering unit share a scale:
- * the first unit's is on the left axis, the second's on the right, and a line
- * of any unit after that is scaled on its own, with no axis.
+ * Each line's colour and scale. A line set to a side is drawn on that side's
+ * scale. Otherwise lines of one engineering unit share a side: the first
+ * unit's is the left, the second's the right, and a line of any unit after
+ * that is scaled on its own, with no axis.
  */
 const layoutOf = (
   entries: DrawnEntry[],
   units: ClientUnit[]
-): { lines: TrendLine[]; leftScale: string | undefined; rightScale: string | undefined } => {
+): {
+  lines: TrendLine[]
+  settingsLines: SettingsLine[]
+  leftScale: string | undefined
+  rightScale: string | undefined
+} => {
   const engineeringUnits: string[] = []
-  const lines = entries.map((entry): TrendLine => {
+  const settingsLines = entries.map((entry): SettingsLine => {
     const mapValue = mapValueOf(units, entry)
     const engineeringUnit = mapValue?.unit ?? ''
     if (!engineeringUnits.includes(engineeringUnit)) engineeringUnits.push(engineeringUnit)
     const rank = engineeringUnits.indexOf(engineeringUnit)
+    const side = entry.side ?? (rank === 0 ? 'left' : rank === 1 ? 'right' : undefined)
     const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
     const address = entry.address + Number(addressBase)
     return {
-      color: entry.color,
-      scale: rank < 2 ? `unit:${engineeringUnit}` : `line:${trendKey(entry)}`,
-      label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
-      unit: engineeringUnit
+      key: trendKey(entry),
+      side: entry.side,
+      testId: `trend-line-${entry.type}-${address}`,
+      line: {
+        color: entry.color,
+        scale: side ?? `line:${trendKey(entry)}`,
+        label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+        unit: engineeringUnit
+      }
     }
   })
-  const [left, right] = engineeringUnits
+  const lines = settingsLines.map(({ line }) => line)
   return {
     lines,
-    leftScale: left === undefined ? undefined : `unit:${left}`,
-    rightScale: right === undefined ? undefined : `unit:${right}`
+    settingsLines,
+    leftScale: lines.some(({ scale }) => scale === 'left') ? 'left' : undefined,
+    rightScale: lines.some(({ scale }) => scale === 'right') ? 'right' : undefined
   }
 }
 
@@ -226,6 +240,7 @@ const TrendPanel = meme((): JSX.Element | null => {
   const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
   const range = useTrendPanelZustand((z) => z.range)
   const view = useTrendPanelZustand((z) => z.view)
+  const settings = useTrendPanelZustand((z) => z.settings)
   // A script's value waits for the engine, and draws again once it is there.
   useScriptEngineZustand((z) => z.ready)
 
@@ -431,6 +446,7 @@ const TrendPanel = meme((): JSX.Element | null => {
             )}
             {state}
           </Box>
+          <TrendSettingsPopover lines={layout.settingsLines} />
           <IconButton
             size="small"
             aria-label="Zoom out to the range"
@@ -485,6 +501,8 @@ const TrendPanel = meme((): JSX.Element | null => {
             onZoomOut={handleFollow}
             onPlot={setPlot}
             readoutRows={readoutRows}
+            settings={settings}
+            origin={oldest ?? from}
           />
         </Box>
         {lanes.length > 0 && plot !== undefined && (

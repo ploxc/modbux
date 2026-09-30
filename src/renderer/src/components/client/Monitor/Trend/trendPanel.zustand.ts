@@ -2,7 +2,14 @@ import { TREND_COLORS } from '@renderer/theme'
 import { ClientUnit, isLogged, RegisterType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { TrendRangeId, TrendView } from './trendData'
+import {
+  AxisRange,
+  DEFAULT_TREND_SETTINGS,
+  TrendRangeId,
+  TrendSettings,
+  TrendSide,
+  TrendView
+} from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -12,9 +19,13 @@ export interface TrendEntry {
   address: number
 }
 
-/** A register the trend draws, and the colour it keeps while it is drawn. */
+/**
+ * A register the trend draws, the colour it keeps while it is drawn, and the
+ * side it is drawn on when it is set to one rather than its engineering unit's.
+ */
 export interface DrawnEntry extends TrendEntry {
   color: string
+  side?: TrendSide
 }
 
 export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
@@ -33,6 +44,14 @@ interface TrendPanelZustand {
   /** The stretch zoomed or panned to, which stops the trend following the log; none follows it. */
   view: TrendView | undefined
   setView: (view: TrendView | undefined) => void
+  settings: TrendSettings
+  setAxisRange: (side: TrendSide, range: AxisRange | undefined) => void
+  setTime: (time: TrendSettings['time']) => void
+  setDrawAs: (drawAs: TrendSettings['drawAs']) => void
+  /** Draws a register on a side, or on its engineering unit's again with none. */
+  setSide: (key: string, side: TrendSide | undefined) => void
+  /** Gives a register another colour, and the register holding that one the first's. */
+  setColor: (key: string, color: string) => void
   /**
    * Opens the trend of client `uuid` under `anchor`, as it was left. A trend
    * draws one client's log, so another client's starts empty.
@@ -78,6 +97,31 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     setView: (view): void =>
       set((state) => {
         state.view = view
+      }),
+    settings: DEFAULT_TREND_SETTINGS,
+    setAxisRange: (side, range): void =>
+      set((state) => {
+        state.settings[side] = range
+      }),
+    setTime: (time): void =>
+      set((state) => {
+        state.settings.time = time
+      }),
+    setDrawAs: (drawAs): void =>
+      set((state) => {
+        state.settings.drawAs = drawAs
+      }),
+    setSide: (key, side): void =>
+      set((state) => {
+        for (const entry of state.entries) if (trendKey(entry) === key) entry.side = side
+      }),
+    setColor: (key, color): void =>
+      set((state) => {
+        const moving = state.entries.find((entry) => trendKey(entry) === key)
+        if (moving === undefined) return
+        const holder = state.entries.find((entry) => entry.color === color)
+        if (holder !== undefined) holder.color = moving.color
+        moving.color = color
       }),
     // Partials rather than recipes: an element is no state to draft.
     open: (uuid, anchor): void => {

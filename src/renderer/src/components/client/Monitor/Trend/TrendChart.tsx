@@ -12,8 +12,10 @@ import {
   READOUT_ROW,
   READOUT_WIDTH,
   readoutPlace,
+  sinceText,
   TrendGap,
   TrendSeries,
+  TrendSettings,
   valuesAt,
   WHEEL_ZOOM,
   zoomAround
@@ -59,6 +61,19 @@ interface TrendChartProps {
   onPlot: (plot: { left: number; width: number }) => void
   /** The readout's rows for what the chart does not draw as a line, at a moment. */
   readoutRows: (time: number) => ReadoutRow[]
+  /** Each side's range, the time axis, and how the lines are drawn. */
+  settings: TrendSettings
+  /** The moment the time since the start counts from: the log's oldest sample. */
+  origin: number
+}
+
+/** The paths and points of a line, as the settings draw it. */
+const drawnAs = (drawAs: TrendSettings['drawAs']): Partial<uPlot.Series> => {
+  if (drawAs === 'points') return { paths: () => null, points: { show: true, size: 4 } }
+  // uPlot's types leave the builder optional; without it uPlot draws lines.
+  if (drawAs === 'steps')
+    return { paths: uPlot.paths.stepped?.({ align: 1 }), points: { show: false } }
+  return { points: { show: false } }
 }
 
 /** A row of the readout for a register the lanes draw. */
@@ -152,7 +167,9 @@ const TrendChart = meme(
     onZoom,
     onZoomOut,
     onPlot,
-    readoutRows
+    readoutRows,
+    settings,
+    origin
   }: TrendChartProps): JSX.Element => {
     const theme = useTheme()
     const container = useRef<HTMLDivElement>(null)
@@ -165,8 +182,8 @@ const TrendChart = meme(
     zoomOut.current = onZoomOut
     const plotted = useRef(onPlot)
     plotted.current = onPlot
-    const shown = useRef({ from, to })
-    shown.current = { from, to }
+    const shown = useRef({ from, to, origin })
+    shown.current = { from, to, origin }
     const joined = useRef<uPlot.AlignedData>([[]])
     const [readout, setReadout] = useState<Readout>()
 
@@ -241,7 +258,18 @@ const TrendChart = meme(
         },
         scales: {
           x: { time: true },
-          ...Object.fromEntries(scales.map((scale) => [scale, { auto: true }]))
+          // A side held at a range draws it whatever its lines hold.
+          ...Object.fromEntries(
+            scales.map((scale) => {
+              const range = scale === 'left' || scale === 'right' ? settings[scale] : undefined
+              return [
+                scale,
+                range === undefined
+                  ? { auto: true }
+                  : { auto: false, range: [range.min, range.max] as uPlot.Range.MinMax }
+              ]
+            })
+          )
         },
         axes: [
           {
@@ -250,11 +278,14 @@ const TrendChart = meme(
             // Seconds once the ticks are closer than a minute, and
             // milliseconds once they are closer than a second.
             // uPlot hands the tick step fifth, after the axis and its space.
+            // Since the start, the time from the log's oldest sample.
             values: (_chart, ticks, _axis, _space, increment) =>
               ticks.map((tick) =>
-                DateTime.fromMillis(tick).toFormat(
-                  increment < 1000 ? 'HH:mm:ss.SSS' : increment < 60_000 ? 'HH:mm:ss' : 'HH:mm'
-                )
+                settings.time === 'since'
+                  ? sinceText(tick - shown.current.origin)
+                  : DateTime.fromMillis(tick).toFormat(
+                      increment < 1000 ? 'HH:mm:ss.SSS' : increment < 60_000 ? 'HH:mm:ss' : 'HH:mm'
+                    )
               )
           },
           ...(leftScale === undefined ? [] : [{ ...axis, scale: leftScale, size: 44 }]),
@@ -268,7 +299,7 @@ const TrendChart = meme(
             stroke: color,
             scale,
             width: 1.5,
-            points: { show: false }
+            ...drawnAs(settings.drawAs)
           }))
         ]
       }
@@ -296,7 +327,7 @@ const TrendChart = meme(
         // The readout names this chart's lines at this chart's samples.
         setReadout(undefined)
       }
-    }, [lines, leftScale, rightScale, theme])
+    }, [lines, leftScale, rightScale, theme, settings])
 
     useEffect(() => {
       const current = chart.current
@@ -357,8 +388,14 @@ const TrendChart = meme(
               zIndex: 1
             }}
           >
-            <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-              {DateTime.fromMillis(readout.at).toFormat('HH:mm:ss.SSS')}
+            <Box
+              component="span"
+              data-testid="trend-readout-time"
+              sx={{ fontFamily: 'monospace', color: 'text.secondary' }}
+            >
+              {settings.time === 'since'
+                ? sinceText(readout.at - origin)
+                : DateTime.fromMillis(readout.at).toFormat('HH:mm:ss.SSS')}
             </Box>
             {lines.map((line, index) => (
               <Box key={line.color} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

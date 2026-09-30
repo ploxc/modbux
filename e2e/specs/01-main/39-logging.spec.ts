@@ -178,6 +178,62 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
+  test('Axes and lines hold a side, move a line, and set the time axis and the drawing', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    await mainPage.getByTestId('trend-settings-btn').click()
+
+    await mainPage.getByTestId('trend-axis-left-fixed').click()
+    await expect(mainPage.getByTestId('trend-axis-left-min')).toHaveValue('0')
+    // Fields that hold no range give Fixed 0 to 100.
+    await mainPage.getByTestId('trend-axis-left-min').fill('')
+    await mainPage.getByTestId('trend-axis-left-auto').click()
+    await mainPage.getByTestId('trend-axis-left-fixed').click()
+    await expect(mainPage.getByTestId('trend-axis-left-min')).toHaveValue('0')
+    await expect(mainPage.getByTestId('trend-axis-left-max')).toHaveValue('100')
+    await mainPage.getByTestId('trend-axis-left-max').fill('250')
+    await mainPage.getByTestId('trend-line-holding_registers-0-right').click()
+    await expect(mainPage.getByTestId('trend-line-holding_registers-0-right')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    await mainPage.getByTestId('trend-time-since').click()
+    await mainPage.getByTestId('trend-draw-steps').click()
+    await mainPage.keyboard.press('Escape')
+
+    // The readout writes the time since the trend's start.
+    await mainPage.getByTestId('trend-range-log').click()
+    const over = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const plotBox = await over.boundingBox()
+    if (!plotBox) throw new Error('The trend has no plot to hover')
+    await mainPage.mouse.move(plotBox.x + plotBox.width * 0.9, plotBox.y + plotBox.height / 2)
+    await expect(mainPage.getByTestId('trend-readout-time')).toHaveText(/^\d+:\d\d$/)
+    await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText('100')
+    await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
+    // It counts from the log's oldest sample, not from the edge of the range:
+    // on 10 minutes of a log seconds old, it is under a minute.
+    await mainPage.getByTestId('trend-range-10m').click()
+    await mainPage.mouse.move(plotBox.x + plotBox.width - 2, plotBox.y + plotBox.height / 2)
+    await expect(mainPage.getByTestId('trend-readout-time')).toHaveText(/^0:\d\d$/)
+    await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
+
+    // Back as it was, for the tests after this one.
+    await mainPage.getByTestId('trend-settings-btn').click()
+    await mainPage.getByTestId('trend-axis-left-auto').click()
+    await mainPage.getByTestId('trend-line-holding_registers-0-auto').click()
+    await expect(mainPage.getByTestId('trend-line-holding_registers-0-auto')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    await mainPage.getByTestId('trend-time-clock').click()
+    await mainPage.getByTestId('trend-draw-lines').click()
+    await mainPage.keyboard.press('Escape')
+    await mainPage.getByTestId('trend-range-10m').click()
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
+  })
+
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
     await mainPage.getByTestId('client-view-debug-btn').click()
     await selectRegisterType(mainPage, 'Coils')

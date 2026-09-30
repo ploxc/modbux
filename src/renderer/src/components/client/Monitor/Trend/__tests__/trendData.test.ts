@@ -10,7 +10,9 @@ import {
   laneAt,
   laneSpans,
   pointAt,
+  rangeOf,
   readoutPlace,
+  sinceText,
   stepOf,
   trendGaps,
   valuesAt,
@@ -274,5 +276,30 @@ describe('indexAt', () => {
     expect(indexAt([10, 20, 30], 25)).toBe(1)
     expect(indexAt([10, 20, 30], 30)).toBe(2)
     expect(indexAt([10, 20, 30], 5)).toBeUndefined()
+  })
+})
+
+describe('sinceText', () => {
+  it('writes minutes and seconds, and hours once there are any', () => {
+    expect(sinceText(65_000)).toBe('1:05')
+    expect(sinceText(3_725_000)).toBe('1:02:05')
+    expect(sinceText(0)).toBe('0:00')
+    expect(sinceText(-65_000)).toBe('-1:05')
+  })
+})
+
+describe('rangeOf', () => {
+  it('takes two numbers with the minimum below the maximum', () => {
+    expect(rangeOf('0', '250')).toEqual({ min: 0, max: 250 })
+    expect(rangeOf('-1.5', '1e3')).toEqual({ min: -1.5, max: 1000 })
+  })
+
+  it('refuses an empty field, a minimum at or above the maximum, and a half-typed number', () => {
+    expect(rangeOf('', '10')).toBeUndefined()
+    expect(rangeOf('10', '10')).toBeUndefined()
+    expect(rangeOf('20', '10')).toBeUndefined()
+    expect(rangeOf('1e', '10')).toBeUndefined()
+    expect(rangeOf('0', '1e999')).toBeUndefined()
+    expect(rangeOf('-1e999', '0')).toBeUndefined()
   })
 })
