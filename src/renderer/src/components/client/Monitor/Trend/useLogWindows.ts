@@ -64,8 +64,7 @@ export const useLogWindows = (
         // it wants twice its step, it is asked again from its start.
         const wanted = stepOf(Number.isFinite(span) ? to - span : from, to, steps)
         const heldStep = stepOfEntry.get(key)
-        const outgrown =
-          wanted !== undefined && (heldStep === undefined || wanted > 2 * heldStep)
+        const outgrown = wanted !== undefined && (heldStep === undefined || wanted > 2 * heldStep)
         if (!stepOfEntry.has(key) || outgrown) {
           stepOfEntry.set(key, wanted)
           ends.delete(key)

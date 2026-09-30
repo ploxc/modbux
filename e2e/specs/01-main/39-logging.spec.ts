@@ -95,6 +95,36 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-chip-value-0')).toContainText('100')
     await mainPage.getByTestId('trend-range-10m').click()
 
+    // A drag across the lines zooms to it, and the trend holds still until
+    // Back to live. The whole log fills the plot, so the drag lands on it.
+    await expect(mainPage.getByTestId('trend-navigator')).toBeVisible()
+    await mainPage.getByTestId('trend-range-log').click()
+    // A view is a second long at least, so the log needs a few to zoom into.
+    const held = mainPage.getByTestId('trend-navigator-window')
+    await expect(async () => {
+      const start = Number(await held.getAttribute('aria-valuemin'))
+      const end = Number(await held.getAttribute('aria-valuemax'))
+      expect(end - start).toBeGreaterThan(3000)
+    }).toPass()
+    const plot = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const box = await plot.boundingBox()
+    if (!box) throw new Error('The trend has no plot to drag across')
+    await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
+    await mainPage.mouse.up()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    await expect(mainPage.getByTestId('trend-view')).toBeVisible()
+    // The arrow keys on the navigator's window pan the stretch shown.
+    const zoomed = await held.getAttribute('aria-valuenow')
+    await held.focus()
+    await mainPage.keyboard.press('ArrowLeft')
+    await expect(held).not.toHaveAttribute('aria-valuenow', zoomed ?? '')
+    await mainPage.getByTestId('trend-live-btn').click()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expect(mainPage.getByTestId('trend-zoom-out-btn')).toBeDisabled()
+    await mainPage.getByTestId('trend-range-10m').click()
+
     await mainPage.getByTestId('trend-chip-remove-0').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
   })

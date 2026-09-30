@@ -13,15 +13,21 @@ import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 import { textMuted } from '@renderer/theme'
 import { ClientUnit, isNumberRegister, RegisterMapValue } from '@shared'
+import { formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, useCallback, useMemo } from 'react'
+import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
+import Button from '@mui/material/Button'
 import TrendChart, { TrendLine } from './TrendChart'
+import TrendNavigator from './TrendNavigator'
 import {
   TREND_RANGES,
   TREND_SPANS,
+  TREND_STEPS,
   TrendRangeId,
   trendGaps,
   trendSeries,
-  trendSummary
+  trendSummary,
+  viewWithin
 } from './trendData'
 import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
@@ -39,6 +45,9 @@ const PAPER_SX = {
 } as const
 
 const NO_UNITS: ClientUnit[] = []
+
+/** How many stretches the navigator's line of the whole log is asked in. */
+const NAVIGATOR_STEPS = 300
 
 /** The range buttons, and a press that picks one. */
 const RangePicker = meme((): JSX.Element => {
@@ -59,7 +68,14 @@ const RangePicker = meme((): JSX.Element => {
       onChange={handleRange}
       aria-label="Range"
       sx={{
-        '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
+        flexShrink: 0,
+        '& .MuiToggleButton-root': {
+          py: 0.125,
+          px: 1,
+          fontSize: 11.5,
+          textTransform: 'none',
+          whiteSpace: 'nowrap'
+        }
       }}
     >
       {TREND_RANGES.map(({ id, label }) => (
@@ -190,16 +206,34 @@ const TrendPanel = meme((): JSX.Element | null => {
   // The array main's last client state carried, which the store keeps as it came.
   const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
   const range = useTrendPanelZustand((z) => z.range)
+  const view = useTrendPanelZustand((z) => z.view)
   // A script's value waits for the engine, and draws again once it is there.
   useScriptEngineZustand((z) => z.ready)
 
   const lastEnd = runs.at(-1)?.end
   const span = TREND_SPANS[range]
-  const points = useLogWindows(entries, {
+  const started = oldest !== undefined
+  // Zoomed or panned, the trend holds still on its stretch, in steps of it,
+  // and asks as much again on either side so its lines run to its edges.
+  const points = useLogWindows(
+    entries,
+    view === undefined
+      ? { live: running, span, until: lastEnd, started }
+      : {
+          live: false,
+          span: 3 * (view.to - view.from),
+          until: view.to + (view.to - view.from),
+          started,
+          steps: 3 * TREND_STEPS
+        }
+  )
+  const first = useMemo(() => entries.slice(0, 1), [entries])
+  const whole = useLogWindows(first, {
     live: running,
-    span,
+    span: Number.POSITIVE_INFINITY,
     until: lastEnd,
-    started: oldest !== undefined
+    started,
+    steps: NAVIGATOR_STEPS
   })
   const layout = useMemo(() => layoutOf(entries, units), [entries, units])
 
@@ -221,13 +255,33 @@ const TrendPanel = meme((): JSX.Element | null => {
   // Live, the range ends now, and moves with each answer; stopped, where the
   // log stopped. The whole log starts at its oldest sample, and an empty one
   // shows the shortest range.
-  const to = running ? Date.now() : (lastEnd ?? Date.now())
-  const from = Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m'])
-  const gaps = trendGaps(runs, to)
+  const end = running ? Date.now() : (lastEnd ?? Date.now())
+  const to = view?.to ?? end
+  const from =
+    view?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
+  const gaps = trendGaps(runs, end)
   const handleClose = useCallback(() => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.close()
   }, [])
+  // Inside what the log holds, up to now; reaching its end with the range
+  // or more follows the log again.
+  const handleZoom = useCallback(
+    (zoomFrom: number, zoomTo: number) => {
+      const now = running ? Date.now() : (lastEnd ?? Date.now())
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setView(
+        viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: now }, span)
+      )
+    },
+    [running, lastEnd, oldest, span]
+  )
+  const handleFollow = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setView(undefined)
+  }, [])
+  const firstEntry = first[0]
+  const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
 
   if (anchor === null) return null
   return (
@@ -257,7 +311,43 @@ const TrendPanel = meme((): JSX.Element | null => {
             Trend
           </Box>
           <RangePicker />
+          {view !== undefined && (
+            <Box
+              component="span"
+              data-testid="trend-view"
+              sx={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                color: textMuted,
+                fontFamily: 'monospace',
+                fontSize: 11.5
+              }}
+            >
+              {formatTime(view.from)} to {formatTime(view.to)}
+            </Box>
+          )}
           <Box sx={{ flexGrow: 1 }} />
+          {view !== undefined && running && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              data-testid="trend-live-btn"
+              onClick={handleFollow}
+              sx={{
+                flexShrink: 0,
+                py: 0,
+                fontSize: 11.5,
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                borderRadius: '12px'
+              }}
+            >
+              Back to live
+            </Button>
+          )}
           <Box
             component="span"
             data-testid="trend-state"
@@ -266,17 +356,27 @@ const TrendPanel = meme((): JSX.Element | null => {
               alignItems: 'center',
               gap: 0.625,
               fontSize: 11.5,
-              color: running ? 'success.light' : textMuted
+              color: state === 'live' ? 'success.light' : textMuted
             }}
           >
-            {running && (
+            {state === 'live' && (
               <Box
                 component="span"
                 sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }}
               />
             )}
-            {running ? 'live' : 'logging is off'}
+            {state}
           </Box>
+          <IconButton
+            size="small"
+            aria-label="Zoom out to the range"
+            title="Zoom out to the range"
+            data-testid="trend-zoom-out-btn"
+            disabled={view === undefined}
+            onClick={handleFollow}
+          >
+            <ZoomOutMap fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             aria-label="Close the trend"
@@ -305,8 +405,22 @@ const TrendPanel = meme((): JSX.Element | null => {
             to={to}
             oldest={oldest}
             gaps={gaps}
+            onZoom={handleZoom}
           />
         </Box>
+        {oldest !== undefined && firstEntry !== undefined && (
+          <Box sx={{ px: 1.75, pb: 1 }}>
+            <TrendNavigator
+              start={oldest}
+              end={end}
+              from={from}
+              to={to}
+              points={whole[trendKey(firstEntry)] ?? []}
+              color={firstEntry.color}
+              onPan={handleZoom}
+            />
+          </Box>
+        )}
       </Box>
     </DraggablePanel>
   )

@@ -237,7 +237,9 @@ describe('the steps it asks in', () => {
       [1, 1],
       [3500 / 1500, 0]
     ])
-    expect(result.current['client-a|unit-1|holding_registers|0']?.map(({ value }) => value)).toEqual([2])
+    expect(
+      result.current['client-a|unit-1|holding_registers|0']?.map(({ value }) => value)
+    ).toEqual([2])
   })
 
   it('keeps the step it first asked in as a live whole log grows', async () => {

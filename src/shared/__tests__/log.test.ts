@@ -163,7 +163,10 @@ describe('inSteps', () => {
 
   it('keeps the first failed read of a stretch beside its values', () => {
     expect(
-      inSteps([point(0, 5), point(1, NaN, 'Timed out'), point(2, NaN, 'Timed out'), point(3, 7)], 10)
+      inSteps(
+        [point(0, 5), point(1, NaN, 'Timed out'), point(2, NaN, 'Timed out'), point(3, 7)],
+        10
+      )
     ).toEqual([point(0, 5), point(1, NaN, 'Timed out'), point(3, 7)])
   })
 

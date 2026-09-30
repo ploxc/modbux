@@ -21,7 +21,7 @@ export const TREND_SPANS: Record<TrendRangeId, number> = {
  * How many stretches main hands a window back in, each as its lowest and
  * highest value: about two a pixel across a trend as wide as a window.
  */
-const TREND_STEPS = 1500
+export const TREND_STEPS = 1500
 
 /** The step main hands a window from `from` to `to` in, as `steps` stretches. */
 export const stepOf = (from: number, to: number, steps = TREND_STEPS): number | undefined =>
@@ -92,6 +92,41 @@ export const trendSummary = (
     max: numbers.length === 0 ? undefined : Math.max(...numbers)
   }
 }
+
+/** A stretch of time a trend was zoomed or panned to, which stops it following the log. */
+export interface TrendView {
+  from: number
+  to: number
+}
+
+/** The shortest stretch a trend zooms in to. */
+const SHORTEST_VIEW_MS = 1000
+
+/**
+ * The view a zoom or a pan to `from` and `to` leaves, inside `bound`: what the
+ * log holds, up to now. None, which follows the range again, once it reaches
+ * the end of what the log holds and spans the range or more.
+ */
+export const viewWithin = (
+  from: number,
+  to: number,
+  bound: TrendView,
+  span: number
+): TrendView | undefined => {
+  const length = Math.min(Math.max(to - from, SHORTEST_VIEW_MS), bound.to - bound.from)
+  const start = Math.min(Math.max(from, bound.from), bound.to - length)
+  const view = { from: start, to: start + length }
+  return view.to >= bound.to && length >= Math.min(span, bound.to - bound.from) ? undefined : view
+}
+
+/** How much a notch of the wheel zooms: in by this, and out by its inverse. */
+export const WHEEL_ZOOM = 0.8
+
+/** The stretch a zoom by `factor` around `at` leaves of `from` to `to`. */
+export const zoomAround = (from: number, to: number, at: number, factor: number): TrendView => ({
+  from: at - (at - from) * factor,
+  to: at + (to - at) * factor
+})
 
 /**
  * The points of a window with those of the answer that went on from it.

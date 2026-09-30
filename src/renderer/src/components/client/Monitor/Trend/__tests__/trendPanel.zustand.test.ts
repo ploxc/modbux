@@ -68,4 +68,16 @@ describe('the trend store', () => {
 
     expect(store().anchor).toBeNull()
   })
+
+  it('follows the log again on a new range, and once closed', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().setView({ from: 1, to: 2 })
+    store().setRange('1h')
+    expect(store().view).toBeUndefined()
+
+    store().setView({ from: 1, to: 2 })
+    store().close()
+    expect(store().view).toBeUndefined()
+  })
 })

@@ -2,7 +2,7 @@ import { TREND_COLORS } from '@renderer/theme'
 import { RegisterType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { TrendRangeId } from './trendData'
+import { TrendRangeId, TrendView } from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -25,9 +25,12 @@ interface TrendPanelZustand {
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
   anchor: HTMLElement | null
-  /** How far back the trend reaches. */
+  /** How far back the trend reaches. A new range follows the log again. */
   range: TrendRangeId
   setRange: (range: TrendRangeId) => void
+  /** The stretch zoomed or panned to, which stops the trend following the log; none follows it. */
+  view: TrendView | undefined
+  setView: (view: TrendView | undefined) => void
   /**
    * Adds a register, opening the trend under `anchor` when it is closed. A
    * trend draws one client's log, so a register of another client starts it
@@ -49,6 +52,12 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     setRange: (range): void =>
       set((state) => {
         state.range = range
+        state.view = undefined
+      }),
+    view: undefined,
+    setView: (view): void =>
+      set((state) => {
+        state.view = view
       }),
     add: (entry, anchor): boolean => {
       const { entries } = get()
@@ -58,7 +67,11 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       const [color] = TREND_COLORS.filter((free) => !kept.some((drawn) => drawn.color === free))
       if (color === undefined) return false
       // A partial rather than a recipe: an element is no state to draft.
-      set({ entries: [...kept, { ...entry, color }], anchor: get().anchor ?? anchor })
+      set({
+        entries: [...kept, { ...entry, color }],
+        anchor: get().anchor ?? anchor,
+        view: sameClient ? get().view : undefined
+      })
       return true
     },
     remove: (key): void =>
@@ -70,6 +83,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.entries = []
         state.anchor = null
+        state.view = undefined
       })
   }))
 )

@@ -5,7 +5,7 @@ import { DateTime } from 'luxon'
 import { useEffect, useRef } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { TrendGap, TrendSeries } from './trendData'
+import { TrendGap, TrendSeries, WHEEL_ZOOM, zoomAround } from './trendData'
 
 /** One line of a trend: its colour, and the scale it is drawn on. */
 export interface TrendLine {
@@ -29,7 +29,12 @@ interface TrendChartProps {
   oldest: number | undefined
   /** Where the log took no samples, each shaded and named by why. */
   gaps: TrendGap[]
+  /** A drag across the plot, or a notch of the wheel, asks for this stretch. */
+  onZoom: (from: number, to: number) => void
 }
+
+/** How many pixels a drag must cover to zoom, so a click does not. */
+const SHORTEST_DRAG = 4
 
 /** What the chart draws behind its lines, read by its hook on every draw. */
 interface Backdrop {
@@ -107,12 +112,18 @@ const TrendChart = meme(
     from,
     to,
     oldest,
-    gaps
+    gaps,
+    onZoom
   }: TrendChartProps): JSX.Element => {
     const theme = useTheme()
     const container = useRef<HTMLDivElement>(null)
     const chart = useRef<uPlot | null>(null)
     const backdrop = useRef<Backdrop>({ oldest, gaps })
+    // The chart is made once for its lines, so its handlers read the latest.
+    const zoom = useRef(onZoom)
+    zoom.current = onZoom
+    const shown = useRef({ from, to })
+    shown.current = { from, to }
 
     useEffect(() => {
       const box = container.current
@@ -135,10 +146,22 @@ const TrendChart = meme(
         height: box.clientHeight,
         ms: 1,
         legend: { show: false },
-        cursor: { show: false },
+        cursor: {
+          y: false,
+          points: { show: false },
+          drag: { x: true, y: false, setScale: false }
+        },
         hooks: {
           drawClear: [
             (drawn: uPlot): void => drawBackdrop(drawn, backdrop.current, colors, labelFont)
+          ],
+          setSelect: [
+            (selected: uPlot): void => {
+              const { left, width } = selected.select
+              if (width < SHORTEST_DRAG) return
+              zoom.current(selected.posToVal(left, 'x'), selected.posToVal(left + width, 'x'))
+              selected.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false)
+            }
           ]
         },
         scales: {
@@ -149,8 +172,14 @@ const TrendChart = meme(
           {
             ...axis,
             size: 22,
-            values: (_chart, ticks) =>
-              ticks.map((tick) => DateTime.fromMillis(tick).toFormat('HH:mm'))
+            // Seconds once the ticks are closer than a minute, and
+            // milliseconds once they are closer than a second.
+            values: (_chart, ticks, _space, increment) =>
+              ticks.map((tick) =>
+                DateTime.fromMillis(tick).toFormat(
+                  increment < 1000 ? 'HH:mm:ss.SSS' : increment < 60_000 ? 'HH:mm:ss' : 'HH:mm'
+                )
+              )
           },
           ...(leftScale === undefined ? [] : [{ ...axis, scale: leftScale, size: 44 }]),
           ...(rightScale === undefined
@@ -169,11 +198,20 @@ const TrendChart = meme(
       }
       const made = new uPlot(options, [[]], box)
       chart.current = made
+      const handleWheel = (event: WheelEvent): void => {
+        event.preventDefault()
+        const at = made.posToVal(event.offsetX, 'x')
+        const factor = event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM
+        const zoomed = zoomAround(shown.current.from, shown.current.to, at, factor)
+        zoom.current(zoomed.from, zoomed.to)
+      }
+      made.over.addEventListener('wheel', handleWheel, { passive: false })
       const observer = new ResizeObserver(() =>
         made.setSize({ width: box.clientWidth, height: box.clientHeight })
       )
       observer.observe(box)
       return (): void => {
+        made.over.removeEventListener('wheel', handleWheel)
         observer.disconnect()
         made.destroy()
         chart.current = null
