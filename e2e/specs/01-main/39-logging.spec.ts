@@ -24,6 +24,11 @@ const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-monitor.json')
 const samplesOf = (text: string | null): number =>
   Number((/^([\d,]+) of/.exec(text ?? '')?.[1] ?? '0').replace(/,/g, ''))
 
+/** Whether the trend follows the log or holds still, read off which of the two is pressed. */
+const expectState = async (mainPage: Page, state: 'live' | 'paused'): Promise<void> => {
+  await expect(mainPage.getByTestId(`trend-${state}-btn`)).toHaveAttribute('aria-pressed', 'true')
+}
+
 /**
  * Waits for the readout at the plot's right edge, which reads the newest
  * sample of every register the trend draws, to show `text` in `row`. The
@@ -107,7 +112,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
 
     await expect(mainPage.getByTestId('trend-panel')).toBeVisible()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expectState(mainPage, 'live')
     await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
     await expectNewest(mainPage, 'trend-readout-value-0', '100')
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
@@ -151,8 +156,22 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expectNewest(mainPage, 'trend-readout-value-0', '100', 30_000)
     await mainPage.getByTestId('trend-range-10m').click()
 
+    // Paused holds the range's stretch still while the log runs on, and the
+    // range stays pressed; Live follows the log again.
+    const stretch = mainPage.getByTestId('trend-navigator-window')
+    await mainPage.getByTestId('trend-paused-btn').click()
+    await expectState(mainPage, 'paused')
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('trend-view')).toHaveCount(0)
+    const pausedOn = await stretch.getAttribute('aria-valuetext')
+    await mainPage.waitForTimeout(2500)
+    await expect(stretch).toHaveAttribute('aria-valuetext', pausedOn ?? '')
+    await mainPage.getByTestId('trend-live-btn').click()
+    await expectState(mainPage, 'live')
+    await expect(stretch).not.toHaveAttribute('aria-valuetext', pausedOn ?? '')
+
     // A drag across the lines zooms to it, and the trend holds still until
-    // Back to live. The whole log fills the plot, so the drag lands on it.
+    // Live is pressed. The whole log fills the plot, so the drag lands on it.
     await expect(mainPage.getByTestId('trend-navigator')).toBeVisible()
     await mainPage.getByTestId('trend-range-log').click()
     // A view is a second long at least, so the log needs a few to zoom into.
@@ -169,7 +188,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    await expectState(mainPage, 'paused')
     await expect(mainPage.getByTestId('trend-view')).toBeVisible()
     // Zoomed, the trend shows no range, so no range is pressed.
     await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'false')
@@ -179,16 +198,16 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.keyboard.press('ArrowLeft')
     await expect(held).not.toHaveAttribute('aria-valuenow', zoomed ?? '')
     await mainPage.getByTestId('trend-live-btn').click()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expectState(mainPage, 'live')
 
     // A double click zooms out to the range as well.
     await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    await expectState(mainPage, 'paused')
     await mainPage.mouse.dblclick(box.x + box.width * 0.5, box.y + box.height / 2)
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expectState(mainPage, 'live')
     await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'true')
 
     // Zoomed again, and the navigator's window dragged against the log's end,
@@ -197,7 +216,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    await expectState(mainPage, 'paused')
     const windowBox = await held.boundingBox()
     const stripBox = await mainPage.getByTestId('trend-navigator').boundingBox()
     if (!windowBox || !stripBox) throw new Error('The navigator is not drawn')
@@ -206,7 +225,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(stripBox.x + stripBox.width + 100, middle, { steps: 5 })
     await mainPage.mouse.up()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expectState(mainPage, 'live')
     await expect(mainPage.getByTestId('trend-follow')).toBeVisible()
     await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'false')
     const following = Number(await held.getAttribute('aria-valuenow'))
@@ -216,7 +235,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     // A press on a range follows the log over that range again.
     await mainPage.getByTestId('trend-range-10m').click()
-    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expectState(mainPage, 'live')
     await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
 
     // The row's Log icon takes the register out again, which leaves the trend

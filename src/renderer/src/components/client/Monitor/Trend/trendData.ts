@@ -94,10 +94,12 @@ export const trendSeries = (
   return { times, values }
 }
 
-/** A stretch of time a trend was zoomed or panned to, which stops it following the log. */
+/** A stretch of time a trend was paused, zoomed or panned to, which stops it following the log. */
 export interface TrendView {
   from: number
   to: number
+  /** Paused over the range, which stays pressed; a zoom or a pan leaves a stretch without it. */
+  ofRange?: true
 }
 
 /** A trend that follows the log over its own length rather than the range's. */

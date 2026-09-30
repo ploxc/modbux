@@ -25,7 +25,7 @@ import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
-import Button from '@mui/material/Button'
+import Pause from '@mui/icons-material/Pause'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendConfigMenu from './TrendConfigMenu'
 import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
@@ -120,13 +120,29 @@ const ModeButtons = meme(
   )
 )
 
+/** The header's toggle groups: the range, and live or paused. */
+const TOGGLE_GROUP_SX = {
+  flexShrink: 0,
+  '& .MuiToggleButton-root': {
+    py: 0.125,
+    px: 1,
+    gap: 0.625,
+    fontSize: 11.5,
+    textTransform: 'none',
+    whiteSpace: 'nowrap'
+  }
+} as const
+
 /**
  * The range buttons, and a press that picks one. Zoomed, panned, or following
  * the log over a stretch of its own length, the trend shows no range, so none
- * is pressed, and any of them follows the log over the range again.
+ * is pressed, and any of them follows the log over the range again. Paused
+ * over the range, the range stays pressed.
  */
 const RangePicker = meme((): JSX.Element => {
-  const range = useTrendPanelZustand((z) => (z.view === undefined ? z.range : null))
+  const range = useTrendPanelZustand((z) =>
+    z.view === undefined || (!isFollow(z.view) && z.view.ofRange === true) ? z.range : null
+  )
   const handleRange = useCallback(
     (_event: MouseEvent<HTMLElement>, picked: TrendRangeId | null) => {
       if (picked === null) return
@@ -142,22 +158,60 @@ const RangePicker = meme((): JSX.Element => {
       value={range}
       onChange={handleRange}
       aria-label="Range"
-      sx={{
-        flexShrink: 0,
-        '& .MuiToggleButton-root': {
-          py: 0.125,
-          px: 1,
-          fontSize: 11.5,
-          textTransform: 'none',
-          whiteSpace: 'nowrap'
-        }
-      }}
+      sx={TOGGLE_GROUP_SX}
     >
       {TREND_RANGES.map(({ id, label }) => (
         <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
           {label}
         </ToggleButton>
       ))}
+    </ToggleButtonGroup>
+  )
+})
+
+/**
+ * Whether the trend follows the log or holds still, and a press that picks
+ * one. A zoom or a pan holds it still too; Live follows the log over the range.
+ */
+const LiveOrPaused = meme((): JSX.Element => {
+  const paused = useTrendPanelZustand((z) => z.view !== undefined && !isFollow(z.view))
+  const handleChange = useCallback(
+    (_event: MouseEvent<HTMLElement>, picked: 'live' | 'paused' | null) => {
+      if (picked === null) return
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      if (picked === 'live') {
+        trendPanelZustand.setView(undefined)
+        return
+      }
+      const { oldest } = dataOf(useLiveZustand.getState(), trendPanelZustand.uuid).clientState.log
+      trendPanelZustand.pause(Date.now(), oldest)
+    },
+    []
+  )
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={paused ? 'paused' : 'live'}
+      onChange={handleChange}
+      aria-label="Live or paused"
+      sx={TOGGLE_GROUP_SX}
+    >
+      <ToggleButton
+        value="live"
+        data-testid="trend-live-btn"
+        sx={{ '&.Mui-selected': { color: 'success.light' } }}
+      >
+        <Box
+          component="span"
+          sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }}
+        />
+        Live
+      </ToggleButton>
+      <ToggleButton value="paused" data-testid="trend-paused-btn">
+        <Pause sx={{ fontSize: 12 }} />
+        Paused
+      </ToggleButton>
     </ToggleButtonGroup>
   )
 })
@@ -401,7 +455,6 @@ const TrendContent = meme(
         text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
       }))
     const firstEntry = first[0]
-    const state = running ? (held === undefined ? 'live' : 'paused') : 'logging is off'
 
     const floating = placement === 'float'
     const content = (
@@ -426,7 +479,18 @@ const TrendContent = meme(
           {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
           <TrendConfigMenu />
           <RangePicker />
-          {view !== undefined && (
+          {running ? (
+            <LiveOrPaused />
+          ) : (
+            <Box
+              component="span"
+              data-testid="trend-logging-off"
+              sx={{ flexShrink: 0, fontSize: 11.5, color: textMuted }}
+            >
+              logging is off
+            </Box>
+          )}
+          {view !== undefined && (isFollow(view) || view.ofRange !== true) && (
             <Box
               component="span"
               data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
@@ -446,44 +510,6 @@ const TrendContent = meme(
             </Box>
           )}
           <Box sx={{ flexGrow: 1 }} />
-          {held !== undefined && running && (
-            <Button
-              size="small"
-              variant="outlined"
-              color="success"
-              data-testid="trend-live-btn"
-              onClick={handleFollow}
-              sx={{
-                flexShrink: 0,
-                py: 0,
-                fontSize: 11.5,
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                borderRadius: '12px'
-              }}
-            >
-              Back to live
-            </Button>
-          )}
-          <Box
-            component="span"
-            data-testid="trend-state"
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.625,
-              fontSize: 11.5,
-              color: state === 'live' ? 'success.light' : textMuted
-            }}
-          >
-            {state === 'live' && (
-              <Box
-                component="span"
-                sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }}
-              />
-            )}
-            {state}
-          </Box>
           <TrendSettingsPopover lines={layout.settingsLines} />
           <ModeButtons mode={mode} />
           <IconButton

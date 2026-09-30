@@ -125,6 +125,43 @@ describe('the trend store', () => {
     expect(store().view).toBeUndefined()
   })
 
+  describe('paused', () => {
+    const now = 50 * 60 * 1000
+    const oldest = 30 * 60 * 1000
+
+    it('holds the range it followed the log over, which stays pressed', () => {
+      store().setRange('10m')
+      store().pause(now, oldest)
+
+      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, ofRange: true })
+    })
+
+    it('holds the whole log from its oldest sample, and an empty log over the shortest range', () => {
+      store().setRange('log')
+      store().pause(now, oldest)
+      expect(store().view).toEqual({ from: oldest, to: now, ofRange: true })
+
+      store().setView(undefined)
+      store().pause(now, undefined)
+      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, ofRange: true })
+    })
+
+    it('holds a trend following the log over its own length at that length, no range pressed', () => {
+      store().setRange('1h')
+      store().setView({ length: 90_000 })
+      store().pause(now, oldest)
+
+      expect(store().view).toEqual({ from: now - 90_000, to: now })
+    })
+
+    it('leaves a stretch zoomed to where it is', () => {
+      store().setView({ from: 1000, to: 2000 })
+      store().pause(now, oldest)
+
+      expect(store().view).toEqual({ from: 1000, to: 2000 })
+    })
+  })
+
   it('follows the log again once its last register is taken out', () => {
     store().add(entry(0))
     store().setView({ from: 1, to: 2 })
