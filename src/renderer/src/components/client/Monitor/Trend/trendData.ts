@@ -165,3 +165,19 @@ export const valuesAt = (data: uPlot.AlignedData, index: number): (number | null
 /** A number as the trend's figures write it: as the value came, at most six decimals. */
 export const figure = (value: number | null | undefined): string =>
   value === undefined || value === null ? '–' : String(Math.round(value * 1e6) / 1e6)
+
+/** Which part of the navigator's window a press holds. */
+export type Grip = 'window' | 'from' | 'to'
+
+/** How many pixels from an edge of the navigator's window a press holds that edge. */
+export const EDGE = 6
+
+/**
+ * What a press `x` pixels into a window `width` wide holds: an edge near
+ * either side, and the window between them. A window too narrow for two
+ * edges and a middle is only moved.
+ */
+export const gripAt = (x: number, width: number): Grip => {
+  if (width <= 4 * EDGE) return 'window'
+  return x <= EDGE ? 'from' : x >= width - EDGE ? 'to' : 'window'
+}

@@ -44,6 +44,8 @@ interface TrendChartProps {
   gaps: TrendGap[]
   /** A drag across the plot, or a notch of the wheel, asks for this stretch. */
   onZoom: (from: number, to: number) => void
+  /** A double click asks for the range again. */
+  onZoomOut: () => void
 }
 
 /** How many pixels a drag must cover to zoom, so a click does not. */
@@ -126,7 +128,8 @@ const TrendChart = meme(
     to,
     oldest,
     gaps,
-    onZoom
+    onZoom,
+    onZoomOut
   }: TrendChartProps): JSX.Element => {
     const theme = useTheme()
     const container = useRef<HTMLDivElement>(null)
@@ -135,6 +138,8 @@ const TrendChart = meme(
     // The chart is made once for its lines, so its handlers read the latest.
     const zoom = useRef(onZoom)
     zoom.current = onZoom
+    const zoomOut = useRef(onZoomOut)
+    zoomOut.current = onZoomOut
     const shown = useRef({ from, to })
     shown.current = { from, to }
     const joined = useRef<uPlot.AlignedData>([[]])
@@ -164,7 +169,15 @@ const TrendChart = meme(
         cursor: {
           y: false,
           points: { show: false },
-          drag: { x: true, y: false, setScale: false }
+          drag: { x: true, y: false, setScale: false },
+          // In place of uPlot's own, which fits x to the data and so to the
+          // margin a zoomed trend asks either side of its stretch.
+          bind: {
+            dblclick: () => () => {
+              zoomOut.current()
+              return null
+            }
+          }
         },
         hooks: {
           drawClear: [
@@ -227,7 +240,9 @@ const TrendChart = meme(
       }
       const made = new uPlot(options, [[]], box)
       chart.current = made
+      // A sideways swipe is not a zoom.
       const handleWheel = (event: WheelEvent): void => {
+        if (event.deltaY === 0) return
         event.preventDefault()
         const at = made.posToVal(event.offsetX, 'x')
         const factor = event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM

@@ -80,4 +80,14 @@ describe('the trend store', () => {
     store().close()
     expect(store().view).toBeUndefined()
   })
+
+  it('follows the log again once its last register is taken out', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().setView({ from: 1, to: 2 })
+    store().remove(trendKey(entry(0)))
+
+    store().add(entry(0, 'client-b'), anchor)
+    expect(store().view).toBeUndefined()
+  })
 })

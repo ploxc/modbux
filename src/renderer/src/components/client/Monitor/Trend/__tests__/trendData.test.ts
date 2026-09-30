@@ -3,6 +3,7 @@ import type { LogPoint } from '@shared'
 import type uPlot from 'uplot'
 import {
   figure,
+  gripAt,
   stepOf,
   trendGaps,
   valuesAt,
@@ -152,5 +153,18 @@ describe('figure', () => {
     expect(figure(100)).toBe('100')
     expect(figure(null)).toBe('–')
     expect(figure(undefined)).toBe('–')
+  })
+})
+
+describe('gripAt', () => {
+  it('holds an edge near either side, and the window between them', () => {
+    expect(gripAt(3, 100)).toBe('from')
+    expect(gripAt(97, 100)).toBe('to')
+    expect(gripAt(50, 100)).toBe('window')
+  })
+
+  it('only moves a window too narrow for two edges and a middle', () => {
+    expect(gripAt(2, 24)).toBe('window')
+    expect(gripAt(22, 24)).toBe('window')
   })
 })

@@ -131,6 +131,15 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(held).not.toHaveAttribute('aria-valuenow', zoomed ?? '')
     await mainPage.getByTestId('trend-live-btn').click()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+
+    // A double click zooms out to the range as well.
+    await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
+    await mainPage.mouse.up()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    await mainPage.mouse.dblclick(box.x + box.width * 0.5, box.y + box.height / 2)
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
     await expect(mainPage.getByTestId('trend-zoom-out-btn')).toBeDisabled()
     await mainPage.getByTestId('trend-range-10m').click()
 

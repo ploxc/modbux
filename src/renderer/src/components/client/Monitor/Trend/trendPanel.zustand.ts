@@ -77,7 +77,9 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     remove: (key): void =>
       set((state) => {
         state.entries = state.entries.filter((entry) => trendKey(entry) !== key)
-        if (state.entries.length === 0) state.anchor = null
+        if (state.entries.length > 0) return
+        state.anchor = null
+        state.view = undefined
       }),
     close: (): void =>
       set((state) => {

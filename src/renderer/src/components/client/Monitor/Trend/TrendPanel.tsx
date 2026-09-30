@@ -268,15 +268,16 @@ const TrendPanel = meme((): JSX.Element | null => {
   }, [])
   // Inside what the log holds, up to now; reaching its end with the range
   // or more follows the log again.
+  // The end is this render's, which the chart and the navigator drew with, so
+  // a stretch dragged back to their end reaches the log's.
   const handleZoom = useCallback(
     (zoomFrom: number, zoomTo: number) => {
-      const now = running ? Date.now() : (lastEnd ?? Date.now())
       const trendPanelZustand = useTrendPanelZustand.getState()
       trendPanelZustand.setView(
-        viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: now }, span)
+        viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, span)
       )
     },
-    [running, lastEnd, oldest, span]
+    [end, oldest, span]
   )
   const handleFollow = useCallback(() => {
     const trendPanelZustand = useTrendPanelZustand.getState()
@@ -408,6 +409,7 @@ const TrendPanel = meme((): JSX.Element | null => {
             oldest={oldest}
             gaps={gaps}
             onZoom={handleZoom}
+            onZoomOut={handleFollow}
           />
         </Box>
         {oldest !== undefined && firstEntry !== undefined && (
