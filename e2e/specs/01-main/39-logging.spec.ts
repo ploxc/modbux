@@ -53,7 +53,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   }) => {
     await mainPage.getByTestId('client-view-monitor-btn').click()
 
-    await expect(mainPage.getByTestId('monitor-row-logs')).toHaveCount(1)
+    await expect(mainPage.locator('[data-testid^="monitor-trend-"]')).toHaveCount(1)
     await expect(mainPage.getByTestId('log-count')).toHaveText('1 register logs')
     await expect(mainPage.getByTestId('log-btn')).toBeEnabled()
   })
@@ -73,6 +73,22 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     }).toPass()
     await mainPage.keyboard.press('Escape')
     await expect(mainPage.locator('[data-testid^="client-rec-"]')).toBeVisible()
+  })
+
+  test('the Log icon in a row opens the trend of that register, live', async ({ mainPage }) => {
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+
+    await expect(mainPage.getByTestId('trend-popover')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expect(mainPage.getByTestId('trend-chip-value-0')).toContainText('100')
+    await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
+    await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+
+    await mainPage.getByTestId('trend-chip-remove-0').click()
+    await expect(mainPage.getByTestId('trend-popover')).toHaveCount(0)
   })
 
   test("Debug shows Monitor's reads while logging, and reads nothing itself", async ({

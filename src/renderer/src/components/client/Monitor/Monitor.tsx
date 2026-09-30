@@ -18,6 +18,8 @@ import { useLiveZustand } from '@renderer/context/live.zustand'
 import { isNumberRegister } from '@shared'
 import { useCallback, useEffect, useMemo } from 'react'
 import LogCount from '@renderer/components/client/Logging/LogCount'
+import TrendPopover from './Trend/TrendPopover'
+import { useTrendPopoverZustand } from './Trend/trendPopover.zustand'
 import GroupHead from './GroupHead'
 import {
   AddressCell,
@@ -111,6 +113,14 @@ const Monitor = meme((): JSX.Element => {
     useLiveZustand.getState().showMonitor(uuid)
     return (): void => useLiveZustand.getState().hideMonitor(uuid)
   }, [uuid])
+  // The trend draws what Monitor's icons added, and goes with Monitor.
+  useEffect(
+    () => (): void => {
+      const trendPopoverZustand = useTrendPopoverZustand.getState()
+      trendPopoverZustand.close()
+    },
+    []
+  )
 
   const handleExpandAll = useCallback(() => {
     const monitorZustand = useMonitorZustand.getState()
@@ -184,6 +194,7 @@ const Monitor = meme((): JSX.Element => {
           />
         )}
       </Box>
+      <TrendPopover />
     </Box>
   )
 })

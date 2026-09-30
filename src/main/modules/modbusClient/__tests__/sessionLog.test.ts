@@ -208,4 +208,52 @@ describe('SessionLog', () => {
       expect(log.page(page.next ?? -1, all, 10).samples.map(({ value }) => value)).toEqual([4, 5])
     })
   })
+
+  describe('window', () => {
+    it('answers one series from a time on, in order, with its errors', () => {
+      const log = running()
+      log.record(holding0, poll, 1, 10, undefined)
+      log.record(coil3, poll, 1, 1, undefined)
+      log.record(holding0, poll, 2, 11, undefined)
+      log.record(holding0, poll, 3, Number.NaN, 'Timed out')
+      log.record(coil3, poll, 3, 0, undefined)
+      log.record(holding0, poll, 4, 13, undefined)
+
+      expect(log.window(holding0, 2, 0)).toEqual({
+        points: [
+          { time: 2, value: 11, error: undefined },
+          { time: 3, value: Number.NaN, error: 'Timed out' },
+          { time: 4, value: 13, error: undefined }
+        ],
+        end: 6
+      })
+    })
+
+    it('answers only what came after the sequence asked from', () => {
+      const log = running()
+      for (const time of [1, 2, 3, 4]) log.record(holding0, poll, time, time * 10, undefined)
+
+      const first = log.window(holding0, 0, 0)
+      log.record(holding0, poll, 5, 50, undefined)
+      const next = log.window(holding0, 0, first.end)
+
+      expect(first.end).toBe(4)
+      expect(next).toEqual({ points: [{ time: 5, value: 50, error: undefined }], end: 5 })
+    })
+
+    it('reads a log that wrapped, from its oldest sample', () => {
+      const log = running(4)
+      for (const time of [1, 2, 3, 4, 5, 6]) log.record(holding0, poll, time, time, undefined)
+
+      expect(log.window(holding0, 0, 0).points.map(({ time }) => time)).toEqual([3, 4, 5, 6])
+      expect(log.window(holding0, 5, 0).points.map(({ time }) => time)).toEqual([5, 6])
+    })
+
+    it('answers nothing for a series the log never held', () => {
+      const log = running()
+      log.record(holding0, poll, 1, 10, undefined)
+
+      expect(log.window(coil3, 0, 0)).toEqual({ points: [], end: 1 })
+    })
+  })
 })

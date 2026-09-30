@@ -26,6 +26,7 @@ import {
   monitorReadsGroup,
   LogPage,
   LogPageQuery,
+  LogWindow,
   LogSample,
   LogSeries,
   LogSetting,
@@ -1191,6 +1192,10 @@ export class ModbusClient implements TransportClient {
 
   /** Every sample the log holds, oldest first. */
   public logSamples = (): Generator<LogSample> => this._log.samples()
+
+  /** One register's samples for a chart, from `from` and the sequence `after` on. */
+  public logWindow = (series: LogSeries, from: number, after: number): LogWindow =>
+    this._log.window(series, from, after)
 
   /**
    * A page of the samples an export asks for: of the registers it names,

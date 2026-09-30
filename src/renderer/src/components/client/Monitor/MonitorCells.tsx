@@ -1,5 +1,4 @@
 import Edit from '@mui/icons-material/Edit'
-import ShowChart from '@mui/icons-material/ShowChart'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { getConvertedValue } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
@@ -16,6 +15,7 @@ import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustan
 import { ClientUnit, isLogged, isNumberRegister } from '@shared'
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MonitorRegisterRow } from './monitorRows'
+import TrendButton from './Trend/TrendButton'
 
 type ClientUnits = Pick<ReturnType<typeof useClientZustand.getState>, 'clients'>
 
@@ -27,16 +27,17 @@ export const unitIn = (state: ClientUnits, uuid: string, unit: string): ClientUn
 export const AddressCell = meme(({ row }: { row: MonitorRegisterRow }): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
   const addressBase = useClientZustand((z) => unitIn(z, uuid, row.unit)?.addressBase ?? '0')
+  const unitId = useClientZustand((z) => unitIn(z, uuid, row.unit)?.unitId)
   const logged = useClientZustand((z) =>
     isLogged(row.type, unitIn(z, uuid, row.unit)?.registerMapping[row.type][row.address])
   )
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-      <ShowChart
-        data-testid={logged ? 'monitor-row-logs' : undefined}
-        titleAccess={logged ? 'Logs' : undefined}
-        sx={{ fontSize: 16, color: 'success.main', visibility: logged ? 'visible' : 'hidden' }}
-      />
+      {logged ? (
+        <TrendButton row={row} testId={`monitor-trend-${unitId}-${row.type}-${row.address}`} />
+      ) : (
+        <Box component="span" sx={{ width: 20, flexShrink: 0 }} />
+      )}
       <Box component="span" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
         {row.address + Number(addressBase)}
       </Box>

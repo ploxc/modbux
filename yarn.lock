@@ -7478,6 +7478,7 @@ __metadata:
     react-resizable-panels: "npm:4.13.3"
     serialport: "npm:13.0.0"
     typescript: "npm:^5.9.3"
+    uplot: "npm:1.6.32"
     uuid: "npm:^11.1.1"
     vite: "npm:^7"
     vitest: "npm:^4.1"
@@ -9895,6 +9896,13 @@ __metadata:
   bin:
     update-browserslist-db: cli.js
   checksum: 10c0/07bab166c18f47ba51f3b755e42f109ef5069d0d7c7224887decbd523d5ccd404f63661ebd5a740099972ed47f41f0e28c04df8be31d76716a346f948ce2aa61
+  languageName: node
+  linkType: hard
+
+"uplot@npm:1.6.32":
+  version: 1.6.32
+  resolution: "uplot@npm:1.6.32"
+  checksum: 10c0/4d9cdd5f53371656cfc178ea4ae0d8c9bdbe4c98c99df847926d7e5f5a5bcb8043561219da2979fee7616aabe3619d80fee093befdfe39aae65e6621284c39b1
   languageName: node
   linkType: hard
 

@@ -87,9 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   too, because the poll goes on. The log keeps up to a million samples a
   client for as long as Modbux runs, overwrites the oldest once full, and says
   so; the log shows how long it has run, the samples, the size, Export CSV and
-  Clear log. The export takes a range between two dates and the registers
-  ticked in a tree of units, and writes each sample's raw value and its value
-  as the register's conversion makes it.
+  Clear log. In Monitor, the Log icon of a register adds it to a trend of the
+  last 10 minutes, up to eight registers each in its own colour, moving while
+  the log runs, with a second unit on its own axis; the trend drags and
+  resizes and leaves Monitor working under it. The export takes a range
+  between two dates and the registers ticked in a tree of units, and writes
+  each sample's raw value and its value as the register's conversion makes it.
 
 ### Changed
 

@@ -75,3 +75,19 @@ export interface LogPage {
   samples: LogSample[]
   next: number | undefined
 }
+
+/** One sample of a series a chart draws: its time, its raw value, and the error of a failed read. */
+export interface LogPoint {
+  time: number
+  value: number
+  error: string | undefined
+}
+
+/**
+ * The samples of one series from a time on, and the sequence after the last
+ * sample the log held then, which a chart that moves live asks from next.
+ */
+export interface LogWindow {
+  points: LogPoint[]
+  end: number
+}

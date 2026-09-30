@@ -58,6 +58,18 @@ const menuSelectedText = '#b5dcc9'
 export const textBright = '#e6e6e6'
 export const textMuted = '#9a9a9a'
 
+/** The lines of a trend, in the order registers are added: the success green first, as the Log icon that adds them. */
+export const TREND_COLORS = [
+  '#81bc57',
+  '#8fb0dd',
+  '#e0b36a',
+  '#c49bd6',
+  '#5fbfb3',
+  '#e98fa7',
+  '#cfcf7a',
+  '#b0b0b0'
+] as const
+
 /** The switch as the client canvas draws it: a 28 by 16 track, a 12 px knob. */
 const switchTrackOff = '#444444'
 const switchKnobOn = '#f2f2f2'

@@ -137,6 +137,18 @@ export type LogPageQuery = z.infer<typeof LogPageQuerySchema>
 export const ClientLogPageSchema = LogPageQuerySchema.extend({ uuid: ClientUuidSchema })
 export type ClientLogPage = z.infer<typeof ClientLogPageSchema>
 
+/**
+ * One register's samples for a chart: from a time on, and from the sequence
+ * `after` on, which a chart that moves live asks from the end it was given.
+ */
+export const ClientLogWindowSchema = z.object({
+  uuid: ClientUuidSchema,
+  series: LogSeriesSchema,
+  from: z.number(),
+  after: z.number().int().min(0)
+})
+export type ClientLogWindow = z.infer<typeof ClientLogWindowSchema>
+
 export const ClientWriteSchema = z.object({
   uuid: ClientUuidSchema,
   unit: UnitUuidSchema,

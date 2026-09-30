@@ -10,6 +10,7 @@ import {
   ClientStartLogSchema,
   ClientLogCapacitySchema,
   ClientLogPageSchema,
+  ClientLogWindowSchema,
   ClientScanRegistersSchema,
   ClientScanUnitIdsSchema,
   ClientCreateSchema,
@@ -118,6 +119,7 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'clear_log',
   'set_log_capacity',
   'get_log_page',
+  'get_log_window',
   'write',
   'scan_unit_ids',
   'stop_scanning_unit_ids',
@@ -278,6 +280,11 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
     'get_log_page',
     (_, { uuid, ...query }) => clients.get(uuid)?.logPage(query),
     ClientLogPageSchema
+  )
+  ipcHandle(
+    'get_log_window',
+    (_, { uuid, series, from, after }) => clients.get(uuid)?.logWindow(series, from, after),
+    ClientLogWindowSchema
   )
 
   // Write Actions
