@@ -138,14 +138,22 @@ export const ClientLogPageSchema = LogPageQuerySchema.extend({ uuid: ClientUuidS
 export type ClientLogPage = z.infer<typeof ClientLogPageSchema>
 
 /**
- * One register's samples for a chart: from a time on, and from the sequence
- * `after` on, which a chart that moves live asks from the end it was given.
+ * Which of a register's samples a chart asks for: from `from` up to `to`, and
+ * from the sequence `after` on, which a chart that moves live asks from the
+ * end it was given. With a `step`, the samples in each `step` milliseconds
+ * come back as the lowest and highest of them and the first failed read.
  */
-export const ClientLogWindowSchema = z.object({
-  uuid: ClientUuidSchema,
-  series: LogSeriesSchema,
+const LogWindowQuerySchema = z.object({
   from: z.number(),
-  after: z.number().int().min(0)
+  to: z.number().optional(),
+  after: z.number().int().min(0),
+  step: z.number().positive().optional()
+})
+export type LogWindowQuery = z.infer<typeof LogWindowQuerySchema>
+
+export const ClientLogWindowSchema = LogWindowQuerySchema.extend({
+  uuid: ClientUuidSchema,
+  series: LogSeriesSchema
 })
 export type ClientLogWindow = z.infer<typeof ClientLogWindowSchema>
 

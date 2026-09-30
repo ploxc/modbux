@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  inSteps,
   monitorReadsGroup,
   getDummyRegisterData,
   isLoggable,
@@ -10,7 +11,7 @@ import {
   RegisterMapObjectSchema,
   emptyRegisterMapping
 } from '..'
-import type { RegisterMapping } from '..'
+import type { LogPoint, RegisterMapping } from '..'
 
 describe('isLoggable', () => {
   it('takes a register with a number data type, a bitmap, and a bit with a comment', () => {
@@ -138,5 +139,42 @@ describe('monitorReadsGroup', () => {
     }
     expect(reads(logged, true)).toBe(true)
     expect(reads(logged, false)).toBe(false)
+  })
+})
+
+describe('inSteps', () => {
+  const point = (time: number, value: number, error?: string): LogPoint => ({ time, value, error })
+
+  it('answers each stretch as its lowest, highest and newest value, in time order', () => {
+    expect(inSteps([point(0, 5), point(2, 9), point(4, 1), point(6, 7)], 10)).toEqual([
+      point(2, 9),
+      point(4, 1),
+      point(6, 7)
+    ])
+  })
+
+  it('answers a stretch of one sample once, and its newest beside an equal lowest', () => {
+    expect(inSteps([point(10, 3), point(20, 4), point(21, 4)], 10)).toEqual([
+      point(10, 3),
+      point(20, 4),
+      point(21, 4)
+    ])
+  })
+
+  it('keeps the first failed read of a stretch beside its values', () => {
+    expect(
+      inSteps([point(0, 5), point(1, NaN, 'Timed out'), point(2, NaN, 'Timed out'), point(3, 7)], 10)
+    ).toEqual([point(0, 5), point(1, NaN, 'Timed out'), point(3, 7)])
+  })
+
+  it('ends a stretch on a failed read when that is its newest sample', () => {
+    expect(inSteps([point(0, 5), point(1, NaN, 'Timed out')], 10)).toEqual([
+      point(0, 5),
+      point(1, NaN, 'Timed out')
+    ])
+  })
+
+  it('starts a new stretch at each multiple of the step from the epoch', () => {
+    expect(inSteps([point(9, 1), point(10, 2)], 10)).toEqual([point(9, 1), point(10, 2)])
   })
 })

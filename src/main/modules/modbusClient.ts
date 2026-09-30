@@ -27,6 +27,7 @@ import {
   monitorReadsGroup,
   LogPage,
   LogPageQuery,
+  LogWindowQuery,
   LogWindow,
   LogSample,
   LogSeries,
@@ -1215,8 +1216,8 @@ export class ModbusClient implements TransportClient {
   public logSeries = (): LogSeries[] => this._log.series()
 
   /** One register's samples for a chart, from `from` and the sequence `after` on. */
-  public logWindow = (series: LogSeries, from: number, after: number): LogWindow =>
-    this._log.window(series, from, after)
+  public logWindow = (series: LogSeries, query: LogWindowQuery): LogWindow =>
+    this._log.window(series, query)
 
   /**
    * A page of the samples an export asks for: of the registers it names,

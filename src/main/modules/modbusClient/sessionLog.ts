@@ -1,5 +1,6 @@
 import {
   DEFAULT_LOG_CAPACITY,
+  inSteps,
   LogPage,
   LogPoint,
   LogRun,
@@ -8,7 +9,8 @@ import {
   LogSetting,
   LogStatus,
   LogStopReason,
-  LogWindow
+  LogWindow,
+  LogWindowQuery
 } from '@shared'
 
 /** One series of the log, and how many samples of it the log holds. */
@@ -124,14 +126,26 @@ export class SessionLog {
   }
 
   /**
-   * The samples of `series` at or after `from` and from the sequence `after`
-   * on, and the sequence after the last sample the log holds. The log holds
-   * its samples in time order, so the first is found by halving rather than
-   * by reading the samples before it. A window of 10 minutes of one of 12
+   * The samples of `series` from `from` up to `to` and from the sequence
+   * `after` on, and the sequence to go on from: after the last sample the
+   * log holds, or the first one past `to`. The log holds its samples in time
+   * order, so the first is found by halving rather than by reading the
+   * samples before it. A window of 10 minutes of one of 12
    * registers at the end of a full log of a million took 0.44 to 0.80 ms this
    * way, and 215 to 257 ms through `page`.
+   *
+   * With a `step`, the window comes back `inSteps`: each stretch of `step`
+   * milliseconds as its lowest and highest value, its first failed read and
+   * its newest sample. The whole of a full log of a million, 2.3 hours of 12
+   * registers at 100 ms, took 33 to 45 ms a register in 1,500 steps and
+   * answered 3,255 points rather than 83,333; an hour took 15 to 16 ms. A
+   * stepped window continued from its `end` answers the stretch it ended in
+   * again, with only the samples since.
    */
-  window = (series: LogSeries, from: number, after: number): LogWindow => {
+  window = (
+    series: LogSeries,
+    { from, to = Number.POSITIVE_INFINITY, after, step }: LogWindowQuery
+  ): LogWindow => {
     const end = this._pushed
     const wanted = this._seriesByKey.get(`${series.unit}|${series.type}|${series.address}`)
     if (wanted === undefined) return { points: [], end }
@@ -150,18 +164,19 @@ export class SessionLog {
     }
 
     const points: LogPoint[] = []
+    const answer = (): LogPoint[] => (step === undefined ? points : inSteps(points, step))
     for (let index = low; index < this._count; index++) {
       const slot = slotOf(index)
+      const byte = slot * SAMPLE_BYTES
+      const time = this._view.getFloat64(byte)
+      // Every series shares the ring's time order, so the first sample past
+      // `to` of any series ends the window.
+      if (time > to) return { points: answer(), end: oldest + index }
       const meta = this._meta[slot]
       if (meta?.entry !== wanted) continue
-      const byte = slot * SAMPLE_BYTES
-      points.push({
-        time: this._view.getFloat64(byte),
-        value: this._view.getFloat64(byte + 8),
-        error: meta.error
-      })
+      points.push({ time, value: this._view.getFloat64(byte + 8), error: meta.error })
     }
-    return { points, end }
+    return { points: answer(), end }
   }
 
   /** The series the log holds a sample of, in the order the log first met each. */

@@ -307,7 +307,7 @@ describe('SessionLog', () => {
       log.record(coil3, poll, 3, 0, undefined)
       log.record(holding0, poll, 4, 13, undefined)
 
-      expect(log.window(holding0, 2, 0)).toEqual({
+      expect(log.window(holding0, { from: 2, after: 0 })).toEqual({
         points: [
           { time: 2, value: 11, error: undefined },
           { time: 3, value: Number.NaN, error: 'Timed out' },
@@ -321,9 +321,9 @@ describe('SessionLog', () => {
       const log = running()
       for (const time of [1, 2, 3, 4]) log.record(holding0, poll, time, time * 10, undefined)
 
-      const first = log.window(holding0, 0, 0)
+      const first = log.window(holding0, { from: 0, after: 0 })
       log.record(holding0, poll, 5, 50, undefined)
-      const next = log.window(holding0, 0, first.end)
+      const next = log.window(holding0, { from: 0, after: first.end })
 
       expect(first.end).toBe(4)
       expect(next).toEqual({ points: [{ time: 5, value: 50, error: undefined }], end: 5 })
@@ -333,15 +333,86 @@ describe('SessionLog', () => {
       const log = running(4)
       for (const time of [1, 2, 3, 4, 5, 6]) log.record(holding0, poll, time, time, undefined)
 
-      expect(log.window(holding0, 0, 0).points.map(({ time }) => time)).toEqual([3, 4, 5, 6])
-      expect(log.window(holding0, 5, 0).points.map(({ time }) => time)).toEqual([5, 6])
+      expect(log.window(holding0, { from: 0, after: 0 }).points.map(({ time }) => time)).toEqual([
+        3, 4, 5, 6
+      ])
+      expect(log.window(holding0, { from: 5, after: 0 }).points.map(({ time }) => time)).toEqual([
+        5, 6
+      ])
+    })
+
+    it('answers up to its end, and the sequence of the first sample past it', () => {
+      const log = running()
+      for (const time of [1, 2, 3, 4]) log.record(holding0, poll, time, time * 10, undefined)
+
+      const bounded = log.window(holding0, { from: 2, to: 3, after: 0 })
+      expect(bounded).toEqual({
+        points: [
+          { time: 2, value: 20, error: undefined },
+          { time: 3, value: 30, error: undefined }
+        ],
+        end: 3
+      })
+      expect(log.window(holding0, { from: 0, after: bounded.end }).points).toEqual([
+        { time: 4, value: 40, error: undefined }
+      ])
+    })
+
+    it('ends at the first sample past its end of any register', () => {
+      const log = running()
+      log.record(holding0, poll, 1, 10, undefined)
+      log.record(coil3, poll, 2, 1, undefined)
+      log.record(coil3, poll, 3, 0, undefined)
+
+      expect(log.window(holding0, { from: 0, to: 1, after: 0 }).end).toBe(1)
+    })
+
+    it('answers each step with its lowest, highest and newest value, in time order', () => {
+      const log = running()
+      const reads: [number, number][] = [
+        [0, 5],
+        [2, 9],
+        [4, 1],
+        [6, 7],
+        [10, 3],
+        [14, 3],
+        [20, 8]
+      ]
+      for (const [time, value] of reads) log.record(holding0, poll, time, value, undefined)
+
+      const window = log.window(holding0, { from: 0, after: 0, step: 10 })
+      expect(window.points.map(({ time, value }) => [time, value])).toEqual([
+        [2, 9],
+        [4, 1],
+        [6, 7],
+        [10, 3],
+        [14, 3],
+        [20, 8]
+      ])
+    })
+
+    it('answers the first failed read of a step, beside its values', () => {
+      const log = running()
+      log.record(holding0, poll, 0, 5, undefined)
+      log.record(holding0, poll, 1, Number.NaN, 'Timed out')
+      log.record(holding0, poll, 2, Number.NaN, 'Timed out')
+      log.record(holding0, poll, 3, 7, undefined)
+      log.record(holding0, poll, 11, Number.NaN, 'Timed out')
+
+      const window = log.window(holding0, { from: 0, after: 0, step: 10 })
+      expect(window.points.map(({ time, error }) => [time, error])).toEqual([
+        [0, undefined],
+        [1, 'Timed out'],
+        [3, undefined],
+        [11, 'Timed out']
+      ])
     })
 
     it('answers nothing for a series the log never held', () => {
       const log = running()
       log.record(holding0, poll, 1, 10, undefined)
 
-      expect(log.window(coil3, 0, 0)).toEqual({ points: [], end: 1 })
+      expect(log.window(coil3, { from: 0, after: 0 })).toEqual({ points: [], end: 1 })
     })
   })
 })

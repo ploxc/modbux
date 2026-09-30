@@ -291,7 +291,7 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
   )
   ipcHandle(
     'get_log_window',
-    (_, { uuid, series, from, after }) => clients.get(uuid)?.logWindow(series, from, after),
+    (_, { uuid, series, ...query }) => clients.get(uuid)?.logWindow(series, query),
     ClientLogWindowSchema
   )
   ipcHandle('get_log_series', (_, uuid) => clients.get(uuid)?.logSeries(), ClientUuidSchema)

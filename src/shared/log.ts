@@ -3,6 +3,7 @@ import {
   AddressGroup,
   ClientUnit,
   DataType,
+  LogPoint,
   RegisterData,
   RegisterDataWords,
   RegisterMapping,
@@ -89,3 +90,41 @@ export const monitorReadsGroup = (
   groupPoll(type, registerMapping, group) !== 'off' ||
   (logging &&
     groupEntries(type, registerMapping, group).some(([, mapValue]) => isLogged(type, mapValue)))
+
+/**
+ * `points`, in time order, as stretches of `step` milliseconds from the epoch
+ * on: each stretch's lowest and highest value, its first failed read and its
+ * newest sample, in time order. A chart of hours draws its peaks, its gaps and
+ * where each line ends from a few points a pixel.
+ */
+export const inSteps = (points: readonly LogPoint[], step: number): LogPoint[] => {
+  const stepped: LogPoint[] = []
+  let stretch: number | undefined
+  let lowest: LogPoint | undefined
+  let highest: LogPoint | undefined
+  let failed: LogPoint | undefined
+  let newest: LogPoint | undefined
+  const close = (): void => {
+    const kept = [...new Set([lowest, highest, failed, newest])].filter(
+      (point): point is LogPoint => point !== undefined
+    )
+    stepped.push(...kept.sort((a, b) => a.time - b.time))
+    lowest = highest = failed = newest = undefined
+  }
+  for (const point of points) {
+    const at = Math.floor(point.time / step)
+    if (at !== stretch) {
+      close()
+      stretch = at
+    }
+    newest = point
+    if (point.error !== undefined) {
+      failed ??= point
+      continue
+    }
+    if (lowest === undefined || point.value < lowest.value) lowest = point
+    if (highest === undefined || point.value > highest.value) highest = point
+  }
+  close()
+  return stepped
+}
