@@ -4,6 +4,7 @@ import type uPlot from 'uplot'
 import {
   figure,
   gripAt,
+  readoutPlace,
   stepOf,
   trendGaps,
   valuesAt,
@@ -166,5 +167,28 @@ describe('gripAt', () => {
   it('only moves a window too narrow for two edges and a middle', () => {
     expect(gripAt(2, 24)).toBe('window')
     expect(gripAt(22, 24)).toBe('window')
+  })
+})
+
+describe('readoutPlace', () => {
+  it('sits right of the cursor, and from just above it down in the upper half', () => {
+    expect(readoutPlace(100, 50, 800, 300, 100)).toEqual({ left: 112, top: 38 })
+  })
+
+  it('sits left of the cursor where the right has no room', () => {
+    expect(readoutPlace(700, 50, 800, 300, 100)).toEqual({ left: 468, top: 38 })
+  })
+
+  it('never passes the left edge', () => {
+    expect(readoutPlace(200, 50, 400, 300, 100)).toEqual({ left: 0, top: 38 })
+  })
+
+  it('ends above the cursor in the lower half', () => {
+    expect(readoutPlace(100, 250, 800, 300, 100)).toEqual({ left: 112, top: 138 })
+  })
+
+  it('stays inside a chart too short for it above or below the cursor', () => {
+    expect(readoutPlace(100, 140, 800, 260, 170)).toEqual({ left: 112, top: 0 })
+    expect(readoutPlace(100, 120, 800, 260, 170)).toEqual({ left: 112, top: 90 })
   })
 })

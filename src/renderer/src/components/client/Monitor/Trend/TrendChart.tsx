@@ -5,7 +5,18 @@ import { DateTime } from 'luxon'
 import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { figure, TrendGap, TrendSeries, valuesAt, WHEEL_ZOOM, zoomAround } from './trendData'
+import {
+  figure,
+  READOUT_PADDING,
+  READOUT_ROW,
+  READOUT_WIDTH,
+  readoutPlace,
+  TrendGap,
+  TrendSeries,
+  valuesAt,
+  WHEEL_ZOOM,
+  zoomAround
+} from './trendData'
 
 /** One line of a trend: its colour, the scale it is drawn on, and how the readout names it. */
 export interface TrendLine {
@@ -22,10 +33,6 @@ interface Readout {
   top: number
   index: number
 }
-
-/** How far right of the cursor the readout sits, and how wide it is. */
-const READOUT_GAP = 12
-const READOUT_WIDTH = 220
 
 interface TrendChartProps {
   /** The lines, which the chart is made for; a new array makes it again. */
@@ -259,6 +266,8 @@ const TrendChart = meme(
         observer.disconnect()
         made.destroy()
         chart.current = null
+        // The readout names this chart's lines at this chart's samples.
+        setReadout(undefined)
       }
     }, [lines, leftScale, rightScale, theme])
 
@@ -270,29 +279,38 @@ const TrendChart = meme(
       joined.current = tables.length === 0 ? [[]] : uPlot.join(tables)
       current.setData(joined.current, false)
       current.setScale('x', { min: from, max: to })
+      // New data moves the samples under a cursor that stands still, so its
+      // readout is read again.
+      const { left, top } = current.cursor
+      if (left !== undefined && top !== undefined && left >= 0) current.setCursor({ left, top })
       // The chart made again for a new theme starts empty, so the data goes in again.
     }, [lines, data, from, to, oldest, gaps, theme])
 
     const time = readout === undefined ? undefined : joined.current[0][readout.index]
     const values = readout === undefined ? [] : valuesAt(joined.current, readout.index)
-    const width = container.current?.clientWidth ?? 0
+    const place =
+      readout === undefined
+        ? undefined
+        : readoutPlace(
+            readout.left,
+            readout.top,
+            container.current?.clientWidth ?? 0,
+            container.current?.clientHeight ?? 0,
+            // A row for the time and one a line.
+            READOUT_ROW * (lines.length + 1) + READOUT_PADDING
+          )
     return (
       <Box
         ref={container}
         data-testid="trend-chart"
         sx={{ position: 'relative', flexGrow: 1, minHeight: 0 }}
       >
-        {readout !== undefined && time !== undefined && (
+        {place !== undefined && time !== undefined && (
           <Box
             data-testid="trend-readout"
             sx={{
               position: 'absolute',
-              top: Math.max(0, readout.top - 20),
-              // Beside the cursor, and on its left side near the right edge.
-              left:
-                readout.left + READOUT_GAP + READOUT_WIDTH > width
-                  ? readout.left - READOUT_GAP - READOUT_WIDTH
-                  : readout.left + READOUT_GAP,
+              ...place,
               width: READOUT_WIDTH,
               boxSizing: 'border-box',
               px: 1.25,
@@ -328,7 +346,11 @@ const TrendChart = meme(
                 >
                   {line.label}
                 </Box>
-                <Box component="span" sx={{ fontFamily: 'monospace' }}>
+                <Box
+                  component="span"
+                  data-testid={`trend-readout-value-${index}`}
+                  sx={{ fontFamily: 'monospace' }}
+                >
                   {figure(values[index])} {line.unit}
                 </Box>
               </Box>

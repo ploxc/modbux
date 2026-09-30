@@ -94,7 +94,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     const plotBox = await over.boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width - 4, plotBox.y + plotBox.height / 2)
-    await expect(mainPage.getByTestId('trend-readout')).toContainText('100')
+    await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText('100')
     await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
     await expect(mainPage.getByTestId('trend-readout')).toHaveCount(0)
 

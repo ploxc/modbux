@@ -181,3 +181,30 @@ export const gripAt = (x: number, width: number): Grip => {
   if (width <= 4 * EDGE) return 'window'
   return x <= EDGE ? 'from' : x >= width - EDGE ? 'to' : 'window'
 }
+
+/** How far from the cursor the readout sits, and how wide it is. */
+export const READOUT_GAP = 12
+export const READOUT_WIDTH = 220
+
+/** How tall a row of the readout is, and what its box adds around its rows. */
+export const READOUT_ROW = 21
+export const READOUT_PADDING = 16
+
+/**
+ * Where a readout `tall` pixels high goes in a chart `width` by `height`:
+ * right of the cursor, or left of it where the right has no room; from just
+ * above the cursor down in the upper half, and ending above it in the lower.
+ * It never leaves the chart on any side a chart that tall can hold it in.
+ */
+export const readoutPlace = (
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  tall: number
+): { left: number; top: number } => {
+  const right = left + READOUT_GAP
+  const x = Math.max(0, right + READOUT_WIDTH > width ? left - READOUT_GAP - READOUT_WIDTH : right)
+  const y = top > height / 2 ? top - READOUT_GAP - tall : top - READOUT_GAP
+  return { left: x, top: Math.min(Math.max(0, y), Math.max(0, height - tall)) }
+}
