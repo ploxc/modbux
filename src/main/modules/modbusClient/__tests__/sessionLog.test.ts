@@ -49,6 +49,25 @@ describe('SessionLog', () => {
     expect(values(log)).toEqual([10, 13])
   })
 
+  it('measures a change against the last sample, when a register logged on every poll in between', () => {
+    const log = running()
+    log.record(holding0, change(2), 1, 10, undefined)
+    log.record(holding0, poll, 2, 20, undefined)
+    log.record(holding0, change(2), 3, 11, undefined)
+    log.record(holding0, change(2), 4, 12, undefined)
+
+    expect(values(log)).toEqual([10, 20, 11])
+  })
+
+  it('measures a change inside the deadband of the last poll sample as no change', () => {
+    const log = running()
+    log.record(holding0, change(2), 1, 10, undefined)
+    log.record(holding0, poll, 2, 20, undefined)
+    log.record(holding0, change(2), 3, 21, undefined)
+
+    expect(values(log)).toEqual([10, 20])
+  })
+
   it('keeps a failed read once per error, and the value that comes back after it', () => {
     const log = running()
     log.record(holding0, change(0), 1, 10, undefined)

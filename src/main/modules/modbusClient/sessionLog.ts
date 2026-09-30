@@ -23,7 +23,7 @@ const SAMPLE_BYTES = 16
 /** The slots the log starts with, doubling from there until it reaches its capacity. */
 const INITIAL_SLOTS = 1024
 
-/** What an on-change register last kept, which the next read is measured against. */
+/** What a register last kept, which its next on-change read is measured against. */
 interface Kept {
   value: number
   error: string | undefined
@@ -58,7 +58,7 @@ export class SessionLog {
 
   private _metaByKey = new Map<string, SampleMeta>()
   private _seriesByKey = new Map<string, LogSeries>()
-  /** What each on-change series kept last in this run. */
+  /** What each series kept last in this run, whichever mode kept it. */
   private _kept = new Map<LogSeries, Kept>()
 
   private _runs: LogRun[] = []
@@ -234,8 +234,8 @@ export class SessionLog {
         kept.error === error &&
         (error !== undefined || Math.abs(value - kept.value) <= setting.deadband)
       if (same) return
-      this._kept.set(meta.series, { value, error })
     }
+    this._kept.set(meta.series, { value, error })
     this._push(time, value, meta)
   }
 
