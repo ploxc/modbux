@@ -26,6 +26,7 @@ import Button from '@mui/material/Button'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
+import TrendPicker from './TrendPicker'
 import {
   TREND_RANGES,
   TREND_SPANS,
@@ -217,7 +218,7 @@ const TrendChip = meme(({ entry, text }: { entry: DrawnEntry; text: string }): J
 const TrendPanel = meme((): JSX.Element | null => {
   const entries = useTrendPanelZustand((z) => z.entries)
   const anchor = useTrendPanelZustand((z) => z.anchor)
-  const uuid = entries[0]?.uuid ?? ''
+  const uuid = useTrendPanelZustand((z) => z.uuid)
   const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
   const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
   const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
@@ -449,7 +450,7 @@ const TrendPanel = meme((): JSX.Element | null => {
             <Close fontSize="small" />
           </IconButton>
         </Box>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, px: 1.75 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, px: 1.75 }}>
           {entries.map((entry) => (
             <TrendChip
               key={trendKey(entry)}
@@ -457,6 +458,12 @@ const TrendPanel = meme((): JSX.Element | null => {
               text={chipTexts.get(trendKey(entry)) ?? figure(undefined)}
             />
           ))}
+          <TrendPicker />
+          {entries.length === 0 && (
+            <Box component="span" data-testid="trend-empty" sx={{ fontSize: 12, color: textMuted }}>
+              Add a register, or press a Log icon in Monitor.
+            </Box>
+          )}
         </Box>
         {/* With no lines to draw, the chart is its time axis and the lanes take the room. */}
         <Box

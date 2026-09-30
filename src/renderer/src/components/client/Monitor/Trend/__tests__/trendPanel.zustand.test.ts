@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TREND_COLORS } from '@renderer/theme'
+import { newClientUnit } from '@shared'
 import { TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
 
 const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
@@ -13,7 +14,9 @@ const store = (): ReturnType<typeof useTrendPanelZustand.getState> =>
   useTrendPanelZustand.getState()
 const colors = (): string[] => store().entries.map(({ color }) => color)
 
-beforeEach(() => store().close())
+beforeEach(() =>
+  useTrendPanelZustand.setState({ uuid: '', entries: [], anchor: null, view: undefined })
+)
 
 describe('the trend store', () => {
   it('opens under the first anchor and stays there as registers are added', () => {
@@ -62,11 +65,43 @@ describe('the trend store', () => {
     ])
   })
 
-  it('closes when the last register is taken out', () => {
-    store().add(entry(0), document.createElement('div'))
+  it('stays open when the last register is taken out', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
     store().remove(trendKey(entry(0)))
 
+    expect(store().anchor).toBe(anchor)
+    expect(store().entries).toEqual([])
+  })
+
+  it('keeps its registers once closed, and opens again as it was left', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().close()
     expect(store().anchor).toBeNull()
+
+    store().open('client-a', anchor)
+    expect(store().anchor).toBe(anchor)
+    expect(store().entries.map(({ address }) => address)).toEqual([0])
+  })
+
+  it("opens empty for another client's log", () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().close()
+    store().open('client-b', anchor)
+
+    expect(store().entries).toEqual([])
+    expect(store().uuid).toBe('client-b')
+  })
+
+  it('opens again when a register it holds is added while closed', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().close()
+    store().add(entry(0), anchor)
+
+    expect(store().anchor).toBe(anchor)
   })
 
   it('follows the log again on a new range, and once closed', () => {
@@ -87,7 +122,42 @@ describe('the trend store', () => {
     store().setView({ from: 1, to: 2 })
     store().remove(trendKey(entry(0)))
 
-    store().add(entry(0, 'client-b'), anchor)
+    expect(store().view).toBeUndefined()
+  })
+
+  it('toggles a register in and out, with a free colour, and refuses one past the colours', () => {
+    const anchor = document.createElement('div')
+    store().open('client-a', anchor)
+    expect(store().toggle(entry(0))).toBe(true)
+    expect(store().toggle(entry(1))).toBe(true)
+    expect(store().toggle(entry(0))).toBe(true)
+    expect(store().entries.map(({ address, color }) => [address, color])).toEqual([
+      [1, TREND_COLORS[1]]
+    ])
+
+    for (const address of [2, 3, 4, 5, 6, 7, 8]) store().toggle(entry(address))
+    expect(store().toggle(entry(9))).toBe(false)
+    expect(store().entries).toHaveLength(TREND_COLORS.length)
+  })
+
+  it('takes out, when pruned, a register that no longer logs', () => {
+    const unit = newClientUnit('unit-1', 1)
+    unit.registerMapping.holding_registers = {
+      0: { dataType: 'uint16', log: { mode: 'poll' } },
+      1: { dataType: 'uint16' }
+    }
+    store().add(entry(0), document.createElement('div'))
+    store().add(entry(1), document.createElement('div'))
+    store().prune([unit])
+
+    expect(store().entries.map(({ address }) => address)).toEqual([0])
+  })
+
+  it('follows the log again once pruned empty', () => {
+    store().add(entry(1), document.createElement('div'))
+    store().setView({ from: 1, to: 2 })
+    store().prune([newClientUnit('unit-1', 1)])
+
     expect(store().view).toBeUndefined()
   })
 })

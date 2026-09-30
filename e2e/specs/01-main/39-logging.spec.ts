@@ -54,7 +54,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   }) => {
     await mainPage.getByTestId('client-view-monitor-btn').click()
 
-    await expect(mainPage.locator('[data-testid^="monitor-trend-"]')).toHaveCount(1)
+    // The row icons, and not the toolbar's Trend.
+    await expect(mainPage.locator('[data-testid^="monitor-trend-0-"]')).toHaveCount(1)
     await expect(mainPage.getByTestId('log-count')).toHaveText('1 register logs')
     await expect(mainPage.getByTestId('log-btn')).toBeEnabled()
   })
@@ -147,8 +148,34 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-zoom-out-btn')).toBeDisabled()
     await mainPage.getByTestId('trend-range-10m').click()
 
+    // Taking the last register out leaves the trend open and empty.
     await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await expect(mainPage.getByTestId('trend-empty')).toBeVisible()
+    await mainPage.getByTestId('trend-close-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
+  })
+
+  test("Monitor's Trend opens the trend as it was left, and Add register fills it", async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('monitor-trend-btn').click()
+    await expect(mainPage.getByTestId('trend-empty')).toBeVisible()
+
+    await mainPage.getByTestId('trend-add-btn').click()
+    await mainPage.getByTestId('trend-add-search').fill('setpoint')
+    await mainPage.getByTestId('trend-pick-0-holding_registers-0').click()
+    await mainPage.keyboard.press('Escape')
+    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+    await expect(mainPage.getByTestId('monitor-trend-count')).toHaveText('1')
+
+    // Closed and opened again, it draws what it drew.
+    await mainPage.getByTestId('monitor-trend-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
+    await mainPage.getByTestId('monitor-trend-btn').click()
+    await expect(mainPage.getByTestId('trend-chip-holding_registers-0')).toBeVisible()
+
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
   })
 
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
@@ -166,6 +193,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     // Taken out of the trend and back out of the log, so the rest of the spec
     // logs the setpoint alone, and the log holds it alone from here.
     await mainPage.getByTestId('trend-chip-remove-coils-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
     await mainPage.getByTestId('client-view-debug-btn').click()
     await mainPage.getByTestId('log-cell-0').click()

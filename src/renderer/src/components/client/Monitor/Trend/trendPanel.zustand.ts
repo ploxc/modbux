@@ -1,5 +1,5 @@
 import { TREND_COLORS } from '@renderer/theme'
-import { RegisterType } from '@shared'
+import { ClientUnit, isLogged, RegisterType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import { TrendRangeId, TrendView } from './trendData'
@@ -21,7 +21,9 @@ export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
   `${uuid}|${unit}|${type}|${address}`
 
 interface TrendPanelZustand {
-  /** The registers drawn, in the order they were added. */
+  /** The client whose log the trend draws. */
+  uuid: string
+  /** The registers drawn, in the order they were added; kept while the trend is closed. */
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
   anchor: HTMLElement | null
@@ -32,20 +34,38 @@ interface TrendPanelZustand {
   view: TrendView | undefined
   setView: (view: TrendView | undefined) => void
   /**
+   * Opens the trend of client `uuid` under `anchor`, as it was left. A trend
+   * draws one client's log, so another client's starts empty.
+   */
+  open: (uuid: string, anchor: HTMLElement) => void
+  /**
    * Adds a register, opening the trend under `anchor` when it is closed. A
-   * trend draws one client's log, so a register of another client starts it
-   * over with that one. Each line takes the first of `TREND_COLORS` no other
-   * line has, so a trend draws as many registers as there are colours, and
-   * answers false for one more.
+   * register of another client starts the trend over with that one. Each
+   * line takes the first of `TREND_COLORS` no other line has, so a trend
+   * draws as many registers as there are colours, and answers false for one
+   * more.
    */
   add: (entry: TrendEntry, anchor: HTMLElement) => boolean
-  /** Takes a register out, and closes the trend with the last. */
+  /**
+   * Takes a register of the trend's client out when it draws it, and adds it
+   * otherwise, with a colour as `add` gives one; false for one more than the
+   * colours.
+   */
+  toggle: (entry: TrendEntry) => boolean
+  /** Takes a register out; the trend stays open, and an empty one follows the log again. */
   remove: (key: string) => void
+  /** Closes the trend, which keeps its registers for when it opens again. */
   close: () => void
+  /**
+   * Takes out every register that no longer logs in `units`, the trend's
+   * client's, which a trend kept while it was closed can hold.
+   */
+  prune: (units: readonly ClientUnit[]) => void
 }
 
 export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutative', never]]>(
   mutative((set, get) => ({
+    uuid: '',
     entries: [],
     anchor: null,
     range: '10m',
@@ -59,31 +79,67 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.view = view
       }),
+    // Partials rather than recipes: an element is no state to draft.
+    open: (uuid, anchor): void => {
+      const sameClient = get().uuid === uuid
+      set({
+        uuid,
+        entries: sameClient ? get().entries : [],
+        anchor: get().anchor ?? anchor,
+        view: sameClient ? get().view : undefined
+      })
+    },
     add: (entry, anchor): boolean => {
       const { entries } = get()
-      if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) return true
-      const sameClient = entries.every((drawn) => drawn.uuid === entry.uuid)
+      if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) {
+        set({ anchor: get().anchor ?? anchor })
+        return true
+      }
+      const sameClient = get().uuid === entry.uuid
       const kept = sameClient ? entries : []
       const [color] = TREND_COLORS.filter((free) => !kept.some((drawn) => drawn.color === free))
       if (color === undefined) return false
-      // A partial rather than a recipe: an element is no state to draft.
       set({
+        uuid: entry.uuid,
         entries: [...kept, { ...entry, color }],
         anchor: get().anchor ?? anchor,
         view: sameClient ? get().view : undefined
       })
       return true
     },
+    toggle: (entry): boolean => {
+      const { entries } = get()
+      if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) {
+        get().remove(trendKey(entry))
+        return true
+      }
+      const [color] = TREND_COLORS.filter((free) => !entries.some((drawn) => drawn.color === free))
+      if (color === undefined) return false
+      set((state) => {
+        state.entries.push({ ...entry, color })
+      })
+      return true
+    },
     remove: (key): void =>
       set((state) => {
         state.entries = state.entries.filter((entry) => trendKey(entry) !== key)
-        if (state.entries.length > 0) return
-        state.anchor = null
-        state.view = undefined
+        if (state.entries.length === 0) state.view = undefined
+      }),
+    prune: (units): void =>
+      set((state) => {
+        state.entries = state.entries.filter((entry) =>
+          isLogged(
+            entry.type,
+            units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][
+              entry.address
+            ]
+          )
+        )
+        // An empty trend follows the log again, as one emptied by `remove` does.
+        if (state.entries.length === 0) state.view = undefined
       }),
     close: (): void =>
       set((state) => {
-        state.entries = []
         state.anchor = null
         state.view = undefined
       })

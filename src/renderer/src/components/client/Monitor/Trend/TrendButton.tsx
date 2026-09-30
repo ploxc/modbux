@@ -11,13 +11,15 @@ import { trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 
 /**
  * A Monitor row's Log icon, which adds that register to the trend, opening it
- * when it is closed. Lit while the trend draws it.
+ * when it is closed. Lit while the trend is open and draws it.
  */
 const TrendButton = meme(
   ({ row, testId }: { row: MonitorRegisterRow; testId: string }): JSX.Element => {
     const uuid = useClientZustand((z) => z.selectedUuid)
     const key = trendKey({ uuid, unit: row.unit, type: row.type, address: row.address })
-    const drawn = useTrendPanelZustand((z) => z.entries.some((entry) => trendKey(entry) === key))
+    const drawn = useTrendPanelZustand(
+      (z) => z.anchor !== null && z.entries.some((entry) => trendKey(entry) === key)
+    )
 
     // The grid, whose corner the trend opens in.
     const handleAdd = useCallback(
@@ -25,6 +27,8 @@ const TrendButton = meme(
         const anchor =
           event.currentTarget.closest<HTMLElement>('.monitor-grid') ?? event.currentTarget
         const trendPanelZustand = useTrendPanelZustand.getState()
+        // What it kept while closed may have stopped logging since.
+        trendPanelZustand.prune(useClientZustand.getState().clients[uuid]?.units ?? [])
         const added = trendPanelZustand.add(
           { uuid, unit: row.unit, type: row.type, address: row.address },
           anchor

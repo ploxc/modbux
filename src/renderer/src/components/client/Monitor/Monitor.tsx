@@ -16,8 +16,9 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { isNumberRegister } from '@shared'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import LogCount from '@renderer/components/client/Logging/LogCount'
+import TrendOpenButton from './Trend/TrendOpenButton'
 import TrendPanel from './Trend/TrendPanel'
 import { useTrendPanelZustand } from './Trend/trendPanel.zustand'
 import GroupHead from './GroupHead'
@@ -106,6 +107,8 @@ const Monitor = meme((): JSX.Element => {
   const units = useClientZustand((z) => z.clients[z.selectedUuid]?.units)
   const folded = useMonitorZustand((z) => z.folded)
   const rows = useMemo(() => (units ? monitorRows(units, folded) : []), [units, folded])
+  // The grid's box, whose corner the trend opens in from the toolbar.
+  const [body, setBody] = useState<HTMLDivElement | null>(null)
   // A bit has no raw value apart from the one it shows.
   const anyRegisters = rows.some((row) => isNumberRegister(row.type))
 
@@ -161,8 +164,10 @@ const Monitor = meme((): JSX.Element => {
         {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
         <Box sx={{ flexGrow: 1 }} />
         <LogCount />
+        {/* Once the grid's box is there to open the trend in. */}
+        {body && <TrendOpenButton anchor={body} />}
       </Box>
-      <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+      <Box ref={setBody} sx={{ flexGrow: 1, minHeight: 0 }}>
         {rows.length === 0 ? (
           <Typography
             data-testid="monitor-empty"

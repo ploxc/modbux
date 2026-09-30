@@ -1,4 +1,14 @@
-import { BitMapConfig, inSteps, LogPoint, LogRun, LogStopReason } from '@shared'
+import {
+  BitMapConfig,
+  ClientUnit,
+  inSteps,
+  isLogged,
+  LogPoint,
+  LogRun,
+  LogStopReason,
+  RegisterType,
+  RegisterTypeSchema
+} from '@shared'
 import type uPlot from 'uplot'
 
 /** The ranges a trend picks from, in the order it offers them. */
@@ -300,3 +310,18 @@ export const bitsOf = (bitMap: BitMapConfig | undefined, points: readonly LogPoi
     (bit) => bitMap?.[String(bit)] !== undefined || ((seen >> bit) & 1) === 1
   )
 }
+
+/** A register that logs, as the trend's picker lists it. */
+export interface LoggedRegister {
+  type: RegisterType
+  address: number
+}
+
+/** The registers of `unit` that log, by register type and then by address. */
+export const loggedRegisters = (unit: ClientUnit): LoggedRegister[] =>
+  RegisterTypeSchema.options.flatMap((type) =>
+    Object.entries(unit.registerMapping[type])
+      .filter(([, mapValue]) => isLogged(type, mapValue))
+      .map(([address]) => ({ type, address: Number(address) }))
+      .sort((a, b) => a.address - b.address)
+  )
