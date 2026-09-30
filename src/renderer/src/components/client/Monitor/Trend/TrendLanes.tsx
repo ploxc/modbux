@@ -73,7 +73,7 @@ const LaneToggle = meme(
         aria-expanded={expanded}
         data-testid={testId}
         onClick={handleClick}
-        sx={{ p: 0, height: LABEL_HEIGHT }}
+        sx={{ p: 0, height: LABEL_HEIGHT, flexShrink: 0 }}
       >
         {expanded ? <ExpandMore sx={{ fontSize: 14 }} /> : <ChevronRight sx={{ fontSize: 14 }} />}
       </IconButton>
@@ -170,11 +170,16 @@ const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProp
                 fontSize: 10.5,
                 lineHeight: `${LABEL_HEIGHT}px`,
                 color: row.indent ? textMuted : 'text.primary',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden'
+                whiteSpace: 'nowrap'
               }}
             >
-              {row.label}
+              {/* A long name gives way to the toggle after it. */}
+              <Box
+                component="span"
+                sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {row.label}
+              </Box>
               {lane.bitmap && !row.indent && (
                 <LaneToggle
                   laneKey={lane.key}
