@@ -223,7 +223,8 @@ const TrendChart = meme(
             size: 22,
             // Seconds once the ticks are closer than a minute, and
             // milliseconds once they are closer than a second.
-            values: (_chart, ticks, _space, increment) =>
+            // uPlot hands the tick step fifth, after the axis and its space.
+            values: (_chart, ticks, _axis, _space, increment) =>
               ticks.map((tick) =>
                 DateTime.fromMillis(tick).toFormat(
                   increment < 1000 ? 'HH:mm:ss.SSS' : increment < 60_000 ? 'HH:mm:ss' : 'HH:mm'
