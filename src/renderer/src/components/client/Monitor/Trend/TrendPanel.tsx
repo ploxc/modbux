@@ -120,6 +120,9 @@ const ModeButtons = meme(
   )
 )
 
+/** A group of the header, each one row of one height, so the first row's groups and the icons line up. */
+const HEADER_ROW_SX = { display: 'flex', alignItems: 'center', gap: 1, height: 30 } as const
+
 /** The header's toggle groups: the range, and live or paused. */
 const TOGGLE_GROUP_SX = {
   flexShrink: 0,
@@ -464,11 +467,15 @@ const TrendContent = meme(
         data-mode={mode}
         sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
       >
+        {/*
+         * Too narrow for one row, what the trend shows wraps under its name and
+         * ranges, and the icons keep their place at the right of the first row.
+         */}
         <Box
           className={floating ? DRAG_HANDLE_CLASS : undefined}
           sx={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: 1,
             pl: floating ? 0.75 : 1.5,
             pr: 1,
@@ -477,50 +484,69 @@ const TrendContent = meme(
             cursor: floating ? 'move' : 'default'
           }}
         >
-          {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
-          <TrendConfigMenu />
-          <RangePicker />
-          {running ? (
-            <LiveOrPaused />
-          ) : (
-            <Box
-              component="span"
-              data-testid="trend-logging-off"
-              sx={{ flexShrink: 0, fontSize: 11.5, color: textMuted }}
-            >
-              logging is off
-            </Box>
-          )}
-          {view !== undefined && (isFollow(view) || view.ofRange !== true) && (
-            <Box
-              component="span"
-              data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
-              sx={{
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                color: textMuted,
-                fontFamily: 'monospace',
-                fontSize: 11.5
-              }}
-            >
-              {isFollow(view)
-                ? `the last ${formatDuration(view.length)}`
-                : `${formatTime(view.from)} to ${formatTime(view.to)}`}
-            </Box>
-          )}
-          <Box sx={{ flexGrow: 1 }} />
-          <TrendSettingsPopover lines={layout.settingsLines} />
-          <ModeButtons mode={mode} />
-          <IconButton
-            size="small"
-            aria-label="Close the trend"
-            data-testid="trend-close-btn"
-            onClick={handleClose}
+          <Box
+            sx={{
+              flex: '1 1 auto',
+              minWidth: 0,
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              columnGap: 1,
+              rowGap: 0.5
+            }}
           >
-            <Close fontSize="small" />
-          </IconButton>
+            <Box sx={HEADER_ROW_SX}>
+              {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
+              <TrendConfigMenu />
+            </Box>
+            <Box sx={HEADER_ROW_SX}>
+              <RangePicker />
+            </Box>
+            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
+              {running ? (
+                <LiveOrPaused />
+              ) : (
+                <Box
+                  component="span"
+                  data-testid="trend-logging-off"
+                  sx={{ flexShrink: 0, fontSize: 11.5, color: textMuted }}
+                >
+                  logging is off
+                </Box>
+              )}
+              {view !== undefined && (isFollow(view) || view.ofRange !== true) && (
+                <Box
+                  component="span"
+                  data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
+                  sx={{
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    color: textMuted,
+                    fontFamily: 'monospace',
+                    fontSize: 11.5
+                  }}
+                >
+                  {isFollow(view)
+                    ? `the last ${formatDuration(view.length)}`
+                    : `${formatTime(view.from)} to ${formatTime(view.to)}`}
+                </Box>
+              )}
+            </Box>
+          </Box>
+          <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
+            <TrendSettingsPopover lines={layout.settingsLines} />
+            <ModeButtons mode={mode} />
+            <IconButton
+              size="small"
+              aria-label="Close the trend"
+              data-testid="trend-close-btn"
+              onClick={handleClose}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, px: 1.75 }}>
           {entries.map((entry) => (

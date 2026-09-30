@@ -174,6 +174,33 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-range-10m').click()
     await expectState(mainPage, 'live')
 
+    // At the floating trend's narrowest the header wraps under the name and the
+    // ranges, and the icons stay on the first row, inside the panel.
+    const paper = mainPage.getByTestId('trend-panel').locator('xpath=..')
+    await paper.evaluate((el) => {
+      const panelPaper = el.closest('.MuiPaper-root')
+      if (panelPaper instanceof HTMLElement) panelPaper.style.width = '420px'
+    })
+    const boxOf = async (testId: string): Promise<{ x: number; y: number; right: number }> => {
+      const box = await mainPage.getByTestId(testId).boundingBox()
+      if (!box) throw new Error(`${testId} is not drawn`)
+      return { x: box.x, y: box.y, right: box.x + box.width }
+    }
+    await expect(async () => {
+      const panel = await boxOf('trend-panel')
+      const close = await boxOf('trend-close-btn')
+      const name = await boxOf('trend-config-btn')
+      const range = await boxOf('trend-range-10m')
+      const live = await boxOf('trend-live-btn')
+      expect(close.right).toBeLessThanOrEqual(panel.right)
+      expect(close.y).toBe(name.y)
+      expect(live.y).toBeGreaterThan(range.y)
+    }).toPass()
+    await paper.evaluate((el) => {
+      const panelPaper = el.closest('.MuiPaper-root')
+      if (panelPaper instanceof HTMLElement) panelPaper.style.width = ''
+    })
+
     // A drag across the lines zooms to it, and the trend holds still until
     // Live is pressed. The whole log fills the plot, so the drag lands on it.
     await expect(mainPage.getByTestId('trend-navigator')).toBeVisible()
