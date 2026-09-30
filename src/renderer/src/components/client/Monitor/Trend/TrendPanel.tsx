@@ -12,12 +12,19 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 import { textMuted } from '@renderer/theme'
-import { ClientUnit, isNumberRegister, RegisterMapValue } from '@shared'
+import {
+  ClientUnit,
+  isBooleanRegister,
+  isNumberRegister,
+  LogPoint,
+  RegisterMapValue
+} from '@shared'
 import { formatTime } from '@renderer/components/client/Logging/format'
-import { MouseEvent, useCallback, useMemo } from 'react'
+import { MouseEvent, useCallback, useMemo, useState } from 'react'
 import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
 import Button from '@mui/material/Button'
-import TrendChart, { TrendLine } from './TrendChart'
+import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
+import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import {
   TREND_RANGES,
@@ -28,6 +35,7 @@ import {
   trendSeries,
   trendSummary,
   figure,
+  laneAt,
   viewWithin
 } from './trendData'
 import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
@@ -46,6 +54,9 @@ const PAPER_SX = {
 } as const
 
 const NO_UNITS: ClientUnit[] = []
+
+/** How tall the chart is when the trend draws lanes only: its time axis and a margin. */
+const LANES_ONLY_CHART = 56
 
 /** How many stretches the navigator's line of the whole log is asked in. */
 const NAVIGATOR_STEPS = 300
@@ -88,6 +99,17 @@ const RangePicker = meme((): JSX.Element => {
   )
 })
 
+/** Whether a register is drawn as a lane under the lines: a bit, or a bitmap's word. */
+const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
+  isBooleanRegister(entry.type) || mapValue?.dataType === 'bitmap'
+
+/** A lane's sample as the chip and the readout write it: on or off, or the word in hex. */
+const laneText = (bitmap: boolean, point: LogPoint | undefined): string => {
+  if (point === undefined || point.error !== undefined) return '–'
+  if (bitmap) return `0x${point.value.toString(16).padStart(4, '0')}`
+  return point.value === 0 ? 'off' : 'on'
+}
+
 /** The mapping entry of the register a trend line draws. */
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
   units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
@@ -125,70 +147,64 @@ const layoutOf = (
 }
 
 /** One register of the trend: its colour, address, name and last value, and a press that takes it out. */
-const TrendChip = meme(
-  ({ entry, last }: { entry: DrawnEntry; last: number | undefined }): JSX.Element => {
-    const addressBase = useClientZustand(
-      (z) =>
-        z.clients[entry.uuid]?.units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
-    )
-    const comment = useClientZustand(
-      (z) => mapValueOf(z.clients[entry.uuid]?.units ?? NO_UNITS, entry)?.comment
-    )
-    const engineeringUnit = useClientZustand(
-      (z) => mapValueOf(z.clients[entry.uuid]?.units ?? NO_UNITS, entry)?.unit
-    )
-    const handleRemove = useCallback(() => {
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.remove(trendKey(entry))
-    }, [entry])
-    const address = entry.address + Number(addressBase)
+const TrendChip = meme(({ entry, text }: { entry: DrawnEntry; text: string }): JSX.Element => {
+  const addressBase = useClientZustand(
+    (z) => z.clients[entry.uuid]?.units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+  )
+  const comment = useClientZustand(
+    (z) => mapValueOf(z.clients[entry.uuid]?.units ?? NO_UNITS, entry)?.comment
+  )
+  const handleRemove = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.remove(trendKey(entry))
+  }, [entry])
+  const address = entry.address + Number(addressBase)
 
-    return (
+  return (
+    <Box
+      component="span"
+      data-testid={`trend-chip-${entry.type}-${address}`}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.75,
+        height: 24,
+        pl: 1,
+        pr: 0.25,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: '12px',
+        fontSize: 12,
+        whiteSpace: 'nowrap'
+      }}
+    >
       <Box
         component="span"
-        data-testid={`trend-chip-${address}`}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.75,
-          height: 24,
-          pl: 1,
-          pr: 0.25,
-          border: 1,
-          borderColor: 'divider',
-          borderRadius: '12px',
-          fontSize: 12,
-          whiteSpace: 'nowrap'
-        }}
-      >
-        <Box
-          component="span"
-          sx={{ width: 10, height: 3, borderRadius: '2px', bgcolor: entry.color }}
-        />
-        <Box component="span" sx={{ fontFamily: 'monospace' }}>
-          {address}
-        </Box>
-        {comment}
-        <Box
-          component="span"
-          data-testid={`trend-chip-value-${address}`}
-          sx={{ fontFamily: 'monospace', color: 'text.secondary' }}
-        >
-          {figure(last)} {engineeringUnit}
-        </Box>
-        <IconButton
-          size="small"
-          aria-label={`Take ${address} out of the trend`}
-          data-testid={`trend-chip-remove-${address}`}
-          onClick={handleRemove}
-          sx={{ p: 0.25 }}
-        >
-          <Close sx={{ fontSize: 14 }} />
-        </IconButton>
+        sx={{ width: 10, height: 3, borderRadius: '2px', bgcolor: entry.color }}
+      />
+      <Box component="span" sx={{ fontFamily: 'monospace' }}>
+        {address}
       </Box>
-    )
-  }
-)
+      {comment}
+      <Box
+        component="span"
+        data-testid={`trend-chip-value-${entry.type}-${address}`}
+        sx={{ fontFamily: 'monospace', color: 'text.secondary' }}
+      >
+        {text}
+      </Box>
+      <IconButton
+        size="small"
+        aria-label={`Take ${address} out of the trend`}
+        data-testid={`trend-chip-remove-${entry.type}-${address}`}
+        onClick={handleRemove}
+        sx={{ p: 0.25 }}
+      >
+        <Close sx={{ fontSize: 14 }} />
+      </IconButton>
+    </Box>
+  )
+})
 
 /**
  * The registers a Log icon in Monitor added, as lines over the range picked
@@ -237,14 +253,19 @@ const TrendPanel = meme((): JSX.Element | null => {
     started,
     steps: NAVIGATOR_STEPS
   })
-  const layout = useMemo(() => layoutOf(entries, units), [entries, units])
+  const lineEntries = useMemo(
+    () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
+    [entries, units]
+  )
+  const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
+  const [plot, setPlot] = useState<PlotBox>()
 
   // Converted again on every render, which comes with each answer, a store
   // change or the script engine turning ready. A script conversion measured
   // about 1.9 µs a call, so the 6,000 samples of 10 minutes at 100 ms polls
   // take about 11 ms a register.
   const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
-  const drawn = entries.map((entry) => {
+  const drawn = lineEntries.map((entry) => {
     const mapValue = mapValueOf(units, entry)
     const convert = (raw: number): number | undefined => {
       if (!isNumberRegister(entry.type)) return raw
@@ -283,6 +304,45 @@ const TrendPanel = meme((): JSX.Element | null => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.setView(undefined)
   }, [])
+  const lanes = entries.flatMap((entry): TrendLane[] => {
+    const mapValue = mapValueOf(units, entry)
+    if (!isLane(entry, mapValue)) return []
+    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+    const address = entry.address + Number(addressBase)
+    return [
+      {
+        key: trendKey(entry),
+        type: entry.type,
+        address,
+        label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+        color: entry.color,
+        bitmap: mapValue?.dataType === 'bitmap',
+        mapValue,
+        points: points[trendKey(entry)] ?? []
+      }
+    ]
+  })
+  // Each register's newest value, as its chip writes it.
+  const chipTexts = new Map([
+    ...lanes.map(({ key, bitmap, points: samples }): [string, string] => [
+      key,
+      laneText(bitmap, samples.at(-1))
+    ]),
+    ...drawn.map(({ entry, series }): [string, string] => {
+      const unit = mapValueOf(units, entry)?.unit
+      return [
+        trendKey(entry),
+        `${figure(trendSummary(series.values).last)}${unit ? ` ${unit}` : ''}`
+      ]
+    })
+  ])
+  const readoutRows = (time: number): ReadoutRow[] =>
+    lanes.map((lane) => ({
+      key: lane.key,
+      label: lane.label,
+      color: lane.bitmap ? 'text.secondary' : lane.color,
+      text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
+    }))
   const firstEntry = first[0]
   const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
 
@@ -390,15 +450,21 @@ const TrendPanel = meme((): JSX.Element | null => {
           </IconButton>
         </Box>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, px: 1.75 }}>
-          {drawn.map(({ entry, series }) => (
+          {entries.map((entry) => (
             <TrendChip
               key={trendKey(entry)}
               entry={entry}
-              last={trendSummary(series.values).last}
+              text={chipTexts.get(trendKey(entry)) ?? figure(undefined)}
             />
           ))}
         </Box>
-        <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', px: 1, pb: 1 }}>
+        {/* With no lines to draw, the chart is its time axis and the lanes take the room. */}
+        <Box
+          sx={[
+            { minHeight: 0, display: 'flex', px: 1, pb: 1 },
+            lineEntries.length > 0 ? { flexGrow: 1 } : { height: LANES_ONLY_CHART, flexShrink: 0 }
+          ]}
+        >
           <TrendChart
             lines={layout.lines}
             data={drawn.map(({ series }) => series)}
@@ -410,8 +476,22 @@ const TrendPanel = meme((): JSX.Element | null => {
             gaps={gaps}
             onZoom={handleZoom}
             onZoomOut={handleFollow}
+            onPlot={setPlot}
+            readoutRows={readoutRows}
           />
         </Box>
+        {lanes.length > 0 && plot !== undefined && (
+          // Beside lines the lanes scroll past a share of the panel, so the chart
+          // keeps its room; with no lines they take it.
+          <Box
+            sx={[
+              { px: 1, pb: 0.5, overflowY: 'auto' },
+              lineEntries.length > 0 ? { flexShrink: 0, maxHeight: '40%' } : { flexGrow: 1 }
+            ]}
+          >
+            <TrendLanes lanes={lanes} runEnds={runEnds} end={end} from={from} to={to} plot={plot} />
+          </Box>
+        )}
         {oldest !== undefined && firstEntry !== undefined && (
           <Box sx={{ px: 1.75, pb: 1 }}>
             <TrendNavigator

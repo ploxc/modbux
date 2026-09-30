@@ -1,4 +1,4 @@
-import { inSteps, LogPoint, LogRun, LogStopReason } from '@shared'
+import { BitMapConfig, inSteps, LogPoint, LogRun, LogStopReason } from '@shared'
 import type uPlot from 'uplot'
 
 /** The ranges a trend picks from, in the order it offers them. */
@@ -162,6 +162,16 @@ export const valuesAt = (data: uPlot.AlignedData, index: number): (number | null
     return undefined
   })
 
+/**
+ * The last index of `times` at or before `time`, none before the first. A
+ * readout asks it on every move of the cursor, over the few thousand samples
+ * a window holds.
+ */
+export const indexAt = (times: ArrayLike<number>, time: number): number | undefined => {
+  const index = Array.from(times).findLastIndex((each) => each <= time)
+  return index === -1 ? undefined : index
+}
+
 /** A number as the trend's figures write it: as the value came, at most six decimals. */
 export const figure = (value: number | null | undefined): string =>
   value === undefined || value === null ? '–' : String(Math.round(value * 1e6) / 1e6)
@@ -207,4 +217,86 @@ export const readoutPlace = (
   const x = Math.max(0, right + READOUT_WIDTH > width ? left - READOUT_GAP - READOUT_WIDTH : right)
   const y = top > height / 2 ? top - READOUT_GAP - tall : top - READOUT_GAP
   return { left: x, top: Math.min(Math.max(0, y), Math.max(0, height - tall)) }
+}
+
+/** A stretch a bit was on. */
+export interface LaneSpan {
+  start: number
+  end: number
+}
+
+/**
+ * The stretches `isOn` holds for a register's samples: from a sample that is
+ * on to the next sample, or to where its run ended, and the last up to `end`.
+ * A failed read is neither, and stretches that meet are one.
+ */
+export const laneSpans = (
+  points: readonly LogPoint[],
+  runEnds: readonly number[],
+  isOn: (value: number) => boolean,
+  end: number
+): LaneSpan[] => {
+  // A run's end sorts after a sample taken at the same moment.
+  const events = [
+    ...points.map((point) => ({ time: point.time, order: 0, point })),
+    ...runEnds.map((time) => ({ time, order: 1, point: undefined }))
+  ].sort((a, b) => a.time - b.time || a.order - b.order)
+  const spans: LaneSpan[] = []
+  let open: number | undefined
+  const close = (at: number): void => {
+    if (open === undefined) return
+    const last = spans.at(-1)
+    if (last?.end === open) last.end = at
+    else spans.push({ start: open, end: at })
+    open = undefined
+  }
+  for (const { time, point } of events) {
+    close(time)
+    if (point !== undefined && point.error === undefined && isOn(point.value)) open = time
+  }
+  close(end)
+  return spans
+}
+
+/** The newest sample at or before `time`, which a lane reads at the cursor. */
+export const pointAt = (points: readonly LogPoint[], time: number): LogPoint | undefined => {
+  let low = 0
+  let high = points.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    const point = points[middle]
+    if (point !== undefined && point.time <= time) low = middle + 1
+    else high = middle
+  }
+  return points[low - 1]
+}
+
+/**
+ * A lane's sample at `time`: the newest at or before it, and none once its
+ * run ended between that sample and `time`, where the lane's bar is dark.
+ */
+export const laneAt = (
+  points: readonly LogPoint[],
+  runEnds: readonly number[],
+  time: number
+): LogPoint | undefined => {
+  const point = pointAt(points, time)
+  if (point === undefined) return undefined
+  return runEnds.some((end) => end >= point.time && end <= time) ? undefined : point
+}
+
+/** Whether bit `bit` of a bitmap's word is on, as its settings say: inverted, it is on when clear. */
+export const bitOn = (word: number, bit: number, invert: boolean | undefined): boolean =>
+  (((word >> bit) & 1) === 1) !== (invert === true)
+
+/**
+ * The bits of a bitmap its lane opens into: every bit its settings name or
+ * mark, and every bit that was set in a sample, in order.
+ */
+export const bitsOf = (bitMap: BitMapConfig | undefined, points: readonly LogPoint[]): number[] => {
+  // A failed read's value is NaN, which a bitwise or takes as 0.
+  const seen = points.reduce((word, { value }) => word | value, 0)
+  return Array.from({ length: 16 }, (_, bit) => bit).filter(
+    (bit) => bitMap?.[String(bit)] !== undefined || ((seen >> bit) & 1) === 1
+  )
 }

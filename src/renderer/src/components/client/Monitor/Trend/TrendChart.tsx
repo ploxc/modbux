@@ -7,6 +7,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import {
   figure,
+  indexAt,
   READOUT_PADDING,
   READOUT_ROW,
   READOUT_WIDTH,
@@ -31,7 +32,8 @@ export interface TrendLine {
 interface Readout {
   left: number
   top: number
-  index: number
+  /** The moment under the cursor, which every row reads at or before. */
+  at: number
 }
 
 interface TrendChartProps {
@@ -53,6 +55,18 @@ interface TrendChartProps {
   onZoom: (from: number, to: number) => void
   /** A double click asks for the range again. */
   onZoomOut: () => void
+  /** Where the plot lands in the chart's box, each time it is laid out. */
+  onPlot: (plot: { left: number; width: number }) => void
+  /** The readout's rows for what the chart does not draw as a line, at a moment. */
+  readoutRows: (time: number) => ReadoutRow[]
+}
+
+/** A row of the readout for a register the lanes draw. */
+export interface ReadoutRow {
+  key: string
+  label: string
+  color: string
+  text: string
 }
 
 /** How many pixels a drag must cover to zoom, so a click does not. */
@@ -136,7 +150,9 @@ const TrendChart = meme(
     oldest,
     gaps,
     onZoom,
-    onZoomOut
+    onZoomOut,
+    onPlot,
+    readoutRows
   }: TrendChartProps): JSX.Element => {
     const theme = useTheme()
     const container = useRef<HTMLDivElement>(null)
@@ -147,6 +163,8 @@ const TrendChart = meme(
     zoom.current = onZoom
     const zoomOut = useRef(onZoomOut)
     zoomOut.current = onZoomOut
+    const plotted = useRef(onPlot)
+    plotted.current = onPlot
     const shown = useRef({ from, to })
     shown.current = { from, to }
     const joined = useRef<uPlot.AlignedData>([[]])
@@ -187,20 +205,28 @@ const TrendChart = meme(
           }
         },
         hooks: {
+          // The bbox is in canvas pixels.
+          setSize: [
+            (sized: uPlot): void =>
+              plotted.current({
+                left: sized.bbox.left / devicePixelRatio,
+                width: sized.bbox.width / devicePixelRatio
+              })
+          ],
           drawClear: [
             (drawn: uPlot): void => drawBackdrop(drawn, backdrop.current, colors, labelFont)
           ],
           setCursor: [
             (hovered: uPlot): void => {
-              const { left, top, idx } = hovered.cursor
-              if (left === undefined || top === undefined || left < 0 || idx == null) {
+              const { left, top } = hovered.cursor
+              if (left === undefined || top === undefined || left < 0) {
                 setReadout(undefined)
                 return
               }
               setReadout({
                 left: hovered.over.offsetLeft + left,
                 top: hovered.over.offsetTop + top,
-                index: idx
+                at: hovered.posToVal(left, 'x')
               })
             }
           ],
@@ -287,8 +313,10 @@ const TrendChart = meme(
       // The chart made again for a new theme starts empty, so the data goes in again.
     }, [lines, data, from, to, oldest, gaps, theme])
 
-    const time = readout === undefined ? undefined : joined.current[0][readout.index]
-    const values = readout === undefined ? [] : valuesAt(joined.current, readout.index)
+    // The lines' samples at or before the cursor, as the lanes read theirs.
+    const index = readout === undefined ? undefined : indexAt(joined.current[0], readout.at)
+    const values = index === undefined ? [] : valuesAt(joined.current, index)
+    const extraRows = readout === undefined ? [] : readoutRows(readout.at)
     const place =
       readout === undefined
         ? undefined
@@ -297,8 +325,8 @@ const TrendChart = meme(
             readout.top,
             container.current?.clientWidth ?? 0,
             container.current?.clientHeight ?? 0,
-            // A row for the time and one a line.
-            READOUT_ROW * (lines.length + 1) + READOUT_PADDING
+            // A row for the time, one a line and one a lane.
+            READOUT_ROW * (lines.length + extraRows.length + 1) + READOUT_PADDING
           )
     return (
       <Box
@@ -306,7 +334,7 @@ const TrendChart = meme(
         data-testid="trend-chart"
         sx={{ position: 'relative', flexGrow: 1, minHeight: 0 }}
       >
-        {place !== undefined && time !== undefined && (
+        {readout !== undefined && place !== undefined && (
           <Box
             data-testid="trend-readout"
             sx={{
@@ -330,7 +358,7 @@ const TrendChart = meme(
             }}
           >
             <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-              {DateTime.fromMillis(time).toFormat('HH:mm:ss.SSS')}
+              {DateTime.fromMillis(readout.at).toFormat('HH:mm:ss.SSS')}
             </Box>
             {lines.map((line, index) => (
               <Box key={line.color} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -353,6 +381,30 @@ const TrendChart = meme(
                   sx={{ fontFamily: 'monospace' }}
                 >
                   {figure(values[index])} {line.unit}
+                </Box>
+              </Box>
+            ))}
+            {extraRows.map((row) => (
+              <Box key={row.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: row.color }} />
+                <Box
+                  component="span"
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {row.label}
+                </Box>
+                <Box
+                  component="span"
+                  data-testid={`trend-readout-lane-${row.key}`}
+                  sx={{ fontFamily: 'monospace' }}
+                >
+                  {row.text}
                 </Box>
               </Box>
             ))}

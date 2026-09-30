@@ -7,7 +7,8 @@ import {
   loadServerConfig,
   loadClientConfig,
   readRegisters,
-  expectCell
+  expectCell,
+  selectRegisterType
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -80,7 +81,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await expect(mainPage.getByTestId('trend-panel')).toBeVisible()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
-    await expect(mainPage.getByTestId('trend-chip-value-0')).toContainText('100')
+    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
     await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
       'aria-pressed',
@@ -89,19 +90,22 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     // The page under it stays reachable, to screen readers and role queries alike.
     await expect(mainPage.getByRole('switch', { name: 'Poll this group' }).first()).toBeVisible()
 
-    // The cursor over the lines reads every line at the sample under it.
+    // The cursor over the lines reads every line at or before the moment under
+    // it. The whole log fills the plot, so every moment of it has a sample.
+    await mainPage.getByTestId('trend-range-log').click()
     const over = mainPage.locator('[data-testid="trend-chart"] .u-over')
     const plotBox = await over.boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
-    await mainPage.mouse.move(plotBox.x + plotBox.width - 4, plotBox.y + plotBox.height / 2)
+    await mainPage.mouse.move(plotBox.x + plotBox.width * 0.9, plotBox.y + plotBox.height / 2)
     await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText('100')
     await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
     await expect(mainPage.getByTestId('trend-readout')).toHaveCount(0)
+    await mainPage.getByTestId('trend-range-10m').click()
 
     // A longer range asks main again, and the register's value comes back with it.
     await mainPage.getByTestId('trend-range-1h').click()
     await expect(mainPage.getByTestId('trend-range-1h')).toHaveAttribute('aria-pressed', 'true')
-    await expect(mainPage.getByTestId('trend-chip-value-0')).toContainText('100')
+    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
     await mainPage.getByTestId('trend-range-10m').click()
 
     // A drag across the lines zooms to it, and the trend holds still until
@@ -143,8 +147,37 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-zoom-out-btn')).toBeDisabled()
     await mainPage.getByTestId('trend-range-10m').click()
 
-    await mainPage.getByTestId('trend-chip-remove-0').click()
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
+  })
+
+  test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
+    await mainPage.getByTestId('client-view-debug-btn').click()
+    await selectRegisterType(mainPage, 'Coils')
+    await mainPage.getByTestId('log-cell-0').click()
+    await mainPage.getByTestId('log-mode-poll').click()
+    await mainPage.keyboard.press('Escape')
+    await mainPage.getByTestId('client-view-monitor-btn').click()
+
+    await mainPage.getByTestId('monitor-trend-0-coils-0').click()
+    await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-chip-value-coils-0')).toHaveText('on')
+
+    // Taken out of the trend and back out of the log, so the rest of the spec
+    // logs the setpoint alone, and the log holds it alone from here.
+    await mainPage.getByTestId('trend-chip-remove-coils-0').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
+    await mainPage.getByTestId('client-view-debug-btn').click()
+    await mainPage.getByTestId('log-cell-0').click()
+    await mainPage.getByTestId('log-mode-off').click()
+    await mainPage.keyboard.press('Escape')
+    await selectRegisterType(mainPage, 'Holding Registers')
+    await mainPage.getByTestId('client-view-monitor-btn').click()
+    await mainPage.getByTestId('log-btn').click()
+    await mainPage.getByTestId('log-clear-btn').click()
+    // The poll goes on filling it, which the tests after this one count on.
+    await expect(mainPage.getByTestId('log-status-samples')).not.toHaveText(/^0 of/)
+    await mainPage.keyboard.press('Escape')
   })
 
   test("Debug shows Monitor's reads while logging, and reads nothing itself", async ({
