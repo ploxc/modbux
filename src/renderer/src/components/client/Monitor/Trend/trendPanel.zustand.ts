@@ -11,7 +11,7 @@ import {
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { DEFAULT_TREND_SETTINGS, TrendView } from './trendData'
+import { DEFAULT_TREND_SETTINGS, TrendFollow, TrendView } from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -63,9 +63,13 @@ interface TrendPanelZustand {
   /** How far back the trend reaches. A new range follows the log again. */
   range: TrendRangeId
   setRange: (range: TrendRangeId) => void
-  /** The stretch zoomed or panned to, which stops the trend following the log; none follows it. */
-  view: TrendView | undefined
-  setView: (view: TrendView | undefined) => void
+  /**
+   * The stretch zoomed or panned to, which stops the trend following the log,
+   * or the length it follows the log over in place of the range's; none
+   * follows the log over the range.
+   */
+  view: TrendView | TrendFollow | undefined
+  setView: (view: TrendView | TrendFollow | undefined) => void
   settings: TrendSettings
   setAxisRange: (side: TrendSide, range: AxisRange | undefined) => void
   setTime: (time: TrendSettings['time']) => void

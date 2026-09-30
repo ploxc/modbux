@@ -89,29 +89,44 @@ describe('viewWithin', () => {
   const bound = { from: 1_000, to: 100_000 }
 
   it('keeps a stretch inside what the log holds', () => {
-    expect(viewWithin(20_000, 30_000, bound, 600_000)).toEqual({ from: 20_000, to: 30_000 })
+    expect(viewWithin(20_000, 30_000, bound, 600_000, true)).toEqual({ from: 20_000, to: 30_000 })
   })
 
   it('moves a stretch past either end back inside, keeping its length', () => {
-    expect(viewWithin(-5_000, 5_000, bound, 600_000)).toEqual({ from: 1_000, to: 11_000 })
-    expect(viewWithin(95_000, 105_000, bound, 600_000)).toEqual({ from: 90_000, to: 100_000 })
+    expect(viewWithin(-5_000, 5_000, bound, 600_000, true)).toEqual({ from: 1_000, to: 11_000 })
+    expect(viewWithin(95_000, 105_000, bound, 600_000, false)).toEqual({
+      from: 90_000,
+      to: 100_000
+    })
   })
 
   it('zooms in no further than a second', () => {
-    expect(viewWithin(20_000, 20_100, bound, 600_000)).toEqual({ from: 20_000, to: 21_000 })
+    expect(viewWithin(20_000, 20_100, bound, 600_000, true)).toEqual({ from: 20_000, to: 21_000 })
   })
 
   it('follows the range again once a stretch reaches the end and spans it', () => {
-    expect(viewWithin(40_000, 100_000, bound, 60_000)).toBeUndefined()
-    expect(viewWithin(0, 200_000, bound, 600_000)).toBeUndefined()
+    expect(viewWithin(40_000, 100_000, bound, 60_000, true)).toBeUndefined()
+    expect(viewWithin(0, 200_000, bound, 600_000, true)).toBeUndefined()
   })
 
   it('stays zoomed on a stretch as long as the range that ends before the log does', () => {
-    expect(viewWithin(10_000, 80_000, bound, 60_000)).toEqual({ from: 10_000, to: 80_000 })
+    expect(viewWithin(10_000, 80_000, bound, 60_000, true)).toEqual({ from: 10_000, to: 80_000 })
   })
 
-  it('stays zoomed at the end while the stretch is shorter than the range', () => {
-    expect(viewWithin(70_000, 100_000, bound, 60_000)).toEqual({ from: 70_000, to: 100_000 })
+  it('follows the running log over a shorter stretch that reaches its end, dragged past it too', () => {
+    expect(viewWithin(70_000, 100_000, bound, 60_000, true)).toEqual({ length: 30_000 })
+    expect(viewWithin(80_000, 110_000, bound, 60_000, true)).toEqual({ length: 30_000 })
+  })
+
+  it('holds a shorter stretch at the end of a log that stopped', () => {
+    expect(viewWithin(70_000, 100_000, bound, 60_000, false)).toEqual({
+      from: 70_000,
+      to: 100_000
+    })
+  })
+
+  it('holds a shorter stretch that ends before the running log does', () => {
+    expect(viewWithin(69_000, 99_000, bound, 60_000, true)).toEqual({ from: 69_000, to: 99_000 })
   })
 })
 

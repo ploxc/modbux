@@ -191,12 +191,30 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
     await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'true')
 
-    // Zoomed again, a press on a range follows the log over that range.
+    // Zoomed again, and the navigator's window dragged against the log's end,
+    // the trend follows the log over the window's own length.
     await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
+    const windowBox = await held.boundingBox()
+    const stripBox = await mainPage.getByTestId('trend-navigator').boundingBox()
+    if (!windowBox || !stripBox) throw new Error('The navigator is not drawn')
+    const middle = windowBox.y + windowBox.height / 2
+    await mainPage.mouse.move(windowBox.x + windowBox.width / 2, middle)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(stripBox.x + stripBox.width + 100, middle, { steps: 5 })
+    await mainPage.mouse.up()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expect(mainPage.getByTestId('trend-follow')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'false')
+    const following = Number(await held.getAttribute('aria-valuenow'))
+    await expect(async () => {
+      expect(Number(await held.getAttribute('aria-valuenow'))).toBeGreaterThan(following)
+    }).toPass()
+
+    // A press on a range follows the log over that range again.
     await mainPage.getByTestId('trend-range-10m').click()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
     await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')

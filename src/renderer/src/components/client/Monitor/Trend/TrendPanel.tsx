@@ -20,7 +20,7 @@ import {
   RegisterMapValue,
   TrendRangeId
 } from '@shared'
-import { formatTime } from '@renderer/components/client/Logging/format'
+import { formatDuration, formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
@@ -39,6 +39,7 @@ import {
   trendGaps,
   trendSeries,
   laneAt,
+  isFollow,
   viewWithin
 } from './trendData'
 import {
@@ -120,8 +121,9 @@ const ModeButtons = meme(
 )
 
 /**
- * The range buttons, and a press that picks one. Zoomed or panned, the trend
- * shows no range, so none is pressed, and any of them follows the log again.
+ * The range buttons, and a press that picks one. Zoomed, panned, or following
+ * the log over a stretch of its own length, the trend shows no range, so none
+ * is pressed, and any of them follows the log over the range again.
  */
 const RangePicker = meme((): JSX.Element => {
   const range = useTrendPanelZustand((z) => (z.view === undefined ? z.range : null))
@@ -293,23 +295,25 @@ const TrendContent = meme(
     const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
     const range = useTrendPanelZustand((z) => z.range)
     const view = useTrendPanelZustand((z) => z.view)
+    const held = view === undefined || isFollow(view) ? undefined : view
     const settings = useTrendPanelZustand((z) => z.settings)
     // A script's value waits for the engine, and draws again once it is there.
     useScriptEngineZustand((z) => z.ready)
 
     const lastEnd = runs.at(-1)?.end
-    const span = TREND_SPANS[range]
+    const rangeSpan = TREND_SPANS[range]
+    const span = view !== undefined && isFollow(view) ? view.length : rangeSpan
     const started = oldest !== undefined
     // Zoomed or panned, the trend holds still on its stretch, in steps of it,
     // and asks as much again on either side so its lines run to its edges.
     const points = useLogWindows(
       entries,
-      view === undefined
+      held === undefined
         ? { live: running, span, until: lastEnd, started }
         : {
             live: false,
-            span: 3 * (view.to - view.from),
-            until: view.to + (view.to - view.from),
+            span: 3 * (held.to - held.from),
+            until: held.to + (held.to - held.from),
             started,
             steps: 3 * TREND_STEPS
           }
@@ -346,26 +350,26 @@ const TrendContent = meme(
     // log stopped. The whole log starts at its oldest sample, and an empty one
     // shows the shortest range.
     const end = running ? Date.now() : (lastEnd ?? Date.now())
-    const to = view?.to ?? end
+    const to = held?.to ?? end
     const from =
-      view?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
+      held?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
     const gaps = trendGaps(runs, end)
     const handleClose = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
       trendPanelZustand.close()
     }, [])
-    // Inside what the log holds, up to now; reaching its end with the range
-    // or more follows the log again.
+    // Inside what the log holds, up to now; reaching its end follows the log
+    // again, over the range or over a shorter stretch's own length.
     // The end is this render's, which the chart and the navigator drew with, so
     // a stretch dragged back to their end reaches the log's.
     const handleZoom = useCallback(
       (zoomFrom: number, zoomTo: number) => {
         const trendPanelZustand = useTrendPanelZustand.getState()
         trendPanelZustand.setView(
-          viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, span)
+          viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, rangeSpan, running)
         )
       },
-      [end, oldest, span]
+      [end, oldest, rangeSpan, running]
     )
     const handleFollow = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
@@ -397,7 +401,7 @@ const TrendContent = meme(
         text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
       }))
     const firstEntry = first[0]
-    const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
+    const state = running ? (held === undefined ? 'live' : 'paused') : 'logging is off'
 
     const floating = placement === 'float'
     const content = (
@@ -425,7 +429,7 @@ const TrendContent = meme(
           {view !== undefined && (
             <Box
               component="span"
-              data-testid="trend-view"
+              data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
               sx={{
                 minWidth: 0,
                 overflow: 'hidden',
@@ -436,11 +440,13 @@ const TrendContent = meme(
                 fontSize: 11.5
               }}
             >
-              {formatTime(view.from)} to {formatTime(view.to)}
+              {isFollow(view)
+                ? `the last ${formatDuration(view.length)}`
+                : `${formatTime(view.from)} to ${formatTime(view.to)}`}
             </Box>
           )}
           <Box sx={{ flexGrow: 1 }} />
-          {view !== undefined && running && (
+          {held !== undefined && running && (
             <Button
               size="small"
               variant="outlined"

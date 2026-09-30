@@ -100,24 +100,35 @@ export interface TrendView {
   to: number
 }
 
+/** A trend that follows the log over its own length rather than the range's. */
+export interface TrendFollow {
+  length: number
+}
+
+export const isFollow = (view: TrendView | TrendFollow): view is TrendFollow => 'length' in view
+
 /** The shortest stretch a trend zooms in to. */
 const SHORTEST_VIEW_MS = 1000
 
 /**
  * The view a zoom or a pan to `from` and `to` leaves, inside `bound`: what the
- * log holds, up to now. None, which follows the range again, once it reaches
- * the end of what the log holds and spans the range or more.
+ * log holds, up to now. A stretch that reaches the end of what the log holds
+ * follows the range again once it spans the range or more, and while the log
+ * runs a shorter one follows the log over its own length.
  */
 export const viewWithin = (
   from: number,
   to: number,
   bound: TrendView,
-  span: number
-): TrendView | undefined => {
+  span: number,
+  running: boolean
+): TrendView | TrendFollow | undefined => {
   const length = Math.min(Math.max(to - from, SHORTEST_VIEW_MS), bound.to - bound.from)
   const start = Math.min(Math.max(from, bound.from), bound.to - length)
   const view = { from: start, to: start + length }
-  return view.to >= bound.to && length >= Math.min(span, bound.to - bound.from) ? undefined : view
+  if (view.to < bound.to) return view
+  if (length >= Math.min(span, bound.to - bound.from)) return undefined
+  return running ? { length } : view
 }
 
 /** How much a notch of the wheel zooms: in by this, and out by its inverse. */
