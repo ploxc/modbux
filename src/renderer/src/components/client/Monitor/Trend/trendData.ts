@@ -94,18 +94,6 @@ export const trendSeries = (
   return { times, values }
 }
 
-/** The newest value a trend holds, and its lowest and highest. */
-export const trendSummary = (
-  values: (number | null)[]
-): { last: number | undefined; min: number | undefined; max: number | undefined } => {
-  const numbers = values.filter((value): value is number => value !== null)
-  return {
-    last: numbers.at(-1),
-    min: numbers.length === 0 ? undefined : Math.min(...numbers),
-    max: numbers.length === 0 ? undefined : Math.max(...numbers)
-  }
-}
-
 /** A stretch of time a trend was zoomed or panned to, which stops it following the log. */
 export interface TrendView {
   from: number

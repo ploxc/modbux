@@ -23,16 +23,8 @@ import {
 import { formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
-import ImageOutlined from '@mui/icons-material/ImageOutlined'
-import { useTheme } from '@mui/material/styles'
-import { downloadBlob } from '@renderer/components/shared/downloadText'
-import snakeCase from 'lodash/snakeCase'
-import { DateTime } from 'luxon'
-import type uPlot from 'uplot'
-import { trendImage } from './trendImage'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
 import VerticalSplit from '@mui/icons-material/VerticalSplit'
-import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
 import Button from '@mui/material/Button'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendConfigMenu from './TrendConfigMenu'
@@ -46,8 +38,6 @@ import {
   TREND_STEPS,
   trendGaps,
   trendSeries,
-  trendSummary,
-  figure,
   laneAt,
   viewWithin
 } from './trendData'
@@ -126,9 +116,12 @@ const ModeButtons = meme(
   )
 )
 
-/** The range buttons, and a press that picks one. */
+/**
+ * The range buttons, and a press that picks one. Zoomed or panned, the trend
+ * shows no range, so none is pressed, and any of them follows the log again.
+ */
 const RangePicker = meme((): JSX.Element => {
-  const range = useTrendPanelZustand((z) => z.range)
+  const range = useTrendPanelZustand((z) => (z.view === undefined ? z.range : null))
   const handleRange = useCallback(
     (_event: MouseEvent<HTMLElement>, picked: TrendRangeId | null) => {
       if (picked === null) return
@@ -168,7 +161,7 @@ const RangePicker = meme((): JSX.Element => {
 const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
   isBooleanRegister(entry.type) || mapValue?.dataType === 'bitmap'
 
-/** A lane's sample as the chip and the readout write it: on or off, or the word in hex. */
+/** A lane's sample as the readout writes it: on or off, or the word in hex. */
 const laneText = (bitmap: boolean, point: LogPoint | undefined): string => {
   if (point === undefined || point.error !== undefined) return '–'
   if (bitmap) return `0x${point.value.toString(16).padStart(4, '0')}`
@@ -224,8 +217,8 @@ const layoutOf = (
   }
 }
 
-/** One register of the trend: its colour, address, name and last value, and a press that takes it out. */
-const TrendChip = meme(({ entry, text }: { entry: DrawnEntry; text: string }): JSX.Element => {
+/** One register of the trend: its colour, address and name, and a press that takes it out. */
+const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
   const addressBase = useClientZustand(
     (z) => z.clients[entry.uuid]?.units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
   )
@@ -264,13 +257,6 @@ const TrendChip = meme(({ entry, text }: { entry: DrawnEntry; text: string }): J
         {address}
       </Box>
       {comment}
-      <Box
-        component="span"
-        data-testid={`trend-chip-value-${entry.type}-${address}`}
-        sx={{ fontFamily: 'monospace', color: 'text.secondary' }}
-      >
-        {text}
-      </Box>
       <IconButton
         size="small"
         aria-label={`Take ${address} out of the trend`}
@@ -339,9 +325,6 @@ const TrendContent = meme(
     )
     const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
     const [plot, setPlot] = useState<PlotBox>()
-    const [chart, setChart] = useState<uPlot>()
-    const name = useTrendPanelZustand((z) => z.name)
-    const theme = useTheme()
 
     // Converted again on every render, which comes with each answer, a store
     // change or the script engine turning ready.
@@ -403,20 +386,6 @@ const TrendContent = meme(
         }
       ]
     })
-    // Each register's newest value, as its chip writes it.
-    const chipTexts = new Map([
-      ...lanes.map(({ key, bitmap, points: samples }): [string, string] => [
-        key,
-        laneText(bitmap, samples.at(-1))
-      ]),
-      ...drawn.map(({ entry, series }): [string, string] => {
-        const unit = mapValueOf(units, entry)?.unit
-        return [
-          trendKey(entry),
-          `${figure(trendSummary(series.values).last)}${unit ? ` ${unit}` : ''}`
-        ]
-      })
-    ])
     const readoutRows = (time: number): ReadoutRow[] =>
       lanes.map((lane) => ({
         key: lane.key,
@@ -424,26 +393,6 @@ const TrendContent = meme(
         color: lane.bitmap ? 'text.secondary' : lane.color,
         text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
       }))
-    // The chart as drawn, headed by the trend's name and stretch, and a legend.
-    const handleImage = useCallback(() => {
-      if (chart === undefined) return
-      const title = name ?? 'Trend'
-      // The stretch carries its date, and milliseconds when it is under a minute.
-      const format = to - from < 60_000 ? 'yyyy-MM-dd HH:mm:ss.SSS' : 'yyyy-MM-dd HH:mm:ss'
-      const stamp = (time: number): string => DateTime.fromMillis(time).toFormat(format)
-      void trendImage(chart, layout.lines, {
-        title,
-        stretch: `${stamp(from)} to ${stamp(to)}`,
-        background: theme.palette.background.paper,
-        foreground: theme.palette.text.primary,
-        muted: theme.palette.text.secondary,
-        font: theme.typography.fontFamily ?? 'sans-serif'
-      }).then((blob) => {
-        if (blob === null) return
-        const stamp = DateTime.now().toFormat('yyyyMMdd_HHmmss')
-        downloadBlob(`modbux_trend_${snakeCase(title)}_${stamp}.png`, blob)
-      })
-    }, [chart, name, layout.lines, from, to, theme])
     const firstEntry = first[0]
     const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
 
@@ -527,27 +476,7 @@ const TrendContent = meme(
             {state}
           </Box>
           <TrendSettingsPopover lines={layout.settingsLines} />
-          <IconButton
-            size="small"
-            aria-label="Save as image"
-            title="Save as image"
-            data-testid="trend-image-btn"
-            disabled={chart === undefined}
-            onClick={handleImage}
-          >
-            <ImageOutlined fontSize="small" />
-          </IconButton>
           <ModeButtons mode={mode} />
-          <IconButton
-            size="small"
-            aria-label="Zoom out to the range"
-            title="Zoom out to the range"
-            data-testid="trend-zoom-out-btn"
-            disabled={view === undefined}
-            onClick={handleFollow}
-          >
-            <ZoomOutMap fontSize="small" />
-          </IconButton>
           <IconButton
             size="small"
             aria-label="Close the trend"
@@ -559,11 +488,7 @@ const TrendContent = meme(
         </Box>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, px: 1.75 }}>
           {entries.map((entry) => (
-            <TrendChip
-              key={trendKey(entry)}
-              entry={entry}
-              text={chipTexts.get(trendKey(entry)) ?? figure(undefined)}
-            />
+            <TrendChip key={trendKey(entry)} entry={entry} />
           ))}
           <TrendPicker />
           {entries.length === 0 && (
@@ -594,7 +519,6 @@ const TrendContent = meme(
             readoutRows={readoutRows}
             settings={settings}
             origin={oldest ?? from}
-            onChart={setChart}
           />
         </Box>
         {lanes.length > 0 && plot !== undefined && (

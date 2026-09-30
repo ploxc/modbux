@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { test, expect, resetApp } from '../../fixtures/electron-app'
 import {
   navigateToClient,
@@ -22,6 +23,31 @@ const CLIENT_CONFIG = resolve(CONFIG_DIR, 'client-monitor.json')
 /** The number of samples the log holds, read off "3,412 of 1,000,000". */
 const samplesOf = (text: string | null): number =>
   Number((/^([\d,]+) of/.exec(text ?? '')?.[1] ?? '0').replace(/,/g, ''))
+
+/**
+ * Waits for the readout at the plot's right edge, which reads the newest
+ * sample of every register the trend draws, to show `text` in `row`. The
+ * mouse moves in again on every try, because a chart made again for new lines
+ * shows no readout until the cursor moves over it. A live trend moves under a
+ * cursor that stands still, so the moment it reads follows the log.
+ */
+const expectNewest = async (
+  mainPage: Page,
+  row: string,
+  text: string,
+  timeout?: number
+): Promise<void> => {
+  const plot = mainPage.locator('[data-testid="trend-chart"] .u-over')
+  await expect(async () => {
+    const plotBox = await plot.boundingBox()
+    if (!plotBox) throw new Error('The trend has no plot to hover')
+    await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
+    await mainPage.mouse.move(plotBox.x + plotBox.width - 2, plotBox.y + plotBox.height / 2)
+    await expect(mainPage.getByTestId(row)).toHaveText(text, { timeout: 1000 })
+  }).toPass({ timeout })
+  const plotBox = await plot.boundingBox()
+  if (plotBox) await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
+}
 
 test.beforeAll(async ({ electronApp, mainPage }) => {
   await resetApp(electronApp, mainPage)
@@ -82,8 +108,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await expect(mainPage.getByTestId('trend-panel')).toBeVisible()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
-    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
     await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
+    await expectNewest(mainPage, 'trend-readout-value-0', '100')
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -120,7 +146,9 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     // A longer range asks main again, and the register's value comes back with it.
     await mainPage.getByTestId('trend-range-1h').click()
     await expect(mainPage.getByTestId('trend-range-1h')).toHaveAttribute('aria-pressed', 'true')
-    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+    // Over an hour a pixel is seconds long, so the edge reads a sample only
+    // once the log is older than the two pixels it stands from the end.
+    await expectNewest(mainPage, 'trend-readout-value-0', '100', 30_000)
     await mainPage.getByTestId('trend-range-10m').click()
 
     // A drag across the lines zooms to it, and the trend holds still until
@@ -143,6 +171,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.up()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
     await expect(mainPage.getByTestId('trend-view')).toBeVisible()
+    // Zoomed, the trend shows no range, so no range is pressed.
+    await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'false')
     // The arrow keys on the navigator's window pan the stretch shown.
     const zoomed = await held.getAttribute('aria-valuenow')
     await held.focus()
@@ -159,8 +189,17 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
     await mainPage.mouse.dblclick(box.x + box.width * 0.5, box.y + box.height / 2)
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
-    await expect(mainPage.getByTestId('trend-zoom-out-btn')).toBeDisabled()
+    await expect(mainPage.getByTestId('trend-range-log')).toHaveAttribute('aria-pressed', 'true')
+
+    // Zoomed again, a press on a range follows the log over that range.
+    await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
+    await mainPage.mouse.up()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('paused')
     await mainPage.getByTestId('trend-range-10m').click()
+    await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
 
     // Taking the last register out leaves the trend open and empty.
     await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
@@ -179,7 +218,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-add-search').fill('setpoint')
     await mainPage.getByTestId('trend-pick-0-holding_registers-0').click()
     await mainPage.keyboard.press('Escape')
-    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+    await expect(mainPage.getByTestId('trend-chip-holding_registers-0')).toBeVisible()
+    await expectNewest(mainPage, 'trend-readout-value-0', '100')
     await expect(mainPage.getByTestId('monitor-trend-count')).toHaveText('1')
 
     // Closed and opened again, it draws what it drew.
@@ -311,13 +351,16 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     expect(floated?.x ?? -1).toBeGreaterThan(0)
     await mainPage.getByTestId('trend-mode-dock-btn').click()
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toBeVisible()
-    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+    await expectNewest(mainPage, 'trend-readout-value-0', '100')
 
-    // Filling the room, it hides the grid, and Monitor goes on reading.
+    // Filling the room, it hides the grid and what acts on the grid, and
+    // Monitor goes on reading.
     await mainPage.getByTestId('trend-mode-fill-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'fill')
     await expect(mainPage.locator('.monitor-grid')).toHaveCount(0)
-    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+    for (const hidden of ['monitor-expand-all-btn', 'monitor-collapse-all-btn', 'monitor-raw-btn'])
+      await expect(mainPage.getByTestId(hidden)).toHaveCount(0)
+    await expectNewest(mainPage, 'trend-readout-value-0', '100')
 
     // Closed and opened again, it comes back where it was.
     await mainPage.getByTestId('trend-close-btn').click()
@@ -327,29 +370,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await mainPage.getByTestId('trend-mode-float-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
-    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
-    await mainPage.getByTestId('trend-close-btn').click()
-  })
-
-  test('Save as image hands over the chart as a PNG', async ({ electronApp, mainPage }) => {
-    const savePath = resolve(tmpdir(), `modbux-trend-${Date.now()}.png`)
-    await evaluateMain(() =>
-      electronApp.evaluate(({ session }, path) => {
-        session.defaultSession.once('will-download', (_event, item) => {
-          item.setSavePath(path)
-        })
-      }, savePath)
-    )
-    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
-    await expect(mainPage.getByTestId('trend-image-btn')).toBeEnabled()
-    await mainPage.getByTestId('trend-image-btn').click()
-
-    // The file exists before the download has written into it.
-    await expect(async () => {
-      const png = await readFile(savePath)
-      expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
-    }).toPass()
-
+    await expect(mainPage.getByTestId('monitor-expand-all-btn')).toBeVisible()
     await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
     await mainPage.getByTestId('trend-close-btn').click()
   })
@@ -364,7 +385,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await mainPage.getByTestId('monitor-trend-0-coils-0').click()
     await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
-    await expect(mainPage.getByTestId('trend-chip-value-coils-0')).toHaveText('on')
+    const plotBox = await mainPage.locator('[data-testid="trend-chart"] .u-over').boundingBox()
+    if (!plotBox) throw new Error('The trend has no plot to hover')
+    await mainPage.mouse.move(plotBox.x + plotBox.width - 2, plotBox.y + plotBox.height / 2)
+    await expect(mainPage.locator('[data-testid^="trend-readout-lane-"]')).toHaveText('on')
+    await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
 
     // Taken out of the trend and back out of the log, so the rest of the spec
     // logs the setpoint alone, and the log holds it alone from here.

@@ -120,6 +120,8 @@ const Monitor = meme((): JSX.Element => {
   const trendMode = useTrendPanelZustand((z) => z.mode)
   // Docked or filling, the trend is drawn in the grid's room rather than over it.
   const inline = trendOpen && trendMode !== 'float' ? trendMode : undefined
+  // Filling the room, the trend hides the groups these fold and the values RAW shows.
+  const gridShown = inline !== 'fill'
   // A bit has no raw value apart from the one it shows.
   const anyRegisters = rows.some((row) => isNumberRegister(row.type))
 
@@ -184,27 +186,31 @@ const Monitor = meme((): JSX.Element => {
       sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, py: 0.5, flexShrink: 0 }}>
-        <Button
-          size="small"
-          variant="text"
-          color="inherit"
-          startIcon={<UnfoldMore />}
-          data-testid="monitor-expand-all-btn"
-          onClick={handleExpandAll}
-        >
-          Expand all
-        </Button>
-        <Button
-          size="small"
-          variant="text"
-          color="inherit"
-          startIcon={<UnfoldLess />}
-          data-testid="monitor-collapse-all-btn"
-          onClick={handleCollapseAll}
-        >
-          Collapse all
-        </Button>
-        {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
+        {gridShown && (
+          <>
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              startIcon={<UnfoldMore />}
+              data-testid="monitor-expand-all-btn"
+              onClick={handleExpandAll}
+            >
+              Expand all
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              startIcon={<UnfoldLess />}
+              data-testid="monitor-collapse-all-btn"
+              onClick={handleCollapseAll}
+            >
+              Collapse all
+            </Button>
+            {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
+          </>
+        )}
         <Box sx={{ flexGrow: 1 }} />
         <LogCount />
         <TrendOpenButton />

@@ -3,12 +3,8 @@
  * `downloadJson`'s data URL: a log's CSV is a line per sample, up to a
  * million, and a Blob takes them without encoding them into the URL.
  */
-export const downloadText = (filename: string, parts: string[], type: string): void =>
-  downloadBlob(filename, new Blob(parts, { type }))
-
-/** Hands the user `blob` as a file named `filename`. */
-export const downloadBlob = (filename: string, blob: Blob): void => {
-  const url = URL.createObjectURL(blob)
+export const downloadText = (filename: string, parts: string[], type: string): void => {
+  const url = URL.createObjectURL(new Blob(parts, { type }))
   const element = document.createElement('a')
   element.href = url
   element.download = filename

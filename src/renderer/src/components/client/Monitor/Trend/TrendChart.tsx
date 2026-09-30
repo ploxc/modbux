@@ -65,8 +65,6 @@ interface TrendChartProps {
   settings: TrendSettings
   /** The moment the time since the start counts from: the log's oldest sample. */
   origin: number
-  /** The uPlot drawn, once it is made and none once it is gone, which the image is taken from. */
-  onChart: (chart: uPlot | undefined) => void
 }
 
 /** The paths and points of a line, as the settings draw it. */
@@ -171,8 +169,7 @@ const TrendChart = meme(
     onPlot,
     readoutRows,
     settings,
-    origin,
-    onChart
+    origin
   }: TrendChartProps): JSX.Element => {
     const theme = useTheme()
     const container = useRef<HTMLDivElement>(null)
@@ -185,8 +182,6 @@ const TrendChart = meme(
     zoomOut.current = onZoomOut
     const plotted = useRef(onPlot)
     plotted.current = onPlot
-    const handed = useRef(onChart)
-    handed.current = onChart
     const shown = useRef({ from, to, origin })
     shown.current = { from, to, origin }
     const joined = useRef<uPlot.AlignedData>([[]])
@@ -310,7 +305,6 @@ const TrendChart = meme(
       }
       const made = new uPlot(options, [[]], box)
       chart.current = made
-      handed.current(made)
       // A sideways swipe is not a zoom.
       const handleWheel = (event: WheelEvent): void => {
         if (event.deltaY === 0) return
@@ -330,7 +324,6 @@ const TrendChart = meme(
         observer.disconnect()
         made.destroy()
         chart.current = null
-        handed.current(undefined)
         // The readout names this chart's lines at this chart's samples.
         setReadout(undefined)
       }

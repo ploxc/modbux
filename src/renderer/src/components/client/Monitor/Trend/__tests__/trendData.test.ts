@@ -18,8 +18,7 @@ import {
   valuesAt,
   viewWithin,
   zoomAround,
-  trendSeries,
-  trendSummary
+  trendSeries
 } from '../trendData'
 
 const point = (time: number, value: number, error?: string): LogPoint => ({ time, value, error })
@@ -48,16 +47,6 @@ describe('trendSeries', () => {
 
   it('leaves out a run that ended before the first sample drawn', () => {
     expect(trendSeries([point(5, 1)], [3], double)).toEqual({ times: [5], values: [2] })
-  })
-})
-
-describe('trendSummary', () => {
-  it('answers the last, lowest and highest number, passing over gaps', () => {
-    expect(trendSummary([3, null, 9, 1, null])).toEqual({ last: 1, min: 1, max: 9 })
-  })
-
-  it('answers nothing for a trend of gaps only', () => {
-    expect(trendSummary([null])).toEqual({ last: undefined, min: undefined, max: undefined })
   })
 })
 

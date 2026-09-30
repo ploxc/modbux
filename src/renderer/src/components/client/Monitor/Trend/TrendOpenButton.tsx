@@ -30,7 +30,7 @@ const TrendOpenButton = meme((): JSX.Element => {
   return (
     <Button
       size="small"
-      variant="outlined"
+      variant="text"
       color="inherit"
       data-testid="monitor-trend-btn"
       aria-pressed={open}
