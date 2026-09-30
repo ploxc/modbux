@@ -11,7 +11,8 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { TREND_COLORS, textMuted } from '@renderer/theme'
 import { ElementType, MouseEvent, ReactNode, useCallback, useState } from 'react'
 import { TrendLine } from './TrendChart'
-import { AxisRange, rangeOf, TrendSettings, TrendSide } from './trendData'
+import { AxisRange, TrendSettings, TrendSide } from '@shared'
+import { rangeOf } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'
 
 const numberInput = NumberInput as unknown as ElementType<InputBaseComponentProps, 'input'>

@@ -234,6 +234,53 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
+  test('a trend saves under a name with its client, and loads, renames and deletes', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    await mainPage.getByTestId('trend-range-1h').click()
+
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-save-as-btn').click()
+    await mainPage.getByTestId('trend-name-input').fill('Setpoint')
+    await mainPage.getByTestId('trend-name-confirm-btn').click()
+    await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Setpoint')
+
+    // A new trend draws nothing; the saved one draws its register and range again.
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-new-btn').click()
+    await expect(mainPage.getByTestId('trend-empty')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-saved-Setpoint').click()
+    await expect(mainPage.getByTestId('trend-chip-holding_registers-0')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-range-1h')).toHaveAttribute('aria-pressed', 'true')
+
+    // Changed since it was saved, it says so, and Save keeps the change.
+    await mainPage.getByTestId('trend-range-8h').click()
+    await expect(mainPage.getByTestId('trend-changed')).toBeVisible()
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-save-btn').click()
+    await expect(mainPage.getByTestId('trend-changed')).toHaveCount(0)
+
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-rename-btn').click()
+    await mainPage.getByTestId('trend-name-input').fill('Target')
+    await mainPage.getByTestId('trend-name-confirm-btn').click()
+    await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
+
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-delete-btn').click()
+    await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Trend')
+    await mainPage.getByTestId('trend-config-btn').click()
+    await expect(mainPage.getByTestId('trend-saved-Target')).toHaveCount(0)
+    await mainPage.keyboard.press('Escape')
+
+    await mainPage.getByTestId('trend-range-10m').click()
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
+  })
+
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
     await mainPage.getByTestId('client-view-debug-btn').click()
     await selectRegisterType(mainPage, 'Coils')

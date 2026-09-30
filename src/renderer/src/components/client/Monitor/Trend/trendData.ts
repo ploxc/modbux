@@ -6,19 +6,21 @@ import {
   LogPoint,
   LogRun,
   LogStopReason,
+  AxisRange,
   RegisterType,
-  RegisterTypeSchema
+  RegisterTypeSchema,
+  TrendRangeId,
+  TrendSettings
 } from '@shared'
 import type uPlot from 'uplot'
 
 /** The ranges a trend picks from, in the order it offers them. */
-export const TREND_RANGES = [
+export const TREND_RANGES: readonly { id: TrendRangeId; label: string }[] = [
   { id: '10m', label: '10 min' },
   { id: '1h', label: '1 h' },
   { id: '8h', label: '8 h' },
   { id: 'log', label: 'Whole log' }
-] as const
-export type TrendRangeId = (typeof TREND_RANGES)[number]['id']
+]
 
 /** How far back each range reaches, up to where the trend ends; the whole log reaches its oldest sample. */
 export const TREND_SPANS: Record<TrendRangeId, number> = {
@@ -326,31 +328,7 @@ export const loggedRegisters = (unit: ClientUnit): LoggedRegister[] =>
       .sort((a, b) => a.address - b.address)
   )
 
-/** A side of the chart a line's scale is drawn on. */
-export type TrendSide = 'left' | 'right'
-
-/** A range an axis is held at, rather than fitting what it draws. */
-export interface AxisRange {
-  min: number
-  max: number
-}
-
-/** How the trend draws: its axes' ranges, its time axis, and its lines. */
-export interface TrendSettings {
-  /** A fixed range per axis; none fits what the axis draws. */
-  left: AxisRange | undefined
-  right: AxisRange | undefined
-  /** The time axis as the clock reads it, or as the time since the trend's start. */
-  time: 'clock' | 'since'
-  drawAs: 'lines' | 'steps' | 'points'
-}
-
-export const DEFAULT_TREND_SETTINGS: TrendSettings = {
-  left: undefined,
-  right: undefined,
-  time: 'clock',
-  drawAs: 'lines'
-}
+export const DEFAULT_TREND_SETTINGS: TrendSettings = { time: 'clock', drawAs: 'lines' }
 
 /**
  * A stretch of time as the time axis writes it since the log's start: 1:05:09,

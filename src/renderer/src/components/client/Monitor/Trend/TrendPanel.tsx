@@ -17,13 +17,15 @@ import {
   isBooleanRegister,
   isNumberRegister,
   LogPoint,
-  RegisterMapValue
+  RegisterMapValue,
+  TrendRangeId
 } from '@shared'
 import { formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, useCallback, useMemo, useState } from 'react'
 import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
 import Button from '@mui/material/Button'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
+import TrendConfigMenu from './TrendConfigMenu'
 import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import TrendPicker from './TrendPicker'
@@ -32,7 +34,6 @@ import {
   TREND_RANGES,
   TREND_SPANS,
   TREND_STEPS,
-  TrendRangeId,
   trendGaps,
   trendSeries,
   trendSummary,
@@ -386,9 +387,7 @@ const TrendPanel = meme((): JSX.Element | null => {
           }}
         >
           <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />
-          <Box component="span" sx={{ fontWeight: 500 }}>
-            Trend
-          </Box>
+          <TrendConfigMenu />
           <RangePicker />
           {view !== undefined && (
             <Box

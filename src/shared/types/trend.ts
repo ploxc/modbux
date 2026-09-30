@@ -1,0 +1,45 @@
+import z from 'zod'
+import { RegisterTypeSchema } from './register'
+
+/** How far back a trend reaches: 10 minutes, an hour, 8 hours, or the whole log. */
+const TrendRangeIdSchema = z.enum(['10m', '1h', '8h', 'log'])
+export type TrendRangeId = z.infer<typeof TrendRangeIdSchema>
+
+/** A side of the chart a line's scale is drawn on. */
+const TrendSideSchema = z.enum(['left', 'right'])
+export type TrendSide = z.infer<typeof TrendSideSchema>
+
+/** A range an axis is held at, rather than fitting what it draws. */
+const AxisRangeSchema = z.object({ min: z.number(), max: z.number() })
+export type AxisRange = z.infer<typeof AxisRangeSchema>
+
+/**
+ * How a trend draws: a fixed range per side, none fitting what the side
+ * draws; the time axis as the clock reads it or as the time since the
+ * trend's start; and its lines as lines, steps or points.
+ */
+const TrendSettingsSchema = z.object({
+  left: AxisRangeSchema.optional(),
+  right: AxisRangeSchema.optional(),
+  time: z.enum(['clock', 'since']),
+  drawAs: z.enum(['lines', 'steps', 'points'])
+})
+export type TrendSettings = z.infer<typeof TrendSettingsSchema>
+
+/** A register a saved trend draws, of one of its client's units, in its colour and on its side. */
+const SavedTrendEntrySchema = z.object({
+  unit: z.string(),
+  type: RegisterTypeSchema,
+  address: z.number().int().min(0),
+  color: z.string(),
+  side: TrendSideSchema.optional()
+})
+
+/** A trend kept under a name with its client: its registers, its range and how it draws. */
+export const SavedTrendSchema = z.object({
+  name: z.string().min(1),
+  entries: z.array(SavedTrendEntrySchema),
+  range: TrendRangeIdSchema,
+  settings: TrendSettingsSchema
+})
+export type SavedTrend = z.infer<typeof SavedTrendSchema>

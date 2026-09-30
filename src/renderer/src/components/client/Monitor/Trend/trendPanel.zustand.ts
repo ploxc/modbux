@@ -1,15 +1,17 @@
 import { TREND_COLORS } from '@renderer/theme'
-import { ClientUnit, isLogged, RegisterType } from '@shared'
-import { create } from 'zustand'
-import { mutative } from 'zustand-mutative'
 import {
   AxisRange,
-  DEFAULT_TREND_SETTINGS,
+  ClientUnit,
+  isLogged,
+  RegisterType,
+  SavedTrend,
   TrendRangeId,
   TrendSettings,
-  TrendSide,
-  TrendView
-} from './trendData'
+  TrendSide
+} from '@shared'
+import { create } from 'zustand'
+import { mutative } from 'zustand-mutative'
+import { DEFAULT_TREND_SETTINGS, TrendView } from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -34,6 +36,14 @@ export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
 interface TrendPanelZustand {
   /** The client whose log the trend draws. */
   uuid: string
+  /** The name of the saved trend it was loaded from or saved as, until a new one starts. */
+  name: string | undefined
+  /** Draws a saved trend of client `uuid`: its registers, range and settings, under its name. */
+  load: (uuid: string, trend: SavedTrend) => void
+  /** Names the trend, as it was saved under. */
+  setName: (name: string | undefined) => void
+  /** Starts a trend of no registers, no name and the first settings. */
+  startNew: () => void
   /** The registers drawn, in the order they were added; kept while the trend is closed. */
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
@@ -85,6 +95,28 @@ interface TrendPanelZustand {
 export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutative', never]]>(
   mutative((set, get) => ({
     uuid: '',
+    name: undefined,
+    load: (uuid, trend): void =>
+      set((state) => {
+        state.uuid = uuid
+        state.name = trend.name
+        state.entries = trend.entries.map((entry) => ({ ...entry, uuid }))
+        state.range = trend.range
+        state.settings = trend.settings
+        state.view = undefined
+      }),
+    setName: (name): void =>
+      set((state) => {
+        state.name = name
+      }),
+    startNew: (): void =>
+      set((state) => {
+        state.name = undefined
+        state.entries = []
+        state.range = '10m'
+        state.settings = DEFAULT_TREND_SETTINGS
+        state.view = undefined
+      }),
     entries: [],
     anchor: null,
     range: '10m',
@@ -99,9 +131,11 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.view = view
       }),
     settings: DEFAULT_TREND_SETTINGS,
+    // Auto takes the key away, so the settings equal a saved trend's that never held one.
     setAxisRange: (side, range): void =>
       set((state) => {
-        state.settings[side] = range
+        if (range === undefined) delete state.settings[side]
+        else state.settings[side] = range
       }),
     setTime: (time): void =>
       set((state) => {
@@ -128,6 +162,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       const sameClient = get().uuid === uuid
       set({
         uuid,
+        name: sameClient ? get().name : undefined,
         entries: sameClient ? get().entries : [],
         anchor: get().anchor ?? anchor,
         view: sameClient ? get().view : undefined
@@ -145,6 +180,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       if (color === undefined) return false
       set({
         uuid: entry.uuid,
+        name: sameClient ? get().name : undefined,
         entries: [...kept, { ...entry, color }],
         anchor: get().anchor ?? anchor,
         view: sameClient ? get().view : undefined
@@ -189,3 +225,20 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       })
   }))
 )
+
+/** The trend as it would be saved under `name`: its registers, range and settings. */
+export const snapshotOf = (
+  { entries, range, settings }: Pick<TrendPanelZustand, 'entries' | 'range' | 'settings'>,
+  name: string
+): SavedTrend => ({
+  name,
+  entries: entries.map(({ unit, type, address, color, side }) => ({
+    unit,
+    type,
+    address,
+    color,
+    ...(side === undefined ? {} : { side })
+  })),
+  range,
+  settings
+})

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TREND_COLORS } from '@renderer/theme'
 import { newClientUnit } from '@shared'
-import { TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
+import { snapshotOf, TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
 
 const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
   uuid,
@@ -187,5 +187,57 @@ describe('the trend store', () => {
     store().prune([newClientUnit('unit-1', 1)])
 
     expect(store().view).toBeUndefined()
+  })
+
+  it('saves what it draws, and loads it back under its name', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().add(entry(1), anchor)
+    store().setSide(trendKey(entry(1)), 'right')
+    store().setRange('1h')
+    store().setDrawAs('steps')
+    const saved = snapshotOf(store(), 'Currents')
+    expect(saved).toEqual({
+      name: 'Currents',
+      entries: [
+        { unit: 'unit-1', type: 'holding_registers', address: 0, color: TREND_COLORS[0] },
+        {
+          unit: 'unit-1',
+          type: 'holding_registers',
+          address: 1,
+          color: TREND_COLORS[1],
+          side: 'right'
+        }
+      ],
+      range: '1h',
+      settings: { time: 'clock', drawAs: 'steps' }
+    })
+
+    store().startNew()
+    expect(store()).toMatchObject({ name: undefined, entries: [], range: '10m' })
+
+    store().load('client-a', saved)
+    expect(store().name).toBe('Currents')
+    expect(snapshotOf(store(), 'Currents')).toEqual(saved)
+    expect(store().entries[0]?.uuid).toBe('client-a')
+  })
+
+  it('saves as it was after a side is held and set back to Auto', () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    const before = snapshotOf(store(), 'Currents')
+    store().setAxisRange('left', { min: 0, max: 10 })
+    store().setAxisRange('left', undefined)
+
+    expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
+  })
+
+  it("forgets the name when it starts over with another client's register", () => {
+    const anchor = document.createElement('div')
+    store().add(entry(0), anchor)
+    store().setName('Currents')
+    store().add(entry(0, 'client-b'), anchor)
+
+    expect(store().name).toBeUndefined()
   })
 })

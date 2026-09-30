@@ -128,8 +128,40 @@ export const useClientZustand = create<
         if (!source) return undefined
         const copy = structuredClone(source)
         copy.name = source.name === '' ? '' : `${source.name} copy`
-        copy.units = copy.units.map((unit) => ({ ...unit, uuid: v4() }))
+        const renamed = new Map(source.units.map((unit) => [unit.uuid, v4()]))
+        copy.units = copy.units.map((unit) => ({ ...unit, uuid: renamed.get(unit.uuid) ?? v4() }))
+        // A trend names its registers' units, which the copy holds under new uuids.
+        copy.trends = copy.trends?.map((trend) => ({
+          ...trend,
+          entries: trend.entries.map((entry) => ({
+            ...entry,
+            unit: renamed.get(entry.unit) ?? entry.unit
+          }))
+        }))
         return get().addClient(copy)
+      },
+      saveTrend: (uuid, trend) =>
+        set((state) =>
+          onClient(state, uuid, ({ client }) => {
+            const others = (client.trends ?? []).filter(({ name }) => name !== trend.name)
+            client.trends = [...others, trend]
+          })
+        ),
+      deleteTrend: (uuid, name) =>
+        set((state) =>
+          onClient(state, uuid, ({ client }) => {
+            client.trends = client.trends?.filter((trend) => trend.name !== name)
+          })
+        ),
+      renameTrend: (uuid, from, to) => {
+        const trends = get().clients[uuid]?.trends ?? []
+        if (from !== to && trends.some(({ name }) => name === to)) return false
+        set((state) =>
+          onClient(state, uuid, ({ client }) => {
+            for (const trend of client.trends ?? []) if (trend.name === from) trend.name = to
+          })
+        )
+        return true
       },
       deleteClient: async (uuid) => {
         const { clients } = get()

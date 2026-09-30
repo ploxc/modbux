@@ -5,6 +5,7 @@ import { DateTime } from 'luxon'
 import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
+import { TrendSettings } from '@shared'
 import {
   figure,
   indexAt,
@@ -15,7 +16,6 @@ import {
   sinceText,
   TrendGap,
   TrendSeries,
-  TrendSettings,
   valuesAt,
   WHEEL_ZOOM,
   zoomAround

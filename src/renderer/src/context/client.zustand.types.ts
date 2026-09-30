@@ -14,7 +14,9 @@ import {
   SerialPortValidationResult,
   ConfigReset,
   DataBits,
-  StopBits
+  StopBits,
+  SavedTrend,
+  SavedTrendSchema
 } from '@shared'
 import z from 'zod'
 
@@ -33,7 +35,9 @@ export const PersistedClientSchema = z.object({
   name: z.string(),
   connectionConfig: ConnectionConfigSchema,
   registerConfig: RegisterConfigSchema,
-  units: z.array(ClientUnitSchema).min(1)
+  units: z.array(ClientUnitSchema).min(1),
+  /** The trends kept with the client, by name; none before one is saved. */
+  trends: z.array(SavedTrendSchema).optional()
 })
 export type PersistedClient = z.infer<typeof PersistedClientSchema>
 
@@ -88,6 +92,11 @@ export type ClientZustand = {
   setSelectedUuid: (uuid: string) => void
   /** Moves a client to `index` in the sidebar's order. */
   moveClient: (uuid: string, index: number) => void
+  /** Keeps `trend` with client `uuid`, over the one of its name. */
+  saveTrend: (uuid: string, trend: SavedTrend) => void
+  deleteTrend: (uuid: string, name: string) => void
+  /** Renames a trend of client `uuid`; false when another of its trends has the name. */
+  renameTrend: (uuid: string, from: string, to: string) => boolean
   setName: (name: string) => void
   // Register mapping
   /**
