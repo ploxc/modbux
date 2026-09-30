@@ -9,10 +9,10 @@ import { useTrendPanelZustand } from './trendPanel.zustand'
 /**
  * Monitor's Trend: opens the trend of the client on screen as it was left,
  * or empty, and closes it again. It counts the registers the trend draws.
- * The trend opens in the top right corner of `anchor`, Monitor's grid, clear
- * of the toolbar, so the button stays in reach.
+ * The trend opens in the corner of Monitor's grid room, clear of the
+ * toolbar, so the button stays in reach.
  */
-const TrendOpenButton = meme(({ anchor }: { anchor: HTMLElement }): JSX.Element => {
+const TrendOpenButton = meme((): JSX.Element => {
   const uuid = useClientZustand((z) => z.selectedUuid)
   const open = useTrendPanelZustand((z) => z.anchor !== null)
   const count = useTrendPanelZustand((z) => (z.uuid === uuid ? z.entries.length : 0))
@@ -23,9 +23,9 @@ const TrendOpenButton = meme(({ anchor }: { anchor: HTMLElement }): JSX.Element 
       trendPanelZustand.close()
       return
     }
-    trendPanelZustand.open(uuid, anchor)
+    trendPanelZustand.open(uuid)
     trendPanelZustand.prune(useClientZustand.getState().clients[uuid]?.units ?? [])
-  }, [open, uuid, anchor])
+  }, [open, uuid])
 
   return (
     <Button

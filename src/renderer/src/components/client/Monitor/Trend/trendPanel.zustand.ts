@@ -33,6 +33,9 @@ export interface DrawnEntry extends TrendEntry {
 export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
   `${uuid}|${unit}|${type}|${address}`
 
+/** Where the trend is drawn. */
+export type TrendMode = 'float' | 'dock' | 'fill'
+
 interface TrendPanelZustand {
   /** The client whose log the trend draws. */
   uuid: string
@@ -48,6 +51,15 @@ interface TrendPanelZustand {
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
   anchor: HTMLElement | null
+  /**
+   * Monitor's grid room, while Monitor is on screen: the trend opens in its
+   * corner, and it stays mounted while the grid moves between the places.
+   */
+  room: HTMLElement | null
+  setRoom: (room: HTMLElement | null) => void
+  /** Floating over Monitor, docked under its grid, or filling its room. */
+  mode: TrendMode
+  setMode: (mode: TrendMode) => void
   /** How far back the trend reaches. A new range follows the log again. */
   range: TrendRangeId
   setRange: (range: TrendRangeId) => void
@@ -63,18 +75,18 @@ interface TrendPanelZustand {
   /** Gives a register another colour, and the register holding that one the first's. */
   setColor: (key: string, color: string) => void
   /**
-   * Opens the trend of client `uuid` under `anchor`, as it was left. A trend
+   * Opens the trend of client `uuid` in the room, as it was left. A trend
    * draws one client's log, so another client's starts empty.
    */
-  open: (uuid: string, anchor: HTMLElement) => void
+  open: (uuid: string) => void
   /**
-   * Adds a register, opening the trend under `anchor` when it is closed. A
+   * Adds a register, opening the trend in the room when it is closed. A
    * register of another client starts the trend over with that one. Each
    * line takes the first of `TREND_COLORS` no other line has, so a trend
    * draws as many registers as there are colours, and answers false for one
    * more.
    */
-  add: (entry: TrendEntry, anchor: HTMLElement) => boolean
+  add: (entry: TrendEntry) => boolean
   /**
    * Takes a register of the trend's client out when it draws it, and adds it
    * otherwise, with a colour as `add` gives one; false for one more than the
@@ -119,6 +131,14 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       }),
     entries: [],
     anchor: null,
+    room: null,
+    // A partial rather than a recipe: an element is no state to draft.
+    setRoom: (room): void => set({ room }),
+    mode: 'float',
+    setMode: (mode): void =>
+      set((state) => {
+        state.mode = mode
+      }),
     range: '10m',
     setRange: (range): void =>
       set((state) => {
@@ -158,20 +178,20 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         moving.color = color
       }),
     // Partials rather than recipes: an element is no state to draft.
-    open: (uuid, anchor): void => {
+    open: (uuid): void => {
       const sameClient = get().uuid === uuid
       set({
         uuid,
         name: sameClient ? get().name : undefined,
         entries: sameClient ? get().entries : [],
-        anchor: get().anchor ?? anchor,
+        anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined
       })
     },
-    add: (entry, anchor): boolean => {
+    add: (entry): boolean => {
       const { entries } = get()
       if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) {
-        set({ anchor: get().anchor ?? anchor })
+        set({ anchor: get().anchor ?? get().room })
         return true
       }
       const sameClient = get().uuid === entry.uuid
@@ -182,7 +202,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         uuid: entry.uuid,
         name: sameClient ? get().name : undefined,
         entries: [...kept, { ...entry, color }],
-        anchor: get().anchor ?? anchor,
+        anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined
       })
       return true

@@ -21,7 +21,10 @@ import {
   TrendRangeId
 } from '@shared'
 import { formatTime } from '@renderer/components/client/Logging/format'
-import { MouseEvent, useCallback, useMemo, useState } from 'react'
+import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
+import OpenInFull from '@mui/icons-material/OpenInFull'
+import PictureInPicture from '@mui/icons-material/PictureInPicture'
+import VerticalSplit from '@mui/icons-material/VerticalSplit'
 import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
 import Button from '@mui/material/Button'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
@@ -41,7 +44,13 @@ import {
   laneAt,
   viewWithin
 } from './trendData'
-import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
+import {
+  DrawnEntry,
+  TrendEntry,
+  trendKey,
+  TrendMode,
+  useTrendPanelZustand
+} from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
 
 const PAPER_SX = {
@@ -63,6 +72,52 @@ const LANES_ONLY_CHART = 56
 
 /** How many stretches the navigator's line of the whole log is asked in. */
 const NAVIGATOR_STEPS = 300
+
+/** A press that puts the trend in `mode`. */
+const ModeButton = meme(
+  ({ mode, label, icon }: { mode: TrendMode; label: string; icon: ReactNode }): JSX.Element => {
+    const handleClick = useCallback(() => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setMode(mode)
+    }, [mode])
+    return (
+      <IconButton
+        size="small"
+        aria-label={label}
+        title={label}
+        data-testid={`trend-mode-${mode}-btn`}
+        onClick={handleClick}
+      >
+        {icon}
+      </IconButton>
+    )
+  }
+)
+
+/** The trend's other two places: floating, docked under Monitor's grid, or filling its room. */
+const ModeButtons = meme(
+  ({ mode }: { mode: TrendMode }): JSX.Element => (
+    <>
+      {mode !== 'float' && (
+        <ModeButton
+          mode="float"
+          label="Float over Monitor"
+          icon={<PictureInPicture fontSize="small" />}
+        />
+      )}
+      {mode !== 'dock' && (
+        <ModeButton
+          mode="dock"
+          label="Dock under Monitor"
+          icon={<VerticalSplit fontSize="small" />}
+        />
+      )}
+      {mode !== 'fill' && (
+        <ModeButton mode="fill" label="Fill the view" icon={<OpenInFull fontSize="small" />} />
+      )}
+    </>
+  )
+)
 
 /** The range buttons, and a press that picks one. */
 const RangePicker = meme((): JSX.Element => {
@@ -230,163 +285,161 @@ const TrendChip = meme(({ entry, text }: { entry: DrawnEntry; text: string }): J
  * last stopped. The range before the log's oldest sample is hatched, and each
  * stretch between two runs is shaded and named by why the first ended.
  */
-const TrendPanel = meme((): JSX.Element | null => {
-  const entries = useTrendPanelZustand((z) => z.entries)
-  const anchor = useTrendPanelZustand((z) => z.anchor)
-  const uuid = useTrendPanelZustand((z) => z.uuid)
-  const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
-  const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
-  const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
-  // The array main's last client state carried, which the store keeps as it came.
-  const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
-  const range = useTrendPanelZustand((z) => z.range)
-  const view = useTrendPanelZustand((z) => z.view)
-  const settings = useTrendPanelZustand((z) => z.settings)
-  // A script's value waits for the engine, and draws again once it is there.
-  useScriptEngineZustand((z) => z.ready)
+const TrendContent = meme(
+  ({ placement, anchor }: { placement: 'float' | 'inline'; anchor: HTMLElement }): JSX.Element => {
+    const entries = useTrendPanelZustand((z) => z.entries)
+    const mode = useTrendPanelZustand((z) => z.mode)
+    const uuid = useTrendPanelZustand((z) => z.uuid)
+    const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
+    const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
+    const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
+    // The array main's last client state carried, which the store keeps as it came.
+    const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
+    const range = useTrendPanelZustand((z) => z.range)
+    const view = useTrendPanelZustand((z) => z.view)
+    const settings = useTrendPanelZustand((z) => z.settings)
+    // A script's value waits for the engine, and draws again once it is there.
+    useScriptEngineZustand((z) => z.ready)
 
-  const lastEnd = runs.at(-1)?.end
-  const span = TREND_SPANS[range]
-  const started = oldest !== undefined
-  // Zoomed or panned, the trend holds still on its stretch, in steps of it,
-  // and asks as much again on either side so its lines run to its edges.
-  const points = useLogWindows(
-    entries,
-    view === undefined
-      ? { live: running, span, until: lastEnd, started }
-      : {
-          live: false,
-          span: 3 * (view.to - view.from),
-          until: view.to + (view.to - view.from),
-          started,
-          steps: 3 * TREND_STEPS
-        }
-  )
-  const first = useMemo(() => entries.slice(0, 1), [entries])
-  const whole = useLogWindows(first, {
-    live: running,
-    span: Number.POSITIVE_INFINITY,
-    until: lastEnd,
-    started,
-    steps: NAVIGATOR_STEPS
-  })
-  const lineEntries = useMemo(
-    () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
-    [entries, units]
-  )
-  const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
-  const [plot, setPlot] = useState<PlotBox>()
+    const lastEnd = runs.at(-1)?.end
+    const span = TREND_SPANS[range]
+    const started = oldest !== undefined
+    // Zoomed or panned, the trend holds still on its stretch, in steps of it,
+    // and asks as much again on either side so its lines run to its edges.
+    const points = useLogWindows(
+      entries,
+      view === undefined
+        ? { live: running, span, until: lastEnd, started }
+        : {
+            live: false,
+            span: 3 * (view.to - view.from),
+            until: view.to + (view.to - view.from),
+            started,
+            steps: 3 * TREND_STEPS
+          }
+    )
+    const first = useMemo(() => entries.slice(0, 1), [entries])
+    const whole = useLogWindows(first, {
+      live: running,
+      span: Number.POSITIVE_INFINITY,
+      until: lastEnd,
+      started,
+      steps: NAVIGATOR_STEPS
+    })
+    const lineEntries = useMemo(
+      () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
+      [entries, units]
+    )
+    const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
+    const [plot, setPlot] = useState<PlotBox>()
 
-  // Converted again on every render, which comes with each answer, a store
-  // change or the script engine turning ready. A script conversion measured
-  // about 1.9 µs a call, so the 6,000 samples of 10 minutes at 100 ms polls
-  // take about 11 ms a register.
-  const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
-  const drawn = lineEntries.map((entry) => {
-    const mapValue = mapValueOf(units, entry)
-    const convert = (raw: number): number | undefined => {
-      if (!isNumberRegister(entry.type)) return raw
-      const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
-      return typeof converted === 'number' ? converted : undefined
-    }
-    return { entry, series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert) }
-  })
-
-  // Live, the range ends now, and moves with each answer; stopped, where the
-  // log stopped. The whole log starts at its oldest sample, and an empty one
-  // shows the shortest range.
-  const end = running ? Date.now() : (lastEnd ?? Date.now())
-  const to = view?.to ?? end
-  const from =
-    view?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
-  const gaps = trendGaps(runs, end)
-  const handleClose = useCallback(() => {
-    const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.close()
-  }, [])
-  // Inside what the log holds, up to now; reaching its end with the range
-  // or more follows the log again.
-  // The end is this render's, which the chart and the navigator drew with, so
-  // a stretch dragged back to their end reaches the log's.
-  const handleZoom = useCallback(
-    (zoomFrom: number, zoomTo: number) => {
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setView(
-        viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, span)
-      )
-    },
-    [end, oldest, span]
-  )
-  const handleFollow = useCallback(() => {
-    const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.setView(undefined)
-  }, [])
-  const lanes = entries.flatMap((entry): TrendLane[] => {
-    const mapValue = mapValueOf(units, entry)
-    if (!isLane(entry, mapValue)) return []
-    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
-    const address = entry.address + Number(addressBase)
-    return [
-      {
-        key: trendKey(entry),
-        type: entry.type,
-        address,
-        label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
-        color: entry.color,
-        bitmap: mapValue?.dataType === 'bitmap',
-        mapValue,
-        points: points[trendKey(entry)] ?? []
+    // Converted again on every render, which comes with each answer, a store
+    // change or the script engine turning ready. A script conversion measured
+    // about 1.9 µs a call, so the 6,000 samples of 10 minutes at 100 ms polls
+    // take about 11 ms a register.
+    const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
+    const drawn = lineEntries.map((entry) => {
+      const mapValue = mapValueOf(units, entry)
+      const convert = (raw: number): number | undefined => {
+        if (!isNumberRegister(entry.type)) return raw
+        const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
+        return typeof converted === 'number' ? converted : undefined
       }
-    ]
-  })
-  // Each register's newest value, as its chip writes it.
-  const chipTexts = new Map([
-    ...lanes.map(({ key, bitmap, points: samples }): [string, string] => [
-      key,
-      laneText(bitmap, samples.at(-1))
-    ]),
-    ...drawn.map(({ entry, series }): [string, string] => {
-      const unit = mapValueOf(units, entry)?.unit
+      return { entry, series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert) }
+    })
+
+    // Live, the range ends now, and moves with each answer; stopped, where the
+    // log stopped. The whole log starts at its oldest sample, and an empty one
+    // shows the shortest range.
+    const end = running ? Date.now() : (lastEnd ?? Date.now())
+    const to = view?.to ?? end
+    const from =
+      view?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
+    const gaps = trendGaps(runs, end)
+    const handleClose = useCallback(() => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.close()
+    }, [])
+    // Inside what the log holds, up to now; reaching its end with the range
+    // or more follows the log again.
+    // The end is this render's, which the chart and the navigator drew with, so
+    // a stretch dragged back to their end reaches the log's.
+    const handleZoom = useCallback(
+      (zoomFrom: number, zoomTo: number) => {
+        const trendPanelZustand = useTrendPanelZustand.getState()
+        trendPanelZustand.setView(
+          viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, span)
+        )
+      },
+      [end, oldest, span]
+    )
+    const handleFollow = useCallback(() => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setView(undefined)
+    }, [])
+    const lanes = entries.flatMap((entry): TrendLane[] => {
+      const mapValue = mapValueOf(units, entry)
+      if (!isLane(entry, mapValue)) return []
+      const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+      const address = entry.address + Number(addressBase)
       return [
-        trendKey(entry),
-        `${figure(trendSummary(series.values).last)}${unit ? ` ${unit}` : ''}`
+        {
+          key: trendKey(entry),
+          type: entry.type,
+          address,
+          label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+          color: entry.color,
+          bitmap: mapValue?.dataType === 'bitmap',
+          mapValue,
+          points: points[trendKey(entry)] ?? []
+        }
       ]
     })
-  ])
-  const readoutRows = (time: number): ReadoutRow[] =>
-    lanes.map((lane) => ({
-      key: lane.key,
-      label: lane.label,
-      color: lane.bitmap ? 'text.secondary' : lane.color,
-      text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
-    }))
-  const firstEntry = first[0]
-  const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
+    // Each register's newest value, as its chip writes it.
+    const chipTexts = new Map([
+      ...lanes.map(({ key, bitmap, points: samples }): [string, string] => [
+        key,
+        laneText(bitmap, samples.at(-1))
+      ]),
+      ...drawn.map(({ entry, series }): [string, string] => {
+        const unit = mapValueOf(units, entry)?.unit
+        return [
+          trendKey(entry),
+          `${figure(trendSummary(series.values).last)}${unit ? ` ${unit}` : ''}`
+        ]
+      })
+    ])
+    const readoutRows = (time: number): ReadoutRow[] =>
+      lanes.map((lane) => ({
+        key: lane.key,
+        label: lane.label,
+        color: lane.bitmap ? 'text.secondary' : lane.color,
+        text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
+      }))
+    const firstEntry = first[0]
+    const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
 
-  if (anchor === null) return null
-  return (
-    // In the grid's top right corner, clear of the address column where the
-    // Log icons that add to it are: opened under a row, it covered the rows
-    // below it.
-    <DraggablePanel anchor={anchor} onClose={handleClose} paperSx={PAPER_SX} label="Trend">
+    const floating = placement === 'float'
+    const content = (
       <Box
         data-testid="trend-panel"
+        data-mode={mode}
         sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
       >
         <Box
-          className={DRAG_HANDLE_CLASS}
+          className={floating ? DRAG_HANDLE_CLASS : undefined}
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            pl: 0.75,
+            pl: floating ? 0.75 : 1.5,
             pr: 1,
             pt: 0.75,
             userSelect: 'none',
-            cursor: 'move'
+            cursor: floating ? 'move' : 'default'
           }}
         >
-          <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />
+          {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
           <TrendConfigMenu />
           <RangePicker />
           {view !== undefined && (
@@ -446,6 +499,7 @@ const TrendPanel = meme((): JSX.Element | null => {
             {state}
           </Box>
           <TrendSettingsPopover lines={layout.settingsLines} />
+          <ModeButtons mode={mode} />
           <IconButton
             size="small"
             aria-label="Zoom out to the range"
@@ -530,8 +584,36 @@ const TrendPanel = meme((): JSX.Element | null => {
           </Box>
         )}
       </Box>
-    </DraggablePanel>
-  )
+    )
+    if (!floating)
+      return (
+        <Box
+          sx={{ height: '100%', bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}
+        >
+          {content}
+        </Box>
+      )
+    return (
+      // In the grid's top right corner, clear of the address column where the
+      // Log icons that add to it are: opened under a row, it covered the rows
+      // below it.
+      <DraggablePanel anchor={anchor} onClose={handleClose} paperSx={PAPER_SX} label="Trend">
+        {content}
+      </DraggablePanel>
+    )
+  }
+)
+
+/**
+ * The trend where Monitor draws it: floating, or inline in its grid's room.
+ * Only the place the trend's mode names draws it, and the other returns
+ * before it asks main for anything.
+ */
+const TrendPanel = meme(({ placement }: { placement: 'float' | 'inline' }): JSX.Element | null => {
+  const anchor = useTrendPanelZustand((z) => z.anchor)
+  const floatingMode = useTrendPanelZustand((z) => z.mode === 'float')
+  if (anchor === null || floatingMode !== (placement === 'float')) return null
+  return <TrendContent placement={placement} anchor={anchor} />
 })
 
 export default TrendPanel

@@ -17,6 +17,8 @@ import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
 import { isNumberRegister } from '@shared'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Group, Panel } from 'react-resizable-panels'
+import ResizeHandle from '@renderer/components/shared/ResizeHandle'
 import LogCount from '@renderer/components/client/Logging/LogCount'
 import TrendOpenButton from './Trend/TrendOpenButton'
 import TrendPanel from './Trend/TrendPanel'
@@ -107,8 +109,17 @@ const Monitor = meme((): JSX.Element => {
   const units = useClientZustand((z) => z.clients[z.selectedUuid]?.units)
   const folded = useMonitorZustand((z) => z.folded)
   const rows = useMemo(() => (units ? monitorRows(units, folded) : []), [units, folded])
-  // The grid's box, whose corner the trend opens in from the toolbar.
+  // The grid's room, whose corner the trend opens in, held by the trend's store.
   const [body, setBody] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setRoom(body)
+    return (): void => trendPanelZustand.setRoom(null)
+  }, [body])
+  const trendOpen = useTrendPanelZustand((z) => z.anchor !== null)
+  const trendMode = useTrendPanelZustand((z) => z.mode)
+  // Docked or filling, the trend is drawn in the grid's room rather than over it.
+  const inline = trendOpen && trendMode !== 'float' ? trendMode : undefined
   // A bit has no raw value apart from the one it shows.
   const anyRegisters = rows.some((row) => isNumberRegister(row.type))
 
@@ -134,6 +145,38 @@ const Monitor = meme((): JSX.Element => {
     const monitorZustand = useMonitorZustand.getState()
     monitorZustand.foldAll(allGroupKeys(clients[selectedUuid]?.units ?? []))
   }, [])
+
+  const grid =
+    rows.length === 0 ? (
+      <Typography
+        data-testid="monitor-empty"
+        variant="body2"
+        sx={{ p: 2, color: 'text.secondary' }}
+      >
+        Nothing is configured yet. Give registers a data type, or bits a comment, in Debug.
+      </Typography>
+    ) : (
+      <DataGrid
+        className="monitor-grid"
+        rows={rows}
+        columns={COLUMNS}
+        density="compact"
+        rowHeight={ROW_HEIGHT}
+        getRowHeight={rowHeightOf}
+        getRowClassName={rowClassOf}
+        disableColumnMenu
+        disableColumnFilter
+        disableRowSelectionOnClick
+        hideFooter
+        sx={{
+          '& .MuiDataGrid-row': { fontFamily: 'monospace', fontSize: '0.95em' },
+          '& .monitor-head-row': {
+            bgcolor: 'background.paper',
+            fontFamily: 'inherit'
+          }
+        }}
+      />
+    )
 
   return (
     <Box
@@ -164,42 +207,29 @@ const Monitor = meme((): JSX.Element => {
         {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
         <Box sx={{ flexGrow: 1 }} />
         <LogCount />
-        {/* Once the grid's box is there to open the trend in. */}
-        {body && <TrendOpenButton anchor={body} />}
+        <TrendOpenButton />
       </Box>
-      <Box ref={setBody} sx={{ flexGrow: 1, minHeight: 0 }}>
-        {rows.length === 0 ? (
-          <Typography
-            data-testid="monitor-empty"
-            variant="body2"
-            sx={{ p: 2, color: 'text.secondary' }}
-          >
-            Nothing is configured yet. Give registers a data type, or bits a comment, in Debug.
-          </Typography>
+      <Box ref={setBody} sx={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
+        {inline === 'dock' ? (
+          <Group orientation="vertical" id="monitor-trend" style={{ flexGrow: 1, minHeight: 0 }}>
+            <Panel id="monitor-grid" minSize={120}>
+              {grid}
+            </Panel>
+            <ResizeHandle orientation="horizontal" testId="monitor-trend-handle" />
+            <Panel id="monitor-trend-dock" minSize={220} defaultSize={340}>
+              <TrendPanel placement="inline" />
+            </Panel>
+          </Group>
+        ) : inline === 'fill' ? (
+          // The grid gives way, and Monitor goes on reading under the trend.
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <TrendPanel placement="inline" />
+          </Box>
         ) : (
-          <DataGrid
-            className="monitor-grid"
-            rows={rows}
-            columns={COLUMNS}
-            density="compact"
-            rowHeight={ROW_HEIGHT}
-            getRowHeight={rowHeightOf}
-            getRowClassName={rowClassOf}
-            disableColumnMenu
-            disableColumnFilter
-            disableRowSelectionOnClick
-            hideFooter
-            sx={{
-              '& .MuiDataGrid-row': { fontFamily: 'monospace', fontSize: '0.95em' },
-              '& .monitor-head-row': {
-                bgcolor: 'background.paper',
-                fontFamily: 'inherit'
-              }
-            }}
-          />
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>{grid}</Box>
         )}
       </Box>
-      <TrendPanel />
+      <TrendPanel placement="float" />
     </Box>
   )
 })

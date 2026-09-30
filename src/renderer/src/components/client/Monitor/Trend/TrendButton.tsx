@@ -5,7 +5,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { TREND_COLORS } from '@renderer/theme'
 import { enqueueSnackbar } from 'notistack'
-import { MouseEvent, useCallback } from 'react'
+import { useCallback } from 'react'
 import { MonitorRegisterRow } from '../monitorRows'
 import { trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 
@@ -21,26 +21,22 @@ const TrendButton = meme(
       (z) => z.anchor !== null && z.entries.some((entry) => trendKey(entry) === key)
     )
 
-    // The grid, whose corner the trend opens in.
-    const handleAdd = useCallback(
-      (event: MouseEvent<HTMLElement>) => {
-        const anchor =
-          event.currentTarget.closest<HTMLElement>('.monitor-grid') ?? event.currentTarget
-        const trendPanelZustand = useTrendPanelZustand.getState()
-        // What it kept while closed may have stopped logging since.
-        trendPanelZustand.prune(useClientZustand.getState().clients[uuid]?.units ?? [])
-        const added = trendPanelZustand.add(
-          { uuid, unit: row.unit, type: row.type, address: row.address },
-          anchor
-        )
-        if (!added)
-          enqueueSnackbar({
-            variant: 'info',
-            message: `The trend draws ${TREND_COLORS.length} registers; take one out first`
-          })
-      },
-      [uuid, row.unit, row.type, row.address]
-    )
+    const handleAdd = useCallback(() => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      // What it kept while closed may have stopped logging since.
+      trendPanelZustand.prune(useClientZustand.getState().clients[uuid]?.units ?? [])
+      const added = trendPanelZustand.add({
+        uuid,
+        unit: row.unit,
+        type: row.type,
+        address: row.address
+      })
+      if (!added)
+        enqueueSnackbar({
+          variant: 'info',
+          message: `The trend draws ${TREND_COLORS.length} registers; take one out first`
+        })
+    }, [uuid, row.unit, row.type, row.address])
 
     return (
       <IconButton

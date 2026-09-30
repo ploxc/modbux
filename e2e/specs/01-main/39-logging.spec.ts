@@ -281,6 +281,42 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
+  test('the trend floats, docks under Monitor and fills its room, as it was left', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
+
+    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'dock')
+    await expect(mainPage.getByTestId('monitor-trend-handle')).toBeVisible()
+
+    // Back to floating, it opens in the grid's corner again, inside the window.
+    await mainPage.getByTestId('trend-mode-float-btn').click()
+    const floated = await mainPage.getByTestId('trend-panel').boundingBox()
+    expect(floated?.x ?? -1).toBeGreaterThan(0)
+    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+
+    // Filling the room, it hides the grid, and Monitor goes on reading.
+    await mainPage.getByTestId('trend-mode-fill-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'fill')
+    await expect(mainPage.locator('.monitor-grid')).toHaveCount(0)
+    await expect(mainPage.getByTestId('trend-chip-value-holding_registers-0')).toContainText('100')
+
+    // Closed and opened again, it comes back where it was.
+    await mainPage.getByTestId('trend-close-btn').click()
+    await expect(mainPage.locator('.monitor-grid')).toBeVisible()
+    await mainPage.getByTestId('monitor-trend-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'fill')
+
+    await mainPage.getByTestId('trend-mode-float-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
+  })
+
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
     await mainPage.getByTestId('client-view-debug-btn').click()
     await selectRegisterType(mainPage, 'Coils')
