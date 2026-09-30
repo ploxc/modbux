@@ -12,7 +12,7 @@ vi.hoisted(async () => {
   stubRenderer()
 })
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { ApiCall, recordApiCalls } from '@renderer/context/__tests__/stubRenderer'
 import { patchShownData } from '@renderer/context/__tests__/shownData'
@@ -52,6 +52,25 @@ const renderLogButton = ({
   render(<LogButton />)
   return screen.getByTestId('log-btn')
 }
+
+/** The log that is on and running, opened over 100,000 samples. */
+const openRunningLog = async (): Promise<void> => {
+  await userEvent
+    .setup()
+    .click(renderLogButton({ log: { enabled: true, running: true, samples: 100_000 } }))
+}
+
+/** A poll that leaves the log at `samples`. */
+const pollTo = (samples: number): void =>
+  act(() =>
+    patchShownData(useLiveZustand, {
+      clientState: {
+        ...defaultClientState,
+        connectState: 'connected',
+        log: { ...defaultClientState.log, enabled: true, running: true, samples }
+      }
+    })
+  )
 
 beforeEach(() => {
   calls = []
@@ -133,5 +152,24 @@ describe('the log button', () => {
 
     expect(payloadsOf('stopLog')).toEqual([useClientZustand.getState().selectedUuid])
     expect(payloadsOf('stopPolling')).toEqual([])
+  })
+
+  // Emotion never removes a class, so a width in `sx` would add a style
+  // element on every poll while the log is open.
+  it('adds no style rule a poll as the log grows', async () => {
+    await openRunningLog()
+    const styles = document.querySelectorAll('style[data-emotion]').length
+
+    for (const samples of [200_000, 300_000, 400_000]) pollTo(samples)
+
+    expect(document.querySelectorAll('style[data-emotion]').length).toBe(styles)
+  })
+
+  it('fills its bar to the share of the capacity the log holds', async () => {
+    await openRunningLog()
+
+    pollTo(400_000)
+
+    expect(screen.getByTestId('log-status-fill')).toHaveStyle({ width: 'max(3px, 40%)' })
   })
 })

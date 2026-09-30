@@ -375,9 +375,11 @@ const TrendChart = meme(
         {readout !== undefined && place !== undefined && (
           <Box
             data-testid="trend-readout"
+            // Where the cursor stops is a new place each time, and a value in
+            // `sx` would be a new class each time.
+            style={place}
             sx={{
               position: 'absolute',
-              ...place,
               width: READOUT_WIDTH,
               boxSizing: 'border-box',
               px: 1.25,

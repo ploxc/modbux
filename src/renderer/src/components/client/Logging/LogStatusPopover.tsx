@@ -173,7 +173,10 @@ const LogStatusPopover = meme(({ anchor, onClose }: LogStatusPopoverProps): JSX.
           >
             <Box
               data-testid="log-status-fill"
-              sx={{ width: logFill(samples, capacity), height: '100%', bgcolor: 'success.main' }}
+              // The width moves with every poll, and a value in `sx` would be a
+              // new class each time.
+              style={{ width: logFill(samples, capacity) }}
+              sx={{ height: '100%', bgcolor: 'success.main' }}
             />
           </Box>
           <Box

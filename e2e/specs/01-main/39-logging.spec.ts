@@ -99,6 +99,20 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width * 0.9, plotBox.y + plotBox.height / 2)
     await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText('100')
+    // Emotion never removes a class, so a readout placed through one would
+    // leave a rule behind for every place the cursor stops.
+    const cssRules = (): Promise<number> =>
+      mainPage.evaluate(() =>
+        Array.from(document.styleSheets).reduce((sum, sheet) => sum + sheet.cssRules.length, 0)
+      )
+    const rulesBefore = await cssRules()
+    for (let step = 1; step <= 10; step++)
+      await mainPage.mouse.move(
+        plotBox.x + plotBox.width * (0.4 + step * 0.04),
+        plotBox.y + plotBox.height * (0.2 + step * 0.05)
+      )
+    await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText('100')
+    expect(await cssRules()).toBe(rulesBefore)
     await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
     await expect(mainPage.getByTestId('trend-readout')).toHaveCount(0)
     await mainPage.getByTestId('trend-range-10m').click()

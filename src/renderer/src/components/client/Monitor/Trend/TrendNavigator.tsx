@@ -151,12 +151,16 @@ const TrendNavigator = meme(
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onKeyDown={handleKeyDown}
+            // The window moves on every render while the log runs past the
+            // range, and a value in `sx` would be a new class each time.
+            style={{
+              left: `${Math.max(0, left)}%`,
+              width: `${Math.min(100, Math.max(width, 0.5))}%`
+            }}
             sx={{
               position: 'absolute',
               top: 0,
               bottom: 0,
-              left: `${Math.max(0, left)}%`,
-              width: `${Math.min(100, Math.max(width, 0.5))}%`,
               minWidth: EDGE * 2,
               boxSizing: 'border-box',
               border: 1,
