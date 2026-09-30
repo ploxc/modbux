@@ -18,11 +18,12 @@ interface DraggablePanelProps {
 }
 
 /**
- * A panel that floats over the page and leaves it working: it drags by its
- * `DRAG_HANDLE_CLASS` element, closes on Escape while it holds focus, and
- * holds neither focus nor the page's clicks. A Popover cannot, because its
- * Modal hides every other element of the page from screen readers while it
- * is open, which no prop of MUI 9.3.1's turns off.
+ * A panel that floats over the page and leaves it working: the page keeps
+ * its clicks and its focus, and a screen reader still reaches it. The panel
+ * drags by its `DRAG_HANDLE_CLASS` element, takes the focus when clicked, and
+ * closes on Escape while it holds it. A Popover cannot leave the page so,
+ * because its Modal hides every other element of the page from screen
+ * readers while it is open, which no prop of MUI 9.3.1's turns off.
  *
  * It opens with its top right corner on the anchor's, and stays inside the
  * window, a theme spacing unit from its edges, where it is dragged.
@@ -69,6 +70,8 @@ const DraggablePanel = meme(
                 ref={setPaper}
                 role="region"
                 aria-label={label}
+                // A click on it takes the focus, so Escape reaches it.
+                tabIndex={-1}
                 elevation={8}
                 onKeyDown={handleKeyDown}
                 sx={[

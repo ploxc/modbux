@@ -5,7 +5,8 @@
 // hidden from screen readers, it is no dialog to the undo keys, and Escape
 // closes it.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import DraggablePanel from '../DraggablePanel'
 
 afterEach(cleanup)
@@ -42,10 +43,13 @@ describe('DraggablePanel', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
-  it('closes on Escape', () => {
+  // A click anywhere on it hands it the focus Escape needs.
+  it('closes on Escape after a click on it', async () => {
     const { onClose } = renderPanel()
+    const user = userEvent.setup()
 
-    fireEvent.keyDown(screen.getByText('inside'), { key: 'Escape' })
+    await user.click(screen.getByText('inside'))
+    await user.keyboard('{Escape}')
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
