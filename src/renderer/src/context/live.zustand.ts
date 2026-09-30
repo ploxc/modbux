@@ -257,13 +257,20 @@ export const useLiveZustand = create<LiveZustand, [['zustand/mutative', never]]>
     },
 
     // State
-    setClientState: (uuid, clientState) =>
+    setClientState: (uuid, clientState) => {
+      // Main builds the log's runs anew in every state it sends, and the trend
+      // draws from them, so they keep their reference while they are the same.
+      const { runs } = dataOf(get(), uuid).clientState.log
+      const kept = deepEqual(runs, clientState.log.runs)
+        ? { ...clientState, log: { ...clientState.log, runs } }
+        : clientState
       set((state) =>
         onData(state, uuid, (data) => {
-          data.clientState = clientState
+          data.clientState = kept
           if (!clientState.polling) data.staleSections = []
         })
-      ),
+      )
+    },
 
     // Transaction log
     addTransactions: (uuid, transactions) =>
