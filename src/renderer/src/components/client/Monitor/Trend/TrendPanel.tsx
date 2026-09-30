@@ -24,6 +24,7 @@ import { formatDuration, formatTime } from '@renderer/components/client/Logging/
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
+import DateRange from '@mui/icons-material/DateRange'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
@@ -32,6 +33,7 @@ import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import TrendPicker from './TrendPicker'
 import TrendSettingsPopover, { SettingsLine } from './TrendSettingsPopover'
+import TrendStretchPicker from './TrendStretchPicker'
 import {
   TREND_RANGES,
   TREND_SPANS,
@@ -40,6 +42,9 @@ import {
   trendSeries,
   laneAt,
   isFollow,
+  stretchLabel,
+  TrendFollow,
+  TrendView,
   viewWithin
 } from './trendData'
 import {
@@ -136,42 +141,95 @@ const TOGGLE_GROUP_SX = {
   }
 } as const
 
+/** The range group's value: a range, the calendar, or none while zoomed or panned. */
+const pressedOf = (
+  view: TrendView | TrendFollow | undefined,
+  range: TrendRangeId
+): TrendRangeId | 'calendar' | null => {
+  if (view === undefined) return range
+  if (isFollow(view) || view.pressed === undefined) return null
+  return view.pressed === 'range' ? range : 'calendar'
+}
+
 /**
  * The range buttons, and a press that picks one. Zoomed, panned, or following
  * the log over a stretch of its own length, the trend shows no range, so none
  * is pressed, and any of them follows the log over the range again. Paused
  * over the range, the range stays pressed, and a press on it follows the log.
+ * The calendar at the end opens on the stretch shown, from `from` to `to`, and
+ * stays pressed on the stretch it picked; with an empty log there is nothing
+ * to pick.
  */
-const RangePicker = meme((): JSX.Element => {
-  const range = useTrendPanelZustand((z) =>
-    z.view === undefined || (!isFollow(z.view) && z.view.ofRange === true) ? z.range : null
-  )
-  const handleRange = useCallback(
-    (_event: MouseEvent<HTMLElement>, picked: TrendRangeId | null) => {
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      // The range pressed already, which is null to an exclusive group.
-      if (picked === null) trendPanelZustand.setView(undefined)
-      else trendPanelZustand.setRange(picked)
-    },
-    []
-  )
-  return (
-    <ToggleButtonGroup
-      size="small"
-      exclusive
-      value={range}
-      onChange={handleRange}
-      aria-label="Range"
-      sx={TOGGLE_GROUP_SX}
-    >
-      {TREND_RANGES.map(({ id, label }) => (
-        <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
-          {label}
-        </ToggleButton>
-      ))}
-    </ToggleButtonGroup>
-  )
-})
+const RangePicker = meme(
+  ({
+    from,
+    to,
+    start,
+    end
+  }: {
+    from: number
+    to: number
+    start: number | undefined
+    end: number
+  }): JSX.Element => {
+    const pressed = useTrendPanelZustand((z) => pressedOf(z.view, z.range))
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+    const handleRange = useCallback(
+      (_event: MouseEvent<HTMLElement>, next: TrendRangeId | 'calendar' | null) => {
+        if (next === 'calendar') return
+        const trendPanelZustand = useTrendPanelZustand.getState()
+        // The range pressed already, which is null to an exclusive group.
+        if (next === null) trendPanelZustand.setView(undefined)
+        else trendPanelZustand.setRange(next)
+      },
+      []
+    )
+    // The calendar opens its popover rather than pressing, pressed or not.
+    const handleCalendar = useCallback((event: MouseEvent<HTMLElement>) => {
+      event.preventDefault()
+      setAnchor(event.currentTarget)
+    }, [])
+    const handleClose = useCallback(() => setAnchor(null), [])
+    return (
+      <>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={pressed}
+          onChange={handleRange}
+          aria-label="Range"
+          sx={TOGGLE_GROUP_SX}
+        >
+          {TREND_RANGES.map(({ id, label }) => (
+            <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
+              {label}
+            </ToggleButton>
+          ))}
+          <ToggleButton
+            value="calendar"
+            aria-label="Show a stretch"
+            title="Show a stretch"
+            data-testid="trend-range-calendar"
+            disabled={start === undefined}
+            onClick={handleCalendar}
+          >
+            <DateRange sx={{ fontSize: 14 }} />
+          </ToggleButton>
+        </ToggleButtonGroup>
+        {start !== undefined && (
+          <TrendStretchPicker
+            anchor={anchor}
+            onClose={handleClose}
+            from={from}
+            to={to}
+            start={start}
+            end={end}
+          />
+        )}
+      </>
+    )
+  }
+)
 
 /**
  * Whether the trend follows the log or holds still, and a press that picks
@@ -500,7 +558,7 @@ const TrendContent = meme(
               <TrendConfigMenu />
             </Box>
             <Box sx={HEADER_ROW_SX}>
-              <RangePicker />
+              <RangePicker from={from} to={to} start={oldest} end={end} />
             </Box>
             <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
               {running ? (
@@ -514,7 +572,7 @@ const TrendContent = meme(
                   logging is off
                 </Box>
               )}
-              {view !== undefined && (isFollow(view) || view.ofRange !== true) && (
+              {view !== undefined && (isFollow(view) || view.pressed !== 'range') && (
                 <Box
                   component="span"
                   data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
@@ -530,7 +588,9 @@ const TrendContent = meme(
                 >
                   {isFollow(view)
                     ? `the last ${formatDuration(view.length)}`
-                    : `${formatTime(view.from)} to ${formatTime(view.to)}`}
+                    : view.pressed === 'calendar'
+                      ? stretchLabel(view.from, view.to)
+                      : `${formatTime(view.from)} to ${formatTime(view.to)}`}
                 </Box>
               )}
             </Box>

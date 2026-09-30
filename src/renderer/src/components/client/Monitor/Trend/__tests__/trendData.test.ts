@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LogPoint } from '@shared'
 import type uPlot from 'uplot'
+import { DateTime } from 'luxon'
 import {
   bitOn,
   bitsOf,
@@ -9,11 +10,13 @@ import {
   indexAt,
   laneAt,
   laneSpans,
+  pickedStretch,
   pointAt,
   rangeOf,
   readoutPlace,
   sinceText,
   stepOf,
+  stretchLabel,
   trendGaps,
   valuesAt,
   viewWithin,
@@ -82,6 +85,69 @@ describe('trendGaps', () => {
     expect(trendGaps([{ start: 0, end: 10, reason: 'log stopped' }], 40)).toEqual([
       { start: 10, end: 40, reason: 'log stopped' }
     ])
+  })
+})
+
+describe('pickedStretch', () => {
+  // The log's oldest sample 350 ms into a second, and now.
+  const start = 10_350
+  const end = 100_000
+
+  it('holds the stretch picked, pressed on the calendar', () => {
+    expect(pickedStretch(20_000, 30_000, start, end)).toEqual({
+      from: 20_000,
+      to: 30_000,
+      pressed: 'calendar'
+    })
+  })
+
+  it("starts a From picked in the oldest sample's second at that sample", () => {
+    expect(pickedStretch(10_000, 30_000, start, end)).toEqual({
+      from: 10_350,
+      to: 30_000,
+      pressed: 'calendar'
+    })
+  })
+
+  it("refuses a From before the log's start, and a To after its end", () => {
+    expect(pickedStretch(9_000, 30_000, start, end)).toBeUndefined()
+    expect(pickedStretch(20_000, 101_000, start, end)).toBeUndefined()
+    expect(pickedStretch(20_000, 100_000, start, end)).toEqual({
+      from: 20_000,
+      to: 100_000,
+      pressed: 'calendar'
+    })
+  })
+
+  it('refuses a To less than a second after From, or before it', () => {
+    expect(pickedStretch(20_000, 20_000, start, end)).toBeUndefined()
+    expect(pickedStretch(30_000, 20_000, start, end)).toBeUndefined()
+    expect(pickedStretch(20_000, 21_000, start, end)).toEqual({
+      from: 20_000,
+      to: 21_000,
+      pressed: 'calendar'
+    })
+  })
+
+  it("refuses a stretch a second long that the oldest sample's second shortens", () => {
+    expect(pickedStretch(10_000, 11_000, start, end)).toBeUndefined()
+  })
+})
+
+describe('stretchLabel', () => {
+  const at = (day: number, hour: number, minute: number, second = 0): number =>
+    DateTime.fromObject({ year: 2026, month: 9, day, hour, minute, second }).toMillis()
+
+  it('names a stretch within a day by its times and the day', () => {
+    expect(stretchLabel(at(29, 14, 5), at(29, 14, 20))).toBe('14:05 to 14:20, 29 Sep')
+  })
+
+  it('writes the seconds when either end has some', () => {
+    expect(stretchLabel(at(29, 14, 5), at(29, 14, 20, 30))).toBe('14:05:00 to 14:20:30, 29 Sep')
+  })
+
+  it('writes each end with its date across two days', () => {
+    expect(stretchLabel(at(29, 23, 50), at(30, 0, 10))).toBe('29 Sep 23:50 to 30 Sep 00:10')
   })
 })
 

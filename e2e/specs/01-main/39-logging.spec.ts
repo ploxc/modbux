@@ -201,6 +201,30 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       if (panelPaper instanceof HTMLElement) panelPaper.style.width = ''
     })
 
+    // The calendar opens on the stretch shown, and Show holds the trend still
+    // on the stretch picked, which the calendar stays pressed on.
+    const calendar = mainPage.getByTestId('trend-range-calendar')
+    await calendar.click()
+    await mainPage.getByTestId('trend-stretch-show-btn').click()
+    await expect(mainPage.getByTestId('trend-stretch-show-btn')).toHaveCount(0)
+    await expectState(mainPage, 'paused')
+    await expect(calendar).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('trend-view')).toContainText(' to ')
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'false')
+    // A From before the log's start is refused, and Cancel leaves the stretch.
+    await calendar.click()
+    await mainPage
+      .getByTestId('trend-stretch-from')
+      .getByRole('spinbutton', { name: 'Year' })
+      .click()
+    await mainPage.keyboard.type('2020')
+    await expect(mainPage.getByTestId('trend-stretch-show-btn')).toBeDisabled()
+    await mainPage.getByTestId('trend-stretch-cancel-btn').click()
+    await expect(calendar).toHaveAttribute('aria-pressed', 'true')
+    await mainPage.getByTestId('trend-live-btn').click()
+    await expectState(mainPage, 'live')
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
+
     // A drag across the lines zooms to it, and the trend holds still until
     // Live is pressed. The whole log fills the plot, so the drag lands on it.
     await expect(mainPage.getByTestId('trend-navigator')).toBeVisible()

@@ -133,24 +133,24 @@ describe('the trend store', () => {
       store().setRange('10m')
       store().pause(now, oldest)
 
-      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, ofRange: true })
+      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, pressed: 'range' })
     })
 
     it('holds the whole log from its oldest sample, and an empty log over the shortest range', () => {
       store().setRange('log')
       store().pause(now, oldest)
-      expect(store().view).toEqual({ from: oldest, to: now, ofRange: true })
+      expect(store().view).toEqual({ from: oldest, to: now, pressed: 'range' })
 
       store().setView(undefined)
       store().pause(now, undefined)
-      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, ofRange: true })
+      expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, pressed: 'range' })
     })
 
     it('holds a second at least of a log that started less than a second ago', () => {
       store().setRange('log')
       store().pause(now, now - 200)
 
-      expect(store().view).toEqual({ from: now - 1000, to: now, ofRange: true })
+      expect(store().view).toEqual({ from: now - 1000, to: now, pressed: 'range' })
     })
 
     it('holds a trend following the log over its own length at that length, no range pressed', () => {

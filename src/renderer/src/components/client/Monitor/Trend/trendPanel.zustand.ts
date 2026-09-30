@@ -177,7 +177,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         }
         const span = TREND_SPANS[state.range]
         const from = Number.isFinite(span) ? now - span : (oldest ?? now - TREND_SPANS['10m'])
-        state.view = { from: Math.min(from, now - SHORTEST_VIEW_MS), to: now, ofRange: true }
+        state.view = { from: Math.min(from, now - SHORTEST_VIEW_MS), to: now, pressed: 'range' }
       }),
     settings: DEFAULT_TREND_SETTINGS,
     // Auto takes the key away, so the settings equal a saved trend's that never held one.

@@ -12,6 +12,7 @@ import {
   TrendRangeId,
   TrendSettings
 } from '@shared'
+import { DateTime } from 'luxon'
 import type uPlot from 'uplot'
 
 /** The ranges a trend picks from, in the order it offers them. */
@@ -94,12 +95,15 @@ export const trendSeries = (
   return { times, values }
 }
 
-/** A stretch of time a trend was paused, zoomed or panned to, which stops it following the log. */
+/** A stretch of time a trend was paused, picked, zoomed or panned to, which stops it following the log. */
 export interface TrendView {
   from: number
   to: number
-  /** Paused over the range, which stays pressed; a zoom or a pan leaves a stretch without it. */
-  ofRange?: true
+  /**
+   * The range button that stays pressed: the range, paused over it, or the
+   * calendar, which picked it. A zoom or a pan leaves a stretch with none.
+   */
+  pressed?: 'range' | 'calendar'
 }
 
 /** A trend that follows the log over its own length rather than the range's. */
@@ -131,6 +135,41 @@ export const viewWithin = (
   if (view.to < bound.to) return view
   if (length >= Math.min(span, bound.to - bound.from)) return undefined
   return running ? { length } : view
+}
+
+/** A time as the calendar picks it, to the second. */
+export const toSecond = (time: number): number => Math.floor(time / 1000) * 1000
+
+/**
+ * The stretch the calendar picks from `from` to `to`, inside what the log
+ * holds from `start` to `end`, a second long at least; none outside it. The
+ * calendar picks to the second, so a `from` in the second of `start` starts
+ * at `start`.
+ */
+export const pickedStretch = (
+  from: number,
+  to: number,
+  start: number,
+  end: number
+): TrendView | undefined => {
+  if (from < toSecond(start) || to > end) return undefined
+  const clamped = Math.max(from, start)
+  if (to - clamped < SHORTEST_VIEW_MS) return undefined
+  return { from: clamped, to, pressed: 'calendar' }
+}
+
+/**
+ * A picked stretch as the calendar's button names it: "14:05 to 14:20, 29
+ * Sep", with the seconds when either end has some, and each end's date when
+ * they fall on two days.
+ */
+export const stretchLabel = (from: number, to: number): string => {
+  const start = DateTime.fromMillis(from)
+  const end = DateTime.fromMillis(to)
+  const time = start.second === 0 && end.second === 0 ? 'HH:mm' : 'HH:mm:ss'
+  if (start.hasSame(end, 'day'))
+    return `${start.toFormat(time)} to ${end.toFormat(time)}, ${start.toFormat('d LLL')}`
+  return `${start.toFormat(`d LLL ${time}`)} to ${end.toFormat(`d LLL ${time}`)}`
 }
 
 /** How much a notch of the wheel zooms: in by this, and out by its inverse. */
