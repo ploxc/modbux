@@ -137,7 +137,7 @@ const TOGGLE_GROUP_SX = {
  * The range buttons, and a press that picks one. Zoomed, panned, or following
  * the log over a stretch of its own length, the trend shows no range, so none
  * is pressed, and any of them follows the log over the range again. Paused
- * over the range, the range stays pressed.
+ * over the range, the range stays pressed, and a press on it follows the log.
  */
 const RangePicker = meme((): JSX.Element => {
   const range = useTrendPanelZustand((z) =>
@@ -145,9 +145,10 @@ const RangePicker = meme((): JSX.Element => {
   )
   const handleRange = useCallback(
     (_event: MouseEvent<HTMLElement>, picked: TrendRangeId | null) => {
-      if (picked === null) return
       const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setRange(picked)
+      // The range pressed already, which is null to an exclusive group.
+      if (picked === null) trendPanelZustand.setView(undefined)
+      else trendPanelZustand.setRange(picked)
     },
     []
   )

@@ -146,6 +146,13 @@ describe('the trend store', () => {
       expect(store().view).toEqual({ from: now - 10 * 60 * 1000, to: now, ofRange: true })
     })
 
+    it('holds a second at least of a log that started less than a second ago', () => {
+      store().setRange('log')
+      store().pause(now, now - 200)
+
+      expect(store().view).toEqual({ from: now - 1000, to: now, ofRange: true })
+    })
+
     it('holds a trend following the log over its own length at that length, no range pressed', () => {
       store().setRange('1h')
       store().setView({ length: 90_000 })

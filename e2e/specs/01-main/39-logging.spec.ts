@@ -157,7 +157,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-range-10m').click()
 
     // Paused holds the range's stretch still while the log runs on, and the
-    // range stays pressed; Live follows the log again.
+    // range stays pressed; Live, or a press on that range, follows the log again.
     const stretch = mainPage.getByTestId('trend-navigator-window')
     await mainPage.getByTestId('trend-paused-btn').click()
     await expectState(mainPage, 'paused')
@@ -169,6 +169,10 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-live-btn').click()
     await expectState(mainPage, 'live')
     await expect(stretch).not.toHaveAttribute('aria-valuetext', pausedOn ?? '')
+    await mainPage.getByTestId('trend-paused-btn').click()
+    await expectState(mainPage, 'paused')
+    await mainPage.getByTestId('trend-range-10m').click()
+    await expectState(mainPage, 'live')
 
     // A drag across the lines zooms to it, and the trend holds still until
     // Live is pressed. The whole log fills the plot, so the drag lands on it.

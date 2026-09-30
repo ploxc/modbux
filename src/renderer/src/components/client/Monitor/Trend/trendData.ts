@@ -110,7 +110,7 @@ export interface TrendFollow {
 export const isFollow = (view: TrendView | TrendFollow): view is TrendFollow => 'length' in view
 
 /** The shortest stretch a trend zooms in to. */
-const SHORTEST_VIEW_MS = 1000
+export const SHORTEST_VIEW_MS = 1000
 
 /**
  * The view a zoom or a pan to `from` and `to` leaves, inside `bound`: what the

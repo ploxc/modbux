@@ -11,7 +11,14 @@ import {
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
-import { DEFAULT_TREND_SETTINGS, isFollow, TREND_SPANS, TrendFollow, TrendView } from './trendData'
+import {
+  DEFAULT_TREND_SETTINGS,
+  isFollow,
+  SHORTEST_VIEW_MS,
+  TREND_SPANS,
+  TrendFollow,
+  TrendView
+} from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -72,8 +79,8 @@ interface TrendPanelZustand {
   setView: (view: TrendView | TrendFollow | undefined) => void
   /**
    * Holds the stretch the trend follows the log over, ending at `now`: the
-   * range's, from `oldest` for the whole log, or the trend's own length. A
-   * stretch already held stays as it is.
+   * range's, from `oldest` for the whole log, or the trend's own length, and a
+   * second at least. A stretch already held stays as it is.
    */
   pause: (now: number, oldest: number | undefined) => void
   settings: TrendSettings
@@ -170,7 +177,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         }
         const span = TREND_SPANS[state.range]
         const from = Number.isFinite(span) ? now - span : (oldest ?? now - TREND_SPANS['10m'])
-        state.view = { from, to: now, ofRange: true }
+        state.view = { from: Math.min(from, now - SHORTEST_VIEW_MS), to: now, ofRange: true }
       }),
     settings: DEFAULT_TREND_SETTINGS,
     // Auto takes the key away, so the settings equal a saved trend's that never held one.
