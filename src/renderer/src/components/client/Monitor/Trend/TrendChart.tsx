@@ -2,17 +2,30 @@ import Box from '@mui/material/Box'
 import { alpha, useTheme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { DateTime } from 'luxon'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { TrendGap, TrendSeries, WHEEL_ZOOM, zoomAround } from './trendData'
+import { figure, TrendGap, TrendSeries, valuesAt, WHEEL_ZOOM, zoomAround } from './trendData'
 
-/** One line of a trend: its colour, and the scale it is drawn on. */
+/** One line of a trend: its colour, the scale it is drawn on, and how the readout names it. */
 export interface TrendLine {
   color: string
   /** Lines of one engineering unit share a scale. */
   scale: string
+  label: string
+  unit: string
 }
+
+/** Where the cursor is over the plot, in pixels of the chart's box, and the sample under it. */
+interface Readout {
+  left: number
+  top: number
+  index: number
+}
+
+/** How far right of the cursor the readout sits, and how wide it is. */
+const READOUT_GAP = 12
+const READOUT_WIDTH = 220
 
 interface TrendChartProps {
   /** The lines, which the chart is made for; a new array makes it again. */
@@ -124,6 +137,8 @@ const TrendChart = meme(
     zoom.current = onZoom
     const shown = useRef({ from, to })
     shown.current = { from, to }
+    const joined = useRef<uPlot.AlignedData>([[]])
+    const [readout, setReadout] = useState<Readout>()
 
     useEffect(() => {
       const box = container.current
@@ -154,6 +169,20 @@ const TrendChart = meme(
         hooks: {
           drawClear: [
             (drawn: uPlot): void => drawBackdrop(drawn, backdrop.current, colors, labelFont)
+          ],
+          setCursor: [
+            (hovered: uPlot): void => {
+              const { left, top, idx } = hovered.cursor
+              if (left === undefined || top === undefined || left < 0 || idx == null) {
+                setReadout(undefined)
+                return
+              }
+              setReadout({
+                left: hovered.over.offsetLeft + left,
+                top: hovered.over.offsetTop + top,
+                index: idx
+              })
+            }
           ],
           setSelect: [
             (selected: uPlot): void => {
@@ -223,12 +252,76 @@ const TrendChart = meme(
       if (!current) return
       const tables = data.map((series): uPlot.AlignedData => [series.times, series.values])
       backdrop.current = { oldest, gaps }
-      current.setData(tables.length === 0 ? [[]] : uPlot.join(tables), false)
+      joined.current = tables.length === 0 ? [[]] : uPlot.join(tables)
+      current.setData(joined.current, false)
       current.setScale('x', { min: from, max: to })
       // The chart made again for a new theme starts empty, so the data goes in again.
     }, [lines, data, from, to, oldest, gaps, theme])
 
-    return <Box ref={container} data-testid="trend-chart" sx={{ flexGrow: 1, minHeight: 0 }} />
+    const time = readout === undefined ? undefined : joined.current[0][readout.index]
+    const values = readout === undefined ? [] : valuesAt(joined.current, readout.index)
+    const width = container.current?.clientWidth ?? 0
+    return (
+      <Box
+        ref={container}
+        data-testid="trend-chart"
+        sx={{ position: 'relative', flexGrow: 1, minHeight: 0 }}
+      >
+        {readout !== undefined && time !== undefined && (
+          <Box
+            data-testid="trend-readout"
+            sx={{
+              position: 'absolute',
+              top: Math.max(0, readout.top - 20),
+              // Beside the cursor, and on its left side near the right edge.
+              left:
+                readout.left + READOUT_GAP + READOUT_WIDTH > width
+                  ? readout.left - READOUT_GAP - READOUT_WIDTH
+                  : readout.left + READOUT_GAP,
+              width: READOUT_WIDTH,
+              boxSizing: 'border-box',
+              px: 1.25,
+              py: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.5,
+              bgcolor: 'background.paper',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: '6px',
+              boxShadow: 4,
+              fontSize: 11.5,
+              pointerEvents: 'none',
+              zIndex: 1
+            }}
+          >
+            <Box component="span" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+              {DateTime.fromMillis(time).toFormat('HH:mm:ss.SSS')}
+            </Box>
+            {lines.map((line, index) => (
+              <Box key={line.color} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Box sx={{ width: 8, height: 3, borderRadius: '2px', bgcolor: line.color }} />
+                <Box
+                  component="span"
+                  sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {line.label}
+                </Box>
+                <Box component="span" sx={{ fontFamily: 'monospace' }}>
+                  {figure(values[index])} {line.unit}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
+    )
   }
 )
 

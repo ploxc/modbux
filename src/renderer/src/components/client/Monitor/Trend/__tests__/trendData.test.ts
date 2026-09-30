@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { LogPoint } from '@shared'
-import { stepOf, trendGaps, viewWithin, zoomAround, trendSeries, trendSummary } from '../trendData'
+import type uPlot from 'uplot'
+import {
+  figure,
+  stepOf,
+  trendGaps,
+  valuesAt,
+  viewWithin,
+  zoomAround,
+  trendSeries,
+  trendSummary
+} from '../trendData'
 
 const point = (time: number, value: number, error?: string): LogPoint => ({ time, value, error })
 const double = (raw: number): number => raw * 2
@@ -109,5 +119,38 @@ describe('viewWithin', () => {
 describe('zoomAround', () => {
   it('zooms around the moment under the cursor', () => {
     expect(zoomAround(0, 100, 20, 0.5)).toEqual({ from: 10, to: 60 })
+  })
+})
+
+describe('valuesAt', () => {
+  it('answers each line at a sample, the last before it where only another line has one', () => {
+    const joined: uPlot.AlignedData = [
+      [1, 2, 3, 4],
+      [10, undefined, 30, undefined],
+      [undefined, 5, null, undefined]
+    ]
+    expect(valuesAt(joined, 1)).toEqual([10, 5])
+    expect(valuesAt(joined, 3)).toEqual([30, null])
+  })
+
+  it('answers nothing for a line before its first sample', () => {
+    expect(
+      valuesAt(
+        [
+          [1, 2],
+          [undefined, 7]
+        ],
+        0
+      )
+    ).toEqual([undefined])
+  })
+})
+
+describe('figure', () => {
+  it('writes a value to six decimals at most, and a gap or no value as a dash', () => {
+    expect(figure(1.23456789)).toBe('1.234568')
+    expect(figure(100)).toBe('100')
+    expect(figure(null)).toBe('–')
+    expect(figure(undefined)).toBe('–')
   })
 })

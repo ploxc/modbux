@@ -27,6 +27,7 @@ import {
   trendGaps,
   trendSeries,
   trendSummary,
+  figure,
   viewWithin
 } from './trendData'
 import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
@@ -87,10 +88,6 @@ const RangePicker = meme((): JSX.Element => {
   )
 })
 
-/** A number as the trend's figures write it: as the value came, at most six decimals. */
-const figure = (value: number | undefined): string =>
-  value === undefined ? '–' : String(Math.round(value * 1e6) / 1e6)
-
 /** The mapping entry of the register a trend line draws. */
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
   units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
@@ -106,12 +103,17 @@ const layoutOf = (
 ): { lines: TrendLine[]; leftScale: string | undefined; rightScale: string | undefined } => {
   const engineeringUnits: string[] = []
   const lines = entries.map((entry): TrendLine => {
-    const engineeringUnit = mapValueOf(units, entry)?.unit ?? ''
+    const mapValue = mapValueOf(units, entry)
+    const engineeringUnit = mapValue?.unit ?? ''
     if (!engineeringUnits.includes(engineeringUnit)) engineeringUnits.push(engineeringUnit)
     const rank = engineeringUnits.indexOf(engineeringUnit)
+    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+    const address = entry.address + Number(addressBase)
     return {
       color: entry.color,
-      scale: rank < 2 ? `unit:${engineeringUnit}` : `line:${trendKey(entry)}`
+      scale: rank < 2 ? `unit:${engineeringUnit}` : `line:${trendKey(entry)}`,
+      label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+      unit: engineeringUnit
     }
   })
   const [left, right] = engineeringUnits

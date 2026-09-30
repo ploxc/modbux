@@ -1,4 +1,5 @@
 import { inSteps, LogPoint, LogRun, LogStopReason } from '@shared'
+import type uPlot from 'uplot'
 
 /** The ranges a trend picks from, in the order it offers them. */
 export const TREND_RANGES = [
@@ -146,3 +147,21 @@ export const mergeSteps = (
   if (open === -1) return [...held, ...fresh]
   return [...held.slice(0, open), ...inSteps([...held.slice(open), ...fresh], step)]
 }
+
+/**
+ * Each line's value at `index` of a table `uPlot.join` made: the last one at
+ * or before it, a gap as null, and nothing before the line's first sample.
+ * The join leaves a line undefined where only another line has a sample.
+ */
+export const valuesAt = (data: uPlot.AlignedData, index: number): (number | null | undefined)[] =>
+  data.slice(1).map((column) => {
+    for (let at = index; at >= 0; at--) {
+      const value = column[at]
+      if (value !== undefined) return value
+    }
+    return undefined
+  })
+
+/** A number as the trend's figures write it: as the value came, at most six decimals. */
+export const figure = (value: number | null | undefined): string =>
+  value === undefined || value === null ? '–' : String(Math.round(value * 1e6) / 1e6)

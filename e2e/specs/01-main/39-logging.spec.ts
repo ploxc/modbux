@@ -89,6 +89,15 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     // The page under it stays reachable, to screen readers and role queries alike.
     await expect(mainPage.getByRole('switch', { name: 'Poll this group' }).first()).toBeVisible()
 
+    // The cursor over the lines reads every line at the sample under it.
+    const over = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const plotBox = await over.boundingBox()
+    if (!plotBox) throw new Error('The trend has no plot to hover')
+    await mainPage.mouse.move(plotBox.x + plotBox.width - 4, plotBox.y + plotBox.height / 2)
+    await expect(mainPage.getByTestId('trend-readout')).toContainText('100')
+    await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
+    await expect(mainPage.getByTestId('trend-readout')).toHaveCount(0)
+
     // A longer range asks main again, and the register's value comes back with it.
     await mainPage.getByTestId('trend-range-1h').click()
     await expect(mainPage.getByTestId('trend-range-1h')).toHaveAttribute('aria-pressed', 'true')
