@@ -10,6 +10,7 @@ import {
   ClientState,
   ClientVisibleSections,
   ConnectionConfig,
+  ConnectionSettings,
   ConnectState,
   clientOwner,
   convertBitData,
@@ -136,6 +137,8 @@ interface ClientParams {
   appState: AppState
   windows: Windows
   transports: Transports
+  /** The app's connection settings as they are now, which every client shares. */
+  connectionSettings: () => ConnectionSettings
 }
 
 export class ModbusClient implements TransportClient {
@@ -208,12 +211,18 @@ export class ModbusClient implements TransportClient {
    */
   private _logEnabled = false
 
-  constructor({ uuid, appState, windows, transports }: ClientParams) {
+  constructor({ uuid, appState, windows, transports, connectionSettings }: ClientParams) {
     this.uuid = uuid
     this._appState = appState
     this._windows = windows
     this._transports = transports
+    this._connectionSettings = connectionSettings
   }
+
+  private _connectionSettings: () => ConnectionSettings
+
+  /** Whether this client logs, which keeps its connection reconnecting where that is set. */
+  public logs = (): boolean => this._logEnabled
 
   // Events
   /**
@@ -896,7 +905,7 @@ export class ModbusClient implements TransportClient {
    * Count what a read of a unit heard, and say when the unit goes offline or
    * comes back.
    *
-   * A unit is offline after `offlineAfterTimeouts` reads in a row that it let
+   * A unit is offline after the app's `offlineAfterTimeouts` reads in a row that it let
    * run out, and one answer brings it back. A read that says nothing about the
    * unit, because its connection went or it was stopped, or failed some other
    * way, leaves the count alone. So does one that went out under a unit id the
@@ -907,7 +916,7 @@ export class ModbusClient implements TransportClient {
     if (answered === undefined) return
     const silentReads = answered ? 0 : (this._silentReads.get(unit) ?? 0) + 1
     this._silentReads.set(unit, silentReads)
-    const offline = silentReads >= this._appState.registerConfig.offlineAfterTimeouts
+    const offline = silentReads >= this._connectionSettings().offlineAfterTimeouts
     this._roundsToSkip.set(unit, offline ? this._roundsOffline(unit) : 0)
     this._setOffline(unit, offline)
   }
@@ -917,9 +926,9 @@ export class ModbusClient implements TransportClient {
    * in poll rates, less the round that reads it.
    */
   private _roundsOffline = (unit: string): number => {
-    const { registerConfig } = this._appState
-    const delay = pollDelay(registerConfig, this._silentReads.get(unit) ?? 0)
-    return Math.ceil(delay / registerConfig.pollRate) - 1
+    const { pollRate } = this._appState.registerConfig
+    const delay = pollDelay(pollRate, this._connectionSettings(), this._silentReads.get(unit) ?? 0)
+    return Math.ceil(delay / pollRate) - 1
   }
 
   /** Put a unit in or out of `offlineUnits`, and say so when that changes it. */
@@ -1218,18 +1227,23 @@ export class ModbusClient implements TransportClient {
     this._appState.updateConnectionConfig(update)
   }
 
-  /**
-   * Take a register config update, and give a sleeping poll its new wait. An
-   * offline unit's rounds to sit out are counted again under the new settings,
-   * kept at what it had where that is fewer: a lower `maxPollInterval` applies
-   * to a unit waiting already, rather than after the wait it was given.
-   */
+  /** Take a register config update, and give a sleeping poll its new wait. */
   public updateRegisterConfig = (update: DeepPartial<RegisterConfig>): void => {
     this._appState.updateRegisterConfig(update)
+    this.recountOfflineRounds()
+    this._rearmPoll()
+  }
+
+  /**
+   * Count an offline unit's rounds to sit out again, under a new poll rate or
+   * new connection settings, kept at what it had where that is fewer: a lower
+   * `maxPollInterval` applies to a unit waiting already, rather than after the
+   * wait it was given.
+   */
+  public recountOfflineRounds = (): void => {
     for (const [unit, skip] of this._roundsToSkip) {
       this._roundsToSkip.set(unit, Math.min(skip, this._roundsOffline(unit)))
     }
-    this._rearmPoll()
   }
 
   /**

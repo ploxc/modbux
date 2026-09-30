@@ -6,7 +6,11 @@ import type { Windows } from '../../../windows'
 const createMockModbusRTU = () => {
   const mock = {
     isOpen: false,
-    on: vi.fn(() => mock),
+    handlers: {} as Record<string, (...args: unknown[]) => void>,
+    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+      mock.handlers[event] = handler
+      return mock
+    }),
     setID: vi.fn(),
     setTimeout: vi.fn(),
     connectTCP: vi.fn(async (_host: string, options: Record<string, unknown>) => {
@@ -51,7 +55,7 @@ vi.mock('modbus-serial', () => {
 })
 
 import { Clients } from '../clients'
-import { newClientUnit } from '@shared'
+import { defaultConnectionSettings, newClientUnit } from '@shared'
 
 let sent: Array<[string, Record<string, unknown>]> = []
 const windows = {
@@ -101,6 +105,20 @@ describe('Clients', () => {
 
     expect(clients.get('b')?.state.connectState).toBe('connected')
     expect(instances).toHaveLength(1)
+  })
+
+  // Every client reads the app's settings, a reconnect at its next attempt.
+  it('hands its connection settings to the reconnect of a client', async () => {
+    clients.create('a')
+    await clients.get('a')?.connect()
+    clients.setConnectionSettings({ ...defaultConnectionSettings, reconnectAttempts: 0 })
+    const [modbus] = instances
+    if (!modbus) throw new Error('no connection was opened')
+
+    modbus.isOpen = false
+    modbus.handlers['close']?.()
+
+    expect(messages().at(-1)).toBe('Connection lost, reconnecting (1)...')
   })
 
   describe('a connection change while the client rides a connection', () => {

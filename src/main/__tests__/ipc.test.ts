@@ -548,6 +548,14 @@ describe('each guarded channel got its own schema', () => {
     clear_log: 'client-1',
     set_log_capacity: { uuid: 'client-1', capacity: 5000 },
     get_log_page: { uuid: 'client-1', after: 0, limit: 100, series: [] },
+    set_connection_settings: {
+      reconnectAttempts: 5,
+      reconnectFirstWait: 3000,
+      reconnectLongestWait: 60_000,
+      reconnectWhileLogging: true,
+      offlineAfterTimeouts: 3,
+      maxPollInterval: 60_000
+    },
     get_log_window: {
       uuid: 'client-1',
       series: { unit: 'unit-1', type: 'holding_registers', address: 0 },

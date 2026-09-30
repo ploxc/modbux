@@ -5,7 +5,10 @@ import {
   ConnectState,
   PROTOCOL_LABELS,
   humanizeSerialError,
-  serialLine
+  serialLine,
+  ConnectionSettings,
+  keepsReconnecting,
+  reconnectWait
 } from '@shared'
 import { Windows } from '../../windows'
 import { errorText } from './errors'
@@ -20,6 +23,8 @@ import { TransactionLog } from './transactionLog'
 export interface TransportClient {
   /** Take this connect state and report it. */
   setConnectState: (connectState: ConnectState) => void
+  /** Whether the client logs, which keeps the connection reconnecting where that is set. */
+  logs: () => boolean
   /**
    * The connection is gone and nothing will reopen it for this client.
    *
@@ -80,6 +85,8 @@ interface TransportParams {
    */
   config: ConnectionConfig
   windows: Windows
+  /** The app's connection settings as they are now, which a reconnect reads at each attempt. */
+  settings: () => ConnectionSettings
   /** Called once nothing rides the transport and nothing is opening or closing it. */
   onIdle: (transport: Transport) => void
 }
@@ -108,9 +115,8 @@ export class Transport {
 
   private _reconnectTimeout: NodeJS.Timeout | undefined
   private _shouldAutoReconnect = true
-  private _reconnectDelay = 3000 // ms
   private _consecutiveReconnects = 0
-  private _maxConsecutiveReconnects = 5
+  private _settings: () => ConnectionSettings
   private _reconnectResetTimeout: NodeJS.Timeout | undefined
 
   /**
@@ -151,7 +157,8 @@ export class Transport {
    */
   private _abandonInFlight: ((reason: Error) => void) | undefined
 
-  constructor({ key, config, windows, onIdle }: TransportParams) {
+  constructor({ key, config, windows, settings, onIdle }: TransportParams) {
+    this._settings = settings
     this.key = key
     this._config = config
     this._windows = windows
@@ -408,7 +415,9 @@ export class Transport {
   // --- Auto-reconnect logic ---
   /**
    * Announce the next attempt of the burst and schedule it, or give up once
-   * the burst has made as many as it may.
+   * the burst has made as many as the app's connection settings allow. A
+   * client riding the connection that logs keeps it trying where that is set.
+   * Each attempt waits twice as long as the last, up to the longest wait.
    *
    * The count is asked before it goes up, so every attempt announced is an
    * attempt made. `afterDrop` is whether `lost` called it rather than a failed
@@ -416,7 +425,9 @@ export class Transport {
    * said even when the burst has no attempt left.
    */
   private _scheduleReconnect = (afterDrop: boolean): void => {
-    if (this._consecutiveReconnects >= this._maxConsecutiveReconnects) {
+    const settings = this._settings()
+    const logging = [...this._clients].some((client) => client.logs())
+    if (!keepsReconnecting(settings, this._consecutiveReconnects, logging)) {
       this._shouldAutoReconnect = false
       this._emitMessage({
         message: afterDrop
@@ -430,13 +441,21 @@ export class Transport {
     }
 
     this._consecutiveReconnects++
+    // An attempt past the limit, or with no limit, is counted without one.
+    const counted =
+      settings.reconnectAttempts === 0 || this._consecutiveReconnects > settings.reconnectAttempts
+        ? `${this._consecutiveReconnects}`
+        : `${this._consecutiveReconnects}/${settings.reconnectAttempts}`
     this._emitMessage({
-      message: `${afterDrop ? 'Connection lost, reconnecting' : 'Reconnecting'} (${this._consecutiveReconnects}/${this._maxConsecutiveReconnects})...`,
+      message: `${afterDrop ? 'Connection lost, reconnecting' : 'Reconnecting'} (${counted})...`,
       variant: 'warning',
       error: null
     })
     if (afterDrop) this._setConnectState('connecting')
-    this._reconnectTimeout = setTimeout(() => this._open(true), this._reconnectDelay)
+    this._reconnectTimeout = setTimeout(
+      () => this._open(true),
+      reconnectWait(settings, this._consecutiveReconnects)
+    )
   }
 
   private _open = async (reconnect: boolean): Promise<void> => {

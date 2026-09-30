@@ -5,7 +5,9 @@ import {
   ClientVisibleSections,
   ClientRegisterConfigUpdate,
   ClientState,
-  ClientUnits
+  ClientUnits,
+  ConnectionSettings,
+  defaultConnectionSettings
 } from '@shared'
 import { AppState } from '../../state'
 import { Windows } from '../../windows'
@@ -23,10 +25,23 @@ export class Clients {
   private _windows: Windows
   private _transports: Transports
   private _clients = new Map<string, ModbusClient>()
+  /** The app's connection settings, which every client and transport reads when it needs them. */
+  private _connectionSettings: ConnectionSettings = { ...defaultConnectionSettings }
 
   constructor(windows: Windows) {
     this._windows = windows
-    this._transports = new Transports(windows)
+    this._transports = new Transports(windows, this._settings)
+  }
+
+  private _settings = (): ConnectionSettings => this._connectionSettings
+
+  /**
+   * Take the app's connection settings. A reconnect reads them at its next
+   * attempt, and an offline unit's wait is counted again under them.
+   */
+  public setConnectionSettings = (settings: ConnectionSettings): void => {
+    this._connectionSettings = settings
+    for (const client of this._clients.values()) client.recountOfflineRounds()
   }
 
   /** Make the client under `uuid` if there is none, and hand it `config`. */
@@ -37,7 +52,8 @@ export class Clients {
         uuid,
         appState: new AppState(),
         windows: this._windows,
-        transports: this._transports
+        transports: this._transports,
+        connectionSettings: this._settings
       })
     this._clients.set(uuid, client)
     if (!config) return

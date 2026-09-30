@@ -8,6 +8,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import McpSettings from './McpSettings'
+import ConnectionSettingsSection from './ConnectionSettings'
 
 interface SettingsProps {
   open: boolean
@@ -57,6 +58,7 @@ const Settings = meme(
         }}
       >
         <McpSettings />
+        <ConnectionSettingsSection />
       </Box>
       <DialogActions>
         <Button onClick={onClose} data-testid="settings-done-btn">

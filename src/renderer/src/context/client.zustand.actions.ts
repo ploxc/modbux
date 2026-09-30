@@ -436,9 +436,9 @@ export const isPlainRecord = (value: unknown): value is Record<string, unknown> 
 
 /**
  * A stored client with the defaults of what it does not carry, a field of the
- * register config included: a store written before `offlineAfterTimeouts` and
- * `maxPollInterval` existed holds a register config without them, and the
- * schema would reset the whole of it for two fields nobody set.
+ * register config included: a store written before a field existed holds a
+ * register config without it, and the schema would reset the whole of it for
+ * a field nobody set.
  */
 export const withDefaults = (client: Record<string, unknown>): Record<string, unknown> => {
   const defaults = getDefaultClient()

@@ -42,8 +42,6 @@ export const defaultConnectionConfig: ConnectionConfig = {
 export const defaultRegisterConfig: RegisterConfig = {
   pollRate: 1000,
   timeout: 5000,
-  offlineAfterTimeouts: 3,
-  maxPollInterval: 60_000,
   advancedMode: false,
   show64BitValues: false
 }

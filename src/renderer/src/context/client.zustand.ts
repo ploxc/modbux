@@ -716,10 +716,6 @@ export const useClientZustand = create<
       // Reading
       setPollRate: (pollRate) => setRegisterConfigField(set, get, 'pollRate', pollRate),
       setTimeout: (timeout) => setRegisterConfigField(set, get, 'timeout', timeout),
-      setOfflineAfterTimeouts: (offlineAfterTimeouts) =>
-        setRegisterConfigField(set, get, 'offlineAfterTimeouts', offlineAfterTimeouts),
-      setMaxPollInterval: (maxPollInterval) =>
-        setRegisterConfigField(set, get, 'maxPollInterval', maxPollInterval),
 
       // Serial port discovery
       serialPorts: [],

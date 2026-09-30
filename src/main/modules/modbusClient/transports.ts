@@ -1,4 +1,4 @@
-import { ConnectionConfig, transportKey } from '@shared'
+import { ConnectionConfig, ConnectionSettings, transportKey } from '@shared'
 import { Windows } from '../../windows'
 import { Transport } from './transport'
 
@@ -14,10 +14,12 @@ import { Transport } from './transport'
  */
 export class Transports {
   private _windows: Windows
+  private _settings: () => ConnectionSettings
   private _transports = new Map<string, Transport>()
 
-  constructor(windows: Windows) {
+  constructor(windows: Windows, settings: () => ConnectionSettings) {
     this._windows = windows
+    this._settings = settings
   }
 
   /** The transport a config opens, the one already listed under its key or a new one. */
@@ -30,6 +32,7 @@ export class Transports {
       key,
       config,
       windows: this._windows,
+      settings: this._settings,
       onIdle: (idle): void => {
         this._transports.delete(idle.key)
       }

@@ -505,19 +505,27 @@ describe('a selection that names what every object inherits', () => {
   })
 })
 
-describe('a stored register config from before the backoff settings', () => {
-  it('gets their defaults and loses nothing else', async () => {
+// The backoff settings moved to the app's connection settings, and a store
+// written while they sat in the register config still carries them.
+describe('a stored register config with the backoff settings it no longer holds', () => {
+  it('loads whole, without a reset', async () => {
     const client = getDefaultClient()
-    const { offlineAfterTimeouts, maxPollInterval, ...older } = {
-      ...client.registerConfig,
-      address: 40
-    }
     localStorage.setItem(
       CLIENT_ZUSTAND_STORAGE_KEY,
       JSON.stringify({
         state: {
           selectedUuid: MAIN_CLIENT_UUID,
-          clients: { [MAIN_CLIENT_UUID]: { ...client, registerConfig: older } }
+          clients: {
+            [MAIN_CLIENT_UUID]: {
+              ...client,
+              registerConfig: {
+                ...client.registerConfig,
+                pollRate: 2000,
+                offlineAfterTimeouts: 3,
+                maxPollInterval: 60_000
+              }
+            }
+          }
         },
         version: CURRENT_CLIENT_ZUSTAND_VERSION
       })
@@ -528,30 +536,8 @@ describe('a stored register config from before the backoff settings', () => {
 
     expect(state.configReset).toBeUndefined()
     expect(selectedClient(state).registerConfig).toMatchObject({
-      address: 40,
-      offlineAfterTimeouts,
-      maxPollInterval
-    })
-  })
-})
-
-describe('an undo of a backoff setting', () => {
-  it.each([
-    ['offlineAfterTimeouts', 'setOfflineAfterTimeouts', 5],
-    ['maxPollInterval', 'setMaxPollInterval', 120_000]
-  ] as const)('puts %s back', async (field, setter, value) => {
-    const { useClientZustand, clientUndo } = await load()
-    const before = selectedClient(useClientZustand.getState()).registerConfig[field]
-
-    expect(await useClientZustand.getState()[setter](value)).toBe(true)
-    expect(selectedClient(useClientZustand.getState()).registerConfig[field]).toBe(value)
-    await clientUndo.undoClient()
-
-    const { offlineAfterTimeouts, maxPollInterval } = getDefaultClient().registerConfig
-    expect(before).toBe(getDefaultClient().registerConfig[field])
-    expect(selectedClient(useClientZustand.getState()).registerConfig).toMatchObject({
-      offlineAfterTimeouts,
-      maxPollInterval
+      ...client.registerConfig,
+      pollRate: 2000
     })
   })
 })

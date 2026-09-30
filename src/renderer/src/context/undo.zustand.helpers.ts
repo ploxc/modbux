@@ -32,8 +32,6 @@ export const clientFieldReaders: {
   stopBits: ({ client }) => client.connectionConfig.rtu.options.stopBits,
   pollRate: ({ client }) => client.registerConfig.pollRate,
   timeout: ({ client }) => client.registerConfig.timeout,
-  offlineAfterTimeouts: ({ client }) => client.registerConfig.offlineAfterTimeouts,
-  maxPollInterval: ({ client }) => client.registerConfig.maxPollInterval,
   advancedMode: ({ client }) => client.registerConfig.advancedMode,
   show64BitValues: ({ client }) => client.registerConfig.show64BitValues,
   unitId: ({ unit }) => unit.unitId,
@@ -64,13 +62,6 @@ export const clientFieldSteps: {
   stopBits: (value, view) => ({ ...view, kind: 'field', field: 'stopBits', value }),
   pollRate: (value, view) => ({ ...view, kind: 'field', field: 'pollRate', value }),
   timeout: (value, view) => ({ ...view, kind: 'field', field: 'timeout', value }),
-  offlineAfterTimeouts: (value, view) => ({
-    ...view,
-    kind: 'field',
-    field: 'offlineAfterTimeouts',
-    value
-  }),
-  maxPollInterval: (value, view) => ({ ...view, kind: 'field', field: 'maxPollInterval', value }),
   advancedMode: (value, view) => ({ ...view, kind: 'field', field: 'advancedMode', value }),
   show64BitValues: (value, view) => ({ ...view, kind: 'field', field: 'show64BitValues', value }),
   unitId: (value, view) => ({ ...view, kind: 'field', field: 'unitId', value }),

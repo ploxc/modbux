@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { EventEmitter } from 'events'
-import type { ConnectionConfig, ConnectState } from '@shared'
-import { defaultConnectionConfig } from '@shared'
+import type { ConnectionConfig, ConnectionSettings, ConnectState } from '@shared'
+import { defaultConnectionConfig, defaultConnectionSettings } from '@shared'
 import type { Windows } from '../../../windows'
 
 /** A `ModbusRTU` whose reads wait until the test answers them. */
@@ -68,6 +68,13 @@ const fireHandler = (event: 'close' | 'error', ...args: unknown[]): void => {
 }
 
 let sent: Array<[string, unknown]> = []
+/**
+ * The app's connection settings the transports of a test read: the defaults,
+ * with the wait held at 3 s, the fixed wait the reconnect tests were written
+ * against. The tests of the growing wait set their own.
+ */
+const FIXED_WAIT: ConnectionSettings = { ...defaultConnectionSettings, reconnectLongestWait: 3000 }
+let connectionSettings: ConnectionSettings = FIXED_WAIT
 const windows = {
   send: vi.fn((event: string, payload: unknown) => {
     sent.push([event, structuredClone(payload)])
@@ -86,6 +93,7 @@ const createClient = () => {
     setConnectState: (state) => {
       states.push(state)
     },
+    logs: () => false,
     transportClosed: () => {
       client.closed++
       states.push('disconnected')
@@ -139,7 +147,8 @@ describe('Transport', () => {
     vi.useFakeTimers()
     mockModbusRTU = createMockModbusRTU()
     sent = []
-    transports = new Transports(windows)
+    connectionSettings = FIXED_WAIT
+    transports = new Transports(windows, () => connectionSettings)
   })
 
   afterEach(() => {
@@ -1325,6 +1334,90 @@ describe('Transport', () => {
       open()
       await opening
       expect(transports.acquire(tcp('10.0.0.1'))).not.toBe(transport)
+    })
+  })
+
+  describe('the reconnect settings', () => {
+    /** A rider on 10.0.0.1 whose device is gone after it connected: every reopen is refused. */
+    const connectedThenGone = async (logs = false) => {
+      const rider = { ...createClient(), logs: () => logs }
+      const transport = transports.acquire(tcp('10.0.0.1'))
+      await transport.attach(rider, tcp('10.0.0.1'))
+      mockModbusRTU.connectTCP.mockRejectedValue(new Error('ECONNREFUSED'))
+      mockModbusRTU.isOpen = false
+      fireHandler('close')
+      return rider
+    }
+    const opens = (): number => mockModbusRTU.connectTCP.mock.calls.length
+    const gaveUp = (): boolean =>
+      messages().some((message) => (message as { message: string }).message.includes('giving up'))
+
+    beforeEach(() => {
+      connectionSettings = FIXED_WAIT
+    })
+
+    it('waits the first wait, then twice as long each attempt, up to the longest', async () => {
+      connectionSettings = {
+        ...defaultConnectionSettings,
+        reconnectAttempts: 0,
+        reconnectFirstWait: 1000,
+        reconnectLongestWait: 3000
+      }
+      await connectedThenGone()
+      const at: number[] = []
+      for (let elapsed = 0; elapsed <= 12_000; elapsed += 500) {
+        if (opens() > at.length + 1) at.push(elapsed)
+        await vi.advanceTimersByTimeAsync(500)
+      }
+
+      // After 1 s, then 2 s later, then 3 s apart: 1, 3, 6, 9, 12 s.
+      expect(at).toEqual([1000, 3000, 6000, 9000, 12_000])
+    })
+
+    it('keeps trying past the attempts while a rider logs', async () => {
+      connectionSettings = { ...FIXED_WAIT, reconnectAttempts: 2 }
+      await connectedThenGone(true)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(opens()).toBeGreaterThan(3)
+      expect(gaveUp()).toBe(false)
+    })
+
+    it('gives up at the attempts while no rider logs', async () => {
+      connectionSettings = { ...FIXED_WAIT, reconnectAttempts: 2 }
+      const rider = await connectedThenGone(false)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(opens()).toBe(3)
+      expect(gaveUp()).toBe(true)
+      expect(rider.states.at(-1)).toBe('disconnected')
+    })
+
+    it('gives up at the attempts while a rider logs, with While logging off', async () => {
+      connectionSettings = { ...FIXED_WAIT, reconnectAttempts: 2, reconnectWhileLogging: false }
+      await connectedThenGone(true)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(opens()).toBe(3)
+      expect(gaveUp()).toBe(true)
+    })
+
+    it('keeps trying with attempts at 0, and counts without a limit', async () => {
+      connectionSettings = { ...FIXED_WAIT, reconnectAttempts: 0 }
+      await connectedThenGone(false)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(opens()).toBeGreaterThan(6)
+      expect(gaveUp()).toBe(false)
+      expect(
+        messages().filter((message) =>
+          /\(\d+\)\.\.\.$/.test((message as { message: string }).message)
+        ).length
+      ).toBeGreaterThan(5)
     })
   })
 })

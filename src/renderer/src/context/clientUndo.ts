@@ -92,8 +92,6 @@ const clientFieldWriters: {
   polled: (value) => useClientZustand.getState().setPolled(getShownType(), value),
   pollRate: (value) => useClientZustand.getState().setPollRate(value),
   timeout: (value) => useClientZustand.getState().setTimeout(value),
-  offlineAfterTimeouts: (value) => useClientZustand.getState().setOfflineAfterTimeouts(value),
-  maxPollInterval: (value) => useClientZustand.getState().setMaxPollInterval(value),
   littleEndian: (value) => useClientZustand.getState().setLittleEndian(value),
   advancedMode: (value) => useClientZustand.getState().setAdvancedMode(value),
   show64BitValues: (value) => useClientZustand.getState().setShow64BitValues(value),

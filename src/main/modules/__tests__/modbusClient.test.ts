@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { newClientUnit, RegisterTypeSchema } from '@shared'
+import { defaultConnectionSettings, newClientUnit, RegisterTypeSchema } from '@shared'
+import type { ConnectionSettings } from '@shared'
 import type {
   AddressGroupsEvent,
   BackendMessage,
@@ -211,6 +212,12 @@ describe('ModbusClient', () => {
   let windows: Windows
   let appState: AppState
   let transports: Transports
+  /** The app's connection settings every client and transport of a test reads. */
+  let connectionSettings: ConnectionSettings = { ...defaultConnectionSettings }
+  const settingsNow = (): ConnectionSettings => connectionSettings
+  const setConnectionSettings = (update: Partial<ConnectionSettings>): void => {
+    connectionSettings = { ...connectionSettings, ...update }
+  }
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -229,8 +236,16 @@ describe('ModbusClient', () => {
     portIncrementsKey = true
     windows = createMockWindows()
     appState = new AppState()
-    transports = new Transports(windows)
-    client = new ModbusClient({ uuid: 'client-1', appState, windows, transports })
+    // The wait held at 3 s, the fixed wait the reconnect tests were written against.
+    connectionSettings = { ...defaultConnectionSettings, reconnectLongestWait: 3000 }
+    transports = new Transports(windows, settingsNow)
+    client = new ModbusClient({
+      uuid: 'client-1',
+      appState,
+      windows,
+      transports,
+      connectionSettings: settingsNow
+    })
     unitType = 'holding_registers'
     client.setUnits([newClientUnit(UNIT, 1)])
     showEverything()
@@ -721,7 +736,8 @@ describe('ModbusClient', () => {
         uuid: 'client-2',
         appState: otherState,
         windows,
-        transports
+        transports,
+        connectionSettings: settingsNow
       })
       void other.connect()
       await vi.advanceTimersByTimeAsync(0)
@@ -1725,7 +1741,7 @@ describe('ModbusClient', () => {
     })
 
     it('is polled no further apart than the most the config allows', async () => {
-      appState.updateRegisterConfig({ maxPollInterval: 3000 })
+      setConnectionSettings({ maxPollInterval: 3000 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
 
@@ -1743,7 +1759,7 @@ describe('ModbusClient', () => {
     })
 
     it('goes offline after as many silent polls as the config says', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
 
@@ -1789,7 +1805,7 @@ describe('ModbusClient', () => {
     })
 
     it('is read at once when the user asks, and back once it answers', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
       await client.read(UNIT, unitType)
@@ -1803,7 +1819,7 @@ describe('ModbusClient', () => {
     })
 
     it('counts again from nothing for another unit id', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
+      setConnectionSettings({ offlineAfterTimeouts: 2 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
       await client.read(UNIT, unitType)
@@ -1819,7 +1835,7 @@ describe('ModbusClient', () => {
     // A new mapping or read configuration changes what is read, not which
     // device is asked.
     it('stays offline through a change of what is read from it', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 2 })
+      setConnectionSettings({ offlineAfterTimeouts: 2 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
       await client.read(UNIT, unitType)
@@ -1867,7 +1883,8 @@ describe('ModbusClient', () => {
       expect(reads()).toBe(5)
       await vi.advanceTimersByTimeAsync(1000)
 
-      client.updateRegisterConfig({ maxPollInterval: 1000 })
+      setConnectionSettings({ maxPollInterval: 1000 })
+      client.recountOfflineRounds()
 
       // A poll reads in rounds, so the shorter wait starts at the next one.
       await vi.advanceTimersByTimeAsync(1000)
@@ -1888,7 +1905,8 @@ describe('ModbusClient', () => {
       await vi.advanceTimersByTimeAsync(1000)
       expect(reads()).toBe(2)
 
-      client.updateRegisterConfig({ maxPollInterval: 2000 })
+      setConnectionSettings({ maxPollInterval: 2000 })
+      client.recountOfflineRounds()
       // Every read answered as it comes, over three rounds of the poll rate:
       // one chain reads once a round, and two would read twice.
       for (let round = 0; round < 3; round++) {
@@ -1907,7 +1925,7 @@ describe('ModbusClient', () => {
 
     // Exception 11 is the gateway answering for a device behind it that did not.
     it('counts a gateway saying the device did not answer as silence', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(
         Object.assign(new Error('Gateway target device failed to respond'), { modbusCode: 11 })
@@ -1919,7 +1937,7 @@ describe('ModbusClient', () => {
     })
 
     it('holds nothing against another unit id for a read the old one left running', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       let fail: (() => void) | undefined
       mockModbusRTU.readHoldingRegisters.mockImplementation(
@@ -1958,7 +1976,7 @@ describe('ModbusClient', () => {
     })
 
     it('is not offline once disconnected', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       mockModbusRTU.readHoldingRegisters.mockRejectedValue(timedOut())
       await client.read(UNIT, unitType)
@@ -2371,7 +2389,7 @@ describe('ModbusClient', () => {
     })
 
     it('reads the other unit every round while one is offline', async () => {
-      appState.updateRegisterConfig({ offlineAfterTimeouts: 1 })
+      setConnectionSettings({ offlineAfterTimeouts: 1 })
       await connectClient()
       twoUnits()
       mockModbusRTU.readHoldingRegisters.mockImplementation(async (address: number) => {
@@ -2968,7 +2986,8 @@ describe('ModbusClient', () => {
           uuid: 'client-2',
           appState: new AppState(),
           windows,
-          transports
+          transports,
+          connectionSettings: settingsNow
         })
         await other.connect()
 
@@ -6059,6 +6078,18 @@ describe('ModbusClient', () => {
 
     const samples = (): Array<{ time: number; value: number; error: string | undefined }> =>
       [...client.logSamples()].map(({ time, value, error }) => ({ time, value, error }))
+
+    // Logging keeps the connection reconnecting where that is set.
+    it('says it logs while logging is on, and not before or after', async () => {
+      await connectClient()
+      expect(client.logs()).toBe(false)
+
+      client.startLog(false)
+      expect(client.logs()).toBe(true)
+
+      client.stopLog()
+      expect(client.logs()).toBe(false)
+    })
 
     it('reads a logged group with nothing on screen and its Poll off, and keeps its value', async () => {
       await connectClient()

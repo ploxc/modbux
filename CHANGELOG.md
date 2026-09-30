@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A connection setting waits until you disconnect, and Modbux says so, as it
   does when there is nothing left to undo. In a text field the keys undo your
   typing. Each view keeps its last 100 steps until Modbux closes.
+- **How Modbux reconnects is set in Settings.** A Connection section sets, for
+  every client, how many times a dropped connection is reconnected before
+  Modbux gives up (0 keeps trying), how long the first attempt waits, doubling
+  each attempt up to a longest wait, and whether a client that logs keeps
+  trying for as long as logging is on, which is on by default. The same
+  section sets how many unanswered polls make a unit offline and how far apart
+  its polls get then.
 - **An AI assistant can read Modbux.** The settings, behind the gear on Home,
   let an assistant such as Claude connect over the Model Context Protocol, on
   this machine only. Tick Read and create a token, and it can list your clients,
