@@ -2,6 +2,8 @@ import Close from '@mui/icons-material/Close'
 import DragIndicator from '@mui/icons-material/DragIndicator'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { applyConversion } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
 import DraggablePanel from '@renderer/components/shared/DraggablePanel/DraggablePanel'
 import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
@@ -11,16 +13,23 @@ import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 import { textMuted } from '@renderer/theme'
 import { ClientUnit, isNumberRegister, RegisterMapValue } from '@shared'
-import { useCallback, useMemo } from 'react'
+import { MouseEvent, useCallback, useMemo } from 'react'
 import TrendChart, { TrendLine } from './TrendChart'
-import { TREND_WINDOW_MS, trendSeries, trendSummary } from './trendData'
+import {
+  TREND_RANGES,
+  TREND_SPANS,
+  TrendRangeId,
+  trendGaps,
+  trendSeries,
+  trendSummary
+} from './trendData'
 import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
 
 const PAPER_SX = {
   p: 0,
-  width: 520,
-  height: 300,
+  width: 640,
+  height: 340,
   minWidth: 420,
   minHeight: 240,
   resize: 'both',
@@ -30,6 +39,37 @@ const PAPER_SX = {
 } as const
 
 const NO_UNITS: ClientUnit[] = []
+
+/** The range buttons, and a press that picks one. */
+const RangePicker = meme((): JSX.Element => {
+  const range = useTrendPanelZustand((z) => z.range)
+  const handleRange = useCallback(
+    (_event: MouseEvent<HTMLElement>, picked: TrendRangeId | null) => {
+      if (picked === null) return
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setRange(picked)
+    },
+    []
+  )
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={range}
+      onChange={handleRange}
+      aria-label="Range"
+      sx={{
+        '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
+      }}
+    >
+      {TREND_RANGES.map(({ id, label }) => (
+        <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
+          {label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
+  )
+})
 
 /** A number as the trend's figures write it: as the value came, at most six decimals. */
 const figure = (value: number | undefined): string =>
@@ -133,11 +173,12 @@ const TrendChip = meme(
 )
 
 /**
- * The registers a Log icon in Monitor added, as lines over the last 10
- * minutes of the log, converted as the grid converts them, in a panel that
- * drags by its title, resizes from its corner, and leaves Monitor working
- * under it. It moves while the log
- * runs, and otherwise shows the 10 minutes before the log last stopped.
+ * The registers a Log icon in Monitor added, as lines over the range picked
+ * of the log, converted as the grid converts them, in a panel that drags by
+ * its title, resizes from its corner, and leaves Monitor working under it. It
+ * moves while the log runs, and otherwise shows the range up to where the log
+ * last stopped. The range before the log's oldest sample is hatched, and each
+ * stretch between two runs is shaded and named by why the first ended.
  */
 const TrendPanel = meme((): JSX.Element | null => {
   const entries = useTrendPanelZustand((z) => z.entries)
@@ -145,26 +186,28 @@ const TrendPanel = meme((): JSX.Element | null => {
   const uuid = entries[0]?.uuid ?? ''
   const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
   const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
-  const runEndsKey = useLiveZustand((z) =>
-    dataOf(z, uuid)
-      .clientState.log.runs.map(({ end }) => end ?? '')
-      .join(',')
-  )
-  const lastEnd = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs.at(-1)?.end)
+  const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
+  // The array main's last client state carried, which the store keeps as it came.
+  const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
+  const range = useTrendPanelZustand((z) => z.range)
   // A script's value waits for the engine, and draws again once it is there.
   useScriptEngineZustand((z) => z.ready)
 
-  const points = useLogWindows(entries, running, lastEnd)
+  const lastEnd = runs.at(-1)?.end
+  const span = TREND_SPANS[range]
+  const points = useLogWindows(entries, {
+    live: running,
+    span,
+    until: lastEnd,
+    started: oldest !== undefined
+  })
   const layout = useMemo(() => layoutOf(entries, units), [entries, units])
 
   // Converted again on every render, which comes with each answer, a store
   // change or the script engine turning ready. A script conversion measured
   // about 1.9 µs a call, so the 6,000 samples of 10 minutes at 100 ms polls
   // take about 11 ms a register.
-  const runEnds = runEndsKey
-    .split(',')
-    .filter((end) => end !== '')
-    .map(Number)
+  const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
   const drawn = entries.map((entry) => {
     const mapValue = mapValueOf(units, entry)
     const convert = (raw: number): number | undefined => {
@@ -176,8 +219,11 @@ const TrendPanel = meme((): JSX.Element | null => {
   })
 
   // Live, the range ends now, and moves with each answer; stopped, where the
-  // log stopped.
+  // log stopped. The whole log starts at its oldest sample, and an empty one
+  // shows the shortest range.
   const to = running ? Date.now() : (lastEnd ?? Date.now())
+  const from = Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m'])
+  const gaps = trendGaps(runs, to)
   const handleClose = useCallback(() => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.close()
@@ -210,9 +256,7 @@ const TrendPanel = meme((): JSX.Element | null => {
           <Box component="span" sx={{ fontWeight: 500 }}>
             Trend
           </Box>
-          <Box component="span" sx={{ color: textMuted }}>
-            · last 10 minutes
-          </Box>
+          <RangePicker />
           <Box sx={{ flexGrow: 1 }} />
           <Box
             component="span"
@@ -257,8 +301,10 @@ const TrendPanel = meme((): JSX.Element | null => {
             data={drawn.map(({ series }) => series)}
             leftScale={layout.leftScale}
             rightScale={layout.rightScale}
-            from={to - TREND_WINDOW_MS}
+            from={from}
             to={to}
+            oldest={oldest}
+            gaps={gaps}
           />
         </Box>
       </Box>

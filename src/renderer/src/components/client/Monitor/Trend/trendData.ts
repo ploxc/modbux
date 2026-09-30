@@ -1,7 +1,49 @@
-import { LogPoint } from '@shared'
+import { inSteps, LogPoint, LogRun, LogStopReason } from '@shared'
 
-/** How far back a mini trend reaches. */
-export const TREND_WINDOW_MS = 10 * 60 * 1000
+/** The ranges a trend picks from, in the order it offers them. */
+export const TREND_RANGES = [
+  { id: '10m', label: '10 min' },
+  { id: '1h', label: '1 h' },
+  { id: '8h', label: '8 h' },
+  { id: 'log', label: 'Whole log' }
+] as const
+export type TrendRangeId = (typeof TREND_RANGES)[number]['id']
+
+/** How far back each range reaches, up to where the trend ends; the whole log reaches its oldest sample. */
+export const TREND_SPANS: Record<TrendRangeId, number> = {
+  '10m': 10 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '8h': 8 * 60 * 60 * 1000,
+  log: Number.POSITIVE_INFINITY
+}
+
+/**
+ * How many stretches main hands a window back in, each as its lowest and
+ * highest value: about two a pixel across a trend as wide as a window.
+ */
+const TREND_STEPS = 1500
+
+/** The step main hands a window from `from` to `to` in, as `steps` stretches. */
+export const stepOf = (from: number, to: number, steps = TREND_STEPS): number | undefined =>
+  to > from && Number.isFinite(to - from) ? (to - from) / steps : undefined
+
+/** Where the log took no samples between two of its runs, and why. */
+export interface TrendGap {
+  start: number
+  end: number
+  reason: LogStopReason | undefined
+}
+
+/**
+ * The stretches between the runs of the log, each from where a run ended to
+ * where the next started, and the last to `to` when the log is not running.
+ */
+export const trendGaps = (runs: readonly LogRun[], to: number): TrendGap[] =>
+  runs.flatMap((run, index) => {
+    if (run.end === undefined) return []
+    const next = runs[index + 1]
+    return [{ start: run.end, end: next === undefined ? to : next.start, reason: run.reason }]
+  })
 
 /** What a trend draws: a time per point, and its value or a gap. */
 export interface TrendSeries {
@@ -49,4 +91,23 @@ export const trendSummary = (
     min: numbers.length === 0 ? undefined : Math.min(...numbers),
     max: numbers.length === 0 ? undefined : Math.max(...numbers)
   }
+}
+
+/**
+ * The points of a window with those of the answer that went on from it.
+ * Main answers the stretch the last answer ended in again, with only the
+ * samples since, so with a `step` that stretch is stepped again out of both,
+ * and it keeps one lowest, highest and newest.
+ */
+export const mergeSteps = (
+  held: readonly LogPoint[],
+  fresh: readonly LogPoint[],
+  step: number | undefined
+): LogPoint[] => {
+  const [first] = fresh
+  if (step === undefined || first === undefined) return [...held, ...fresh]
+  const stretch = Math.floor(first.time / step)
+  const open = held.findIndex(({ time }) => Math.floor(time / step) >= stretch)
+  if (open === -1) return [...held, ...fresh]
+  return [...held.slice(0, open), ...inSteps([...held.slice(open), ...fresh], step)]
 }

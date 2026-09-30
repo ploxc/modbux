@@ -2,6 +2,7 @@ import { TREND_COLORS } from '@renderer/theme'
 import { RegisterType } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
+import { TrendRangeId } from './trendData'
 
 /** One register a trend draws, of a client's unit. */
 export interface TrendEntry {
@@ -24,6 +25,9 @@ interface TrendPanelZustand {
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
   anchor: HTMLElement | null
+  /** How far back the trend reaches. */
+  range: TrendRangeId
+  setRange: (range: TrendRangeId) => void
   /**
    * Adds a register, opening the trend under `anchor` when it is closed. A
    * trend draws one client's log, so a register of another client starts it
@@ -41,6 +45,11 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
   mutative((set, get) => ({
     entries: [],
     anchor: null,
+    range: '10m',
+    setRange: (range): void =>
+      set((state) => {
+        state.range = range
+      }),
     add: (entry, anchor): boolean => {
       const { entries } = get()
       if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) return true

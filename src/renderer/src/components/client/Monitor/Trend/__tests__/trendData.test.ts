@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LogPoint } from '@shared'
-import { trendSeries, trendSummary } from '../trendData'
+import { stepOf, trendGaps, trendSeries, trendSummary } from '../trendData'
 
 const point = (time: number, value: number, error?: string): LogPoint => ({ time, value, error })
 const double = (raw: number): number => raw * 2
@@ -38,5 +38,40 @@ describe('trendSummary', () => {
 
   it('answers nothing for a trend of gaps only', () => {
     expect(trendSummary([null])).toEqual({ last: undefined, min: undefined, max: undefined })
+  })
+})
+
+describe('stepOf', () => {
+  it('splits a window into 1,500 steps', () => {
+    expect(stepOf(0, 600_000)).toBe(400)
+  })
+
+  it('answers no step for a window with no length, or no start', () => {
+    expect(stepOf(5, 5)).toBeUndefined()
+    expect(stepOf(Number.NEGATIVE_INFINITY, 5)).toBeUndefined()
+  })
+})
+
+describe('trendGaps', () => {
+  it('answers each stretch between two runs with the reason the first ended', () => {
+    expect(
+      trendGaps(
+        [
+          { start: 0, end: 10, reason: 'poll stopped' },
+          { start: 15, end: 20, reason: 'disconnected' },
+          { start: 30 }
+        ],
+        40
+      )
+    ).toEqual([
+      { start: 10, end: 15, reason: 'poll stopped' },
+      { start: 20, end: 30, reason: 'disconnected' }
+    ])
+  })
+
+  it('runs the gap after a last run that ended up to the end of the trend', () => {
+    expect(trendGaps([{ start: 0, end: 10, reason: 'log stopped' }], 40)).toEqual([
+      { start: 10, end: 40, reason: 'log stopped' }
+    ])
   })
 })
