@@ -1211,6 +1211,9 @@ export class ModbusClient implements TransportClient {
   /** Every sample the log holds, oldest first. */
   public logSamples = (): Generator<LogSample> => this._log.samples()
 
+  /** The registers the log holds a sample of, whether they log now or not. */
+  public logSeries = (): LogSeries[] => this._log.series()
+
   /** One register's samples for a chart, from `from` and the sequence `after` on. */
   public logWindow = (series: LogSeries, from: number, after: number): LogWindow =>
     this._log.window(series, from, after)

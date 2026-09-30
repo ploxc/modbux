@@ -562,6 +562,7 @@ describe('each guarded channel got its own schema', () => {
       from: 0,
       after: 0
     },
+    get_log_series: 'client-1',
     stop_scanning_unit_ids: 'client-1',
     stop_scanning_registers: 'client-1',
     write: {

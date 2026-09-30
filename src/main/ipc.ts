@@ -121,6 +121,7 @@ const CLIENT_CHANNELS: readonly RefusableChannel[] = [
   'set_log_capacity',
   'get_log_page',
   'get_log_window',
+  'get_log_series',
   'set_connection_settings',
   'write',
   'scan_unit_ids',
@@ -293,6 +294,7 @@ export const initIpc: InitIpcFn = (app, clients, server, windows, mcp) => {
     (_, { uuid, series, from, after }) => clients.get(uuid)?.logWindow(series, from, after),
     ClientLogWindowSchema
   )
+  ipcHandle('get_log_series', (_, uuid) => clients.get(uuid)?.logSeries(), ClientUuidSchema)
 
   // Write Actions
   ipcHandle(

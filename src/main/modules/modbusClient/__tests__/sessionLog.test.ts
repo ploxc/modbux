@@ -208,6 +208,50 @@ describe('SessionLog', () => {
     expect(log.status()).toMatchObject({ capacity: 1500, overwritten: 2 })
   })
 
+  describe('the series it holds', () => {
+    const holding1: LogSeries = { unit: 'unit-b', type: 'holding_registers', address: 1 }
+
+    it('lists every series it holds a sample of, in the order each was first kept', () => {
+      const log = running()
+      log.record(coil3, poll, 1, 1, undefined)
+      log.record(holding0, poll, 2, 5, undefined)
+      log.record(coil3, poll, 3, 0, 'Timed out')
+
+      expect(log.series()).toEqual([coil3, holding0])
+    })
+
+    it('drops a series once its last sample is overwritten, and keeps one with a sample left', () => {
+      const log = running(3)
+      log.record(holding0, poll, 1, 5, undefined)
+      log.record(coil3, poll, 2, 1, undefined)
+      log.record(holding1, poll, 3, 7, undefined)
+      log.record(coil3, poll, 4, 0, undefined)
+
+      expect(log.series()).toEqual([coil3, holding1])
+    })
+
+    it('drops a series a shrink leaves no sample of, and keeps the rest', () => {
+      const log = running(10)
+      log.record(holding0, poll, 1, 5, undefined)
+      log.record(coil3, poll, 2, 1, undefined)
+      log.record(holding1, poll, 3, 7, undefined)
+
+      log.setCapacity(2)
+      expect(log.series()).toEqual([coil3, holding1])
+    })
+
+    it('lists nothing once cleared, and what it keeps after', () => {
+      const log = running()
+      log.record(holding0, poll, 1, 5, undefined)
+      log.clear()
+      expect(log.series()).toEqual([])
+
+      log.start(2)
+      log.record(coil3, poll, 3, 1, undefined)
+      expect(log.series()).toEqual([coil3])
+    })
+  })
+
   describe('a page', () => {
     const all = (): boolean => true
 

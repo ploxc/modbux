@@ -98,8 +98,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   last 10 minutes, up to eight registers each in its own colour, moving while
   the log runs, with a second unit on its own axis; the trend drags and
   resizes and leaves Monitor working under it. The export takes a range
-  between two dates and the registers ticked in a tree of units, and writes
-  each sample's raw value and its value as the register's conversion makes it.
+  between two dates and the registers ticked in a tree of what the log holds,
+  a register that no longer logs included, and writes each sample's raw value
+  and its value as the register's conversion makes it.
 
 ### Changed
 

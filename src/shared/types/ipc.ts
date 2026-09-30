@@ -19,6 +19,7 @@ import type {
   ClientLogWindow,
   ConnectionSettings,
   LogPage,
+  LogSeries,
   LogWindow,
   ClientScanRegisters,
   ClientScanUnitIds,
@@ -98,6 +99,7 @@ export const IPC_CHANNELS = [
   'set_log_capacity',
   'get_log_page',
   'get_log_window',
+  'get_log_series',
   'set_connection_settings',
   'write',
   'scan_unit_ids',
@@ -265,6 +267,11 @@ interface IpcHandlerSpec {
   ['get_log_window']: {
     args: [ClientLogWindow]
     return: LogWindow | undefined
+  }
+  /** The registers a client's log holds a sample of, for an export; nothing for no such client. */
+  ['get_log_series']: {
+    args: [string]
+    return: LogSeries[] | undefined
   }
   /** The app's connection settings, which every client and connection reads. */
   ['set_connection_settings']: {

@@ -6391,6 +6391,31 @@ describe('ModbusClient', () => {
       client.stopPolling()
     })
 
+    it('names the registers its log holds, one no longer logging too', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      client.stopPolling()
+      const unit = theUnit()
+      client.setUnits([
+        {
+          ...unit,
+          registerMapping: {
+            ...unit.registerMapping,
+            holding_registers: { 0: { dataType: 'uint16' } }
+          }
+        }
+      ])
+
+      expect(client.logSeries()).toEqual([
+        { unit: unit.uuid, type: 'holding_registers', address: 0 }
+      ])
+    })
+
     it('hands an export the registers it names, within its range', async () => {
       await connectClient()
       logHolding0()

@@ -11,9 +11,15 @@ import {
   LogWindow
 } from '@shared'
 
+/** One series of the log, and how many samples of it the log holds. */
+interface SeriesEntry {
+  series: LogSeries
+  held: number
+}
+
 /** What a sample shares with every other sample of its series and status. */
 interface SampleMeta {
-  series: LogSeries
+  entry: SeriesEntry
   error: string | undefined
 }
 
@@ -57,7 +63,7 @@ export class SessionLog {
   private _overwritten = 0
 
   private _metaByKey = new Map<string, SampleMeta>()
-  private _seriesByKey = new Map<string, LogSeries>()
+  private _seriesByKey = new Map<string, SeriesEntry>()
   /** What each series kept last in this run, whichever mode kept it. */
   private _kept = new Map<LogSeries, Kept>()
 
@@ -88,10 +94,10 @@ export class SessionLog {
     for (const [from, to] of segments) {
       const start = Math.min(to, from + toSkip)
       toSkip -= start - from
-      for (const [offset, { series, error }] of this._meta.slice(start, to).entries()) {
+      for (const [offset, { entry, error }] of this._meta.slice(start, to).entries()) {
         const byte = (start + offset) * SAMPLE_BYTES
         yield {
-          ...series,
+          ...entry.series,
           error,
           time: this._view.getFloat64(byte),
           value: this._view.getFloat64(byte + 8)
@@ -147,7 +153,7 @@ export class SessionLog {
     for (let index = low; index < this._count; index++) {
       const slot = slotOf(index)
       const meta = this._meta[slot]
-      if (meta?.series !== wanted) continue
+      if (meta?.entry !== wanted) continue
       const byte = slot * SAMPLE_BYTES
       points.push({
         time: this._view.getFloat64(byte),
@@ -157,6 +163,10 @@ export class SessionLog {
     }
     return { points, end }
   }
+
+  /** The series the log holds a sample of, in the order the log first met each. */
+  series = (): LogSeries[] =>
+    [...this._seriesByKey.values()].filter(({ held }) => held > 0).map(({ series }) => series)
 
   get running(): boolean {
     const last = this._runs.at(-1)
@@ -186,6 +196,7 @@ export class SessionLog {
     this._head = 0
     this._count = 0
     this._meta = []
+    this._releaseAll()
     for (const { time, value, error, ...series } of kept) {
       this._push(time, value, this._metaOf(series, error))
     }
@@ -202,6 +213,7 @@ export class SessionLog {
     this._pushed = 0
     this._overwritten = 0
     this._meta = []
+    this._releaseAll()
     this._runs = []
   }
 
@@ -228,14 +240,14 @@ export class SessionLog {
     if (!this.running) return
     const meta = this._metaOf(series, error)
     if (setting.mode === 'change') {
-      const kept = this._kept.get(meta.series)
+      const kept = this._kept.get(meta.entry.series)
       const same =
         kept !== undefined &&
         kept.error === error &&
         (error !== undefined || Math.abs(value - kept.value) <= setting.deadband)
       if (same) return
     }
-    this._kept.set(meta.series, { value, error })
+    this._kept.set(meta.entry.series, { value, error })
     this._push(time, value, meta)
   }
 
@@ -258,18 +270,28 @@ export class SessionLog {
     const key = `${seriesKey}|${error ?? ''}`
     const known = this._metaByKey.get(key)
     if (known) return known
-    const meta = { series: this._seriesOf(seriesKey, series), error }
+    const meta = { entry: this._entryOf(seriesKey, series), error }
     this._metaByKey.set(key, meta)
     return meta
   }
 
-  /** One object per series, which every status of it shares and `_kept` is keyed by. */
-  private _seriesOf = (key: string, series: LogSeries): LogSeries => {
+  /**
+   * One entry per series, which every status of it shares; its series is the
+   * one object `_kept` is keyed by.
+   */
+  private _entryOf = (key: string, series: LogSeries): SeriesEntry => {
     const known = this._seriesByKey.get(key)
     if (known) return known
-    const own = { unit: series.unit, type: series.type, address: series.address }
+    const own = {
+      series: { unit: series.unit, type: series.type, address: series.address },
+      held: 0
+    }
     this._seriesByKey.set(key, own)
     return own
+  }
+
+  private _releaseAll = (): void => {
+    for (const entry of this._seriesByKey.values()) entry.held = 0
   }
 
   private _push = (time: number, value: number, meta: SampleMeta): void => {
@@ -281,6 +303,10 @@ export class SessionLog {
       this._head = this._count
     }
     const slot = this._head
+    // A slot holds a sample only once the log has wrapped onto it.
+    const overwritten = this._meta[slot]
+    if (overwritten) overwritten.entry.held--
+    meta.entry.held++
     this._view.setFloat64(slot * SAMPLE_BYTES, time)
     this._view.setFloat64(slot * SAMPLE_BYTES + 8, value)
     this._meta[slot] = meta
