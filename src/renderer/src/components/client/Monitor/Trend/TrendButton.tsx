@@ -7,7 +7,7 @@ import { TREND_COLORS } from '@renderer/theme'
 import { enqueueSnackbar } from 'notistack'
 import { MouseEvent, useCallback } from 'react'
 import { MonitorRegisterRow } from '../monitorRows'
-import { trendKey, useTrendPopoverZustand } from './trendPopover.zustand'
+import { trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 
 /**
  * A Monitor row's Log icon, which adds that register to the trend, opening it
@@ -17,15 +17,15 @@ const TrendButton = meme(
   ({ row, testId }: { row: MonitorRegisterRow; testId: string }): JSX.Element => {
     const uuid = useClientZustand((z) => z.selectedUuid)
     const key = trendKey({ uuid, unit: row.unit, type: row.type, address: row.address })
-    const drawn = useTrendPopoverZustand((z) => z.entries.some((entry) => trendKey(entry) === key))
+    const drawn = useTrendPanelZustand((z) => z.entries.some((entry) => trendKey(entry) === key))
 
     // The grid, whose corner the trend opens in.
     const handleAdd = useCallback(
       (event: MouseEvent<HTMLElement>) => {
         const anchor =
           event.currentTarget.closest<HTMLElement>('.monitor-grid') ?? event.currentTarget
-        const trendPopoverZustand = useTrendPopoverZustand.getState()
-        const added = trendPopoverZustand.add(
+        const trendPanelZustand = useTrendPanelZustand.getState()
+        const added = trendPanelZustand.add(
           { uuid, unit: row.unit, type: row.type, address: row.address },
           anchor
         )

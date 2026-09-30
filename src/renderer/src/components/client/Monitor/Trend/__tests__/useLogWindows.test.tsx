@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { ClientLogWindow, LogWindow } from '@shared'
 import { useLogWindows } from '../useLogWindows'
-import type { DrawnEntry } from '../trendPopover.zustand'
+import type { DrawnEntry } from '../trendPanel.zustand'
 
 const entry = (address: number): DrawnEntry => ({
   uuid: 'client-a',

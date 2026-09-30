@@ -1,7 +1,7 @@
 import { LogPoint } from '@shared'
 import { useEffect, useState } from 'react'
 import { TREND_WINDOW_MS } from './trendData'
-import { TrendEntry, trendKey } from './trendPopover.zustand'
+import { TrendEntry, trendKey } from './trendPanel.zustand'
 
 /** How often a trend that moves live asks main for what came in since. */
 const LIVE_MS = 1000

@@ -19,7 +19,7 @@ export interface DrawnEntry extends TrendEntry {
 export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
   `${uuid}|${unit}|${type}|${address}`
 
-interface TrendPopoverZustand {
+interface TrendPanelZustand {
   /** The registers drawn, in the order they were added. */
   entries: DrawnEntry[]
   /** Where the trend opened, while it is open. */
@@ -37,7 +37,7 @@ interface TrendPopoverZustand {
   close: () => void
 }
 
-export const useTrendPopoverZustand = create<TrendPopoverZustand, [['zustand/mutative', never]]>(
+export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutative', never]]>(
   mutative((set, get) => ({
     entries: [],
     anchor: null,

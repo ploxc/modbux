@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TREND_COLORS } from '@renderer/theme'
-import { TrendEntry, trendKey, useTrendPopoverZustand } from '../trendPopover.zustand'
+import { TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
 
 const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
   uuid,
@@ -9,8 +9,8 @@ const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
   type: 'holding_registers',
   address
 })
-const store = (): ReturnType<typeof useTrendPopoverZustand.getState> =>
-  useTrendPopoverZustand.getState()
+const store = (): ReturnType<typeof useTrendPanelZustand.getState> =>
+  useTrendPanelZustand.getState()
 const colors = (): string[] => store().entries.map(({ color }) => color)
 
 beforeEach(() => store().close())

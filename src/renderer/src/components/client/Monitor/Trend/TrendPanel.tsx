@@ -14,7 +14,7 @@ import { ClientUnit, isNumberRegister, RegisterMapValue } from '@shared'
 import { useCallback, useMemo } from 'react'
 import TrendChart, { TrendLine } from './TrendChart'
 import { TREND_WINDOW_MS, trendSeries, trendSummary } from './trendData'
-import { DrawnEntry, TrendEntry, trendKey, useTrendPopoverZustand } from './trendPopover.zustand'
+import { DrawnEntry, TrendEntry, trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
 
 const PAPER_SX = {
@@ -80,8 +80,8 @@ const TrendChip = meme(
       (z) => mapValueOf(z.clients[entry.uuid]?.units ?? NO_UNITS, entry)?.unit
     )
     const handleRemove = useCallback(() => {
-      const trendPopoverZustand = useTrendPopoverZustand.getState()
-      trendPopoverZustand.remove(trendKey(entry))
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.remove(trendKey(entry))
     }, [entry])
     const address = entry.address + Number(addressBase)
 
@@ -139,9 +139,9 @@ const TrendChip = meme(
  * under it. It moves while the log
  * runs, and otherwise shows the 10 minutes before the log last stopped.
  */
-const TrendPopover = meme((): JSX.Element | null => {
-  const entries = useTrendPopoverZustand((z) => z.entries)
-  const anchor = useTrendPopoverZustand((z) => z.anchor)
+const TrendPanel = meme((): JSX.Element | null => {
+  const entries = useTrendPanelZustand((z) => z.entries)
+  const anchor = useTrendPanelZustand((z) => z.anchor)
   const uuid = entries[0]?.uuid ?? ''
   const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
   const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
@@ -179,8 +179,8 @@ const TrendPopover = meme((): JSX.Element | null => {
   // log stopped.
   const to = running ? Date.now() : (lastEnd ?? Date.now())
   const handleClose = useCallback(() => {
-    const trendPopoverZustand = useTrendPopoverZustand.getState()
-    trendPopoverZustand.close()
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.close()
   }, [])
 
   if (anchor === null) return null
@@ -190,7 +190,7 @@ const TrendPopover = meme((): JSX.Element | null => {
     // below it.
     <DraggablePanel anchor={anchor} onClose={handleClose} paperSx={PAPER_SX} label="Trend">
       <Box
-        data-testid="trend-popover"
+        data-testid="trend-panel"
         sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
       >
         <Box
@@ -266,4 +266,4 @@ const TrendPopover = meme((): JSX.Element | null => {
   )
 })
 
-export default TrendPopover
+export default TrendPanel

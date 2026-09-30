@@ -78,7 +78,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
   test('the Log icon in a row opens the trend of that register, live', async ({ mainPage }) => {
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
 
-    await expect(mainPage.getByTestId('trend-popover')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-panel')).toBeVisible()
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
     await expect(mainPage.getByTestId('trend-chip-value-0')).toContainText('100')
     await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
@@ -90,7 +90,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByRole('switch', { name: 'Poll this group' }).first()).toBeVisible()
 
     await mainPage.getByTestId('trend-chip-remove-0').click()
-    await expect(mainPage.getByTestId('trend-popover')).toHaveCount(0)
+    await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
   })
 
   test("Debug shows Monitor's reads while logging, and reads nothing itself", async ({
