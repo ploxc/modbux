@@ -317,6 +317,29 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
+  test('Save as image hands over the chart as a PNG', async ({ electronApp, mainPage }) => {
+    const savePath = resolve(tmpdir(), `modbux-trend-${Date.now()}.png`)
+    await evaluateMain(() =>
+      electronApp.evaluate(({ session }, path) => {
+        session.defaultSession.once('will-download', (_event, item) => {
+          item.setSavePath(path)
+        })
+      }, savePath)
+    )
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    await expect(mainPage.getByTestId('trend-image-btn')).toBeEnabled()
+    await mainPage.getByTestId('trend-image-btn').click()
+
+    // The file exists before the download has written into it.
+    await expect(async () => {
+      const png = await readFile(savePath)
+      expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    }).toPass()
+
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
+  })
+
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
     await mainPage.getByTestId('client-view-debug-btn').click()
     await selectRegisterType(mainPage, 'Coils')

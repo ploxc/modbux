@@ -23,6 +23,13 @@ import {
 import { formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
+import ImageOutlined from '@mui/icons-material/ImageOutlined'
+import { useTheme } from '@mui/material/styles'
+import { downloadBlob } from '@renderer/components/shared/downloadText'
+import snakeCase from 'lodash/snakeCase'
+import { DateTime } from 'luxon'
+import type uPlot from 'uplot'
+import { trendImage } from './trendImage'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
 import VerticalSplit from '@mui/icons-material/VerticalSplit'
 import ZoomOutMap from '@mui/icons-material/ZoomOutMap'
@@ -332,6 +339,9 @@ const TrendContent = meme(
     )
     const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
     const [plot, setPlot] = useState<PlotBox>()
+    const [chart, setChart] = useState<uPlot>()
+    const name = useTrendPanelZustand((z) => z.name)
+    const theme = useTheme()
 
     // Converted again on every render, which comes with each answer, a store
     // change or the script engine turning ready. A script conversion measured
@@ -416,6 +426,26 @@ const TrendContent = meme(
         color: lane.bitmap ? 'text.secondary' : lane.color,
         text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
       }))
+    // The chart as drawn, headed by the trend's name and stretch, and a legend.
+    const handleImage = useCallback(() => {
+      if (chart === undefined) return
+      const title = name ?? 'Trend'
+      // The stretch carries its date, and milliseconds when it is under a minute.
+      const format = to - from < 60_000 ? 'yyyy-MM-dd HH:mm:ss.SSS' : 'yyyy-MM-dd HH:mm:ss'
+      const stamp = (time: number): string => DateTime.fromMillis(time).toFormat(format)
+      void trendImage(chart, layout.lines, {
+        title,
+        stretch: `${stamp(from)} to ${stamp(to)}`,
+        background: theme.palette.background.paper,
+        foreground: theme.palette.text.primary,
+        muted: theme.palette.text.secondary,
+        font: theme.typography.fontFamily ?? 'sans-serif'
+      }).then((blob) => {
+        if (blob === null) return
+        const stamp = DateTime.now().toFormat('yyyyMMdd_HHmmss')
+        downloadBlob(`modbux_trend_${snakeCase(title)}_${stamp}.png`, blob)
+      })
+    }, [chart, name, layout.lines, from, to, theme])
     const firstEntry = first[0]
     const state = running ? (view === undefined ? 'live' : 'paused') : 'logging is off'
 
@@ -499,6 +529,16 @@ const TrendContent = meme(
             {state}
           </Box>
           <TrendSettingsPopover lines={layout.settingsLines} />
+          <IconButton
+            size="small"
+            aria-label="Save as image"
+            title="Save as image"
+            data-testid="trend-image-btn"
+            disabled={chart === undefined}
+            onClick={handleImage}
+          >
+            <ImageOutlined fontSize="small" />
+          </IconButton>
           <ModeButtons mode={mode} />
           <IconButton
             size="small"
@@ -556,6 +596,7 @@ const TrendContent = meme(
             readoutRows={readoutRows}
             settings={settings}
             origin={oldest ?? from}
+            onChart={setChart}
           />
         </Box>
         {lanes.length > 0 && plot !== undefined && (
