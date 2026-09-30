@@ -20,7 +20,6 @@ import {
   skeletonOf
 } from '@renderer/context/live.zustand'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 import useRegisterGridColumns from './columns'
 import RegisterGridToolbar from './RegisterGridToolbar/RegisterGridToolbar'
 import { atOrBelow, BREAKPOINTS } from '../breakpoints'
@@ -35,10 +34,7 @@ import {
 } from '@mui/x-data-grid/models'
 import {
   BITMAP_DATATYPE,
-  configuredReadGroups,
   DataTypeSchema,
-  groupEntries,
-  monitorReadsGroup,
   RegisterData,
   RegisterType,
   RegisterTypeSchema,
@@ -50,6 +46,7 @@ import BitMapRow from './BitMapRow'
 import { useBitMapZustand } from '@renderer/context/bitmap.zustand'
 import { COMPACT_ROW_HEIGHT, ROW_HEIGHT } from './rowHeight'
 import { filtersValues, skeletonRows } from './skeletonRows'
+import { useMonitorOff } from './useMonitorOff'
 
 /** What the read rows answer while no value filter asks for them. */
 const NO_ROWS: RegisterData[] = []
@@ -162,18 +159,7 @@ const RegisterGridContent = meme((): JSX.Element => {
 
   // While logging, a row of a group Monitor does not read keeps its last value
   // in grey: its Poll off, and no register in it logging.
-  const logEnabled = useLogEnabled()
-  const monitorOffKey = useClientZustand((z) => {
-    const { registerMapping } = selectedUnit(z)
-    return configuredReadGroups(true, type, registerMapping)
-      .filter((group) => !monitorReadsGroup(type, registerMapping, group, true))
-      .flatMap((group) => groupEntries(type, registerMapping, group).map(([address]) => address))
-      .join(',')
-  })
-  const monitorOff = useMemo(
-    () => new Set(monitorOffKey === '' ? [] : monitorOffKey.split(',').map(Number)),
-    [monitorOffKey]
-  )
+  const monitorOff = useMonitorOff(type)
 
   // When we read all configured registers, we hide the rows with undefined data type
   // So no empty rows are shown so all rows have a value to display.
@@ -292,7 +278,7 @@ const RegisterGridContent = meme((): JSX.Element => {
       getRowClassName={(params) =>
         params.id === expandedBitmap
           ? 'bitmap-expanded-row'
-          : logEnabled && monitorOff.has(Number(params.id))
+          : monitorOff.has(Number(params.id))
             ? 'monitor-off-row'
             : ''
       }
