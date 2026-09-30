@@ -179,7 +179,14 @@ const TrendConfigMenu = meme((): JSX.Element => {
         aria-haspopup="menu"
         aria-expanded={anchor !== null}
         onClick={handleOpen}
-        sx={{ textTransform: 'none', fontWeight: 500, fontSize: 12.5, px: 0.75, minWidth: 0 }}
+        sx={{
+          textTransform: 'none',
+          fontWeight: 500,
+          fontSize: 12.5,
+          px: 0.75,
+          minWidth: 0,
+          '&:hover': { bgcolor: 'transparent' }
+        }}
       >
         {name ?? 'Trend'}
         {changed && (
