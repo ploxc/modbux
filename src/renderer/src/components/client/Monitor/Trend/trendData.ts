@@ -193,7 +193,7 @@ export const gripAt = (x: number, width: number): Grip => {
 }
 
 /** How far from the cursor the readout sits, and how wide it is. */
-export const READOUT_GAP = 12
+const READOUT_GAP = 12
 export const READOUT_WIDTH = 220
 
 /** How tall a row of the readout is, and what its box adds around its rows. */
