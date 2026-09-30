@@ -154,6 +154,31 @@ describe('SessionLog', () => {
     expect(values(log)).toEqual([4, 5, 6])
   })
 
+  it('says it overwrites when a shrink drops samples, and only once after that', () => {
+    const onOverwriteStart = vi.fn()
+    const log = running(10, onOverwriteStart)
+    for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)
+
+    log.setCapacity(3)
+    expect(onOverwriteStart).toHaveBeenCalledTimes(1)
+
+    log.record(holding0, poll, 6, 6, undefined)
+    log.setCapacity(2)
+    expect(onOverwriteStart).toHaveBeenCalledTimes(1)
+  })
+
+  it('says nothing when a shrink drops no sample, and says it once the smaller log wraps', () => {
+    const onOverwriteStart = vi.fn()
+    const log = running(10, onOverwriteStart)
+    for (const value of [1, 2, 3]) log.record(holding0, poll, value, value, undefined)
+
+    log.setCapacity(3)
+    expect(onOverwriteStart).not.toHaveBeenCalled()
+
+    log.record(holding0, poll, 4, 4, undefined)
+    expect(onOverwriteStart).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps every sample when it grows, in order, after it had wrapped', () => {
     const log = running(3)
     for (const value of [1, 2, 3, 4, 5]) log.record(holding0, poll, value, value, undefined)

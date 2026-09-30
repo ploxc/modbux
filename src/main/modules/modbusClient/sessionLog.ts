@@ -172,7 +172,8 @@ export class SessionLog {
 
   /**
    * Hold `capacity` samples from here on. A smaller log keeps the newest of
-   * what it holds and counts the rest as overwritten.
+   * what it holds, counts the rest as overwritten, and says so when it had
+   * overwritten nothing before.
    */
   setCapacity = (capacity: number): void => {
     if (capacity === this._capacity) return
@@ -188,7 +189,9 @@ export class SessionLog {
     for (const { time, value, error, ...series } of kept) {
       this._push(time, value, this._metaOf(series, error))
     }
-    this._overwritten += held.length - kept.length
+    const dropped = held.length - kept.length
+    if (dropped > 0 && this._overwritten === 0) this._onOverwriteStart()
+    this._overwritten += dropped
     this._pushed = pushed
   }
 
