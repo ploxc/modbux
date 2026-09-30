@@ -11,7 +11,8 @@ import { trendKey, useTrendPanelZustand } from './trendPanel.zustand'
 
 /**
  * A Monitor row's Log icon, which adds that register to the trend, opening it
- * when it is closed. Lit while the trend is open and draws it.
+ * when it is closed. Lit while the trend is open and draws it, and a press
+ * then takes it out again.
  */
 const TrendButton = meme(
   ({ row, testId }: { row: MonitorRegisterRow; testId: string }): JSX.Element => {
@@ -21,8 +22,17 @@ const TrendButton = meme(
       (z) => z.anchor !== null && z.entries.some((entry) => trendKey(entry) === key)
     )
 
-    const handleAdd = useCallback(() => {
+    const handleClick = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
+      // A closed trend keeps its registers, and a press opens it on them
+      // rather than taking one out.
+      if (
+        trendPanelZustand.anchor !== null &&
+        trendPanelZustand.entries.some((entry) => trendKey(entry) === key)
+      ) {
+        trendPanelZustand.remove(key)
+        return
+      }
       // What it kept while closed may have stopped logging since.
       trendPanelZustand.prune(useClientZustand.getState().clients[uuid]?.units ?? [])
       const added = trendPanelZustand.add({
@@ -36,16 +46,16 @@ const TrendButton = meme(
           variant: 'info',
           message: `The trend draws ${TREND_COLORS.length} registers; take one out first`
         })
-    }, [uuid, row.unit, row.type, row.address])
+    }, [key, uuid, row.unit, row.type, row.address])
 
     return (
       <IconButton
         size="small"
         data-testid={testId}
-        aria-label="Add to the trend"
+        aria-label={drawn ? 'Take out of the trend' : 'Add to the trend'}
         aria-pressed={drawn}
-        title="Add to the trend"
-        onClick={handleAdd}
+        title={drawn ? 'Take out of the trend' : 'Add to the trend'}
+        onClick={handleClick}
         sx={(theme) => ({
           p: 0.25,
           color: 'success.main',

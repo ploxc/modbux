@@ -201,9 +201,14 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByTestId('trend-state')).toHaveText('live')
     await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
 
-    // Taking the last register out leaves the trend open and empty.
-    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    // The row's Log icon takes the register out again, which leaves the trend
+    // open and empty.
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
     await expect(mainPage.getByTestId('trend-empty')).toBeVisible()
+    await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
     await mainPage.getByTestId('trend-close-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveCount(0)
   })
