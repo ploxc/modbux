@@ -21,7 +21,7 @@ interface NumberFieldProps {
 
 /**
  * One number, taken on blur or Enter when the schema takes it, and put back
- * otherwise.
+ * otherwise, an emptied field included.
  */
 const NumberField = meme(
   ({ setting, title, description, unit, scale = 1, width }: NumberFieldProps): JSX.Element => {
@@ -30,7 +30,8 @@ const NumberField = meme(
     useEffect(() => setDraft(String(stored / scale)), [stored, scale])
 
     const commit = useCallback(() => {
-      const value = Number(draft) * scale
+      // An emptied field is no value, though `Number('')` answers 0.
+      const value = draft.trim() === '' ? Number.NaN : Number(draft) * scale
       const connectionZustand = useConnectionZustand.getState()
       if (!ConnectionSettingsSchema.shape[setting].safeParse(value).success) {
         setDraft(String(connectionZustand[setting] / scale))

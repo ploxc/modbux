@@ -76,6 +76,23 @@ describe('the Connection section', () => {
     expect(calls.filter(({ method }) => method === 'setConnectionSettings')).toEqual([])
   })
 
+  // An empty field is no number, though Number('') is 0, which here would
+  // keep every connection reconnecting.
+  it('puts Attempts back when it is emptied', async () => {
+    render(<ConnectionSettingsSection />)
+    const user = userEvent.setup()
+    const field = screen.getByTestId('connection-reconnectAttempts-input')
+
+    await user.clear(field)
+    await user.keyboard('{Enter}')
+
+    expect(useConnectionZustand.getState().reconnectAttempts).toBe(
+      defaultConnectionSettings.reconnectAttempts
+    )
+    expect(field).toHaveValue(String(defaultConnectionSettings.reconnectAttempts))
+    expect(calls.filter(({ method }) => method === 'setConnectionSettings')).toEqual([])
+  })
+
   it('turns keeping on while logging off', async () => {
     render(<ConnectionSettingsSection />)
 
