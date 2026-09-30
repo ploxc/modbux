@@ -103,13 +103,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shows the last 10 minutes, an hour, 8 hours or the whole log, live while
   the log runs; Paused holds it still, a drag across it zooms, the wheel
   zooms, a strip of the whole log under it pans, and Live follows the log
-  again. The cursor reads
-  every register at the moment under it. Bits and bitmaps draw as lanes under
-  the lines, and a bitmap opens into a lane a bit. Axes and lines holds a side
+  again. The cursor reads every register at the moment under it. Bits and
+  bitmaps draw as lanes under the lines, and a bitmap opens into a lane a bit. Axes and lines holds a side
   at a range, moves a line to a side or a colour, reads the time since the
   log's start, and draws steps or points. A trend saves under a name with its
-  client, floats over Monitor, docks under its grid or fills its room, and
-  saves as an image.
+  client, and floats over Monitor, docks under its grid or fills its room.
 
 ### Changed
 
