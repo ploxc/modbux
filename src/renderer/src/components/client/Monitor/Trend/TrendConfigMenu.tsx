@@ -188,7 +188,12 @@ const TrendConfigMenu = meme((): JSX.Element => {
           '&:hover': { bgcolor: 'transparent' }
         }}
       >
-        {name ?? 'Trend'}
+        <Box
+          component="span"
+          sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {name ?? 'Trend'}
+        </Box>
         {changed && (
           <Box component="span" data-testid="trend-changed" sx={{ ml: 0.5, color: textMuted }}>
             ·

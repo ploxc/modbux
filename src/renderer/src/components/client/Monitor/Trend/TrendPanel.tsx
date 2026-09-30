@@ -553,7 +553,7 @@ const TrendContent = meme(
               rowGap: 0.5
             }}
           >
-            <Box sx={HEADER_ROW_SX}>
+            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
               {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
               <TrendConfigMenu />
             </Box>

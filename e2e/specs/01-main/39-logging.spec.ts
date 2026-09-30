@@ -420,6 +420,43 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-name-confirm-btn').click()
     await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
 
+    // A long name, with spaces or none, gives way inside the narrowest trend:
+    // one line, clear of the icons.
+    const paper = mainPage.getByTestId('trend-panel').locator('xpath=..')
+    await paper.evaluate((el) => {
+      const panelPaper = el.closest('.MuiPaper-root')
+      if (panelPaper instanceof HTMLElement) panelPaper.style.width = '420px'
+    })
+    for (const longName of [
+      'Setpoints of the second boiler room, left wing, floor three',
+      'Setpoints_of_the_second_boiler_room_left_wing_floor_three'
+    ]) {
+      await mainPage.getByTestId('trend-config-btn').click()
+      await mainPage.getByTestId('trend-rename-btn').click()
+      await mainPage.getByTestId('trend-name-input').fill(longName)
+      await mainPage.getByTestId('trend-name-confirm-btn').click()
+      // The button is as tall as the theme makes it, so a second line of the
+      // name shows in the text's own height.
+      const nameText = mainPage.getByTestId('trend-config-btn').getByText(longName)
+      await expect(async () => {
+        const name = await mainPage.getByTestId('trend-config-btn').boundingBox()
+        const text = await nameText.boundingBox()
+        const settings = await mainPage.getByTestId('trend-settings-btn').boundingBox()
+        if (!name || !text || !settings) throw new Error('The header is not drawn')
+        expect(text.height).toBeLessThan(20)
+        expect(name.x + name.width).toBeLessThanOrEqual(settings.x)
+      }).toPass()
+    }
+    await paper.evaluate((el) => {
+      const panelPaper = el.closest('.MuiPaper-root')
+      if (panelPaper instanceof HTMLElement) panelPaper.style.width = ''
+    })
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-rename-btn').click()
+    await mainPage.getByTestId('trend-name-input').fill('Target')
+    await mainPage.getByTestId('trend-name-confirm-btn').click()
+    await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
+
     await mainPage.getByTestId('trend-config-btn').click()
     await mainPage.getByTestId('trend-delete-btn').click()
     await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Trend')
