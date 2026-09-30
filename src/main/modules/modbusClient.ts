@@ -207,7 +207,8 @@ export class ModbusClient implements TransportClient {
 
   /**
    * Whether the user switched logging on. The log takes samples while this is
-   * on and the client polls, so a poll started later starts it too.
+   * on and the client polls on a connection, so a poll started later, or a
+   * connection back, starts it too.
    */
   private _logEnabled = false
 
@@ -1067,7 +1068,7 @@ export class ModbusClient implements TransportClient {
     if (polled.some((unit) => this._refusesUnitId('poll', unit.unitId))) return
 
     this._clientState.polling = true
-    if (this._logEnabled) this._log.start(Date.now())
+    if (this._logEnabled && this._reads()) this._log.start(Date.now())
     this._sendClientState()
     this._poll(++this._pollGeneration)
   }
@@ -1167,15 +1168,23 @@ export class ModbusClient implements TransportClient {
   // Logging
   /**
    * Switch logging on: after the samples the log holds, or in an empty log.
-   * It takes samples from now if the client polls, and from when it starts
-   * polling otherwise.
+   * It takes samples from now if the client reads, and otherwise from when it
+   * polls connected again.
    */
   public startLog = (append: boolean): void => {
     if (!append) this._log.clear()
     this._logEnabled = true
-    if (this._clientState.polling) this._log.start(Date.now())
+    if (this._reads()) this._log.start(Date.now())
     this._sendClientState()
   }
+
+  /**
+   * Whether a poll reads now: it runs, on a connection. A poll goes on through
+   * a reconnect and reads nothing until the connection is back, and `_enter`
+   * starts the log's run then.
+   */
+  private _reads = (): boolean =>
+    this._clientState.polling && this._clientState.connectState === 'connected'
 
   /** Switch logging off, keeping the samples it took. */
   public stopLog = (): void => {
@@ -1184,10 +1193,10 @@ export class ModbusClient implements TransportClient {
     this._sendClientState()
   }
 
-  /** Empty the log. Logging stays on if it was, and a poll running goes on filling it. */
+  /** Empty the log. Logging stays on if it was, and a client that reads goes on filling it. */
   public clearLog = (): void => {
     this._log.clear()
-    if (this._logEnabled && this._clientState.polling) this._log.start(Date.now())
+    if (this._logEnabled && this._reads()) this._log.start(Date.now())
     this._sendClientState()
   }
 

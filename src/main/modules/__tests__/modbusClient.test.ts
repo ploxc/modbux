@@ -6276,6 +6276,69 @@ describe('ModbusClient', () => {
       client.stopPolling()
     })
 
+    it('starts no run when switched on while reconnecting, and starts one once connected', async () => {
+      await connectClient()
+      logHolding0(true)
+      setupHoldingRegisterReadMock([321])
+
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      mockModbusRTU.isOpen = false
+      fireClientEvent('close')
+      expect(client.state).toMatchObject({ polling: true, connectState: 'connecting' })
+
+      client.startLog(false)
+      expect(client.logStatus()).toMatchObject({ running: false, runs: [] })
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(client.state.connectState).toBe('connected')
+      expect(client.logStatus()).toMatchObject({ running: true })
+      expect(client.logStatus().runs).toHaveLength(1)
+      client.stopPolling()
+    })
+
+    it('starts no run when a poll starts while reconnecting, and starts one once connected', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      mockModbusRTU.isOpen = false
+      fireClientEvent('close')
+      client.stopPolling()
+
+      client.startPolling()
+      expect(client.state).toMatchObject({ polling: true, connectState: 'connecting' })
+      expect(client.logStatus().running).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(client.state.connectState).toBe('connected')
+      expect(client.logStatus().running).toBe(true)
+      client.stopPolling()
+    })
+
+    it('starts no run when cleared while reconnecting', async () => {
+      await connectClient()
+      logHolding0()
+      setupHoldingRegisterReadMock([321])
+
+      client.startLog(false)
+      client.startPolling()
+      await vi.advanceTimersByTimeAsync(0)
+      mockModbusRTU.isOpen = false
+      fireClientEvent('close')
+
+      client.clearLog()
+      expect(client.logStatus()).toMatchObject({ running: false, samples: 0, runs: [] })
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(client.logStatus().runs).toHaveLength(1)
+      expect(client.logStatus().running).toBe(true)
+      client.stopPolling()
+    })
+
     it('starts anew, or after what it holds', async () => {
       await connectClient()
       logHolding0()
