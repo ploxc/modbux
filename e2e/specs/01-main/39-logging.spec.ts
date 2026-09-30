@@ -86,6 +86,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       'aria-pressed',
       'true'
     )
+    // The page under it stays reachable, to screen readers and role queries alike.
+    await expect(mainPage.getByRole('switch', { name: 'Poll this group' }).first()).toBeVisible()
 
     await mainPage.getByTestId('trend-chip-remove-0').click()
     await expect(mainPage.getByTestId('trend-popover')).toHaveCount(0)

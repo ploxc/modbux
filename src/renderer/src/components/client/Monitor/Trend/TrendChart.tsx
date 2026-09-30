@@ -102,7 +102,8 @@ const TrendChart = meme(
       const tables = data.map((series): uPlot.AlignedData => [series.times, series.values])
       current.setData(tables.length === 0 ? [[]] : uPlot.join(tables), false)
       current.setScale('x', { min: from, max: to })
-    }, [lines, data, from, to])
+      // The chart made again for a new theme starts empty, so the data goes in again.
+    }, [lines, data, from, to, theme])
 
     return <Box ref={container} data-testid="trend-chart" sx={{ flexGrow: 1, minHeight: 0 }} />
   }

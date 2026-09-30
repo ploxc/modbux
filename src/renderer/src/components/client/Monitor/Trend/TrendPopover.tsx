@@ -3,10 +3,8 @@ import DragIndicator from '@mui/icons-material/DragIndicator'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { applyConversion } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
-import {
-  DRAG_HANDLE_CLASS,
-  default as DraggablePopover
-} from '@renderer/components/shared/DraggablePopover/DraggablePopover'
+import DraggablePanel from '@renderer/components/shared/DraggablePanel/DraggablePanel'
+import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
@@ -32,13 +30,6 @@ const PAPER_SX = {
 } as const
 
 const NO_UNITS: ClientUnit[] = []
-
-/**
- * The trend opens in the grid's top right corner, clear of the address column
- * where the Log icons that add to it are: opened under a row, it covered the
- * rows below it.
- */
-const TOP_RIGHT = { vertical: 'top', horizontal: 'right' } as const
 
 /** A number as the trend's figures write it: as the value came, at most six decimals. */
 const figure = (value: number | undefined): string =>
@@ -143,7 +134,7 @@ const TrendChip = meme(
 
 /**
  * The registers a Log icon in Monitor added, as lines over the last 10
- * minutes of the log, converted as the grid converts them, in a popover that
+ * minutes of the log, converted as the grid converts them, in a panel that
  * drags by its title, resizes from its corner, and leaves Monitor working
  * under it. It moves while the log
  * runs, and otherwise shows the 10 minutes before the log last stopped.
@@ -194,14 +185,10 @@ const TrendPopover = meme((): JSX.Element | null => {
 
   if (anchor === null) return null
   return (
-    <DraggablePopover
-      anchor={anchor}
-      onClose={handleClose}
-      paperSx={PAPER_SX}
-      modeless
-      anchorOrigin={TOP_RIGHT}
-      transformOrigin={TOP_RIGHT}
-    >
+    // In the grid's top right corner, clear of the address column where the
+    // Log icons that add to it are: opened under a row, it covered the rows
+    // below it.
+    <DraggablePanel anchor={anchor} onClose={handleClose} paperSx={PAPER_SX} label="Trend">
       <Box
         data-testid="trend-popover"
         sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
@@ -275,7 +262,7 @@ const TrendPopover = meme((): JSX.Element | null => {
           />
         </Box>
       </Box>
-    </DraggablePopover>
+    </DraggablePanel>
   )
 })
 
