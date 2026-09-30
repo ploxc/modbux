@@ -159,9 +159,9 @@ export const pickedStretch = (
 }
 
 /**
- * A picked stretch as the calendar's button names it: "14:05 to 14:20, 29
- * Sep", with the seconds when either end has some, and each end's date when
- * they fall on two days.
+ * A picked stretch as the header names it: "14:05 to 14:20, 29 Sep", with
+ * the seconds when either end has some, and each end's date when they fall
+ * on two days.
  */
 export const stretchLabel = (from: number, to: number): string => {
   const start = DateTime.fromMillis(from)

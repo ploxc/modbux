@@ -24,7 +24,6 @@ import { formatDuration, formatTime } from '@renderer/components/client/Logging/
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import PictureInPicture from '@mui/icons-material/PictureInPicture'
-import DateRange from '@mui/icons-material/DateRange'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
@@ -156,9 +155,7 @@ const pressedOf = (
  * the log over a stretch of its own length, the trend shows no range, so none
  * is pressed, and any of them follows the log over the range again. Paused
  * over the range, the range stays pressed, and a press on it follows the log.
- * The calendar at the end opens on the stretch shown, from `from` to `to`, and
- * stays pressed on the stretch it picked; with an empty log there is nothing
- * to pick.
+ * The calendar at the end picks a stretch of its own.
  */
 const RangePicker = meme(
   ({
@@ -173,7 +170,6 @@ const RangePicker = meme(
     end: number
   }): JSX.Element => {
     const pressed = useTrendPanelZustand((z) => pressedOf(z.view, z.range))
-    const [anchor, setAnchor] = useState<HTMLElement | null>(null)
     const handleRange = useCallback(
       (_event: MouseEvent<HTMLElement>, next: TrendRangeId | 'calendar' | null) => {
         if (next === 'calendar') return
@@ -184,49 +180,22 @@ const RangePicker = meme(
       },
       []
     )
-    // The calendar opens its popover rather than pressing, pressed or not.
-    const handleCalendar = useCallback((event: MouseEvent<HTMLElement>) => {
-      event.preventDefault()
-      setAnchor(event.currentTarget)
-    }, [])
-    const handleClose = useCallback(() => setAnchor(null), [])
     return (
-      <>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={pressed}
-          onChange={handleRange}
-          aria-label="Range"
-          sx={TOGGLE_GROUP_SX}
-        >
-          {TREND_RANGES.map(({ id, label }) => (
-            <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
-              {label}
-            </ToggleButton>
-          ))}
-          <ToggleButton
-            value="calendar"
-            aria-label="Show a stretch"
-            title="Show a stretch"
-            data-testid="trend-range-calendar"
-            disabled={start === undefined}
-            onClick={handleCalendar}
-          >
-            <DateRange sx={{ fontSize: 14 }} />
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={pressed}
+        onChange={handleRange}
+        aria-label="Range"
+        sx={TOGGLE_GROUP_SX}
+      >
+        {TREND_RANGES.map(({ id, label }) => (
+          <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
+            {label}
           </ToggleButton>
-        </ToggleButtonGroup>
-        {start !== undefined && (
-          <TrendStretchPicker
-            anchor={anchor}
-            onClose={handleClose}
-            from={from}
-            to={to}
-            start={start}
-            end={end}
-          />
-        )}
-      </>
+        ))}
+        <TrendStretchPicker from={from} to={to} start={start} end={end} />
+      </ToggleButtonGroup>
     )
   }
 )
