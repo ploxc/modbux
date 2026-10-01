@@ -157,8 +157,17 @@ describe('settingsPlace', () => {
     expect(settingsPlace(button, low, PANEL, WINDOW)).toEqual({ top: 592, left: 72 })
     const tall = { width: 420, height: 1000 }
     expect(settingsPlace(button, low, tall, WINDOW)).toEqual({ top: 8, left: 72 })
+  })
+
+  it('opens above its button, clear of it, when the window has no room under it', () => {
     const lowButton = { top: 800, left: 880, right: 904, bottom: 824 }
-    expect(settingsPlace(lowButton, undefined, PANEL, WINDOW)).toEqual({ top: 592, left: 484 })
+    expect(settingsPlace(lowButton, undefined, PANEL, WINDOW)).toEqual({ top: 492, left: 484 })
+    // Exactly enough room under it keeps it there.
+    const fits = { top: 560, left: 880, right: 904, bottom: 584 }
+    expect(settingsPlace(fits, undefined, PANEL, WINDOW)).toEqual({ top: 592, left: 484 })
+    // With no room either side of the button, the window's top.
+    const short = { width: 1440, height: 400 }
+    expect(settingsPlace(button, undefined, PANEL, short)).toEqual({ top: 8, left: 484 })
   })
 
   it('takes the room on the right when it is exactly enough, and not a pixel less', () => {

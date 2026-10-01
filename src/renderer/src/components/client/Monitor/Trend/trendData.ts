@@ -141,8 +141,9 @@ interface Size {
  * Where Axes and lines opens, `panel` big: left of the floating `trend` when
  * the window has room there, right of it when not, and under its `button`,
  * level with its right edge, beside a trend that floats nowhere or has no
- * room on either side, in a window of `room`. It moves up as far as it
- * takes to end inside the window, and no further than the window's top.
+ * room on either side, in a window of `room`; above the button when the
+ * window has no room under it. Beside the trend it moves up as far as it
+ * takes to end inside the window. It goes no higher than the window's top.
  */
 export const settingsPlace = (
   button: Box,
@@ -156,7 +157,10 @@ export const settingsPlace = (
     return { top: inside(trend.top), left: trend.left - BESIDE_GAP - panel.width }
   if (trend !== undefined && trend.right + BESIDE_GAP + panel.width <= room.width - BESIDE_GAP)
     return { top: inside(trend.top), left: trend.right + BESIDE_GAP }
-  return { top: inside(button.bottom + BESIDE_GAP), left: button.right - panel.width }
+  const under = button.bottom + BESIDE_GAP
+  const above = button.top - BESIDE_GAP - panel.height
+  const top = under + panel.height <= room.height - BESIDE_GAP ? under : above
+  return { top: Math.max(BESIDE_GAP, top), left: button.right - panel.width }
 }
 
 /** A stretch of time a trend was paused, picked, zoomed or panned to, which stops it following the log. */
