@@ -337,6 +337,15 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.locator('[data-testid="trend-chart"] .u-axis')).toHaveCount(2)
     await mainPage.getByTestId('trend-settings-btn').click()
     await expect(mainPage.getByTestId('trend-axis-0-unit')).toHaveText('No unit')
+    // A panel beside the trend: the trend takes a press while it stays open,
+    // and a second press on its button closes it.
+    await mainPage.getByTestId('trend-range-1h').click()
+    await expect(mainPage.getByTestId('trend-range-1h')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByRole('region', { name: 'Axes and lines' })).toBeVisible()
+    await mainPage.getByTestId('trend-range-10m').click()
+    await mainPage.getByTestId('trend-settings-btn').click()
+    await expect(mainPage.getByRole('region', { name: 'Axes and lines' })).toHaveCount(0)
+    await mainPage.getByTestId('trend-settings-btn').click()
 
     await mainPage.getByTestId('trend-axis-0-fixed').click()
     await expect(mainPage.getByTestId('trend-axis-0-min')).toHaveValue('0')

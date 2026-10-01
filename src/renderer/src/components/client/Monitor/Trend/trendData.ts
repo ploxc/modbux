@@ -120,6 +120,36 @@ export const trendAxes = (lines: readonly { unit: string; color: string }[]): Tr
   return axes
 }
 
+/** A box on screen, in window pixels. */
+interface Box {
+  top: number
+  left: number
+  right: number
+  bottom: number
+}
+
+/** The room kept between Axes and lines and the trend, or the window's edge. */
+const BESIDE_GAP = 8
+
+/**
+ * Where Axes and lines opens, `width` wide: left of the floating `trend` when
+ * the window has room there, right of it when not, and under its `button`,
+ * level with its right edge, beside a trend that floats nowhere or has no
+ * room on either side.
+ */
+export const settingsPlace = (
+  button: Box,
+  trend: Box | undefined,
+  width: number,
+  windowWidth: number
+): { top: number; left: number } => {
+  if (trend !== undefined && trend.left - BESIDE_GAP - width >= BESIDE_GAP)
+    return { top: trend.top, left: trend.left - BESIDE_GAP - width }
+  if (trend !== undefined && trend.right + BESIDE_GAP + width <= windowWidth - BESIDE_GAP)
+    return { top: trend.top, left: trend.right + BESIDE_GAP }
+  return { top: button.bottom + BESIDE_GAP, left: button.right - width }
+}
+
 /** A stretch of time a trend was paused, picked, zoomed or panned to, which stops it following the log. */
 export interface TrendView {
   from: number

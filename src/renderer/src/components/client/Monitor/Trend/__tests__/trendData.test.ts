@@ -15,6 +15,7 @@ import {
   pointAt,
   rangeOf,
   readoutPlace,
+  settingsPlace,
   sinceText,
   stepOf,
   stretchLabel,
@@ -118,6 +119,40 @@ describe('trendAxes', () => {
   it('names a scale per unit, apart from any other', () => {
     expect(axisScale('A')).not.toBe(axisScale('kW'))
     expect(axisScale('')).not.toBe('x')
+  })
+})
+
+describe('settingsPlace', () => {
+  const button = { top: 100, left: 880, right: 904, bottom: 124 }
+  const box = (left: number, right: number): typeof button => ({
+    top: 90,
+    left,
+    right,
+    bottom: 400
+  })
+
+  it('opens left of the floating trend when the window has room there', () => {
+    expect(settingsPlace(button, box(500, 1000), 420, 1440)).toEqual({ top: 90, left: 72 })
+  })
+
+  it('opens right of it when the left has no room', () => {
+    expect(settingsPlace(button, box(300, 800), 420, 1440)).toEqual({ top: 90, left: 808 })
+  })
+
+  it('opens under its button beside a trend with no room either side, or one that does not float', () => {
+    const under = { top: 132, left: 484 }
+    expect(settingsPlace(button, box(300, 1100), 420, 1440)).toEqual(under)
+    expect(settingsPlace(button, undefined, 420, 1440)).toEqual(under)
+  })
+
+  it('takes the room on the left when it is exactly enough, and the right a pixel short of it', () => {
+    expect(settingsPlace(button, box(436, 1000), 420, 1440)).toEqual({ top: 90, left: 8 })
+    expect(settingsPlace(button, box(435, 1000), 420, 1440)).toEqual({ top: 90, left: 1008 })
+  })
+
+  it('takes the room on the right when it is exactly enough, and not a pixel less', () => {
+    expect(settingsPlace(button, box(300, 1004), 420, 1440)).toEqual({ top: 90, left: 1012 })
+    expect(settingsPlace(button, box(300, 1005), 420, 1440)).toEqual({ top: 132, left: 484 })
   })
 })
 

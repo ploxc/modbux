@@ -43,6 +43,47 @@ describe('DraggablePanel', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
   })
 
+  it('closes alone on Escape when it was opened from inside another', async () => {
+    const outer = document.createElement('div')
+    const inner = document.createElement('div')
+    document.body.append(outer, inner)
+    const closeOuter = vi.fn()
+    const closeInner = vi.fn()
+    render(
+      <DraggablePanel anchor={outer} onClose={closeOuter} paperSx={{ width: 300 }} label="Trend">
+        <DraggablePanel anchor={inner} onClose={closeInner} paperSx={{ width: 200 }} label="Axes">
+          <span>inner</span>
+        </DraggablePanel>
+      </DraggablePanel>
+    )
+    const user = userEvent.setup()
+
+    await user.click(screen.getByText('inner'))
+    await user.keyboard('{Escape}')
+
+    expect(closeInner).toHaveBeenCalledTimes(1)
+    expect(closeOuter).not.toHaveBeenCalled()
+  })
+
+  it('opens where it is placed, rather than at the anchor', () => {
+    const anchor = document.createElement('div')
+    document.body.appendChild(anchor)
+    render(
+      <DraggablePanel
+        anchor={anchor}
+        opening={() => ({ top: 120, left: 40 })}
+        onClose={vi.fn()}
+        paperSx={{ width: 300 }}
+        label="Axes"
+      >
+        <span>inside</span>
+      </DraggablePanel>
+    )
+
+    // Less the spacing unit of the window's edge it is laid out inside.
+    expect(screen.getByRole('region', { name: 'Axes' })).toHaveStyle({ top: '112px', left: '32px' })
+  })
+
   // A click anywhere on it hands it the focus Escape needs.
   it('closes on Escape after a click on it', async () => {
     const { onClose } = renderPanel()

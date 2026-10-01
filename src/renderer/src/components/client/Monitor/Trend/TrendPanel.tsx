@@ -31,7 +31,7 @@ import TrendConfigMenu from './TrendConfigMenu'
 import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import TrendPicker from './TrendPicker'
-import TrendSettingsPopover, { SettingsLine } from './TrendSettingsPopover'
+import TrendSettingsPanel, { SettingsLine } from './TrendSettingsPanel'
 import TrendStretchPicker from './TrendStretchPicker'
 import {
   TREND_RANGES,
@@ -548,7 +548,7 @@ const TrendContent = meme(
             </Box>
           </Box>
           <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
-            <TrendSettingsPopover lines={layout.settingsLines} axes={layout.axes} />
+            <TrendSettingsPanel lines={layout.settingsLines} axes={layout.axes} />
             <ModeButtons mode={mode} />
             <IconButton
               size="small"

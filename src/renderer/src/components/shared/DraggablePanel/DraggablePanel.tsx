@@ -10,6 +10,8 @@ import Draggable from 'react-draggable'
 interface DraggablePanelProps {
   /** The element whose top right corner the panel opens at. */
   anchor: HTMLElement
+  /** Where the panel opens in place of that, in window pixels, given its width. */
+  opening?: (width: number) => { top: number; left: number }
   onClose: () => void
   /** The paper's own style: its size, and `resize` for a corner to drag. */
   paperSx: SxProps<Theme>
@@ -25,11 +27,12 @@ interface DraggablePanelProps {
  * because its Modal hides every other element of the page from screen
  * readers while it is open, which no prop of MUI 9.3.1's turns off.
  *
- * It opens with its top right corner on the anchor's, and stays inside the
- * window, a theme spacing unit from its edges, where it is dragged.
+ * It opens with its top right corner on the anchor's, or where `opening` puts
+ * it, and stays inside the window, a theme spacing unit from its edges, where
+ * it is dragged.
  */
 const DraggablePanel = meme(
-  ({ anchor, onClose, paperSx, label, children }: DraggablePanelProps): JSX.Element => {
+  ({ anchor, opening, onClose, paperSx, label, children }: DraggablePanelProps): JSX.Element => {
     const nodeRef = useRef<HTMLDivElement | null>(null)
     const [place, setPlace] = useState<{ top: number; left: number } | null>(null)
 
@@ -41,14 +44,19 @@ const DraggablePanel = meme(
         nodeRef.current = node
         if (node === null) return
         const { top, right } = anchor.getBoundingClientRect()
-        setPlace((placed) => placed ?? { top, left: right - node.offsetWidth })
+        const opened = opening?.(node.offsetWidth) ?? { top, left: right - node.offsetWidth }
+        setPlace((placed) => placed ?? opened)
       },
-      [anchor]
+      [anchor, opening]
     )
 
     const handleKeyDown = useCallback(
       (event: KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === 'Escape') onClose()
+        if (event.key !== 'Escape') return
+        // A panel opened from inside another reaches it through React's tree,
+        // portal or not, and closes alone.
+        event.stopPropagation()
+        onClose()
       },
       [onClose]
     )

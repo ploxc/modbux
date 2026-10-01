@@ -1,18 +1,21 @@
+import Close from '@mui/icons-material/Close'
+import DragIndicator from '@mui/icons-material/DragIndicator'
 import Tune from '@mui/icons-material/Tune'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import { InputBaseComponentProps } from '@mui/material/InputBase'
-import Popover from '@mui/material/Popover'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { NumberInput } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/conversion/ConversionDialog/NumberInput'
+import DraggablePanel from '@renderer/components/shared/DraggablePanel/DraggablePanel'
+import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { TREND_COLORS, textMuted } from '@renderer/theme'
 import { ElementType, MouseEvent, ReactNode, useCallback, useState } from 'react'
 import { TrendLine } from './TrendChart'
 import { AxisRange, TrendSettings } from '@shared'
-import { rangeOf, TrendAxis } from './trendData'
+import { rangeOf, settingsPlace, TrendAxis } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'
 
 const numberInput = NumberInput as unknown as ElementType<InputBaseComponentProps, 'input'>
@@ -24,7 +27,10 @@ const TOGGLE_SX = {
   '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
 } as const
 
-/** One of the popover's rows: a name, and what sets it. */
+/** The panel's paper: as wide as the popover it was, and as tall as what it holds. */
+const PANEL_SX = { width: 420, px: 1.5, pt: 0.5, pb: 1, fontSize: 12.5 } as const
+
+/** One of the panel's rows: a name, and what sets it. */
 const Row = meme(
   ({ label, children }: { label: ReactNode; children: ReactNode }): JSX.Element => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 34 }}>
@@ -224,18 +230,30 @@ export interface SettingsLine {
 /**
  * The trend's Axes and lines: a fixed range per engineering unit, the time
  * axis as the clock or as the time since the trend's start, how lines are
- * drawn, and each line's colour.
+ * drawn, and each line's colour. A panel that drags by its title and leaves
+ * the trend working beside it, so it need not cover a small floating trend.
  */
-const TrendSettingsPopover = meme(
+const TrendSettingsPanel = meme(
   ({ lines, axes }: { lines: SettingsLine[]; axes: TrendAxis[] }): JSX.Element => {
     const time = useTrendPanelZustand((z) => z.settings.time)
     const drawAs = useTrendPanelZustand((z) => z.settings.drawAs)
     const [anchor, setAnchor] = useState<HTMLElement | null>(null)
 
-    const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-      setAnchor(event.currentTarget)
+    // A press opens it, and a second press closes it.
+    const handleToggle = useCallback((event: MouseEvent<HTMLElement>) => {
+      const button = event.currentTarget
+      setAnchor((open) => (open === null ? button : null))
     }, [])
     const handleClose = useCallback(() => setAnchor(null), [])
+    // Beside the floating trend, whose paper is the region named Trend.
+    const opening = useCallback(
+      (width: number) => {
+        const button = anchor?.getBoundingClientRect() ?? new DOMRect()
+        const trend = anchor?.closest('[role="region"][aria-label="Trend"]')
+        return settingsPlace(button, trend?.getBoundingClientRect(), width, window.innerWidth)
+      },
+      [anchor]
+    )
     const handleTime = useCallback(
       (_event: MouseEvent<HTMLElement>, picked: TrendSettings['time'] | null) => {
         if (picked === null) return
@@ -259,67 +277,93 @@ const TrendSettingsPopover = meme(
           size="small"
           aria-label="Axes and lines"
           title="Axes and lines"
+          aria-pressed={anchor !== null}
           data-testid="trend-settings-btn"
-          onClick={handleOpen}
+          onClick={handleToggle}
         >
           <Tune fontSize="small" />
         </IconButton>
-        <Popover
-          open={anchor !== null}
-          anchorEl={anchor}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          slotProps={{ paper: { sx: { width: 420, px: 1.5, py: 1, fontSize: 12.5 } } }}
-        >
-          <Box sx={{ fontWeight: 500, pb: 0.5 }}>An axis per engineering unit</Box>
-          {axes.map((axis, index) => (
-            <AxisRow key={axis.unit} index={index} axis={axis} />
-          ))}
-          <Row label="Time">
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={time}
-              onChange={handleTime}
-              sx={TOGGLE_SX}
+        {anchor !== null && (
+          <DraggablePanel
+            anchor={anchor}
+            opening={opening}
+            onClose={handleClose}
+            paperSx={PANEL_SX}
+            label="Axes and lines"
+          >
+            <Box
+              className={DRAG_HANDLE_CLASS}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.75,
+                height: 34,
+                cursor: 'move',
+                userSelect: 'none'
+              }}
             >
-              <ToggleButton value="clock" data-testid="trend-time-clock">
-                Clock
-              </ToggleButton>
-              <ToggleButton value="since" data-testid="trend-time-since">
-                Since start
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Row>
-          <Box sx={{ height: '1px', my: 1, bgcolor: 'divider' }} />
-          <Box sx={{ fontWeight: 500, pb: 0.5 }}>Lines</Box>
-          {lines.map(({ key, line, testId }) => (
-            <LineRow key={key} lineKey={key} line={line} testId={testId} />
-          ))}
-          <Row label="Draw as">
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={drawAs}
-              onChange={handleDrawAs}
-              sx={TOGGLE_SX}
-            >
-              <ToggleButton value="lines" data-testid="trend-draw-lines">
-                Lines
-              </ToggleButton>
-              <ToggleButton value="steps" data-testid="trend-draw-steps">
-                Steps
-              </ToggleButton>
-              <ToggleButton value="points" data-testid="trend-draw-points">
-                Points
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Row>
-        </Popover>
+              <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />
+              <Box component="span" sx={{ fontWeight: 500, flexGrow: 1 }}>
+                Axes and lines
+              </Box>
+              <IconButton
+                size="small"
+                aria-label="Close Axes and lines"
+                data-testid="trend-settings-close-btn"
+                onClick={handleClose}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </Box>
+            <Box sx={{ fontWeight: 500, pb: 0.5 }}>An axis per engineering unit</Box>
+            {axes.map((axis, index) => (
+              <AxisRow key={axis.unit} index={index} axis={axis} />
+            ))}
+            <Row label="Time">
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={time}
+                onChange={handleTime}
+                sx={TOGGLE_SX}
+              >
+                <ToggleButton value="clock" data-testid="trend-time-clock">
+                  Clock
+                </ToggleButton>
+                <ToggleButton value="since" data-testid="trend-time-since">
+                  Since start
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Row>
+            <Box sx={{ height: '1px', my: 1, bgcolor: 'divider' }} />
+            <Box sx={{ fontWeight: 500, pb: 0.5 }}>Lines</Box>
+            {lines.map(({ key, line, testId }) => (
+              <LineRow key={key} lineKey={key} line={line} testId={testId} />
+            ))}
+            <Row label="Draw as">
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={drawAs}
+                onChange={handleDrawAs}
+                sx={TOGGLE_SX}
+              >
+                <ToggleButton value="lines" data-testid="trend-draw-lines">
+                  Lines
+                </ToggleButton>
+                <ToggleButton value="steps" data-testid="trend-draw-steps">
+                  Steps
+                </ToggleButton>
+                <ToggleButton value="points" data-testid="trend-draw-points">
+                  Points
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Row>
+          </DraggablePanel>
+        )}
       </>
     )
   }
 )
 
-export default TrendSettingsPopover
+export default TrendSettingsPanel
