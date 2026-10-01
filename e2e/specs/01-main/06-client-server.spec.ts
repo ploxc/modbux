@@ -206,6 +206,15 @@ test.describe.serial('Client-Server Integration', () => {
       await expectCellContains(mainPage, 20, 'value', 'Hello')
     })
 
+    // Under RAW a string shows its registers' bytes, a word of hex apiece,
+    // so its zero byte shows rather than reading as a space.
+    test('value column: UTF-8 under RAW = its bytes in hex', async ({ mainPage }) => {
+      await mainPage.getByTestId('raw-btn').click()
+      await expectCellContains(mainPage, 20, 'value', '4865 6C6C 6F00')
+      await mainPage.getByTestId('raw-btn').click()
+      await expectCellContains(mainPage, 20, 'value', 'Hello')
+    })
+
     test('value column: UNIX at address 26 = 2023/11/14 22:13:20', async ({ mainPage }) => {
       // 1700000000 seconds since epoch = 2023/11/14 22:13:20 UTC
       await expectCell(mainPage, 26, 'value', '2023/11/14 22:13:20')

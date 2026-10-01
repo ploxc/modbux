@@ -4,7 +4,7 @@ import { useSectionType } from '@renderer/components/client/ClientGrids/sectionT
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
-import { sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
+import { rowAt, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
 import {
   AddressGroup,
   BITMAP_DATATYPE,
@@ -74,7 +74,10 @@ export const ConvertedValueCell = meme(
       return <ExpandCell address={address} />
     }
     if (row === undefined) return null
-    const value = getConvertedValue(row, registerMap, showRaw, addressGroups) ?? ''
+    // A string's other registers, which the same read wrote with this one.
+    const hexAt = (at: number): string | undefined =>
+      rowAt(useLiveZustand.getState(), selectedUuid, unit, type, at)?.hex
+    const value = getConvertedValue(row, registerMap, showRaw, addressGroups, hexAt) ?? ''
     // The unit belongs to the scaled number, not to a raw word or a text.
     const engineeringUnit = registerMap[address]?.unit
     // In RAW's colour, so a raw value is not read as a converted one.
@@ -124,7 +127,8 @@ export const getConvertedValue = (
   row: RegisterData,
   registerMap: RegisterMapObject,
   showRaw: boolean,
-  addressGroups: AddressGroup[]
+  addressGroups: AddressGroup[],
+  hexAt?: (address: number) => string | undefined
 ): number | string | undefined => {
   if (row.error) return undefined
   const address = row.id
@@ -172,6 +176,15 @@ export const getConvertedValue = (
       count++
       register = registerMap[address + count]
     }
+
+    // Under RAW, the bytes of each register the string spans, a word of hex
+    // apiece as a datetime shows them. The text has lost them: a zero byte
+    // reads as a space, and a byte UTF-8 cannot decode as a replacement
+    // character.
+    if (showRaw && hexAt !== undefined)
+      return Array.from({ length: count }, (_, i) => (hexAt(address + i) ?? '').toUpperCase()).join(
+        ' '
+      )
 
     // Slice the string to the right length
     // The utf8 value starts from the current register's offset,

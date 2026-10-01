@@ -153,9 +153,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **RAW shows a timestamp's registers.** A UNIX register showed its date with
-  RAW on as well as off; it now shows the seconds it counts, and a DATETIME
-  register its four words in hex.
+- **RAW shows a timestamp's and a string's registers.** A UNIX register showed
+  its date with RAW on as well as off; it now shows the seconds it counts, a
+  DATETIME register its four words in hex, and a UTF-8 string the bytes of
+  each register it spans, in hex, where its text showed a zero byte as a
+  space.
 - **The filter panel no longer offers the BIN column.** It had no column menu,
   but its filter panel listed it, and a filter on it matched nothing.
 - **A filter on a word column finds the rows that hold it.** A filter on

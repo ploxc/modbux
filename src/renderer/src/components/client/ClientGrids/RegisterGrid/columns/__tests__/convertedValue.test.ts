@@ -10,7 +10,7 @@ const dataState = { addressGroups: [] as [number, number][] }
 
 // The column's cell reads the stores, which ask `window.api` as they load.
 stubRenderer()
-const { convertedValueColumn } = await import('../convertedValue')
+const { convertedValueColumn, getConvertedValue } = await import('../convertedValue')
 
 /** A row carrying the utf8 the read buffer holds from this address onward. */
 const rowAt = (address: number, utf8: string): RegisterData => ({
@@ -248,5 +248,34 @@ describe('a timestamp under RAW', () => {
       '07EA 091D 0E2D 1F40'
     )
     expect(shownValue({ 0: { dataType: 'datetime' } }, timestampRow())).toBe('2026-09-29 14:45:08')
+  })
+})
+
+// RAW showed a UTF-8 string as its text, in which a zero byte reads as a
+// space and a byte UTF-8 cannot decode as a replacement character.
+describe('a string under RAW', () => {
+  const hexOf: Record<number, string> = { 0: '4142', 1: '0043', 2: 'ff44', 3: '4546' }
+  const hexAt = (address: number): string | undefined => hexOf[address]
+
+  it('shows each register it spans as a word of hex', () => {
+    const shown = getConvertedValue(
+      rowAt(0, 'AB C\ufffdDEF'),
+      { 0: { dataType: 'utf8' }, 3: { dataType: 'uint16' } },
+      true,
+      [[0, 4]],
+      hexAt
+    )
+    expect(shown).toBe('4142 0043 FF44')
+  })
+
+  it('shows the text with RAW off', () => {
+    const shown = getConvertedValue(
+      rowAt(0, 'AB C\ufffdDEF'),
+      { 0: { dataType: 'utf8' }, 3: { dataType: 'uint16' } },
+      false,
+      [[0, 4]],
+      hexAt
+    )
+    expect(shown).toBe('AB C\ufffdD')
   })
 })

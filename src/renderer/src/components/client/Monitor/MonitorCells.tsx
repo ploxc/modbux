@@ -77,7 +77,10 @@ export const ValueCell = meme(({ row }: { row: MonitorRegisterRow }): ReactNode 
   }
   if (read === undefined || registerMap === undefined) return null
   if (!isNumberRegister(row.type)) return read.bit ? '1' : '0'
-  const value = getConvertedValue(read, registerMap, showRaw, addressGroups) ?? ''
+  // A string's other registers, which the same read wrote with this one.
+  const hexAt = (at: number): string | undefined =>
+    rowAt(useLiveZustand.getState(), uuid, row.unit, row.type, at, true)?.hex
+  const value = getConvertedValue(read, registerMap, showRaw, addressGroups, hexAt) ?? ''
   const engineeringUnit = registerMap[row.address]?.unit
   // In RAW's colour, so a raw value is not read as a converted one.
   if (showRaw)
