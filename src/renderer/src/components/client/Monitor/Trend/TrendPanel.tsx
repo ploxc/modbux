@@ -41,6 +41,9 @@ import {
   trendSeries,
   laneAt,
   isFollow,
+  axisScale,
+  TrendAxis,
+  trendAxes,
   stretchLabel,
   TrendFollow,
   TrendView,
@@ -262,49 +265,29 @@ const laneText = (bitmap: boolean, point: LogPoint | undefined): string => {
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
   units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
 
-/**
- * Each line's colour and scale. A line set to a side is drawn on that side's
- * scale. Otherwise lines of one engineering unit share a side: the first
- * unit's is the left, the second's the right, and a line of any unit after
- * that is scaled on its own, with no axis.
- */
+/** Each line's colour, its engineering unit's scale and how it is named, and an axis per unit. */
 const layoutOf = (
   entries: DrawnEntry[],
   units: ClientUnit[]
-): {
-  lines: TrendLine[]
-  settingsLines: SettingsLine[]
-  leftScale: string | undefined
-  rightScale: string | undefined
-} => {
-  const engineeringUnits: string[] = []
+): { lines: TrendLine[]; settingsLines: SettingsLine[]; axes: TrendAxis[] } => {
   const settingsLines = entries.map((entry): SettingsLine => {
     const mapValue = mapValueOf(units, entry)
     const engineeringUnit = mapValue?.unit ?? ''
-    if (!engineeringUnits.includes(engineeringUnit)) engineeringUnits.push(engineeringUnit)
-    const rank = engineeringUnits.indexOf(engineeringUnit)
-    const side = entry.side ?? (rank === 0 ? 'left' : rank === 1 ? 'right' : undefined)
     const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
     const address = entry.address + Number(addressBase)
     return {
       key: trendKey(entry),
-      side: entry.side,
       testId: `trend-line-${entry.type}-${address}`,
       line: {
         color: entry.color,
-        scale: side ?? `line:${trendKey(entry)}`,
+        scale: axisScale(engineeringUnit),
         label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
         unit: engineeringUnit
       }
     }
   })
   const lines = settingsLines.map(({ line }) => line)
-  return {
-    lines,
-    settingsLines,
-    leftScale: lines.some(({ scale }) => scale === 'left') ? 'left' : undefined,
-    rightScale: lines.some(({ scale }) => scale === 'right') ? 'right' : undefined
-  }
+  return { lines, settingsLines, axes: trendAxes(lines) }
 }
 
 /** One register of the trend: its colour, address and name, and a press that takes it out. */
@@ -565,7 +548,7 @@ const TrendContent = meme(
             </Box>
           </Box>
           <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
-            <TrendSettingsPopover lines={layout.settingsLines} />
+            <TrendSettingsPopover lines={layout.settingsLines} axes={layout.axes} />
             <ModeButtons mode={mode} />
             <IconButton
               size="small"
@@ -598,8 +581,7 @@ const TrendContent = meme(
           <TrendChart
             lines={layout.lines}
             data={drawn.map(({ series }) => series)}
-            leftScale={layout.leftScale}
-            rightScale={layout.rightScale}
+            axes={layout.axes}
             from={from}
             to={to}
             oldest={oldest}

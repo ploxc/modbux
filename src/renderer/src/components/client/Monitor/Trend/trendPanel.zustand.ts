@@ -6,8 +6,7 @@ import {
   RegisterType,
   SavedTrend,
   TrendRangeId,
-  TrendSettings,
-  TrendSide
+  TrendSettings
 } from '@shared'
 import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
@@ -28,13 +27,9 @@ export interface TrendEntry {
   address: number
 }
 
-/**
- * A register the trend draws, the colour it keeps while it is drawn, and the
- * side it is drawn on when it is set to one rather than its engineering unit's.
- */
+/** A register the trend draws, and the colour it keeps while it is drawn. */
 export interface DrawnEntry extends TrendEntry {
   color: string
-  side?: TrendSide
 }
 
 export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
@@ -84,11 +79,10 @@ interface TrendPanelZustand {
    */
   pause: (now: number, oldest: number | undefined) => void
   settings: TrendSettings
-  setAxisRange: (side: TrendSide, range: AxisRange | undefined) => void
+  /** Holds an engineering unit's axis at a range, or fits it to what it draws again with none. */
+  setAxisRange: (unit: string, range: AxisRange | undefined) => void
   setTime: (time: TrendSettings['time']) => void
   setDrawAs: (drawAs: TrendSettings['drawAs']) => void
-  /** Draws a register on a side, or on its engineering unit's again with none. */
-  setSide: (key: string, side: TrendSide | undefined) => void
   /** Gives a register another colour, and the register holding that one the first's. */
   setColor: (key: string, color: string) => void
   /**
@@ -180,11 +174,16 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.view = { from: Math.min(from, now - SHORTEST_VIEW_MS), to: now, pressed: 'range' }
       }),
     settings: DEFAULT_TREND_SETTINGS,
-    // Auto takes the key away, so the settings equal a saved trend's that never held one.
-    setAxisRange: (side, range): void =>
+    // Auto takes the unit away, and the last one the record, so the settings
+    // equal a saved trend's that never held one.
+    setAxisRange: (unit, range): void =>
       set((state) => {
-        if (range === undefined) delete state.settings[side]
-        else state.settings[side] = range
+        const axes = Object.fromEntries(
+          Object.entries(state.settings.axes ?? {}).filter(([held]) => held !== unit)
+        )
+        if (range !== undefined) axes[unit] = range
+        if (Object.keys(axes).length === 0) delete state.settings.axes
+        else state.settings.axes = axes
       }),
     setTime: (time): void =>
       set((state) => {
@@ -193,10 +192,6 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     setDrawAs: (drawAs): void =>
       set((state) => {
         state.settings.drawAs = drawAs
-      }),
-    setSide: (key, side): void =>
-      set((state) => {
-        for (const entry of state.entries) if (trendKey(entry) === key) entry.side = side
       }),
     setColor: (key, color): void =>
       set((state) => {
@@ -281,13 +276,7 @@ export const snapshotOf = (
   name: string
 ): SavedTrend => ({
   name,
-  entries: entries.map(({ unit, type, address, color, side }) => ({
-    unit,
-    type,
-    address,
-    color,
-    ...(side === undefined ? {} : { side })
-  })),
+  entries: entries.map(({ unit, type, address, color }) => ({ unit, type, address, color })),
   range,
   settings
 })

@@ -11,13 +11,13 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { TREND_COLORS, textMuted } from '@renderer/theme'
 import { ElementType, MouseEvent, ReactNode, useCallback, useState } from 'react'
 import { TrendLine } from './TrendChart'
-import { AxisRange, TrendSettings, TrendSide } from '@shared'
-import { rangeOf } from './trendData'
+import { AxisRange, TrendSettings } from '@shared'
+import { rangeOf, TrendAxis } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'
 
 const numberInput = NumberInput as unknown as ElementType<InputBaseComponentProps, 'input'>
 
-/** The range a side takes when it is first held: until it is typed, 0 to 100. */
+/** The range an axis takes when it is first held: until it is typed, 0 to 100. */
 const FIRST_RANGE: AxisRange = { min: 0, max: 100 }
 
 const TOGGLE_SX = {
@@ -26,9 +26,19 @@ const TOGGLE_SX = {
 
 /** One of the popover's rows: a name, and what sets it. */
 const Row = meme(
-  ({ label, children }: { label: string; children: ReactNode }): JSX.Element => (
+  ({ label, children }: { label: ReactNode; children: ReactNode }): JSX.Element => (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 34 }}>
-      <Box component="span" sx={{ width: 64, flexShrink: 0, color: 'text.secondary' }}>
+      <Box
+        component="span"
+        sx={{
+          width: 64,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          color: 'text.secondary'
+        }}
+      >
         {label}
       </Box>
       {children}
@@ -37,12 +47,14 @@ const Row = meme(
 )
 
 /**
- * A side's range: Auto fits what it draws, Fixed holds it at a minimum and a
- * maximum. The fields keep what is typed, and the side takes it once both
- * are numbers and the minimum is below the maximum.
+ * An engineering unit's axis, named by its unit and its lines' colours: Auto
+ * fits what it draws, Fixed holds it at a minimum and a maximum. The fields
+ * keep what is typed, and the axis takes it once both are numbers and the
+ * minimum is below the maximum.
  */
-const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
-  const range = useTrendPanelZustand((z) => z.settings[side])
+const AxisRow = meme(({ index, axis }: { index: number; axis: TrendAxis }): JSX.Element => {
+  const { unit } = axis
+  const range = useTrendPanelZustand((z) => z.settings.axes?.[unit])
   const [minText, setMinText] = useState(String(range?.min ?? FIRST_RANGE.min))
   const [maxText, setMaxText] = useState(String(range?.max ?? FIRST_RANGE.max))
 
@@ -52,25 +64,25 @@ const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
       if (mode === null) return
       const trendPanelZustand = useTrendPanelZustand.getState()
       if (mode === 'auto') {
-        trendPanelZustand.setAxisRange(side, undefined)
+        trendPanelZustand.setAxisRange(unit, undefined)
         return
       }
       const typed = rangeOf(minText, maxText)
-      trendPanelZustand.setAxisRange(side, typed ?? FIRST_RANGE)
+      trendPanelZustand.setAxisRange(unit, typed ?? FIRST_RANGE)
       if (typed !== undefined) return
       setMinText(String(FIRST_RANGE.min))
       setMaxText(String(FIRST_RANGE.max))
     },
-    [side, minText, maxText]
+    [unit, minText, maxText]
   )
   const take = useCallback(
     (min: string, max: string) => {
       const typed = rangeOf(min, max)
       if (typed === undefined) return
       const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setAxisRange(side, typed)
+      trendPanelZustand.setAxisRange(unit, typed)
     },
-    [side]
+    [unit]
   )
   const setMin = useCallback(
     (text: string) => {
@@ -89,7 +101,28 @@ const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
   const wrong = rangeOf(minText, maxText) === undefined
 
   return (
-    <Row label={side === 'left' ? 'Left' : 'Right'}>
+    <Row
+      label={
+        <>
+          <Box
+            component="span"
+            data-testid={`trend-axis-${index}-unit`}
+            sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {unit === '' ? 'No unit' : unit}
+          </Box>
+          <Box component="span" sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
+            {axis.colors.map((color) => (
+              <Box
+                key={color}
+                component="span"
+                sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }}
+              />
+            ))}
+          </Box>
+        </>
+      }
+    >
       <ToggleButtonGroup
         size="small"
         exclusive
@@ -97,10 +130,10 @@ const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
         onChange={handleMode}
         sx={TOGGLE_SX}
       >
-        <ToggleButton value="auto" data-testid={`trend-axis-${side}-auto`}>
+        <ToggleButton value="auto" data-testid={`trend-axis-${index}-auto`}>
           Auto
         </ToggleButton>
-        <ToggleButton value="fixed" data-testid={`trend-axis-${side}-fixed`}>
+        <ToggleButton value="fixed" data-testid={`trend-axis-${index}-fixed`}>
           Fixed
         </ToggleButton>
       </ToggleButtonGroup>
@@ -116,7 +149,7 @@ const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
             error={wrong}
             slotProps={{
               input: { inputComponent: numberInput },
-              htmlInput: { 'data-testid': `trend-axis-${side}-min`, set: setMin }
+              htmlInput: { 'data-testid': `trend-axis-${index}-min`, set: setMin }
             }}
             sx={{ width: 76 }}
           />
@@ -129,7 +162,7 @@ const AxisRow = meme(({ side }: { side: TrendSide }): JSX.Element => {
             error={wrong}
             slotProps={{
               input: { inputComponent: numberInput },
-              htmlInput: { 'data-testid': `trend-axis-${side}-max`, set: setMax }
+              htmlInput: { 'data-testid': `trend-axis-${index}-max`, set: setMax }
             }}
             sx={{ width: 76 }}
           />
@@ -145,32 +178,21 @@ const nextColor = (color: string): string => {
   return TREND_COLORS[(at + 1) % TREND_COLORS.length] ?? color
 }
 
-/** A line: its swatch, which a press moves to the next colour, and its side. */
+/** A line: its swatch, which a press moves to the next colour, and its name. */
 const LineRow = meme(
   ({
     lineKey,
     line,
-    side,
     testId
   }: {
     lineKey: string
     line: TrendLine
-    side: TrendSide | undefined
     testId: string
   }): JSX.Element => {
     const handleColor = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
       trendPanelZustand.setColor(lineKey, nextColor(line.color))
     }, [lineKey, line.color])
-    // Auto draws it on its engineering unit's side.
-    const handleSide = useCallback(
-      (_event: MouseEvent<HTMLElement>, picked: TrendSide | 'auto' | null) => {
-        if (picked === null) return
-        const trendPanelZustand = useTrendPanelZustand.getState()
-        trendPanelZustand.setSide(lineKey, picked === 'auto' ? undefined : picked)
-      },
-      [lineKey]
-    )
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 32 }}>
         <IconButton
@@ -188,23 +210,6 @@ const LineRow = meme(
         >
           {line.label}
         </Box>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={side ?? 'auto'}
-          onChange={handleSide}
-          sx={TOGGLE_SX}
-        >
-          <ToggleButton value="auto" data-testid={`${testId}-auto`}>
-            Auto
-          </ToggleButton>
-          <ToggleButton value="left" data-testid={`${testId}-left`}>
-            Left
-          </ToggleButton>
-          <ToggleButton value="right" data-testid={`${testId}-right`}>
-            Right
-          </ToggleButton>
-        </ToggleButtonGroup>
       </Box>
     )
   }
@@ -213,107 +218,108 @@ const LineRow = meme(
 export interface SettingsLine {
   key: string
   line: TrendLine
-  /** The side it is set to; none draws it on its engineering unit's. */
-  side: TrendSide | undefined
   testId: string
 }
 
 /**
- * The trend's Axes and lines: a fixed range per side, the time axis as the
- * clock or as the time since the trend's start, how lines are drawn, and each
- * line's colour and side.
+ * The trend's Axes and lines: a fixed range per engineering unit, the time
+ * axis as the clock or as the time since the trend's start, how lines are
+ * drawn, and each line's colour.
  */
-const TrendSettingsPopover = meme(({ lines }: { lines: SettingsLine[] }): JSX.Element => {
-  const time = useTrendPanelZustand((z) => z.settings.time)
-  const drawAs = useTrendPanelZustand((z) => z.settings.drawAs)
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+const TrendSettingsPopover = meme(
+  ({ lines, axes }: { lines: SettingsLine[]; axes: TrendAxis[] }): JSX.Element => {
+    const time = useTrendPanelZustand((z) => z.settings.time)
+    const drawAs = useTrendPanelZustand((z) => z.settings.drawAs)
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null)
 
-  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-    setAnchor(event.currentTarget)
-  }, [])
-  const handleClose = useCallback(() => setAnchor(null), [])
-  const handleTime = useCallback(
-    (_event: MouseEvent<HTMLElement>, picked: TrendSettings['time'] | null) => {
-      if (picked === null) return
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setTime(picked)
-    },
-    []
-  )
-  const handleDrawAs = useCallback(
-    (_event: MouseEvent<HTMLElement>, picked: TrendSettings['drawAs'] | null) => {
-      if (picked === null) return
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setDrawAs(picked)
-    },
-    []
-  )
+    const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+      setAnchor(event.currentTarget)
+    }, [])
+    const handleClose = useCallback(() => setAnchor(null), [])
+    const handleTime = useCallback(
+      (_event: MouseEvent<HTMLElement>, picked: TrendSettings['time'] | null) => {
+        if (picked === null) return
+        const trendPanelZustand = useTrendPanelZustand.getState()
+        trendPanelZustand.setTime(picked)
+      },
+      []
+    )
+    const handleDrawAs = useCallback(
+      (_event: MouseEvent<HTMLElement>, picked: TrendSettings['drawAs'] | null) => {
+        if (picked === null) return
+        const trendPanelZustand = useTrendPanelZustand.getState()
+        trendPanelZustand.setDrawAs(picked)
+      },
+      []
+    )
 
-  return (
-    <>
-      <IconButton
-        size="small"
-        aria-label="Axes and lines"
-        title="Axes and lines"
-        data-testid="trend-settings-btn"
-        onClick={handleOpen}
-      >
-        <Tune fontSize="small" />
-      </IconButton>
-      <Popover
-        open={anchor !== null}
-        anchorEl={anchor}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { width: 420, px: 1.5, py: 1, fontSize: 12.5 } } }}
-      >
-        <Box sx={{ fontWeight: 500, pb: 0.5 }}>Axes</Box>
-        <AxisRow side="left" />
-        <AxisRow side="right" />
-        <Row label="Time">
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={time}
-            onChange={handleTime}
-            sx={TOGGLE_SX}
-          >
-            <ToggleButton value="clock" data-testid="trend-time-clock">
-              Clock
-            </ToggleButton>
-            <ToggleButton value="since" data-testid="trend-time-since">
-              Since start
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Row>
-        <Box sx={{ height: '1px', my: 1, bgcolor: 'divider' }} />
-        <Box sx={{ fontWeight: 500, pb: 0.5 }}>Lines</Box>
-        {lines.map(({ key, line, side, testId }) => (
-          <LineRow key={key} lineKey={key} line={line} side={side} testId={testId} />
-        ))}
-        <Row label="Draw as">
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={drawAs}
-            onChange={handleDrawAs}
-            sx={TOGGLE_SX}
-          >
-            <ToggleButton value="lines" data-testid="trend-draw-lines">
-              Lines
-            </ToggleButton>
-            <ToggleButton value="steps" data-testid="trend-draw-steps">
-              Steps
-            </ToggleButton>
-            <ToggleButton value="points" data-testid="trend-draw-points">
-              Points
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Row>
-      </Popover>
-    </>
-  )
-})
+    return (
+      <>
+        <IconButton
+          size="small"
+          aria-label="Axes and lines"
+          title="Axes and lines"
+          data-testid="trend-settings-btn"
+          onClick={handleOpen}
+        >
+          <Tune fontSize="small" />
+        </IconButton>
+        <Popover
+          open={anchor !== null}
+          anchorEl={anchor}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ paper: { sx: { width: 420, px: 1.5, py: 1, fontSize: 12.5 } } }}
+        >
+          <Box sx={{ fontWeight: 500, pb: 0.5 }}>An axis per engineering unit</Box>
+          {axes.map((axis, index) => (
+            <AxisRow key={axis.unit} index={index} axis={axis} />
+          ))}
+          <Row label="Time">
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={time}
+              onChange={handleTime}
+              sx={TOGGLE_SX}
+            >
+              <ToggleButton value="clock" data-testid="trend-time-clock">
+                Clock
+              </ToggleButton>
+              <ToggleButton value="since" data-testid="trend-time-since">
+                Since start
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Row>
+          <Box sx={{ height: '1px', my: 1, bgcolor: 'divider' }} />
+          <Box sx={{ fontWeight: 500, pb: 0.5 }}>Lines</Box>
+          {lines.map(({ key, line, testId }) => (
+            <LineRow key={key} lineKey={key} line={line} testId={testId} />
+          ))}
+          <Row label="Draw as">
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={drawAs}
+              onChange={handleDrawAs}
+              sx={TOGGLE_SX}
+            >
+              <ToggleButton value="lines" data-testid="trend-draw-lines">
+                Lines
+              </ToggleButton>
+              <ToggleButton value="steps" data-testid="trend-draw-steps">
+                Steps
+              </ToggleButton>
+              <ToggleButton value="points" data-testid="trend-draw-points">
+                Points
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Row>
+        </Popover>
+      </>
+    )
+  }
+)
 
 export default TrendSettingsPopover

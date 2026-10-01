@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TREND_COLORS } from '@renderer/theme'
 import { newClientUnit } from '@shared'
+import { DEFAULT_TREND_SETTINGS } from '../trendData'
 import { snapshotOf, TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
 
 const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
@@ -25,7 +26,8 @@ beforeEach(() => {
     anchor: null,
     view: undefined,
     room: anchor,
-    mode: 'float'
+    mode: 'float',
+    settings: DEFAULT_TREND_SETTINGS
   })
 })
 
@@ -207,13 +209,15 @@ describe('the trend store', () => {
     expect(colors()).toEqual([TREND_COLORS[5], TREND_COLORS[1]])
   })
 
-  it('draws a register on the side it is set to, and on its own again with none', () => {
-    store().add(entry(0))
-    store().setSide(trendKey(entry(0)), 'right')
-    expect(store().entries[0]?.side).toBe('right')
+  it("holds each engineering unit's axis at its own range, and fits it again on Auto", () => {
+    store().setAxisRange('A', { min: 0, max: 10 })
+    store().setAxisRange('kW', { min: 1, max: 2 })
+    expect(store().settings.axes).toEqual({ A: { min: 0, max: 10 }, kW: { min: 1, max: 2 } })
 
-    store().setSide(trendKey(entry(0)), undefined)
-    expect(store().entries[0]?.side).toBeUndefined()
+    store().setAxisRange('A', undefined)
+    expect(store().settings.axes).toEqual({ kW: { min: 1, max: 2 } })
+    store().setAxisRange('kW', undefined)
+    expect(store().settings).not.toHaveProperty('axes')
   })
 
   it('takes out, when pruned, a register that no longer logs', () => {
@@ -240,7 +244,7 @@ describe('the trend store', () => {
   it('saves what it draws, and loads it back under its name', () => {
     store().add(entry(0))
     store().add(entry(1))
-    store().setSide(trendKey(entry(1)), 'right')
+    store().setAxisRange('A', { min: 0, max: 10 })
     store().setRange('1h')
     store().setDrawAs('steps')
     const saved = snapshotOf(store(), 'Currents')
@@ -248,16 +252,10 @@ describe('the trend store', () => {
       name: 'Currents',
       entries: [
         { unit: 'unit-1', type: 'holding_registers', address: 0, color: TREND_COLORS[0] },
-        {
-          unit: 'unit-1',
-          type: 'holding_registers',
-          address: 1,
-          color: TREND_COLORS[1],
-          side: 'right'
-        }
+        { unit: 'unit-1', type: 'holding_registers', address: 1, color: TREND_COLORS[1] }
       ],
       range: '1h',
-      settings: { time: 'clock', drawAs: 'steps' }
+      settings: { axes: { A: { min: 0, max: 10 } }, time: 'clock', drawAs: 'steps' }
     })
 
     store().startNew()
@@ -269,11 +267,11 @@ describe('the trend store', () => {
     expect(store().entries[0]?.uuid).toBe('client-a')
   })
 
-  it('saves as it was after a side is held and set back to Auto', () => {
+  it('saves as it was after an axis is held and set back to Auto', () => {
     store().add(entry(0))
     const before = snapshotOf(store(), 'Currents')
-    store().setAxisRange('left', { min: 0, max: 10 })
-    store().setAxisRange('left', undefined)
+    store().setAxisRange('A', { min: 0, max: 10 })
+    store().setAxisRange('A', undefined)
 
     expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
   })

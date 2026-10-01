@@ -95,6 +95,31 @@ export const trendSeries = (
   return { times, values }
 }
 
+/** An engineering unit the trend draws an axis for, its scale, and the colours of its lines. */
+export interface TrendAxis {
+  unit: string
+  scale: string
+  colors: string[]
+}
+
+/** The scale the lines of an engineering unit share. */
+export const axisScale = (unit: string): string => `unit:${unit}`
+
+/**
+ * An axis per engineering unit the lines are of, in the order the lines
+ * bring them, each with its lines' colours. A line of no unit shares the
+ * axis of the other lines of none.
+ */
+export const trendAxes = (lines: readonly { unit: string; color: string }[]): TrendAxis[] => {
+  const axes: TrendAxis[] = []
+  for (const { unit, color } of lines) {
+    const axis = axes.find((each) => each.unit === unit)
+    if (axis === undefined) axes.push({ unit, scale: axisScale(unit), colors: [color] })
+    else axis.colors.push(color)
+  }
+  return axes
+}
+
 /** A stretch of time a trend was paused, picked, zoomed or panned to, which stops it following the log. */
 export interface TrendView {
   from: number

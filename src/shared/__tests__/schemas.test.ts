@@ -8,6 +8,7 @@ import {
   WriteParametersSchema,
   unitIdOutOfRange
 } from '../types/client'
+import { SavedTrendSchema } from '../types/trend'
 import {
   defaultConnectionConfig,
   defaultRegisterConfig,
@@ -732,5 +733,35 @@ describe('unitIdOutOfRange', () => {
     ['ModbusRtu', 0, undefined]
   ] as const)('%s on %i answers %s', (protocol, unitId, reason) => {
     expect(unitIdOutOfRange({ protocol, unitId })).toBe(reason)
+  })
+})
+
+describe('SavedTrendSchema', () => {
+  it('holds a fixed range per engineering unit', () => {
+    const trend = {
+      name: 'Currents',
+      entries: [{ unit: 'unit-1', type: 'holding_registers', address: 0, color: '#fff' }],
+      range: '1h',
+      settings: { axes: { A: { min: 0, max: 10 } }, time: 'clock', drawAs: 'lines' }
+    }
+    expect(SavedTrendSchema.parse(trend)).toEqual(trend)
+  })
+
+  it('loads a trend saved with a side per line and a range per side, without them', () => {
+    const parsed = SavedTrendSchema.parse({
+      name: 'Currents',
+      entries: [
+        { unit: 'unit-1', type: 'holding_registers', address: 0, color: '#fff', side: 'right' }
+      ],
+      range: '1h',
+      settings: { left: { min: 0, max: 10 }, time: 'clock', drawAs: 'lines' }
+    })
+    expect(parsed.entries[0]).toEqual({
+      unit: 'unit-1',
+      type: 'holding_registers',
+      address: 0,
+      color: '#fff'
+    })
+    expect(parsed.settings).toEqual({ time: 'clock', drawAs: 'lines' })
   })
 })

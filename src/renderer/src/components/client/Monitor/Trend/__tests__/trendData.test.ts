@@ -3,6 +3,7 @@ import type { LogPoint } from '@shared'
 import type uPlot from 'uplot'
 import { DateTime } from 'luxon'
 import {
+  axisScale,
   bitOn,
   bitsOf,
   figure,
@@ -17,6 +18,7 @@ import {
   sinceText,
   stepOf,
   stretchLabel,
+  trendAxes,
   trendGaps,
   valuesAt,
   viewWithin,
@@ -85,6 +87,37 @@ describe('trendGaps', () => {
     expect(trendGaps([{ start: 0, end: 10, reason: 'log stopped' }], 40)).toEqual([
       { start: 10, end: 40, reason: 'log stopped' }
     ])
+  })
+})
+
+describe('trendAxes', () => {
+  it('gives each engineering unit one axis, in the order the lines bring them', () => {
+    expect(
+      trendAxes([
+        { unit: 'A', color: 'red' },
+        { unit: 'kW', color: 'blue' },
+        { unit: 'A', color: 'green' },
+        { unit: 'V', color: 'orange' }
+      ])
+    ).toEqual([
+      { unit: 'A', scale: axisScale('A'), colors: ['red', 'green'] },
+      { unit: 'kW', scale: axisScale('kW'), colors: ['blue'] },
+      { unit: 'V', scale: axisScale('V'), colors: ['orange'] }
+    ])
+  })
+
+  it('gives the lines of no unit one axis between them', () => {
+    expect(
+      trendAxes([
+        { unit: '', color: 'red' },
+        { unit: '', color: 'blue' }
+      ])
+    ).toEqual([{ unit: '', scale: axisScale(''), colors: ['red', 'blue'] }])
+  })
+
+  it('names a scale per unit, apart from any other', () => {
+    expect(axisScale('A')).not.toBe(axisScale('kW'))
+    expect(axisScale('')).not.toBe('x')
   })
 })
 

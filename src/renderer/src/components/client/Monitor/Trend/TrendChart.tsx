@@ -14,6 +14,7 @@ import {
   READOUT_WIDTH,
   readoutPlace,
   sinceText,
+  TrendAxis,
   TrendGap,
   TrendSeries,
   valuesAt,
@@ -43,9 +44,8 @@ interface TrendChartProps {
   lines: TrendLine[]
   /** Each line's points, in the order of `lines`. */
   data: TrendSeries[]
-  /** The scale the left axis shows, and the right one's. */
-  leftScale: string | undefined
-  rightScale: string | undefined
+  /** An axis per engineering unit, all on the left, the first the furthest out. */
+  axes: TrendAxis[]
   /** The time range drawn, which runs past the last sample while it is live. */
   from: number
   to: number
@@ -61,7 +61,7 @@ interface TrendChartProps {
   onPlot: (plot: { left: number; width: number }) => void
   /** The readout's rows for what the chart does not draw as a line, at a moment. */
   readoutRows: (time: number) => ReadoutRow[]
-  /** Each side's range, the time axis, and how the lines are drawn. */
+  /** Each engineering unit's range, the time axis, and how the lines are drawn. */
   settings: TrendSettings
   /** The moment the time since the start counts from: the log's oldest sample. */
   origin: number
@@ -91,6 +91,46 @@ const SHORTEST_DRAG = 4
 interface Backdrop {
   oldest: number | undefined
   gaps: TrendGap[]
+}
+
+/** How wide each engineering unit's axis is, in pixels. */
+const AXIS_SIZE = 44
+
+/** The room above the plot the axes' units are written in, in pixels. */
+const UNIT_ROOM = 16
+
+/**
+ * Each axis's engineering unit above it, and a line between two axes. uPlot
+ * lays the left axes out from the plot outward in the order they are given,
+ * each `AXIS_SIZE` wide, so `outward` lists them nearest the plot first. It
+ * leaves out an axis whose scale holds no value yet, and so does this.
+ */
+const drawUnits = (
+  chart: uPlot,
+  outward: readonly TrendAxis[],
+  colors: { unit: string; line: string },
+  font: string
+): void => {
+  const { ctx, bbox } = chart
+  const size = AXIS_SIZE * devicePixelRatio
+  ctx.save()
+  ctx.font = font
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'bottom'
+  ctx.lineWidth = devicePixelRatio
+  const shown = outward.filter(({ scale }) => chart.scales[scale]?.min != null)
+  for (const [index, { unit }] of shown.entries()) {
+    const right = bbox.left - index * size
+    ctx.fillStyle = colors.unit
+    ctx.fillText(unit, right - 4 * devicePixelRatio, bbox.top - 2 * devicePixelRatio)
+    if (index === 0) continue
+    ctx.strokeStyle = colors.line
+    ctx.beginPath()
+    ctx.moveTo(right, bbox.top)
+    ctx.lineTo(right, bbox.top + bbox.height)
+    ctx.stroke()
+  }
+  ctx.restore()
 }
 
 /** Canvas pixels between the hatch's lines. */
@@ -158,8 +198,7 @@ const TrendChart = meme(
   ({
     lines,
     data,
-    leftScale,
-    rightScale,
+    axes,
     from,
     to,
     oldest,
@@ -196,18 +235,21 @@ const TrendChart = meme(
         ticks: { show: false },
         font: `10px ${theme.typography.fontFamily ?? 'sans-serif'}`
       }
-      const scales = [...new Set(lines.map(({ scale }) => scale))]
+      const outward = [...axes].reverse()
       const colors = {
         hatch: theme.palette.divider,
         gap: alpha(theme.palette.error.main, 0.06),
         label: theme.palette.text.secondary
       }
       const labelFont = `${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
+      const unitFont = `500 ${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
+      const unitColors = { unit: theme.palette.text.primary, line: theme.palette.divider }
       const options: uPlot.Options = {
         width: box.clientWidth,
         height: box.clientHeight,
         ms: 1,
         legend: { show: false },
+        padding: [axes.length > 0 ? UNIT_ROOM : null, null, null, null],
         cursor: {
           y: false,
           points: { show: false },
@@ -233,6 +275,7 @@ const TrendChart = meme(
           drawClear: [
             (drawn: uPlot): void => drawBackdrop(drawn, backdrop.current, colors, labelFont)
           ],
+          draw: [(drawn: uPlot): void => drawUnits(drawn, outward, unitColors, unitFont)],
           setCursor: [
             (hovered: uPlot): void => {
               const { left, top } = hovered.cursor
@@ -258,10 +301,10 @@ const TrendChart = meme(
         },
         scales: {
           x: { time: true },
-          // A side held at a range draws it whatever its lines hold.
+          // A unit held at a range draws it whatever its lines hold.
           ...Object.fromEntries(
-            scales.map((scale) => {
-              const range = scale === 'left' || scale === 'right' ? settings[scale] : undefined
+            axes.map(({ unit, scale }) => {
+              const range = settings.axes?.[unit]
               return [
                 scale,
                 range === undefined
@@ -288,10 +331,13 @@ const TrendChart = meme(
                     )
               )
           },
-          ...(leftScale === undefined ? [] : [{ ...axis, scale: leftScale, size: 44 }]),
-          ...(rightScale === undefined
-            ? []
-            : [{ ...axis, scale: rightScale, side: 1 as const, size: 44, grid: { show: false } }])
+          // The grid follows the axis nearest the plot.
+          ...outward.map(({ scale }, index) => ({
+            ...axis,
+            scale,
+            size: AXIS_SIZE,
+            ...(index === 0 ? {} : { grid: { show: false } })
+          }))
         ],
         series: [
           {},
@@ -327,7 +373,7 @@ const TrendChart = meme(
         // The readout names this chart's lines at this chart's samples.
         setReadout(undefined)
       }
-    }, [lines, leftScale, rightScale, theme, settings])
+    }, [lines, axes, theme, settings])
 
     useEffect(() => {
       const current = chart.current

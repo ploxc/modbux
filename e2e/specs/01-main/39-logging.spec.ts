@@ -329,26 +329,24 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
-  test('Axes and lines hold a side, move a line, and set the time axis and the drawing', async ({
+  test('Axes and lines hold an engineering unit, and set the time axis and the drawing', async ({
     mainPage
   }) => {
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    // An axis per engineering unit beside the time axis; the register has none.
+    await expect(mainPage.locator('[data-testid="trend-chart"] .u-axis')).toHaveCount(2)
     await mainPage.getByTestId('trend-settings-btn').click()
+    await expect(mainPage.getByTestId('trend-axis-0-unit')).toHaveText('No unit')
 
-    await mainPage.getByTestId('trend-axis-left-fixed').click()
-    await expect(mainPage.getByTestId('trend-axis-left-min')).toHaveValue('0')
+    await mainPage.getByTestId('trend-axis-0-fixed').click()
+    await expect(mainPage.getByTestId('trend-axis-0-min')).toHaveValue('0')
     // Fields that hold no range give Fixed 0 to 100.
-    await mainPage.getByTestId('trend-axis-left-min').fill('')
-    await mainPage.getByTestId('trend-axis-left-auto').click()
-    await mainPage.getByTestId('trend-axis-left-fixed').click()
-    await expect(mainPage.getByTestId('trend-axis-left-min')).toHaveValue('0')
-    await expect(mainPage.getByTestId('trend-axis-left-max')).toHaveValue('100')
-    await mainPage.getByTestId('trend-axis-left-max').fill('250')
-    await mainPage.getByTestId('trend-line-holding_registers-0-right').click()
-    await expect(mainPage.getByTestId('trend-line-holding_registers-0-right')).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    await mainPage.getByTestId('trend-axis-0-min').fill('')
+    await mainPage.getByTestId('trend-axis-0-auto').click()
+    await mainPage.getByTestId('trend-axis-0-fixed').click()
+    await expect(mainPage.getByTestId('trend-axis-0-min')).toHaveValue('0')
+    await expect(mainPage.getByTestId('trend-axis-0-max')).toHaveValue('100')
+    await mainPage.getByTestId('trend-axis-0-max').fill('250')
     await mainPage.getByTestId('trend-time-since').click()
     await mainPage.getByTestId('trend-draw-steps').click()
     await mainPage.keyboard.press('Escape')
@@ -371,12 +369,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     // Back as it was, for the tests after this one.
     await mainPage.getByTestId('trend-settings-btn').click()
-    await mainPage.getByTestId('trend-axis-left-auto').click()
-    await mainPage.getByTestId('trend-line-holding_registers-0-auto').click()
-    await expect(mainPage.getByTestId('trend-line-holding_registers-0-auto')).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    await mainPage.getByTestId('trend-axis-0-auto').click()
     await mainPage.getByTestId('trend-time-clock').click()
     await mainPage.getByTestId('trend-draw-lines').click()
     await mainPage.keyboard.press('Escape')
