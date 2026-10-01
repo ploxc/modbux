@@ -108,8 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bitmap opens into a lane a bit. Each engineering unit draws on an axis of
   its own, all on the left. Axes and lines, a panel that drags and stays open
   beside the trend, holds a unit's axis at a range, gives a line another
-  colour, reads the time since the log's start, and draws steps or points. A trend saves under a name with its client, and
-  floats over Monitor, docks under its grid or fills its room.
+  colour, reads the time since the log's start, and draws steps or points.
+  A trend saves under a name with its client, and floats over Monitor, docks
+  under its grid or fills its room.
 
 ### Changed
 
