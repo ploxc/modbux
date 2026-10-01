@@ -11,6 +11,7 @@ const dataState = { addressGroups: [] as [number, number][] }
 // The column's cell reads the stores, which ask `window.api` as they load.
 stubRenderer()
 const { convertedValueColumn, getConvertedValue } = await import('../convertedValue')
+const { bitmapValueColumn } = await import('../bitmapValueColumn')
 
 /** A row carrying the utf8 the read buffer holds from this address onward. */
 const rowAt = (address: number, utf8: string): RegisterData => ({
@@ -266,6 +267,28 @@ describe('a string under RAW', () => {
       hexAt
     )
     expect(shown).toBe('4142 0043 FF44')
+  })
+
+  // A filter on the value reads the column's getter, which reads the other
+  // registers from the rows the grid holds.
+  it('reads the same in the value column a filter reads', () => {
+    dataState.addressGroups = [[0, 4]]
+    const registerMap: RegisterMapObject = { 0: { dataType: 'utf8' }, 3: { dataType: 'uint16' } }
+    const grid = {
+      current: {
+        getRow: (id: number): RegisterData => ({ ...rowAt(id, ''), hex: hexOf[id] ?? '' })
+      }
+    }
+    // The grid builds the bitmap column, which takes the value column's place.
+    for (const build of [convertedValueColumn, bitmapValueColumn]) {
+      const column = build(registerMap, true, dataState.addressGroups)
+      const { valueGetter } = column
+      if (!valueGetter) throw new Error('the value column has no valueGetter')
+
+      expect(valueGetter(undefined as never, rowAt(0, 'AB C'), column, grid as never)).toBe(
+        '4142 0043 FF44'
+      )
+    }
   })
 
   it('shows the text with RAW off', () => {

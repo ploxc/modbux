@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box'
-import { GridColDef } from '@mui/x-data-grid/models'
+import { GridColDef, GridValueGetter } from '@mui/x-data-grid/models'
 import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
@@ -100,6 +100,15 @@ export const ConvertedValueCell = meme(
   }
 )
 
+/**
+ * A register's hex as the grid holds it. A filter on the value hands the grid
+ * the rows as read, which is when the getter's answer counts.
+ */
+export const hexInGrid =
+  (apiRef: Parameters<GridValueGetter<RegisterData>>[3]) =>
+  (address: number): string | undefined =>
+    apiRef.current?.getRow<RegisterData>(address)?.hex
+
 export const convertedValueColumn = (
   registerMap: RegisterMapObject,
   showRaw: boolean,
@@ -111,8 +120,8 @@ export const convertedValueColumn = (
   headerName: 'Value',
   width: 160,
   renderCell: ({ row }) => <ConvertedValueCell address={row.id} />,
-  valueGetter: (_, row): number | string | undefined =>
-    getConvertedValue(row, registerMap, showRaw, addressGroups),
+  valueGetter: (_, row, _column, apiRef): number | string | undefined =>
+    getConvertedValue(row, registerMap, showRaw, addressGroups, hexInGrid(apiRef)),
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
 

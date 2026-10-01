@@ -1,6 +1,11 @@
 import { GridColDef } from '@mui/x-data-grid/models'
 import { AddressGroup, BITMAP_DATATYPE, RegisterData, RegisterMapObject } from '@shared'
-import { ConvertedValueCell, convertedValueColumn, getConvertedValue } from './convertedValue'
+import {
+  ConvertedValueCell,
+  convertedValueColumn,
+  getConvertedValue,
+  hexInGrid
+} from './convertedValue'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // bitmapValueColumn
@@ -17,9 +22,9 @@ export const bitmapValueColumn = (
   addressGroups: AddressGroup[]
 ): GridColDef<RegisterData> => ({
   ...convertedValueColumn(registerMap, showRaw, addressGroups),
-  valueGetter: (_: unknown, row: RegisterData): number | string | undefined => {
+  valueGetter: (_, row, _column, apiRef): number | string | undefined => {
     if (registerMap[row.id]?.dataType === BITMAP_DATATYPE) return undefined
-    return getConvertedValue(row, registerMap, showRaw, addressGroups)
+    return getConvertedValue(row, registerMap, showRaw, addressGroups, hexInGrid(apiRef))
   },
   renderCell: ({ row }) => <ConvertedValueCell address={row.id} bitmap />
 })
