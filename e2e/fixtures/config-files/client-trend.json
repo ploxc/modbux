@@ -1,0 +1,104 @@
+{
+  "kind": "client-device",
+  "version": 3,
+  "modbuxVersion": "2.3.0",
+  "name": "Trend test",
+  "unitId": 0,
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {
+      "0": {
+        "comment": "Pump",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "1": {
+        "comment": "Heater",
+        "log": {
+          "mode": "poll"
+        }
+      }
+    },
+    "discrete_inputs": {},
+    "input_registers": {},
+    "holding_registers": {
+      "0": {
+        "dataType": "uint16",
+        "comment": "Voltage L1",
+        "unit": "V",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "1": {
+        "dataType": "uint16",
+        "comment": "Current L1",
+        "unit": "A",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "2": {
+        "dataType": "uint16",
+        "comment": "Current L2",
+        "unit": "A",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "3": {
+        "dataType": "float",
+        "comment": "Active power",
+        "unit": "kW",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "5": {
+        "dataType": "int16",
+        "comment": "Temperature",
+        "unit": "°C",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "change",
+          "deadband": 20
+        }
+      },
+      "6": {
+        "dataType": "bitmap",
+        "comment": "Status",
+        "bitMap": {
+          "0": {
+            "comment": "Running"
+          },
+          "1": {
+            "comment": "Alarm",
+            "color": "error"
+          },
+          "2": {
+            "comment": "Door open",
+            "color": "warning"
+          },
+          "3": {
+            "comment": "Fan"
+          }
+        },
+        "log": {
+          "mode": "poll"
+        }
+      }
+    }
+  }
+}

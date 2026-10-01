@@ -1,0 +1,112 @@
+{
+  "version": 2,
+  "modbuxVersion": "2.0.0",
+  "name": "Trend test",
+  "littleEndian": false,
+  "serverRegistersPerUnit": {
+    "0": {
+      "coils": {
+        "0": {
+          "value": true,
+          "comment": "Pump"
+        },
+        "1": {
+          "value": false,
+          "comment": "Heater"
+        }
+      },
+      "discrete_inputs": {},
+      "input_registers": {},
+      "holding_registers": {
+        "0": {
+          "value": 0,
+          "params": {
+            "address": 0,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Voltage L1",
+            "min": 225,
+            "max": 235,
+            "interval": 1000
+          }
+        },
+        "1": {
+          "value": 0,
+          "params": {
+            "address": 1,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Current L1 (0.1 A)",
+            "min": 50,
+            "max": 150,
+            "interval": 1000
+          }
+        },
+        "2": {
+          "value": 0,
+          "params": {
+            "address": 2,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Current L2 (0.1 A)",
+            "min": 40,
+            "max": 140,
+            "interval": 1500
+          }
+        },
+        "3": {
+          "value": 0,
+          "params": {
+            "address": 3,
+            "registerType": "holding_registers",
+            "dataType": "float",
+            "comment": "Active power",
+            "min": 1.5,
+            "max": 9.5,
+            "interval": 2000
+          }
+        },
+        "5": {
+          "value": 0,
+          "params": {
+            "address": 5,
+            "registerType": "holding_registers",
+            "dataType": "int16",
+            "comment": "Temperature (0.1 °C)",
+            "min": 180,
+            "max": 260,
+            "interval": 5000
+          }
+        },
+        "6": {
+          "value": 0,
+          "params": {
+            "address": 6,
+            "registerType": "holding_registers",
+            "dataType": "bitmap",
+            "comment": "Status",
+            "min": 0,
+            "max": 15,
+            "interval": 4000,
+            "bitMap": {
+              "0": {
+                "comment": "Running"
+              },
+              "1": {
+                "comment": "Alarm",
+                "color": "error"
+              },
+              "2": {
+                "comment": "Door open",
+                "color": "warning"
+              },
+              "3": {
+                "comment": "Fan"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
