@@ -27,8 +27,16 @@ const TOGGLE_SX = {
   '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
 } as const
 
-/** The panel's paper: as wide as the popover it was, and as tall as what it holds. */
-const PANEL_SX = { width: 420, px: 1.5, pt: 0.5, pb: 1, fontSize: 12.5 } as const
+/** The panel's paper: as wide as the popover it was, and scrolling in a window lower than it. */
+const PANEL_SX = {
+  width: 420,
+  maxHeight: '100%',
+  overflowY: 'auto',
+  px: 1.5,
+  pt: 0.5,
+  pb: 1,
+  fontSize: 12.5
+} as const
 
 /** One of the panel's rows: a name, and what sets it. */
 const Row = meme(
@@ -247,10 +255,11 @@ const TrendSettingsPanel = meme(
     const handleClose = useCallback(() => setAnchor(null), [])
     // Beside the floating trend, whose paper is the region named Trend.
     const opening = useCallback(
-      (width: number) => {
+      (width: number, height: number) => {
         const button = anchor?.getBoundingClientRect() ?? new DOMRect()
         const trend = anchor?.closest('[role="region"][aria-label="Trend"]')
-        return settingsPlace(button, trend?.getBoundingClientRect(), width, window.innerWidth)
+        const room = { width: window.innerWidth, height: window.innerHeight }
+        return settingsPlace(button, trend?.getBoundingClientRect(), { width, height }, room)
       },
       [anchor]
     )

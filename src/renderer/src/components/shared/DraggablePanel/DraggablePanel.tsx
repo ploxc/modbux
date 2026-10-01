@@ -10,8 +10,8 @@ import Draggable from 'react-draggable'
 interface DraggablePanelProps {
   /** The element whose top right corner the panel opens at. */
   anchor: HTMLElement
-  /** Where the panel opens in place of that, in window pixels, given its width. */
-  opening?: (width: number) => { top: number; left: number }
+  /** Where the panel opens in place of that, in window pixels, given its size. */
+  opening?: (width: number, height: number) => { top: number; left: number }
   onClose: () => void
   /** The paper's own style: its size, and `resize` for a corner to drag. */
   paperSx: SxProps<Theme>
@@ -44,7 +44,10 @@ const DraggablePanel = meme(
         nodeRef.current = node
         if (node === null) return
         const { top, right } = anchor.getBoundingClientRect()
-        const opened = opening?.(node.offsetWidth) ?? { top, left: right - node.offsetWidth }
+        const opened = opening?.(node.offsetWidth, node.offsetHeight) ?? {
+          top,
+          left: right - node.offsetWidth
+        }
         setPlace((placed) => placed ?? opened)
       },
       [anchor, opening]

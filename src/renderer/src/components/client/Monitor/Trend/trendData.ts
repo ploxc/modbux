@@ -131,23 +131,32 @@ interface Box {
 /** The room kept between Axes and lines and the trend, or the window's edge. */
 const BESIDE_GAP = 8
 
+/** A width and a height, in pixels. */
+interface Size {
+  width: number
+  height: number
+}
+
 /**
- * Where Axes and lines opens, `width` wide: left of the floating `trend` when
+ * Where Axes and lines opens, `panel` big: left of the floating `trend` when
  * the window has room there, right of it when not, and under its `button`,
  * level with its right edge, beside a trend that floats nowhere or has no
- * room on either side.
+ * room on either side, in a window of `room`. It moves up as far as it
+ * takes to end inside the window, and no further than the window's top.
  */
 export const settingsPlace = (
   button: Box,
   trend: Box | undefined,
-  width: number,
-  windowWidth: number
+  panel: Size,
+  room: Size
 ): { top: number; left: number } => {
-  if (trend !== undefined && trend.left - BESIDE_GAP - width >= BESIDE_GAP)
-    return { top: trend.top, left: trend.left - BESIDE_GAP - width }
-  if (trend !== undefined && trend.right + BESIDE_GAP + width <= windowWidth - BESIDE_GAP)
-    return { top: trend.top, left: trend.right + BESIDE_GAP }
-  return { top: button.bottom + BESIDE_GAP, left: button.right - width }
+  const inside = (top: number): number =>
+    Math.max(BESIDE_GAP, Math.min(top, room.height - BESIDE_GAP - panel.height))
+  if (trend !== undefined && trend.left - BESIDE_GAP - panel.width >= BESIDE_GAP)
+    return { top: inside(trend.top), left: trend.left - BESIDE_GAP - panel.width }
+  if (trend !== undefined && trend.right + BESIDE_GAP + panel.width <= room.width - BESIDE_GAP)
+    return { top: inside(trend.top), left: trend.right + BESIDE_GAP }
+  return { top: inside(button.bottom + BESIDE_GAP), left: button.right - panel.width }
 }
 
 /** A stretch of time a trend was paused, picked, zoomed or panned to, which stops it following the log. */
