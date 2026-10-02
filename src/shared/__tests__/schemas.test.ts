@@ -9,6 +9,7 @@ import {
   unitIdOutOfRange
 } from '../types/client'
 import { SavedTrendSchema } from '../types/trend'
+import { ConversionSchema } from '../types/conversion'
 import {
   defaultConnectionConfig,
   defaultRegisterConfig,
@@ -79,6 +80,26 @@ describe('RegisterMapObjectSchema', () => {
       }
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('ConversionSchema — an interpolation point', () => {
+  const lerpAt = (point: string): unknown => ({
+    kind: 'lerp',
+    x1: point,
+    x2: '100',
+    y1: '4',
+    y2: '20'
+  })
+
+  // Every form the dialog's field takes and Save stores, so a saved mapping loads again.
+  it.each(['0', '-4', '4.5', '.5', '1.', '1e-7', '2E+3'])('takes %o', (point) => {
+    expect(ConversionSchema.safeParse(lerpAt(point)).success).toBe(true)
+  })
+
+  // Number reads 0x10 as 16, and the dialog's field takes the decimal form only.
+  it.each(['0x10', '0b1', '0o7', '', ' 1', 'Infinity', '1e', '-', '1,5'])('refuses %o', (point) => {
+    expect(ConversionSchema.safeParse(lerpAt(point)).success).toBe(false)
   })
 })
 
