@@ -10,7 +10,8 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { DateTime } from 'luxon'
 import { MouseEvent, useCallback, useState } from 'react'
-import { pickedStretch, SHORTEST_VIEW_MS, toSecond } from './trendData'
+import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
+import { pickedStretch, shownStretch, SHORTEST_VIEW_MS, toSecond } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'
 
 /** The calendar's fields, to the second. */
@@ -106,58 +107,62 @@ const StretchForm = meme(({ from, to, start, end, onClose }: StretchFormProps): 
   )
 })
 
+/** What the popover opens on: the stretch the trend shows, and what the log holds. */
+type Opened = Omit<StretchFormProps, 'onClose'> & { anchor: HTMLElement }
+
 /**
  * The calendar at the end of the range buttons, and the popover it opens on
- * the stretch the trend shows, from `from` to `to`. It stays pressed on the
- * stretch it picked. A log emptied while it is open leaves nothing to pick,
- * and closes it for good rather than until the log's next sample.
+ * the stretch the trend shows, read from the stores when it opens. It stays
+ * pressed on the stretch it picked. A log emptied while it is open leaves
+ * nothing to pick, and closes it for good rather than until the log's next
+ * sample.
  */
-const TrendStretchPicker = meme(
-  ({
-    from,
-    to,
-    start,
-    end
-  }: {
-    from: number
-    to: number
-    start: number | undefined
-    end: number
-  }): JSX.Element => {
-    const [anchor, setAnchor] = useState<HTMLElement | null>(null)
-    if (start === undefined && anchor !== null) setAnchor(null)
-    // The calendar opens its popover rather than pressing, pressed or not.
-    const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-      event.preventDefault()
-      setAnchor(event.currentTarget)
-    }, [])
-    const handleClose = useCallback(() => setAnchor(null), [])
-    return (
-      <>
-        <ToggleButton
-          value="calendar"
-          aria-label="Show a stretch"
-          title="Show a stretch"
-          data-testid="trend-range-calendar"
-          disabled={start === undefined}
-          onClick={handleOpen}
-        >
-          <DateRange sx={{ fontSize: 14 }} />
-        </ToggleButton>
-        <Popover
-          open={anchor !== null}
-          anchorEl={anchor}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          slotProps={{ paper: { sx: { p: 1.5, fontSize: 12.5 } } }}
-        >
-          {anchor !== null && start !== undefined && (
-            <StretchForm from={from} to={to} start={start} end={end} onClose={handleClose} />
-          )}
-        </Popover>
-      </>
-    )
-  }
-)
+const TrendStretchPicker = meme((): JSX.Element => {
+  const uuid = useTrendPanelZustand((z) => z.uuid)
+  const logged = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest !== undefined)
+  const [opened, setOpened] = useState<Opened>()
+  if (!logged && opened !== undefined) setOpened(undefined)
+  // The calendar opens its popover rather than pressing, pressed or not.
+  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    event.preventDefault()
+    const anchor = event.currentTarget
+    const { view, range, uuid } = useTrendPanelZustand.getState()
+    const { running, oldest, runs } = dataOf(useLiveZustand.getState(), uuid).clientState.log
+    const lastEnd = runs.at(-1)?.end
+    setOpened({ anchor, ...shownStretch(view, range, { running, oldest, lastEnd }, Date.now()) })
+  }, [])
+  const handleClose = useCallback(() => setOpened(undefined), [])
+  return (
+    <>
+      <ToggleButton
+        value="calendar"
+        aria-label="Show a stretch"
+        title="Show a stretch"
+        data-testid="trend-range-calendar"
+        disabled={!logged}
+        onClick={handleOpen}
+      >
+        <DateRange sx={{ fontSize: 14 }} />
+      </ToggleButton>
+      <Popover
+        open={opened !== undefined}
+        anchorEl={opened?.anchor}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { p: 1.5, fontSize: 12.5 } } }}
+      >
+        {opened !== undefined && (
+          <StretchForm
+            from={opened.from}
+            to={opened.to}
+            start={opened.start}
+            end={opened.end}
+            onClose={handleClose}
+          />
+        )}
+      </Popover>
+    </>
+  )
+})
 
 export default TrendStretchPicker

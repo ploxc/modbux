@@ -45,6 +45,7 @@ import {
   TrendAxis,
   trendAxes,
   stretchLabel,
+  shownStretch,
   TrendFollow,
   TrendView,
   viewWithin
@@ -160,48 +161,36 @@ const pressedOf = (
  * over the range, the range stays pressed, and a press on it follows the log.
  * The calendar at the end picks a stretch of its own.
  */
-const RangePicker = meme(
-  ({
-    from,
-    to,
-    start,
-    end
-  }: {
-    from: number
-    to: number
-    start: number | undefined
-    end: number
-  }): JSX.Element => {
-    const pressed = useTrendPanelZustand((z) => pressedOf(z.view, z.range))
-    const handleRange = useCallback(
-      (_event: MouseEvent<HTMLElement>, next: TrendRangeId | 'calendar' | null) => {
-        if (next === 'calendar') return
-        const trendPanelZustand = useTrendPanelZustand.getState()
-        // The range pressed already, which is null to an exclusive group.
-        if (next === null) trendPanelZustand.setView(undefined)
-        else trendPanelZustand.setRange(next)
-      },
-      []
-    )
-    return (
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={pressed}
-        onChange={handleRange}
-        aria-label="Range"
-        sx={TOGGLE_GROUP_SX}
-      >
-        {TREND_RANGES.map(({ id, label }) => (
-          <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
-            {label}
-          </ToggleButton>
-        ))}
-        <TrendStretchPicker from={from} to={to} start={start} end={end} />
-      </ToggleButtonGroup>
-    )
-  }
-)
+const RangePicker = meme((): JSX.Element => {
+  const pressed = useTrendPanelZustand((z) => pressedOf(z.view, z.range))
+  const handleRange = useCallback(
+    (_event: MouseEvent<HTMLElement>, next: TrendRangeId | 'calendar' | null) => {
+      if (next === 'calendar') return
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      // The range pressed already, which is null to an exclusive group.
+      if (next === null) trendPanelZustand.setView(undefined)
+      else trendPanelZustand.setRange(next)
+    },
+    []
+  )
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={pressed}
+      onChange={handleRange}
+      aria-label="Range"
+      sx={TOGGLE_GROUP_SX}
+    >
+      {TREND_RANGES.map(({ id, label }) => (
+        <ToggleButton key={id} value={id} data-testid={`trend-range-${id}`}>
+          {label}
+        </ToggleButton>
+      ))}
+      <TrendStretchPicker />
+    </ToggleButtonGroup>
+  )
+})
 
 /**
  * Whether the trend follows the log or holds still, and a press that picks
@@ -344,22 +333,69 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
 })
 
 /**
- * The registers a Log icon in Monitor added, as lines over the range picked
- * of the log, converted as the grid converts them, in a panel that drags by
- * its title, resizes from its corner, and leaves Monitor working under it. It
- * moves while the log runs, and otherwise shows the range up to where the log
- * last stopped. The range before the log's oldest sample is hatched, and each
- * stretch between two runs is shaded and named by why the first ended.
+ * Whether the trend follows the log, holds still or has nothing to follow,
+ * and the stretch it holds when that is not the range.
  */
-const TrendContent = meme(
-  ({ placement, anchor }: { placement: 'float' | 'inline'; anchor: HTMLElement }): JSX.Element => {
-    const entries = useTrendPanelZustand((z) => z.entries)
-    const mode = useTrendPanelZustand((z) => z.mode)
-    const uuid = useTrendPanelZustand((z) => z.uuid)
-    const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
+const TrendStatus = meme(({ uuid }: { uuid: string }): JSX.Element => {
+  const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
+  const view = useTrendPanelZustand((z) => z.view)
+  return (
+    <>
+      {running ? (
+        <LiveOrPaused />
+      ) : (
+        <Box
+          component="span"
+          data-testid="trend-logging-off"
+          sx={{ flexShrink: 0, fontSize: 11.5, color: textMuted }}
+        >
+          logging is off
+        </Box>
+      )}
+      {view !== undefined && (isFollow(view) || view.pressed !== 'range') && (
+        <Box
+          component="span"
+          data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
+          sx={{
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: textMuted,
+            fontFamily: 'monospace',
+            fontSize: 11.5
+          }}
+        >
+          {isFollow(view)
+            ? `the last ${formatDuration(view.length)}`
+            : view.pressed === 'calendar'
+              ? stretchLabel(view.from, view.to)
+              : `${formatTime(view.from)} to ${formatTime(view.to)}`}
+        </Box>
+      )}
+    </>
+  )
+})
+
+interface TrendBodyProps {
+  uuid: string
+  entries: DrawnEntry[]
+  units: ClientUnit[]
+  /** The entries drawn as lines, and how they are drawn; the rest are lanes. */
+  lineEntries: DrawnEntry[]
+  layout: { lines: TrendLine[]; axes: TrendAxis[] }
+}
+
+/**
+ * What the trend draws of the log: the chart, the lanes under it and the
+ * navigator over the whole log. It asks main for its windows and renders on
+ * each answer, and the header above it is a sibling that does not.
+ */
+const TrendBody = meme(
+  ({ uuid, entries, units, lineEntries, layout }: TrendBodyProps): JSX.Element => {
     const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
     const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
-    // The array main's last client state carried, which the store keeps as it came.
+    // Kept by the live store while it is the same, though main builds it anew in every state.
     const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
     const range = useTrendPanelZustand((z) => z.range)
     const view = useTrendPanelZustand((z) => z.view)
@@ -394,11 +430,6 @@ const TrendContent = meme(
       started,
       steps: NAVIGATOR_STEPS
     })
-    const lineEntries = useMemo(
-      () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
-      [entries, units]
-    )
-    const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
     const [plot, setPlot] = useState<PlotBox>()
 
     // Converted again on every render, which comes with each answer, a store
@@ -414,18 +445,8 @@ const TrendContent = meme(
       return { entry, series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert) }
     })
 
-    // Live, the range ends now, and moves with each answer; stopped, where the
-    // log stopped. The whole log starts at its oldest sample, and an empty one
-    // shows the shortest range.
-    const end = running ? Date.now() : (lastEnd ?? Date.now())
-    const to = held?.to ?? end
-    const from =
-      held?.from ?? (Number.isFinite(span) ? to - span : (oldest ?? to - TREND_SPANS['10m']))
+    const { from, to, end } = shownStretch(view, range, { running, oldest, lastEnd }, Date.now())
     const gaps = trendGaps(runs, end)
-    const handleClose = useCallback(() => {
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.close()
-    }, [])
     // Inside what the log holds, up to now; reaching its end follows the log
     // again, over the range or over a shorter stretch's own length.
     // The end is this render's, which the chart and the navigator drew with, so
@@ -470,107 +491,8 @@ const TrendContent = meme(
       }))
     const firstEntry = first[0]
 
-    const floating = placement === 'float'
-    const content = (
-      <Box
-        data-testid="trend-panel"
-        data-mode={mode}
-        sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
-      >
-        {/*
-         * Too narrow for one row, what the trend shows wraps under its name and
-         * ranges, and the icons keep their place at the right of the first row.
-         */}
-        <Box
-          className={floating ? DRAG_HANDLE_CLASS : undefined}
-          sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 1,
-            pl: floating ? 0.75 : 1.5,
-            pr: 1,
-            pt: 0.75,
-            userSelect: 'none',
-            cursor: floating ? 'move' : 'default'
-          }}
-        >
-          <Box
-            sx={{
-              flex: '1 1 auto',
-              minWidth: 0,
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              columnGap: 1,
-              rowGap: 0.5
-            }}
-          >
-            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
-              {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
-              <TrendConfigMenu />
-            </Box>
-            <Box sx={HEADER_ROW_SX}>
-              <RangePicker from={from} to={to} start={oldest} end={end} />
-            </Box>
-            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
-              {running ? (
-                <LiveOrPaused />
-              ) : (
-                <Box
-                  component="span"
-                  data-testid="trend-logging-off"
-                  sx={{ flexShrink: 0, fontSize: 11.5, color: textMuted }}
-                >
-                  logging is off
-                </Box>
-              )}
-              {view !== undefined && (isFollow(view) || view.pressed !== 'range') && (
-                <Box
-                  component="span"
-                  data-testid={isFollow(view) ? 'trend-follow' : 'trend-view'}
-                  sx={{
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: textMuted,
-                    fontFamily: 'monospace',
-                    fontSize: 11.5
-                  }}
-                >
-                  {isFollow(view)
-                    ? `the last ${formatDuration(view.length)}`
-                    : view.pressed === 'calendar'
-                      ? stretchLabel(view.from, view.to)
-                      : `${formatTime(view.from)} to ${formatTime(view.to)}`}
-                </Box>
-              )}
-            </Box>
-          </Box>
-          <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
-            <TrendSettingsPanel lines={layout.settingsLines} axes={layout.axes} />
-            <ModeButtons mode={mode} />
-            <IconButton
-              size="small"
-              aria-label="Close the trend"
-              data-testid="trend-close-btn"
-              onClick={handleClose}
-            >
-              <Close fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, px: 1.75 }}>
-          {entries.map((entry) => (
-            <TrendChip key={trendKey(entry)} entry={entry} />
-          ))}
-          <TrendPicker />
-          {entries.length === 0 && (
-            <Box component="span" data-testid="trend-empty" sx={{ fontSize: 12, color: textMuted }}>
-              Add a register, or press a Log icon in Monitor.
-            </Box>
-          )}
-        </Box>
+    return (
+      <>
         {/* With no lines to draw, the chart is its time axis and the lanes take the room. */}
         <Box
           sx={[
@@ -619,6 +541,112 @@ const TrendContent = meme(
             />
           </Box>
         )}
+      </>
+    )
+  }
+)
+
+/**
+ * The registers a Log icon in Monitor added, as lines over the range picked
+ * of the log, converted as the grid converts them, in a panel that drags by
+ * its title, resizes from its corner, and leaves Monitor working under it. It
+ * moves while the log runs, and otherwise shows the range up to where the log
+ * last stopped. The range before the log's oldest sample is hatched, and each
+ * stretch between two runs is shaded and named by why the first ended.
+ */
+const TrendContent = meme(
+  ({ placement, anchor }: { placement: 'float' | 'inline'; anchor: HTMLElement }): JSX.Element => {
+    const entries = useTrendPanelZustand((z) => z.entries)
+    const mode = useTrendPanelZustand((z) => z.mode)
+    const uuid = useTrendPanelZustand((z) => z.uuid)
+    const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
+    const lineEntries = useMemo(
+      () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
+      [entries, units]
+    )
+    const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
+    const handleClose = useCallback(() => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.close()
+    }, [])
+
+    const floating = placement === 'float'
+    const content = (
+      <Box
+        data-testid="trend-panel"
+        data-mode={mode}
+        sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%', fontSize: 12.5 }}
+      >
+        {/*
+         * Too narrow for one row, what the trend shows wraps under its name and
+         * ranges, and the icons keep their place at the right of the first row.
+         */}
+        <Box
+          className={floating ? DRAG_HANDLE_CLASS : undefined}
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1,
+            pl: floating ? 0.75 : 1.5,
+            pr: 1,
+            pt: 0.75,
+            userSelect: 'none',
+            cursor: floating ? 'move' : 'default'
+          }}
+        >
+          <Box
+            sx={{
+              flex: '1 1 auto',
+              minWidth: 0,
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              columnGap: 1,
+              rowGap: 0.5
+            }}
+          >
+            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
+              {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
+              <TrendConfigMenu />
+            </Box>
+            <Box sx={HEADER_ROW_SX}>
+              <RangePicker />
+            </Box>
+            <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
+              <TrendStatus uuid={uuid} />
+            </Box>
+          </Box>
+          <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
+            <TrendSettingsPanel lines={layout.settingsLines} axes={layout.axes} />
+            <ModeButtons mode={mode} />
+            <IconButton
+              size="small"
+              aria-label="Close the trend"
+              data-testid="trend-close-btn"
+              onClick={handleClose}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, px: 1.75 }}>
+          {entries.map((entry) => (
+            <TrendChip key={trendKey(entry)} entry={entry} />
+          ))}
+          <TrendPicker />
+          {entries.length === 0 && (
+            <Box component="span" data-testid="trend-empty" sx={{ fontSize: 12, color: textMuted }}>
+              Add a register, or press a Log icon in Monitor.
+            </Box>
+          )}
+        </Box>
+        <TrendBody
+          uuid={uuid}
+          entries={entries}
+          units={units}
+          lineEntries={lineEntries}
+          layout={layout}
+        />
       </Box>
     )
     if (!floating)

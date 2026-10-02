@@ -182,6 +182,29 @@ export interface TrendFollow {
 
 export const isFollow = (view: TrendView | TrendFollow): view is TrendFollow => 'length' in view
 
+/**
+ * The stretch a trend shows from `from` to `to`, and what the log holds from
+ * `start` to `end`: from its oldest sample, or from `from` while it is empty,
+ * to now while it runs and to where it last stopped otherwise. Held, the
+ * trend shows its view; following, the range or the follow's own length up to
+ * the end, and the whole log from its oldest sample, or the shortest range
+ * while the log is empty.
+ */
+export const shownStretch = (
+  view: TrendView | TrendFollow | undefined,
+  range: TrendRangeId,
+  log: { running: boolean; oldest: number | undefined; lastEnd: number | undefined },
+  now: number
+): { from: number; to: number; start: number; end: number } => {
+  const held = view === undefined || isFollow(view) ? undefined : view
+  const span = view !== undefined && isFollow(view) ? view.length : TREND_SPANS[range]
+  const end = log.running ? now : (log.lastEnd ?? now)
+  const to = held?.to ?? end
+  const from =
+    held?.from ?? (Number.isFinite(span) ? to - span : (log.oldest ?? to - TREND_SPANS['10m']))
+  return { from, to, start: log.oldest ?? from, end }
+}
+
 /** The shortest stretch a trend zooms in to. */
 export const SHORTEST_VIEW_MS = 1000
 

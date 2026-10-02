@@ -16,6 +16,7 @@ import {
   rangeOf,
   readoutPlace,
   settingsPlace,
+  shownStretch,
   sinceText,
   stepOf,
   stretchLabel,
@@ -465,5 +466,48 @@ describe('rangeOf', () => {
     expect(rangeOf('1e', '10')).toBeUndefined()
     expect(rangeOf('0', '1e999')).toBeUndefined()
     expect(rangeOf('-1e999', '0')).toBeUndefined()
+  })
+})
+
+describe('shownStretch', () => {
+  const MINUTE = 60 * 1000
+  const NOW = 100 * MINUTE
+  const running = { running: true, oldest: 20 * MINUTE, lastEnd: undefined }
+  const stopped = { running: false, oldest: 20 * MINUTE, lastEnd: 70 * MINUTE }
+
+  it('follows the range up to now while the log runs, and up to where it stopped after', () => {
+    expect(shownStretch(undefined, '10m', running, NOW)).toEqual({
+      from: 90 * MINUTE,
+      to: NOW,
+      start: 20 * MINUTE,
+      end: NOW
+    })
+    expect(shownStretch(undefined, '10m', stopped, NOW)).toEqual({
+      from: 60 * MINUTE,
+      to: 70 * MINUTE,
+      start: 20 * MINUTE,
+      end: 70 * MINUTE
+    })
+  })
+
+  it("follows over a follow's own length rather than the range's", () => {
+    expect(shownStretch({ length: 2 * MINUTE }, '1h', running, NOW).from).toBe(98 * MINUTE)
+  })
+
+  it('shows a held view where it is, whatever the range', () => {
+    const view = { from: 30 * MINUTE, to: 40 * MINUTE, pressed: 'calendar' as const }
+    expect(shownStretch(view, '8h', running, NOW)).toMatchObject({
+      from: 30 * MINUTE,
+      to: 40 * MINUTE,
+      end: NOW
+    })
+  })
+
+  it('shows the whole log from its oldest sample, and the shortest range while it is empty', () => {
+    expect(shownStretch(undefined, 'log', running, NOW).from).toBe(20 * MINUTE)
+    expect(shownStretch(undefined, 'log', { ...running, oldest: undefined }, NOW)).toMatchObject({
+      from: 90 * MINUTE,
+      start: 90 * MINUTE
+    })
   })
 })
