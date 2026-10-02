@@ -22,7 +22,6 @@ import {
   ReadConfiguration,
   RegisterTypeTabs
 } from '@renderer/components/client/RegisterConfig/RegisterConfig'
-import RawButton from './RegisterGrid/RegisterGridToolbar/RawButton'
 import BitWidthButtons from './RegisterGrid/RegisterGridToolbar/BitWidthButtons'
 import {
   layoutOf,
@@ -197,7 +196,6 @@ const ClientGridBar = meme(() => {
           <BitWidthButtons />
         </Box>
         <ValuesMenu />
-        <RawButton />
         <Box sx={{ flex: 1 }} />
         <Box className={OVERFLOWS} sx={{ display: 'flex' }}>
           <LoadButton />

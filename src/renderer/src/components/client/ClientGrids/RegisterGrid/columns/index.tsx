@@ -22,8 +22,8 @@ import { commentColumn } from './comment'
 import { writeActionColumn } from './write'
 import { groupEndColumn } from './groupEnd'
 import { groupIndexColumn } from './groupIndex'
-import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { bitmapValueColumn } from './bitmapValueColumn'
+import { rawValueColumn } from './convertedValue'
 
 //
 //
@@ -37,7 +37,6 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
   const show64Bit = useClientZustand((z) => selectedClient(z).registerConfig.show64BitValues)
 
   const readConfiguration = useClientZustand((z) => readsConfiguration(z))
-  const showRaw = useLayoutZustand((z) => z.showClientRawValues)
   const selectedUuid = useClientZustand((z) => z.selectedUuid)
   const unit = useClientZustand((z) => selectedUnit(z).uuid)
   const addressGroups = useLiveZustand((z) => sectionOf(z, selectedUuid, unit, type).addressGroups)
@@ -58,7 +57,8 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     if (registers16Bit) {
       columns.push(
         dataTypeColumn(registerMap),
-        bitmapValueColumn(registerMap, showRaw, addressGroups),
+        rawValueColumn(registerMap, addressGroups),
+        bitmapValueColumn(registerMap, addressGroups),
         conversionColumn,
         unitColumn(registerMap),
         logColumn,
@@ -93,16 +93,7 @@ const useRegisterGridColumns = (): GridColDef<RegisterData>[] => {
     }
 
     return columns
-  }, [
-    type,
-    addressBase,
-    advanced,
-    show64Bit,
-    registerMap,
-    showRaw,
-    readConfiguration,
-    addressGroups
-  ])
+  }, [type, addressBase, advanced, show64Bit, registerMap, readConfiguration, addressGroups])
 }
 
 export default useRegisterGridColumns

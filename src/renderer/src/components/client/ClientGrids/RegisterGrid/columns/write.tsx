@@ -4,10 +4,9 @@ import { GridActionsColDef } from '@mui/x-data-grid/models'
 import { GridActionsCellItem } from '@mui/x-data-grid/components'
 import WriteModal from '@renderer/components/client/ClientGrids/RegisterGrid/columns/WriteModal/WriteModal'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { RegisterType, RegisterData } from '@shared'
-import { ReactElement, useEffect, useRef, useState } from 'react'
+import { ReactElement, useRef, useState } from 'react'
 import { useClientZustand } from '@renderer/context/client.zustand'
 
 interface ActionProps {
@@ -29,14 +28,6 @@ const Action = meme(({ address, type }: ActionProps): JSX.Element => {
       dataOf(z, selectedUuid).clientState.connectState !== 'connected'
     )
   })
-
-  // Set values to raw when opening the write modal so you see what the value is without scaling
-  // The button colors yellow when active, so it's clear it's active so the user has to switch is off manually
-  useEffect(() => {
-    if (!open) return
-    const showRawValues = useLayoutZustand.getState().showClientRawValues
-    if (!showRawValues) useLayoutZustand.getState().toggleShowClientRawValues()
-  }, [open])
 
   return (
     <>

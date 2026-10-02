@@ -51,7 +51,7 @@ describe('the rows the grid is handed', () => {
 })
 
 describe('a filter that reads a value', () => {
-  it.each(['hex', 'value', 'word_int16', 'word_double'])('is one on %s', (field) => {
+  it.each(['hex', 'value', 'raw', 'word_int16', 'word_double'])('is one on %s', (field) => {
     expect(filtersValues({ items: [{ field, operator: 'contains', value: '1' }] })).toBe(true)
   })
 

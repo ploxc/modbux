@@ -15,15 +15,10 @@ export const useLayoutZustand = create<LayoutZustand, [['zustand/mutative', neve
         state.version = version
       }),
     hideHomeButton: isServerWindow,
-    showClientRawValues: false,
     showGridWhileScanning: true,
     toggleShowGridWhileScanning: () =>
       set((state) => {
         state.showGridWhileScanning = !state.showGridWhileScanning
-      }),
-    toggleShowClientRawValues: () =>
-      set((state) => {
-        state.showClientRawValues = !state.showClientRawValues
       }),
 
     setHideHomeButton: (hide) =>

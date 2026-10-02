@@ -24,8 +24,8 @@ import MonitorPollsChip from '@renderer/components/client/Logging/MonitorPollsCh
 import { useLogEnabled } from '@renderer/components/client/Logging/useLogEnabled'
 
 /**
- * The head of one section: its read window, Read and Raw, the 32 and 64 bit
- * columns and its Poll switch. With more than one type on screen it names its
+ * The head of one section: its read window, Read, the clear of its filters
+ * and its Poll switch. With more than one type on screen it names its
  * type, and that name is what a drag onto another section picks up.
  */
 const RegisterGridToolbar = meme(() => {

@@ -195,29 +195,10 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
     await readRegisters(mainPage, '0', '40')
   })
 
-  // ─── Raw display toggle ─────────────────────────────────────────────
+  // ─── Raw column ─────────────────────────────────────────────────────
 
-  test('raw button toggles raw display mode', async ({ mainPage }) => {
-    const rawBtn = mainPage.getByTestId('raw-btn')
-
-    // Ensure raw mode is off before testing toggle. MUI v9 split composite
-    // class names, so the on-state is `contained` plus `colorWarning` as two
-    // separate classes instead of a single `containedWarning`.
-    const classes = await rawBtn.getAttribute('class')
-    if (classes?.includes('MuiButton-colorWarning')) {
-      await rawBtn.click()
-    }
-
-    await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
-
-    // Toggle raw mode on
-    await rawBtn.click()
-    await expect(rawBtn).toHaveClass(/MuiButton-contained/)
-    await expect(rawBtn).toHaveClass(/MuiButton-colorWarning/)
-
-    // Toggle raw mode off
-    await rawBtn.click()
-    await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
+  test('a register type shows the Raw column', async ({ mainPage }) => {
+    await expectColumn(mainPage, 'raw', true)
   })
 
   // ─── Transaction log ────────────────────────────────────────────────
@@ -339,10 +320,10 @@ test.describe.serial('Client toolbar — display options and utilities', () => {
   // ─── Coils & Discrete Inputs — toolbar differences ─────────────────
 
   for (const regType of ['Coils', 'Discrete Inputs'] as const) {
-    test(`[${regType}] no raw button visible`, async ({ mainPage }) => {
+    test(`[${regType}] no Raw column`, async ({ mainPage }) => {
       await selectRegisterType(mainPage, regType)
 
-      await expect(mainPage.getByTestId('raw-btn')).not.toBeVisible()
+      await expectColumn(mainPage, 'raw', false)
     })
 
     test(`[${regType}] no endian toggle visible`, async ({ mainPage }) => {

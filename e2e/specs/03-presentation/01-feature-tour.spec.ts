@@ -33,7 +33,6 @@ import {
   disableReadConfiguration,
   writeRegister,
   cell,
-  disableClientRawMode,
   expectCell,
   expectCellContains,
   splitOutServerWindow,
@@ -550,7 +549,7 @@ test.describe.serial('Act III — Going Live', () => {
     await mainPage.keyboard.press('Escape')
     await beat(mainPage, 300)
 
-    await snap(mainPage, 'client-bitmap') // <---- RAW OFF
+    await snap(mainPage, 'client-bitmap')
 
     // ── Bit indicator screenshots (value 21 = bits 0,2,4 ON) ──
 
@@ -624,9 +623,6 @@ test.describe.serial('Act III — Going Live', () => {
 
     await mainPage.getByTestId('read-btn').click()
     await beat(mainPage, 500)
-
-    // Restore RAW button state to false (because write register sets it to true)
-    await disableClientRawMode(mainPage)
   })
 
   test('scene 22 — input registers', async ({ mainPage }) => {
@@ -639,7 +635,7 @@ test.describe.serial('Act III — Going Live', () => {
     await beat(mainPage)
     await mainPage.getByTestId('read-btn').evaluate((el) => (el as HTMLElement).blur())
     await beat(mainPage, 200)
-    await snap(mainPage, 'client-input-registers') /// <----- RAW ON
+    await snap(mainPage, 'client-input-registers')
   })
 
   test('scene 23 — reading coils', async ({ mainPage }) => {
@@ -756,9 +752,6 @@ test.describe.serial('Act IV — Interaction', () => {
     await readRegisters(mainPage, '0', '2')
     await beat(mainPage)
     await expectCell(mainPage, 0, 'hex', '0190')
-
-    // Restore RAW button state to false (because write register sets it to true)
-    await disableClientRawMode(mainPage)
   })
 
   test('scene 27 — live polling', async ({ mainPage }) => {

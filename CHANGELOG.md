@@ -76,9 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scrolled into view or folded, and a group turned off keeps what it last
   showed. READ reads one group, Show unit opens that unit in Debug, and the
   pencil writes as it does in Debug. Writing waits until the poll stops.
-  Expand all and Collapse all open and fold every group. RAW sits in its
-  toolbar as it does in Debug, and a raw value shows in RAW's colour in both
-  views.
+  Expand all and Collapse all open and fold every group.
 - **Logging.** The Log column in Debug sets a register to log on every poll,
   or on a change past a deadband. A register in the read configuration can
   log, as a bit or a number. The log button beside Poll opens the log, where
@@ -114,11 +112,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Raw is a column before Value.** The RAW button switched Value to the
+  register before its conversion. A Raw column now shows it beside Value, in
+  Debug and in Monitor, and the button is gone. A UNIX register reads as the
+  seconds it counts, a DATETIME register as its four words in hex, and a
+  UTF-8 string as the bytes of each register it spans, in hex, where its text
+  shows a zero byte as a space.
 - **The client view is laid out anew.** The top bar holds the protocol, the
   connection, the poll rate and timeout, and a Serial field reading
   `9600 · 8N1` that opens the four line settings. As the window narrows the
   bar folds its controls into menus and buttons, down to the narrowest window
-  Modbux allows. The register type, address, length, Read and Raw sit in the
+  Modbux allows. The register type, address, length and Read sit in the
   grid's toolbar, and 32 and 64 are two buttons there, replacing Advanced mode
   and Show 64 bit values. The unit id changes by a double click on its tab,
   and the scans moved to the client card's menu. The transaction log is a card
@@ -153,11 +157,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **RAW shows a timestamp's and a string's registers.** A UNIX register showed
-  its date with RAW on as well as off; it now shows the seconds it counts, a
-  DATETIME register its four words in hex, and a UTF-8 string the bytes of
-  each register it spans, in hex, where its text showed a zero byte as a
-  space.
 - **The filter panel no longer offers the BIN column.** It had no column menu,
   but its filter panel listed it, and a filter on it matched nothing.
 - **A filter on a word column finds the rows that hold it.** A filter on

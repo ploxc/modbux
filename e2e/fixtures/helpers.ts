@@ -633,23 +633,6 @@ export const enableReadConfiguration = (p: Page): Promise<void> => setReadConfig
 /** Convenience alias for setReadConfiguration(p, false) */
 export const disableReadConfiguration = (p: Page): Promise<void> => setReadConfiguration(p, false)
 
-/** Set RAW toggle button to the desired state */
-async function setClientRawMode(p: Page, enabled: boolean): Promise<void> {
-  const rawBtn = p.getByTestId('raw-btn')
-  const classes = await rawBtn.getAttribute('class')
-  // MUI v9 split composite class names: the on-state is `contained` plus
-  // `colorWarning` as two classes rather than a single `containedWarning`.
-  const isEnabled = classes?.includes('MuiButton-colorWarning') ?? false
-
-  if (enabled !== isEnabled) await rawBtn.click()
-
-  if (enabled) await expect(rawBtn).toHaveClass(/MuiButton-colorWarning/)
-  else await expect(rawBtn).not.toHaveClass(/MuiButton-colorWarning/)
-}
-
-/** Convenience alias for setClientRawMode(p, false) */
-export const disableClientRawMode = (p: Page): Promise<void> => setClientRawMode(p, false)
-
 // ─── Shared helpers extracted from specs ───────────────────────────
 
 /**

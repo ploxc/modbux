@@ -15,11 +15,10 @@ import { act, render, screen } from '@testing-library/react'
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid/models'
 import { ReactNode } from 'react'
 import { ThemeProvider } from '@mui/material/styles'
-import { theme } from '@renderer/theme'
+import { textMuted, theme } from '@renderer/theme'
 import { getDummyRegisterData, MAIN_CLIENT_UUID } from '@shared'
 import type { RegisterData } from '@shared'
 import { useLiveZustand } from '@renderer/context/live.zustand'
-import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { MAIN_UNIT_UUID } from '@renderer/context/client.zustand.helpers'
 import { SectionTypeContext } from '../../../sectionType'
@@ -27,7 +26,7 @@ import { skeletonRows } from '../../skeletonRows'
 import { skeletonOf } from '@renderer/context/live.zustand.helpers'
 import { hexColumn } from '../hex'
 import { valueColumn } from '../value'
-import { convertedValueColumn } from '../convertedValue'
+import { convertedValueColumn, rawValueColumn } from '../convertedValue'
 
 const type = 'holding_registers'
 
@@ -64,8 +63,6 @@ const drawCell = (column: GridColDef<RegisterData>, address: number): void => {
   )
 }
 
-const warningColour = theme.palette.warning.main
-
 const cellText = (): string => screen.getByTestId('cell').textContent ?? ''
 
 describe('a value cell', () => {
@@ -96,24 +93,31 @@ describe('a value cell', () => {
   it('shows the converted value, and the error a failed read left', () => {
     useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'uint16')
     poll(rowWith(0, 5))
-    drawCell(convertedValueColumn({}, false, []), 0)
+    drawCell(convertedValueColumn({}, []), 0)
     expect(cellText()).toBe('5')
 
     poll(rowWith(0, 5, { error: 'Timed out' }))
     expect(cellText()).toBe('Timed out')
   })
 
-  it("shows a raw value in RAW's warning colour, and a converted one in the text's", () => {
+  it('shows the raw value a poll read in the muted text colour, and the next', () => {
     useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'uint16')
-    poll(rowWith(0, 5))
-    const colourOf5 = (): string => getComputedStyle(screen.getByText('5')).color
-    const layoutZustand = useLayoutZustand.getState()
-    if (!layoutZustand.showClientRawValues) layoutZustand.toggleShowClientRawValues()
+    useClientZustand
+      .getState()
+      .setRegisterMapping('holding_registers', 0, 'conversion', { kind: 'scale', factor: 0.1 })
+    poll(rowWith(0, 50))
+    drawCell(rawValueColumn({}, []), 0)
+    expect(cellText()).toBe('50')
+    expect(getComputedStyle(screen.getByText('50')).color).toBe(textMuted)
 
-    drawCell(convertedValueColumn({}, true, []), 0)
-    expect(colourOf5()).toBe(warningColour)
+    poll(rowWith(0, 70))
+    expect(cellText()).toBe('70')
+  })
 
-    act(() => useLayoutZustand.getState().toggleShowClientRawValues())
-    expect(colourOf5()).not.toBe(warningColour)
+  it('leaves the error a failed read left to the Value cell', () => {
+    useClientZustand.getState().setRegisterMapping('holding_registers', 0, 'dataType', 'uint16')
+    poll(rowWith(0, 5, { error: 'Timed out' }))
+    drawCell(rawValueColumn({}, []), 0)
+    expect(cellText()).toBe('')
   })
 })

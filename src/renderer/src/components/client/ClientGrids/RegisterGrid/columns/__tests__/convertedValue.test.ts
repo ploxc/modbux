@@ -10,8 +10,8 @@ const dataState = { addressGroups: [] as [number, number][] }
 
 // The column's cell reads the stores, which ask `window.api` as they load.
 stubRenderer()
-const { convertedValueColumn, getConvertedValue } = await import('../convertedValue')
-const { bitmapValueColumn } = await import('../bitmapValueColumn')
+const { convertedValueColumn, getConvertedValue, rawValueColumn } =
+  await import('../convertedValue')
 
 /** A row carrying the utf8 the read buffer holds from this address onward. */
 const rowAt = (address: number, utf8: string): RegisterData => ({
@@ -54,18 +54,16 @@ const numberRowAt = (address: number, value: number): RegisterData => ({
 })
 
 /**
- * What the value column shows, or a failure saying the column has no getter.
+ * What the Value column shows, or with `raw` the Raw column, or a failure
+ * saying the column has no getter.
  *
- * The field is `value` and `RegisterData` has no such key, so the grid types the
- * first argument `never` and the getter reads the row instead. The api ref is
- * the same: the getter takes it and never touches it.
+ * The field is `value` or `raw` and `RegisterData` has no such key, so the
+ * grid types the first argument `never` and the getter reads the row instead.
+ * The api ref is the same: the getter takes it and never touches it.
  */
-const shownValue = (
-  registerMap: RegisterMapObject,
-  row: RegisterData,
-  showRaw = false
-): unknown => {
-  const column = convertedValueColumn(registerMap, showRaw, dataState.addressGroups)
+const shownValue = (registerMap: RegisterMapObject, row: RegisterData, raw = false): unknown => {
+  const build = raw ? rawValueColumn : convertedValueColumn
+  const column = build(registerMap, dataState.addressGroups)
   const { valueGetter } = column
   if (!valueGetter) throw new Error('the value column has no valueGetter')
 
@@ -159,7 +157,7 @@ describe('the number the value column shows', () => {
     ).toBe(0.0000015)
   })
 
-  it('shows the word itself when the toolbar asks for raw', () => {
+  it('shows the word itself in the Raw column', () => {
     expect(
       shownValue(
         { 0: { dataType: 'uint16', conversion: { kind: 'scale' as const, factor: 0.1 } } },
@@ -220,8 +218,8 @@ describe('the number the value column shows', () => {
 })
 
 // RAW left a timestamp parsed, so a unix or datetime register read the same
-// with the switch on and off.
-describe('a timestamp under RAW', () => {
+// raw and converted.
+describe('a timestamp in the Raw column', () => {
   const timestampRow = (): RegisterData => ({
     ...rowAt(0, ''),
     words: {
@@ -254,7 +252,7 @@ describe('a timestamp under RAW', () => {
 
 // RAW showed a UTF-8 string as its text, in which a zero byte reads as a
 // space and a byte UTF-8 cannot decode as a replacement character.
-describe('a string under RAW', () => {
+describe('a string in the Raw column', () => {
   const hexOf: Record<number, string> = { 0: '4142', 1: '0043', 2: 'ff44', 3: '4546' }
   const hexAt = (address: number): string | undefined => hexOf[address]
 
@@ -269,8 +267,8 @@ describe('a string under RAW', () => {
     expect(shown).toBe('4142 0043 FF44')
   })
 
-  // A filter on the value reads the column's getter, which reads the other
-  // registers from the rows the grid holds.
+  // A filter on the column reads its getter, which reads the other registers
+  // from the rows the grid holds.
   it('reads the same in the value column a filter reads', () => {
     dataState.addressGroups = [[0, 4]]
     const registerMap: RegisterMapObject = { 0: { dataType: 'utf8' }, 3: { dataType: 'uint16' } }
@@ -279,19 +277,16 @@ describe('a string under RAW', () => {
         getRow: (id: number): RegisterData => ({ ...rowAt(id, ''), hex: hexOf[id] ?? '' })
       }
     }
-    // The grid builds the bitmap column, which takes the value column's place.
-    for (const build of [convertedValueColumn, bitmapValueColumn]) {
-      const column = build(registerMap, true, dataState.addressGroups)
-      const { valueGetter } = column
-      if (!valueGetter) throw new Error('the value column has no valueGetter')
+    const column = rawValueColumn(registerMap, dataState.addressGroups)
+    const { valueGetter } = column
+    if (!valueGetter) throw new Error('the raw column has no valueGetter')
 
-      expect(valueGetter(undefined as never, rowAt(0, 'AB C'), column, grid as never)).toBe(
-        '4142 0043 FF44'
-      )
-    }
+    expect(valueGetter(undefined as never, rowAt(0, 'AB C'), column, grid as never)).toBe(
+      '4142 0043 FF44'
+    )
   })
 
-  it('shows the text with RAW off', () => {
+  it('shows the text when not raw', () => {
     const shown = getConvertedValue(
       rowAt(0, 'AB C\ufffdDEF'),
       { 0: { dataType: 'utf8' }, 3: { dataType: 'uint16' } },
@@ -300,5 +295,21 @@ describe('a string under RAW', () => {
       hexAt
     )
     expect(shown).toBe('AB C\ufffdD')
+  })
+})
+
+// RAW was a switch over the Value column. Raw is a column of its own, so the
+// two stand side by side and neither depends on the other.
+describe('the Raw column beside the Value column', () => {
+  const scaled: RegisterMapObject = {
+    0: { dataType: 'uint16', conversion: { kind: 'scale', factor: 0.1 } }
+  }
+
+  it('leaves the Value column converted', () => {
+    expect(shownValue(scaled, numberRowAt(0, 108))).toBe(10.8)
+  })
+
+  it('leaves a bitmap empty, as its Value cell holds the toggle', () => {
+    expect(shownValue({ 0: { dataType: 'bitmap' } }, numberRowAt(0, 5), true)).toBe(undefined)
   })
 })

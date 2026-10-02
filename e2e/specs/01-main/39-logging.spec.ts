@@ -494,7 +494,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-mode-fill-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'fill')
     await expect(mainPage.locator('.monitor-grid')).toHaveCount(0)
-    for (const hidden of ['monitor-expand-all-btn', 'monitor-collapse-all-btn', 'monitor-raw-btn'])
+    for (const hidden of ['monitor-expand-all-btn', 'monitor-collapse-all-btn'])
       await expect(mainPage.getByTestId(hidden)).toHaveCount(0)
     await expectNewest(mainPage, 'trend-readout-value-0', '100')
 

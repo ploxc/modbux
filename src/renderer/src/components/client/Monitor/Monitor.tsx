@@ -10,12 +10,10 @@ import {
   GridRowHeightParams,
   GridRowHeightReturnValue
 } from '@mui/x-data-grid/models'
-import { RawToggle } from '@renderer/components/client/ClientGrids/RegisterGrid/RegisterGridToolbar/RawButton'
 import { ROW_HEIGHT } from '@renderer/components/client/ClientGrids/RegisterGrid/rowHeight'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useLiveZustand } from '@renderer/context/live.zustand'
-import { isNumberRegister } from '@shared'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Group, Panel } from 'react-resizable-panels'
 import ResizeHandle from '@renderer/components/shared/ResizeHandle'
@@ -38,7 +36,7 @@ import { MonitorRow, allGroupKeys, monitorRows } from './monitorRows'
 /** A group's head is a little taller than the rows under it. */
 const HEAD_HEIGHT = 36
 
-const COLUMN_COUNT = 6
+const COLUMN_COUNT = 7
 
 /**
  * The cells read the store themselves, so the columns never change. A head
@@ -60,6 +58,13 @@ const COLUMNS: GridColDef<MonitorRow>[] = [
     width: 90,
     sortable: false,
     renderCell: ({ row }) => (row.kind === 'register' ? <DataTypeCell row={row} /> : null)
+  },
+  {
+    field: 'raw',
+    headerName: 'Raw',
+    width: 110,
+    sortable: false,
+    renderCell: ({ row }) => (row.kind === 'register' ? <ValueCell row={row} raw /> : null)
   },
   {
     field: 'value',
@@ -120,10 +125,8 @@ const Monitor = meme((): JSX.Element => {
   const trendMode = useTrendPanelZustand((z) => z.mode)
   // Docked or filling, the trend is drawn in the grid's room rather than over it.
   const inline = trendOpen && trendMode !== 'float' ? trendMode : undefined
-  // Filling the room, the trend hides the groups these fold and the values RAW shows.
+  // Filling the room, the trend hides the groups these fold.
   const gridShown = inline !== 'fill'
-  // A bit has no raw value apart from the one it shows.
-  const anyRegisters = rows.some((row) => isNumberRegister(row.type))
 
   useEffect(() => {
     useLiveZustand.getState().showMonitor(uuid)
@@ -208,7 +211,6 @@ const Monitor = meme((): JSX.Element => {
             >
               Collapse all
             </Button>
-            {anyRegisters && <RawToggle testId="monitor-raw-btn" />}
           </>
         )}
         <Box sx={{ flexGrow: 1 }} />

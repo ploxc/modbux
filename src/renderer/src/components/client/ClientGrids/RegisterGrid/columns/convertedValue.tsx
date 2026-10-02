@@ -3,7 +3,6 @@ import { GridColDef, GridValueGetter } from '@mui/x-data-grid/models'
 import { useSectionType } from '@renderer/components/client/ClientGrids/sectionType'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { selectedUnit, useClientZustand } from '@renderer/context/client.zustand'
-import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { rowAt, sectionOf, useLiveZustand } from '@renderer/context/live.zustand'
 import {
   AddressGroup,
@@ -19,6 +18,7 @@ import { ReactNode } from 'react'
 import { useRowAt } from '../useRowAt'
 import { ExpandCell } from './ExpandCell'
 import { runScript, ScriptError } from '@renderer/conversion/scriptEngine'
+import { textMuted } from '@renderer/theme'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 
 // Linear interpolation function
@@ -47,14 +47,22 @@ const linearInterpolate = (
  * What a value cell shows, error included, read from the store rather than from
  * the grid's row, which carries no values while no value filter is set.
  * `bitmapValueColumn` renders the same cell, and `bitmap` makes a bitmap row's
- * cell its expand toggle, unless that row failed to read.
+ * cell its expand toggle, unless that row failed to read. `raw` draws the Raw
+ * column's cell, which leaves the error to the Value cell beside it.
  */
 export const ConvertedValueCell = meme(
-  ({ address, bitmap = false }: { address: number; bitmap?: boolean }): ReactNode => {
+  ({
+    address,
+    bitmap = false,
+    raw = false
+  }: {
+    address: number
+    bitmap?: boolean
+    raw?: boolean
+  }): ReactNode => {
     const type = useSectionType()
     const row = useRowAt(address)
     const registerMap = useClientZustand((z) => selectedUnit(z).registerMapping[type])
-    const showRaw = useLayoutZustand((z) => z.showClientRawValues)
     const selectedUuid = useClientZustand((z) => z.selectedUuid)
     const unit = useClientZustand((z) => selectedUnit(z).uuid)
     const addressGroups = useLiveZustand(
@@ -64,6 +72,7 @@ export const ConvertedValueCell = meme(
     useScriptEngineZustand((z) => z.ready)
 
     if (row?.error) {
+      if (raw) return null
       return (
         <span style={{ color: 'var(--mui-palette-error-main)' }} title={row.error}>
           {row.error}
@@ -77,13 +86,12 @@ export const ConvertedValueCell = meme(
     // A string's other registers, which the same read wrote with this one.
     const hexAt = (at: number): string | undefined =>
       rowAt(useLiveZustand.getState(), selectedUuid, unit, type, at)?.hex
-    const value = getConvertedValue(row, registerMap, showRaw, addressGroups, hexAt) ?? ''
+    const value = getConvertedValue(row, registerMap, raw, addressGroups, hexAt) ?? ''
     // The unit belongs to the scaled number, not to a raw word or a text.
     const engineeringUnit = registerMap[address]?.unit
-    // In RAW's colour, so a raw value is not read as a converted one.
-    if (showRaw)
+    if (raw)
       return (
-        <Box component="span" sx={{ color: 'warning.main' }}>
+        <Box component="span" sx={{ color: textMuted }}>
           {value}
         </Box>
       )
@@ -111,7 +119,6 @@ export const hexInGrid =
 
 export const convertedValueColumn = (
   registerMap: RegisterMapObject,
-  showRaw: boolean,
   addressGroups: AddressGroup[]
 ): GridColDef<RegisterData> => ({
   field: 'value',
@@ -121,21 +128,36 @@ export const convertedValueColumn = (
   width: 160,
   renderCell: ({ row }) => <ConvertedValueCell address={row.id} />,
   valueGetter: (_, row, _column, apiRef): number | string | undefined =>
-    getConvertedValue(row, registerMap, showRaw, addressGroups, hexInGrid(apiRef)),
+    getConvertedValue(row, registerMap, false, addressGroups, hexInGrid(apiRef)),
+  valueFormatter: (v) => (v !== undefined ? v : '')
+})
+
+/** The register before its conversion, beside the Value column. */
+export const rawValueColumn = (
+  registerMap: RegisterMapObject,
+  addressGroups: AddressGroup[]
+): GridColDef<RegisterData> => ({
+  field: 'raw',
+  type: 'string',
+  headerName: 'Raw',
+  width: 110,
+  renderCell: ({ row }) => <ConvertedValueCell address={row.id} raw />,
+  valueGetter: (_, row, _column, apiRef): number | string | undefined =>
+    getConvertedValue(row, registerMap, true, addressGroups, hexInGrid(apiRef)),
   valueFormatter: (v) => (v !== undefined ? v : '')
 })
 
 /**
- * The value a cell reads, scaled and interpolated. `bitmapValueColumn` hands
- * every row that is not a bitmap back to this, and it takes the map, the raw
- * flag and the groups the rows were read in rather than reaching into the
- * column it builds on. The groups cut a UTF-8 string, and each section has
- * its own.
+ * The value a cell reads, scaled and interpolated, or with `raw` the register
+ * before its conversion. `bitmapValueColumn` hands every row that is not a
+ * bitmap back to this, and it takes the map, the raw flag and the groups the
+ * rows were read in rather than reaching into the column it builds on. The
+ * groups cut a UTF-8 string, and each section has its own.
  */
 export const getConvertedValue = (
   row: RegisterData,
   registerMap: RegisterMapObject,
-  showRaw: boolean,
+  raw: boolean,
   addressGroups: AddressGroup[],
   hexAt?: (address: number) => string | undefined
 ): number | string | undefined => {
@@ -186,11 +208,11 @@ export const getConvertedValue = (
       register = registerMap[address + count]
     }
 
-    // Under RAW, the bytes of each register the string spans, a word of hex
+    // Raw, a string is the bytes of each register it spans, a word of hex
     // apiece as a datetime shows them. The text has lost them: a zero byte
     // reads as a space, and a byte UTF-8 cannot decode as a replacement
     // character.
-    if (showRaw && hexAt !== undefined)
+    if (raw && hexAt !== undefined)
       return Array.from({ length: count }, (_, i) => (hexAt(address + i) ?? '').toUpperCase()).join(
         ' '
       )
@@ -201,12 +223,12 @@ export const getConvertedValue = (
     return value.slice(0, count * 2)
   }
 
-  // A timestamp shows parsed, and under RAW as what its registers hold: the
+  // A timestamp shows parsed, and raw as what its registers hold: the
   // seconds a unix register counts, and the four words an IEC 870 datetime
   // packs, which read as no one number.
-  if (dataType === 'unix') return showRaw ? words.uint32 : value
+  if (dataType === 'unix') return raw ? words.uint32 : value
   if (dataType === 'datetime') {
-    if (!showRaw) return value
+    if (!raw) return value
     const hex = words.uint64.toString(16).toUpperCase().padStart(16, '0')
     return [0, 4, 8, 12].map((start) => hex.slice(start, start + 4)).join(' ')
   }
@@ -214,7 +236,7 @@ export const getConvertedValue = (
   const isNotANumberValue = isNaN(Number(value))
   if (isNotANumberValue) return undefined
 
-  if (showRaw) return Number(value)
+  if (raw) return Number(value)
 
   const converted = applyConversion(value, dataType, registerMap[address]?.conversion)
   return typeof converted === 'number' ? converted : undefined

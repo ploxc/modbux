@@ -18,13 +18,12 @@ import {
 
 export const bitmapValueColumn = (
   registerMap: RegisterMapObject,
-  showRaw: boolean,
   addressGroups: AddressGroup[]
 ): GridColDef<RegisterData> => ({
-  ...convertedValueColumn(registerMap, showRaw, addressGroups),
+  ...convertedValueColumn(registerMap, addressGroups),
   valueGetter: (_, row, _column, apiRef): number | string | undefined => {
     if (registerMap[row.id]?.dataType === BITMAP_DATATYPE) return undefined
-    return getConvertedValue(row, registerMap, showRaw, addressGroups, hexInGrid(apiRef))
+    return getConvertedValue(row, registerMap, false, addressGroups, hexInGrid(apiRef))
   },
   renderCell: ({ row }) => <ConvertedValueCell address={row.id} bitmap />
 })

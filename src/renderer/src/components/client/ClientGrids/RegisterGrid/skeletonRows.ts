@@ -30,4 +30,7 @@ export const skeletonRows = (skeleton: string): RegisterData[] =>
  * last. The internal filter reads the data type, which is the mapping's.
  */
 export const filtersValues = ({ items }: GridFilterModel): boolean =>
-  items.some(({ field }) => field === 'hex' || field === 'value' || field.startsWith('word_'))
+  items.some(
+    ({ field }) =>
+      field === 'hex' || field === 'value' || field === 'raw' || field.startsWith('word_')
+  )
