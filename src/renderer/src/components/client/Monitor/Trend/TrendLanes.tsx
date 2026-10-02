@@ -46,7 +46,8 @@ interface Row {
   indent: boolean
 }
 
-const ROW_HEIGHT = 22
+/** A lane's height: its name, and the bar under it. */
+export const LANE_HEIGHT = 22
 /** A name's line, which the bar sits under. */
 const LABEL_HEIGHT = 12
 const BAR_TOP = 12
@@ -153,7 +154,7 @@ const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProp
           <Box
             key={row.key}
             data-testid={`trend-lane-${row.key}`}
-            sx={{ position: 'relative', height: ROW_HEIGHT, flexShrink: 0 }}
+            sx={{ position: 'relative', height: LANE_HEIGHT, flexShrink: 0 }}
           >
             <Box
               sx={{

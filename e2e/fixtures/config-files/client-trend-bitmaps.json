@@ -1,0 +1,195 @@
+{
+  "kind": "client-device",
+  "version": 3,
+  "modbuxVersion": "2.3.0",
+  "name": "Trend bitmaps",
+  "unitId": 0,
+  "littleEndian": false,
+  "registerMapping": {
+    "coils": {
+      "0": {
+        "comment": "Pump",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "1": {
+        "comment": "Heater",
+        "log": {
+          "mode": "poll"
+        }
+      }
+    },
+    "discrete_inputs": {},
+    "input_registers": {},
+    "holding_registers": {
+      "0": {
+        "dataType": "uint16",
+        "comment": "Voltage L1",
+        "unit": "V",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "1": {
+        "dataType": "uint16",
+        "comment": "Current L1",
+        "unit": "A",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "2": {
+        "dataType": "uint16",
+        "comment": "Current L2",
+        "unit": "A",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "3": {
+        "dataType": "float",
+        "comment": "Active power",
+        "unit": "kW",
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "5": {
+        "dataType": "int16",
+        "comment": "Temperature",
+        "unit": "\u00b0C",
+        "conversion": {
+          "kind": "scale",
+          "factor": 0.1
+        },
+        "log": {
+          "mode": "change",
+          "deadband": 20
+        }
+      },
+      "6": {
+        "dataType": "bitmap",
+        "comment": "Status",
+        "bitMap": {
+          "0": {
+            "comment": "Bit 0"
+          },
+          "1": {
+            "comment": "Bit 1"
+          },
+          "2": {
+            "comment": "Bit 2"
+          },
+          "3": {
+            "comment": "Bit 3"
+          },
+          "4": {
+            "comment": "Bit 4"
+          },
+          "5": {
+            "comment": "Bit 5"
+          },
+          "6": {
+            "comment": "Bit 6"
+          },
+          "7": {
+            "comment": "Bit 7"
+          },
+          "8": {
+            "comment": "Bit 8"
+          },
+          "9": {
+            "comment": "Bit 9"
+          },
+          "10": {
+            "comment": "Bit 10"
+          },
+          "11": {
+            "comment": "Bit 11"
+          },
+          "12": {
+            "comment": "Bit 12"
+          },
+          "13": {
+            "comment": "Bit 13"
+          },
+          "14": {
+            "comment": "Bit 14"
+          },
+          "15": {
+            "comment": "Bit 15"
+          }
+        },
+        "log": {
+          "mode": "poll"
+        }
+      },
+      "7": {
+        "dataType": "bitmap",
+        "comment": "Status 2",
+        "bitMap": {
+          "0": {
+            "comment": "Bit 0"
+          },
+          "1": {
+            "comment": "Bit 1"
+          },
+          "2": {
+            "comment": "Bit 2"
+          },
+          "3": {
+            "comment": "Bit 3"
+          },
+          "4": {
+            "comment": "Bit 4"
+          },
+          "5": {
+            "comment": "Bit 5"
+          },
+          "6": {
+            "comment": "Bit 6"
+          },
+          "7": {
+            "comment": "Bit 7"
+          },
+          "8": {
+            "comment": "Bit 8"
+          },
+          "9": {
+            "comment": "Bit 9"
+          },
+          "10": {
+            "comment": "Bit 10"
+          },
+          "11": {
+            "comment": "Bit 11"
+          },
+          "12": {
+            "comment": "Bit 12"
+          },
+          "13": {
+            "comment": "Bit 13"
+          },
+          "14": {
+            "comment": "Bit 14"
+          },
+          "15": {
+            "comment": "Bit 15"
+          }
+        },
+        "log": {
+          "mode": "poll"
+        }
+      }
+    }
+  }
+}

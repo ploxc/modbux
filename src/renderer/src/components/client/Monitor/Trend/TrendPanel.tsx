@@ -28,7 +28,7 @@ import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
 import TrendConfigMenu from './TrendConfigMenu'
-import TrendLanes, { PlotBox, TrendLane } from './TrendLanes'
+import TrendLanes, { LANE_HEIGHT, PlotBox, TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
 import TrendPicker from './TrendPicker'
 import TrendSettingsPanel, { SettingsLine } from './TrendSettingsPanel'
@@ -78,6 +78,9 @@ const NO_UNITS: ClientUnit[] = []
 
 /** How tall the chart is when the trend draws lanes only: its time axis and a margin. */
 const LANES_ONLY_CHART = 56
+
+/** How short the chart gets while it draws lines. */
+const CHART_MIN_HEIGHT = 120
 
 /** How many stretches the navigator's line of the whole log is asked in. */
 const NAVIGATOR_STEPS = 300
@@ -505,7 +508,9 @@ const TrendBody = meme(
         <Box
           sx={[
             { minHeight: 0, display: 'flex', px: 1, pb: 1 },
-            lineEntries.length > 0 ? { flexGrow: 1 } : { height: LANES_ONLY_CHART, flexShrink: 0 }
+            lineEntries.length > 0
+              ? { flexGrow: 1, minHeight: CHART_MIN_HEIGHT }
+              : { height: LANES_ONLY_CHART, flexShrink: 0 }
           ]}
         >
           <TrendChart
@@ -525,12 +530,19 @@ const TrendBody = meme(
           />
         </Box>
         {lanes.length > 0 && plot !== undefined && (
-          // Beside lines the lanes scroll past a share of the panel, so the chart
-          // keeps its room; with no lines they take it.
+          // Beside lines the lanes scroll past 40% of the panel, and give way
+          // down to one lane before the chart goes under its minimum; with no
+          // lines they take the room.
           <Box
             sx={[
               { px: 1, pb: 0.5, overflowY: 'auto' },
-              lineEntries.length > 0 ? { flexShrink: 0, maxHeight: '40%' } : { flexGrow: 1 }
+              lineEntries.length > 0
+                ? {
+                    maxHeight: '40%',
+                    // The padding is inside the box's height.
+                    minHeight: (theme) => `calc(${LANE_HEIGHT}px + ${theme.spacing(0.5)})`
+                  }
+                : { flexGrow: 1 }
             ]}
           >
             <TrendLanes lanes={lanes} runEnds={runEnds} end={end} from={from} to={to} plot={plot} />

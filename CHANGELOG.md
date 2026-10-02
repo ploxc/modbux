@@ -103,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drag across it zooms, the wheel zooms, a strip of the whole log under it
   pans, and Live follows the log again. The cursor reads every register at
   the moment under it. Bits and bitmaps draw as lanes under the lines, and a
-  bitmap opens into a lane a bit. Each engineering unit draws on an axis of
+  bitmap opens into a lane a bit; however many are open, they scroll under
+  the chart and leave it its room. Each engineering unit draws on an axis of
   its own, all on the left. Axes and lines, a panel that drags and stays open
   beside the trend, holds a unit's axis at a range, gives a line another
   colour, reads the time since the log's start, and draws steps or points.
