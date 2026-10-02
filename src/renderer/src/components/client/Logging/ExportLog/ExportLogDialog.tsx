@@ -46,7 +46,10 @@ const ExportLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element
     return config && clientAddress(config)
   })
 
-  const [held, setHeld] = useState<LogSeries[]>()
+  // What the log holds, for the client it was asked for: another client
+  // selected while the dialog is open has nothing to export until main answers.
+  const [answered, setAnswered] = useState<{ uuid: string; series: LogSeries[] }>()
+  const held = answered?.uuid === uuid ? answered.series : undefined
   const [selected, setSelected] = useState<string[]>([])
   // The tree opens with every unit showing its registers, all of them ticked.
   useEffect(() => {
@@ -54,7 +57,7 @@ const ExportLogDialog = meme(({ onClose }: { onClose: () => void }): JSX.Element
     void window.api.getLogSeries(uuid).then((series) => {
       if (cancelled) return
       const answer = series ?? []
-      setHeld(answer)
+      setAnswered({ uuid, series: answer })
       setSelected(exportTreeIds(answer))
     })
     return (): void => {
