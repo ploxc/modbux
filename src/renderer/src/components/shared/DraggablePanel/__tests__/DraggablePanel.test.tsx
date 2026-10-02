@@ -5,8 +5,9 @@
 // hidden from screen readers, it is no dialog to the undo keys, and Escape
 // closes it.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import DraggablePanel from '../DraggablePanel'
 
 afterEach(cleanup)
@@ -63,6 +64,30 @@ describe('DraggablePanel', () => {
 
     expect(closeInner).toHaveBeenCalledTimes(1)
     expect(closeOuter).not.toHaveBeenCalled()
+  })
+
+  // React hands the press on the inner handle through the portal to the outer
+  // panel too, whose handle class it carries.
+  it('drags alone when it was opened from inside another', () => {
+    const outer = document.createElement('div')
+    const inner = document.createElement('div')
+    document.body.append(outer, inner)
+    render(
+      <DraggablePanel anchor={outer} onClose={vi.fn()} paperSx={{ width: 300 }} label="Trend">
+        <DraggablePanel anchor={inner} onClose={vi.fn()} paperSx={{ width: 200 }} label="Axes">
+          <span className={DRAG_HANDLE_CLASS}>inner handle</span>
+        </DraggablePanel>
+      </DraggablePanel>
+    )
+
+    fireEvent.mouseDown(screen.getByText('inner handle'), { clientX: 100, clientY: 100 })
+    fireEvent.mouseMove(document, { clientX: 140, clientY: 130 })
+    fireEvent.mouseUp(document, { clientX: 140, clientY: 130 })
+
+    expect(screen.getByRole('region', { name: 'Axes' }).style.transform).toBe(
+      'translate(40px,30px)'
+    )
+    expect(screen.getByRole('region', { name: 'Trend' }).style.transform).toBe('translate(0px,0px)')
   })
 
   it('opens where it is placed, rather than at the anchor', () => {

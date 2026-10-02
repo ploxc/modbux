@@ -4,7 +4,7 @@ import Portal from '@mui/material/Portal'
 import { SxProps, Theme } from '@mui/material/styles'
 import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { KeyboardEvent, ReactNode, useCallback, useRef, useState } from 'react'
+import { KeyboardEvent, ReactNode, SyntheticEvent, useCallback, useRef, useState } from 'react'
 import Draggable from 'react-draggable'
 
 interface DraggablePanelProps {
@@ -64,6 +64,10 @@ const DraggablePanel = meme(
       [onClose]
     )
 
+    // React hands a press through the portal to every panel around this one,
+    // and the handle class it carries starts their drag too.
+    const keepPress = useCallback((event: SyntheticEvent) => event.stopPropagation(), [])
+
     return (
       <Portal>
         <Box
@@ -75,7 +79,11 @@ const DraggablePanel = meme(
             zIndex: theme.zIndex.modal
           })}
         >
-          <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+          <Box
+            onMouseDown={keepPress}
+            onTouchStart={keepPress}
+            sx={{ position: 'relative', width: '100%', height: '100%' }}
+          >
             <Draggable nodeRef={nodeRef} handle={`.${DRAG_HANDLE_CLASS}`} bounds="parent">
               <Paper
                 ref={setPaper}
