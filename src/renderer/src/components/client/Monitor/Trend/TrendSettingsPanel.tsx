@@ -7,11 +7,12 @@ import { InputBaseComponentProps } from '@mui/material/InputBase'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import { SxProps, Theme } from '@mui/material/styles'
 import { NumberInput } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/conversion/ConversionDialog/NumberInput'
 import DraggablePanel from '@renderer/components/shared/DraggablePanel/DraggablePanel'
 import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { TREND_COLORS, textMuted } from '@renderer/theme'
+import { floatingPaper, TREND_COLORS, textMuted } from '@renderer/theme'
 import { ElementType, MouseEvent, ReactNode, useCallback, useState } from 'react'
 import { TrendLine } from './TrendChart'
 import { AxisRange, TrendSettings } from '@shared'
@@ -27,8 +28,12 @@ const TOGGLE_SX = {
   '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
 } as const
 
-/** The panel's paper: as wide as the popover it was, and scrolling in a window lower than it. */
-const PANEL_SX = {
+/**
+ * The panel's paper: the popover it was, in surface and width, rather than
+ * the lighter grey of Paper's elevation, and scrolling in a window lower than it.
+ */
+const PANEL_SX: SxProps<Theme> = (theme) => ({
+  ...floatingPaper(theme),
   width: 420,
   maxHeight: '100%',
   overflowY: 'auto',
@@ -36,7 +41,7 @@ const PANEL_SX = {
   pt: 0.5,
   pb: 1,
   fontSize: 12.5
-} as const
+})
 
 /** One of the panel's rows: a name, and what sets it. */
 const Row = meme(
