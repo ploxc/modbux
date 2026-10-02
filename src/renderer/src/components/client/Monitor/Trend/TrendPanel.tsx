@@ -308,23 +308,31 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
         borderColor: 'divider',
         borderRadius: '12px',
         fontSize: 12,
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        // A long name ends in an ellipsis inside the panel, and the chip's title gives it whole.
+        maxWidth: '100%',
+        minWidth: 0
       }}
+      title={comment}
     >
       <Box
         component="span"
-        sx={{ width: 10, height: 3, borderRadius: '2px', bgcolor: entry.color }}
+        sx={{ flexShrink: 0, width: 10, height: 3, borderRadius: '2px', bgcolor: entry.color }}
       />
-      <Box component="span" sx={{ fontFamily: 'monospace' }}>
+      <Box component="span" sx={{ flexShrink: 0, fontFamily: 'monospace' }}>
         {address}
       </Box>
-      {comment}
+      {comment && (
+        <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {comment}
+        </Box>
+      )}
       <IconButton
         size="small"
         aria-label={`Take ${address} out of the trend`}
         data-testid={`trend-chip-remove-${entry.type}-${address}`}
         onClick={handleRemove}
-        sx={{ p: 0.25 }}
+        sx={{ flexShrink: 0, p: 0.25 }}
       >
         <Close sx={{ fontSize: 14 }} />
       </IconButton>

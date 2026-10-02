@@ -511,6 +511,32 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
+  test('a chip with a long name stays inside the trend, its remove button too', async ({
+    mainPage
+  }) => {
+    const setComment = async (comment: string): Promise<void> => {
+      await mainPage.getByTestId('client-view-debug-btn').click()
+      const commentCell = mainPage.locator('.MuiDataGrid-row[data-id="0"] [data-field="comment"]')
+      await commentCell.dblclick()
+      await commentCell.locator('input').fill(comment)
+      await mainPage.keyboard.press('Enter')
+      await expectCell(mainPage, 0, 'comment', comment)
+      await mainPage.getByTestId('client-view-monitor-btn').click()
+    }
+    await setComment('The setpoint of the second stage, '.repeat(5).trim())
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
+
+    const panel = await mainPage.getByTestId('trend-panel').boundingBox()
+    const remove = await mainPage.getByTestId('trend-chip-remove-holding_registers-0').boundingBox()
+    if (!panel || !remove) throw new Error('The trend or its chip is not laid out')
+    expect(remove.x + remove.width).toBeLessThanOrEqual(panel.x + panel.width)
+
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
+    await mainPage.getByTestId('trend-close-btn').click()
+    await setComment('setpoint')
+  })
+
   test('a bit logs as a lane under the lines, lit while it is on', async ({ mainPage }) => {
     await mainPage.getByTestId('client-view-debug-btn').click()
     await selectRegisterType(mainPage, 'Coils')
