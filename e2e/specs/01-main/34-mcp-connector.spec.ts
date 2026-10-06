@@ -98,13 +98,16 @@ test.describe.serial('The MCP connector', () => {
     await expect(mainPage.getByTestId('mcp-copy-token-btn')).toBeVisible()
   })
 
-  test('an assistant with the token sees the read tools', async () => {
+  test('an assistant with the token sees the read tools', async ({ electronApp }) => {
+    // A build that is not packaged offers the debug tools beside them.
+    const packaged = await electronApp.evaluate(({ app }) => app.isPackaged)
     assistant = await connect()
     const { tools } = await assistant.listTools()
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'get_client',
       'get_scan',
       'get_unit',
+      ...(packaged ? [] : ['inspect_layout']),
       'list_clients',
       'list_registers',
       'list_servers',
