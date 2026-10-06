@@ -120,6 +120,41 @@ export const trendAxes = (lines: readonly { unit: string; color: string }[]): Tr
   return axes
 }
 
+/** The lines of one engineering unit, which one plot draws. */
+export interface TrendPlotOf<T> {
+  unit: string
+  lines: T[]
+}
+
+/**
+ * A plot per engineering unit the lines are of, in the order `trendAxes`
+ * gives the units, each with its lines in their order. Lines of no unit share
+ * one plot.
+ */
+export const plotsOf = <T extends { unit: string }>(lines: readonly T[]): TrendPlotOf<T>[] => {
+  const plots: TrendPlotOf<T>[] = []
+  for (const line of lines) {
+    const plot = plots.find(({ unit }) => unit === line.unit)
+    if (plot === undefined) plots.push({ unit: line.unit, lines: [line] })
+    else plot.lines.push(line)
+  }
+  return plots
+}
+
+/** How short a plot gets, by its grip or in a low trend. */
+export const PLOT_MIN_HEIGHT = 120
+
+/** How tall a plot's grip is, under it. */
+export const GRIP_HEIGHT = 9
+
+/**
+ * The height of a plot that was never given one: an equal share of `room`
+ * after the lanes and every plot's grip, counted over all `count` plots so a
+ * plot given a height leaves the others alone; `PLOT_MIN_HEIGHT` at least.
+ */
+export const plotShare = (room: number, lanes: number, count: number): number =>
+  Math.max(PLOT_MIN_HEIGHT, Math.floor((room - lanes) / count - GRIP_HEIGHT))
+
 /** A box on screen, in window pixels. */
 interface Box {
   top: number
@@ -286,20 +321,6 @@ export const mergeSteps = (
 }
 
 /**
- * Each line's value at `index` of a table `uPlot.join` made: the last one at
- * or before it, a gap as null, and nothing before the line's first sample.
- * The join leaves a line undefined where only another line has a sample.
- */
-export const valuesAt = (data: uPlot.AlignedData, index: number): (number | null | undefined)[] =>
-  data.slice(1).map((column) => {
-    for (let at = index; at >= 0; at--) {
-      const value = column[at]
-      if (value !== undefined) return value
-    }
-    return undefined
-  })
-
-/**
  * The last index of `times` at or before `time`, none before the first. A
  * readout asks it on every move of the cursor, over the few thousand samples
  * a window holds.
@@ -307,6 +328,12 @@ export const valuesAt = (data: uPlot.AlignedData, index: number): (number | null
 export const indexAt = (times: ArrayLike<number>, time: number): number | undefined => {
   const index = Array.from(times).findLastIndex((each) => each <= time)
   return index === -1 ? undefined : index
+}
+
+/** A line's value at `time`: its last point at or before it, a gap as null, and none before its first. */
+export const valueAt = (series: TrendSeries, time: number): number | null | undefined => {
+  const index = indexAt(series.times, time)
+  return index === undefined ? undefined : series.values[index]
 }
 
 /** A number as the trend's figures write it: as the value came, at most six decimals. */

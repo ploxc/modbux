@@ -55,7 +55,7 @@ test.describe.serial('Bitmaps in the trend', () => {
     await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
   })
 
-  test('two opened bitmaps leave the chart its minimum, and scroll under it', async ({
+  test('two opened bitmaps make the plots scroll, and the plot keeps its minimum', async ({
     mainPage
   }) => {
     for (const address of [0, 6, 7])
@@ -67,20 +67,17 @@ test.describe.serial('Bitmaps in the trend', () => {
       'true'
     )
 
-    // The chart's minimum is 120 px with 8 px of padding under it, so the chart
-    // measures 112; with no minimum it measured 48 here.
     await expect(async () => {
-      const chart = await mainPage.getByTestId('trend-chart').boundingBox()
-      expect(chart?.height).toBeGreaterThanOrEqual(112)
+      const plot = await mainPage.getByTestId('trend-plot-0').boundingBox()
+      expect(plot?.height).toBeGreaterThanOrEqual(120)
+      const overflow = await mainPage
+        .getByTestId('trend-plots')
+        .evaluate((el) => el.scrollHeight - el.clientHeight)
+      expect(overflow).toBeGreaterThan(0)
     }).toPass()
-    const lanes = mainPage.getByTestId('trend-lanes')
-    const shown = await lanes.locator('..').boundingBox()
-    const whole = await lanes.boundingBox()
-    expect(shown?.height).toBeGreaterThanOrEqual(22)
-    expect(whole?.height).toBeGreaterThan(shown?.height ?? Number.POSITIVE_INFINITY)
   })
 
-  test('a trend too short for its chart and lanes still shows one whole lane', async ({
+  test('a trend too short for its plot and lanes keeps the plot at its minimum', async ({
     mainPage
   }) => {
     await mainPage
@@ -90,10 +87,11 @@ test.describe.serial('Bitmaps in the trend', () => {
         el.style.height = '260px'
       })
 
-    // A lane is 22 px, under 4 px of the scroll box's padding.
     await expect(async () => {
-      const shown = await mainPage.getByTestId('trend-lanes').locator('..').boundingBox()
-      expect(shown?.height).toBe(26)
+      const plot = await mainPage.getByTestId('trend-plot-0').boundingBox()
+      const plots = await mainPage.getByTestId('trend-plots').boundingBox()
+      expect(plot?.height).toBe(120)
+      expect(plots?.height).toBeLessThan(120)
     }).toPass()
   })
 
@@ -118,9 +116,9 @@ test.describe.serial('Bitmaps in the trend', () => {
 
     // No wider than the panel around it, which narrowed with the window.
     await expect(async () => {
-      const chart = await mainPage.getByTestId('trend-chart').boundingBox()
+      const plot = await mainPage.getByTestId('trend-plot-0').boundingBox()
       const panel = await mainPage.getByTestId('trend-panel').boundingBox()
-      expect(chart?.width).toBeLessThanOrEqual(panel?.width ?? 0)
+      expect(plot?.width).toBeLessThanOrEqual(panel?.width ?? 0)
     }).toPass()
     await setWindowSize(electronApp, ...DEFAULT_SIZE)
   })

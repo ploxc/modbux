@@ -102,10 +102,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the log runs, or a stretch picked in a calendar; Paused holds it still, a
   drag across it zooms, the wheel zooms, a strip of the whole log under it
   pans, and Live follows the log again. The cursor reads every register at
-  the moment under it. Bits and bitmaps draw as lanes under the lines, and a
-  bitmap opens into a lane a bit; however many are open, they scroll under
-  the chart and leave it its room. Each engineering unit draws on an axis of
-  its own, all on the left. Axes and lines, a panel that drags and stays open
+  the moment under it. Each engineering unit draws a plot of its own, all on
+  one time axis and under one cursor; a grip under a plot drags its height,
+  which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
+  and a bitmap opens into a lane a bit. Plots and lanes taller than the trend
+  scroll. Axes and lines, a panel that drags and stays open
   beside the trend, holds a unit's axis at the range it shows or one typed,
   gives a line another colour, reads the time since the log's start, and
   draws steps or points.

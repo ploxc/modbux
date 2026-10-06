@@ -18,14 +18,29 @@ import {
   TrendRangeId
 } from '@shared'
 import { formatDuration, formatTime } from '@renderer/components/client/Logging/format'
-import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
+import {
+  MouseEvent,
+  ReactNode,
+  RefObject,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
-import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
+import { DateTime } from 'luxon'
+import type uPlot from 'uplot'
+import PlotGrip from './PlotGrip'
 import TrendConfigMenu from './TrendConfigMenu'
-import TrendLanes, { LANE_HEIGHT, PlotBox, TrendLane } from './TrendLanes'
+import TrendLanes, { TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
+import TrendPlot, { TrendCursor, TrendLine } from './TrendPlot'
+import TrendReadout, { ReadoutRow } from './TrendReadout'
+import TrendTimeAxis from './TrendTimeAxis'
 import TrendPicker from './TrendPicker'
 import TrendSettingsPanel, { SettingsLine } from './TrendSettingsPanel'
 import TrendStretchPicker from './TrendStretchPicker'
@@ -44,7 +59,16 @@ import {
   shownStretch,
   TrendFollow,
   TrendView,
-  viewWithin
+  viewWithin,
+  plotsOf,
+  plotShare,
+  valueAt,
+  figure,
+  sinceText,
+  scaleRange,
+  readoutPlace,
+  READOUT_ROW,
+  READOUT_PADDING
 } from './trendData'
 import {
   DrawnEntry,
@@ -56,12 +80,6 @@ import {
 import { useLogWindows } from './useLogWindows'
 
 const NO_UNITS: ClientUnit[] = []
-
-/** How tall the chart is when the trend draws lanes only: its time axis and a margin. */
-const LANES_ONLY_CHART = 56
-
-/** How short the chart gets while it draws lines. */
-const CHART_MIN_HEIGHT = 120
 
 /** How many stretches the navigator's line of the whole log is asked in. */
 const NAVIGATOR_STEPS = 300
@@ -231,17 +249,35 @@ const laneText = (bitmap: boolean, point: LogPoint | undefined): string => {
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
   units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
 
-/** Each line's colour, its engineering unit's scale and how it is named, and an axis per unit. */
+/** A line, as Axes and lines lists it, and the register it draws. */
+interface PlotItem extends SettingsLine {
+  entry: DrawnEntry
+  unit: string
+}
+
+/** The lines one plot draws, of one engineering unit, and the registers they draw. */
+interface LayoutPlot {
+  unit: string
+  lines: TrendLine[]
+  items: PlotItem[]
+}
+
+/**
+ * Each line's colour, its engineering unit's scale and how it is named, an
+ * axis per unit for Axes and lines, and a plot per unit.
+ */
 const layoutOf = (
   entries: DrawnEntry[],
   units: ClientUnit[]
-): { lines: TrendLine[]; settingsLines: SettingsLine[]; axes: TrendAxis[] } => {
-  const settingsLines = entries.map((entry): SettingsLine => {
+): { settingsLines: SettingsLine[]; axes: TrendAxis[]; plots: LayoutPlot[] } => {
+  const items = entries.map((entry): PlotItem => {
     const mapValue = mapValueOf(units, entry)
     const engineeringUnit = mapValue?.unit ?? ''
     const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
     const address = entry.address + Number(addressBase)
     return {
+      entry,
+      unit: engineeringUnit,
       key: trendKey(entry),
       testId: `trend-line-${entry.type}-${address}`,
       line: {
@@ -252,8 +288,15 @@ const layoutOf = (
       }
     }
   })
-  const lines = settingsLines.map(({ line }) => line)
-  return { lines, settingsLines, axes: trendAxes(lines) }
+  const lines = items.map(({ line }) => line)
+  const plots = plotsOf(items).map(
+    ({ unit, lines: plotItems }): LayoutPlot => ({
+      unit,
+      lines: plotItems.map(({ line }) => line),
+      items: plotItems
+    })
+  )
+  return { settingsLines: items, axes: trendAxes(lines), plots }
 }
 
 /** One register of the trend: its colour, address and name, and a press that takes it out. */
@@ -362,183 +405,331 @@ const TrendStatus = meme(({ uuid }: { uuid: string }): JSX.Element => {
   )
 })
 
+/** The height of the box `ref` holds, as it changes, while `mounted`; 0 while it is not. */
+const useHeightOf = (ref: RefObject<HTMLElement>, mounted: boolean): number => {
+  const [height, setHeight] = useState(0)
+  useEffect(() => {
+    const box = ref.current
+    if (!box) return
+    const observer = new ResizeObserver(() => setHeight(box.offsetHeight))
+    observer.observe(box)
+    return (): void => {
+      observer.disconnect()
+      setHeight(0)
+    }
+  }, [ref, mounted])
+  return height
+}
+
+/** A plot at its height, and the grip under it that drags that height. */
+const PlotRoom = meme(
+  ({
+    index,
+    unit,
+    height,
+    children
+  }: {
+    index: number
+    unit: string
+    height: number
+    children: ReactNode
+  }): JSX.Element => {
+    const setPlotHeight = useTrendPanelZustand.getState().setPlotHeight
+    return (
+      <>
+        <Box
+          data-testid={`trend-plot-${index}`}
+          data-unit={unit}
+          // A grip moves the height on every move of the pointer, and a value
+          // in `sx` would be a new class each time.
+          style={{ height }}
+          sx={{ position: 'relative', flexShrink: 0 }}
+        >
+          {children}
+        </Box>
+        <PlotGrip
+          unit={unit}
+          testId={`trend-plot-grip-${index}`}
+          height={height}
+          onHeight={setPlotHeight}
+        />
+      </>
+    )
+  }
+)
+
 interface TrendBodyProps {
   uuid: string
   entries: DrawnEntry[]
   units: ClientUnit[]
-  /** The entries drawn as lines, and how they are drawn; the rest are lanes. */
-  lineEntries: DrawnEntry[]
-  layout: { lines: TrendLine[]; axes: TrendAxis[] }
+  /** A plot per engineering unit of the lines. */
+  plots: LayoutPlot[]
 }
 
 /**
- * What the trend draws of the log: the chart, the lanes under it and the
- * navigator over the whole log. It asks main for its windows and renders on
- * each answer, and the header above it is a sibling that does not.
+ * What the trend draws of the log: a plot per engineering unit, each at its
+ * height, and the lanes under them, scrolling once they are taller than the
+ * room; under those the time axis, and the navigator over the whole log. It
+ * asks main for its windows and renders on each answer, and the header above
+ * it is a sibling that does not.
  */
-const TrendBody = meme(
-  ({ uuid, entries, units, lineEntries, layout }: TrendBodyProps): JSX.Element => {
-    const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
-    const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
-    // Kept by the live store while it is the same, though main builds it anew in every state.
-    const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
-    const range = useTrendPanelZustand((z) => z.range)
-    const view = useTrendPanelZustand((z) => z.view)
-    const held = view === undefined || isFollow(view) ? undefined : view
-    const settings = useTrendPanelZustand((z) => z.settings)
-    // A script's value waits for the engine, and draws again once it is there.
-    useScriptEngineZustand((z) => z.ready)
+const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.Element => {
+  const running = useLiveZustand((z) => dataOf(z, uuid).clientState.log.running)
+  const oldest = useLiveZustand((z) => dataOf(z, uuid).clientState.log.oldest)
+  // Kept by the live store while it is the same, though main builds it anew in every state.
+  const runs = useLiveZustand((z) => dataOf(z, uuid).clientState.log.runs)
+  const range = useTrendPanelZustand((z) => z.range)
+  const view = useTrendPanelZustand((z) => z.view)
+  const held = view === undefined || isFollow(view) ? undefined : view
+  const drawAs = useTrendPanelZustand((z) => z.settings.drawAs)
+  const time = useTrendPanelZustand((z) => z.settings.time)
+  const axes = useTrendPanelZustand((z) => z.settings.axes)
+  const heights = useTrendPanelZustand((z) => z.settings.heights)
+  // A script's value waits for the engine, and draws again once it is there.
+  useScriptEngineZustand((z) => z.ready)
+  const syncKey = useId()
+  const [cursor, setCursor] = useState<TrendCursor>()
+  const room = useRef<HTMLDivElement>(null)
+  const scroll = useRef<HTMLDivElement>(null)
+  const lanesBox = useRef<HTMLDivElement>(null)
 
-    const lastEnd = runs.at(-1)?.end
-    const rangeSpan = TREND_SPANS[range]
-    const span = view !== undefined && isFollow(view) ? view.length : rangeSpan
-    const started = oldest !== undefined
-    // Zoomed or panned, the trend holds still on its stretch, in steps of it,
-    // and asks as much again on either side so its lines run to its edges.
-    const points = useLogWindows(
-      entries,
-      held === undefined
-        ? { live: running, span, until: lastEnd, started }
-        : {
-            live: false,
-            span: 3 * (held.to - held.from),
-            until: held.to + (held.to - held.from),
-            started,
-            steps: 3 * TREND_STEPS
-          }
+  // Axes and lines reads the range an axis shows off the plot drawing it.
+  const charts = useRef(new Map<string, uPlot>())
+  const handleChart = useCallback((unit: string, chart: uPlot | null) => {
+    if (chart === null) charts.current.delete(unit)
+    else charts.current.set(unit, chart)
+  }, [])
+  useEffect(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setShownRange((unit) =>
+      scaleRange(charts.current.get(unit)?.scales[axisScale(unit)])
     )
-    const first = useMemo(() => entries.slice(0, 1), [entries])
-    const whole = useLogWindows(first, {
-      live: running,
-      span: Number.POSITIVE_INFINITY,
-      until: lastEnd,
-      started,
-      steps: NAVIGATOR_STEPS
-    })
-    const [plot, setPlot] = useState<PlotBox>()
+    return (): void => trendPanelZustand.setShownRange(() => undefined)
+  }, [])
 
-    // Converted again on every render, which comes with each answer, a store
-    // change or the script engine turning ready.
-    const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
-    const drawn = lineEntries.map((entry) => {
+  const lastEnd = runs.at(-1)?.end
+  const rangeSpan = TREND_SPANS[range]
+  const span = view !== undefined && isFollow(view) ? view.length : rangeSpan
+  const started = oldest !== undefined
+  // Zoomed or panned, the trend holds still on its stretch, in steps of it,
+  // and asks as much again on either side so its lines run to its edges.
+  const points = useLogWindows(
+    entries,
+    held === undefined
+      ? { live: running, span, until: lastEnd, started }
+      : {
+          live: false,
+          span: 3 * (held.to - held.from),
+          until: held.to + (held.to - held.from),
+          started,
+          steps: 3 * TREND_STEPS
+        }
+  )
+  const first = useMemo(() => entries.slice(0, 1), [entries])
+  const whole = useLogWindows(first, {
+    live: running,
+    span: Number.POSITIVE_INFINITY,
+    until: lastEnd,
+    started,
+    steps: NAVIGATOR_STEPS
+  })
+
+  // Converted again on every render, which comes with each answer, a store
+  // change or the script engine turning ready.
+  const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
+  const drawn = plots.map((plot) => ({
+    plot,
+    lines: plot.items.map(({ entry, line }) => {
       const mapValue = mapValueOf(units, entry)
       const convert = (raw: number): number | undefined => {
         if (!isNumberRegister(entry.type)) return raw
         const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
         return typeof converted === 'number' ? converted : undefined
       }
-      return { entry, series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert) }
+      return {
+        key: trendKey(entry),
+        line,
+        series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert)
+      }
     })
+  }))
 
-    const { from, to, end } = shownStretch(view, range, { running, oldest, lastEnd }, Date.now())
-    const gaps = trendGaps(runs, end)
-    // Inside what the log holds, up to now; reaching its end follows the log
-    // again, over the range or over a shorter stretch's own length.
-    // The end is this render's, which the chart and the navigator drew with, so
-    // a stretch dragged back to their end reaches the log's.
-    const handleZoom = useCallback(
-      (zoomFrom: number, zoomTo: number) => {
-        const trendPanelZustand = useTrendPanelZustand.getState()
-        trendPanelZustand.setView(
-          viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, rangeSpan, running)
-        )
-      },
-      [end, oldest, rangeSpan, running]
-    )
-    const handleFollow = useCallback(() => {
+  const { from, to, end } = shownStretch(view, range, { running, oldest, lastEnd }, Date.now())
+  const gaps = trendGaps(runs, end)
+  // Inside what the log holds, up to now; reaching its end follows the log
+  // again, over the range or over a shorter stretch's own length.
+  // The end is this render's, which the plots and the navigator drew with, so
+  // a stretch dragged back to their end reaches the log's.
+  const handleZoom = useCallback(
+    (zoomFrom: number, zoomTo: number) => {
       const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setView(undefined)
-    }, [])
-    const lanes = entries.flatMap((entry): TrendLane[] => {
-      const mapValue = mapValueOf(units, entry)
-      if (!isLane(entry, mapValue)) return []
-      const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
-      const address = entry.address + Number(addressBase)
-      return [
-        {
-          key: trendKey(entry),
-          type: entry.type,
-          address,
-          label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
-          color: entry.color,
-          bitmap: mapValue?.dataType === 'bitmap',
-          mapValue,
-          points: points[trendKey(entry)] ?? []
-        }
-      ]
-    })
-    const readoutRows = (time: number): ReadoutRow[] =>
-      lanes.map((lane) => ({
-        key: lane.key,
-        label: lane.label,
-        color: lane.bitmap ? 'text.secondary' : lane.color,
-        text: laneText(lane.bitmap, laneAt(lane.points, runEnds, time))
-      }))
-    const firstEntry = first[0]
+      trendPanelZustand.setView(
+        viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, rangeSpan, running)
+      )
+    },
+    [end, oldest, rangeSpan, running]
+  )
+  const handleFollow = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setView(undefined)
+  }, [])
+  const lanes = entries.flatMap((entry): TrendLane[] => {
+    const mapValue = mapValueOf(units, entry)
+    if (!isLane(entry, mapValue)) return []
+    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+    const address = entry.address + Number(addressBase)
+    return [
+      {
+        key: trendKey(entry),
+        type: entry.type,
+        address,
+        label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+        color: entry.color,
+        bitmap: mapValue?.dataType === 'bitmap',
+        mapValue,
+        points: points[trendKey(entry)] ?? []
+      }
+    ]
+  })
+  const firstEntry = first[0]
 
-    return (
-      <>
-        {/* With no lines to draw, the chart is its time axis and the lanes take the room. */}
+  // Every plot not given a height shares what the lanes leave of the room.
+  const roomHeight = useHeightOf(scroll, true)
+  const lanesHeight = useHeightOf(lanesBox, lanes.length > 0)
+  const share = plotShare(roomHeight, lanesHeight, plots.length)
+
+  const origin = oldest ?? from
+  const at = cursor?.at
+  const rows: ReadoutRow[] =
+    at === undefined
+      ? []
+      : [
+          ...drawn
+            .flatMap(({ lines }) => lines)
+            .map(({ key, line, series }, index): ReadoutRow => {
+              const value = figure(valueAt(series, at))
+              return {
+                key,
+                testId: `trend-readout-value-${index}`,
+                label: line.label,
+                color: line.color,
+                text: line.unit === '' ? value : `${value} ${line.unit}`,
+                lane: false
+              }
+            }),
+          ...lanes.map(
+            (lane): ReadoutRow => ({
+              key: lane.key,
+              testId: `trend-readout-lane-${lane.key}`,
+              label: lane.label,
+              color: lane.bitmap ? 'text.secondary' : lane.color,
+              text: laneText(lane.bitmap, laneAt(lane.points, runEnds, at)),
+              lane: true
+            })
+          )
+        ]
+  const roomBox = room.current?.getBoundingClientRect()
+  const place =
+    cursor === undefined || roomBox === undefined
+      ? undefined
+      : readoutPlace(
+          cursor.x - roomBox.left,
+          cursor.y - roomBox.top,
+          roomBox.width,
+          roomBox.height,
+          // A row for the time, and one a line and a lane.
+          READOUT_ROW * (rows.length + 1) + READOUT_PADDING
+        )
+
+  return (
+    <Box sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box ref={room} sx={{ position: 'relative', flex: '1 1 0', minHeight: 0, display: 'flex' }}>
         <Box
-          sx={[
-            { minHeight: 0, display: 'flex', px: 1, pb: 1 },
-            lineEntries.length > 0
-              ? { flexGrow: 1, minHeight: CHART_MIN_HEIGHT }
-              : { height: LANES_ONLY_CHART, flexShrink: 0 }
-          ]}
+          ref={scroll}
+          data-testid="trend-plots"
+          sx={{
+            flexGrow: 1,
+            minWidth: 0,
+            overflowY: 'auto',
+            // The time axis under it keeps the same gutter, so the two line up.
+            scrollbarGutter: 'stable',
+            px: 1,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
         >
-          <TrendChart
-            lines={layout.lines}
-            data={drawn.map(({ series }) => series)}
-            axes={layout.axes}
+          {drawn.map(({ plot, lines }, index) => (
+            <PlotRoom
+              key={plot.unit}
+              index={index}
+              unit={plot.unit}
+              height={heights?.[plot.unit] ?? share}
+            >
+              <TrendPlot
+                syncKey={syncKey}
+                lines={plot.lines}
+                data={lines.map(({ series }) => series)}
+                unit={plot.unit}
+                range={axes?.[plot.unit]}
+                drawAs={drawAs}
+                from={from}
+                to={to}
+                oldest={oldest}
+                gaps={gaps}
+                onZoom={handleZoom}
+                onZoomOut={handleFollow}
+                onCursor={setCursor}
+                onChart={handleChart}
+              />
+            </PlotRoom>
+          ))}
+          {lanes.length > 0 && (
+            <Box ref={lanesBox} sx={{ flexShrink: 0 }}>
+              <TrendLanes
+                lanes={lanes}
+                runEnds={runEnds}
+                end={end}
+                from={from}
+                to={to}
+                syncKey={syncKey}
+                onZoom={handleZoom}
+                onZoomOut={handleFollow}
+                onCursor={setCursor}
+              />
+            </Box>
+          )}
+        </Box>
+        {at !== undefined && place !== undefined && (
+          <TrendReadout
+            place={place}
+            time={
+              time === 'since'
+                ? sinceText(at - origin)
+                : DateTime.fromMillis(at).toFormat('HH:mm:ss.SSS')
+            }
+            rows={rows}
+          />
+        )}
+      </Box>
+      <Box sx={{ flexShrink: 0, px: 1, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
+        <TrendTimeAxis from={from} to={to} time={time} origin={origin} />
+      </Box>
+      {oldest !== undefined && firstEntry !== undefined && (
+        <Box sx={{ px: 1.75, pt: 0.5, pb: 1 }}>
+          <TrendNavigator
+            start={oldest}
+            end={end}
             from={from}
             to={to}
-            oldest={oldest}
-            gaps={gaps}
-            onZoom={handleZoom}
-            onZoomOut={handleFollow}
-            onPlot={setPlot}
-            readoutRows={readoutRows}
-            settings={settings}
-            origin={oldest ?? from}
+            points={whole[trendKey(firstEntry)] ?? []}
+            color={firstEntry.color}
+            onPan={handleZoom}
           />
         </Box>
-        {lanes.length > 0 && plot !== undefined && (
-          // Beside lines the lanes scroll past 40% of the panel, and give way
-          // down to one lane before the chart goes under its minimum; with no
-          // lines they take the room.
-          <Box
-            sx={[
-              { px: 1, pb: 0.5, overflowY: 'auto' },
-              lineEntries.length > 0
-                ? {
-                    maxHeight: '40%',
-                    // The padding is inside the box's height.
-                    minHeight: (theme) => `calc(${LANE_HEIGHT}px + ${theme.spacing(0.5)})`
-                  }
-                : { flexGrow: 1 }
-            ]}
-          >
-            <TrendLanes lanes={lanes} runEnds={runEnds} end={end} from={from} to={to} plot={plot} />
-          </Box>
-        )}
-        {oldest !== undefined && firstEntry !== undefined && (
-          <Box sx={{ px: 1.75, pb: 1 }}>
-            <TrendNavigator
-              start={oldest}
-              end={end}
-              from={from}
-              to={to}
-              points={whole[trendKey(firstEntry)] ?? []}
-              color={firstEntry.color}
-              onPan={handleZoom}
-            />
-          </Box>
-        )}
-      </>
-    )
-  }
-)
+      )}
+    </Box>
+  )
+})
 
 /**
  * The registers a Log icon in Monitor added, as lines over the range picked
@@ -629,13 +820,7 @@ const TrendContent = meme((): JSX.Element => {
             </Box>
           )}
         </Box>
-        <TrendBody
-          uuid={uuid}
-          entries={entries}
-          units={units}
-          lineEntries={lineEntries}
-          layout={layout}
-        />
+        <TrendBody uuid={uuid} entries={entries} units={units} plots={layout.plots} />
       </Box>
     </Box>
   )

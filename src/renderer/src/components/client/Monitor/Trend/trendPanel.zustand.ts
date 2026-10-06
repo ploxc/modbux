@@ -88,6 +88,8 @@ interface TrendPanelZustand {
   settings: TrendSettings
   /** Holds an engineering unit's axis at a range, or fits it to what it draws again with none. */
   setAxisRange: (unit: string, range: AxisRange | undefined) => void
+  /** Holds an engineering unit's plot at a height, or lets it share the free room again with none. */
+  setPlotHeight: (unit: string, height: number | undefined) => void
   /**
    * The range an engineering unit's axis shows now, read from the chart drawn
    * at the moment of asking; none while no chart draws a value on it.
@@ -210,6 +212,16 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         if (range !== undefined) axes[unit] = range
         if (Object.keys(axes).length === 0) delete state.settings.axes
         else state.settings.axes = axes
+      }),
+    // As `setAxisRange` keeps `axes`.
+    setPlotHeight: (unit, height): void =>
+      set((state) => {
+        const heights = Object.fromEntries(
+          Object.entries(state.settings.heights ?? {}).filter(([held]) => held !== unit)
+        )
+        if (height !== undefined) heights[unit] = height
+        if (Object.keys(heights).length === 0) delete state.settings.heights
+        else state.settings.heights = heights
       }),
     shownRange: (): AxisRange | undefined => undefined,
     // A partial rather than a recipe: a function is no state to draft.

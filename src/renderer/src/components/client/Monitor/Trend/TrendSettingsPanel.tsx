@@ -14,7 +14,7 @@ import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { floatingPaper, TREND_COLORS, textMuted } from '@renderer/theme'
 import { ElementType, MouseEvent, ReactNode, useCallback, useState } from 'react'
-import { TrendLine } from './TrendChart'
+import { TrendLine } from './TrendPlot'
 import { AxisRange, TrendSettings } from '@shared'
 import { rangeOf, settingsPlace, TrendAxis } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'

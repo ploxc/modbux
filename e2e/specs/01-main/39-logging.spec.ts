@@ -32,7 +32,7 @@ const expectState = async (mainPage: Page, state: 'live' | 'paused'): Promise<vo
 /**
  * Waits for the readout at the plot's right edge, which reads the newest
  * sample of every register the trend draws, to show `text` in `row`. The
- * mouse moves in again on every try, because a chart made again for new lines
+ * mouse moves in again on every try, because a plot made again for new lines
  * shows no readout until the cursor moves over it. A live trend moves under a
  * cursor that stands still, so the moment it reads follows the log.
  */
@@ -42,7 +42,7 @@ const expectNewest = async (
   text: string,
   timeout?: number
 ): Promise<void> => {
-  const plot = mainPage.locator('[data-testid="trend-chart"] .u-over')
+  const plot = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
   await expect(async () => {
     const plotBox = await plot.boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
@@ -113,7 +113,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await expect(mainPage.getByTestId('trend-panel')).toBeVisible()
     await expectState(mainPage, 'live')
-    await expect(mainPage.locator('[data-testid="trend-chart"] canvas')).toHaveCount(1)
+    await expect(mainPage.locator('[data-testid="trend-plot-0"] canvas')).toHaveCount(1)
     await expectNewest(mainPage, 'trend-readout-value-0', '100')
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toHaveAttribute(
       'aria-pressed',
@@ -125,7 +125,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     // The cursor over the lines reads every line at or before the moment under
     // it. The whole log fills the plot, so every moment of it has a sample.
     await mainPage.getByTestId('trend-range-log').click()
-    const over = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const over = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
     const plotBox = await over.boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width * 0.9, plotBox.y + plotBox.height / 2)
@@ -234,7 +234,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       const end = Number(await held.getAttribute('aria-valuemax'))
       expect(end - start).toBeGreaterThan(3000)
     }).toPass()
-    const plot = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const plot = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
     const box = await plot.boundingBox()
     if (!box) throw new Error('The trend has no plot to drag across')
     await mainPage.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
@@ -331,8 +331,9 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     mainPage
   }) => {
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
-    // An axis per engineering unit beside the time axis; the register has none.
-    await expect(mainPage.locator('[data-testid="trend-chart"] .u-axis')).toHaveCount(2)
+    // A plot per engineering unit, each with its axis and none for time; the
+    // register has no unit.
+    await expect(mainPage.locator('[data-testid="trend-plot-0"] .u-axis')).toHaveCount(1)
     await mainPage.getByTestId('trend-settings-btn').click()
     await expect(mainPage.getByTestId('trend-axis-0-unit')).toHaveText('No unit')
     // A panel beside the trend: the trend takes a press while it stays open,
@@ -356,7 +357,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     // The readout writes the time since the trend's start.
     await mainPage.getByTestId('trend-range-log').click()
-    const over = mainPage.locator('[data-testid="trend-chart"] .u-over')
+    const over = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
     const plotBox = await over.boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width * 0.9, plotBox.y + plotBox.height / 2)
@@ -529,7 +530,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
 
     await mainPage.getByTestId('monitor-trend-0-coils-0').click()
     await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
-    const plotBox = await mainPage.locator('[data-testid="trend-chart"] .u-over').boundingBox()
+    // A bit alone draws no plot, and the lanes take the cursor.
+    const plotBox = await mainPage.locator('[data-testid="trend-lanes"] .u-over').boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width - 2, plotBox.y + plotBox.height / 2)
     // Two pixels from the live edge of ten minutes is seconds before the coil's

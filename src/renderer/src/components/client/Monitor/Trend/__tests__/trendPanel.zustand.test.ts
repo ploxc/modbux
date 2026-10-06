@@ -277,6 +277,29 @@ describe('the trend store', () => {
     expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
   })
 
+  it("holds each engineering unit's plot at its own height, replaced and forgotten", () => {
+    store().setPlotHeight('V', 200)
+    store().setPlotHeight('', 150)
+    store().setPlotHeight('V', 260)
+    expect(store().settings.heights).toEqual({ V: 260, '': 150 })
+
+    store().setPlotHeight('V', undefined)
+    expect(store().settings.heights).toEqual({ '': 150 })
+    store().setPlotHeight('', undefined)
+    expect(store().settings).not.toHaveProperty('heights')
+  })
+
+  it('saves a held height, and saves as an untouched trend once it is forgotten', () => {
+    store().add(entry(0))
+    const before = snapshotOf(store(), 'Currents')
+    expect(before.settings).not.toHaveProperty('heights')
+    store().setPlotHeight('A', 300)
+    expect(snapshotOf(store(), 'Currents').settings.heights).toEqual({ A: 300 })
+    store().setPlotHeight('A', undefined)
+
+    expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
+  })
+
   it("forgets the name when it starts over with another client's register", () => {
     store().add(entry(0))
     store().setName('Currents')

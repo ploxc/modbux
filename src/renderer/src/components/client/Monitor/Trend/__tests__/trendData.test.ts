@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { LogPoint } from '@shared'
-import type uPlot from 'uplot'
 import { DateTime } from 'luxon'
 import {
   axisScale,
@@ -23,8 +22,12 @@ import {
   stretchLabel,
   trendAxes,
   trendGaps,
-  valuesAt,
+  valueAt,
   viewWithin,
+  plotsOf,
+  plotShare,
+  PLOT_MIN_HEIGHT,
+  GRIP_HEIGHT,
   zoomAround,
   trendSeries
 } from '../trendData'
@@ -270,27 +273,58 @@ describe('zoomAround', () => {
   })
 })
 
-describe('valuesAt', () => {
-  it('answers each line at a sample, the last before it where only another line has one', () => {
-    const joined: uPlot.AlignedData = [
-      [1, 2, 3, 4],
-      [10, undefined, 30, undefined],
-      [undefined, 5, null, undefined]
-    ]
-    expect(valuesAt(joined, 1)).toEqual([10, 5])
-    expect(valuesAt(joined, 3)).toEqual([30, null])
+describe('valueAt', () => {
+  const series = { times: [10, 20, 30], values: [1, null, 3] }
+
+  it('answers the last point at or before the moment, a gap as null', () => {
+    expect(valueAt(series, 10)).toBe(1)
+    expect(valueAt(series, 29)).toBeNull()
+    expect(valueAt(series, 99)).toBe(3)
   })
 
-  it('answers nothing for a line before its first sample', () => {
-    expect(
-      valuesAt(
-        [
-          [1, 2],
-          [undefined, 7]
-        ],
-        0
-      )
-    ).toEqual([undefined])
+  it('answers nothing before the first point', () => {
+    expect(valueAt(series, 9)).toBeUndefined()
+  })
+})
+
+describe('plotsOf', () => {
+  it('groups lines a plot per engineering unit, in the order the units come, no unit included', () => {
+    const lines = [
+      { unit: 'V', name: 'a' },
+      { unit: '', name: 'b' },
+      { unit: 'A', name: 'c' },
+      { unit: 'V', name: 'd' },
+      { unit: '', name: 'e' }
+    ]
+    expect(plotsOf(lines).map(({ unit, lines }) => [unit, lines.map(({ name }) => name)])).toEqual([
+      ['V', ['a', 'd']],
+      ['', ['b', 'e']],
+      ['A', ['c']]
+    ])
+  })
+
+  it('draws as many plots as trendAxes draws axes, in its order', () => {
+    const lines = [
+      { unit: 'kW', color: 'red' },
+      { unit: 'V', color: 'blue' },
+      { unit: 'kW', color: 'green' }
+    ]
+    expect(plotsOf(lines).map(({ unit }) => unit)).toEqual(trendAxes(lines).map(({ unit }) => unit))
+  })
+})
+
+describe('plotShare', () => {
+  it('shares what the lanes leave of the room over every plot, each less its grip', () => {
+    expect(plotShare(600, 100, 2)).toBe(250 - GRIP_HEIGHT)
+  })
+
+  it('counts every plot, so one given a height leaves the share of the others alone', () => {
+    expect(plotShare(900, 0, 3)).toBe(300 - GRIP_HEIGHT)
+  })
+
+  it('never answers under the shortest plot', () => {
+    expect(plotShare(200, 150, 2)).toBe(PLOT_MIN_HEIGHT)
+    expect(plotShare(0, 0, 1)).toBe(PLOT_MIN_HEIGHT)
   })
 })
 

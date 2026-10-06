@@ -11,12 +11,14 @@ export type AxisRange = z.infer<typeof AxisRangeSchema>
 
 /**
  * How a trend draws: a fixed range per engineering unit, keyed by the unit
- * and none for a unit whose axis fits what it draws; the time axis as the
- * clock reads it or as the time since the trend's start; and its lines as
- * lines, steps or points.
+ * and none for a unit whose axis fits what it draws; a plot's height in
+ * pixels per engineering unit, and none for a plot sharing the free room; the
+ * time axis as the clock reads it or as the time since the trend's start; and
+ * its lines as lines, steps or points.
  */
 const TrendSettingsSchema = z.object({
   axes: z.record(z.string(), AxisRangeSchema).optional(),
+  heights: z.record(z.string(), z.number().int().positive()).optional(),
   time: z.enum(['clock', 'since']),
   drawAs: z.enum(['lines', 'steps', 'points'])
 })

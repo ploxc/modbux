@@ -6,9 +6,10 @@ import { useTheme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { BitColor, LogPoint, RegisterMapValue, RegisterType } from '@shared'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { bitOn, bitsOf, LaneSpan, laneSpans } from './trendData'
 import { useTrendPanelZustand } from './trendPanel.zustand'
+import TrendPlot, { AXIS_SIZE, PlotBox, TrendCursor, TrendLine } from './TrendPlot'
 
 /** A register the trend draws as a lane: a bit, or a bitmap's word. */
 export interface TrendLane {
@@ -22,12 +23,6 @@ export interface TrendLane {
   points: LogPoint[]
 }
 
-/** Where the chart's plot sits in its box, which the lanes line up with. */
-export interface PlotBox {
-  left: number
-  width: number
-}
-
 interface TrendLanesProps {
   lanes: TrendLane[]
   runEnds: number[]
@@ -35,8 +30,15 @@ interface TrendLanesProps {
   end: number
   from: number
   to: number
-  plot: PlotBox
+  /** The trend's cursor group, which the plot under the lanes joins. */
+  syncKey: string
+  onZoom: (from: number, to: number) => void
+  onZoomOut: () => void
+  onCursor: (cursor: TrendCursor | undefined) => void
 }
+
+const NO_LINES: TrendLine[] = []
+const NO_DATA: never[] = []
 
 /** A lane's row: a name over a bar that is lit where the bit was on. */
 interface Row {
@@ -48,7 +50,7 @@ interface Row {
 }
 
 /** A lane's height: its name, and the bar under it. */
-export const LANE_HEIGHT = 22
+const LANE_HEIGHT = 22
 /** A name's line, which the bar sits under. */
 const LABEL_HEIGHT = 12
 const BAR_TOP = 12
@@ -75,7 +77,7 @@ const LaneToggle = meme(
         aria-expanded={expanded}
         data-testid={testId}
         onClick={handleClick}
-        sx={{ p: 0, height: LABEL_HEIGHT, flexShrink: 0 }}
+        sx={{ p: 0, height: LABEL_HEIGHT, flexShrink: 0, pointerEvents: 'auto' }}
       >
         {expanded ? <ExpandMore sx={{ fontSize: 14 }} /> : <ChevronRight sx={{ fontSize: 14 }} />}
       </IconButton>
@@ -100,117 +102,158 @@ const barPath = (spans: LaneSpan[], from: number, to: number, width: number): st
 }
 
 /**
- * The bits and bitmaps of the trend as lanes under its lines, on the chart's
- * time axis. A bit's lane is lit where it was on; a bitmap's where any bit
- * was set, and it opens into a lane a bit, for every bit its settings name
- * and every bit that was set, lit as its settings say: inverted, a bit is on
- * while clear, and a warning or error bit takes that colour.
+ * The bits and bitmaps of the trend as lanes under its plots, on their time
+ * axis. A bit's lane is lit where it was on; a bitmap's where any bit was
+ * set, and it opens into a lane a bit, for every bit its settings name and
+ * every bit that was set, lit as its settings say: inverted, a bit is on
+ * while clear, and a warning or error bit takes that colour. A plot of no
+ * lines lies under them, so the cursor, a drag and the wheel do over the
+ * lanes what they do over a plot; the lanes let the pointer through to it,
+ * all but a bitmap's toggle.
  */
-const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProps): JSX.Element => {
-  const theme = useTheme()
-  const open = useTrendPanelZustand((z) => z.openLanes)
-  const toggle = useTrendPanelZustand.getState().toggleLane
-  const bitColor = (color: BitColor | undefined, fallback: string): string =>
-    color === 'error'
-      ? theme.palette.error.main
-      : color === 'warning'
-        ? theme.palette.warning.main
-        : fallback
+const TrendLanes = meme(
+  ({
+    lanes,
+    runEnds,
+    end,
+    from,
+    to,
+    syncKey,
+    onZoom,
+    onZoomOut,
+    onCursor
+  }: TrendLanesProps): JSX.Element => {
+    const theme = useTheme()
+    const open = useTrendPanelZustand((z) => z.openLanes)
+    const toggle = useTrendPanelZustand.getState().toggleLane
+    // The bars are as wide as the plot area under them, once it is laid out.
+    const [plot, setPlot] = useState<PlotBox>({ left: AXIS_SIZE, width: 0 })
+    const bitColor = (color: BitColor | undefined, fallback: string): string =>
+      color === 'error'
+        ? theme.palette.error.main
+        : color === 'warning'
+          ? theme.palette.warning.main
+          : fallback
 
-  return (
-    <Box data-testid="trend-lanes" sx={{ display: 'flex', flexDirection: 'column' }}>
-      {lanes.map((lane) => {
-        const expanded = lane.bitmap && open.includes(lane.key)
-        const rows: Row[] = [
-          {
-            key: lane.key,
-            label: lane.label,
-            color: lane.bitmap ? theme.palette.text.secondary : lane.color,
-            spans: laneSpans(lane.points, runEnds, (value) => value !== 0, end),
-            indent: false
-          },
-          ...(expanded
-            ? bitsOf(lane.mapValue?.bitMap, lane.points).map((bit): Row => {
-                const settings = lane.mapValue?.bitMap?.[String(bit)]
-                return {
-                  key: `${lane.key}|${bit}`,
-                  label: settings?.comment ? `bit ${bit} · ${settings.comment}` : `bit ${bit}`,
-                  color: bitColor(settings?.color, lane.color),
-                  spans: laneSpans(
-                    lane.points,
-                    runEnds,
-                    (value) => bitOn(value, bit, settings?.invert),
-                    end
-                  ),
-                  indent: true
-                }
-              })
-            : [])
-        ]
-        return rows.map((row) => (
-          <Box
-            key={row.key}
-            data-testid={`trend-lane-${row.key}`}
-            sx={{ position: 'relative', height: LANE_HEIGHT, flexShrink: 0 }}
-          >
+    return (
+      <Box
+        data-testid="trend-lanes"
+        sx={{ position: 'relative', display: 'flex', flexDirection: 'column', flexShrink: 0 }}
+      >
+        <TrendPlot
+          syncKey={syncKey}
+          lines={NO_LINES}
+          data={NO_DATA}
+          unit={undefined}
+          range={undefined}
+          drawAs="lines"
+          from={from}
+          to={to}
+          oldest={undefined}
+          gaps={NO_DATA}
+          onZoom={onZoom}
+          onZoomOut={onZoomOut}
+          onCursor={onCursor}
+          onPlot={setPlot}
+        />
+        {lanes.map((lane) => {
+          const expanded = lane.bitmap && open.includes(lane.key)
+          const rows: Row[] = [
+            {
+              key: lane.key,
+              label: lane.label,
+              color: lane.bitmap ? theme.palette.text.secondary : lane.color,
+              spans: laneSpans(lane.points, runEnds, (value) => value !== 0, end),
+              indent: false
+            },
+            ...(expanded
+              ? bitsOf(lane.mapValue?.bitMap, lane.points).map((bit): Row => {
+                  const settings = lane.mapValue?.bitMap?.[String(bit)]
+                  return {
+                    key: `${lane.key}|${bit}`,
+                    label: settings?.comment ? `bit ${bit} · ${settings.comment}` : `bit ${bit}`,
+                    color: bitColor(settings?.color, lane.color),
+                    spans: laneSpans(
+                      lane.points,
+                      runEnds,
+                      (value) => bitOn(value, bit, settings?.invert),
+                      end
+                    ),
+                    indent: true
+                  }
+                })
+              : [])
+          ]
+          return rows.map((row) => (
             <Box
+              key={row.key}
+              data-testid={`trend-lane-${row.key}`}
               sx={{
-                position: 'absolute',
-                top: -1,
-                // Every name starts at the plot's edge, a bit's under its
-                // bitmap's indented, and a bitmap's toggle follows its name.
-                left: row.indent ? plot.left + 16 : plot.left,
-                right: 0,
-                height: LABEL_HEIGHT,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                fontSize: 10.5,
-                lineHeight: `${LABEL_HEIGHT}px`,
-                color: row.indent ? textMuted : 'text.primary',
-                whiteSpace: 'nowrap'
+                position: 'relative',
+                height: LANE_HEIGHT,
+                flexShrink: 0,
+                pointerEvents: 'none'
               }}
             >
-              {/* A long name gives way to the toggle after it. */}
               <Box
-                component="span"
-                sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                sx={{
+                  position: 'absolute',
+                  top: -1,
+                  // Every name starts at the plot's edge, a bit's under its
+                  // bitmap's indented, and a bitmap's toggle follows its name.
+                  left: row.indent ? plot.left + 16 : plot.left,
+                  right: 0,
+                  height: LABEL_HEIGHT,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  fontSize: 10.5,
+                  lineHeight: `${LABEL_HEIGHT}px`,
+                  color: row.indent ? textMuted : 'text.primary',
+                  whiteSpace: 'nowrap'
+                }}
               >
-                {row.label}
+                {/* A long name gives way to the toggle after it. */}
+                <Box
+                  component="span"
+                  sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {row.label}
+                </Box>
+                {lane.bitmap && !row.indent && (
+                  <LaneToggle
+                    laneKey={lane.key}
+                    testId={`trend-lane-toggle-${lane.type}-${lane.address}`}
+                    expanded={expanded}
+                    onToggle={toggle}
+                  />
+                )}
               </Box>
-              {lane.bitmap && !row.indent && (
-                <LaneToggle
-                  laneKey={lane.key}
-                  testId={`trend-lane-toggle-${lane.type}-${lane.address}`}
-                  expanded={expanded}
-                  onToggle={toggle}
+              <Box
+                component="svg"
+                width={plot.width}
+                height={BAR_HEIGHT}
+                sx={{
+                  position: 'absolute',
+                  top: BAR_TOP,
+                  left: plot.left,
+                  display: 'block',
+                  borderRadius: '2px',
+                  bgcolor: 'action.hover'
+                }}
+              >
+                <path
+                  d={barPath(row.spans, from, to, plot.width)}
+                  fill={row.color}
+                  fillOpacity={0.75}
                 />
-              )}
+              </Box>
             </Box>
-            <Box
-              component="svg"
-              width={plot.width}
-              height={BAR_HEIGHT}
-              sx={{
-                position: 'absolute',
-                top: BAR_TOP,
-                left: plot.left,
-                display: 'block',
-                borderRadius: '2px',
-                bgcolor: 'action.hover'
-              }}
-            >
-              <path
-                d={barPath(row.spans, from, to, plot.width)}
-                fill={row.color}
-                fillOpacity={0.75}
-              />
-            </Box>
-          </Box>
-        ))
-      })}
-    </Box>
-  )
-})
+          ))
+        })}
+      </Box>
+    )
+  }
+)
 
 export default TrendLanes
