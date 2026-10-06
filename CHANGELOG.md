@@ -112,7 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stretch go and then follows the log. The ? lists them all. The plot under
   the pointer shows a crosshair and its value on its axis. A CSV of what the trend
   shows, or of the stretch selected, has a time column and a column per
-  register shown, each value converted as the grid converts it. Each engineering unit draws a plot of its own, all on
+  register shown, each value converted as the grid converts it. Copy as image
+  and Save as image, in the trend's menu, take everything it shows, the
+  lanes and the plots scrolled out of view included. Each engineering unit draws a plot of its own, all on
   one time axis and under one cursor; a grip under a plot drags its height,
   which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
   and a bitmap opens into a lane a bit. Plots and lanes taller than the trend

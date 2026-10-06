@@ -480,4 +480,53 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
     await mainPage.getByTestId('trend-range-10m').click()
   })
+
+  test('Save as image hands over the whole trend as a PNG, and Copy as image puts it on the clipboard', async ({
+    electronApp,
+    mainPage
+  }) => {
+    /** The height of the PNG a press of Save as image hands over, read off its header. */
+    const savedHeight = async (): Promise<number> => {
+      const savePath = resolve(tmpdir(), `modbux-trend-image-${Date.now()}.png`)
+      await evaluateMain(() =>
+        electronApp.evaluate(({ session }, path) => {
+          session.defaultSession.once('will-download', (_event, item) => {
+            item.setSavePath(path)
+          })
+        }, savePath)
+      )
+      await mainPage.getByTestId('trend-config-btn').click()
+      await mainPage.getByTestId('trend-save-image-btn').click()
+      let png = Buffer.alloc(0)
+      await expect(async () => {
+        png = await readFile(savePath)
+        expect(png.length).toBeGreaterThan(24)
+      }).toPass()
+      expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      // The header's height, after its width, as a 32-bit big-endian number.
+      return png.readUInt32BE(20)
+    }
+
+    // Holding register 6 is a bitmap of named bits.
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-6').click()
+    await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
+    const shut = await savedHeight()
+    await mainPage.getByTestId('trend-lane-toggle-holding_registers-6').click()
+    await expect(
+      mainPage.locator('[data-testid^="trend-lane-"][data-testid*="|"]').first()
+    ).toBeVisible()
+    expect(await savedHeight()).toBeGreaterThan(shut)
+
+    await evaluateMain(() => electronApp.evaluate(({ clipboard }) => clipboard.clear()))
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-copy-image-btn').click()
+    await expect(async () => {
+      const empty = await evaluateMain(() =>
+        electronApp.evaluate(({ clipboard }) => clipboard.readImage().isEmpty())
+      )
+      expect(empty).toBe(false)
+    }).toPass()
+
+    await mainPage.getByTestId('trend-chip-remove-holding_registers-6').click()
+  })
 })

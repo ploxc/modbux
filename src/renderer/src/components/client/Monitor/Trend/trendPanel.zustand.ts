@@ -122,6 +122,9 @@ interface TrendPanelZustand {
    */
   shownRange: (unit: string) => AxisRange | undefined
   setShownRange: (shownRange: (unit: string) => AxisRange | undefined) => void
+  /** The trend as a PNG, drawn at the moment of asking; none while no trend is drawn. */
+  image: () => Promise<Blob | null>
+  setImage: (image: () => Promise<Blob | null>) => void
   setTime: (time: TrendSettings['time']) => void
   setDrawAs: (drawAs: TrendSettings['drawAs']) => void
   /** Gives a register another colour, and the register holding that one the first's. */
@@ -331,6 +334,9 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     shownRange: (): AxisRange | undefined => undefined,
     // A partial rather than a recipe: a function is no state to draft.
     setShownRange: (shownRange): void => set({ shownRange }),
+    image: (): Promise<Blob | null> => Promise.resolve(null),
+    // A partial rather than a recipe: a function is no state to draft.
+    setImage: (image): void => set({ image }),
     setTime: (time): void =>
       set((state) => {
         state.settings.time = time

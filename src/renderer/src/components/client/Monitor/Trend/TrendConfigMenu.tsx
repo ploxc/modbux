@@ -15,7 +15,10 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { textMuted } from '@renderer/theme'
 import { SavedTrend } from '@shared'
+import { downloadBlob } from '@renderer/components/shared/downloadText'
 import { deepEqual } from 'fast-equals'
+import snakeCase from 'lodash/snakeCase'
+import { DateTime } from 'luxon'
 import { ChangeEvent, MouseEvent, useCallback, useState } from 'react'
 import { snapshotOf, useTrendPanelZustand } from './trendPanel.zustand'
 
@@ -151,6 +154,24 @@ const TrendConfigMenu = meme((): JSX.Element => {
     },
     [uuid]
   )
+  // The image is taken once the menu is closed, of the trend as it is drawn.
+  const handleCopyImage = useCallback(async () => {
+    setAnchor(null)
+    const blob = await useTrendPanelZustand.getState().image()
+    if (blob === null) return
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+  }, [])
+  const handleSaveImage = useCallback(async () => {
+    setAnchor(null)
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    const blob = await trendPanelZustand.image()
+    if (blob === null) return
+    const stamp = DateTime.now().toFormat('yyyyMMdd_HHmmss')
+    downloadBlob(
+      `modbux_trend_${snakeCase(trendPanelZustand.name ?? '') || 'trend'}_${stamp}.png`,
+      blob
+    )
+  }, [])
   const handleNew = useCallback(() => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.startNew()
@@ -248,6 +269,21 @@ const TrendConfigMenu = meme((): JSX.Element => {
             onPick={handleDelete}
           />
         )}
+        <Divider />
+        <MenuItem
+          data-testid="trend-copy-image-btn"
+          onClick={handleCopyImage}
+          sx={{ fontSize: 12.5 }}
+        >
+          Copy as image
+        </MenuItem>
+        <MenuItem
+          data-testid="trend-save-image-btn"
+          onClick={handleSaveImage}
+          sx={{ fontSize: 12.5 }}
+        >
+          Save as image…
+        </MenuItem>
         <Divider />
         <MenuItem data-testid="trend-new-btn" onClick={handleNew} sx={{ fontSize: 12.5 }}>
           New trend

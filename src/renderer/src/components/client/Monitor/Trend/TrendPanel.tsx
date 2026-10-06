@@ -32,10 +32,13 @@ import HelpOutline from '@mui/icons-material/HelpOutlineOutlined'
 import Undo from '@mui/icons-material/Undo'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import Tooltip from '@mui/material/Tooltip'
+import { alpha, useTheme } from '@mui/material/styles'
+import { DateTime } from 'luxon'
 import type uPlot from 'uplot'
 import PlotGrip from './PlotGrip'
 import TrendConfigMenu from './TrendConfigMenu'
-import TrendLanes, { TrendLane } from './TrendLanes'
+import TrendLanes, { laneColors, laneRows, TrendLane } from './TrendLanes'
+import { trendImage } from './trendImage'
 import TrendNavigator from './TrendNavigator'
 import TrendPlot, { TrendLine } from './TrendPlot'
 import TrendReadout from './TrendReadout'
@@ -790,6 +793,70 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
 
   const origin = oldest ?? from
 
+  // What the image draws, as this render drew it, read when it is asked for.
+  const theme = useTheme()
+  const timeAxis = useRef<uPlot | null>(null)
+  const handleTimeAxis = useCallback((chart: uPlot | null) => {
+    timeAxis.current = chart
+  }, [])
+  const drawnNow = useRef({ drawn, lanes, runEnds, end, from, to, selection })
+  drawnNow.current = { drawn, lanes, runEnds, end, from, to, selection }
+  useEffect(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setImage((): Promise<Blob | null> => {
+      const axis = timeAxis.current
+      if (axis === null) return Promise.resolve(null)
+      const now = drawnNow.current
+      const { openLanes, name } = useTrendPanelZustand.getState()
+      const colors = laneColors(theme)
+      // The stretch carries its date, and milliseconds when it is under a minute.
+      const format = now.to - now.from < 60_000 ? 'yyyy-MM-dd HH:mm:ss.SSS' : 'yyyy-MM-dd HH:mm:ss'
+      const stamp = (time: number): string => DateTime.fromMillis(time).toFormat(format)
+      return trendImage(
+        {
+          plots: now.drawn.flatMap(({ plot }) => {
+            const chart = charts.current.get(plot.unit)
+            return chart === undefined ? [] : [chart]
+          }),
+          lanes: now.lanes.flatMap((lane) =>
+            laneRows(
+              lane,
+              lane.bitmap && openLanes.includes(lane.key),
+              now.runEnds,
+              now.end,
+              colors
+            )
+          ),
+          timeAxis: axis,
+          from: now.from,
+          to: now.to,
+          selection: now.selection,
+          legend: [
+            ...now.drawn.flatMap(({ lines }) =>
+              lines.map(({ line }) => ({ color: line.color, label: line.label }))
+            ),
+            ...now.lanes.map((lane) => ({
+              color: lane.bitmap ? colors.word : lane.color,
+              label: lane.label
+            }))
+          ]
+        },
+        {
+          title: name ?? 'Trend',
+          stretch: `${stamp(now.from)} to ${stamp(now.to)}`,
+          background: theme.palette.background.paper,
+          foreground: theme.palette.text.primary,
+          muted: theme.palette.text.secondary,
+          bar: theme.palette.action.hover,
+          band: alpha(theme.palette.info.main, 0.1),
+          edge: alpha(theme.palette.info.main, 0.6),
+          font: theme.typography.fontFamily ?? 'sans-serif'
+        }
+      )
+    })
+    return (): void => trendPanelZustand.setImage(() => Promise.resolve(null))
+  }, [theme])
+
   return (
     <Box
       onKeyDown={handleKeyDown}
@@ -881,7 +948,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
         />
       </Box>
       <Box sx={{ flexShrink: 0, px: 1, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
-        <TrendTimeAxis from={from} to={to} time={time} origin={origin} />
+        <TrendTimeAxis from={from} to={to} time={time} origin={origin} onChart={handleTimeAxis} />
       </Box>
       {selection !== undefined && (
         <TrendSelectionPanel

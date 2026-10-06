@@ -2,7 +2,7 @@ import ChevronRight from '@mui/icons-material/ChevronRight'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
-import { useTheme } from '@mui/material/styles'
+import { Theme, useTheme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { BitColor, LogPoint, RegisterMapValue, RegisterType } from '@shared'
@@ -43,7 +43,7 @@ const NO_LINES: TrendLine[] = []
 const NO_DATA: never[] = []
 
 /** A lane's row: a name over a bar that is lit where the bit was on. */
-interface Row {
+export interface LaneRow {
   key: string
   label: string
   color: string
@@ -51,12 +51,64 @@ interface Row {
   indent: boolean
 }
 
+/** The colours a lane's rows take from the theme: a bitmap's word, and its bits. */
+export const laneColors = (
+  theme: Theme
+): { word: string; bit: (color: BitColor | undefined, fallback: string) => string } => ({
+  word: theme.palette.text.secondary,
+  bit: (color, fallback) =>
+    color === 'error'
+      ? theme.palette.error.main
+      : color === 'warning'
+        ? theme.palette.warning.main
+        : fallback
+})
+
 /** A lane's height: its name, and the bar under it. */
-const LANE_HEIGHT = 22
+export const LANE_HEIGHT = 22
 /** A name's line, which the bar sits under. */
-const LABEL_HEIGHT = 12
-const BAR_TOP = 12
-const BAR_HEIGHT = 8
+export const LABEL_HEIGHT = 12
+export const BAR_TOP = 12
+export const BAR_HEIGHT = 8
+
+/**
+ * A lane's rows: the register's own, lit where it was on or, for a bitmap,
+ * where any bit was set, in `word` colour; and opened, a row a bit, for every
+ * bit its settings name and every bit that was set, lit as its settings say
+ * and coloured by `bitColor`.
+ */
+export const laneRows = (
+  lane: TrendLane,
+  expanded: boolean,
+  runEnds: number[],
+  end: number,
+  colors: { word: string; bit: (color: BitColor | undefined, fallback: string) => string }
+): LaneRow[] => [
+  {
+    key: lane.key,
+    label: lane.label,
+    color: lane.bitmap ? colors.word : lane.color,
+    spans: laneSpans(lane.points, runEnds, (value) => value !== 0, end),
+    indent: false
+  },
+  ...(expanded
+    ? bitsOf(lane.mapValue?.bitMap, lane.points).map((bit): LaneRow => {
+        const settings = lane.mapValue?.bitMap?.[String(bit)]
+        return {
+          key: `${lane.key}|${bit}`,
+          label: settings?.comment ? `bit ${bit} · ${settings.comment}` : `bit ${bit}`,
+          color: colors.bit(settings?.color, lane.color),
+          spans: laneSpans(
+            lane.points,
+            runEnds,
+            (value) => bitOn(value, bit, settings?.invert),
+            end
+          ),
+          indent: true
+        }
+      })
+    : [])
+]
 
 /** The press that opens a bitmap's lane into its bits, and closes it. */
 const LaneToggle = meme(
@@ -132,12 +184,6 @@ const TrendLanes = meme(
     const toggle = useTrendPanelZustand.getState().toggleLane
     // The bars are as wide as the plot area under them, once it is laid out.
     const [plot, setPlot] = useState<PlotBox>({ left: AXIS_SIZE, width: 0 })
-    const bitColor = (color: BitColor | undefined, fallback: string): string =>
-      color === 'error'
-        ? theme.palette.error.main
-        : color === 'warning'
-          ? theme.palette.warning.main
-          : fallback
 
     return (
       <Box
@@ -164,32 +210,7 @@ const TrendLanes = meme(
         />
         {lanes.map((lane) => {
           const expanded = lane.bitmap && open.includes(lane.key)
-          const rows: Row[] = [
-            {
-              key: lane.key,
-              label: lane.label,
-              color: lane.bitmap ? theme.palette.text.secondary : lane.color,
-              spans: laneSpans(lane.points, runEnds, (value) => value !== 0, end),
-              indent: false
-            },
-            ...(expanded
-              ? bitsOf(lane.mapValue?.bitMap, lane.points).map((bit): Row => {
-                  const settings = lane.mapValue?.bitMap?.[String(bit)]
-                  return {
-                    key: `${lane.key}|${bit}`,
-                    label: settings?.comment ? `bit ${bit} · ${settings.comment}` : `bit ${bit}`,
-                    color: bitColor(settings?.color, lane.color),
-                    spans: laneSpans(
-                      lane.points,
-                      runEnds,
-                      (value) => bitOn(value, bit, settings?.invert),
-                      end
-                    ),
-                    indent: true
-                  }
-                })
-              : [])
-          ]
+          const rows = laneRows(lane, expanded, runEnds, end, laneColors(theme))
           return rows.map((row) => (
             <Box
               key={row.key}
