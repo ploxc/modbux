@@ -15,6 +15,7 @@ import {
   pointAt,
   rangeOf,
   readoutPlace,
+  scaleRange,
   settingsPlace,
   shownStretch,
   sinceText,
@@ -438,6 +439,27 @@ describe('rangeOf', () => {
     expect(rangeOf('1e', '10')).toBeUndefined()
     expect(rangeOf('0', '1e999')).toBeUndefined()
     expect(rangeOf('-1e999', '0')).toBeUndefined()
+  })
+})
+
+describe('scaleRange', () => {
+  it("takes a scale's minimum and maximum", () => {
+    expect(scaleRange({ min: -10, max: 110 })).toEqual({ min: -10, max: 110 })
+  })
+
+  it('keeps seven significant digits, at any size', () => {
+    expect(scaleRange({ min: 0.1 + 0.2, max: 1234.56789 })).toEqual({ min: 0.3, max: 1234.568 })
+    expect(scaleRange({ min: 1.23456789e-9, max: 2e-9 })).toEqual({
+      min: 1.234568e-9,
+      max: 2e-9
+    })
+  })
+
+  it('gives none for a scale that holds no value, or none at all', () => {
+    expect(scaleRange({})).toBeUndefined()
+    expect(scaleRange(undefined)).toBeUndefined()
+    expect(scaleRange({ min: 5, max: 5 })).toBeUndefined()
+    expect(scaleRange({ min: 0, max: Infinity })).toBeUndefined()
   })
 })
 

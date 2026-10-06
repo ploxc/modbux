@@ -88,6 +88,12 @@ interface TrendPanelZustand {
   settings: TrendSettings
   /** Holds an engineering unit's axis at a range, or fits it to what it draws again with none. */
   setAxisRange: (unit: string, range: AxisRange | undefined) => void
+  /**
+   * The range an engineering unit's axis shows now, read from the chart drawn
+   * at the moment of asking; none while no chart draws a value on it.
+   */
+  shownRange: (unit: string) => AxisRange | undefined
+  setShownRange: (shownRange: (unit: string) => AxisRange | undefined) => void
   setTime: (time: TrendSettings['time']) => void
   setDrawAs: (drawAs: TrendSettings['drawAs']) => void
   /** Gives a register another colour, and the register holding that one the first's. */
@@ -205,6 +211,9 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         if (Object.keys(axes).length === 0) delete state.settings.axes
         else state.settings.axes = axes
       }),
+    shownRange: (): AxisRange | undefined => undefined,
+    // A partial rather than a recipe: a function is no state to draft.
+    setShownRange: (shownRange): void => set({ shownRange }),
     setTime: (time): void =>
       set((state) => {
         state.settings.time = time

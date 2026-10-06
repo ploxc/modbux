@@ -21,8 +21,8 @@ import { useTrendPanelZustand } from './trendPanel.zustand'
 
 const numberInput = NumberInput as unknown as ElementType<InputBaseComponentProps, 'input'>
 
-/** The range an axis takes when it is first held: until it is typed, 0 to 100. */
-const FIRST_RANGE: AxisRange = { min: 0, max: 100 }
+/** The range an axis takes when it is held while it shows no value. */
+const EMPTY_AXIS_RANGE: AxisRange = { min: 0, max: 100 }
 
 const TOGGLE_SX = {
   '& .MuiToggleButton-root': { py: 0.125, px: 1, fontSize: 11.5, textTransform: 'none' }
@@ -74,10 +74,10 @@ const Row = meme(
 const AxisRow = meme(({ index, axis }: { index: number; axis: TrendAxis }): JSX.Element => {
   const { unit } = axis
   const range = useTrendPanelZustand((z) => z.settings.axes?.[unit])
-  const [minText, setMinText] = useState(String(range?.min ?? FIRST_RANGE.min))
-  const [maxText, setMaxText] = useState(String(range?.max ?? FIRST_RANGE.max))
+  const [minText, setMinText] = useState(String(range?.min ?? EMPTY_AXIS_RANGE.min))
+  const [maxText, setMaxText] = useState(String(range?.max ?? EMPTY_AXIS_RANGE.max))
 
-  // Fixed takes the fields when they hold a range, and 0 to 100 when not.
+  // Fixed holds the range the axis shows now, and 0 to 100 while it shows none.
   const handleMode = useCallback(
     (_event: MouseEvent<HTMLElement>, mode: 'auto' | 'fixed' | null) => {
       if (mode === null) return
@@ -86,13 +86,12 @@ const AxisRow = meme(({ index, axis }: { index: number; axis: TrendAxis }): JSX.
         trendPanelZustand.setAxisRange(unit, undefined)
         return
       }
-      const typed = rangeOf(minText, maxText)
-      trendPanelZustand.setAxisRange(unit, typed ?? FIRST_RANGE)
-      if (typed !== undefined) return
-      setMinText(String(FIRST_RANGE.min))
-      setMaxText(String(FIRST_RANGE.max))
+      const held = trendPanelZustand.shownRange(unit) ?? EMPTY_AXIS_RANGE
+      trendPanelZustand.setAxisRange(unit, held)
+      setMinText(String(held.min))
+      setMaxText(String(held.max))
     },
-    [unit, minText, maxText]
+    [unit]
   )
   const take = useCallback(
     (min: string, max: string) => {

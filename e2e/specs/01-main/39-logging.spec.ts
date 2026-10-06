@@ -345,14 +345,10 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expect(mainPage.getByRole('region', { name: 'Axes and lines' })).toHaveCount(0)
     await mainPage.getByTestId('trend-settings-btn').click()
 
+    // Fixed holds the range the axis shows: uPlot draws a flat 100 from 0 to 200.
     await mainPage.getByTestId('trend-axis-0-fixed').click()
     await expect(mainPage.getByTestId('trend-axis-0-min')).toHaveValue('0')
-    // Fields that hold no range give Fixed 0 to 100.
-    await mainPage.getByTestId('trend-axis-0-min').fill('')
-    await mainPage.getByTestId('trend-axis-0-auto').click()
-    await mainPage.getByTestId('trend-axis-0-fixed').click()
-    await expect(mainPage.getByTestId('trend-axis-0-min')).toHaveValue('0')
-    await expect(mainPage.getByTestId('trend-axis-0-max')).toHaveValue('100')
+    await expect(mainPage.getByTestId('trend-axis-0-max')).toHaveValue('200')
     await mainPage.getByTestId('trend-axis-0-max').fill('250')
     await mainPage.getByTestId('trend-time-since').click()
     await mainPage.getByTestId('trend-draw-steps').click()

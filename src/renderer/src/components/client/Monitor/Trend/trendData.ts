@@ -480,3 +480,17 @@ export const rangeOf = (minText: string, maxText: string): AxisRange | undefined
   const max = Number(maxText)
   return Number.isFinite(min) && Number.isFinite(max) && min < max ? { min, max } : undefined
 }
+
+/** The significant digits a range read off a scale keeps, which drops float noise. */
+const SCALE_DIGITS = 7
+
+/**
+ * The range a uPlot scale shows, to `SCALE_DIGITS` significant digits: none
+ * while it holds no value, which uPlot marks with a null minimum and maximum.
+ */
+export const scaleRange = (scale: uPlot.Scale | undefined): AxisRange | undefined => {
+  if (scale?.min == null || scale.max == null) return undefined
+  const min = Number(scale.min.toPrecision(SCALE_DIGITS))
+  const max = Number(scale.max.toPrecision(SCALE_DIGITS))
+  return Number.isFinite(min) && Number.isFinite(max) && min < max ? { min, max } : undefined
+}

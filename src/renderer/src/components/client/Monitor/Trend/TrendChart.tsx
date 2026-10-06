@@ -7,12 +7,14 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { TrendSettings } from '@shared'
 import {
+  axisScale,
   figure,
   indexAt,
   READOUT_PADDING,
   READOUT_ROW,
   READOUT_WIDTH,
   readoutPlace,
+  scaleRange,
   sinceText,
   TrendAxis,
   TrendGap,
@@ -21,6 +23,7 @@ import {
   WHEEL_ZOOM,
   zoomAround
 } from './trendData'
+import { useTrendPanelZustand } from './trendPanel.zustand'
 
 /** One line of a trend: its colour, the scale it is drawn on, and how the readout names it. */
 export interface TrendLine {
@@ -351,6 +354,8 @@ const TrendChart = meme(
       }
       const made = new uPlot(options, [[]], box)
       chart.current = made
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setShownRange((unit) => scaleRange(made.scales[axisScale(unit)]))
       // A sideways swipe is not a zoom.
       const handleWheel = (event: WheelEvent): void => {
         if (event.deltaY === 0) return
@@ -370,6 +375,7 @@ const TrendChart = meme(
         observer.disconnect()
         made.destroy()
         chart.current = null
+        trendPanelZustand.setShownRange(() => undefined)
         // The readout names this chart's lines at this chart's samples.
         setReadout(undefined)
       }
