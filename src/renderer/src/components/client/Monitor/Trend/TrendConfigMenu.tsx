@@ -33,6 +33,43 @@ const NO_IMAGE = 'No image of the trend could be made: it is too large, or not d
 /** What the name dialog is asked for: a name to save under, or a new name for a saved trend. */
 type Naming = { kind: 'save-as' } | { kind: 'rename'; from: string }
 
+/** Deleting a saved trend is asked first, as removing a unit is. */
+const ConfirmDelete = meme(
+  ({
+    name,
+    open,
+    onKeep,
+    onDelete
+  }: {
+    name: string
+    open: boolean
+    onKeep: () => void
+    onDelete: (name: string) => void
+  }): JSX.Element => {
+    const handleDelete = useCallback(() => onDelete(name), [name, onDelete])
+    return (
+      <Dialog open={open} onClose={onKeep} maxWidth="xs" fullWidth>
+        <DialogHeading icon={<DeleteOutlined />} tone="error">
+          Delete the trend {name}?
+        </DialogHeading>
+        <DialogContent>
+          <DialogContentText>
+            Its registers, range and settings go. The log keeps every sample.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button data-testid="trend-delete-cancel-btn" variant="text" onClick={onKeep}>
+            Keep it
+          </Button>
+          <Button data-testid="trend-delete-confirm-btn" color="error" onClick={handleDelete}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
+)
+
 /** A menu item acting on the saved trend of `name`. */
 const NamedItem = meme(
   ({
@@ -105,8 +142,8 @@ const TrendConfigMenu = meme((): JSX.Element => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [naming, setNaming] = useState<Naming>()
   const [draft, setDraft] = useState('')
-  /** The saved trend Delete asks about, while it asks. */
-  const [deleting, setDeleting] = useState<string>()
+  /** The saved trend Delete asked about last, and whether it still asks; the name stays while its dialog fades. */
+  const [deleting, setDeleting] = useState<{ name: string; open: boolean }>()
 
   const saved = trends.find((trend) => trend.name === name)
   const changed =
@@ -154,18 +191,23 @@ const TrendConfigMenu = meme((): JSX.Element => {
   }, [])
   // Delete asks first, as removing a unit does.
   const handleDelete = useCallback((saved: string) => {
-    setDeleting(saved)
+    setDeleting({ name: saved, open: true })
     setAnchor(null)
   }, [])
-  const handleKeep = useCallback(() => setDeleting(undefined), [])
-  const handleConfirmDelete = useCallback(() => {
-    if (deleting === undefined) return
-    const clientZustand = useClientZustand.getState()
-    clientZustand.deleteTrend(uuid, deleting)
-    const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.setName(undefined)
-    setDeleting(undefined)
-  }, [uuid, deleting])
+  const handleKeep = useCallback(
+    () => setDeleting((asked) => (asked === undefined ? asked : { ...asked, open: false })),
+    []
+  )
+  const handleConfirmDelete = useCallback(
+    (saved: string) => {
+      const clientZustand = useClientZustand.getState()
+      clientZustand.deleteTrend(uuid, saved)
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.setName(undefined)
+      handleKeep()
+    },
+    [uuid, handleKeep]
+  )
   // The image is taken once the menu is closed, of the trend as it is drawn.
   const handleCopyImage = useCallback(async () => {
     setAnchor(null)
@@ -311,28 +353,14 @@ const TrendConfigMenu = meme((): JSX.Element => {
           New trend
         </MenuItem>
       </Menu>
-      <Dialog open={deleting !== undefined} onClose={handleKeep} maxWidth="xs" fullWidth>
-        <DialogHeading icon={<DeleteOutlined />} tone="error">
-          Delete the trend {deleting}?
-        </DialogHeading>
-        <DialogContent>
-          <DialogContentText>
-            Its registers, range and settings go. The log keeps every sample.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button data-testid="trend-delete-cancel-btn" variant="text" onClick={handleKeep}>
-            Keep it
-          </Button>
-          <Button
-            data-testid="trend-delete-confirm-btn"
-            color="error"
-            onClick={handleConfirmDelete}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {deleting !== undefined && (
+        <ConfirmDelete
+          name={deleting.name}
+          open={deleting.open}
+          onKeep={handleKeep}
+          onDelete={handleConfirmDelete}
+        />
+      )}
       <Dialog open={naming !== undefined} onClose={handleCancelName} maxWidth="xs" fullWidth>
         <DialogHeading icon={<ShowChart />} tone="success">
           {naming?.kind === 'rename' ? 'Rename the trend' : 'Save the trend as'}
