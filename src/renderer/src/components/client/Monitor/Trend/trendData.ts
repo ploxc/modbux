@@ -138,25 +138,18 @@ interface Size {
 }
 
 /**
- * Where Axes and lines opens, `panel` big: left of the floating `trend` when
- * the window has room there, right of it when not, and under its `button`,
- * level with its right edge, beside a trend that floats nowhere or has no
- * room on either side, in a window of `room`; above the button when the
- * window has room there and none under it. Otherwise it moves up as far as
- * it takes to end inside the window, and no higher than the window's top.
+ * Where Axes and lines opens, `panel` big: under its `button`, level with its
+ * right edge, in a window of `room`; above the button when the window has room
+ * there and none under it. Otherwise it moves up as far as it takes to end
+ * inside the window, and no higher than the window's top.
  */
 export const settingsPlace = (
   button: Box,
-  trend: Box | undefined,
   panel: Size,
   room: Size
 ): { top: number; left: number } => {
   const inside = (top: number): number =>
     Math.max(BESIDE_GAP, Math.min(top, room.height - BESIDE_GAP - panel.height))
-  if (trend !== undefined && trend.left - BESIDE_GAP - panel.width >= BESIDE_GAP)
-    return { top: inside(trend.top), left: trend.left - BESIDE_GAP - panel.width }
-  if (trend !== undefined && trend.right + BESIDE_GAP + panel.width <= room.width - BESIDE_GAP)
-    return { top: inside(trend.top), left: trend.right + BESIDE_GAP }
   const under = button.bottom + BESIDE_GAP
   const above = button.top - BESIDE_GAP - panel.height
   const fitsUnder = under + panel.height <= room.height - BESIDE_GAP

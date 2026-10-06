@@ -123,8 +123,8 @@ const Monitor = meme((): JSX.Element => {
   }, [body])
   const trendOpen = useTrendPanelZustand((z) => z.anchor !== null)
   const trendMode = useTrendPanelZustand((z) => z.mode)
-  // Docked or filling, the trend is drawn in the grid's room rather than over it.
-  const inline = trendOpen && trendMode !== 'float' ? trendMode : undefined
+  // Open, the trend docks under the grid or fills its room.
+  const inline = trendOpen ? trendMode : undefined
   // Filling the room, the trend hides the groups these fold.
   const gridShown = inline !== 'fill'
 
@@ -225,19 +225,18 @@ const Monitor = meme((): JSX.Element => {
             </Panel>
             <ResizeHandle orientation="horizontal" testId="monitor-trend-handle" />
             <Panel id="monitor-trend-dock" minSize={220} defaultSize={340}>
-              <TrendPanel placement="inline" />
+              <TrendPanel />
             </Panel>
           </Group>
         ) : inline === 'fill' ? (
           // The grid gives way, and Monitor goes on reading under the trend.
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <TrendPanel placement="inline" />
+            <TrendPanel />
           </Box>
         ) : (
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>{grid}</Box>
         )}
       </Box>
-      <TrendPanel placement="float" />
     </Box>
   )
 })

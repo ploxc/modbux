@@ -119,7 +119,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       'aria-pressed',
       'true'
     )
-    // The page under it stays reachable, to screen readers and role queries alike.
+    // The page beside it stays reachable, to screen readers and role queries alike.
     await expect(mainPage.getByRole('switch', { name: 'Poll this group' }).first()).toBeVisible()
 
     // The cursor over the lines reads every line at or before the moment under
@@ -174,12 +174,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-range-10m').click()
     await expectState(mainPage, 'live')
 
-    // At the floating trend's narrowest the header wraps under the name and the
-    // ranges, and the icons stay on the first row, inside the panel.
-    const paper = mainPage.getByTestId('trend-panel').locator('xpath=..')
-    await paper.evaluate((el) => {
-      const panelPaper = el.closest('.MuiPaper-root')
-      if (panelPaper instanceof HTMLElement) panelPaper.style.width = '420px'
+    // 420 px wide the header wraps under the name and the ranges, and the
+    // icons stay on the first row, inside the panel.
+    const trendBox = mainPage.getByTestId('trend-panel').locator('xpath=..')
+    await trendBox.evaluate((el) => {
+      el.style.width = '420px'
     })
     const boxOf = async (testId: string): Promise<{ x: number; y: number; right: number }> => {
       const box = await mainPage.getByTestId(testId).boundingBox()
@@ -196,9 +195,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
       expect(close.y).toBe(name.y)
       expect(live.y).toBeGreaterThan(range.y)
     }).toPass()
-    await paper.evaluate((el) => {
-      const panelPaper = el.closest('.MuiPaper-root')
-      if (panelPaper instanceof HTMLElement) panelPaper.style.width = ''
+    await trendBox.evaluate((el) => {
+      el.style.width = ''
     })
 
     // The calendar opens on the stretch shown, and Show holds the trend still
@@ -422,12 +420,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-name-confirm-btn').click()
     await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
 
-    // A long name, with spaces or none, gives way inside the narrowest trend:
+    // A long name, with spaces or none, gives way inside a trend 420 px wide:
     // one line, clear of the icons.
-    const paper = mainPage.getByTestId('trend-panel').locator('xpath=..')
-    await paper.evaluate((el) => {
-      const panelPaper = el.closest('.MuiPaper-root')
-      if (panelPaper instanceof HTMLElement) panelPaper.style.width = '420px'
+    const trendBox = mainPage.getByTestId('trend-panel').locator('xpath=..')
+    await trendBox.evaluate((el) => {
+      el.style.width = '420px'
     })
     for (const longName of [
       'Setpoints of the second boiler room, left wing, floor three',
@@ -449,9 +446,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
         expect(name.x + name.width).toBeLessThanOrEqual(settings.x)
       }).toPass()
     }
-    await paper.evaluate((el) => {
-      const panelPaper = el.closest('.MuiPaper-root')
-      if (panelPaper instanceof HTMLElement) panelPaper.style.width = ''
+    await trendBox.evaluate((el) => {
+      el.style.width = ''
     })
     await mainPage.getByTestId('trend-config-btn').click()
     await mainPage.getByTestId('trend-rename-btn').click()
@@ -471,21 +467,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-close-btn').click()
   })
 
-  test('the trend floats, docks under Monitor and fills its room, as it was left', async ({
-    mainPage
-  }) => {
+  test('the trend docks under Monitor and fills its room, as it was left', async ({ mainPage }) => {
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
-    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
-
-    await mainPage.getByTestId('trend-mode-dock-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'dock')
     await expect(mainPage.getByTestId('monitor-trend-handle')).toBeVisible()
-
-    // Back to floating, it opens in the grid's corner again, inside the window.
-    await mainPage.getByTestId('trend-mode-float-btn').click()
-    const floated = await mainPage.getByTestId('trend-panel').boundingBox()
-    expect(floated?.x ?? -1).toBeGreaterThan(0)
-    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await expect(mainPage.getByTestId('trend-mode-float-btn')).toHaveCount(0)
     await expect(mainPage.getByTestId('monitor-trend-0-holding_registers-0')).toBeVisible()
     await expectNewest(mainPage, 'trend-readout-value-0', '100')
 
@@ -504,8 +490,8 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('monitor-trend-btn').click()
     await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'fill')
 
-    await mainPage.getByTestId('trend-mode-float-btn').click()
-    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
+    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'dock')
     await expect(mainPage.getByTestId('monitor-expand-all-btn')).toBeVisible()
     await mainPage.getByTestId('trend-chip-remove-holding_registers-0').click()
     await mainPage.getByTestId('trend-close-btn').click()
@@ -525,7 +511,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     }
     await setComment('The setpoint of the second stage, '.repeat(5).trim())
     await mainPage.getByTestId('monitor-trend-0-holding_registers-0').click()
-    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'float')
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'dock')
 
     const panel = await mainPage.getByTestId('trend-panel').boundingBox()
     const remove = await mainPage.getByTestId('trend-chip-remove-holding_registers-0').boundingBox()

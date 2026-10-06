@@ -127,59 +127,31 @@ describe('settingsPlace', () => {
   const PANEL = { width: 420, height: 300 }
   const WINDOW = { width: 1440, height: 900 }
   const button = { top: 100, left: 880, right: 904, bottom: 124 }
-  const box = (left: number, right: number): typeof button => ({
-    top: 90,
-    left,
-    right,
-    bottom: 400
-  })
 
-  it('opens left of the floating trend when the window has room there', () => {
-    expect(settingsPlace(button, box(500, 1000), PANEL, WINDOW)).toEqual({ top: 90, left: 72 })
-  })
-
-  it('opens right of it when the left has no room', () => {
-    expect(settingsPlace(button, box(300, 800), PANEL, WINDOW)).toEqual({ top: 90, left: 808 })
-  })
-
-  it('opens under its button beside a trend with no room either side, or one that does not float', () => {
-    const under = { top: 132, left: 484 }
-    expect(settingsPlace(button, box(300, 1100), PANEL, WINDOW)).toEqual(under)
-    expect(settingsPlace(button, undefined, PANEL, WINDOW)).toEqual(under)
-  })
-
-  it('takes the room on the left when it is exactly enough, and the right a pixel short of it', () => {
-    expect(settingsPlace(button, box(436, 1000), PANEL, WINDOW)).toEqual({ top: 90, left: 8 })
-    expect(settingsPlace(button, box(435, 1000), PANEL, WINDOW)).toEqual({ top: 90, left: 1008 })
-  })
-
-  it('moves up to end inside the window, and no higher than its top', () => {
-    const low = { top: 700, left: 500, right: 1000, bottom: 890 }
-    expect(settingsPlace(button, low, PANEL, WINDOW)).toEqual({ top: 592, left: 72 })
-    const tall = { width: 420, height: 1000 }
-    expect(settingsPlace(button, low, tall, WINDOW)).toEqual({ top: 8, left: 72 })
+  it('opens under its button, level with its right edge', () => {
+    expect(settingsPlace(button, PANEL, WINDOW)).toEqual({ top: 132, left: 484 })
   })
 
   it('opens above its button when there is room there and none under it, and else under it', () => {
     const lowButton = { top: 800, left: 880, right: 904, bottom: 824 }
-    expect(settingsPlace(lowButton, undefined, PANEL, WINDOW)).toEqual({ top: 492, left: 484 })
+    expect(settingsPlace(lowButton, PANEL, WINDOW)).toEqual({ top: 492, left: 484 })
     // Exactly enough room under it keeps it there.
     const fits = { top: 560, left: 880, right: 904, bottom: 584 }
-    expect(settingsPlace(fits, undefined, PANEL, WINDOW)).toEqual({ top: 592, left: 484 })
+    expect(settingsPlace(fits, PANEL, WINDOW)).toEqual({ top: 592, left: 484 })
     // With room neither under it nor above it, under it and moved up only as
     // far as the window asks.
     const short = { width: 1440, height: 400 }
     const highButton = { top: 40, left: 880, right: 904, bottom: 64 }
     const panel = { width: 420, height: 325 }
-    expect(settingsPlace(highButton, undefined, panel, short)).toEqual({ top: 67, left: 484 })
+    expect(settingsPlace(highButton, panel, short)).toEqual({ top: 67, left: 484 })
     // Exactly enough room above it takes that.
     const midButton = { top: 316, left: 880, right: 904, bottom: 340 }
-    expect(settingsPlace(midButton, undefined, PANEL, short)).toEqual({ top: 8, left: 484 })
+    expect(settingsPlace(midButton, PANEL, short)).toEqual({ top: 8, left: 484 })
   })
 
-  it('takes the room on the right when it is exactly enough, and not a pixel less', () => {
-    expect(settingsPlace(button, box(300, 1004), PANEL, WINDOW)).toEqual({ top: 90, left: 1012 })
-    expect(settingsPlace(button, box(300, 1005), PANEL, WINDOW)).toEqual({ top: 132, left: 484 })
+  it("moves up no higher than the window's top", () => {
+    const tall = { width: 420, height: 1000 }
+    expect(settingsPlace(button, tall, WINDOW)).toEqual({ top: 8, left: 484 })
   })
 })
 

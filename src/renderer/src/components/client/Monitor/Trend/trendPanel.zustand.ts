@@ -36,7 +36,7 @@ export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
   `${uuid}|${unit}|${type}|${address}`
 
 /** Where the trend is drawn. */
-export type TrendMode = 'float' | 'dock' | 'fill'
+export type TrendMode = 'dock' | 'fill'
 
 interface TrendPanelZustand {
   /** The client whose log the trend draws. */
@@ -59,7 +59,7 @@ interface TrendPanelZustand {
    */
   room: HTMLElement | null
   setRoom: (room: HTMLElement | null) => void
-  /** Floating over Monitor, docked under its grid, or filling its room. */
+  /** Docked under Monitor's grid, or filling its room. */
   mode: TrendMode
   setMode: (mode: TrendMode) => void
   /**
@@ -158,7 +158,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     room: null,
     // A partial rather than a recipe: an element is no state to draft.
     setRoom: (room): void => set({ room }),
-    mode: 'float',
+    mode: 'dock',
     setMode: (mode): void =>
       set((state) => {
         state.mode = mode

@@ -1,12 +1,9 @@
 import Close from '@mui/icons-material/Close'
-import DragIndicator from '@mui/icons-material/DragIndicator'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { applyConversion } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
-import DraggablePanel from '@renderer/components/shared/DraggablePanel/DraggablePanel'
-import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
@@ -23,7 +20,6 @@ import {
 import { formatDuration, formatTime } from '@renderer/components/client/Logging/format'
 import { MouseEvent, ReactNode, useCallback, useMemo, useState } from 'react'
 import OpenInFull from '@mui/icons-material/OpenInFull'
-import PictureInPicture from '@mui/icons-material/PictureInPicture'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
 import TrendChart, { ReadoutRow, TrendLine } from './TrendChart'
@@ -59,21 +55,6 @@ import {
 } from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
 
-const PAPER_SX = {
-  p: 0,
-  width: 640,
-  height: 340,
-  minWidth: 420,
-  minHeight: 240,
-  // The docked trend's surface, rather than the lighter one of Paper's elevation.
-  bgcolor: 'background.paper',
-  backgroundImage: 'none',
-  resize: 'both',
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column'
-} as const
-
 const NO_UNITS: ClientUnit[] = []
 
 /** How tall the chart is when the trend draws lanes only: its time axis and a margin. */
@@ -106,17 +87,10 @@ const ModeButton = meme(
   }
 )
 
-/** The trend's other two places: floating, docked under Monitor's grid, or filling its room. */
+/** The trend's other place: docked under Monitor's grid, or filling its room. */
 const ModeButtons = meme(
   ({ mode }: { mode: TrendMode }): JSX.Element => (
     <>
-      {mode !== 'float' && (
-        <ModeButton
-          mode="float"
-          label="Float over Monitor"
-          icon={<PictureInPicture fontSize="small" />}
-        />
-      )}
       {mode !== 'dock' && (
         <ModeButton
           mode="dock"
@@ -568,30 +542,28 @@ const TrendBody = meme(
 
 /**
  * The registers a Log icon in Monitor added, as lines over the range picked
- * of the log, converted as the grid converts them, in a panel that drags by
- * its title, resizes from its corner, and leaves Monitor working under it. It
- * moves while the log runs, and otherwise shows the range up to where the log
+ * of the log, converted as the grid converts them, docked under Monitor's
+ * grid or filling its room. It moves while the log runs, and otherwise shows the range up to where the log
  * last stopped. The range before the log's oldest sample is hatched, and each
  * stretch between two runs is shaded and named by why the first ended.
  */
-const TrendContent = meme(
-  ({ placement, anchor }: { placement: 'float' | 'inline'; anchor: HTMLElement }): JSX.Element => {
-    const entries = useTrendPanelZustand((z) => z.entries)
-    const mode = useTrendPanelZustand((z) => z.mode)
-    const uuid = useTrendPanelZustand((z) => z.uuid)
-    const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
-    const lineEntries = useMemo(
-      () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
-      [entries, units]
-    )
-    const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
-    const handleClose = useCallback(() => {
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.close()
-    }, [])
+const TrendContent = meme((): JSX.Element => {
+  const entries = useTrendPanelZustand((z) => z.entries)
+  const mode = useTrendPanelZustand((z) => z.mode)
+  const uuid = useTrendPanelZustand((z) => z.uuid)
+  const units = useClientZustand((z) => z.clients[uuid]?.units ?? NO_UNITS)
+  const lineEntries = useMemo(
+    () => entries.filter((entry) => !isLane(entry, mapValueOf(units, entry))),
+    [entries, units]
+  )
+  const layout = useMemo(() => layoutOf(lineEntries, units), [lineEntries, units])
+  const handleClose = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.close()
+  }, [])
 
-    const floating = placement === 'float'
-    const content = (
+  return (
+    <Box sx={{ height: '100%', bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}>
       <Box
         data-testid="trend-panel"
         data-mode={mode}
@@ -602,16 +574,14 @@ const TrendContent = meme(
          * ranges, and the icons keep their place at the right of the first row.
          */}
         <Box
-          className={floating ? DRAG_HANDLE_CLASS : undefined}
           sx={{
             display: 'flex',
             alignItems: 'flex-start',
             gap: 1,
-            pl: floating ? 0.75 : 1.5,
+            pl: 1.5,
             pr: 1,
             pt: 0.75,
-            userSelect: 'none',
-            cursor: floating ? 'move' : 'default'
+            userSelect: 'none'
           }}
         >
           <Box
@@ -626,7 +596,6 @@ const TrendContent = meme(
             }}
           >
             <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
-              {floating && <DragIndicator sx={{ fontSize: 16, color: 'text.disabled' }} />}
               <TrendConfigMenu />
             </Box>
             <Box sx={HEADER_ROW_SX}>
@@ -668,36 +637,15 @@ const TrendContent = meme(
           layout={layout}
         />
       </Box>
-    )
-    if (!floating)
-      return (
-        <Box
-          sx={{ height: '100%', bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}
-        >
-          {content}
-        </Box>
-      )
-    return (
-      // In the grid's top right corner, clear of the address column where the
-      // Log icons that add to it are: opened under a row, it covered the rows
-      // below it.
-      <DraggablePanel anchor={anchor} onClose={handleClose} paperSx={PAPER_SX} label="Trend">
-        {content}
-      </DraggablePanel>
-    )
-  }
-)
+    </Box>
+  )
+})
 
-/**
- * The trend where Monitor draws it: floating, or inline in its grid's room.
- * Only the place the trend's mode names draws it, and the other returns
- * before it asks main for anything.
- */
-const TrendPanel = meme(({ placement }: { placement: 'float' | 'inline' }): JSX.Element | null => {
-  const anchor = useTrendPanelZustand((z) => z.anchor)
-  const floatingMode = useTrendPanelZustand((z) => z.mode === 'float')
-  if (anchor === null || floatingMode !== (placement === 'float')) return null
-  return <TrendContent placement={placement} anchor={anchor} />
+/** The trend in Monitor's grid room, while it is open; closed, it asks main for nothing. */
+const TrendPanel = meme((): JSX.Element | null => {
+  const open = useTrendPanelZustand((z) => z.anchor !== null)
+  if (!open) return null
+  return <TrendContent />
 })
 
 export default TrendPanel

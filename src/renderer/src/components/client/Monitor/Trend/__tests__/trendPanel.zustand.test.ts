@@ -26,7 +26,7 @@ beforeEach(() => {
     anchor: null,
     view: undefined,
     room: anchor,
-    mode: 'float',
+    mode: 'dock',
     openLanes: [],
     settings: DEFAULT_TREND_SETTINGS
   })
@@ -287,11 +287,11 @@ describe('the trend store', () => {
 
   it('keeps where it is drawn when it closes', () => {
     store().add(entry(0))
-    store().setMode('dock')
+    store().setMode('fill')
     store().close()
     store().open('client-a')
 
-    expect(store().mode).toBe('dock')
+    expect(store().mode).toBe('fill')
   })
 
   it('keeps a bitmap opened into its bits from place to place, and closes it again', () => {

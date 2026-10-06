@@ -58,7 +58,7 @@ beforeEach(() => {
     anchor: null,
     view: undefined,
     room: document.createElement('div'),
-    mode: 'float'
+    mode: 'dock'
   })
 })
 

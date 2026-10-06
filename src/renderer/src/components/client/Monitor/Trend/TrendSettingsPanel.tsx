@@ -244,7 +244,7 @@ export interface SettingsLine {
  * The trend's Axes and lines: a fixed range per engineering unit, the time
  * axis as the clock or as the time since the trend's start, how lines are
  * drawn, and each line's colour. A panel that drags by its title and leaves
- * the trend working beside it, so it need not cover a small floating trend.
+ * the trend working beside it.
  */
 const TrendSettingsPanel = meme(
   ({ lines, axes }: { lines: SettingsLine[]; axes: TrendAxis[] }): JSX.Element => {
@@ -258,13 +258,11 @@ const TrendSettingsPanel = meme(
       setAnchor((open) => (open === null ? button : null))
     }, [])
     const handleClose = useCallback(() => setAnchor(null), [])
-    // Beside the floating trend, whose paper is the region named Trend.
     const opening = useCallback(
       (width: number, height: number) => {
         const button = anchor?.getBoundingClientRect() ?? new DOMRect()
-        const trend = anchor?.closest('[role="region"][aria-label="Trend"]')
         const room = { width: window.innerWidth, height: window.innerHeight }
-        return settingsPlace(button, trend?.getBoundingClientRect(), { width, height }, room)
+        return settingsPlace(button, { width, height }, room)
       },
       [anchor]
     )

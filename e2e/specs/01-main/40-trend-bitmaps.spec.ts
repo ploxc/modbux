@@ -83,12 +83,12 @@ test.describe.serial('Bitmaps in the trend', () => {
   test('a trend too short for its chart and lanes still shows one whole lane', async ({
     mainPage
   }) => {
-    await mainPage.evaluate(() => {
-      const paper = document
-        .querySelector('[data-testid="trend-panel"]')
-        ?.closest<HTMLElement>('.MuiPaper-root')
-      if (paper) paper.style.height = '260px'
-    })
+    await mainPage
+      .getByTestId('trend-panel')
+      .locator('xpath=..')
+      .evaluate((el) => {
+        el.style.height = '260px'
+      })
 
     // A lane is 22 px, under 4 px of the scroll box's padding.
     await expect(async () => {
@@ -97,15 +97,13 @@ test.describe.serial('Bitmaps in the trend', () => {
     }).toPass()
   })
 
-  test('opened bitmaps stay open as the trend docks, fills and floats again', async ({
-    mainPage
-  }) => {
+  test('opened bitmaps stay open as the trend fills and docks again', async ({ mainPage }) => {
     const toggle = (address: number): ReturnType<typeof mainPage.getByTestId> =>
       mainPage.getByTestId(`trend-lane-toggle-holding_registers-${address}`)
     await toggle(6).click()
     await expect(toggle(6)).toHaveAttribute('aria-expanded', 'false')
 
-    for (const mode of ['dock', 'fill', 'float']) {
+    for (const mode of ['fill', 'dock']) {
       await mainPage.getByTestId(`trend-mode-${mode}-btn`).click()
       await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', mode)
       await expect(toggle(6)).toHaveAttribute('aria-expanded', 'false')
@@ -114,7 +112,7 @@ test.describe.serial('Bitmaps in the trend', () => {
   })
 
   test('the docked trend narrows with the window again', async ({ mainPage, electronApp }) => {
-    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', 'dock')
     await setWindowSize(electronApp, 1900, DEFAULT_SIZE[1])
     await setWindowSize(electronApp, 1200, DEFAULT_SIZE[1])
 
