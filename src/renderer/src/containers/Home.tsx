@@ -8,12 +8,12 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { useLayoutZustand } from '@renderer/context/layout.zustand'
 import { useCallback } from 'react'
 import SettingsButton from '@renderer/components/settings/SettingsButton'
-import modbuxImage from '../../../../resources/icon.png'
 import ClientIcon from '@renderer/svg/Client'
 import ServerIcon from '@renderer/svg/Server'
 import { useLiveZustand, dataOf } from '@renderer/context/live.zustand'
 import { sendEvent } from '@renderer/events'
 import Ploxc from '@renderer/svg/Ploxc'
+import Modbux from '@renderer/svg/Modbux'
 import GithubCat from '@renderer/svg/GithubCat'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { useServerZustand } from '@renderer/context/server.zustand'
@@ -190,18 +190,16 @@ const Home = meme(() => {
           alignItems: 'center'
         }}
       >
-        <Box
-          sx={() => ({
+        <Modbux
+          sx={{
             position: 'absolute',
-            top: 0,
-            bottom: 0,
-            right: 0,
-            left: 0,
-            backgroundImage: `url(${modbuxImage})`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-            opacity: 0.1
-          })}
+            top: '50%',
+            left: '50%',
+            width: 512,
+            height: 512,
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none'
+          }}
         />
         <Box sx={() => ({ display: 'flex', gap: 3 })}>
           <ServerButton />
