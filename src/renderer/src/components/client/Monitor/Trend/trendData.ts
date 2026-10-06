@@ -317,6 +317,32 @@ export const zoomAround = (from: number, to: number, at: number, factor: number)
   to: at + (to - at) * factor
 })
 
+/** How far an arrow key pans, as a share of the stretch shown. */
+export const KEY_PAN = 0.1
+
+/** The stretch `from` to `to` moved by `share` of its length, later for a positive share. */
+export const panBy = (from: number, to: number, share: number): TrendView => {
+  const moved = (to - from) * share
+  return { from: from + moved, to: to + moved }
+}
+
+/** The range an axis shows after a zoom by `factor` around the value `at`. */
+export const zoomAxis = (range: AxisRange, at: number, factor: number): AxisRange => ({
+  min: at - (at - range.min) * factor,
+  max: at + (range.max - at) * factor
+})
+
+/**
+ * How much a pinch's step zooms, which Chromium hands over as a wheel event
+ * with `ctrlKey` set: out for a positive `deltaY`, in for a negative one. The
+ * rate is a first guess, not yet tuned on a trackpad.
+ */
+const PINCH_RATE = 0.01
+export const pinchFactor = (deltaY: number): number => Math.exp(deltaY * PINCH_RATE)
+
+/** How long apart two zooms or pans are and still one step back. */
+export const HISTORY_GAP_MS = 500
+
 /**
  * The points of a window with those of the answer that went on from it.
  * Main answers the stretch the last answer ended in again, with only the

@@ -105,7 +105,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across the trend selects a stretch and shows, from the log itself, each
   register's mean, lowest, highest, median, last value, change and sample
   count, or how long a bit was on and how often it switched; Zoom to range
-  zooms to it. Each engineering unit draws a plot of its own, all on
+  zooms to it. The wheel sideways, a shift-drag, a pinch and a finger pan and
+  zoom the time; the wheel over an axis zooms it and a drag along it pans it,
+  until its reset hands it back to Auto or Fixed. Backspace or the back arrow
+  takes the last zoom back; + and − zoom, ← and → pan, and Esc lets the
+  stretch go and then follows the log. The ? lists them all. The plot under
+  the pointer shows a crosshair and its value on its axis. Each engineering unit draws a plot of its own, all on
   one time axis and under one cursor; a grip under a plot drags its height,
   which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
   and a bitmap opens into a lane a bit. Plots and lanes taller than the trend

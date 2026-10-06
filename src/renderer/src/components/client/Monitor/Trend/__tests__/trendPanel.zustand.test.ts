@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TREND_COLORS } from '@renderer/theme'
 import { newClientUnit } from '@shared'
-import { DEFAULT_TREND_SETTINGS } from '../trendData'
+import { DEFAULT_TREND_SETTINGS, HISTORY_GAP_MS } from '../trendData'
 import { snapshotOf, TrendEntry, trendKey, useTrendPanelZustand } from '../trendPanel.zustand'
 
 const entry = (address: number, uuid = 'client-a'): TrendEntry => ({
@@ -29,7 +29,10 @@ beforeEach(() => {
     mode: 'dock',
     openLanes: [],
     settings: DEFAULT_TREND_SETTINGS,
-    selection: undefined
+    selection: undefined,
+    axisZoom: {},
+    history: [],
+    historyAt: 0
   })
 })
 
@@ -407,7 +410,7 @@ describe('the trend store', () => {
 
     it.each([
       ['a range', (): void => store().setRange('1h')],
-      ['Live', (): void => store().setView(undefined)],
+      ['Live', (): void => store().followRange()],
       [
         "the calendar's stretch",
         (): void => store().setView({ from: 0, to: 9, pressed: 'calendar' })
@@ -423,12 +426,109 @@ describe('the trend store', () => {
       expect(store().selection).toBeUndefined()
     })
 
+    it('stays when a zoom reaches the end of the log and follows it', () => {
+      selected()
+      store().setView(undefined)
+      expect(store().selection).toEqual(stretch)
+    })
+
     it("stays when the trend opens on its own client's register", () => {
       selected()
       store().add(entry(1))
       store().open('client-a')
       expect(store().selection).toEqual(stretch)
     })
+  })
+
+  describe('the history', () => {
+    const first = { from: 0, to: 100 }
+    const second = { from: 20, to: 60 }
+
+    it('puts the view it leaves on the list, one step for a run closer together than the gap', () => {
+      store().setView(first)
+      store().pushHistory(1000)
+      store().setView(second)
+      store().pushHistory(1000 + HISTORY_GAP_MS - 1)
+      store().setView({ from: 30, to: 50 })
+
+      expect(store().history.map(({ view }) => view)).toEqual([first])
+    })
+
+    it('takes a step for each zoom further apart than the gap, and goes back one at a time', () => {
+      store().setView(first)
+      store().pushHistory(1000)
+      store().setView(second)
+      store().pushHistory(1000 + HISTORY_GAP_MS)
+      store().setView({ from: 30, to: 50 })
+
+      store().back()
+      expect(store().view).toEqual(second)
+      store().back()
+      expect(store().view).toEqual(first)
+      expect(store().history).toEqual([])
+    })
+
+    it('measures the gap from the last zoom of a run, not its first', () => {
+      store().pushHistory(1000)
+      store().pushHistory(1400)
+      store().pushHistory(1800)
+      expect(store().history).toHaveLength(1)
+    })
+
+    it('takes the axes back with the view', () => {
+      store().setAxisZoom('V', { min: 1, max: 2 })
+      store().pushHistory(1000)
+      store().setAxisZoom('V', { min: 5, max: 6 })
+      store().back()
+      expect(store().axisZoom).toEqual({ V: { min: 1, max: 2 } })
+    })
+
+    it('does nothing back on an empty list', () => {
+      store().setView(first)
+      store().back()
+      expect(store().view).toEqual(first)
+    })
+
+    it('takes a new step after going back, however soon', () => {
+      store().pushHistory(1000)
+      store().pushHistory(1000 + HISTORY_GAP_MS)
+      store().back()
+      store().pushHistory(1001 + HISTORY_GAP_MS)
+      expect(store().history).toHaveLength(2)
+    })
+
+    it('takes a new step after it was emptied, however soon', () => {
+      store().pushHistory(1000)
+      store().followRange()
+      store().pushHistory(1001)
+      expect(store().history).toHaveLength(1)
+    })
+
+    it.each([
+      ['a range', (): void => store().setRange('1h')],
+      ['Live', (): void => store().followRange()],
+      [
+        "the calendar's stretch",
+        (): void => store().setView({ from: 0, to: 9, pressed: 'calendar' })
+      ],
+      ['a saved trend', (): void => store().load('client-a', snapshotOf(store(), 'Saved'))],
+      ['New trend', (): void => store().startNew()],
+      ['closing', (): void => store().close()]
+    ])('empties with the axes zoomed on %s', (_name, action) => {
+      store().add(entry(0))
+      store().setAxisZoom('V', { min: 1, max: 2 })
+      store().pushHistory(1000)
+      action()
+      expect(store().history).toEqual([])
+      expect(store().axisZoom).toEqual({})
+    })
+  })
+
+  it('holds an axis zoomed per unit, and hands it back with none', () => {
+    store().setAxisZoom('V', { min: 1, max: 2 })
+    store().setAxisZoom('A', { min: 3, max: 4 })
+    store().setAxisZoom('V', undefined)
+    expect(store().axisZoom).toEqual({ A: { min: 3, max: 4 } })
   })
 
   it("forgets the name when it starts over with another client's register", () => {

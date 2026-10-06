@@ -11,6 +11,7 @@ import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 import { textMuted } from '@renderer/theme'
 import {
+  AxisRange,
   ClientUnit,
   isBooleanRegister,
   isNumberRegister,
@@ -19,7 +20,10 @@ import {
 } from '@shared'
 import { formatDuration, formatTime } from '@renderer/components/client/Logging/format'
 import {
+  Fragment,
+  KeyboardEvent,
   MouseEvent,
+  PointerEvent,
   ReactNode,
   RefObject,
   useCallback,
@@ -32,6 +36,9 @@ import {
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
+import HelpOutline from '@mui/icons-material/HelpOutlineOutlined'
+import Undo from '@mui/icons-material/Undo'
+import Tooltip from '@mui/material/Tooltip'
 import type uPlot from 'uplot'
 import PlotGrip from './PlotGrip'
 import TrendConfigMenu from './TrendConfigMenu'
@@ -62,6 +69,11 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  selectionLabel,
+  panBy,
+  zoomAround,
+  WHEEL_ZOOM,
+  KEY_PAN,
   navigatorEntry,
   scaleRange
 } from './trendData'
@@ -158,7 +170,7 @@ const RangePicker = meme((): JSX.Element => {
       if (next === 'calendar') return
       const trendPanelZustand = useTrendPanelZustand.getState()
       // The range pressed already, which is null to an exclusive group.
-      if (next === null) trendPanelZustand.setView(undefined)
+      if (next === null) trendPanelZustand.followRange()
       else trendPanelZustand.setRange(next)
     },
     []
@@ -193,7 +205,7 @@ const LiveOrPaused = meme((): JSX.Element => {
       if (picked === null) return
       const trendPanelZustand = useTrendPanelZustand.getState()
       if (picked === 'live') {
-        trendPanelZustand.setView(undefined)
+        trendPanelZustand.followRange()
         return
       }
       const { oldest } = dataOf(useLiveZustand.getState(), trendPanelZustand.uuid).clientState.log
@@ -228,6 +240,82 @@ const LiveOrPaused = meme((): JSX.Element => {
     </ToggleButtonGroup>
   )
 })
+
+/** The press that takes the last zoom or pan back, there while there is one, and named by where it goes. */
+const BackButton = meme((): JSX.Element | null => {
+  const step = useTrendPanelZustand((z) => z.history.at(-1))
+  const back = useTrendPanelZustand.getState().back
+  if (step === undefined) return null
+  const title =
+    step.view === undefined || isFollow(step.view)
+      ? 'Back to the range'
+      : `Back to ${selectionLabel(step.view.from, step.view.to)}`
+  return (
+    <IconButton
+      size="small"
+      aria-label={title}
+      title={title}
+      data-testid="trend-back-btn"
+      onClick={back}
+    >
+      <Undo fontSize="small" />
+    </IconButton>
+  )
+})
+
+/** What each gesture and key does in the trend, as the ? lists it. */
+const GESTURES: readonly [string, string][] = [
+  ['Drag', 'select a stretch'],
+  ['Shift + drag', 'pan'],
+  ['Wheel', 'zoom the time around the cursor'],
+  ['Wheel sideways', 'pan'],
+  ['Wheel over an axis', 'zoom that axis'],
+  ['Pinch', 'zoom the time'],
+  ['Backspace', 'back one zoom'],
+  ['Double click', 'back to the range, live'],
+  ['+ and −', 'zoom in and out'],
+  ['← and →', 'pan'],
+  ['Esc', 'clear the stretch, then back to live']
+]
+
+/** The ?, whose tooltip lists the gestures and keys, on hover and on focus. */
+const HelpButton = meme(
+  (): JSX.Element => (
+    <Tooltip
+      title={
+        <Box
+          data-testid="trend-help"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            columnGap: 1.75,
+            rowGap: 0.625,
+            py: 0.5,
+            fontSize: 12
+          }}
+        >
+          {GESTURES.map(([gesture, effect]) => (
+            <Fragment key={gesture}>
+              <Box component="span" sx={{ opacity: 0.7 }}>
+                {gesture}
+              </Box>
+              <span>{effect}</span>
+            </Fragment>
+          ))}
+        </Box>
+      }
+      slotProps={{ tooltip: { sx: { maxWidth: 360 } } }}
+    >
+      <IconButton
+        size="small"
+        aria-label="How to move through the trend"
+        data-testid="trend-help-btn"
+      >
+        <HelpOutline fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  )
+)
 
 /** Whether a register is drawn as a lane under the lines: a bit, or a bitmap's word. */
 const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
@@ -524,6 +612,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const time = useTrendPanelZustand((z) => z.settings.time)
   const axes = useTrendPanelZustand((z) => z.settings.axes)
   const heights = useTrendPanelZustand((z) => z.settings.heights)
+  const axisZoom = useTrendPanelZustand((z) => z.axisZoom)
   const selection = useTrendPanelZustand((z) => z.selection)
   const setSelection = useTrendPanelZustand.getState().setSelection
   // A script's value waits for the engine, and draws again once it is there.
@@ -606,15 +695,55 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const handleZoom = useCallback(
     (zoomFrom: number, zoomTo: number) => {
       const trendPanelZustand = useTrendPanelZustand.getState()
+      trendPanelZustand.pushHistory(Date.now())
       trendPanelZustand.setView(
         viewWithin(zoomFrom, zoomTo, { from: oldest ?? zoomFrom, to: end }, rangeSpan, running)
       )
     },
     [end, oldest, rangeSpan, running]
   )
-  const handleFollow = useCallback(() => {
+  const handleFollow = useTrendPanelZustand.getState().followRange
+  const handleAxisZoom = useCallback((unit: string, range: AxisRange | undefined) => {
     const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.setView(undefined)
+    trendPanelZustand.pushHistory(Date.now())
+    trendPanelZustand.setAxisZoom(unit, range)
+  }, [])
+  // The keys, while the focus is in the trend's plots, lanes or navigator
+  // and not in a field: + and - zoom, the arrows pan, Backspace goes back one
+  // and Esc lets the selection go, or with none follows the log again.
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const { target } = event
+      if (event.defaultPrevented || !(target instanceof HTMLElement)) return
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+        return
+      // A panel the trend opened in a portal bubbles here too, and is not the trend.
+      if (!event.currentTarget.contains(target)) return
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      const middle = (from + to) / 2
+      const moved =
+        event.key === '+' || event.key === '='
+          ? zoomAround(from, to, middle, WHEEL_ZOOM)
+          : event.key === '-'
+            ? zoomAround(from, to, middle, 1 / WHEEL_ZOOM)
+            : event.key === 'ArrowLeft'
+              ? panBy(from, to, -KEY_PAN)
+              : event.key === 'ArrowRight'
+                ? panBy(from, to, KEY_PAN)
+                : undefined
+      if (moved !== undefined) handleZoom(moved.from, moved.to)
+      else if (event.key === 'Backspace') trendPanelZustand.back()
+      else if (event.key === 'Escape' && trendPanelZustand.selection !== undefined)
+        trendPanelZustand.setSelection(undefined)
+      else if (event.key === 'Escape') trendPanelZustand.followRange()
+      else return
+      event.preventDefault()
+    },
+    [from, to, handleZoom]
+  )
+  // A press on the plots takes the focus, so the keys work after the mouse.
+  const handleFocus = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.focus()
   }, [])
   const lanes = entries.flatMap((entry): TrendLane[] => {
     const mapValue = mapValueOf(units, entry)
@@ -664,8 +793,22 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const origin = oldest ?? from
 
   return (
-    <Box sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <Box ref={room} sx={{ position: 'relative', flex: '1 1 0', minHeight: 0, display: 'flex' }}>
+    <Box
+      onKeyDown={handleKeyDown}
+      sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}
+    >
+      <Box
+        ref={room}
+        tabIndex={-1}
+        onPointerDown={handleFocus}
+        sx={{
+          position: 'relative',
+          flex: '1 1 0',
+          minHeight: 0,
+          display: 'flex',
+          '&:focus': { outline: 'none' }
+        }}
+      >
         <Box
           ref={scroll}
           data-testid="trend-plots"
@@ -689,10 +832,15 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
             >
               <TrendPlot
                 syncKey={syncKey}
+                index={index}
                 lines={plot.lines}
                 data={lines.map(({ series }) => series)}
                 unit={plot.unit}
-                range={axes?.[plot.unit]}
+                // A zoomed axis shows its zoom, over Fixed, over Auto.
+                range={axisZoom[plot.unit] ?? axes?.[plot.unit]}
+                axisZoomed={axisZoom[plot.unit] !== undefined}
+                resetLabel={axes?.[plot.unit] === undefined ? 'Auto' : 'Fixed'}
+                onAxisZoom={handleAxisZoom}
                 drawAs={drawAs}
                 from={from}
                 to={to}
@@ -826,12 +974,14 @@ const TrendContent = meme((): JSX.Element => {
             </Box>
             <Box sx={HEADER_ROW_SX}>
               <RangePicker />
+              <BackButton />
             </Box>
             <Box sx={[HEADER_ROW_SX, { minWidth: 0 }]}>
               <TrendStatus uuid={uuid} />
             </Box>
           </Box>
           <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
+            <HelpButton />
             <TrendSettingsPanel lines={layout.settingsLines} axes={layout.axes} />
             <ModeButtons mode={mode} />
             <IconButton

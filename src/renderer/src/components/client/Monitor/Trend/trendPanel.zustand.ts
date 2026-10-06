@@ -12,6 +12,7 @@ import { create } from 'zustand'
 import { mutative } from 'zustand-mutative'
 import {
   DEFAULT_TREND_SETTINGS,
+  HISTORY_GAP_MS,
   isFollow,
   SHORTEST_VIEW_MS,
   TREND_SPANS,
@@ -80,10 +81,27 @@ interface TrendPanelZustand {
    */
   view: TrendView | TrendFollow | undefined
   /**
-   * Zooms or pans to a view, which keeps the selection; following the range
-   * again, or a stretch the calendar picked, lets it go.
+   * Zooms or pans to a view, which keeps the selection; a stretch the
+   * calendar picked starts over, as `followRange` does.
    */
   setView: (view: TrendView | TrendFollow | undefined) => void
+  /** Follows the log over the range again, which Live, a double click and the range pressed do. */
+  followRange: () => void
+  /** Each engineering unit's axis zoomed or panned to, a view rather than a setting. */
+  axisZoom: Record<string, AxisRange>
+  /** Holds a unit's axis at a range, or hands it back to Auto or Fixed with none. */
+  setAxisZoom: (unit: string, range: AxisRange | undefined) => void
+  /** The views zoomed and panned away from, the last one last. */
+  history: TrendStep[]
+  /**
+   * Puts the view and the axes on the history, before a zoom or a pan at
+   * `now`. A run of them closer together than `HISTORY_GAP_MS` is one step.
+   */
+  pushHistory: (now: number) => void
+  /** When the history last took a step, which the next one is measured from. */
+  historyAt: number
+  /** Takes the last step off the history and shows it. */
+  back: () => void
   /** The stretch dragged across the plots, which the statistics read; none while none is. */
   selection: TrendStretch | undefined
   setSelection: (selection: TrendStretch | undefined) => void
@@ -152,9 +170,25 @@ export interface TrendStretch {
   to: number
 }
 
-/** What the trend lets go of when it starts over on a range, a picked stretch, another trend or none. */
-const letGo = (state: { selection: TrendStretch | undefined }): void => {
+/** A view the trend was zoomed or panned away from, and its axes as they were. */
+interface TrendStep {
+  view: TrendView | TrendFollow | undefined
+  axisZoom: Record<string, AxisRange>
+}
+
+/**
+ * What the trend lets go of when it starts over on a range, a picked
+ * stretch, another trend or none: the selection, the axes zoomed and the
+ * history.
+ */
+const letGo = (state: {
+  selection: TrendStretch | undefined
+  axisZoom: Record<string, AxisRange>
+  history: TrendStep[]
+}): void => {
   state.selection = undefined
+  state.axisZoom = {}
+  state.history = []
 }
 
 /** The opened bitmaps of `openLanes` that `entries` still draws. */
@@ -224,7 +258,34 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     setView: (view): void =>
       set((state) => {
         state.view = view
-        if (view === undefined || (!isFollow(view) && view.pressed === 'calendar')) letGo(state)
+        if (view !== undefined && !isFollow(view) && view.pressed === 'calendar') letGo(state)
+      }),
+    followRange: (): void =>
+      set((state) => {
+        state.view = undefined
+        letGo(state)
+      }),
+    axisZoom: {},
+    setAxisZoom: (unit, range): void =>
+      set((state) => {
+        if (range === undefined) delete state.axisZoom[unit]
+        else state.axisZoom[unit] = range
+      }),
+    history: [],
+    historyAt: 0,
+    pushHistory: (now): void =>
+      set((state) => {
+        if (state.history.length === 0 || now - state.historyAt >= HISTORY_GAP_MS)
+          state.history.push({ view: state.view, axisZoom: state.axisZoom })
+        state.historyAt = now
+      }),
+    back: (): void =>
+      set((state) => {
+        const step = state.history.pop()
+        if (step === undefined) return
+        state.view = step.view
+        state.axisZoom = step.axisZoom
+        state.historyAt = 0
       }),
     selection: undefined,
     setSelection: (selection): void =>
@@ -294,7 +355,9 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined,
-        selection: sameClient ? get().selection : undefined
+        selection: sameClient ? get().selection : undefined,
+        axisZoom: sameClient ? get().axisZoom : {},
+        history: sameClient ? get().history : []
       })
     },
     add: (entry): boolean => {
@@ -319,7 +382,9 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined,
-        selection: sameClient ? get().selection : undefined
+        selection: sameClient ? get().selection : undefined,
+        axisZoom: sameClient ? get().axisZoom : {},
+        history: sameClient ? get().history : []
       })
       return true
     },

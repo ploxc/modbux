@@ -4,7 +4,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { LogPoint } from '@shared'
 import { KeyboardEvent, PointerEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { EDGE, Grip, gripAt } from './trendData'
+import { EDGE, Grip, gripAt, KEY_PAN } from './trendData'
 
 interface TrendNavigatorProps {
   /** What the log holds: its oldest sample, up to now while it runs. */
@@ -19,9 +19,6 @@ interface TrendNavigatorProps {
   /** A drag of the window, or of one of its edges, asks for this stretch. */
   onPan: (from: number, to: number) => void
 }
-
-/** How far an arrow key pans, as a share of the stretch shown. */
-const KEY_PAN = 0.1
 
 const HEIGHT = 30
 

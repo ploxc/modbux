@@ -26,6 +26,9 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  panBy,
+  zoomAxis,
+  pinchFactor,
   selectionLabel,
   navigatorEntry,
   PLOT_MIN_HEIGHT,
@@ -325,6 +328,32 @@ describe('plotsOf', () => {
       { unit: 'kW', color: 'green' }
     ]
     expect(plotsOf(lines).map(({ unit }) => unit)).toEqual(trendAxes(lines).map(({ unit }) => unit))
+  })
+})
+
+describe('panBy', () => {
+  it('moves the stretch by a share of its length, later for a positive share', () => {
+    expect(panBy(100, 200, 0.1)).toEqual({ from: 110, to: 210 })
+    expect(panBy(100, 200, -0.5)).toEqual({ from: 50, to: 150 })
+  })
+})
+
+describe('zoomAxis', () => {
+  it('zooms an axis around the value under the pointer, keeping that value where it is', () => {
+    expect(zoomAxis({ min: 0, max: 100 }, 20, 0.5)).toEqual({ min: 10, max: 60 })
+    expect(zoomAxis({ min: -10, max: 10 }, 0, 2)).toEqual({ min: -20, max: 20 })
+  })
+})
+
+describe('pinchFactor', () => {
+  it('zooms out on a pinch closing and in on one opening, and not at all on none', () => {
+    expect(pinchFactor(10)).toBeGreaterThan(1)
+    expect(pinchFactor(-10)).toBeLessThan(1)
+    expect(pinchFactor(0)).toBe(1)
+  })
+
+  it('undoes a step with the step back', () => {
+    expect(pinchFactor(25) * pinchFactor(-25)).toBeCloseTo(1, 12)
   })
 })
 

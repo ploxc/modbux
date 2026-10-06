@@ -1,11 +1,23 @@
+import Replay from '@mui/icons-material/Replay'
 import Box from '@mui/material/Box'
+import ButtonBase from '@mui/material/ButtonBase'
 import { alpha, useTheme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { useEffect, useRef } from 'react'
+import { PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { AxisRange, TrendSettings } from '@shared'
-import { axisScale, TrendGap, TrendSeries, WHEEL_ZOOM, zoomAround } from './trendData'
+import {
+  axisScale,
+  figure,
+  panBy,
+  pinchFactor,
+  TrendGap,
+  TrendSeries,
+  WHEEL_ZOOM,
+  zoomAround,
+  zoomAxis
+} from './trendData'
 import { TrendStretch } from './trendPanel.zustand'
 
 /** One line of a trend: its colour, the scale it is drawn on, and how the readout names it. */
@@ -45,14 +57,21 @@ const UNIT_ROOM = 16
 interface TrendPlotProps {
   /** The trend's cursor group: every plot of one trend shows one cursor. */
   syncKey: string
+  /** Which plot it is, from the top, which its axis's test ids carry. */
+  index?: number
   /** The lines, which the plot is made for; a new array makes it again. */
   lines: TrendLine[]
   /** Each line's points, in the order of `lines`. */
   data: TrendSeries[]
   /** The engineering unit its axis is of; none for a plot under the lanes, which has no axis. */
   unit: string | undefined
-  /** The range its axis is held at, or none to fit what it draws. */
+  /** The range its axis is held at, zoomed to or fixed, or none to fit what it draws. */
   range: AxisRange | undefined
+  /** Whether its axis is zoomed or panned, and what its reset hands it back to. */
+  axisZoomed?: boolean
+  resetLabel?: 'Auto' | 'Fixed'
+  /** A wheel or a drag over the axis asks for this range, and its reset for none. */
+  onAxisZoom?: (unit: string, range: AxisRange | undefined) => void
   drawAs: TrendSettings['drawAs']
   /** The time range drawn, which runs past the last sample while it is live. */
   from: number
@@ -61,7 +80,7 @@ interface TrendPlotProps {
   oldest: number | undefined
   /** Where the log took no samples, each shaded and named by why. */
   gaps: TrendGap[]
-  /** A notch of the wheel asks for this stretch. */
+  /** The wheel, a pinch, a sideways swipe, a shift-drag or a touch asks for this stretch. */
   onZoom: (from: number, to: number) => void
   /** The stretch selected, drawn as a band. */
   selection: TrendStretch | undefined
@@ -209,10 +228,14 @@ const drawBackdrop = (
 const TrendPlot = meme(
   ({
     syncKey,
+    index = 0,
     lines,
     data,
     unit,
     range,
+    axisZoomed = false,
+    resetLabel = 'Auto',
+    onAxisZoom,
     drawAs,
     from,
     to,
@@ -244,6 +267,10 @@ const TrendPlot = meme(
     plotted.current = onPlot
     const handed = useRef(onChart)
     handed.current = onChart
+    const axisZoomTo = useRef(onAxisZoom)
+    axisZoomTo.current = onAxisZoom
+    const axisArea = useRef<HTMLDivElement>(null)
+    const axisDrag = useRef<{ y: number; range: AxisRange; height: number } | null>(null)
     const shown = useRef({ from, to })
     shown.current = { from, to }
 
@@ -263,6 +290,7 @@ const TrendPlot = meme(
       }
       const labelFont = `${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
       const unitFont = `500 ${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
+      const crossColor = theme.palette.text.secondary
       const bandColors = {
         band: alpha(theme.palette.info.main, 0.1),
         edge: alpha(theme.palette.info.main, 0.6)
@@ -294,9 +322,15 @@ const TrendPlot = meme(
           },
           // In place of uPlot's own, which fits x to the data and so to the
           // margin a zoomed trend asks either side of its stretch.
+          // A press with Shift held pans the time rather than selecting.
           bind: {
             dblclick: () => () => {
               zoomOut.current()
+              return null
+            },
+            mousedown: (_self, _target, handler) => (event) => {
+              if (!event.shiftKey) return handler(event)
+              startPan(event.clientX)
               return null
             }
           }
@@ -324,11 +358,25 @@ const TrendPlot = meme(
           setCursor: [
             (hovered: uPlot): void => {
               // A plot the cursor is synced to has no event of its own.
-              if (hovered.cursor.event == null) return
+              if (hovered.cursor.event == null) {
+                crosshair.style.display = 'none'
+                tag.style.display = 'none'
+                return
+              }
               const { left, top } = hovered.cursor
               if (left === undefined || top === undefined || left < 0) {
+                crosshair.style.display = 'none'
+                tag.style.display = 'none'
                 cursorMoved.current(undefined)
                 return
+              }
+              // The plot under the pointer reads its value off its axis.
+              if (scale !== undefined && hovered.scales[scale]?.min != null) {
+                crosshair.style.display = 'block'
+                crosshair.style.top = `${top}px`
+                tag.style.display = 'block'
+                tag.style.top = `${hovered.over.offsetTop + top - 8}px`
+                tag.textContent = figure(hovered.posToVal(top, scale))
               }
               const over = hovered.over.getBoundingClientRect()
               cursorMoved.current({
@@ -378,19 +426,129 @@ const TrendPlot = meme(
           }))
         ]
       }
+      // A horizontal dashed line at the pointer, and its value on the axis.
+      const crosshair = document.createElement('div')
+      Object.assign(crosshair.style, {
+        position: 'absolute',
+        left: '0',
+        right: '0',
+        height: '0',
+        borderTop: `1px dashed ${crossColor}`,
+        pointerEvents: 'none',
+        display: 'none'
+      })
+      const tag = document.createElement('div')
+      Object.assign(tag.style, {
+        position: 'absolute',
+        left: '0',
+        width: `${AXIS_SIZE - 2}px`,
+        boxSizing: 'border-box',
+        padding: '0 4px',
+        textAlign: 'right',
+        font: `10px ${theme.typography.fontFamily ?? 'sans-serif'}`,
+        lineHeight: '16px',
+        borderRadius: '2px',
+        color: theme.palette.text.primary,
+        background: theme.palette.action.selected,
+        pointerEvents: 'none',
+        zIndex: '1',
+        display: 'none'
+      })
+
+      /** A drag of the time from `startX`, moving the stretch as the pointer moves. */
+      const startPan = (startX: number): void => {
+        const start = shown.current
+        const width = made.over.clientWidth
+        const handleMove = (event: MouseEvent): void => {
+          const panned = panBy(start.from, start.to, -(event.clientX - startX) / width)
+          zoom.current(panned.from, panned.to)
+        }
+        const handleUp = (): void => {
+          window.removeEventListener('mousemove', handleMove)
+          window.removeEventListener('mouseup', handleUp)
+        }
+        window.addEventListener('mousemove', handleMove)
+        window.addEventListener('mouseup', handleUp)
+      }
+
       const made = new uPlot(options, [[]], box)
+      made.over.appendChild(crosshair)
+      made.root.appendChild(tag)
       chart.current = made
       if (unit !== undefined) handed.current?.(unit, made)
-      // A sideways swipe is not a zoom.
+      // A pinch is the wheel with Control, a sideways swipe pans, and the
+      // wheel zooms around the cursor.
       const handleWheel = (event: WheelEvent): void => {
-        if (event.deltaY === 0) return
-        event.preventDefault()
+        const { from: shownFrom, to: shownTo } = shown.current
         const at = made.posToVal(event.offsetX, 'x')
-        const factor = event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM
-        const zoomed = zoomAround(shown.current.from, shown.current.to, at, factor)
-        zoom.current(zoomed.from, zoomed.to)
+        let next
+        if (event.ctrlKey) next = zoomAround(shownFrom, shownTo, at, pinchFactor(event.deltaY))
+        else if (Math.abs(event.deltaX) > Math.abs(event.deltaY))
+          next = panBy(shownFrom, shownTo, event.deltaX / made.over.clientWidth)
+        else if (event.deltaY !== 0)
+          next = zoomAround(shownFrom, shownTo, at, event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM)
+        else return
+        event.preventDefault()
+        zoom.current(next.from, next.to)
       }
       made.over.addEventListener('wheel', handleWheel, { passive: false })
+
+      // On a touchscreen one finger pans, and two zoom around their middle.
+      made.over.style.touchAction = 'none'
+      const touches = new Map<number, number>()
+      let touchStart: { view: { from: number; to: number }; x: number; spread: number } | undefined
+      const touchState = (): { x: number; spread: number } => {
+        const xs = [...touches.values()]
+        const low = Math.min(...xs)
+        const high = Math.max(...xs)
+        return { x: (low + high) / 2, spread: high - low }
+      }
+      const handleTouchDown = (event: PointerEvent): void => {
+        if (event.pointerType !== 'touch') return
+        touches.set(event.pointerId, event.clientX)
+        touchStart = { view: shown.current, ...touchState() }
+      }
+      const handleTouchMove = (event: PointerEvent): void => {
+        if (event.pointerType !== 'touch' || !touches.has(event.pointerId) || !touchStart) return
+        touches.set(event.pointerId, event.clientX)
+        const now = touchState()
+        const { view } = touchStart
+        const width = made.over.clientWidth
+        const panned = panBy(view.from, view.to, -(now.x - touchStart.x) / width)
+        const left = made.over.getBoundingClientRect().left
+        const next =
+          touches.size > 1 && now.spread > 0
+            ? zoomAround(
+                panned.from,
+                panned.to,
+                made.posToVal(touchStart.x - left, 'x'),
+                touchStart.spread / now.spread
+              )
+            : panned
+        zoom.current(next.from, next.to)
+      }
+      const handleTouchUp = (event: PointerEvent): void => {
+        if (!touches.delete(event.pointerId)) return
+        touchStart = touches.size > 0 ? { view: shown.current, ...touchState() } : undefined
+      }
+      made.over.addEventListener('pointerdown', handleTouchDown)
+      made.over.addEventListener('pointermove', handleTouchMove)
+      made.over.addEventListener('pointerup', handleTouchUp)
+      made.over.addEventListener('pointercancel', handleTouchUp)
+
+      // The wheel over the axis zooms it around the value under the pointer.
+      const axisBox = axisArea.current
+      const handleAxisWheel = (event: WheelEvent): void => {
+        const held = scale === undefined ? undefined : made.scales[scale]
+        if (unit === undefined || scale === undefined || held?.min == null || held.max == null)
+          return
+        if (event.deltaY === 0) return
+        event.preventDefault()
+        const at = made.posToVal(event.clientY - made.over.getBoundingClientRect().top, scale)
+        const factor = event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM
+        axisZoomTo.current?.(unit, zoomAxis({ min: held.min, max: held.max }, at, factor))
+      }
+      axisBox?.addEventListener('wheel', handleAxisWheel, { passive: false })
       // A press that lets go where it went down clears the selection. uPlot
       // swallows the click after what it takes for a drag, which a move it
       // has not handled yet can be, so the press is read off its own ends.
@@ -409,6 +567,11 @@ const TrendPlot = meme(
       observer.observe(box)
       return (): void => {
         made.over.removeEventListener('wheel', handleWheel)
+        made.over.removeEventListener('pointerdown', handleTouchDown)
+        made.over.removeEventListener('pointermove', handleTouchMove)
+        made.over.removeEventListener('pointerup', handleTouchUp)
+        made.over.removeEventListener('pointercancel', handleTouchUp)
+        axisBox?.removeEventListener('wheel', handleAxisWheel)
         made.over.removeEventListener('pointerdown', handlePress)
         made.over.removeEventListener('pointerup', handleRelease)
         observer.disconnect()
@@ -440,13 +603,91 @@ const TrendPlot = meme(
       chart.current?.redraw(false, false)
     }, [selection])
 
+    // A drag along the axis pans it.
+    const handleAxisDown = useCallback(
+      (event: ReactPointerEvent<HTMLDivElement>) => {
+        const held = unit === undefined ? undefined : chart.current?.scales[axisScale(unit)]
+        const over = chart.current?.over
+        if (held?.min == null || held.max == null || over === undefined) return
+        axisDrag.current = {
+          y: event.clientY,
+          range: { min: held.min, max: held.max },
+          height: over.clientHeight
+        }
+        event.currentTarget.setPointerCapture(event.pointerId)
+      },
+      [unit]
+    )
+    const handleAxisMove = useCallback(
+      (event: ReactPointerEvent<HTMLDivElement>) => {
+        const held = axisDrag.current
+        if (!held || unit === undefined) return
+        const shift = ((event.clientY - held.y) / held.height) * (held.range.max - held.range.min)
+        axisZoomTo.current?.(unit, { min: held.range.min + shift, max: held.range.max + shift })
+      },
+      [unit]
+    )
+    const handleAxisUp = useCallback(() => {
+      axisDrag.current = null
+    }, [])
+    const handleReset = useCallback(() => {
+      if (unit !== undefined) axisZoomTo.current?.(unit, undefined)
+    }, [unit])
+
     return (
-      <Box
-        ref={container}
-        // No minimum of its own: uPlot's canvas inside it holds the size it
-        // was last given, and the observer above sees no less.
-        sx={{ position: 'absolute', inset: 0 }}
-      />
+      <Box sx={{ position: 'absolute', inset: 0 }}>
+        <Box
+          ref={container}
+          // No minimum of its own: uPlot's canvas inside it holds the size it
+          // was last given, and the observer above sees no less.
+          sx={{ position: 'absolute', inset: 0 }}
+        />
+        {unit !== undefined && (
+          <Box
+            ref={axisArea}
+            data-testid={`trend-plot-axis-${index}`}
+            onPointerDown={handleAxisDown}
+            onPointerMove={handleAxisMove}
+            onPointerUp={handleAxisUp}
+            sx={{
+              position: 'absolute',
+              left: 0,
+              top: UNIT_ROOM,
+              bottom: 0,
+              width: AXIS_SIZE,
+              borderRadius: '3px',
+              cursor: 'ns-resize',
+              touchAction: 'none',
+              '&:hover': { bgcolor: 'action.hover' }
+            }}
+          />
+        )}
+        {unit !== undefined && axisZoomed && (
+          <ButtonBase
+            data-testid={`trend-plot-reset-${index}`}
+            aria-label={`Back to ${resetLabel}`}
+            title={`Back to ${resetLabel}`}
+            onClick={handleReset}
+            sx={{
+              position: 'absolute',
+              left: AXIS_SIZE + 6,
+              top: 0,
+              height: 16,
+              px: 0.75,
+              gap: 0.5,
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: '8px',
+              bgcolor: 'background.paper',
+              fontSize: 10.5,
+              color: 'text.secondary'
+            }}
+          >
+            <Replay sx={{ fontSize: 11 }} />
+            {resetLabel}
+          </ButtonBase>
+        )}
+      </Box>
     )
   }
 )
