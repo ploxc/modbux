@@ -79,7 +79,14 @@ interface TrendPanelZustand {
    * follows the log over the range.
    */
   view: TrendView | TrendFollow | undefined
+  /**
+   * Zooms or pans to a view, which keeps the selection; following the range
+   * again, or a stretch the calendar picked, lets it go.
+   */
   setView: (view: TrendView | TrendFollow | undefined) => void
+  /** The stretch dragged across the plots, which the statistics read; none while none is. */
+  selection: TrendStretch | undefined
+  setSelection: (selection: TrendStretch | undefined) => void
   /**
    * Holds the stretch the trend follows the log over, ending at `now`: the
    * range's, from `oldest` for the whole log, or the trend's own length, and a
@@ -139,6 +146,17 @@ interface TrendPanelZustand {
   prune: (units: readonly ClientUnit[]) => void
 }
 
+/** A stretch of time, from `from` to `to`. */
+export interface TrendStretch {
+  from: number
+  to: number
+}
+
+/** What the trend lets go of when it starts over on a range, a picked stretch, another trend or none. */
+const letGo = (state: { selection: TrendStretch | undefined }): void => {
+  state.selection = undefined
+}
+
 /** The opened bitmaps of `openLanes` that `entries` still draws. */
 const stillDrawn = (openLanes: string[], entries: TrendEntry[]): string[] =>
   openLanes.filter((key) => entries.some((entry) => trendKey(entry) === key))
@@ -162,6 +180,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.range = trend.range
         state.settings = trend.settings
         state.view = undefined
+        letGo(state)
       }),
     setName: (name): void =>
       set((state) => {
@@ -175,6 +194,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.range = '10m'
         state.settings = DEFAULT_TREND_SETTINGS
         state.view = undefined
+        letGo(state)
       }),
     entries: [],
     anchor: null,
@@ -198,11 +218,18 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.range = range
         state.view = undefined
+        letGo(state)
       }),
     view: undefined,
     setView: (view): void =>
       set((state) => {
         state.view = view
+        if (view === undefined || (!isFollow(view) && view.pressed === 'calendar')) letGo(state)
+      }),
+    selection: undefined,
+    setSelection: (selection): void =>
+      set((state) => {
+        state.selection = selection
       }),
     pause: (now, oldest): void =>
       set((state) => {
@@ -266,7 +293,8 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         entries: sameClient ? get().entries : [],
         openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
-        view: sameClient ? get().view : undefined
+        view: sameClient ? get().view : undefined,
+        selection: sameClient ? get().selection : undefined
       })
     },
     add: (entry): boolean => {
@@ -290,7 +318,8 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         entries: [...kept, { ...entry, color }],
         openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
-        view: sameClient ? get().view : undefined
+        view: sameClient ? get().view : undefined,
+        selection: sameClient ? get().selection : undefined
       })
       return true
     },
@@ -349,6 +378,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.anchor = null
         state.view = undefined
         state.openLanes = []
+        letGo(state)
       })
   }))
 )

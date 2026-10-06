@@ -48,14 +48,18 @@ test.describe.serial('The trend, extended', () => {
     await connectClient(mainPage, '127.0.0.1', '502', '0')
     await mainPage.getByTestId('client-view-monitor-btn').click()
     await mainPage.getByTestId('log-btn').click()
-    // resetApp leaves main's log alone, and over a spec's samples it offers Start new.
-    await mainPage
+    // resetApp leaves main's log alone: over a spec's samples it offers Start
+    // new, and a spec before this one can leave it logging.
+    const turnOn = mainPage
       .getByTestId('log-turn-on-btn')
       .or(mainPage.getByTestId('log-start-new-btn'))
-      .click()
+    await expect(turnOn.or(mainPage.getByTestId('log-turn-off-btn'))).toBeVisible()
+    if (await turnOn.isVisible()) await turnOn.click()
     await mainPage.keyboard.press('Escape')
-    await mainPage.getByTestId('poll-btn').click()
-    await expect(mainPage.getByTestId('poll-btn')).toHaveText('Logging')
+    const poll = mainPage.getByTestId('poll-btn')
+    await expect(poll).toHaveText(/^Log/)
+    if ((await poll.textContent()) === 'Log') await poll.click()
+    await expect(poll).toHaveText('Logging')
   })
 
   test('two engineering units draw two plots, each with one axis', async ({ mainPage }) => {
@@ -216,5 +220,79 @@ test.describe.serial('The trend, extended', () => {
       'true'
     )
     await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
+  })
+
+  test('a drag across a plot selects a stretch, and the panel reads it from the log', async ({
+    mainPage
+  }) => {
+    // Holding register 8 is the server's static 230 V. Filling the room, the
+    // trend leaves the plots room beside the panel.
+    await mainPage.getByTestId('monitor-trend-0-holding_registers-8').click()
+    await mainPage.getByTestId('trend-mode-fill-btn').click()
+    await mainPage.getByTestId('trend-range-log').click()
+    // A stretch of a log seconds old can fall between two polls.
+    const navigator = mainPage.getByTestId('trend-navigator-window')
+    await expect(async () => {
+      const start = Number(await navigator.getAttribute('aria-valuemin'))
+      const end = Number(await navigator.getAttribute('aria-valuemax'))
+      expect(end - start).toBeGreaterThan(10_000)
+    }).toPass({ timeout: 20_000 })
+    const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
+    if (!over) throw new Error('The plot is not laid out')
+    await mainPage.mouse.move(over.x + over.width * 0.2, over.y + over.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(over.x + over.width * 0.8, over.y + over.height / 2, { steps: 5 })
+    await mainPage.mouse.up()
+
+    // A drag no longer zooms: the trend goes on following the log.
+    await expect(mainPage.getByTestId('trend-selection')).toBeVisible()
+    await expect(mainPage.getByTestId('trend-live-btn')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.locator('[data-testid^="trend-selection-row-"]')).toHaveCount(4)
+    const setpoint = mainPage.getByTestId('trend-selection-row-holding_registers-8')
+    await expect(setpoint.locator('[data-field="avg"]')).toHaveText('230 V')
+    await expect(setpoint.locator('[data-field="min"]')).toHaveText('230')
+    await expect(setpoint.locator('[data-field="max"]')).toHaveText('230')
+    await expect(setpoint.locator('[data-field="delta"]')).toHaveText('0')
+    expect(Number(await setpoint.locator('[data-field="n"]').textContent())).toBeGreaterThan(0)
+
+    // Zoom to range holds the trend still on the stretch, and the stretch stays selected.
+    const stretch = await mainPage.getByTestId('trend-selection-stretch').textContent()
+    await mainPage.getByTestId('trend-selection-zoom-btn').click()
+    await expect(mainPage.getByTestId('trend-paused-btn')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('trend-selection-stretch')).toHaveText(stretch ?? '')
+
+    await mainPage.getByTestId('trend-selection-clear-btn').click()
+    await expect(mainPage.getByTestId('trend-selection')).toHaveCount(0)
+  })
+
+  test('a click on a plot clears the stretch, and so does Live', async ({ mainPage }) => {
+    const plot = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
+    // The panel takes its room from the plots, so the plot is measured again after it shows.
+    const boxOf = async (): Promise<{ x: number; y: number; width: number; height: number }> => {
+      const box = await plot.boundingBox()
+      if (!box) throw new Error('The plot is not laid out')
+      return box
+    }
+    const select = async (): Promise<void> => {
+      const over = await boxOf()
+      await mainPage.mouse.move(over.x + over.width * 0.1, over.y + over.height / 2)
+      await mainPage.mouse.down()
+      await mainPage.mouse.move(over.x + over.width * 0.8, over.y + over.height / 2, { steps: 5 })
+      await mainPage.mouse.up()
+      await expect(mainPage.getByTestId('trend-selection')).toBeVisible()
+    }
+    await select()
+    await expect(
+      mainPage.getByTestId('trend-selection-row-holding_registers-8').locator('[data-field="min"]')
+    ).toHaveText('230')
+    const over = await boxOf()
+    await mainPage.mouse.click(over.x + over.width * 0.9, over.y + over.height / 2)
+    await expect(mainPage.getByTestId('trend-selection')).toHaveCount(0)
+
+    await select()
+    await mainPage.getByTestId('trend-live-btn').click()
+    await expect(mainPage.getByTestId('trend-selection')).toHaveCount(0)
+    await mainPage.getByTestId('trend-range-10m').click()
+    await mainPage.getByTestId('trend-mode-dock-btn').click()
   })
 })

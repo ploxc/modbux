@@ -105,6 +105,16 @@
               }
             }
           }
+        },
+        "8": {
+          "value": 230,
+          "params": {
+            "address": 8,
+            "registerType": "holding_registers",
+            "dataType": "uint16",
+            "comment": "Voltage setpoint",
+            "value": 230
+          }
         }
       }
     }

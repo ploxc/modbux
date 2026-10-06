@@ -8,7 +8,7 @@ import { textMuted } from '@renderer/theme'
 import { BitColor, LogPoint, RegisterMapValue, RegisterType } from '@shared'
 import { useCallback, useState } from 'react'
 import { bitOn, bitsOf, LaneSpan, laneSpans } from './trendData'
-import { useTrendPanelZustand } from './trendPanel.zustand'
+import { TrendStretch, useTrendPanelZustand } from './trendPanel.zustand'
 import TrendPlot, { AXIS_SIZE, PlotBox, TrendCursor, TrendLine } from './TrendPlot'
 
 /** A register the trend draws as a lane: a bit, or a bitmap's word. */
@@ -33,6 +33,8 @@ interface TrendLanesProps {
   /** The trend's cursor group, which the plot under the lanes joins. */
   syncKey: string
   onZoom: (from: number, to: number) => void
+  selection: TrendStretch | undefined
+  onSelect: (selection: TrendStretch | undefined) => void
   onZoomOut: () => void
   onCursor: (cursor: TrendCursor | undefined) => void
 }
@@ -120,6 +122,8 @@ const TrendLanes = meme(
     to,
     syncKey,
     onZoom,
+    selection,
+    onSelect,
     onZoomOut,
     onCursor
   }: TrendLanesProps): JSX.Element => {
@@ -152,6 +156,8 @@ const TrendLanes = meme(
           oldest={undefined}
           gaps={NO_DATA}
           onZoom={onZoom}
+          selection={selection}
+          onSelect={onSelect}
           onZoomOut={onZoomOut}
           onCursor={onCursor}
           onPlot={setPlot}

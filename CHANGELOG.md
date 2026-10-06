@@ -99,10 +99,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A trend of what logs.** Trend in Monitor's toolbar, or a register's Log
   icon, opens a trend of up to eight registers, each in its own colour. It
   shows the last 10 minutes, an hour, 8 hours or the whole log, live while
-  the log runs, or a stretch picked in a calendar; Paused holds it still, a
-  drag across it zooms, the wheel zooms, a strip of the whole log under it
-  pans, and Live follows the log again. The cursor reads every register at
-  the moment under it. Each engineering unit draws a plot of its own, all on
+  the log runs, or a stretch picked in a calendar; Paused holds it still, the
+  wheel zooms, a strip of the whole log under it pans, and Live follows the
+  log again. The cursor reads every register at the moment under it. A drag
+  across the trend selects a stretch and shows, from the log itself, each
+  register's mean, lowest, highest, median, last value, change and sample
+  count, or how long a bit was on and how often it switched; Zoom to range
+  zooms to it. Each engineering unit draws a plot of its own, all on
   one time axis and under one cursor; a grip under a plot drags its height,
   which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
   and a bitmap opens into a lane a bit. Plots and lanes taller than the trend

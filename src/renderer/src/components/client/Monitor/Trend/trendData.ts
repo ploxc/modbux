@@ -297,6 +297,17 @@ export const stretchLabel = (from: number, to: number): string => {
   return `${start.toFormat(`d LLL ${time}`)} to ${end.toFormat(`d LLL ${time}`)}`
 }
 
+/**
+ * A selected stretch as its panel names it: "14:24:06 → 14:28:12", and each
+ * end's date before it when they fall on two days.
+ */
+export const selectionLabel = (from: number, to: number): string => {
+  const start = DateTime.fromMillis(from)
+  const end = DateTime.fromMillis(to)
+  const format = start.hasSame(end, 'day') ? 'HH:mm:ss' : 'd LLL HH:mm:ss'
+  return `${start.toFormat(format)} → ${end.toFormat(format)}`
+}
+
 /** How much a notch of the wheel zooms: in by this, and out by its inverse. */
 export const WHEEL_ZOOM = 0.8
 

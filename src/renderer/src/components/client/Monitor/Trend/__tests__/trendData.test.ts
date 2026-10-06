@@ -26,6 +26,7 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  selectionLabel,
   navigatorEntry,
   PLOT_MIN_HEIGHT,
   GRIP_HEIGHT,
@@ -203,6 +204,19 @@ describe('pickedStretch', () => {
 
   it("refuses a stretch a second long that the oldest sample's second shortens", () => {
     expect(pickedStretch(10_000, 11_000, start, end)).toBeUndefined()
+  })
+})
+
+describe('selectionLabel', () => {
+  const at = (day: number, hour: number, minute: number, second = 0): number =>
+    DateTime.fromObject({ year: 2026, month: 9, day, hour, minute, second }).toMillis()
+
+  it('names a stretch within a day by its times, to the second', () => {
+    expect(selectionLabel(at(29, 14, 24, 6), at(29, 14, 28, 12))).toBe('14:24:06 → 14:28:12')
+  })
+
+  it('writes each end with its date across two days', () => {
+    expect(selectionLabel(at(29, 23, 59), at(30, 0, 1))).toBe('29 Sep 23:59:00 → 30 Sep 00:01:00')
   })
 })
 

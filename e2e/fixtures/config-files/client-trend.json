@@ -98,6 +98,14 @@
         "log": {
           "mode": "poll"
         }
+      },
+      "8": {
+        "dataType": "uint16",
+        "comment": "Voltage setpoint",
+        "unit": "V",
+        "log": {
+          "mode": "poll"
+        }
       }
     }
   }

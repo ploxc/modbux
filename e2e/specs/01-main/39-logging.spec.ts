@@ -223,8 +223,9 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await expectState(mainPage, 'live')
     await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
 
-    // A drag across the lines zooms to it, and the trend holds still until
-    // Live is pressed. The whole log fills the plot, so the drag lands on it.
+    // A drag across the lines selects a stretch, Zoom to range zooms to it,
+    // and the trend holds still until Live is pressed. The whole log fills the
+    // plot, so the drag lands on it.
     await expect(mainPage.getByTestId('trend-navigator')).toBeVisible()
     await mainPage.getByTestId('trend-range-log').click()
     // A view is a second long at least, so the log needs a few to zoom into.
@@ -241,6 +242,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
+    await mainPage.getByTestId('trend-selection-zoom-btn').click()
     await expectState(mainPage, 'paused')
     await expect(mainPage.getByTestId('trend-view')).toBeVisible()
     // Zoomed, the trend shows no range, so no range is pressed.
@@ -258,6 +260,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
+    await mainPage.getByTestId('trend-selection-zoom-btn').click()
     await expectState(mainPage, 'paused')
     await mainPage.mouse.dblclick(box.x + box.width * 0.5, box.y + box.height / 2)
     await expectState(mainPage, 'live')
@@ -269,6 +272,7 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.mouse.down()
     await mainPage.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 5 })
     await mainPage.mouse.up()
+    await mainPage.getByTestId('trend-selection-zoom-btn').click()
     await expectState(mainPage, 'paused')
     const windowBox = await held.boundingBox()
     const stripBox = await mainPage.getByTestId('trend-navigator').boundingBox()

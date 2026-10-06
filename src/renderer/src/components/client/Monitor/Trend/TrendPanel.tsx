@@ -40,6 +40,7 @@ import TrendNavigator from './TrendNavigator'
 import TrendPlot, { TrendLine } from './TrendPlot'
 import TrendReadout from './TrendReadout'
 import { useTrendReadoutZustand } from './trendReadout.zustand'
+import TrendSelectionPanel, { SelectionRegister } from './TrendSelectionPanel'
 import TrendTimeAxis from './TrendTimeAxis'
 import TrendPicker from './TrendPicker'
 import TrendSettingsPanel, { SettingsLine } from './TrendSettingsPanel'
@@ -231,6 +232,15 @@ const LiveOrPaused = meme((): JSX.Element => {
 /** Whether a register is drawn as a lane under the lines: a bit, or a bitmap's word. */
 const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
   isBooleanRegister(entry.type) || mapValue?.dataType === 'bitmap'
+
+/** A register's raw value as the grid converts it, and none where the conversion gives no number. */
+const convertOf =
+  (entry: TrendEntry, mapValue: RegisterMapValue | undefined) =>
+  (raw: number): number | undefined => {
+    if (!isNumberRegister(entry.type)) return raw
+    const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
+    return typeof converted === 'number' ? converted : undefined
+  }
 
 /** The mapping entry of the register a trend line draws. */
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
@@ -514,6 +524,8 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const time = useTrendPanelZustand((z) => z.settings.time)
   const axes = useTrendPanelZustand((z) => z.settings.axes)
   const heights = useTrendPanelZustand((z) => z.settings.heights)
+  const selection = useTrendPanelZustand((z) => z.selection)
+  const setSelection = useTrendPanelZustand.getState().setSelection
   // A script's value waits for the engine, and draws again once it is there.
   useScriptEngineZustand((z) => z.ready)
   const syncKey = useId()
@@ -573,16 +585,14 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const drawn = plots.map((plot) => ({
     plot,
     lines: plot.items.map(({ entry, line }) => {
-      const mapValue = mapValueOf(units, entry)
-      const convert = (raw: number): number | undefined => {
-        if (!isNumberRegister(entry.type)) return raw
-        const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
-        return typeof converted === 'number' ? converted : undefined
-      }
       return {
         key: trendKey(entry),
         line,
-        series: trendSeries(points[trendKey(entry)] ?? [], runEnds, convert)
+        series: trendSeries(
+          points[trendKey(entry)] ?? [],
+          runEnds,
+          convertOf(entry, mapValueOf(units, entry))
+        )
       }
     })
   }))
@@ -625,6 +635,20 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
     ]
   })
   const firstEntry = first[0]
+  const registers = entries.map((entry): SelectionRegister => {
+    const mapValue = mapValueOf(units, entry)
+    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+    const address = entry.address + Number(addressBase)
+    return {
+      key: trendKey(entry),
+      testId: `trend-selection-row-${entry.type}-${address}`,
+      label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+      color: entry.color,
+      unit: mapValue?.unit ?? '',
+      hidden: entry.hidden === true,
+      convert: isLane(entry, mapValue) ? undefined : convertOf(entry, mapValue)
+    }
+  })
 
   // Every plot not given a height shares what the lanes leave of the room.
   const roomHeight = useHeightOf(scroll, true)
@@ -669,6 +693,8 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
                 oldest={oldest}
                 gaps={gaps}
                 onZoom={handleZoom}
+                selection={selection}
+                onSelect={setSelection}
                 onZoomOut={handleFollow}
                 onCursor={setCursor}
                 onChart={handleChart}
@@ -685,6 +711,8 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
                 to={to}
                 syncKey={syncKey}
                 onZoom={handleZoom}
+                selection={selection}
+                onSelect={setSelection}
                 onZoomOut={handleFollow}
                 onCursor={setCursor}
               />
@@ -703,6 +731,16 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
       <Box sx={{ flexShrink: 0, px: 1, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
         <TrendTimeAxis from={from} to={to} time={time} origin={origin} />
       </Box>
+      {selection !== undefined && (
+        <TrendSelectionPanel
+          uuid={uuid}
+          entries={entries}
+          registers={registers}
+          selection={selection}
+          runEnds={runEnds}
+          onZoom={handleZoom}
+        />
+      )}
       {oldest !== undefined && firstEntry !== undefined && (
         <Box sx={{ px: 1.75, pt: 0.5, pb: 1 }}>
           <TrendNavigator

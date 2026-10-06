@@ -6,6 +6,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { AxisRange, TrendSettings } from '@shared'
 import { axisScale, TrendGap, TrendSeries, WHEEL_ZOOM, zoomAround } from './trendData'
+import { TrendStretch } from './trendPanel.zustand'
 
 /** One line of a trend: its colour, the scale it is drawn on, and how the readout names it. */
 export interface TrendLine {
@@ -60,8 +61,12 @@ interface TrendPlotProps {
   oldest: number | undefined
   /** Where the log took no samples, each shaded and named by why. */
   gaps: TrendGap[]
-  /** A drag across the plot, or a notch of the wheel, asks for this stretch. */
+  /** A notch of the wheel asks for this stretch. */
   onZoom: (from: number, to: number) => void
+  /** The stretch selected, drawn as a band. */
+  selection: TrendStretch | undefined
+  /** A drag across the plot selects a stretch, and a click that does not drag selects none. */
+  onSelect: (selection: TrendStretch | undefined) => void
   /** A double click asks for the range again. */
   onZoomOut: () => void
   /** The cursor over this plot, and none once it leaves; a plot the cursor is synced to says nothing. */
@@ -81,13 +86,40 @@ const drawnAs = (drawAs: TrendSettings['drawAs']): Partial<uPlot.Series> => {
   return { points: { show: false } }
 }
 
-/** How many pixels a drag must cover to zoom, so a click does not. */
+/** How many pixels a drag must cover to select, so a click does not. */
 const SHORTEST_DRAG = 4
 
 /** What a plot draws behind its lines, read by its hook on every draw. */
 interface Backdrop {
   oldest: number | undefined
   gaps: TrendGap[]
+}
+
+/** The selected stretch as a band over the plot, with a line at each edge. */
+const drawBand = (
+  chart: uPlot,
+  selection: TrendStretch | undefined,
+  colors: { band: string; edge: string }
+): void => {
+  if (selection === undefined) return
+  const { ctx, bbox } = chart
+  const left = chart.valToPos(selection.from, 'x', true)
+  const right = chart.valToPos(selection.to, 'x', true)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(bbox.left, bbox.top, bbox.width, bbox.height)
+  ctx.clip()
+  ctx.fillStyle = colors.band
+  ctx.fillRect(left, bbox.top, right - left, bbox.height)
+  ctx.strokeStyle = colors.edge
+  ctx.lineWidth = devicePixelRatio
+  ctx.beginPath()
+  for (const x of [left, right]) {
+    ctx.moveTo(x, bbox.top)
+    ctx.lineTo(x, bbox.top + bbox.height)
+  }
+  ctx.stroke()
+  ctx.restore()
 }
 
 /**
@@ -187,6 +219,8 @@ const TrendPlot = meme(
     oldest,
     gaps,
     onZoom,
+    selection,
+    onSelect,
     onZoomOut,
     onCursor,
     onPlot,
@@ -199,6 +233,9 @@ const TrendPlot = meme(
     // The plot is made once for its lines, so its handlers read the latest.
     const zoom = useRef(onZoom)
     zoom.current = onZoom
+    const select = useRef(onSelect)
+    select.current = onSelect
+    const band = useRef(selection)
     const zoomOut = useRef(onZoomOut)
     zoomOut.current = onZoomOut
     const cursorMoved = useRef(onCursor)
@@ -226,6 +263,10 @@ const TrendPlot = meme(
       }
       const labelFont = `${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
       const unitFont = `500 ${10 * devicePixelRatio}px ${theme.typography.fontFamily ?? 'sans-serif'}`
+      const bandColors = {
+        band: alpha(theme.palette.info.main, 0.1),
+        edge: alpha(theme.palette.info.main, 0.6)
+      }
       const scale = unit === undefined ? undefined : axisScale(unit)
       const options: uPlot.Options = {
         width: box.clientWidth,
@@ -272,6 +313,7 @@ const TrendPlot = meme(
           drawClear: [
             (drawn: uPlot): void => {
               if (unit !== undefined) drawBackdrop(drawn, backdrop.current, colors, labelFont)
+              drawBand(drawn, band.current, bandColors)
             }
           ],
           draw: [
@@ -296,12 +338,16 @@ const TrendPlot = meme(
               })
             }
           ],
+          // The band every plot draws takes the place of uPlot's own box.
           setSelect: [
             (selected: uPlot): void => {
               const { left, width } = selected.select
-              if (width < SHORTEST_DRAG) return
-              zoom.current(selected.posToVal(left, 'x'), selected.posToVal(left + width, 'x'))
               selected.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false)
+              if (width < SHORTEST_DRAG) return
+              select.current({
+                from: selected.posToVal(left, 'x'),
+                to: selected.posToVal(left + width, 'x')
+              })
             }
           ]
         },
@@ -345,12 +391,26 @@ const TrendPlot = meme(
         zoom.current(zoomed.from, zoomed.to)
       }
       made.over.addEventListener('wheel', handleWheel, { passive: false })
+      // A press that lets go where it went down clears the selection. uPlot
+      // swallows the click after what it takes for a drag, which a move it
+      // has not handled yet can be, so the press is read off its own ends.
+      let pressedAt = 0
+      const handlePress = (event: PointerEvent): void => {
+        pressedAt = event.clientX
+      }
+      const handleRelease = (event: PointerEvent): void => {
+        if (Math.abs(event.clientX - pressedAt) < SHORTEST_DRAG) select.current(undefined)
+      }
+      made.over.addEventListener('pointerdown', handlePress)
+      made.over.addEventListener('pointerup', handleRelease)
       const observer = new ResizeObserver(() =>
         made.setSize({ width: box.clientWidth, height: box.clientHeight })
       )
       observer.observe(box)
       return (): void => {
         made.over.removeEventListener('wheel', handleWheel)
+        made.over.removeEventListener('pointerdown', handlePress)
+        made.over.removeEventListener('pointerup', handleRelease)
         observer.disconnect()
         // A plot gone from under the cursor leaves no readout behind.
         if (made.cursor.event != null && (made.cursor.left ?? -1) >= 0)
@@ -374,6 +434,11 @@ const TrendPlot = meme(
       if (left !== undefined && top !== undefined && left >= 0) current.setCursor({ left, top })
       // The plot made again for a new theme starts empty, so the data goes in again.
     }, [lines, unit, range, drawAs, data, from, to, oldest, gaps, theme])
+
+    useEffect(() => {
+      band.current = selection
+      chart.current?.redraw(false, false)
+    }, [selection])
 
     return (
       <Box

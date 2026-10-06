@@ -28,7 +28,8 @@ beforeEach(() => {
     room: anchor,
     mode: 'dock',
     openLanes: [],
-    settings: DEFAULT_TREND_SETTINGS
+    settings: DEFAULT_TREND_SETTINGS,
+    selection: undefined
   })
 })
 
@@ -379,6 +380,55 @@ describe('the trend store', () => {
     expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([false, true])
     store().toggleHidden(trendKey(entry(1)))
     expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
+  })
+
+  describe('the selection', () => {
+    const stretch = { from: 10, to: 20 }
+    const selected = (): void => {
+      store().add(entry(0))
+      store().setSelection(stretch)
+    }
+
+    it('keeps a stretch, and lets it go on none', () => {
+      selected()
+      expect(store().selection).toEqual(stretch)
+      store().setSelection(undefined)
+      expect(store().selection).toBeUndefined()
+    })
+
+    it('stays through a zoom, a pan, a pause and a follow', () => {
+      selected()
+      store().setView({ from: 0, to: 30 })
+      store().setView({ length: 5000 })
+      store().setView({ from: 0, to: 30, pressed: 'range' })
+      store().pause(1_000_000, 0)
+      expect(store().selection).toEqual(stretch)
+    })
+
+    it.each([
+      ['a range', (): void => store().setRange('1h')],
+      ['Live', (): void => store().setView(undefined)],
+      [
+        "the calendar's stretch",
+        (): void => store().setView({ from: 0, to: 9, pressed: 'calendar' })
+      ],
+      ['a saved trend', (): void => store().load('client-a', snapshotOf(store(), 'Saved'))],
+      ['New trend', (): void => store().startNew()],
+      ['closing', (): void => store().close()],
+      ["another client's register", (): void => void store().add(entry(0, 'client-b'))],
+      ["another client's trend", (): void => store().open('client-b')]
+    ])('goes on %s', (_name, action) => {
+      selected()
+      action()
+      expect(store().selection).toBeUndefined()
+    })
+
+    it("stays when the trend opens on its own client's register", () => {
+      selected()
+      store().add(entry(1))
+      store().open('client-a')
+      expect(store().selection).toEqual(stretch)
+    })
   })
 
   it("forgets the name when it starts over with another client's register", () => {
