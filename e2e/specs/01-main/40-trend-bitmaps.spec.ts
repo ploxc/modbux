@@ -79,4 +79,20 @@ test.describe.serial('Bitmaps in the trend', () => {
       expect(shown?.height).toBe(26)
     }).toPass()
   })
+
+  test('opened bitmaps stay open as the trend docks, fills and floats again', async ({
+    mainPage
+  }) => {
+    const toggle = (address: number): ReturnType<typeof mainPage.getByTestId> =>
+      mainPage.getByTestId(`trend-lane-toggle-holding_registers-${address}`)
+    await toggle(6).click()
+    await expect(toggle(6)).toHaveAttribute('aria-expanded', 'false')
+
+    for (const mode of ['dock', 'fill', 'float']) {
+      await mainPage.getByTestId(`trend-mode-${mode}-btn`).click()
+      await expect(mainPage.getByTestId('trend-panel')).toHaveAttribute('data-mode', mode)
+      await expect(toggle(6)).toHaveAttribute('aria-expanded', 'false')
+      await expect(toggle(7)).toHaveAttribute('aria-expanded', 'true')
+    }
+  })
 })

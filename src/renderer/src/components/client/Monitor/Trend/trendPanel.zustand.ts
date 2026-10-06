@@ -62,6 +62,13 @@ interface TrendPanelZustand {
   /** Floating over Monitor, docked under its grid, or filling its room. */
   mode: TrendMode
   setMode: (mode: TrendMode) => void
+  /**
+   * The bitmaps it draws that are opened into a lane a bit, by key; kept from
+   * place to place, until the trend closes or stops drawing one.
+   */
+  openLanes: string[]
+  /** Opens a bitmap's lane into its bits, or closes it. */
+  toggleLane: (key: string) => void
   /** How far back the trend reaches. A new range follows the log again. */
   range: TrendRangeId
   setRange: (range: TrendRangeId) => void
@@ -115,6 +122,10 @@ interface TrendPanelZustand {
   prune: (units: readonly ClientUnit[]) => void
 }
 
+/** The opened bitmaps of `openLanes` that `entries` still draws. */
+const stillDrawn = (openLanes: string[], entries: TrendEntry[]): string[] =>
+  openLanes.filter((key) => entries.some((entry) => trendKey(entry) === key))
+
 export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutative', never]]>(
   mutative((set, get) => ({
     uuid: '',
@@ -124,6 +135,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.uuid = uuid
         state.name = trend.name
         state.entries = trend.entries.map((entry) => ({ ...entry, uuid }))
+        state.openLanes = stillDrawn(state.openLanes, state.entries)
         state.range = trend.range
         state.settings = trend.settings
         state.view = undefined
@@ -136,6 +148,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.name = undefined
         state.entries = []
+        state.openLanes = []
         state.range = '10m'
         state.settings = DEFAULT_TREND_SETTINGS
         state.view = undefined
@@ -149,6 +162,13 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     setMode: (mode): void =>
       set((state) => {
         state.mode = mode
+      }),
+    openLanes: [],
+    toggleLane: (key): void =>
+      set((state) => {
+        state.openLanes = state.openLanes.includes(key)
+          ? state.openLanes.filter((each) => each !== key)
+          : [...state.openLanes, key]
       }),
     range: '10m',
     setRange: (range): void =>
@@ -208,6 +228,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         uuid,
         name: sameClient ? get().name : undefined,
         entries: sameClient ? get().entries : [],
+        openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined
       })
@@ -226,6 +247,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         uuid: entry.uuid,
         name: sameClient ? get().name : undefined,
         entries: [...kept, { ...entry, color }],
+        openLanes: sameClient ? get().openLanes : [],
         anchor: get().anchor ?? get().room,
         view: sameClient ? get().view : undefined
       })
@@ -247,6 +269,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     remove: (key): void =>
       set((state) => {
         state.entries = state.entries.filter((entry) => trendKey(entry) !== key)
+        state.openLanes = stillDrawn(state.openLanes, state.entries)
         if (state.entries.length === 0) state.view = undefined
       }),
     prune: (units): void =>
@@ -259,6 +282,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
             ]
           )
         )
+        state.openLanes = stillDrawn(state.openLanes, state.entries)
         // An empty trend follows the log again, as one emptied by `remove` does.
         if (state.entries.length === 0) state.view = undefined
       }),
@@ -266,6 +290,7 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.anchor = null
         state.view = undefined
+        state.openLanes = []
       })
   }))
 )

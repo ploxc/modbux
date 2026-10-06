@@ -27,6 +27,7 @@ beforeEach(() => {
     view: undefined,
     room: anchor,
     mode: 'float',
+    openLanes: [],
     settings: DEFAULT_TREND_SETTINGS
   })
 })
@@ -291,5 +292,85 @@ describe('the trend store', () => {
     store().open('client-a')
 
     expect(store().mode).toBe('dock')
+  })
+
+  it('keeps a bitmap opened into its bits from place to place, and closes it again', () => {
+    store().add(entry(6))
+    store().add(entry(7))
+    store().toggleLane(trendKey(entry(6)))
+    store().toggleLane(trendKey(entry(7)))
+    store().setMode('dock')
+    store().setMode('fill')
+
+    expect(store().openLanes).toEqual([trendKey(entry(6)), trendKey(entry(7))])
+
+    store().toggleLane(trendKey(entry(6)))
+
+    expect(store().openLanes).toEqual([trendKey(entry(7))])
+  })
+
+  it('draws a bitmap taken out and added again closed, and keeps the others open', () => {
+    store().add(entry(6))
+    store().add(entry(7))
+    store().toggleLane(trendKey(entry(6)))
+    store().toggleLane(trendKey(entry(7)))
+    store().remove(trendKey(entry(6)))
+    store().add(entry(6))
+
+    expect(store().openLanes).toEqual([trendKey(entry(7))])
+  })
+
+  it('draws a bitmap the units no longer log closed when it logs again', () => {
+    store().add(entry(6))
+    store().toggleLane(trendKey(entry(6)))
+    store().prune([])
+    store().add(entry(6))
+
+    expect(store().openLanes).toEqual([])
+  })
+
+  it('opens the bitmaps of a loaded trend closed, and keeps those it still draws open', () => {
+    store().add(entry(6))
+    store().add(entry(7))
+    store().toggleLane(trendKey(entry(6)))
+    store().toggleLane(trendKey(entry(7)))
+    store().load('client-a', snapshotOf({ ...store(), entries: [] }, 'Empty'))
+    store().add(entry(6))
+    expect(store().openLanes).toEqual([])
+
+    store().toggleLane(trendKey(entry(6)))
+    store().load('client-a', snapshotOf(store(), 'Six'))
+    expect(store().openLanes).toEqual([trendKey(entry(6))])
+
+    store().startNew()
+    expect(store().openLanes).toEqual([])
+  })
+
+  it('draws a bitmap of another client closed', () => {
+    store().add(entry(6))
+    store().toggleLane(trendKey(entry(6)))
+    store().add(entry(6, 'client-b'))
+    store().add(entry(6))
+
+    expect(store().openLanes).toEqual([])
+  })
+
+  it('opens for another client with every bitmap closed, and as it was for its own', () => {
+    store().add(entry(6))
+    store().toggleLane(trendKey(entry(6)))
+    store().open('client-a')
+    expect(store().openLanes).toEqual([trendKey(entry(6))])
+
+    store().open('client-b')
+    expect(store().openLanes).toEqual([])
+  })
+
+  it('opens again with every bitmap closed', () => {
+    store().add(entry(6))
+    store().toggleLane(trendKey(entry(6)))
+    store().close()
+    store().open('client-a')
+
+    expect(store().openLanes).toEqual([])
   })
 })

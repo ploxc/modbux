@@ -6,8 +6,9 @@ import { useTheme } from '@mui/material/styles'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
 import { BitColor, LogPoint, RegisterMapValue, RegisterType } from '@shared'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { bitOn, bitsOf, LaneSpan, laneSpans } from './trendData'
+import { useTrendPanelZustand } from './trendPanel.zustand'
 
 /** A register the trend draws as a lane: a bit, or a bitmap's word. */
 export interface TrendLane {
@@ -107,12 +108,8 @@ const barPath = (spans: LaneSpan[], from: number, to: number, width: number): st
  */
 const TrendLanes = meme(({ lanes, runEnds, end, from, to, plot }: TrendLanesProps): JSX.Element => {
   const theme = useTheme()
-  const [open, setOpen] = useState<string[]>([])
-  const toggle = useCallback((key: string) => {
-    setOpen((opened) =>
-      opened.includes(key) ? opened.filter((each) => each !== key) : [...opened, key]
-    )
-  }, [])
+  const open = useTrendPanelZustand((z) => z.openLanes)
+  const toggle = useTrendPanelZustand.getState().toggleLane
   const bitColor = (color: BitColor | undefined, fallback: string): string =>
     color === 'error'
       ? theme.palette.error.main
