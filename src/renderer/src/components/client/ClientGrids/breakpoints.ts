@@ -5,8 +5,10 @@
  */
 export const BREAKPOINTS = {
   /*
-   * The top bar folds in four steps, each at the width the RTU bar needs
-   * without it, measured with the Workspace field at its 100 px minimum.
+   * The top bar folds in seven steps, each at the width the RTU bar needs
+   * without it, the first four with the Workspace field at its 100 px minimum.
+   * The last folds at 776 px, the bar at the window's minimum width, where it
+   * already fits without it.
    */
   /** The top bar: Settings, Load, Save and Clear fold into a ⋮. */
   topBarWorkspace: 1309,
@@ -16,6 +18,12 @@ export const BREAKPOINTS = {
   topBarProtocol: 1097,
   /** The top bar: the serial field folds to a button opening the same settings. */
   topBarSerial: 1001,
+  /** The top bar: the Workspace field moves into the ⋮. */
+  topBarWorkspaceName: 905,
+  /** The top bar: the COM port input narrows. */
+  topBarCom: 797,
+  /** The top bar: Connect shows its icon and not its word. */
+  topBarConnect: 776,
   /** The unit bar: Load, Save, Clear config, Clear and Dummy Data fold into a ⋮ menu. */
   unitBarMenu: 840,
   /** The unit bar: byte order and the 32 and 64 bit columns fold into a menu of their own. */

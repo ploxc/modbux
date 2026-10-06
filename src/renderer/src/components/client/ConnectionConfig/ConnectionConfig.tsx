@@ -22,6 +22,7 @@ import { meme } from '@renderer/components/shared/inputs/meme'
 import ProtocolIcon from '@renderer/components/client/ClientSidebar/ProtocolIcon'
 import { PROTOCOL_COLORS } from '@renderer/components/client/ClientSidebar/clientStatus'
 import Check from '@mui/icons-material/Check'
+import PowerSettingsNew from '@mui/icons-material/PowerSettingsNew'
 import { alpha } from '@mui/material/styles'
 import PollButton from './PollButton'
 import LogButton from '@renderer/components/client/Logging/LogButton'
@@ -34,6 +35,13 @@ const PROTOCOLS: Protocol[] = ['ModbusTcp', 'ModbusRtuOverTcp', 'ModbusRtu']
 export const PROTOCOL_NAME = 'protocol-name'
 /** The class of the field, which the top bar narrows to its badge. */
 export const PROTOCOL_FIELD = 'protocol-field'
+
+/** The class of Connect's word, which the top bar trades for its icon when it narrows. */
+export const CONNECT_LABEL = 'connect-label'
+/** The class of Connect's icon, shown in place of its word. */
+export const CONNECT_ICON = 'connect-icon'
+/** The class of the Connect button, which the top bar narrows to its icon. */
+export const CONNECT_BUTTON = 'connect-button'
 
 const ProtocolOption = meme(({ protocol }: { protocol: Protocol }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -184,11 +192,19 @@ const ConnectButton = meme(() => {
     ? 'warning'
     : 'primary'
 
+  const label =
+    connectState === 'connected'
+      ? 'Disconnect'
+      : connectState === 'disconnected'
+        ? 'Connect'
+        : undefined
+
   const text =
-    connectState === 'connected' ? (
-      'Disconnect'
-    ) : connectState === 'disconnected' ? (
-      'Connect'
+    label !== undefined ? (
+      <>
+        <span className={CONNECT_LABEL}>{label}</span>
+        <PowerSettingsNew className={CONNECT_ICON} fontSize="small" />
+      </>
     ) : (
       <CircularProgress
         size={18}
@@ -203,10 +219,13 @@ const ConnectButton = meme(() => {
     <>
       <Button
         size="large"
+        className={CONNECT_BUTTON}
         sx={{ width: 100 }}
         disabled={disabled}
         onClick={handleClick}
         color={color}
+        aria-label={label ?? 'Cancel'}
+        title={label ?? 'Cancel'}
         data-testid="connect-btn"
       >
         {text}

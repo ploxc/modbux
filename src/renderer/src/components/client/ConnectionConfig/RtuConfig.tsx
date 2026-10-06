@@ -29,6 +29,9 @@ import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Popper from '@mui/material/Popper'
 
+/** The class of the COM port input, which the top bar narrows. */
+export const COM_INPUT = 'com-input'
+
 //
 //
 // COM Port Input
@@ -64,6 +67,7 @@ const ComInput = meme(() => {
       onInputChange={handleInputChange}
       onChange={handleChange}
       // Fixed, so the top bar folds at the same width whatever ports are plugged in.
+      className={COM_INPUT}
       sx={{ width: 160 }}
       renderInput={(params) => (
         <ComTextField {...params} comLabel="COM Port" comError={!comValid} comLoading={loading} />

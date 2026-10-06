@@ -9,13 +9,21 @@ import ClientGrids from '@renderer/components/client/ClientGrids/ClientGrids'
 import ConnectionConfig from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
 import WorkspaceBar, {
   WORKSPACE_INLINE,
+  WORKSPACE_NAME,
   WORKSPACE_TOGGLE
 } from '@renderer/components/client/WorkspaceBar'
 import {
+  CONNECT_BUTTON,
+  CONNECT_ICON,
+  CONNECT_LABEL,
   PROTOCOL_FIELD,
   PROTOCOL_NAME
 } from '@renderer/components/client/ConnectionConfig/ConnectionConfig'
-import { SERIAL_FIELD, SERIAL_TOGGLE } from '@renderer/components/client/ConnectionConfig/RtuConfig'
+import {
+  COM_INPUT,
+  SERIAL_FIELD,
+  SERIAL_TOGGLE
+} from '@renderer/components/client/ConnectionConfig/RtuConfig'
 import {
   READ_TIMING_INLINE,
   READ_TIMING_TOGGLE
@@ -113,6 +121,18 @@ const Client = meme(() => {
             [atOrBelow(BREAKPOINTS.topBarSerial)]: {
               [`& .${SERIAL_FIELD}`]: { display: 'none' },
               [`& .${SERIAL_TOGGLE}`]: { display: 'inline-flex' }
+            },
+            [`& .${CONNECT_ICON}`]: { display: 'none' },
+            [atOrBelow(BREAKPOINTS.topBarWorkspaceName)]: {
+              [`& .${WORKSPACE_NAME}`]: { display: 'none' }
+            },
+            [atOrBelow(BREAKPOINTS.topBarCom)]: {
+              [`& .${COM_INPUT}`]: { width: 87 }
+            },
+            [atOrBelow(BREAKPOINTS.topBarConnect)]: {
+              [`& .${CONNECT_BUTTON}`]: { width: 40 },
+              [`& .${CONNECT_LABEL}`]: { display: 'none' },
+              [`& .${CONNECT_ICON}`]: { display: 'block' }
             }
           })}
         >

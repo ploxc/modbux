@@ -14,7 +14,7 @@ import NavigationButtons from '@renderer/components/shared/NavigationButtons'
 import SettingsButton from '@renderer/components/settings/SettingsButton'
 import Settings from '@renderer/components/settings/Settings'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { MouseEvent, useCallback, useState } from 'react'
+import { MouseEvent, RefObject, useCallback, useRef, useState } from 'react'
 
 const NOT_YET = 'Client and workspace files are not there yet'
 
@@ -22,6 +22,13 @@ const NOT_YET = 'Client and workspace files are not there yet'
 export const WORKSPACE_INLINE = 'workspace-inline'
 /** The class of the ⋮ that holds them instead. */
 export const WORKSPACE_TOGGLE = 'workspace-toggle'
+/** The class of the Workspace field, which the top bar moves into the ⋮ when it narrows further. */
+export const WORKSPACE_NAME = 'workspace-name'
+
+/** The Workspace field, disabled until a workspace exists. */
+const WorkspaceNameField = meme(({ testId }: { testId: string }) => (
+  <TextField size="large" label="Workspace" disabled fullWidth value="" data-testid={testId} />
+))
 
 // A disabled button fires no pointer events, so the tooltip listens on the span.
 const WorkspaceFileButton = meme(
@@ -36,14 +43,24 @@ const WorkspaceFileButton = meme(
   )
 )
 
-/** Settings, Load, Save and Clear as one ⋮ menu, for a top bar too narrow for the four buttons. */
-const WorkspaceMenu = meme(() => {
+/**
+ * Settings, Load, Save and Clear as one ⋮ menu, for a top bar too narrow for
+ * the four buttons, and the Workspace field at its top once the bar has hidden
+ * it. The menu opens in a portal the bar's container query cannot reach, so it
+ * asks the field whether it is shown as it opens.
+ */
+const WorkspaceMenu = meme(({ nameField }: { nameField: RefObject<HTMLElement | null> }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const [nameFolded, setNameFolded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const handleOpen = useCallback((event: MouseEvent<HTMLElement>) => {
-    setAnchor(event.currentTarget)
-  }, [])
+  const handleOpen = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      setNameFolded(nameField.current?.offsetParent === null)
+      setAnchor(event.currentTarget)
+    },
+    [nameField]
+  )
   const handleClose = useCallback(() => setAnchor(null), [])
   const openSettings = useCallback(() => {
     setAnchor(null)
@@ -62,6 +79,13 @@ const WorkspaceMenu = meme(() => {
         <MoreVert fontSize="small" />
       </IconButton>
       <Menu anchorEl={anchor} open={anchor !== null} onClose={handleClose}>
+        {nameFolded && (
+          <Tooltip title={NOT_YET} placement="right">
+            <Box sx={{ px: 2, pt: 1, pb: 1.5, width: 248 }}>
+              <WorkspaceNameField testId="workspace-menu-name-input" />
+            </Box>
+          </Tooltip>
+        )}
         <MenuItem data-testid="workspace-menu-settings" onClick={openSettings}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
@@ -99,58 +123,55 @@ const WorkspaceMenu = meme(() => {
 /**
  * The start of the top bar as one group: Home, Settings, the workspace's Load,
  * Save and Clear, and its name. No workspace exists yet, so the last four are
- * disabled. Narrow, Settings and the three files fold into a ⋮.
+ * disabled. Narrow, Settings and the three files fold into a ⋮, and narrower
+ * still, the name follows them.
  */
-const WorkspaceBar = meme(() => (
-  // `&&` over the bar's own rule that its children do not shrink: this group
-  // gives way, down to the Workspace field's minimum.
-  <Box
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-      '&&': { flex: '1 1 0' },
-      // The buttons keep their size; only the name gives way.
-      '& > :not(:last-child)': { flexShrink: 0 }
-    }}
-  >
-    <NavigationButtons other="server" />
-    <Box className={WORKSPACE_INLINE} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <SettingsButton testId="client-settings-btn" size="large" variant="outlined" />
-      <Box sx={{ display: 'flex', gap: 0.25 }}>
-        <WorkspaceFileButton
-          label="Load workspace"
-          testId="workspace-load-btn"
-          icon={<FileOpen fontSize="small" />}
-        />
-        <WorkspaceFileButton
-          label="Save workspace"
-          testId="workspace-save-btn"
-          icon={<Save fontSize="small" />}
-        />
-        <WorkspaceFileButton
-          label="Clear workspace"
-          testId="workspace-clear-btn"
-          icon={<Delete fontSize="small" />}
-        />
+const WorkspaceBar = meme(() => {
+  const nameField = useRef<HTMLDivElement>(null)
+  return (
+    // `&&` over the bar's own rule that its children do not shrink: this group
+    // gives way, down to the Workspace field's minimum.
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        '&&': { flex: '1 1 0' },
+        // The buttons keep their size; only the name gives way.
+        '& > :not(:last-child)': { flexShrink: 0 }
+      }}
+    >
+      <NavigationButtons other="server" />
+      <Box className={WORKSPACE_INLINE} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <SettingsButton testId="client-settings-btn" size="large" variant="outlined" />
+        <Box sx={{ display: 'flex', gap: 0.25 }}>
+          <WorkspaceFileButton
+            label="Load workspace"
+            testId="workspace-load-btn"
+            icon={<FileOpen fontSize="small" />}
+          />
+          <WorkspaceFileButton
+            label="Save workspace"
+            testId="workspace-save-btn"
+            icon={<Save fontSize="small" />}
+          />
+          <WorkspaceFileButton
+            label="Clear workspace"
+            testId="workspace-clear-btn"
+            icon={<Delete fontSize="small" />}
+          />
+        </Box>
       </Box>
-    </Box>
-    <Box className={WORKSPACE_TOGGLE}>
-      <WorkspaceMenu />
-    </Box>
-    <Tooltip title={NOT_YET}>
-      <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-        <TextField
-          size="large"
-          label="Workspace"
-          disabled
-          fullWidth
-          value=""
-          data-testid="workspace-name-input"
-        />
+      <Box className={WORKSPACE_TOGGLE}>
+        <WorkspaceMenu nameField={nameField} />
       </Box>
-    </Tooltip>
-  </Box>
-))
+      <Tooltip title={NOT_YET}>
+        <Box ref={nameField} className={WORKSPACE_NAME} sx={{ flex: '1 1 0', minWidth: 100 }}>
+          <WorkspaceNameField testId="workspace-name-input" />
+        </Box>
+      </Tooltip>
+    </Box>
+  )
+})
 
 export default WorkspaceBar
