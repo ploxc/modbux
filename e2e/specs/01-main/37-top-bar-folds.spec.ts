@@ -39,6 +39,9 @@ const setBarWidth = async (app: ElectronApplication, page: Page, width: number):
   await expect.poll(() => barWidth(page)).toBe(width)
 }
 
+/** How far the bar's content reaches past its own width. */
+const overflow = (bar: HTMLElement): number => bar.scrollWidth - bar.clientWidth
+
 /** One fold step: what shows above its breakpoint and goes at it, and what takes its place. */
 interface Fold {
   name: string
@@ -89,6 +92,8 @@ test.describe.serial('The client top bar folds as it narrows', () => {
       await setBarWidth(electronApp, mainPage, fold.width + 1)
       await expect(fold.inline(mainPage)).toBeVisible()
       if (fold.folded) await expect(fold.folded(mainPage)).toBeHidden()
+      // The bar holds all it shows, unfolded, a pixel above the step.
+      expect(await mainPage.getByTestId('client-top-bar').evaluate(overflow)).toBe(0)
 
       await setBarWidth(electronApp, mainPage, fold.width)
       await expect(fold.inline(mainPage)).toBeHidden()
