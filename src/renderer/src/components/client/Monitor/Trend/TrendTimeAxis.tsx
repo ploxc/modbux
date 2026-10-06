@@ -81,7 +81,12 @@ const TrendTimeAxis = meme(({ from, to, time, origin }: TrendTimeAxisProps): JSX
 
   useEffect(() => {
     chart.current?.setScale('x', { min: from, max: to })
-  }, [from, to, origin, time, theme])
+  }, [from, to, time, theme])
+  // uPlot writes the labels again only when the scale moves, and the log's
+  // oldest sample moves under a paused trend once the log is full.
+  useEffect(() => {
+    chart.current?.redraw(false, true)
+  }, [origin])
 
   return (
     <Box
