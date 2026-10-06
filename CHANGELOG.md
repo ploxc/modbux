@@ -123,8 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beside the trend, holds a unit's axis at the range it shows or one typed,
   gives a line another colour, reads the time since the log's start, and
   draws steps or points.
-  A trend saves under a name with its client, and docks under Monitor's grid
-  or fills its room.
+  A trend saves under a name with its client, and asks before it deletes one;
+  it docks under Monitor's grid or fills its room.
 - **Client to server without Home.** Beside Home in the client's top bar, a
   server button opens the server in the same window, and the server's top bar
   has a client button back. While the server has a window of its own, neither

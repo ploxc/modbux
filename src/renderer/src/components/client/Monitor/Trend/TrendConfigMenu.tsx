@@ -6,6 +6,8 @@ import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined'
 import Divider from '@mui/material/Divider'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
@@ -99,6 +101,8 @@ const TrendConfigMenu = meme((): JSX.Element => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [naming, setNaming] = useState<Naming>()
   const [draft, setDraft] = useState('')
+  /** The saved trend Delete asks about, while it asks. */
+  const [deleting, setDeleting] = useState<string>()
 
   const saved = trends.find((trend) => trend.name === name)
   const changed =
@@ -144,16 +148,20 @@ const TrendConfigMenu = meme((): JSX.Element => {
     setNaming({ kind: 'rename', from })
     setAnchor(null)
   }, [])
-  const handleDelete = useCallback(
-    (saved: string) => {
-      const clientZustand = useClientZustand.getState()
-      clientZustand.deleteTrend(uuid, saved)
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      trendPanelZustand.setName(undefined)
-      setAnchor(null)
-    },
-    [uuid]
-  )
+  // Delete asks first, as removing a unit does.
+  const handleDelete = useCallback((saved: string) => {
+    setDeleting(saved)
+    setAnchor(null)
+  }, [])
+  const handleKeep = useCallback(() => setDeleting(undefined), [])
+  const handleConfirmDelete = useCallback(() => {
+    if (deleting === undefined) return
+    const clientZustand = useClientZustand.getState()
+    clientZustand.deleteTrend(uuid, deleting)
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.setName(undefined)
+    setDeleting(undefined)
+  }, [uuid, deleting])
   // The image is taken once the menu is closed, of the trend as it is drawn.
   const handleCopyImage = useCallback(async () => {
     setAnchor(null)
@@ -289,6 +297,28 @@ const TrendConfigMenu = meme((): JSX.Element => {
           New trend
         </MenuItem>
       </Menu>
+      <Dialog open={deleting !== undefined} onClose={handleKeep} maxWidth="xs" fullWidth>
+        <DialogHeading icon={<DeleteOutlined />} tone="error">
+          Delete the trend {deleting}?
+        </DialogHeading>
+        <DialogContent>
+          <DialogContentText>
+            Its registers, range and settings go. The log keeps every sample.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button data-testid="trend-delete-cancel-btn" variant="text" onClick={handleKeep}>
+            Keep it
+          </Button>
+          <Button
+            data-testid="trend-delete-confirm-btn"
+            color="error"
+            onClick={handleConfirmDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog open={naming !== undefined} onClose={handleCancelName} maxWidth="xs" fullWidth>
         <DialogHeading icon={<ShowChart />} tone="success">
           {naming?.kind === 'rename' ? 'Rename the trend' : 'Save the trend as'}

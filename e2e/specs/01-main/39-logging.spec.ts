@@ -456,8 +456,15 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     await mainPage.getByTestId('trend-name-confirm-btn').click()
     await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
 
+    // Delete asks first, and Keep it keeps the trend.
     await mainPage.getByTestId('trend-config-btn').click()
     await mainPage.getByTestId('trend-delete-btn').click()
+    await mainPage.getByTestId('trend-delete-cancel-btn').click()
+    await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Target')
+    await mainPage.getByTestId('trend-config-btn').click()
+    await expect(mainPage.getByTestId('trend-saved-Target')).toBeVisible()
+    await mainPage.getByTestId('trend-delete-btn').click()
+    await mainPage.getByTestId('trend-delete-confirm-btn').click()
     await expect(mainPage.getByTestId('trend-config-btn')).toHaveText('Trend')
     await mainPage.getByTestId('trend-config-btn').click()
     await expect(mainPage.getByTestId('trend-saved-Target')).toHaveCount(0)
