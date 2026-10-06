@@ -300,6 +300,65 @@ describe('the trend store', () => {
     expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
   })
 
+  it('hides a register, keeping its colour, and shows it again', () => {
+    for (const address of [0, 1]) store().add(entry(address))
+    store().toggleHidden(trendKey(entry(1)))
+    expect(store().entries.map(({ hidden, color }) => [hidden, color])).toEqual([
+      [undefined, TREND_COLORS[0]],
+      [true, TREND_COLORS[1]]
+    ])
+
+    store().toggleHidden(trendKey(entry(1)))
+    expect(store().entries[1]).not.toHaveProperty('hidden')
+    store().toggleHidden(trendKey(entry(9)))
+    expect(store().entries.map(({ hidden }) => hidden)).toEqual([undefined, undefined])
+  })
+
+  it('shows a register alone, and on the one already alone shows them all again', () => {
+    for (const address of [0, 1, 2]) store().add(entry(address))
+    store().toggleHidden(trendKey(entry(1)))
+    const hiddenOf = (): boolean[] => store().entries.map(({ hidden }) => hidden === true)
+
+    store().solo(trendKey(entry(1)))
+    expect(hiddenOf()).toEqual([true, false, true])
+    store().solo(trendKey(entry(0)))
+    expect(hiddenOf()).toEqual([false, true, true])
+    store().solo(trendKey(entry(0)))
+    expect(hiddenOf()).toEqual([false, false, false])
+  })
+
+  it('shows them all again from a register alone because the others were hidden by hand', () => {
+    for (const address of [0, 1]) store().add(entry(address))
+    store().toggleHidden(trendKey(entry(1)))
+    store().solo(trendKey(entry(0)))
+
+    expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([false, false])
+  })
+
+  it('is not alone while it is hidden itself, so it shows it alone', () => {
+    for (const address of [0, 1]) store().add(entry(address))
+    store().toggleHidden(trendKey(entry(0)))
+    store().toggleHidden(trendKey(entry(1)))
+    store().solo(trendKey(entry(0)))
+
+    expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([false, true])
+  })
+
+  it('saves a hidden register as hidden, and a trend hiding nothing as one saved before', () => {
+    for (const address of [0, 1]) store().add(entry(address))
+    const before = snapshotOf(store(), 'Currents')
+    expect(before.entries[0]).not.toHaveProperty('hidden')
+    store().toggleHidden(trendKey(entry(1)))
+    const saved = snapshotOf(store(), 'Currents')
+    expect(saved.entries.map(({ hidden }) => hidden)).toEqual([undefined, true])
+
+    store().startNew()
+    store().load('client-a', saved)
+    expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([false, true])
+    store().toggleHidden(trendKey(entry(1)))
+    expect(snapshotOf(store(), 'Currents')).toStrictEqual(before)
+  })
+
   it("forgets the name when it starts over with another client's register", () => {
     store().add(entry(0))
     store().setName('Currents')

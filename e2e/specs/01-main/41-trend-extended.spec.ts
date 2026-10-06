@@ -131,5 +131,84 @@ test.describe.serial('The trend, extended', () => {
     await expect(async () => expect(await heightOf(first)).toBe(held)).toPass()
     await mainPage.getByTestId('trend-plot-grip-0').dblclick()
     await expect(mainPage.getByTestId('trend-changed')).toBeVisible()
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-save-btn').click()
+    await expect(mainPage.getByTestId('trend-changed')).toHaveCount(0)
+  })
+
+  test("a click on a chip hides its register's line, and a second shows it", async ({
+    mainPage
+  }) => {
+    const voltage = mainPage.getByTestId('trend-chip-toggle-holding_registers-0')
+    await voltage.click()
+    await expect(voltage).toHaveAttribute('aria-pressed', 'false')
+    await expect(mainPage.getByTestId('trend-chip-holding_registers-0')).toHaveAttribute(
+      'data-hidden',
+      'true'
+    )
+    // The volts' only line hidden, their plot goes, and hiding changes the trend.
+    await expect(mainPage.getByTestId('trend-plot-0')).toHaveAttribute('data-unit', 'A')
+    await expect(mainPage.getByTestId('trend-plot-1')).toHaveCount(0)
+    await expect(mainPage.getByTestId('trend-changed')).toBeVisible()
+
+    await voltage.click()
+    await expect(voltage).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('trend-plot-0')).toHaveAttribute('data-unit', 'V')
+    await expect(mainPage.getByTestId('trend-plot-1')).toHaveAttribute('data-unit', 'A')
+  })
+
+  test('a double click shows one register alone, and again shows them all', async ({
+    mainPage
+  }) => {
+    const current = mainPage.getByTestId('trend-chip-toggle-holding_registers-1')
+    await current.dblclick()
+    await expect(mainPage.getByTestId('trend-plot-0')).toHaveAttribute('data-unit', 'A')
+    await expect(mainPage.getByTestId('trend-plot-1')).toHaveCount(0)
+    for (const address of [0, 2])
+      await expect(
+        mainPage.getByTestId(`trend-chip-toggle-holding_registers-${address}`)
+      ).toHaveAttribute('aria-pressed', 'false')
+
+    // A hidden line is not in the readout: one row, the shown line's.
+    const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
+    if (!over) throw new Error('The plot is not laid out')
+    await mainPage.mouse.move(over.x + over.width - 2, over.y + over.height / 2)
+    await expect(mainPage.getByTestId('trend-readout-value-0')).toHaveText(/ A$/)
+    await expect(mainPage.getByTestId('trend-readout-value-1')).toHaveCount(0)
+    await mainPage.mouse.move(over.x - 40, over.y - 40)
+
+    await current.dblclick()
+    await expect(mainPage.getByTestId('trend-plot-1')).toHaveAttribute('data-unit', 'A')
+    for (const address of [0, 1, 2])
+      await expect(
+        mainPage.getByTestId(`trend-chip-toggle-holding_registers-${address}`)
+      ).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test("a hidden bit's lane is gone", async ({ mainPage }) => {
+    await mainPage.getByTestId('monitor-trend-0-coils-0').click()
+    await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
+
+    await mainPage.getByTestId('trend-chip-toggle-coils-0').click()
+    await expect(mainPage.getByTestId('trend-lanes')).toHaveCount(0)
+    await mainPage.getByTestId('trend-chip-toggle-coils-0').click()
+    await expect(mainPage.getByTestId('trend-lanes')).toBeVisible()
+    await mainPage.getByTestId('trend-chip-remove-coils-0').click()
+  })
+
+  test('a saved trend keeps what it hides', async ({ mainPage }) => {
+    await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-save-btn').click()
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-new-btn').click()
+    await mainPage.getByTestId('trend-config-btn').click()
+    await mainPage.getByTestId('trend-saved-Heights').click()
+
+    await expect(mainPage.getByTestId('trend-chip-holding_registers-2')).toHaveAttribute(
+      'data-hidden',
+      'true'
+    )
+    await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
   })
 })

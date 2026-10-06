@@ -27,9 +27,10 @@ export interface TrendEntry {
   address: number
 }
 
-/** A register the trend draws, and the colour it keeps while it is drawn. */
+/** A register the trend draws, the colour it keeps while it is drawn, and whether it is hidden. */
 export interface DrawnEntry extends TrendEntry {
   color: string
+  hidden?: boolean
 }
 
 export const trendKey = ({ uuid, unit, type, address }: TrendEntry): string =>
@@ -121,6 +122,14 @@ interface TrendPanelZustand {
   toggle: (entry: TrendEntry) => boolean
   /** Takes a register out; the trend stays open, and an empty one follows the log again. */
   remove: (key: string) => void
+  /** Hides a register's line or lane, or shows it again. */
+  toggleHidden: (key: string) => void
+  /**
+   * Shows a register alone, hiding every other; on the register already shown
+   * alone, shows them all again. It sets where it ends rather than toggling,
+   * because a double click comes after two clicks that each toggled.
+   */
+  solo: (key: string) => void
   /** Closes the trend, which keeps its registers for when it opens again. */
   close: () => void
   /**
@@ -293,6 +302,23 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         state.openLanes = stillDrawn(state.openLanes, state.entries)
         if (state.entries.length === 0) state.view = undefined
       }),
+    toggleHidden: (key): void =>
+      set((state) => {
+        const entry = state.entries.find((each) => trendKey(each) === key)
+        if (entry === undefined) return
+        if (entry.hidden) delete entry.hidden
+        else entry.hidden = true
+      }),
+    solo: (key): void =>
+      set((state) => {
+        const alone = state.entries.every(
+          (entry) => (trendKey(entry) === key) !== (entry.hidden === true)
+        )
+        for (const entry of state.entries) {
+          if (alone || trendKey(entry) === key) delete entry.hidden
+          else entry.hidden = true
+        }
+      }),
     prune: (units): void =>
       set((state) => {
         state.entries = state.entries.filter((entry) =>
@@ -322,7 +348,14 @@ export const snapshotOf = (
   name: string
 ): SavedTrend => ({
   name,
-  entries: entries.map(({ unit, type, address, color }) => ({ unit, type, address, color })),
+  // Shown is no key at all, so a trend that hides nothing saves as one saved before hiding.
+  entries: entries.map(({ unit, type, address, color, hidden }) => ({
+    unit,
+    type,
+    address,
+    color,
+    ...(hidden ? { hidden } : {})
+  })),
   range,
   settings
 })

@@ -106,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one time axis and under one cursor; a grip under a plot drags its height,
   which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
   and a bitmap opens into a lane a bit. Plots and lanes taller than the trend
-  scroll. Axes and lines, a panel that drags and stays open
+  scroll. A click on a register's chip hides its line or lane and a second
+  shows it again; a double click shows it alone. Axes and lines, a panel that drags and stays open
   beside the trend, holds a unit's axis at the range it shows or one typed,
   gives a line another colour, reads the time since the log's start, and
   draws steps or points.

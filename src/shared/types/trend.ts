@@ -24,12 +24,13 @@ const TrendSettingsSchema = z.object({
 })
 export type TrendSettings = z.infer<typeof TrendSettingsSchema>
 
-/** A register a saved trend draws, of one of its client's units, in its colour. */
+/** A register a saved trend draws, of one of its client's units, in its colour, and whether it is hidden. */
 const SavedTrendEntrySchema = z.object({
   unit: z.string(),
   type: RegisterTypeSchema,
   address: z.number().int().min(0),
-  color: z.string()
+  color: z.string(),
+  hidden: z.boolean().optional()
 })
 
 /** A trend kept under a name with its client: its registers, its range and how it draws. */

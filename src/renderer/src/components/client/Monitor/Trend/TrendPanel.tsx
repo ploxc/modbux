@@ -1,5 +1,6 @@
 import Close from '@mui/icons-material/Close'
 import Box from '@mui/material/Box'
+import ButtonBase from '@mui/material/ButtonBase'
 import IconButton from '@mui/material/IconButton'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
@@ -263,8 +264,9 @@ interface LayoutPlot {
 }
 
 /**
- * Each line's colour, its engineering unit's scale and how it is named, an
- * axis per unit for Axes and lines, and a plot per unit.
+ * Each line's colour, its engineering unit's scale and how it is named, and
+ * an axis per unit, for Axes and lines, which lists hidden lines too; and a
+ * plot per unit of the lines shown.
  */
 const layoutOf = (
   entries: DrawnEntry[],
@@ -289,7 +291,7 @@ const layoutOf = (
     }
   })
   const lines = items.map(({ line }) => line)
-  const plots = plotsOf(items).map(
+  const plots = plotsOf(items.filter(({ entry }) => entry.hidden !== true)).map(
     ({ unit, lines: plotItems }): LayoutPlot => ({
       unit,
       lines: plotItems.map(({ line }) => line),
@@ -299,7 +301,12 @@ const layoutOf = (
   return { settingsLines: items, axes: trendAxes(lines), plots }
 }
 
-/** One register of the trend: its colour, address and name, and a press that takes it out. */
+/**
+ * One register of the trend: its colour, address and name, which a click
+ * hides and shows and a double click shows alone, and a press that takes it
+ * out. The two are siblings, because a button may not hold a button. Hidden,
+ * the chip stays, dashed and dim, its swatch an outline in its colour.
+ */
 const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
   const addressBase = useClientZustand(
     (z) => z.clients[entry.uuid]?.units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
@@ -311,20 +318,29 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.remove(trendKey(entry))
   }, [entry])
+  const handleToggle = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.toggleHidden(trendKey(entry))
+  }, [entry])
+  const handleSolo = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    trendPanelZustand.solo(trendKey(entry))
+  }, [entry])
   const address = entry.address + Number(addressBase)
+  const hidden = entry.hidden === true
 
   return (
     <Box
       component="span"
       data-testid={`trend-chip-${entry.type}-${address}`}
+      data-hidden={hidden}
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 0.75,
         height: 24,
-        pl: 1,
         pr: 0.25,
         border: 1,
+        borderStyle: hidden ? 'dashed' : 'solid',
         borderColor: 'divider',
         borderRadius: '12px',
         fontSize: 12,
@@ -335,18 +351,45 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
       }}
       title={comment}
     >
-      <Box
-        component="span"
-        sx={{ flexShrink: 0, width: 10, height: 3, borderRadius: '2px', bgcolor: entry.color }}
-      />
-      <Box component="span" sx={{ flexShrink: 0, fontFamily: 'monospace' }}>
-        {address}
-      </Box>
-      {comment && (
-        <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {comment}
+      <ButtonBase
+        aria-pressed={!hidden}
+        aria-label={hidden ? `Show ${address}` : `Hide ${address}`}
+        data-testid={`trend-chip-toggle-${entry.type}-${address}`}
+        onClick={handleToggle}
+        onDoubleClick={handleSolo}
+        sx={{
+          alignSelf: 'stretch',
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          pl: 1,
+          pr: 0.5,
+          borderRadius: '12px 0 0 12px',
+          font: 'inherit',
+          opacity: hidden ? 0.55 : 1
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            flexShrink: 0,
+            width: 10,
+            height: 3,
+            borderRadius: '2px',
+            boxSizing: 'border-box',
+            ...(hidden ? { border: 1, borderColor: entry.color } : { bgcolor: entry.color })
+          }}
+        />
+        <Box component="span" sx={{ flexShrink: 0, fontFamily: 'monospace' }}>
+          {address}
         </Box>
-      )}
+        {comment && (
+          <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {comment}
+          </Box>
+        )}
+      </ButtonBase>
       <IconButton
         size="small"
         aria-label={`Take ${address} out of the trend`}
@@ -575,7 +618,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   }, [])
   const lanes = entries.flatMap((entry): TrendLane[] => {
     const mapValue = mapValueOf(units, entry)
-    if (!isLane(entry, mapValue)) return []
+    if (entry.hidden === true || !isLane(entry, mapValue)) return []
     const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
     const address = entry.address + Number(addressBase)
     return [
