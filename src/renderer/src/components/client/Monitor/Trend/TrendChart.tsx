@@ -409,7 +409,9 @@ const TrendChart = meme(
       <Box
         ref={container}
         data-testid="trend-chart"
-        sx={{ position: 'relative', flexGrow: 1, minHeight: 0 }}
+        // No minimum of its own either way: uPlot's canvas inside it holds
+        // the width it was last given, and the observer above sees no less.
+        sx={{ position: 'relative', flexGrow: 1, minHeight: 0, minWidth: 0 }}
       >
         {readout !== undefined && place !== undefined && (
           <Box

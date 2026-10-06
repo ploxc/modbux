@@ -8,6 +8,23 @@ import {
   loadClientConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import type { ElectronApplication } from '@playwright/test'
+import { evaluateMain } from '../../fixtures/launch'
+
+/** The window's size, which the suite's other specs start from. */
+const DEFAULT_SIZE: [number, number] = [1480, 1000]
+
+const setWindowSize = (app: ElectronApplication, width: number, height: number): Promise<void> =>
+  evaluateMain(() =>
+    app.evaluate(
+      ({ BrowserWindow }, [w, h]) => {
+        const [window] = BrowserWindow.getAllWindows()
+        if (!window) throw new Error('no window to resize')
+        window.setSize(w, h)
+      },
+      [width, height] as [number, number]
+    )
+  )
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-trend.json')
@@ -94,5 +111,19 @@ test.describe.serial('Bitmaps in the trend', () => {
       await expect(toggle(6)).toHaveAttribute('aria-expanded', 'false')
       await expect(toggle(7)).toHaveAttribute('aria-expanded', 'true')
     }
+  })
+
+  test('the docked trend narrows with the window again', async ({ mainPage, electronApp }) => {
+    await mainPage.getByTestId('trend-mode-dock-btn').click()
+    await setWindowSize(electronApp, 1900, DEFAULT_SIZE[1])
+    await setWindowSize(electronApp, 1200, DEFAULT_SIZE[1])
+
+    // No wider than the panel around it, which narrowed with the window.
+    await expect(async () => {
+      const chart = await mainPage.getByTestId('trend-chart').boundingBox()
+      const panel = await mainPage.getByTestId('trend-panel').boundingBox()
+      expect(chart?.width).toBeLessThanOrEqual(panel?.width ?? 0)
+    }).toPass()
+    await setWindowSize(electronApp, ...DEFAULT_SIZE)
   })
 })
