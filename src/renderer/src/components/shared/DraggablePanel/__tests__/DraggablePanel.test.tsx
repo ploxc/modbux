@@ -109,6 +109,35 @@ describe('DraggablePanel', () => {
     expect(screen.getByRole('region', { name: 'Axes' })).toHaveStyle({ top: '112px', left: '32px' })
   })
 
+  // A press measures the paper; only a paper with a resize corner keeps the
+  // size measured, so a panel without one grows and shrinks with its rows.
+  const pressedPaper = (resize: 'none' | 'both'): HTMLElement => {
+    const anchor = document.createElement('div')
+    document.body.appendChild(anchor)
+    render(
+      <DraggablePanel anchor={anchor} onClose={vi.fn()} paperSx={{ resize }} label="Axes">
+        <span>inside</span>
+      </DraggablePanel>
+    )
+    const paper = screen.getByRole('region', { name: 'Axes' })
+    fireEvent.pointerDown(paper)
+    return paper
+  }
+
+  it('sets no height on a paper with no resize corner, only the cap', () => {
+    const paper = pressedPaper('none')
+
+    expect(paper.style.maxHeight).toMatch(/px$/)
+    expect(paper.style.height).toBe('')
+  })
+
+  it('keeps the measured height of a paper with a resize corner', () => {
+    const paper = pressedPaper('both')
+
+    expect(paper.style.maxHeight).toMatch(/px$/)
+    expect(paper.style.height).toMatch(/px$/)
+  })
+
   // A click anywhere on it hands it the focus Escape needs.
   it('closes on Escape after a click on it', async () => {
     const { onClose } = renderPanel()

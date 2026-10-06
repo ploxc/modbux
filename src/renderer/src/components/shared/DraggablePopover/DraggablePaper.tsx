@@ -38,16 +38,20 @@ const DraggablePaper = meme(
       [forwardedRef]
     )
 
-    /** Caps the size at the window's edge, measured from the given top left corner. */
+    /**
+     * Caps the size at the window's edge, measured from the given top left
+     * corner. A paper with no resize corner keeps the size its content gives it.
+     */
     const clampSize = useCallback(
       (node: HTMLDivElement, left: number, top: number, width: number, height: number) => {
         const maxWidth = window.innerWidth - left - margin
         const maxHeight = window.innerHeight - top - margin
+        node.style.maxWidth = `${maxWidth}px`
+        node.style.maxHeight = `${maxHeight}px`
+        if (getComputedStyle(node).resize === 'none') return
         // A resize dragged past the edge leaves a size the window cannot show.
         node.style.width = `${Math.min(width, maxWidth)}px`
         node.style.height = `${Math.min(height, maxHeight)}px`
-        node.style.maxWidth = `${maxWidth}px`
-        node.style.maxHeight = `${maxHeight}px`
       },
       [margin]
     )

@@ -146,4 +146,23 @@ test.describe.serial('Bitmaps in the trend', () => {
     await mainPage.getByTestId('trend-settings-btn').click()
     await setWindowSize(electronApp, ...DEFAULT_SIZE)
   })
+
+  test('Axes and lines grows and shrinks with a line taken out and added while it is open', async ({
+    mainPage
+  }) => {
+    await mainPage.getByTestId('trend-settings-btn').click()
+    const panel = mainPage.getByRole('region', { name: 'Axes and lines' })
+    await expect(panel).toBeVisible()
+    // A press measures the paper, which once fixed its height.
+    await panel.click({ position: { x: 4, y: 4 } })
+    const height = async (): Promise<number> => (await panel.boundingBox())?.height ?? 0
+    const opened = await height()
+
+    const line = mainPage.getByTestId('monitor-trend-0-holding_registers-0')
+    await line.click()
+    await expect(async () => expect(await height()).toBeLessThan(opened)).toPass()
+    await line.click()
+    await expect(async () => expect(await height()).toBe(opened)).toPass()
+    await mainPage.getByTestId('trend-settings-btn').click()
+  })
 })
