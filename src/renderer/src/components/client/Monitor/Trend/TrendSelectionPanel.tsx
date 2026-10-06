@@ -3,7 +3,7 @@ import Button from '@mui/material/Button'
 import { formatDuration } from '@renderer/components/client/Logging/format'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { textMuted } from '@renderer/theme'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { figure, selectionLabel } from './trendData'
 import { DrawnEntry, TrendStretch, useTrendPanelZustand } from './trendPanel.zustand'
 import { laneStats, lineStats } from './trendStats'
@@ -64,6 +64,31 @@ const TrendSelectionPanel = meme(
     onZoom
   }: TrendSelectionPanelProps): JSX.Element => {
     const samples = useSelectionSamples(uuid, entries, selection)
+    // Every sample of the stretch, read again only when they or the registers change.
+    const rows = useMemo(
+      () =>
+        registers.map((register) => {
+          const points = samples?.[register.key] ?? []
+          const { convert } = register
+          // A failed read, or a value its conversion gives no number for, counts in nothing.
+          const line =
+            convert === undefined
+              ? undefined
+              : lineStats(
+                  points.flatMap(({ time, value, error }) => {
+                    const converted = error === undefined ? convert(value) : undefined
+                    return converted === undefined ? [] : [{ time, value: converted }]
+                  })
+                )
+          // A bitmap's word is on while it is not 0, as its lane is lit.
+          const lane =
+            convert === undefined
+              ? laneStats(points, runEnds, (value) => value !== 0, selection.from, selection.to)
+              : undefined
+          return { register, line, lane }
+        }),
+      [registers, samples, runEnds, selection]
+    )
     const handleZoom = useCallback(() => onZoom(selection.from, selection.to), [selection, onZoom])
     const handleClear = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
@@ -130,24 +155,7 @@ const TrendSelectionPanel = meme(
             </Box>
           </thead>
           <Box component="tbody" sx={{ fontFamily: 'monospace' }}>
-            {registers.map((register) => {
-              const points = samples?.[register.key] ?? []
-              const { convert } = register
-              // A failed read, or a value its conversion gives no number for, counts in nothing.
-              const line =
-                convert === undefined
-                  ? undefined
-                  : lineStats(
-                      points.flatMap(({ time, value, error }) => {
-                        const converted = error === undefined ? convert(value) : undefined
-                        return converted === undefined ? [] : [{ time, value: converted }]
-                      })
-                    )
-              // A bitmap's word is on while it is not 0, as its lane is lit.
-              const lane =
-                convert === undefined
-                  ? laneStats(points, runEnds, (value) => value !== 0, selection.from, selection.to)
-                  : undefined
+            {rows.map(({ register, line, lane }) => {
               const cells: { field: string; text: string }[] =
                 line === undefined
                   ? LINE_FIELDS.map((field) => ({ field, text: '–' }))
@@ -189,7 +197,7 @@ const TrendSelectionPanel = meme(
                     </Box>
                     {register.label}
                   </Box>
-                  {convert === undefined ? (
+                  {register.convert === undefined ? (
                     <Box
                       component="td"
                       colSpan={LINE_FIELDS.length}

@@ -527,7 +527,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const selection = useTrendPanelZustand((z) => z.selection)
   const setSelection = useTrendPanelZustand.getState().setSelection
   // A script's value waits for the engine, and draws again once it is there.
-  useScriptEngineZustand((z) => z.ready)
+  const scriptReady = useScriptEngineZustand((z) => z.ready)
   const syncKey = useId()
   const setCursor = useTrendReadoutZustand.getState().setCursor
   const room = useRef<HTMLDivElement>(null)
@@ -579,9 +579,9 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
     steps: NAVIGATOR_STEPS
   })
 
+  const runEnds = useMemo(() => runs.flatMap(({ end }) => (end === undefined ? [] : [end])), [runs])
   // Converted again on every render, which comes with each answer, a store
   // change or the script engine turning ready.
-  const runEnds = runs.flatMap(({ end }) => (end === undefined ? [] : [end]))
   const drawn = plots.map((plot) => ({
     plot,
     lines: plot.items.map(({ entry, line }) => {
@@ -635,20 +635,26 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
     ]
   })
   const firstEntry = first[0]
-  const registers = entries.map((entry): SelectionRegister => {
-    const mapValue = mapValueOf(units, entry)
-    const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
-    const address = entry.address + Number(addressBase)
-    return {
-      key: trendKey(entry),
-      testId: `trend-selection-row-${entry.type}-${address}`,
-      label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
-      color: entry.color,
-      unit: mapValue?.unit ?? '',
-      hidden: entry.hidden === true,
-      convert: isLane(entry, mapValue) ? undefined : convertOf(entry, mapValue)
-    }
-  })
+  // Made again only when a register or its mapping changes, so the
+  // statistics are not read again on every answer.
+  const registers = useMemo(
+    () =>
+      entries.map((entry): SelectionRegister => {
+        const mapValue = mapValueOf(units, entry)
+        const addressBase = units.find(({ uuid }) => uuid === entry.unit)?.addressBase ?? '0'
+        const address = entry.address + Number(addressBase)
+        return {
+          key: trendKey(entry),
+          testId: `trend-selection-row-${entry.type}-${address}`,
+          label: mapValue?.comment ? `${address} ${mapValue.comment}` : String(address),
+          color: entry.color,
+          unit: mapValue?.unit ?? '',
+          hidden: entry.hidden === true,
+          convert: isLane(entry, mapValue) ? undefined : convertOf(entry, mapValue)
+        }
+      }),
+    [entries, units]
+  )
 
   // Every plot not given a height shares what the lanes leave of the room.
   const roomHeight = useHeightOf(scroll, true)
@@ -733,6 +739,8 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
       </Box>
       {selection !== undefined && (
         <TrendSelectionPanel
+          // A script's value is none until the engine is there, and reads again once it is.
+          key={String(scriptReady)}
           uuid={uuid}
           entries={entries}
           registers={registers}
