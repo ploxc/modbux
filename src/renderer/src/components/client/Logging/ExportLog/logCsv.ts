@@ -3,7 +3,7 @@ import { ClientUnit, isNumberRegister, LogSample, LogStatus } from '@shared'
 import { DateTime } from 'luxon'
 
 /** A time as the export writes it, to the millisecond, in the machine's zone. */
-const csvTime = (millis: number): string =>
+export const csvTime = (millis: number): string =>
   DateTime.fromMillis(millis).toFormat('yyyy-MM-dd HH:mm:ss.SSS')
 
 /** A field, quoted when it holds a comma, a quote or a line break. */
@@ -26,13 +26,22 @@ const COLUMNS = [
 ]
 
 /**
- * The lines a CSV starts with: what it came from, from when the log is
- * complete and how many samples before that were overwritten, and the column
- * names. The file says all of it itself, so it needs no uuid to stay readable.
+ * The two comment lines a CSV starts with: what it came from, and from when
+ * the log is complete and how many samples before that were overwritten. The
+ * file says it itself, so it needs no uuid to stay readable.
  */
-export const csvHead = (clientName: string, clientAddress: string, status: LogStatus): string[] => [
+export const csvAbout = (
+  clientName: string,
+  clientAddress: string,
+  status: LogStatus
+): [string, string] => [
   `# Modbux log of ${clientName || 'Unnamed client'}, ${clientAddress}`,
-  `# Complete from ${status.oldest === undefined ? '-' : csvTime(status.oldest)}; ${status.overwritten} samples before it were overwritten`,
+  `# Complete from ${status.oldest === undefined ? '-' : csvTime(status.oldest)}; ${status.overwritten} samples before it were overwritten`
+]
+
+/** The lines the log's CSV starts with: `csvAbout`'s, and the column names. */
+export const csvHead = (clientName: string, clientAddress: string, status: LogStatus): string[] => [
+  ...csvAbout(clientName, clientAddress, status),
   COLUMNS.join(',')
 ]
 

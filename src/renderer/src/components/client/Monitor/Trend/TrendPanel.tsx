@@ -4,20 +4,12 @@ import ButtonBase from '@mui/material/ButtonBase'
 import IconButton from '@mui/material/IconButton'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { applyConversion } from '@renderer/components/client/ClientGrids/RegisterGrid/columns/convertedValue'
 import { meme } from '@renderer/components/shared/inputs/meme'
 import { useClientZustand } from '@renderer/context/client.zustand'
 import { dataOf, useLiveZustand } from '@renderer/context/live.zustand'
 import { useScriptEngineZustand } from '@renderer/conversion/scriptEngine.zustand'
 import { textMuted } from '@renderer/theme'
-import {
-  AxisRange,
-  ClientUnit,
-  isBooleanRegister,
-  isNumberRegister,
-  RegisterMapValue,
-  TrendRangeId
-} from '@shared'
+import { AxisRange, ClientUnit, TrendRangeId } from '@shared'
 import { formatDuration, formatTime } from '@renderer/components/client/Logging/format'
 import {
   Fragment,
@@ -38,6 +30,7 @@ import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
 import HelpOutline from '@mui/icons-material/HelpOutlineOutlined'
 import Undo from '@mui/icons-material/Undo'
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import Tooltip from '@mui/material/Tooltip'
 import type uPlot from 'uplot'
 import PlotGrip from './PlotGrip'
@@ -47,6 +40,8 @@ import TrendNavigator from './TrendNavigator'
 import TrendPlot, { TrendLine } from './TrendPlot'
 import TrendReadout from './TrendReadout'
 import { useTrendReadoutZustand } from './trendReadout.zustand'
+import { convertOf, isLane, mapValueOf } from './trendRegister'
+import { exportTrendCsv } from './exportTrendCsv'
 import TrendSelectionPanel, { SelectionRegister } from './TrendSelectionPanel'
 import TrendTimeAxis from './TrendTimeAxis'
 import TrendPicker from './TrendPicker'
@@ -77,13 +72,7 @@ import {
   navigatorEntry,
   scaleRange
 } from './trendData'
-import {
-  DrawnEntry,
-  TrendEntry,
-  trendKey,
-  TrendMode,
-  useTrendPanelZustand
-} from './trendPanel.zustand'
+import { DrawnEntry, trendKey, TrendMode, useTrendPanelZustand } from './trendPanel.zustand'
 import { useLogWindows } from './useLogWindows'
 
 const NO_UNITS: ClientUnit[] = []
@@ -263,6 +252,32 @@ const BackButton = meme((): JSX.Element | null => {
   )
 })
 
+/** The press that hands over a CSV of what the trend shows: its stretch, of the registers shown. */
+const CsvButton = meme((): JSX.Element => {
+  const handleExport = useCallback(() => {
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    const { log } = dataOf(useLiveZustand.getState(), trendPanelZustand.uuid).clientState
+    const { from, to } = shownStretch(
+      trendPanelZustand.view,
+      trendPanelZustand.range,
+      { running: log.running, oldest: log.oldest, lastEnd: log.runs.at(-1)?.end },
+      Date.now()
+    )
+    void exportTrendCsv({ from, to })
+  }, [])
+  return (
+    <IconButton
+      size="small"
+      aria-label="Export what the trend shows as CSV"
+      title="Export what the trend shows as CSV"
+      data-testid="trend-csv-btn"
+      onClick={handleExport}
+    >
+      <FileDownloadOutlined fontSize="small" />
+    </IconButton>
+  )
+})
+
 /** What each gesture and key does in the trend, as the ? lists it. */
 const GESTURES: readonly [string, string][] = [
   ['Drag', 'select a stretch'],
@@ -316,23 +331,6 @@ const HelpButton = meme(
     </Tooltip>
   )
 )
-
-/** Whether a register is drawn as a lane under the lines: a bit, or a bitmap's word. */
-const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
-  isBooleanRegister(entry.type) || mapValue?.dataType === 'bitmap'
-
-/** A register's raw value as the grid converts it, and none where the conversion gives no number. */
-const convertOf =
-  (entry: TrendEntry, mapValue: RegisterMapValue | undefined) =>
-  (raw: number): number | undefined => {
-    if (!isNumberRegister(entry.type)) return raw
-    const converted = applyConversion(String(raw), mapValue?.dataType, mapValue?.conversion)
-    return typeof converted === 'number' ? converted : undefined
-  }
-
-/** The mapping entry of the register a trend line draws. */
-const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
-  units.find(({ uuid }) => uuid === entry.unit)?.registerMapping[entry.type][entry.address]
 
 /** A line, as Axes and lines lists it, and the register it draws. */
 interface PlotItem extends SettingsLine {
@@ -981,6 +979,7 @@ const TrendContent = meme((): JSX.Element => {
             </Box>
           </Box>
           <Box sx={[HEADER_ROW_SX, { flexShrink: 0 }]}>
+            <CsvButton />
             <HelpButton />
             <TrendSettingsPanel lines={layout.settingsLines} axes={layout.axes} />
             <ModeButtons mode={mode} />

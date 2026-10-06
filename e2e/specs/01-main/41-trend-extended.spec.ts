@@ -9,6 +9,9 @@ import {
   loadClientConfig
 } from '../../fixtures/helpers'
 import { resolve } from 'path'
+import { tmpdir } from 'os'
+import { readFile } from 'fs/promises'
+import { evaluateMain } from '../../fixtures/launch'
 
 const CONFIG_DIR = resolve(__dirname, '../../fixtures/config-files')
 const SERVER_CONFIG = resolve(CONFIG_DIR, 'server-trend.json')
@@ -427,5 +430,54 @@ test.describe.serial('The trend, extended', () => {
     await expect(mainPage.getByTestId('trend-help')).toContainText('Esc')
     await mainPage.mouse.move(0, 0)
     await mainPage.getByTestId('trend-mode-dock-btn').click()
+  })
+
+  test('the header and the selection hand over a CSV of the registers shown', async ({
+    electronApp,
+    mainPage
+  }) => {
+    /** The lines of the CSV a press hands over, read off the file it writes. */
+    const download = async (press: () => Promise<void>): Promise<string[]> => {
+      const savePath = resolve(tmpdir(), `modbux-trend-export-${Date.now()}.csv`)
+      await evaluateMain(() =>
+        electronApp.evaluate(({ session }, path) => {
+          session.defaultSession.once('will-download', (_event, item) => {
+            item.setSavePath(path)
+          })
+        }, savePath)
+      )
+      await press()
+      // The file exists before the download has written into it.
+      let csv = ''
+      await expect(async () => {
+        csv = await readFile(savePath, 'utf-8')
+        expect(csv).toMatch(/\n.*\n.*\n/)
+      }).toPass()
+      return csv.split('\n')
+    }
+    const expectRegisters = (lines: string[]): void => {
+      expect(lines[0]).toMatch(/^# Modbux log of /)
+      expect(lines[1]).toContain('; the trend from ')
+      expect(lines[2]).toBe('time,0 Voltage L1 (V),1 Current L1 (A),8 Voltage setpoint (V)')
+      expect(lines[3]).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3},/)
+      expect(lines.slice(3).some((line) => line.endsWith(',230'))).toBe(true)
+    }
+
+    // A hidden register has no column.
+    await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
+    expectRegisters(await download(() => mainPage.getByTestId('trend-csv-btn').click()))
+
+    await mainPage.getByTestId('trend-range-log').click()
+    const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
+    if (!over) throw new Error('The plot is not laid out')
+    await mainPage.mouse.move(over.x + over.width * 0.1, over.y + over.height / 2)
+    await mainPage.mouse.down()
+    await mainPage.mouse.move(over.x + over.width * 0.9, over.y + over.height / 2, { steps: 5 })
+    await mainPage.mouse.up()
+    expectRegisters(await download(() => mainPage.getByTestId('trend-selection-csv-btn').click()))
+
+    await mainPage.getByTestId('trend-selection-clear-btn').click()
+    await mainPage.getByTestId('trend-chip-toggle-holding_registers-2').click()
+    await mainPage.getByTestId('trend-range-10m').click()
   })
 })

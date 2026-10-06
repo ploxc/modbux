@@ -8,6 +8,7 @@ import { figure, selectionLabel } from './trendData'
 import { DrawnEntry, TrendStretch, useTrendPanelZustand } from './trendPanel.zustand'
 import { laneStats, lineStats } from './trendStats'
 import { useSelectionSamples } from './useSelectionSamples'
+import { exportTrendCsv } from './exportTrendCsv'
 
 /** A register as the statistics name it, and how its samples are read. */
 export interface SelectionRegister {
@@ -90,6 +91,7 @@ const TrendSelectionPanel = meme(
       [registers, samples, runEnds, selection]
     )
     const handleZoom = useCallback(() => onZoom(selection.from, selection.to), [selection, onZoom])
+    const handleCsv = useCallback(() => void exportTrendCsv(selection), [selection])
     const handleClear = useCallback(() => {
       const trendPanelZustand = useTrendPanelZustand.getState()
       trendPanelZustand.setSelection(undefined)
@@ -130,6 +132,16 @@ const TrendSelectionPanel = meme(
             sx={{ textTransform: 'none', fontSize: 12, py: 0.125 }}
           >
             Zoom to range
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            data-testid="trend-selection-csv-btn"
+            onClick={handleCsv}
+            sx={{ textTransform: 'none', fontSize: 12, py: 0.125 }}
+          >
+            Export CSV
           </Button>
           <Button
             size="small"
