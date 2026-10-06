@@ -52,11 +52,14 @@ test.describe.serial('Split View — Server in separate window', () => {
   test('main window shows client (home button hidden)', async ({ mainPage }) => {
     await expect(mainPage.getByTestId('connect-btn')).toBeVisible()
     await expect(mainPage.getByTestId('home-btn')).not.toBeVisible()
+    await expect(mainPage.getByTestId('nav-server-btn')).not.toBeVisible()
   })
 
   test('server window shows server interface', async () => {
     await expect(serverPage.getByTestId('section-coils')).toBeVisible()
     await expect(serverPage.getByTestId('section-holding_registers')).toBeVisible()
+    await expect(serverPage.getByTestId('home-btn')).not.toBeVisible()
+    await expect(serverPage.getByTestId('nav-client-btn')).not.toBeVisible()
   })
 
   /**
@@ -105,5 +108,6 @@ test.describe.serial('Split View — Server in separate window', () => {
       })
     )
     await expect(mainPage.getByTestId('home-btn')).toBeVisible()
+    await expect(mainPage.getByTestId('nav-server-btn')).toBeVisible()
   })
 })

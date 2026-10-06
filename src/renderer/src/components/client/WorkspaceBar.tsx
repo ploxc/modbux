@@ -10,7 +10,7 @@ import FileOpen from '@mui/icons-material/FileOpen'
 import MoreVert from '@mui/icons-material/MoreVert'
 import Save from '@mui/icons-material/Save'
 import SettingsIcon from '@mui/icons-material/Settings'
-import HomeButton from '@renderer/components/shared/HomeButton'
+import NavigationButtons from '@renderer/components/shared/NavigationButtons'
 import SettingsButton from '@renderer/components/settings/SettingsButton'
 import Settings from '@renderer/components/settings/Settings'
 import { meme } from '@renderer/components/shared/inputs/meme'
@@ -114,7 +114,7 @@ const WorkspaceBar = meme(() => (
       '& > :not(:last-child)': { flexShrink: 0 }
     }}
   >
-    <HomeButton />
+    <NavigationButtons other="server" />
     <Box className={WORKSPACE_INLINE} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <SettingsButton testId="client-settings-btn" size="large" variant="outlined" />
       <Box sx={{ display: 'flex', gap: 0.25 }}>

@@ -1,5 +1,5 @@
 import { meme } from '@renderer/components/shared/inputs/meme'
-import HomeButton from '@renderer/components/shared/HomeButton'
+import NavigationButtons from '@renderer/components/shared/NavigationButtons'
 import MessageReceiver from '@renderer/components/shared/MessageReceiver'
 import { useServerZustand } from '@renderer/context/server.zustand'
 import OpenSaveClear from '../components/server/OpenSaveClear'
@@ -58,7 +58,7 @@ const Server = meme(() => {
           <Box
             sx={{ display: 'flex', width: '100%', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}
           >
-            <HomeButton />
+            <NavigationButtons other="client" />
             <OpenSaveClear />
             <SelectServer />
             <ServerName />

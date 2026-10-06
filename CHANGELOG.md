@@ -110,6 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colour, reads the time since the log's start, and draws steps or points.
   A trend saves under a name with its client, and floats over Monitor, docks
   under its grid or fills its room.
+- **Client to server without Home.** Beside Home in the client's top bar, a
+  server button opens the server in the same window, and the server's top bar
+  has a client button back. While the server has a window of its own, neither
+  window shows them, as neither shows Home.
 
 ### Changed
 

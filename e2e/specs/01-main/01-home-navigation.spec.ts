@@ -57,4 +57,18 @@ test.describe.serial('Home screen and navigation', () => {
     await mainPage.getByTestId('home-btn').click()
     await expect(mainPage.getByTestId('home-client-btn')).toBeVisible()
   })
+
+  test('the client goes to the server, and the server back, without Home', async ({ mainPage }) => {
+    await mainPage.getByTestId('home-client-btn').click()
+    await expect(mainPage.getByTestId('nav-client-btn')).not.toBeVisible()
+    await mainPage.getByTestId('nav-server-btn').click()
+    await expect(mainPage.getByTestId('section-coils')).toBeVisible()
+
+    await expect(mainPage.getByTestId('nav-server-btn')).not.toBeVisible()
+    await mainPage.getByTestId('nav-client-btn').click()
+    await expect(mainPage.getByTestId('connect-btn')).toBeVisible()
+
+    await mainPage.getByTestId('home-btn').click()
+    await expect(mainPage.getByTestId('home-client-btn')).toBeVisible()
+  })
 })
