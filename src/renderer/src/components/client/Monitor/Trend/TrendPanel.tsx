@@ -14,7 +14,6 @@ import {
   ClientUnit,
   isBooleanRegister,
   isNumberRegister,
-  LogPoint,
   RegisterMapValue,
   TrendRangeId
 } from '@shared'
@@ -33,14 +32,14 @@ import {
 import OpenInFull from '@mui/icons-material/OpenInFull'
 import HorizontalSplit from '@mui/icons-material/HorizontalSplit'
 import Pause from '@mui/icons-material/Pause'
-import { DateTime } from 'luxon'
 import type uPlot from 'uplot'
 import PlotGrip from './PlotGrip'
 import TrendConfigMenu from './TrendConfigMenu'
 import TrendLanes, { TrendLane } from './TrendLanes'
 import TrendNavigator from './TrendNavigator'
-import TrendPlot, { TrendCursor, TrendLine } from './TrendPlot'
-import TrendReadout, { ReadoutRow } from './TrendReadout'
+import TrendPlot, { TrendLine } from './TrendPlot'
+import TrendReadout from './TrendReadout'
+import { useTrendReadoutZustand } from './trendReadout.zustand'
 import TrendTimeAxis from './TrendTimeAxis'
 import TrendPicker from './TrendPicker'
 import TrendSettingsPanel, { SettingsLine } from './TrendSettingsPanel'
@@ -51,7 +50,6 @@ import {
   TREND_STEPS,
   trendGaps,
   trendSeries,
-  laneAt,
   isFollow,
   axisScale,
   TrendAxis,
@@ -64,13 +62,7 @@ import {
   plotsOf,
   plotShare,
   navigatorEntry,
-  valueAt,
-  figure,
-  sinceText,
-  scaleRange,
-  readoutPlace,
-  READOUT_ROW,
-  READOUT_PADDING
+  scaleRange
 } from './trendData'
 import {
   DrawnEntry,
@@ -239,13 +231,6 @@ const LiveOrPaused = meme((): JSX.Element => {
 /** Whether a register is drawn as a lane under the lines: a bit, or a bitmap's word. */
 const isLane = (entry: TrendEntry, mapValue: RegisterMapValue | undefined): boolean =>
   isBooleanRegister(entry.type) || mapValue?.dataType === 'bitmap'
-
-/** A lane's sample as the readout writes it: on or off, or the word in hex. */
-const laneText = (bitmap: boolean, point: LogPoint | undefined): string => {
-  if (point === undefined || point.error !== undefined) return '–'
-  if (bitmap) return `0x${point.value.toString(16).padStart(4, '0')}`
-  return point.value === 0 ? 'off' : 'on'
-}
 
 /** The mapping entry of the register a trend line draws. */
 const mapValueOf = (units: ClientUnit[], entry: TrendEntry): RegisterMapValue | undefined =>
@@ -532,7 +517,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   // A script's value waits for the engine, and draws again once it is there.
   useScriptEngineZustand((z) => z.ready)
   const syncKey = useId()
-  const [cursor, setCursor] = useState<TrendCursor>()
+  const setCursor = useTrendReadoutZustand.getState().setCursor
   const room = useRef<HTMLDivElement>(null)
   const scroll = useRef<HTMLDivElement>(null)
   const lanesBox = useRef<HTMLDivElement>(null)
@@ -647,47 +632,6 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
   const share = plotShare(roomHeight, lanesHeight, plots.length)
 
   const origin = oldest ?? from
-  const at = cursor?.at
-  const rows: ReadoutRow[] =
-    at === undefined
-      ? []
-      : [
-          ...drawn
-            .flatMap(({ lines }) => lines)
-            .map(({ key, line, series }, index): ReadoutRow => {
-              const value = figure(valueAt(series, at))
-              return {
-                key,
-                testId: `trend-readout-value-${index}`,
-                label: line.label,
-                color: line.color,
-                text: line.unit === '' ? value : `${value} ${line.unit}`,
-                lane: false
-              }
-            }),
-          ...lanes.map(
-            (lane): ReadoutRow => ({
-              key: lane.key,
-              testId: `trend-readout-lane-${lane.key}`,
-              label: lane.label,
-              color: lane.bitmap ? 'text.secondary' : lane.color,
-              text: laneText(lane.bitmap, laneAt(lane.points, runEnds, at)),
-              lane: true
-            })
-          )
-        ]
-  const roomBox = room.current?.getBoundingClientRect()
-  const place =
-    cursor === undefined || roomBox === undefined
-      ? undefined
-      : readoutPlace(
-          cursor.x - roomBox.left,
-          cursor.y - roomBox.top,
-          roomBox.width,
-          roomBox.height,
-          // A row for the time, and one a line and a lane.
-          READOUT_ROW * (rows.length + 1) + READOUT_PADDING
-        )
 
   return (
     <Box sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -747,17 +691,14 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
             </Box>
           )}
         </Box>
-        {at !== undefined && place !== undefined && (
-          <TrendReadout
-            place={place}
-            time={
-              time === 'since'
-                ? sinceText(at - origin)
-                : DateTime.fromMillis(at).toFormat('HH:mm:ss.SSS')
-            }
-            rows={rows}
-          />
-        )}
+        <TrendReadout
+          room={room}
+          lines={drawn.flatMap(({ lines }) => lines)}
+          lanes={lanes}
+          runEnds={runEnds}
+          time={time}
+          origin={origin}
+        />
       </Box>
       <Box sx={{ flexShrink: 0, px: 1, overflowY: 'hidden', scrollbarGutter: 'stable' }}>
         <TrendTimeAxis from={from} to={to} time={time} origin={origin} />
