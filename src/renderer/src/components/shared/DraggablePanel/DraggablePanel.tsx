@@ -1,11 +1,9 @@
 import Box from '@mui/material/Box'
-import Paper from '@mui/material/Paper'
 import Portal from '@mui/material/Portal'
 import { SxProps, Theme } from '@mui/material/styles'
-import { DRAG_HANDLE_CLASS } from '@renderer/components/shared/DraggablePopover/DraggablePopover'
+import DraggablePaper from '@renderer/components/shared/DraggablePopover/DraggablePaper'
 import { meme } from '@renderer/components/shared/inputs/meme'
-import { KeyboardEvent, ReactNode, SyntheticEvent, useCallback, useRef, useState } from 'react'
-import Draggable from 'react-draggable'
+import { KeyboardEvent, ReactNode, SyntheticEvent, useCallback, useState } from 'react'
 
 interface DraggablePanelProps {
   /** The element whose top right corner the panel opens at. */
@@ -28,12 +26,11 @@ interface DraggablePanelProps {
  * readers while it is open, which no prop of MUI 9.3.1's turns off.
  *
  * It opens with its top right corner on the anchor's, or where `opening` puts
- * it, and stays inside the window, a theme spacing unit from its edges, where
- * it is dragged.
+ * it. Its paper is the conversion dialog's, so it stays inside the window as
+ * that one does: dragged, resized, or with a window that shrinks under it.
  */
 const DraggablePanel = meme(
   ({ anchor, opening, onClose, paperSx, label, children }: DraggablePanelProps): JSX.Element => {
-    const nodeRef = useRef<HTMLDivElement | null>(null)
     const [place, setPlace] = useState<{ top: number; left: number } | null>(null)
 
     // Placed once it has a width to place by. The Portal mounts its children a
@@ -41,7 +38,6 @@ const DraggablePanel = meme(
     // layout effect of the panel's, which ran with no paper to measure.
     const setPaper = useCallback(
       (node: HTMLDivElement | null) => {
-        nodeRef.current = node
         if (node === null) return
         const { top, right } = anchor.getBoundingClientRect()
         const opened = opening?.(node.offsetWidth, node.offsetHeight) ?? {
@@ -84,29 +80,27 @@ const DraggablePanel = meme(
             onTouchStart={keepPress}
             sx={{ position: 'relative', width: '100%', height: '100%' }}
           >
-            <Draggable nodeRef={nodeRef} handle={`.${DRAG_HANDLE_CLASS}`} bounds="parent">
-              <Paper
-                ref={setPaper}
-                role="region"
-                aria-label={label}
-                // A click on it takes the focus, so Escape reaches it.
-                tabIndex={-1}
-                elevation={8}
-                onKeyDown={handleKeyDown}
-                sx={[
-                  {
-                    position: 'absolute',
-                    top: (place?.top ?? 0) - 8,
-                    left: (place?.left ?? 0) - 8,
-                    visibility: place ? 'visible' : 'hidden',
-                    pointerEvents: 'auto'
-                  },
-                  paperSx
-                ].flat()}
-              >
-                {children}
-              </Paper>
-            </Draggable>
+            <DraggablePaper
+              ref={setPaper}
+              role="region"
+              aria-label={label}
+              // A click on it takes the focus, so Escape reaches it.
+              tabIndex={-1}
+              elevation={8}
+              onKeyDown={handleKeyDown}
+              sx={[
+                {
+                  position: 'absolute',
+                  top: (place?.top ?? 0) - 8,
+                  left: (place?.left ?? 0) - 8,
+                  visibility: place ? 'visible' : 'hidden',
+                  pointerEvents: 'auto'
+                },
+                paperSx
+              ].flat()}
+            >
+              {children}
+            </DraggablePaper>
           </Box>
         </Box>
       </Portal>

@@ -126,4 +126,26 @@ test.describe.serial('Bitmaps in the trend', () => {
     }).toPass()
     await setWindowSize(electronApp, ...DEFAULT_SIZE)
   })
+
+  test('Axes and lines moves back inside a window that shrinks under it', async ({
+    mainPage,
+    electronApp
+  }) => {
+    await mainPage.getByTestId('trend-settings-btn').click()
+    const panel = mainPage.getByRole('region', { name: 'Axes and lines' })
+    await expect(panel).toBeVisible()
+
+    await setWindowSize(electronApp, 1000, 800)
+    await expect(async () => {
+      const { right, bottom, width, height } = await panel.evaluate((el) => ({
+        ...el.getBoundingClientRect().toJSON(),
+        width: window.innerWidth,
+        height: window.innerHeight
+      }))
+      expect(right).toBeLessThanOrEqual(width)
+      expect(bottom).toBeLessThanOrEqual(height)
+    }).toPass()
+    await mainPage.getByTestId('trend-settings-btn').click()
+    await setWindowSize(electronApp, ...DEFAULT_SIZE)
+  })
 })
