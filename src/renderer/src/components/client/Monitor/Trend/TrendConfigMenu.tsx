@@ -21,10 +21,14 @@ import { downloadBlob } from '@renderer/components/shared/downloadText'
 import { deepEqual } from 'fast-equals'
 import snakeCase from 'lodash/snakeCase'
 import { DateTime } from 'luxon'
+import { enqueueSnackbar } from 'notistack'
 import { ChangeEvent, MouseEvent, useCallback, useState } from 'react'
 import { snapshotOf, useTrendPanelZustand } from './trendPanel.zustand'
 
 const NO_TRENDS: SavedTrend[] = []
+
+/** What a trend no canvas can hold, or none drawn, says to Copy and Save as image. */
+const NO_IMAGE = 'No image of the trend could be made: it is too large, or not drawn'
 
 /** What the name dialog is asked for: a name to save under, or a new name for a saved trend. */
 type Naming = { kind: 'save-as' } | { kind: 'rename'; from: string }
@@ -166,14 +170,24 @@ const TrendConfigMenu = meme((): JSX.Element => {
   const handleCopyImage = useCallback(async () => {
     setAnchor(null)
     const blob = await useTrendPanelZustand.getState().image()
-    if (blob === null) return
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    if (blob === null) {
+      enqueueSnackbar({ variant: 'error', message: NO_IMAGE })
+      return
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    } catch {
+      enqueueSnackbar({ variant: 'error', message: 'The image did not reach the clipboard' })
+    }
   }, [])
   const handleSaveImage = useCallback(async () => {
     setAnchor(null)
     const trendPanelZustand = useTrendPanelZustand.getState()
     const blob = await trendPanelZustand.image()
-    if (blob === null) return
+    if (blob === null) {
+      enqueueSnackbar({ variant: 'error', message: NO_IMAGE })
+      return
+    }
     const stamp = DateTime.now().toFormat('yyyyMMdd_HHmmss')
     downloadBlob(
       `modbux_trend_${snakeCase(trendPanelZustand.name ?? '') || 'trend'}_${stamp}.png`,

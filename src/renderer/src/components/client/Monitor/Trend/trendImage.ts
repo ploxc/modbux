@@ -130,6 +130,8 @@ export const trendImage = (parts: TrendImageParts, text: TrendImageText): Promis
     const length = parts.to - parts.from
     const xOf = (time: number): number =>
       left + Math.min(width, Math.max(0, ((time - parts.from) / length) * width))
+    // Unclamped, for the band, which the lanes' box cuts as a plot's box cuts it.
+    const bandX = (time: number): number => left + ((time - parts.from) / length) * width
     context.font = `${10.5 * ratio}px ${text.font}`
     context.textBaseline = 'middle'
     for (const [index, row] of parts.lanes.entries()) {
@@ -155,13 +157,18 @@ export const trendImage = (parts: TrendImageParts, text: TrendImageText): Promis
       context.globalAlpha = 1
     }
     if (parts.selection === undefined) return
-    const bandLeft = xOf(parts.selection.from)
-    const bandRight = xOf(parts.selection.to)
+    const bandLeft = bandX(parts.selection.from)
+    const bandRight = bandX(parts.selection.to)
+    context.save()
+    context.beginPath()
+    context.rect(left, top, width, lanesHeight)
+    context.clip()
     context.fillStyle = text.band
     context.fillRect(bandLeft, top, bandRight - bandLeft, lanesHeight)
     context.fillStyle = text.edge
     context.fillRect(bandLeft, top, ratio, lanesHeight)
     context.fillRect(bandRight, top, ratio, lanesHeight)
+    context.restore()
   }
   const canvasAt =
     (source: HTMLCanvasElement) =>
