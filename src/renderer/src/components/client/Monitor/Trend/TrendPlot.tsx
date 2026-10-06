@@ -12,6 +12,7 @@ import {
   figure,
   panBy,
   pinchFactor,
+  touchView,
   TrendGap,
   TrendSeries,
   WHEEL_ZOOM,
@@ -273,6 +274,8 @@ const TrendPlot = meme(
     const axisDrag = useRef<{ y: number; range: AxisRange; height: number } | null>(null)
     const shown = useRef({ from, to })
     shown.current = { from, to }
+    const held = useRef(range)
+    held.current = range
 
     useEffect(() => {
       const box = container.current
@@ -401,14 +404,22 @@ const TrendPlot = meme(
         },
         scales: {
           x: { time: true },
-          // A unit held at a range draws it whatever its lines hold.
+          // A unit held at a range, zoomed or fixed, draws it whatever its
+          // lines hold; otherwise uPlot's own fit. Read through a ref, so a
+          // new range takes the next draw rather than a new plot.
           ...(scale === undefined
             ? {}
             : {
-                [scale]:
-                  range === undefined
-                    ? { auto: true }
-                    : { auto: false, range: [range.min, range.max] as uPlot.Range.MinMax }
+                [scale]: {
+                  auto: true,
+                  range: (_self: uPlot, dataMin: number, dataMax: number): uPlot.Range.MinMax => {
+                    const kept = held.current
+                    if (kept !== undefined) return [kept.min, kept.max]
+                    return dataMin == null
+                      ? [null, null]
+                      : uPlot.rangeNum(dataMin, dataMax, 0.1, true)
+                  }
+                }
               })
         },
         axes: [
@@ -495,36 +506,38 @@ const TrendPlot = meme(
 
       // On a touchscreen one finger pans, and two zoom around their middle.
       made.over.style.touchAction = 'none'
-      const touches = new Map<number, number>()
+      const touches = new Map<number, { x: number; y: number }>()
       let touchStart: { view: { from: number; to: number }; x: number; spread: number } | undefined
+      // Where the fingers' middle is across, and how far apart the first two are.
       const touchState = (): { x: number; spread: number } => {
-        const xs = [...touches.values()]
-        const low = Math.min(...xs)
-        const high = Math.max(...xs)
-        return { x: (low + high) / 2, spread: high - low }
+        const pair = [...touches.values()].slice(0, 2)
+        const xs = pair.map(({ x }) => x)
+        const [first, second] = pair
+        return {
+          x: (Math.min(...xs) + Math.max(...xs)) / 2,
+          // A second finger, however close, makes it a pinch.
+          spread:
+            first && second
+              ? Math.max(Math.hypot(second.x - first.x, second.y - first.y), Number.EPSILON)
+              : 0
+        }
       }
       const handleTouchDown = (event: PointerEvent): void => {
         if (event.pointerType !== 'touch') return
-        touches.set(event.pointerId, event.clientX)
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
         touchStart = { view: shown.current, ...touchState() }
       }
       const handleTouchMove = (event: PointerEvent): void => {
         if (event.pointerType !== 'touch' || !touches.has(event.pointerId) || !touchStart) return
-        touches.set(event.pointerId, event.clientX)
-        const now = touchState()
-        const { view } = touchStart
-        const width = made.over.clientWidth
-        const panned = panBy(view.from, view.to, -(now.x - touchStart.x) / width)
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
         const left = made.over.getBoundingClientRect().left
-        const next =
-          touches.size > 1 && now.spread > 0
-            ? zoomAround(
-                panned.from,
-                panned.to,
-                made.posToVal(touchStart.x - left, 'x'),
-                touchStart.spread / now.spread
-              )
-            : panned
+        const now = touchState()
+        const next = touchView(
+          touchStart.view,
+          { x: touchStart.x - left, spread: touchStart.spread },
+          { x: now.x - left, spread: now.spread },
+          made.over.clientWidth
+        )
         zoom.current(next.from, next.to)
       }
       const handleTouchUp = (event: PointerEvent): void => {
@@ -582,7 +595,7 @@ const TrendPlot = meme(
         chart.current = null
         if (unit !== undefined) handed.current?.(unit, null)
       }
-    }, [syncKey, lines, unit, range, drawAs, theme])
+    }, [syncKey, lines, unit, drawAs, theme])
 
     useEffect(() => {
       const current = chart.current

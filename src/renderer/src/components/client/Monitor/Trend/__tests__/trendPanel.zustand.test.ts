@@ -524,6 +524,27 @@ describe('the trend store', () => {
     })
   })
 
+  it('lets Auto or Fixed take over from a zoom of that axis alone', () => {
+    store().setAxisZoom('V', { min: 1, max: 2 })
+    store().setAxisZoom('A', { min: 3, max: 4 })
+    store().setAxisRange('V', { min: 1, max: 2 })
+    expect(store().axisZoom).toEqual({ A: { min: 3, max: 4 } })
+  })
+
+  it.each([
+    ['taken out', (): void => store().remove(trendKey(entry(0)))],
+    ['pruned', (): void => store().prune([newClientUnit('unit-1', 1)])]
+  ])('starts over when its last register is %s', (_name, action) => {
+    store().add(entry(0))
+    store().setSelection({ from: 1, to: 2 })
+    store().setAxisZoom('V', { min: 1, max: 2 })
+    store().pushHistory(1000)
+    action()
+    expect(store().history).toEqual([])
+    expect(store().axisZoom).toEqual({})
+    expect(store().selection).toBeUndefined()
+  })
+
   it('holds an axis zoomed per unit, and hands it back with none', () => {
     store().setAxisZoom('V', { min: 1, max: 2 })
     store().setAxisZoom('A', { min: 3, max: 4 })

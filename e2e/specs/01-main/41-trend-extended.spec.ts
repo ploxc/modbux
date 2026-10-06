@@ -316,7 +316,10 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.mouse.wheel(0, -100)
     await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveText('Auto')
     expect(await fixedRange()).toBeLessThan(unzoomed)
-
+    // Fixed takes over from the zoom; a zoom of the fixed axis goes back to Fixed.
+    await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveCount(0)
+    await mainPage.mouse.move(axis.x + axis.width / 2, axis.y + axis.height / 2)
+    await mainPage.mouse.wheel(0, 100)
     await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveText('Fixed')
     await mainPage.getByTestId('trend-plot-reset-0').click()
     await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveCount(0)

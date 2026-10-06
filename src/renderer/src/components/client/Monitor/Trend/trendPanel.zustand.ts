@@ -307,8 +307,10 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     settings: DEFAULT_TREND_SETTINGS,
     // Auto takes the unit away, and the last one the record, so the settings
     // equal a saved trend's that never held one.
+    // Auto or Fixed takes over from a zoom of the axis.
     setAxisRange: (unit, range): void =>
       set((state) => {
+        delete state.axisZoom[unit]
         const axes = Object.fromEntries(
           Object.entries(state.settings.axes ?? {}).filter(([held]) => held !== unit)
         )
@@ -405,7 +407,10 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.entries = state.entries.filter((entry) => trendKey(entry) !== key)
         state.openLanes = stillDrawn(state.openLanes, state.entries)
-        if (state.entries.length === 0) state.view = undefined
+        if (state.entries.length === 0) {
+          state.view = undefined
+          letGo(state)
+        }
       }),
     toggleHidden: (key): void =>
       set((state) => {
@@ -436,7 +441,10 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
         )
         state.openLanes = stillDrawn(state.openLanes, state.entries)
         // An empty trend follows the log again, as one emptied by `remove` does.
-        if (state.entries.length === 0) state.view = undefined
+        if (state.entries.length === 0) {
+          state.view = undefined
+          letGo(state)
+        }
       }),
     close: (): void =>
       set((state) => {

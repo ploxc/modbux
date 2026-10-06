@@ -334,11 +334,40 @@ export const zoomAxis = (range: AxisRange, at: number, factor: number): AxisRang
 
 /**
  * How much a pinch's step zooms, which Chromium hands over as a wheel event
- * with `ctrlKey` set: out for a positive `deltaY`, in for a negative one. The
- * rate is a first guess, not yet tuned on a trackpad.
+ * with `ctrlKey` set: out for a positive `deltaY`, in for a negative one, and
+ * never more than a notch of the wheel, so a mouse's wheel with Control held
+ * zooms as the wheel does. The rate is a first guess, not yet tuned on a
+ * trackpad.
  */
 const PINCH_RATE = 0.01
-export const pinchFactor = (deltaY: number): number => Math.exp(deltaY * PINCH_RATE)
+export const pinchFactor = (deltaY: number): number =>
+  Math.min(1 / WHEEL_ZOOM, Math.max(WHEEL_ZOOM, Math.exp(deltaY * PINCH_RATE)))
+
+/** The closest two fingers count as, so fingers one above the other zoom no further. */
+const TOUCH_MIN_SPREAD = 24
+
+/**
+ * The stretch the fingers ask for: the moment under their middle when they
+ * touched down on `view` stays under their middle as it moves, and two
+ * fingers zoom by how far they spread, `TOUCH_MIN_SPREAD` at least. Positions
+ * are in pixels from the plot's left, which is `width` wide; one finger has a
+ * spread of 0 and only pans.
+ */
+export const touchView = (
+  view: TrendView,
+  start: { x: number; spread: number },
+  now: { x: number; spread: number },
+  width: number
+): TrendView => {
+  const length = view.to - view.from
+  const at = view.from + (start.x / width) * length
+  const zoomed =
+    start.spread > 0
+      ? (length * Math.max(start.spread, TOUCH_MIN_SPREAD)) / Math.max(now.spread, TOUCH_MIN_SPREAD)
+      : length
+  const from = at - (now.x / width) * zoomed
+  return { from, to: from + zoomed }
+}
 
 /** How long apart two zooms or pans are and still one step back. */
 export const HISTORY_GAP_MS = 500

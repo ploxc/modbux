@@ -26,6 +26,8 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  touchView,
+  WHEEL_ZOOM,
   panBy,
   zoomAxis,
   pinchFactor,
@@ -353,7 +355,54 @@ describe('pinchFactor', () => {
   })
 
   it('undoes a step with the step back', () => {
-    expect(pinchFactor(25) * pinchFactor(-25)).toBeCloseTo(1, 12)
+    expect(pinchFactor(15) * pinchFactor(-15)).toBeCloseTo(1, 12)
+  })
+
+  it('zooms no more than a notch of the wheel, however far a step reaches', () => {
+    expect(pinchFactor(100)).toBe(1 / WHEEL_ZOOM)
+    expect(pinchFactor(-100)).toBe(WHEEL_ZOOM)
+  })
+})
+
+describe('touchView', () => {
+  const view = { from: 0, to: 100 }
+
+  it('pans with one finger as far as it moved, the other way', () => {
+    expect(touchView(view, { x: 50, spread: 0 }, { x: 40, spread: 0 }, 100)).toEqual({
+      from: 10,
+      to: 110
+    })
+  })
+
+  it('zooms two fingers spreading around the moment their middle touched down on', () => {
+    expect(touchView(view, { x: 20, spread: 30 }, { x: 20, spread: 60 }, 100)).toEqual({
+      from: 10,
+      to: 60
+    })
+  })
+
+  it('keeps the moment that was under their middle under it as they move and spread', () => {
+    // The moment 20 was under their middle at 20 px; at 30 px, half the length shown.
+    expect(touchView(view, { x: 20, spread: 30 }, { x: 30, spread: 60 }, 100)).toEqual({
+      from: 5,
+      to: 55
+    })
+  })
+
+  it('counts fingers closer than its least spread as that far apart', () => {
+    const shrunk = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 0.001 }, 100)
+    const least = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 1 }, 100)
+    expect(shrunk).toEqual(least)
+    expect(shrunk.to - shrunk.from).toBeGreaterThan(100)
+    const spread = touchView(view, { x: 50, spread: 0.001 }, { x: 50, spread: 240 }, 100)
+    expect(spread.to - spread.from).toBeGreaterThan(5)
+  })
+
+  it('answers the same for fingers that hold still, however often it is asked', () => {
+    const start = { x: 20, spread: 30 }
+    const now = { x: 30, spread: 60 }
+    expect(touchView(view, start, now, 100)).toEqual(touchView(view, start, now, 100))
+    expect(touchView(view, start, start, 100)).toEqual(view)
   })
 })
 
