@@ -550,7 +550,11 @@ test.describe.serial('Logging — set in Debug, run from Monitor', () => {
     const plotBox = await mainPage.locator('[data-testid="trend-chart"] .u-over').boundingBox()
     if (!plotBox) throw new Error('The trend has no plot to hover')
     await mainPage.mouse.move(plotBox.x + plotBox.width - 2, plotBox.y + plotBox.height / 2)
-    await expect(mainPage.locator('[data-testid^="trend-readout-lane-"]')).toHaveText('on')
+    // Two pixels from the live edge of ten minutes is seconds before the coil's
+    // first sample, so the readout reads – until the trend moves past it.
+    await expect(mainPage.locator('[data-testid^="trend-readout-lane-"]')).toHaveText('on', {
+      timeout: 15_000
+    })
     await mainPage.mouse.move(plotBox.x - 40, plotBox.y - 40)
 
     // Taken out of the trend and back out of the log, so the rest of the spec
