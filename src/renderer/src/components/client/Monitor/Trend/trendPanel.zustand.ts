@@ -151,7 +151,13 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
       set((state) => {
         state.uuid = uuid
         state.name = trend.name
-        state.entries = trend.entries.map((entry) => ({ ...entry, uuid }))
+        // Shown is no key at all, as `snapshotOf` writes it, so a trend
+        // saved with `hidden: false` loads unchanged.
+        state.entries = trend.entries.map(({ hidden, ...entry }) => ({
+          ...entry,
+          uuid,
+          ...(hidden === true ? { hidden } : {})
+        }))
         state.openLanes = stillDrawn(state.openLanes, state.entries)
         state.range = trend.range
         state.settings = trend.settings
@@ -265,8 +271,13 @@ export const useTrendPanelZustand = create<TrendPanelZustand, [['zustand/mutativ
     },
     add: (entry): boolean => {
       const { entries } = get()
+      // A register it draws already is shown again.
       if (entries.some((drawn) => trendKey(drawn) === trendKey(entry))) {
         set({ anchor: get().anchor ?? get().room })
+        set((state) => {
+          for (const drawn of state.entries)
+            if (trendKey(drawn) === trendKey(entry)) delete drawn.hidden
+        })
         return true
       }
       const sameClient = get().uuid === entry.uuid

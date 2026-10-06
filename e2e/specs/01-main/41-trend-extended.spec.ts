@@ -150,6 +150,12 @@ test.describe.serial('The trend, extended', () => {
     await expect(mainPage.getByTestId('trend-plot-0')).toHaveAttribute('data-unit', 'A')
     await expect(mainPage.getByTestId('trend-plot-1')).toHaveCount(0)
     await expect(mainPage.getByTestId('trend-changed')).toBeVisible()
+    // Axes and lines holds an axis for each unit shown, and every line.
+    await mainPage.getByTestId('trend-settings-btn').click()
+    await expect(mainPage.getByTestId('trend-axis-0-unit')).toHaveText('A')
+    await expect(mainPage.getByTestId('trend-axis-1-unit')).toHaveCount(0)
+    await expect(mainPage.getByTestId('trend-line-holding_registers-0-color')).toBeVisible()
+    await mainPage.getByTestId('trend-settings-btn').click()
 
     await voltage.click()
     await expect(voltage).toHaveAttribute('aria-pressed', 'true')

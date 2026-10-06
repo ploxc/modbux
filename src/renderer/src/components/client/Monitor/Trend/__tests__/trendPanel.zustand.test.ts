@@ -335,6 +335,28 @@ describe('the trend store', () => {
     expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([false, false])
   })
 
+  it('shows a hidden register again when it is added, and leaves the others as they are', () => {
+    for (const address of [0, 1]) store().add(entry(address))
+    store().toggleHidden(trendKey(entry(0)))
+    store().toggleHidden(trendKey(entry(1)))
+    store().close()
+    expect(store().add(entry(1))).toBe(true)
+
+    expect(store().anchor).toBe(anchor)
+    expect(store().entries.map(({ hidden }) => hidden === true)).toEqual([true, false])
+  })
+
+  it('loads a register saved as hidden: false as shown, and the trend as unchanged', () => {
+    store().add(entry(0))
+    const saved = snapshotOf(store(), 'Currents')
+    const [first] = saved.entries
+    if (first === undefined) throw new Error('The trend saved no register')
+    store().load('client-a', { ...saved, entries: [{ ...first, hidden: false }] })
+
+    expect(store().entries[0]).not.toHaveProperty('hidden')
+    expect(snapshotOf(store(), 'Currents')).toStrictEqual(saved)
+  })
+
   it('is not alone while it is hidden itself, so it shows it alone', () => {
     for (const address of [0, 1]) store().add(entry(address))
     store().toggleHidden(trendKey(entry(0)))

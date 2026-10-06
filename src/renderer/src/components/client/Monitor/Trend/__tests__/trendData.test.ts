@@ -26,6 +26,7 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  navigatorEntry,
   PLOT_MIN_HEIGHT,
   GRIP_HEIGHT,
   zoomAround,
@@ -310,6 +311,21 @@ describe('plotsOf', () => {
       { unit: 'kW', color: 'green' }
     ]
     expect(plotsOf(lines).map(({ unit }) => unit)).toEqual(trendAxes(lines).map(({ unit }) => unit))
+  })
+})
+
+describe('navigatorEntry', () => {
+  const entry = (id: number, hidden?: boolean): { id: number; hidden?: boolean } =>
+    hidden === undefined ? { id } : { id, hidden }
+
+  it('draws the first register shown', () => {
+    expect(navigatorEntry([entry(0, true), entry(1), entry(2)])?.id).toBe(1)
+    expect(navigatorEntry([entry(0), entry(1)])?.id).toBe(0)
+  })
+
+  it('draws the first while every one is hidden, and none of none', () => {
+    expect(navigatorEntry([entry(0, true), entry(1, true)])?.id).toBe(0)
+    expect(navigatorEntry([])).toBeUndefined()
   })
 })
 

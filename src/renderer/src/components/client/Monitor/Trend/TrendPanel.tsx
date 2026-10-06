@@ -63,6 +63,7 @@ import {
   viewWithin,
   plotsOf,
   plotShare,
+  navigatorEntry,
   valueAt,
   figure,
   sinceText,
@@ -264,9 +265,9 @@ interface LayoutPlot {
 }
 
 /**
- * Each line's colour, its engineering unit's scale and how it is named, and
- * an axis per unit, for Axes and lines, which lists hidden lines too; and a
- * plot per unit of the lines shown.
+ * Each line's colour, its engineering unit's scale and how it is named, for
+ * Axes and lines, which lists hidden lines too; and an axis and a plot per
+ * unit of the lines shown.
  */
 const layoutOf = (
   entries: DrawnEntry[],
@@ -290,15 +291,15 @@ const layoutOf = (
       }
     }
   })
-  const lines = items.map(({ line }) => line)
-  const plots = plotsOf(items.filter(({ entry }) => entry.hidden !== true)).map(
+  const shown = items.filter(({ entry }) => entry.hidden !== true)
+  const plots = plotsOf(shown).map(
     ({ unit, lines: plotItems }): LayoutPlot => ({
       unit,
       lines: plotItems.map(({ line }) => line),
       items: plotItems
     })
   )
-  return { settingsLines: items, axes: trendAxes(lines), plots }
+  return { settingsLines: items, axes: trendAxes(shown.map(({ line }) => line)), plots }
 }
 
 /**
@@ -568,7 +569,11 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
           steps: 3 * TREND_STEPS
         }
   )
-  const first = useMemo(() => entries.slice(0, 1), [entries])
+  // The navigator draws the first register shown, or the first while all are hidden.
+  const first = useMemo(() => {
+    const drawn = navigatorEntry(entries)
+    return drawn === undefined ? [] : [drawn]
+  }, [entries])
   const whole = useLogWindows(first, {
     live: running,
     span: Number.POSITIVE_INFINITY,

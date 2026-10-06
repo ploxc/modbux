@@ -141,6 +141,11 @@ export const plotsOf = <T extends { unit: string }>(lines: readonly T[]): TrendP
   return plots
 }
 
+/** The register the navigator draws: the first shown, or the first while every one is hidden. */
+export const navigatorEntry = <T extends { hidden?: boolean }>(
+  entries: readonly T[]
+): T | undefined => entries.find(({ hidden }) => hidden !== true) ?? entries[0]
+
 /** How short a plot gets, by its grip or in a low trend. */
 export const PLOT_MIN_HEIGHT = 120
 
