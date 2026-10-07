@@ -30,6 +30,8 @@ interface TrendLanesProps {
   end: number
   from: number
   to: number
+  /** The log's oldest sample, which a zoom over the lanes starts from. */
+  oldest: number | undefined
   /** The trend's cursor group, which the plot under the lanes joins. */
   syncKey: string
   onZoom: (from: number, to: number) => void
@@ -172,6 +174,7 @@ const TrendLanes = meme(
     end,
     from,
     to,
+    oldest,
     syncKey,
     onZoom,
     selection,
@@ -199,7 +202,7 @@ const TrendLanes = meme(
           drawAs="lines"
           from={from}
           to={to}
-          oldest={undefined}
+          oldest={oldest}
           gaps={NO_DATA}
           onZoom={onZoom}
           selection={selection}

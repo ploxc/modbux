@@ -907,6 +907,7 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
                 end={end}
                 from={from}
                 to={to}
+                oldest={oldest}
                 syncKey={syncKey}
                 onZoom={handleZoom}
                 selection={selection}

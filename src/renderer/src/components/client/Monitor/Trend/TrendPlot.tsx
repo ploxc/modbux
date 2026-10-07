@@ -13,6 +13,7 @@ import {
   panBy,
   pinchFactor,
   touchView,
+  zoomBase,
   TrendGap,
   TrendSeries,
   wheelFactor,
@@ -78,7 +79,7 @@ interface TrendPlotProps {
   /** The time range drawn, which runs past the last sample while it is live. */
   from: number
   to: number
-  /** Where the log's oldest sample is: the range before it is hatched. */
+  /** Where the log's oldest sample is: the range before it is hatched, and a zoom starts from it. */
   oldest: number | undefined
   /** Where the log took no samples, each shaded and named by why. */
   gaps: TrendGap[]
@@ -273,8 +274,8 @@ const TrendPlot = meme(
     axisZoomTo.current = onAxisZoom
     const axisArea = useRef<HTMLDivElement>(null)
     const axisDrag = useRef<{ y: number; range: AxisRange; height: number } | null>(null)
-    const shown = useRef({ from, to })
-    shown.current = { from, to }
+    const shown = useRef(zoomBase(from, to, oldest))
+    shown.current = zoomBase(from, to, oldest)
     const held = useRef(range)
     held.current = range
 

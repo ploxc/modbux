@@ -415,6 +415,25 @@ test.describe.serial('The trend, extended', () => {
     expect(await mainPage.evaluate(() => window.innerWidth)).toBe(width)
   })
 
+  test('a pinch zooms in on a range longer than the log', async ({ mainPage }) => {
+    // Ten minutes of a log younger than that: the navigator's window spans the strip.
+    await mainPage.getByTestId('trend-range-10m').click()
+    const stretch = mainPage.getByTestId('trend-navigator-window')
+    const strip = await mainPage.getByTestId('trend-navigator').boundingBox()
+    if (!strip) throw new Error('The navigator is not laid out')
+    await expect(async () =>
+      expect((await stretch.boundingBox())?.width ?? 0).toBeGreaterThan(strip.width - 4)
+    ).toPass()
+
+    const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
+    if (!over) throw new Error('The plot is not laid out')
+    await mainPage.mouse.move(over.x + over.width * 0.95, over.y + over.height / 2)
+    await pinch(mainPage)
+    await expect(async () =>
+      expect((await stretch.boundingBox())?.width ?? 0).toBeLessThan(strip.width * 0.9)
+    ).toPass()
+  })
+
   test('the wheel over a plot scrolls the plots, and zooms nothing', async ({ mainPage }) => {
     await mainPage.getByTestId('trend-range-10m').click()
     await dragGrip(mainPage, 0, 600)

@@ -27,6 +27,7 @@ import {
   plotsOf,
   plotShare,
   touchView,
+  zoomBase,
   wheelFactor,
   wheelPixels,
   WHEEL_ZOOM,
@@ -363,6 +364,35 @@ describe('pinchFactor', () => {
   it('zooms no more than a notch of the wheel, however far a step reaches', () => {
     expect(pinchFactor(100)).toBe(1 / WHEEL_ZOOM)
     expect(pinchFactor(-100)).toBe(WHEEL_ZOOM)
+  })
+})
+
+describe('zoomBase', () => {
+  // Ten minutes shown of a log two minutes old, live.
+  const minute = 60_000
+  const bound = { from: 8 * minute, to: 10 * minute }
+
+  it("starts a zoom from the log's oldest sample when the stretch shown starts before it", () => {
+    expect(zoomBase(0, 10 * minute, 8 * minute)).toEqual(bound)
+    expect(zoomBase(9 * minute, 10 * minute, 8 * minute)).toEqual({
+      from: 9 * minute,
+      to: 10 * minute
+    })
+    expect(zoomBase(0, 10 * minute, undefined)).toEqual({ from: 0, to: 10 * minute })
+  })
+
+  it('lets a pinch over a range longer than the log zoom in, where the range itself would follow again', () => {
+    const at = 9.5 * minute
+    const fromRange = zoomAround(0, 10 * minute, at, WHEEL_ZOOM)
+    expect(viewWithin(fromRange.from, fromRange.to, bound, 10 * minute, true)).toBeUndefined()
+
+    const base = zoomBase(0, 10 * minute, 8 * minute)
+    const fromLog = zoomAround(base.from, base.to, at, WHEEL_ZOOM)
+    // Paused on 8.3 to 9.9 minutes: the zoom ends before the log does.
+    expect(viewWithin(fromLog.from, fromLog.to, bound, 10 * minute, true)).toEqual({
+      from: 498_000,
+      to: 594_000
+    })
   })
 })
 

@@ -317,6 +317,17 @@ export const zoomAround = (from: number, to: number, at: number, factor: number)
   to: at + (to - at) * factor
 })
 
+/**
+ * The stretch a pinch, a touch or a shift-drag starts from: the one shown,
+ * from the log's oldest sample on. A range longer than the log shows time
+ * before it, and a zoom of that would ask for more than the log holds and
+ * follow the range again however often it is asked.
+ */
+export const zoomBase = (from: number, to: number, oldest: number | undefined): TrendView => ({
+  from: oldest === undefined ? from : Math.min(Math.max(from, oldest), to),
+  to
+})
+
 /** How far an arrow key pans, as a share of the stretch shown. */
 export const KEY_PAN = 0.1
 
