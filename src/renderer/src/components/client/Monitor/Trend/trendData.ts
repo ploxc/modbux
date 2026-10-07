@@ -318,10 +318,10 @@ export const zoomAround = (from: number, to: number, at: number, factor: number)
 })
 
 /**
- * The stretch a pinch, a touch or a shift-drag starts from: the one shown,
- * from the log's oldest sample on. A range longer than the log shows time
- * before it, and a zoom of that would ask for more than the log holds and
- * follow the range again however often it is asked.
+ * The stretch a zoom scales: the one shown, from the log's oldest sample on.
+ * A range longer than the log shows time before it, and a zoom of that would
+ * ask for more than the log holds and follow the range again however often
+ * it is asked. Where the pointer is still reads off the stretch shown.
  */
 export const zoomBase = (from: number, to: number, oldest: number | undefined): TrendView => ({
   from: oldest === undefined ? from : Math.min(Math.max(from, oldest), to),
@@ -360,21 +360,22 @@ const TOUCH_MIN_SPREAD = 24
 /**
  * The stretch the fingers ask for: the moment under their middle when they
  * touched down on `view` stays under their middle as it moves, and two
- * fingers zoom by how far they spread, `TOUCH_MIN_SPREAD` at least. Positions
- * are in pixels from the plot's left, which is `width` wide; one finger has a
- * spread of 0 and only pans.
+ * fingers zoom `scaled`, the length a zoom scales (`zoomBase`), by how far
+ * they spread, `TOUCH_MIN_SPREAD` at least. Positions are in pixels from the
+ * plot's left, which is `width` wide; one finger has a spread of 0 and only pans.
  */
 export const touchView = (
   view: TrendView,
   start: { x: number; spread: number },
   now: { x: number; spread: number },
-  width: number
+  width: number,
+  scaled: number
 ): TrendView => {
   const length = view.to - view.from
   const at = view.from + (start.x / width) * length
   const zoomed =
     start.spread > 0
-      ? (length * Math.max(start.spread, TOUCH_MIN_SPREAD)) / Math.max(now.spread, TOUCH_MIN_SPREAD)
+      ? (scaled * Math.max(start.spread, TOUCH_MIN_SPREAD)) / Math.max(now.spread, TOUCH_MIN_SPREAD)
       : length
   const from = at - (now.x / width) * zoomed
   return { from, to: from + zoomed }

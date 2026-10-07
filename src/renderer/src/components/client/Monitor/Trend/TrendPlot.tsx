@@ -274,8 +274,10 @@ const TrendPlot = meme(
     axisZoomTo.current = onAxisZoom
     const axisArea = useRef<HTMLDivElement>(null)
     const axisDrag = useRef<{ y: number; range: AxisRange; height: number } | null>(null)
-    const shown = useRef(zoomBase(from, to, oldest))
-    shown.current = zoomBase(from, to, oldest)
+    const shown = useRef({ from, to })
+    shown.current = { from, to }
+    const base = useRef(zoomBase(from, to, oldest))
+    base.current = zoomBase(from, to, oldest)
     const held = useRef(range)
     held.current = range
 
@@ -498,9 +500,9 @@ const TrendPlot = meme(
       const handleWheel = (event: WheelEvent): void => {
         if (!event.ctrlKey) return
         event.preventDefault()
-        const { from: shownFrom, to: shownTo } = shown.current
+        const { from: baseFrom, to: baseTo } = base.current
         const at = made.posToVal(event.offsetX, 'x')
-        const next = zoomAround(shownFrom, shownTo, at, pinchFactor(event.deltaY))
+        const next = zoomAround(baseFrom, baseTo, at, pinchFactor(event.deltaY))
         zoom.current(next.from, next.to)
       }
       made.over.addEventListener('wheel', handleWheel, { passive: false })
@@ -508,7 +510,9 @@ const TrendPlot = meme(
       // On a touchscreen one finger pans, and two zoom around their middle.
       made.over.style.touchAction = 'none'
       const touches = new Map<number, { x: number; y: number }>()
-      let touchStart: { view: { from: number; to: number }; x: number; spread: number } | undefined
+      let touchStart:
+        | { view: { from: number; to: number }; scaled: number; x: number; spread: number }
+        | undefined
       // Where the fingers' middle is across, and how far apart the first two are.
       const touchState = (): { x: number; spread: number } => {
         const pair = [...touches.values()].slice(0, 2)
@@ -526,7 +530,11 @@ const TrendPlot = meme(
       const handleTouchDown = (event: PointerEvent): void => {
         if (event.pointerType !== 'touch') return
         touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
-        touchStart = { view: shown.current, ...touchState() }
+        touchStart = {
+          view: shown.current,
+          scaled: base.current.to - base.current.from,
+          ...touchState()
+        }
       }
       const handleTouchMove = (event: PointerEvent): void => {
         if (event.pointerType !== 'touch' || !touches.has(event.pointerId) || !touchStart) return
@@ -537,13 +545,17 @@ const TrendPlot = meme(
           touchStart.view,
           { x: touchStart.x - left, spread: touchStart.spread },
           { x: now.x - left, spread: now.spread },
-          made.over.clientWidth
+          made.over.clientWidth,
+          touchStart.scaled
         )
         zoom.current(next.from, next.to)
       }
       const handleTouchUp = (event: PointerEvent): void => {
         if (!touches.delete(event.pointerId)) return
-        touchStart = touches.size > 0 ? { view: shown.current, ...touchState() } : undefined
+        touchStart =
+          touches.size > 0
+            ? { view: shown.current, scaled: base.current.to - base.current.from, ...touchState() }
+            : undefined
       }
       made.over.addEventListener('pointerdown', handleTouchDown)
       made.over.addEventListener('pointermove', handleTouchMove)

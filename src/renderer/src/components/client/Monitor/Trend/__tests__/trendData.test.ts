@@ -425,14 +425,14 @@ describe('touchView', () => {
   const view = { from: 0, to: 100 }
 
   it('pans with one finger as far as it moved, the other way', () => {
-    expect(touchView(view, { x: 50, spread: 0 }, { x: 40, spread: 0 }, 100)).toEqual({
+    expect(touchView(view, { x: 50, spread: 0 }, { x: 40, spread: 0 }, 100, 100)).toEqual({
       from: 10,
       to: 110
     })
   })
 
   it('zooms two fingers spreading around the moment their middle touched down on', () => {
-    expect(touchView(view, { x: 20, spread: 30 }, { x: 20, spread: 60 }, 100)).toEqual({
+    expect(touchView(view, { x: 20, spread: 30 }, { x: 20, spread: 60 }, 100, 100)).toEqual({
       from: 10,
       to: 60
     })
@@ -440,26 +440,41 @@ describe('touchView', () => {
 
   it('keeps the moment that was under their middle under it as they move and spread', () => {
     // The moment 20 was under their middle at 20 px; at 30 px, half the length shown.
-    expect(touchView(view, { x: 20, spread: 30 }, { x: 30, spread: 60 }, 100)).toEqual({
+    expect(touchView(view, { x: 20, spread: 30 }, { x: 30, spread: 60 }, 100, 100)).toEqual({
       from: 5,
       to: 55
     })
   })
 
   it('counts fingers closer than its least spread as that far apart', () => {
-    const shrunk = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 0.001 }, 100)
-    const least = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 1 }, 100)
+    const shrunk = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 0.001 }, 100, 100)
+    const least = touchView(view, { x: 50, spread: 100 }, { x: 50, spread: 1 }, 100, 100)
     expect(shrunk).toEqual(least)
     expect(shrunk.to - shrunk.from).toBeGreaterThan(100)
-    const spread = touchView(view, { x: 50, spread: 0.001 }, { x: 50, spread: 240 }, 100)
+    const spread = touchView(view, { x: 50, spread: 0.001 }, { x: 50, spread: 240 }, 100, 100)
     expect(spread.to - spread.from).toBeGreaterThan(5)
+  })
+
+  it('moves the time under the fingers as the plot shows it, and zooms what the log holds', () => {
+    // Ten minutes shown, of which the log holds the last two.
+    const shown = { from: 0, to: 600 }
+    // One finger 60 px of 600: a minute, as the plot shows it.
+    expect(touchView(shown, { x: 300, spread: 0 }, { x: 240, spread: 0 }, 600, 120)).toEqual({
+      from: 60,
+      to: 660
+    })
+    // Two fingers that hold still zoom to what the log holds, the moment under them kept.
+    expect(touchView(shown, { x: 540, spread: 40 }, { x: 540, spread: 40 }, 600, 120)).toEqual({
+      from: 432,
+      to: 552
+    })
   })
 
   it('answers the same for fingers that hold still, however often it is asked', () => {
     const start = { x: 20, spread: 30 }
     const now = { x: 30, spread: 60 }
-    expect(touchView(view, start, now, 100)).toEqual(touchView(view, start, now, 100))
-    expect(touchView(view, start, start, 100)).toEqual(view)
+    expect(touchView(view, start, now, 100, 100)).toEqual(touchView(view, start, now, 100, 100))
+    expect(touchView(view, start, start, 100, 100)).toEqual(view)
   })
 })
 
