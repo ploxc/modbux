@@ -154,8 +154,7 @@ interface TrendPanelZustand {
   toggleHidden: (key: string) => void
   /**
    * Shows a register alone, hiding every other; on the register already shown
-   * alone, shows them all again. It sets where it ends rather than toggling,
-   * because a double click comes after two clicks that each toggled.
+   * alone, shows them all again.
    */
   solo: (key: string) => void
   /** Closes the trend, which keeps its registers for when it opens again. */

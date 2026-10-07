@@ -25,6 +25,13 @@ const heightOf = async (locator: Locator): Promise<number> => {
   return box.height
 }
 
+/** A pinch's step at the pointer: the wheel with Control held, as Chromium hands a pinch over. */
+const pinch = async (mainPage: Page): Promise<void> => {
+  await mainPage.keyboard.down('Control')
+  await mainPage.mouse.wheel(0, -100)
+  await mainPage.keyboard.up('Control')
+}
+
 /** Drags a plot's grip by `by` pixels, down for a positive number. */
 const dragGrip = async (mainPage: Page, index: number, by: number): Promise<void> => {
   const grip = await mainPage.getByTestId(`trend-plot-grip-${index}`).boundingBox()
@@ -170,11 +177,9 @@ test.describe.serial('The trend, extended', () => {
     await expect(mainPage.getByTestId('trend-plot-1')).toHaveAttribute('data-unit', 'A')
   })
 
-  test('a double click shows one register alone, and again shows them all', async ({
-    mainPage
-  }) => {
+  test('Alt and a click show one register alone, and again show them all', async ({ mainPage }) => {
     const current = mainPage.getByTestId('trend-chip-toggle-holding_registers-1')
-    await current.dblclick()
+    await current.click({ modifiers: ['Alt'] })
     await expect(mainPage.getByTestId('trend-plot-0')).toHaveAttribute('data-unit', 'A')
     await expect(mainPage.getByTestId('trend-plot-1')).toHaveCount(0)
     for (const address of [0, 2])
@@ -190,7 +195,7 @@ test.describe.serial('The trend, extended', () => {
     await expect(mainPage.getByTestId('trend-readout-value-1')).toHaveCount(0)
     await mainPage.mouse.move(over.x - 40, over.y - 40)
 
-    await current.dblclick()
+    await current.click({ modifiers: ['Alt'] })
     await expect(mainPage.getByTestId('trend-plot-1')).toHaveAttribute('data-unit', 'A')
     for (const address of [0, 1, 2])
       await expect(
@@ -330,6 +335,20 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.getByTestId('trend-plot-reset-0').click()
     await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveCount(0)
     await mainPage.getByTestId('trend-axis-0-auto').click()
+
+    // A double click on a zoomed axis hands it back too, and leaves no step back
+    // on an axis that was not zoomed.
+    await mainPage.mouse.move(axis.x + axis.width / 2, axis.y + axis.height / 2)
+    await mainPage.mouse.wheel(0, -100)
+    await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveText('Auto')
+    await mainPage.mouse.dblclick(axis.x + axis.width / 2, axis.y + axis.height / 2)
+    await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveCount(0)
+    const steps = await mainPage.getByTestId('trend-back-btn').getAttribute('title')
+    // Further apart than a run of zooms, so it would be a step of its own.
+    await mainPage.waitForTimeout(700)
+    await mainPage.mouse.dblclick(axis.x + axis.width / 2, axis.y + axis.height / 2)
+    await expect(mainPage.getByTestId('trend-plot-reset-0')).toHaveCount(0)
+    expect(await mainPage.getByTestId('trend-back-btn').getAttribute('title')).toBe(steps)
     await mainPage.getByTestId('trend-settings-btn').click()
   })
 
@@ -343,12 +362,12 @@ test.describe.serial('The trend, extended', () => {
     // holds still. A press on the plot takes the focus for the keys, and zooms nothing.
     await mainPage.getByTestId('trend-range-log').click()
     await mainPage.mouse.click(over.x + over.width * 0.5, over.y + over.height / 2)
-    await mainPage.keyboard.press('+')
+    await pinch(mainPage)
     await expect(mainPage.getByTestId('trend-paused-btn')).toHaveAttribute('aria-pressed', 'true')
     const once = await stretch.getAttribute('aria-valuetext')
     // Further apart than a run of zooms, so a step of its own.
     await mainPage.waitForTimeout(700)
-    await mainPage.keyboard.press('+')
+    await pinch(mainPage)
     await expect(stretch).not.toHaveAttribute('aria-valuetext', once ?? '')
     await expect(mainPage.getByTestId('trend-back-btn')).toHaveAttribute(
       'title',
@@ -362,30 +381,27 @@ test.describe.serial('The trend, extended', () => {
     await expect(mainPage.getByTestId('trend-back-btn')).toHaveCount(0)
   })
 
-  test('a sideways wheel and a shift-drag pan, and a pinch zooms the time and not the page', async ({
-    mainPage
-  }) => {
+  test('a shift-drag pans, and a pinch zooms the time and not the page', async ({ mainPage }) => {
     const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
     if (!over) throw new Error('The plot is not laid out')
     const stretch = mainPage.getByTestId('trend-navigator-window')
     const middle = { x: over.x + over.width / 2, y: over.y + over.height / 2 }
-    await mainPage.mouse.click(middle.x, middle.y)
-    await mainPage.keyboard.press('+')
-    await mainPage.keyboard.press('+')
-    await mainPage.keyboard.press('+')
+    await mainPage.mouse.move(middle.x, middle.y)
+    await pinch(mainPage)
+    await pinch(mainPage)
     const zoomed = await stretch.getAttribute('aria-valuenow')
 
+    // A sideways swipe pans nothing: the navigator pans.
     await mainPage.mouse.wheel(-200, 0)
-    await expect(stretch).not.toHaveAttribute('aria-valuenow', zoomed ?? '')
-    const swiped = await stretch.getAttribute('aria-valuenow')
+    await mainPage.waitForTimeout(300)
+    await expect(stretch).toHaveAttribute('aria-valuenow', zoomed ?? '')
 
     await mainPage.keyboard.down('Shift')
     await mainPage.mouse.down()
-    // To the left, later: the swipe left the stretch against the log's start.
     await mainPage.mouse.move(middle.x - 150, middle.y, { steps: 5 })
     await mainPage.mouse.up()
     await mainPage.keyboard.up('Shift')
-    await expect(stretch).not.toHaveAttribute('aria-valuenow', swiped ?? '')
+    await expect(stretch).not.toHaveAttribute('aria-valuenow', zoomed ?? '')
     await expect(mainPage.getByTestId('trend-selection')).toHaveCount(0)
 
     const width = await mainPage.evaluate(() => window.innerWidth)
@@ -420,24 +436,23 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.getByTestId('trend-plot-grip-0').dblclick()
   })
 
-  test('the keys zoom, and Esc lets the stretch go and then follows the log', async ({
+  test('+ and − zoom nothing, and Esc lets the stretch go and then follows the log', async ({
     mainPage
   }) => {
     const plot = mainPage.locator('[data-testid="trend-plot-0"] .u-over')
     const over = await plot.boundingBox()
     if (!over) throw new Error('The plot is not laid out')
     const stretch = mainPage.getByTestId('trend-navigator-window')
-    // Zoomed in on the whole log first, so the stretch has room to widen. A
-    // press on the plot takes the focus for the keys.
+    // Zoomed in on the whole log first, so it holds still. A press on the plot
+    // takes the focus for the keys.
     await mainPage.getByTestId('trend-range-log').click()
     await mainPage.mouse.click(over.x + over.width / 2, over.y + over.height / 2)
-    await mainPage.keyboard.press('+')
-    await mainPage.keyboard.press('+')
-    const before = (await stretch.boundingBox())?.width ?? 0
-    await mainPage.keyboard.press('-')
-    await expect(async () =>
-      expect((await stretch.boundingBox())?.width ?? 0).toBeGreaterThan(before)
-    ).toPass()
+    await pinch(mainPage)
+    await expect(mainPage.getByTestId('trend-paused-btn')).toHaveAttribute('aria-pressed', 'true')
+    const held = await stretch.getAttribute('aria-valuetext')
+    for (const key of ['+', '-', 'ArrowLeft', 'ArrowRight']) await mainPage.keyboard.press(key)
+    await mainPage.waitForTimeout(300)
+    await expect(stretch).toHaveAttribute('aria-valuetext', held ?? '')
 
     const box = await plot.boundingBox()
     if (!box) throw new Error('The plot is not laid out')
@@ -457,6 +472,10 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.getByTestId('trend-help-btn').hover()
     await expect(mainPage.getByTestId('trend-help')).toContainText('Shift + drag')
     await expect(mainPage.getByTestId('trend-help')).toContainText('Esc')
+    await expect(mainPage.getByTestId('trend-help')).toContainText('Alt + click a chip')
+    await expect(mainPage.getByTestId('trend-help')).toContainText('Double click an axis')
+    await expect(mainPage.getByTestId('trend-help')).not.toContainText('+ and')
+    await expect(mainPage.getByTestId('trend-help')).not.toContainText('sideways')
     await mainPage.mouse.move(0, 0)
     await mainPage.getByTestId('trend-mode-dock-btn').click()
   })

@@ -492,22 +492,14 @@ const TrendPlot = meme(
       made.root.appendChild(tag)
       chart.current = made
       if (unit !== undefined) handed.current?.(unit, made)
-      // A pinch is the wheel with Control and a sideways swipe pans; the wheel
-      // itself scrolls the plots, and the navigator zooms and pans.
+      // A pinch is the wheel with Control; the wheel itself scrolls the
+      // plots, and the navigator zooms and pans.
       const handleWheel = (event: WheelEvent): void => {
+        if (!event.ctrlKey) return
+        event.preventDefault()
         const { from: shownFrom, to: shownTo } = shown.current
         const at = made.posToVal(event.offsetX, 'x')
-        let next
-        if (event.ctrlKey) next = zoomAround(shownFrom, shownTo, at, pinchFactor(event.deltaY))
-        else if (Math.abs(event.deltaX) > Math.abs(event.deltaY))
-          next = panBy(
-            shownFrom,
-            shownTo,
-            wheelPixels(event.deltaX, event.deltaMode, made.over.clientWidth) /
-              made.over.clientWidth
-          )
-        else return
-        event.preventDefault()
+        const next = zoomAround(shownFrom, shownTo, at, pinchFactor(event.deltaY))
         zoom.current(next.from, next.to)
       }
       made.over.addEventListener('wheel', handleWheel, { passive: false })
@@ -644,12 +636,17 @@ const TrendPlot = meme(
     const handleAxisMove = useCallback(
       (event: ReactPointerEvent<HTMLDivElement>) => {
         const held = axisDrag.current
-        if (!held || unit === undefined) return
+        // A press that has not moved, a double click's among them, pans nothing.
+        if (!held || unit === undefined || Math.abs(event.clientY - held.y) < SHORTEST_DRAG) return
         const shift = ((event.clientY - held.y) / held.height) * (held.range.max - held.range.min)
         axisZoomTo.current?.(unit, { min: held.range.min + shift, max: held.range.max + shift })
       },
       [unit]
     )
+    // A double click on a zoomed axis hands it back to Auto or Fixed.
+    const handleAxisDoubleClick = useCallback(() => {
+      if (unit !== undefined && axisZoomed) axisZoomTo.current?.(unit, undefined)
+    }, [unit, axisZoomed])
     const handleAxisUp = useCallback(() => {
       axisDrag.current = null
     }, [])
@@ -682,6 +679,7 @@ const TrendPlot = meme(
             onPointerDown={handleAxisDown}
             onPointerMove={handleAxisMove}
             onPointerUp={handleAxisUp}
+            onDoubleClick={handleAxisDoubleClick}
             sx={{
               position: 'absolute',
               left: 0,

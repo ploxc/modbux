@@ -68,10 +68,6 @@ import {
   plotsOf,
   plotShare,
   selectionLabel,
-  panBy,
-  zoomAround,
-  WHEEL_ZOOM,
-  KEY_PAN,
   navigatorEntry,
   scaleRange
 } from './trendData'
@@ -283,16 +279,16 @@ const CsvButton = meme((): JSX.Element => {
 
 /** What each gesture and key does in the trend, as the ? lists it. */
 const GESTURES: readonly [string, string][] = [
+  ['Click a chip', 'hide or show its register'],
+  ['Alt + click a chip', 'show it alone, or all again'],
   ['Drag', 'select a stretch'],
   ['Shift + drag', 'pan'],
   ['Wheel', 'scroll the plots'],
-  ['Wheel sideways', 'pan'],
   ['Wheel over an axis', 'zoom that axis'],
   ['Pinch', 'zoom the time'],
   ['Backspace', 'back one zoom'],
   ['Double click', 'back to the range, live'],
-  ['+ and −', 'zoom in and out'],
-  ['← and →', 'pan'],
+  ['Double click an axis', 'back to Auto or Fixed'],
   ['Esc', 'clear the stretch, then back to live']
 ]
 
@@ -388,8 +384,8 @@ const layoutOf = (
 
 /**
  * One register of the trend: its colour, address and name, which a click
- * hides and shows and a double click shows alone, and a press that takes it
- * out. The two are siblings, because a button may not hold a button. Hidden,
+ * hides and shows and a click with Alt held shows alone, and a press that
+ * takes it out. The two are siblings, because a button may not hold a button. Hidden,
  * the chip stays, dashed and dim, its swatch an outline in its colour.
  */
 const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
@@ -403,14 +399,14 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
     const trendPanelZustand = useTrendPanelZustand.getState()
     trendPanelZustand.remove(trendKey(entry))
   }, [entry])
-  const handleToggle = useCallback(() => {
-    const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.toggleHidden(trendKey(entry))
-  }, [entry])
-  const handleSolo = useCallback(() => {
-    const trendPanelZustand = useTrendPanelZustand.getState()
-    trendPanelZustand.solo(trendKey(entry))
-  }, [entry])
+  const handleToggle = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      const trendPanelZustand = useTrendPanelZustand.getState()
+      if (event.altKey) trendPanelZustand.solo(trendKey(entry))
+      else trendPanelZustand.toggleHidden(trendKey(entry))
+    },
+    [entry]
+  )
   const address = entry.address + Number(addressBase)
   const hidden = entry.hidden === true
 
@@ -441,7 +437,6 @@ const TrendChip = meme(({ entry }: { entry: DrawnEntry }): JSX.Element => {
         aria-label={hidden ? `Show ${address}` : `Hide ${address}`}
         data-testid={`trend-chip-toggle-${entry.type}-${address}`}
         onClick={handleToggle}
-        onDoubleClick={handleSolo}
         sx={{
           alignSelf: 'stretch',
           minWidth: 0,
@@ -710,38 +705,22 @@ const TrendBody = meme(({ uuid, entries, units, plots }: TrendBodyProps): JSX.El
     trendPanelZustand.setAxisZoom(unit, range)
   }, [])
   // The keys, while the focus is in the trend's plots, lanes or navigator
-  // and not in a field: + and - zoom, the arrows pan, Backspace goes back one
-  // and Esc lets the selection go, or with none follows the log again.
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      const { target } = event
-      if (event.defaultPrevented || !(target instanceof HTMLElement)) return
-      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-        return
-      // A panel the trend opened in a portal bubbles here too, and is not the trend.
-      if (!event.currentTarget.contains(target)) return
-      const trendPanelZustand = useTrendPanelZustand.getState()
-      const middle = (from + to) / 2
-      const moved =
-        event.key === '+' || event.key === '='
-          ? zoomAround(from, to, middle, WHEEL_ZOOM)
-          : event.key === '-'
-            ? zoomAround(from, to, middle, 1 / WHEEL_ZOOM)
-            : event.key === 'ArrowLeft'
-              ? panBy(from, to, -KEY_PAN)
-              : event.key === 'ArrowRight'
-                ? panBy(from, to, KEY_PAN)
-                : undefined
-      if (moved !== undefined) handleZoom(moved.from, moved.to)
-      else if (event.key === 'Backspace') trendPanelZustand.back()
-      else if (event.key === 'Escape' && trendPanelZustand.selection !== undefined)
-        trendPanelZustand.setSelection(undefined)
-      else if (event.key === 'Escape') trendPanelZustand.followRange()
-      else return
-      event.preventDefault()
-    },
-    [from, to, handleZoom]
-  )
+  // and not in a field: Backspace goes back one, and Esc lets the selection
+  // go, or with none follows the log again.
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    const { target } = event
+    if (event.defaultPrevented || !(target instanceof HTMLElement)) return
+    if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+    // A panel the trend opened in a portal bubbles here too, and is not the trend.
+    if (!event.currentTarget.contains(target)) return
+    const trendPanelZustand = useTrendPanelZustand.getState()
+    if (event.key === 'Backspace') trendPanelZustand.back()
+    else if (event.key === 'Escape' && trendPanelZustand.selection !== undefined)
+      trendPanelZustand.setSelection(undefined)
+    else if (event.key === 'Escape') trendPanelZustand.followRange()
+    else return
+    event.preventDefault()
+  }, [])
   // A press on the plots takes the focus, so the keys work after the mouse.
   const handleFocus = useCallback((event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.focus()
