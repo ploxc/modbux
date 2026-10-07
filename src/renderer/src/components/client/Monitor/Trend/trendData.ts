@@ -369,6 +369,24 @@ export const touchView = (
   return { from, to: from + zoomed }
 }
 
+/** How many pixels a line of the wheel is, for a mouse that reports lines. */
+const LINE_PIXELS = 16
+
+/**
+ * How far a wheel event moved, in pixels, whatever unit it reports: pixels
+ * from a trackpad, lines from some mice, pages rarely.
+ */
+export const wheelPixels = (delta: number, deltaMode: number, page: number): number =>
+  deltaMode === 1 ? delta * LINE_PIXELS : deltaMode === 2 ? delta * page : delta
+
+/**
+ * How much a wheel event zooms an axis: by its distance, so a trackpad's many
+ * small events zoom as far as a mouse's few large ones, a notch of the wheel
+ * per 100 pixels, and never more than a notch an event.
+ */
+export const wheelFactor = (pixels: number): number =>
+  Math.min(1 / WHEEL_ZOOM, Math.max(WHEEL_ZOOM, WHEEL_ZOOM ** (-pixels / 100)))
+
 /** How long apart two zooms or pans are and still one step back. */
 export const HISTORY_GAP_MS = 500
 

@@ -27,6 +27,8 @@ import {
   plotsOf,
   plotShare,
   touchView,
+  wheelFactor,
+  wheelPixels,
   WHEEL_ZOOM,
   panBy,
   zoomAxis,
@@ -361,6 +363,31 @@ describe('pinchFactor', () => {
   it('zooms no more than a notch of the wheel, however far a step reaches', () => {
     expect(pinchFactor(100)).toBe(1 / WHEEL_ZOOM)
     expect(pinchFactor(-100)).toBe(WHEEL_ZOOM)
+  })
+})
+
+describe('wheelPixels', () => {
+  it('reads a trackpad in pixels, a mouse in lines and a page as the box', () => {
+    expect(wheelPixels(-3, 0, 400)).toBe(-3)
+    expect(wheelPixels(-3, 1, 400)).toBe(-48)
+    expect(wheelPixels(1, 2, 400)).toBe(400)
+  })
+})
+
+describe('wheelFactor', () => {
+  it('zooms a notch of the wheel for 100 pixels, in for up and out for down', () => {
+    expect(wheelFactor(-100)).toBeCloseTo(WHEEL_ZOOM, 12)
+    expect(wheelFactor(100)).toBeCloseTo(1 / WHEEL_ZOOM, 12)
+  })
+
+  it("zooms a trackpad's twenty small steps as far as one notch", () => {
+    const steps = Array.from({ length: 20 }, () => wheelFactor(-5))
+    expect(steps.reduce((product, factor) => product * factor, 1)).toBeCloseTo(WHEEL_ZOOM, 12)
+  })
+
+  it('never zooms more than a notch an event', () => {
+    expect(wheelFactor(-1000)).toBe(WHEEL_ZOOM)
+    expect(wheelFactor(1000)).toBe(1 / WHEEL_ZOOM)
   })
 })
 

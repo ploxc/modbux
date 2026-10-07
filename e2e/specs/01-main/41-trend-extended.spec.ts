@@ -245,6 +245,9 @@ test.describe.serial('The trend, extended', () => {
     await mainPage.mouse.move(over.x + over.width * 0.2, over.y + over.height / 2)
     await mainPage.mouse.down()
     await mainPage.mouse.move(over.x + over.width * 0.8, over.y + over.height / 2, { steps: 5 })
+    // The box shows as it is dragged, in the other plot too.
+    const dragged = await mainPage.locator('[data-testid="trend-plot-1"] .u-select').boundingBox()
+    expect(dragged?.width).toBeGreaterThan(over.width * 0.5)
     await mainPage.mouse.up()
 
     // A drag no longer zooms: the trend goes on following the log.
@@ -336,23 +339,22 @@ test.describe.serial('The trend, extended', () => {
     const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
     if (!over) throw new Error('The plot is not laid out')
     const stretch = mainPage.getByTestId('trend-navigator-window')
-    // Over the whole log, a zoom at the middle ends before the log does, so it holds still.
+    // Over the whole log, a zoom at the middle ends before the log does, so it
+    // holds still. A press on the plot takes the focus for the keys, and zooms nothing.
     await mainPage.getByTestId('trend-range-log').click()
-    await mainPage.mouse.move(over.x + over.width * 0.5, over.y + over.height / 2)
-    await mainPage.mouse.wheel(0, -100)
+    await mainPage.mouse.click(over.x + over.width * 0.5, over.y + over.height / 2)
+    await mainPage.keyboard.press('+')
     await expect(mainPage.getByTestId('trend-paused-btn')).toHaveAttribute('aria-pressed', 'true')
     const once = await stretch.getAttribute('aria-valuetext')
-    // Further apart than a run of the wheel, so a step of its own.
+    // Further apart than a run of zooms, so a step of its own.
     await mainPage.waitForTimeout(700)
-    await mainPage.mouse.wheel(0, -100)
+    await mainPage.keyboard.press('+')
     await expect(stretch).not.toHaveAttribute('aria-valuetext', once ?? '')
     await expect(mainPage.getByTestId('trend-back-btn')).toHaveAttribute(
       'title',
       `Back to ${once?.replace(' to ', ' → ')}`
     )
 
-    // A press on the plot takes the focus for the keys, and zooms nothing.
-    await mainPage.mouse.click(over.x + over.width * 0.5, over.y + over.height / 2)
     await mainPage.keyboard.press('Backspace')
     await expect(stretch).toHaveAttribute('aria-valuetext', once ?? '')
     await mainPage.keyboard.press('Backspace')
@@ -367,8 +369,10 @@ test.describe.serial('The trend, extended', () => {
     if (!over) throw new Error('The plot is not laid out')
     const stretch = mainPage.getByTestId('trend-navigator-window')
     const middle = { x: over.x + over.width / 2, y: over.y + over.height / 2 }
-    await mainPage.mouse.move(middle.x, middle.y)
-    await mainPage.mouse.wheel(0, -300)
+    await mainPage.mouse.click(middle.x, middle.y)
+    await mainPage.keyboard.press('+')
+    await mainPage.keyboard.press('+')
+    await mainPage.keyboard.press('+')
     const zoomed = await stretch.getAttribute('aria-valuenow')
 
     await mainPage.mouse.wheel(-200, 0)
@@ -395,6 +399,27 @@ test.describe.serial('The trend, extended', () => {
     expect(await mainPage.evaluate(() => window.innerWidth)).toBe(width)
   })
 
+  test('the wheel over a plot scrolls the plots, and zooms nothing', async ({ mainPage }) => {
+    await mainPage.getByTestId('trend-range-10m').click()
+    await dragGrip(mainPage, 0, 600)
+    const plots = mainPage.getByTestId('trend-plots')
+    await expect(async () =>
+      expect(await plots.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0)
+    ).toPass()
+    const over = await mainPage.locator('[data-testid="trend-plot-0"] .u-over').boundingBox()
+    if (!over) throw new Error('The plot is not laid out')
+    await mainPage.mouse.move(over.x + over.width / 2, over.y + 40)
+    await mainPage.mouse.wheel(0, 200)
+
+    await expect(async () =>
+      expect(await plots.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+    ).toPass()
+    await expect(mainPage.getByTestId('trend-range-10m')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mainPage.getByTestId('trend-live-btn')).toHaveAttribute('aria-pressed', 'true')
+    await plots.evaluate((el) => el.scrollTo({ top: 0 }))
+    await mainPage.getByTestId('trend-plot-grip-0').dblclick()
+  })
+
   test('the keys zoom, and Esc lets the stretch go and then follows the log', async ({
     mainPage
   }) => {
@@ -402,8 +427,12 @@ test.describe.serial('The trend, extended', () => {
     const over = await plot.boundingBox()
     if (!over) throw new Error('The plot is not laid out')
     const stretch = mainPage.getByTestId('trend-navigator-window')
-    // A press on the plot takes the focus for the keys.
+    // Zoomed in on the whole log first, so the stretch has room to widen. A
+    // press on the plot takes the focus for the keys.
+    await mainPage.getByTestId('trend-range-log').click()
     await mainPage.mouse.click(over.x + over.width / 2, over.y + over.height / 2)
+    await mainPage.keyboard.press('+')
+    await mainPage.keyboard.press('+')
     const before = (await stretch.boundingBox())?.width ?? 0
     await mainPage.keyboard.press('-')
     await expect(async () =>

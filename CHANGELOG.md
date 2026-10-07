@@ -98,33 +98,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversion makes it.
 - **A trend of what logs.** Trend in Monitor's toolbar, or a register's Log
   icon, opens a trend of up to eight registers, each in its own colour. It
-  shows the last 10 minutes, an hour, 8 hours or the whole log, live while
-  the log runs, or a stretch picked in a calendar; Paused holds it still, the
-  wheel zooms, a strip of the whole log under it pans, and Live follows the
-  log again. The cursor reads every register at the moment under it. A drag
-  across the trend selects a stretch and shows, from the log itself, each
-  register's mean, lowest, highest, median, last value, change and sample
-  count, or how long a bit was on and how often it switched; Zoom to range
-  zooms to it. The wheel sideways, a shift-drag, a pinch and a finger pan and
-  zoom the time; the wheel over an axis zooms it and a drag along it pans it,
-  until its reset hands it back to Auto or Fixed. Backspace or the back arrow
-  takes the last zoom back; + and − zoom, ← and → pan, and Esc lets the
-  stretch go and then follows the log. The ? lists them all. The plot under
-  the pointer shows a crosshair and its value on its axis. A CSV of what the trend
-  shows, or of the stretch selected, has a time column and a column per
-  register shown, each value converted as the grid converts it. Copy as image
-  and Save as image, in the trend's menu, take everything it shows, the
-  lanes and the plots scrolled out of view included. Each engineering unit draws a plot of its own, all on
-  one time axis and under one cursor; a grip under a plot drags its height,
-  which a saved trend keeps. Bits and bitmaps draw as lanes under the plots,
-  and a bitmap opens into a lane a bit. Plots and lanes taller than the trend
-  scroll. A click on a register's chip hides its line or lane and a second
-  shows it again; a double click shows it alone. Axes and lines, a panel that drags and stays open
+  shows the last 10 minutes, an hour, 8 hours or the whole log, live while the
+  log runs, or a stretch picked in a calendar; Paused holds it still, a strip
+  of the whole log under it zooms and pans, and Live follows the log again.
+  The cursor reads every register at the moment under it. A drag across the
+  trend selects a stretch and shows, from the log itself, each register's
+  mean, lowest, highest, median, last value, change and sample count, or how
+  long a bit was on and how often it switched; Zoom to range zooms to it. The
+  wheel scrolls the plots; the wheel sideways, a shift-drag, a pinch and a
+  finger pan and zoom the time; the wheel over an axis zooms it and a drag
+  along it pans it, until its reset hands it back to Auto or Fixed. Backspace
+  or the back arrow takes the last zoom back; + and − zoom, ← and → pan, and
+  Esc lets the stretch go and then follows the log. The ? lists them all. The
+  plot under the pointer shows a crosshair and its value on its axis. A CSV of
+  what the trend shows, or of the stretch selected, has a time column and a
+  column per register shown, each value converted as the grid converts it.
+  Copy as image and Save as image, in the trend's menu, take everything it
+  shows, the lanes and the plots scrolled out of view included. Each
+  engineering unit draws a plot of its own, all on one time axis and under one
+  cursor; a grip under a plot drags its height, which a saved trend keeps.
+  Bits and bitmaps draw as lanes under the plots, and a bitmap opens into a
+  lane a bit. Plots and lanes taller than the trend scroll. A click on a
+  register's chip hides its line or lane and a second shows it again; a double
+  click shows it alone. Axes and lines, a panel that drags and stays open
   beside the trend, holds a unit's axis at the range it shows or one typed,
-  gives a line another colour, reads the time since the log's start, and
-  draws steps or points.
-  A trend saves under a name with its client, and asks before it deletes one;
-  it docks under Monitor's grid or fills its room.
+  gives a line another colour, reads the time since the log's start, and draws
+  steps or points. A trend saves under a name with its client, and asks before
+  it deletes one; it docks under Monitor's grid or fills its room.
 - **Client to server without Home.** Beside Home in the client's top bar, a
   server button opens the server in the same window, and the server's top bar
   has a client button back. While the server has a window of its own, neither

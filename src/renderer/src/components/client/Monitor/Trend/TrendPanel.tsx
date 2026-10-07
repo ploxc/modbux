@@ -285,7 +285,7 @@ const CsvButton = meme((): JSX.Element => {
 const GESTURES: readonly [string, string][] = [
   ['Drag', 'select a stretch'],
   ['Shift + drag', 'pan'],
-  ['Wheel', 'zoom the time around the cursor'],
+  ['Wheel', 'scroll the plots'],
   ['Wheel sideways', 'pan'],
   ['Wheel over an axis', 'zoom that axis'],
   ['Pinch', 'zoom the time'],

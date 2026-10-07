@@ -15,7 +15,8 @@ import {
   touchView,
   TrendGap,
   TrendSeries,
-  WHEEL_ZOOM,
+  wheelFactor,
+  wheelPixels,
   zoomAround,
   zoomAxis
 } from './trendData'
@@ -321,7 +322,9 @@ const TrendPlot = meme(
             key: syncKey,
             setSeries: false,
             scales: ['x', null],
-            filters: { pub: (type) => type === 'mousemove' }
+            // A drag shows its box in every plot as it goes; a double click is
+            // the trend's own, and uPlot's would fit x to the data.
+            filters: { pub: (type) => type !== 'dblclick' }
           },
           // In place of uPlot's own, which fits x to the data and so to the
           // margin a zoomed trend asks either side of its stretch.
@@ -389,12 +392,14 @@ const TrendPlot = meme(
               })
             }
           ],
-          // The band every plot draws takes the place of uPlot's own box.
+          // The band every plot draws takes the place of uPlot's own box. The
+          // plot dragged across selects; the plots its drag is synced to have
+          // no event of their own.
           setSelect: [
             (selected: uPlot): void => {
               const { left, width } = selected.select
               selected.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false)
-              if (width < SHORTEST_DRAG) return
+              if (selected.cursor.event == null || width < SHORTEST_DRAG) return
               select.current({
                 from: selected.posToVal(left, 'x'),
                 to: selected.posToVal(left + width, 'x')
@@ -487,17 +492,20 @@ const TrendPlot = meme(
       made.root.appendChild(tag)
       chart.current = made
       if (unit !== undefined) handed.current?.(unit, made)
-      // A pinch is the wheel with Control, a sideways swipe pans, and the
-      // wheel zooms around the cursor.
+      // A pinch is the wheel with Control and a sideways swipe pans; the wheel
+      // itself scrolls the plots, and the navigator zooms and pans.
       const handleWheel = (event: WheelEvent): void => {
         const { from: shownFrom, to: shownTo } = shown.current
         const at = made.posToVal(event.offsetX, 'x')
         let next
         if (event.ctrlKey) next = zoomAround(shownFrom, shownTo, at, pinchFactor(event.deltaY))
         else if (Math.abs(event.deltaX) > Math.abs(event.deltaY))
-          next = panBy(shownFrom, shownTo, event.deltaX / made.over.clientWidth)
-        else if (event.deltaY !== 0)
-          next = zoomAround(shownFrom, shownTo, at, event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM)
+          next = panBy(
+            shownFrom,
+            shownTo,
+            wheelPixels(event.deltaX, event.deltaMode, made.over.clientWidth) /
+              made.over.clientWidth
+          )
         else return
         event.preventDefault()
         zoom.current(next.from, next.to)
@@ -558,7 +566,9 @@ const TrendPlot = meme(
         if (event.deltaY === 0) return
         event.preventDefault()
         const at = made.posToVal(event.clientY - made.over.getBoundingClientRect().top, scale)
-        const factor = event.deltaY < 0 ? WHEEL_ZOOM : 1 / WHEEL_ZOOM
+        const factor = wheelFactor(
+          wheelPixels(event.deltaY, event.deltaMode, made.over.clientHeight)
+        )
         axisZoomTo.current?.(unit, zoomAxis({ min: held.min, max: held.max }, at, factor))
       }
       axisBox?.addEventListener('wheel', handleAxisWheel, { passive: false })
@@ -652,8 +662,18 @@ const TrendPlot = meme(
         <Box
           ref={container}
           // No minimum of its own: uPlot's canvas inside it holds the size it
-          // was last given, and the observer above sees no less.
-          sx={{ position: 'absolute', inset: 0 }}
+          // was last given, and the observer above sees no less. The box a
+          // drag draws looks as the band it leaves does.
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            '& .u-select': {
+              bgcolor: (theme) => alpha(theme.palette.info.main, 0.1),
+              borderLeft: 1,
+              borderRight: 1,
+              borderColor: (theme) => alpha(theme.palette.info.main, 0.6)
+            }
+          }}
         />
         {unit !== undefined && (
           <Box
