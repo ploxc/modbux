@@ -1,5 +1,6 @@
 appId: com.ploxc.modbux
 productName: Modbux
+afterPack: ./build/afterPack.ts
 directories:
   buildResources: build
 files:
@@ -130,6 +131,7 @@ mac:
     NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSLocalNetworkUsageDescription: Modbux connects to Modbus devices and serves Modbus on your local network.
   notarize: false
   target:
     - target: dmg
