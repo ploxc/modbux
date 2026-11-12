@@ -5,7 +5,7 @@ All notable changes to Modbux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.1] - 2026-11-10
+## [2.3.1] - 2026-11-12
 
 ### Fixed
 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Modbux switched on under Local Network in System Settings, because macOS
   could not tell Modbux apart from other Electron apps. Modbux now has an
   identity of its own on macOS and says in the permission prompt why it asks.
+  macOS asks for that permission again once after the update.
 
 ## [2.3.0] - 2026-08-30
 
